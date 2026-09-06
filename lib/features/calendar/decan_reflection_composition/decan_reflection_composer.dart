@@ -1,6 +1,8 @@
 import 'package:mobile/core/composition/composition_engine.dart';
 import 'package:mobile/core/composition/composition_models.dart';
 import 'package:mobile/data/decan_reflection_model.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
 
 import 'decan_composition_claim_deriver.dart';
 import 'decan_reflection_phrase_bank.dart';
@@ -202,16 +204,28 @@ class DecanReflectionComposer {
 
     if (claimPlan.contains(CompositionClaimId.breadthNeedsCenter)) {
       return const CompositionRecommendation(
-        type: CompositionRecommendationType.flow,
-        id: 'flow:the-weighing',
-        key: 'the-weighing',
-        title: 'The Weighing',
+        type: CompositionRecommendationType.library,
+        id: 'library:keeping-the-measure',
+        key: 'keeping-the-measure',
+        title: 'Keeping the Measure',
         reason: 'several active flows call for a clear center',
       );
     }
 
     if (claimPlan.contains(CompositionClaimId.singleFlowDepth)) {
       final flowKey = facts.dominantFlowKey ?? 'maat-flow';
+      final catalogFlowKey = flowKey == 'reading-house'
+          ? MaatFlowKind.readingHouse.flowKey
+          : flowKey;
+      if (!isMaatFlowNewJoinAllowed(catalogFlowKey)) {
+        return const CompositionRecommendation(
+          type: CompositionRecommendationType.library,
+          id: 'library:keeping-the-measure',
+          key: 'keeping-the-measure',
+          title: 'Keeping the Measure',
+          reason: 'historical practice can be read without reopening it',
+        );
+      }
       final flowTitle = _flowTitleForKey(flowKey);
       return CompositionRecommendation(
         type: CompositionRecommendationType.flow,

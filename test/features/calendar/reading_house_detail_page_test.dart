@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/profile_repo.dart';
 import 'package:mobile/data/shared_calendar_models.dart';
@@ -14,6 +13,8 @@ import 'package:mobile/features/calendar/the_reading_house/presentation/reading_
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_sitting_editor.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
+
+import '../../support/maat_flow_visual_test_fonts.dart';
 
 const _captureVisualCheckpoint = bool.fromEnvironment(
   'CAPTURE_READING_HOUSE_VISUAL_CHECKPOINT',
@@ -109,6 +110,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> bringHouseControlIntoView(
+    WidgetTester tester,
+    Finder finder,
+  ) async {
+    await Scrollable.ensureVisible(
+      tester.element(finder),
+      alignment: 0.5,
+      duration: Duration.zero,
+    );
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('uses the shared detail architecture and revised visual copy', (
     tester,
   ) async {
@@ -129,11 +142,18 @@ void main() {
     expect(heroImage.fit, BoxFit.cover);
     expect(heroImage.alignment, ReadingHouseDetailTokens.heroImageAlignment);
     expect(find.text('The Reading\nHouse'), findsOneWidget);
+    expect(find.text('1 BOOK'), findsOneWidget);
+    expect(find.text('3 STARTER SITTINGS'), findsOneWidget);
+    expect(find.text('DATES YOU SET'), findsOneWidget);
     expect(
-      find.text('One book. A few people. Shared attention.'),
+      find.byKey(const ValueKey<String>('reading-house-featured-section')),
       findsOneWidget,
     );
-    expect(find.text('BEFORE THE CALENDAR'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-event-block-featured')),
+      findsOneWidget,
+    );
+    expect(find.text('Open the Text'), findsWidgets);
     expect(find.text('Set the house'), findsNothing);
     expect(find.text('No invites yet'), findsOneWidget);
     expect(find.text('You'), findsOneWidget);
@@ -184,7 +204,7 @@ void main() {
     final invite = find.byKey(
       const ValueKey<String>('reading-house-invite-reader'),
     );
-    await jumpHouseScroll(tester, 1050);
+    await bringHouseControlIntoView(tester, invite);
     await tester.tap(invite);
     await tester.pumpAndSettle();
     expect(
@@ -473,10 +493,11 @@ void main() {
       expect(tester.testTextInput.isVisible, isTrue);
     }
 
-    await jumpHouseScroll(tester, 1050);
-    await tester.tap(
-      find.byKey(const ValueKey<String>('reading-house-invite-reader')),
+    final invite = find.byKey(
+      const ValueKey<String>('reading-house-invite-reader'),
     );
+    await bringHouseControlIntoView(tester, invite);
+    await tester.tap(invite);
     await tester.pumpAndSettle();
     final search = find.byKey(
       const ValueKey<String>('reading-house-reader-search'),
@@ -720,10 +741,11 @@ void main() {
   ) async {
     final authority = _ControlledSearchAuthority();
     await pumpHouse(tester, authority: authority);
-    await jumpHouseScroll(tester, 1050);
-    await tester.tap(
-      find.byKey(const ValueKey<String>('reading-house-invite-reader')),
+    final invite = find.byKey(
+      const ValueKey<String>('reading-house-invite-reader'),
     );
+    await bringHouseControlIntoView(tester, invite);
+    await tester.tap(invite);
     await tester.pumpAndSettle();
     final field = find.byKey(
       const ValueKey<String>('reading-house-reader-search'),
@@ -764,10 +786,11 @@ void main() {
   ) async {
     final authority = _ControlledSearchAuthority();
     await pumpHouse(tester, authority: authority);
-    await jumpHouseScroll(tester, 1050);
-    await tester.tap(
-      find.byKey(const ValueKey<String>('reading-house-invite-reader')),
+    final invite = find.byKey(
+      const ValueKey<String>('reading-house-invite-reader'),
     );
+    await bringHouseControlIntoView(tester, invite);
+    await tester.tap(invite);
     await tester.pumpAndSettle();
     final field = find.byKey(
       const ValueKey<String>('reading-house-reader-search'),
@@ -801,10 +824,11 @@ void main() {
       initialFlowId: authority.flowId,
     );
     authority.resetOperationCounts();
-    await jumpHouseScroll(tester, 1050);
-    await tester.tap(
-      find.byKey(const ValueKey<String>('reading-house-invite-reader')),
+    final invite = find.byKey(
+      const ValueKey<String>('reading-house-invite-reader'),
     );
+    await bringHouseControlIntoView(tester, invite);
+    await tester.tap(invite);
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey<String>('reading-house-reader-search')),
@@ -950,7 +974,7 @@ void main() {
     if (!_captureVisualCheckpoint) return;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
-    await _loadVisualFonts();
+    await loadMaatFlowVisualTestFonts();
 
     for (final fixture in const <({String name, Size size})>[
       (name: '390', size: Size(390, 844)),
@@ -982,36 +1006,6 @@ void main() {
     }
     expect(tester.takeException(), isNull);
   });
-}
-
-Future<void> _loadVisualFonts() async {
-  final gentium = FontLoader('GentiumPlus')
-    ..addFont(rootBundle.load('ios/Runner/Fonts/GentiumPlus-Regular.ttf'))
-    ..addFont(rootBundle.load('ios/Runner/Fonts/GentiumPlus-Bold.ttf'));
-  final cormorant = FontLoader('CormorantGaramond')
-    ..addFont(rootBundle.load('ios/Runner/Fonts/CormorantGaramond-Regular.ttf'))
-    ..addFont(rootBundle.load('ios/Runner/Fonts/CormorantGaramond-Italic.ttf'))
-    ..addFont(rootBundle.load('ios/Runner/Fonts/CormorantGaramond-Medium.ttf'))
-    ..addFont(
-      rootBundle.load('ios/Runner/Fonts/CormorantGaramond-MediumItalic.ttf'),
-    )
-    ..addFont(
-      rootBundle.load('ios/Runner/Fonts/CormorantGaramond-SemiBold.ttf'),
-    );
-  final materialIcons = FontLoader('MaterialIcons')
-    ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-  final hieroglyphs = FontLoader('Noto Sans Egyptian Hieroglyphs')
-    ..addFont(
-      rootBundle.load(
-        'ios/Runner/Fonts/NotoSansEgyptianHieroglyphs-Regular.ttf',
-      ),
-    );
-  await Future.wait(<Future<void>>[
-    gentium.load(),
-    cormorant.load(),
-    materialIcons.load(),
-    hieroglyphs.load(),
-  ]);
 }
 
 class _FakeReadingHouseAuthority implements ReadingHouseAuthority {

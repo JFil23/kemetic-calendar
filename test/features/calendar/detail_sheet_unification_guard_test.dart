@@ -4,12 +4,16 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   late String dayView;
+  late String presentationFrame;
   late String calendarPage;
   late String calendarGridWidgets;
   late String landscapeMonthView;
 
   setUpAll(() {
     dayView = File('lib/features/calendar/day_view.dart').readAsStringSync();
+    presentationFrame = File(
+      'lib/features/calendar/presentation/instrument_event_presentation_frame.dart',
+    ).readAsStringSync();
     calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
@@ -57,12 +61,23 @@ void main() {
         landscapeOpener,
       ]) {
         expect(opener, contains('CalendarEventDetailSheet('));
-        expect(opener, contains('backgroundColor: Colors.transparent'));
         expect(opener, contains('onAppendToJournal:'));
         expect(opener, contains('onWriteJournalResponse:'));
         expect(opener, contains('onRecordCompletion:'));
         expect(opener, contains('onUnrecordCompletion:'));
         expect(opener, contains('onRemoveCompletionBadge:'));
+      }
+      expect(dayViewOpener, contains('showCalendarEventDetailSheetModal'));
+      expect(
+        presentationFrame,
+        contains('backgroundColor: Colors.transparent'),
+      );
+      for (final opener in <String>[
+        mainCalendarOpener,
+        mainGridChipOpener,
+        landscapeOpener,
+      ]) {
+        expect(opener, contains('backgroundColor: Colors.transparent'));
       }
 
       expect(calendarPage, isNot(contains('_MainCalendarEventDetailSheet')));
@@ -88,9 +103,9 @@ void main() {
 
   test('shared detail sheet frame owns the matte backplate', () {
     final frame = _sourceBetween(
-      dayView,
+      presentationFrame,
       'class DayViewBottomSheetFrame extends StatelessWidget',
-      'class CalendarEventDetailSheet extends StatefulWidget',
+      'class InstrumentEventSheetHost extends StatefulWidget',
     );
     expect(frame, contains('Positioned.fill'));
     expect(frame, contains('IgnorePointer'));

@@ -164,28 +164,18 @@ extension MaatFlowJournalCarryModeX on MaatFlowJournalCarryMode {
 enum MaatFlowResponseJournalFormatter {
   standard,
   decanWatch,
-  dawnHouseRite,
-  closingRelease,
   offeringTable,
-  daysOutsideReceipt,
-  wepRonpetOpening,
   openHandProvision,
   djedRestoration,
-  tendingCare,
-  keptWordAgreement,
-  wagMemory,
   khatBodyCare,
   oracleSign,
   wanderingRemainder,
   followSkyWitness,
-  weighingRecord,
-  firstArrangementOrder,
   livingPatternPrinciple,
   houseOfLifeKnowledge,
   hotepPeace,
   shoreExchange,
   livingTextLine,
-  clearingSpace,
   hetHeruJoy,
   fairHearingMeasure,
   boundaryStoneRestoration,
@@ -203,26 +193,12 @@ extension MaatFlowResponseJournalFormatterX
         return 'standard';
       case MaatFlowResponseJournalFormatter.decanWatch:
         return 'decan_watch';
-      case MaatFlowResponseJournalFormatter.dawnHouseRite:
-        return 'dawn_house_rite';
-      case MaatFlowResponseJournalFormatter.closingRelease:
-        return 'closing_release';
       case MaatFlowResponseJournalFormatter.offeringTable:
         return 'offering_table';
-      case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
-        return 'days_outside_receipt';
-      case MaatFlowResponseJournalFormatter.wepRonpetOpening:
-        return 'wep_ronpet_opening';
       case MaatFlowResponseJournalFormatter.openHandProvision:
         return 'open_hand_provision';
       case MaatFlowResponseJournalFormatter.djedRestoration:
         return 'djed_restoration';
-      case MaatFlowResponseJournalFormatter.tendingCare:
-        return 'tending_care';
-      case MaatFlowResponseJournalFormatter.keptWordAgreement:
-        return 'kept_word_agreement';
-      case MaatFlowResponseJournalFormatter.wagMemory:
-        return 'wag_memory';
       case MaatFlowResponseJournalFormatter.khatBodyCare:
         return 'khat_body_care';
       case MaatFlowResponseJournalFormatter.oracleSign:
@@ -231,10 +207,6 @@ extension MaatFlowResponseJournalFormatterX
         return 'wandering_remainder';
       case MaatFlowResponseJournalFormatter.followSkyWitness:
         return 'follow_sky_witness';
-      case MaatFlowResponseJournalFormatter.weighingRecord:
-        return 'weighing_record';
-      case MaatFlowResponseJournalFormatter.firstArrangementOrder:
-        return 'first_arrangement_order';
       case MaatFlowResponseJournalFormatter.livingPatternPrinciple:
         return 'living_pattern_principle';
       case MaatFlowResponseJournalFormatter.houseOfLifeKnowledge:
@@ -245,8 +217,6 @@ extension MaatFlowResponseJournalFormatterX
         return 'shore_exchange';
       case MaatFlowResponseJournalFormatter.livingTextLine:
         return 'living_text_line';
-      case MaatFlowResponseJournalFormatter.clearingSpace:
-        return 'clearing_space';
       case MaatFlowResponseJournalFormatter.hetHeruJoy:
         return 'het_heru_joy';
       case MaatFlowResponseJournalFormatter.fairHearingMeasure:
@@ -269,36 +239,15 @@ extension MaatFlowResponseJournalFormatterX
       case 'decan_watch':
       case 'decan-watch':
         return MaatFlowResponseJournalFormatter.decanWatch;
-      case 'dawn_house_rite':
-      case 'dawn-house-rite':
-        return MaatFlowResponseJournalFormatter.dawnHouseRite;
-      case 'closing_release':
-      case 'closing-release':
-        return MaatFlowResponseJournalFormatter.closingRelease;
       case 'offering_table':
       case 'offering-table':
         return MaatFlowResponseJournalFormatter.offeringTable;
-      case 'days_outside_receipt':
-      case 'days-outside-receipt':
-        return MaatFlowResponseJournalFormatter.daysOutsideReceipt;
-      case 'wep_ronpet_opening':
-      case 'wep-ronpet-opening':
-        return MaatFlowResponseJournalFormatter.wepRonpetOpening;
       case 'open_hand_provision':
       case 'open-hand-provision':
         return MaatFlowResponseJournalFormatter.openHandProvision;
       case 'djed_restoration':
       case 'djed-restoration':
         return MaatFlowResponseJournalFormatter.djedRestoration;
-      case 'tending_care':
-      case 'tending-care':
-        return MaatFlowResponseJournalFormatter.tendingCare;
-      case 'kept_word_agreement':
-      case 'kept-word-agreement':
-        return MaatFlowResponseJournalFormatter.keptWordAgreement;
-      case 'wag_memory':
-      case 'wag-memory':
-        return MaatFlowResponseJournalFormatter.wagMemory;
       case 'khat_body_care':
       case 'khat-body-care':
         return MaatFlowResponseJournalFormatter.khatBodyCare;
@@ -311,12 +260,6 @@ extension MaatFlowResponseJournalFormatterX
       case 'follow_sky_witness':
       case 'follow-sky-witness':
         return MaatFlowResponseJournalFormatter.followSkyWitness;
-      case 'weighing_record':
-      case 'weighing-record':
-        return MaatFlowResponseJournalFormatter.weighingRecord;
-      case 'first_arrangement_order':
-      case 'first-arrangement-order':
-        return MaatFlowResponseJournalFormatter.firstArrangementOrder;
       case 'living_pattern_principle':
       case 'living-pattern-principle':
         return MaatFlowResponseJournalFormatter.livingPatternPrinciple;
@@ -332,9 +275,6 @@ extension MaatFlowResponseJournalFormatterX
       case 'living_text_line':
       case 'living-text-line':
         return MaatFlowResponseJournalFormatter.livingTextLine;
-      case 'clearing_space':
-      case 'clearing-space':
-        return MaatFlowResponseJournalFormatter.clearingSpace;
       case 'het_heru_joy':
       case 'het-heru-joy':
         return MaatFlowResponseJournalFormatter.hetHeruJoy;
@@ -791,26 +731,12 @@ String _formatResponseBodyText(
   final display = value.displayText(spec).trim();
   if (display.isEmpty) return '';
   switch (spec.journalFormatter) {
-    case MaatFlowResponseJournalFormatter.dawnHouseRite:
-      return '${spec.journalHeading}: I brought order by ${_sentenceFragment(display)}.';
-    case MaatFlowResponseJournalFormatter.closingRelease:
-      return '${spec.journalHeading}: I release ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.offeringTable:
       return '${spec.journalHeading}: I provided ${_sentenceFragment(display)}.';
-    case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
-      return '${spec.journalHeading}: I carry the receipt that ${_sentenceFragment(display)}.';
-    case MaatFlowResponseJournalFormatter.wepRonpetOpening:
-      return '${spec.journalHeading}: I open the year with ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.openHandProvision:
       return '${spec.journalHeading}: I gave ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.djedRestoration:
       return '${spec.journalHeading}: I restored ${_sentenceFragment(display)} and stood it upright again.';
-    case MaatFlowResponseJournalFormatter.tendingCare:
-      return '${spec.journalHeading}: I made care specific through ${_sentenceFragment(display)}.';
-    case MaatFlowResponseJournalFormatter.keptWordAgreement:
-      return '${spec.journalHeading}: I brought one agreement back into clearer order: ${_sentenceFragment(display)}.';
-    case MaatFlowResponseJournalFormatter.wagMemory:
-      return '${spec.journalHeading}: I kept the table and carried ${_sentenceFragment(display)} forward.';
     case MaatFlowResponseJournalFormatter.khatBodyCare:
       return '${spec.journalHeading}: I listened to the body and answered with ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.oracleSign:
@@ -819,10 +745,6 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I honored what was lost and noticed one thing that remains.';
     case MaatFlowResponseJournalFormatter.followSkyWitness:
       return '${spec.journalHeading}: I noticed ${_sentenceFragment(display)} and kept one line of witness.';
-    case MaatFlowResponseJournalFormatter.weighingRecord:
-      return '${spec.journalHeading}: I placed one record on the scale and named one correction.';
-    case MaatFlowResponseJournalFormatter.firstArrangementOrder:
-      return '${spec.journalHeading}: I put one space back into order and made ${_sentenceFragment(display)} visible.';
     case MaatFlowResponseJournalFormatter.livingPatternPrinciple:
       return '${spec.journalHeading}: I observed one pattern and carried ${_sentenceFragment(display)} into action.';
     case MaatFlowResponseJournalFormatter.houseOfLifeKnowledge:
@@ -833,8 +755,6 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I brought one exchange closer to honest measure.';
     case MaatFlowResponseJournalFormatter.livingTextLine:
       return '${spec.journalHeading}: I received ${_sentenceFragment(display)} from the text and added it back to life.';
-    case MaatFlowResponseJournalFormatter.clearingSpace:
-      return '${spec.journalHeading}: I created space before response and acted from the cleared place.';
     case MaatFlowResponseJournalFormatter.hetHeruJoy:
       return '${spec.journalHeading}: I cooled the hot force and made room for beauty, joy, or rest.';
     case MaatFlowResponseJournalFormatter.fairHearingMeasure:
@@ -878,12 +798,6 @@ String _formatGroupedResponseBodyText(
       return _formatOpenHandResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.djedRestoration:
       return _formatDjedResponseGroup(specs, values);
-    case MaatFlowResponseJournalFormatter.tendingCare:
-      return _formatTendingResponseGroup(specs, values);
-    case MaatFlowResponseJournalFormatter.keptWordAgreement:
-      return _formatKeptWordResponseGroup(specs, values);
-    case MaatFlowResponseJournalFormatter.wagMemory:
-      return _formatWagResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.khatBodyCare:
       return _formatKhatResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.oracleSign:
@@ -892,10 +806,6 @@ String _formatGroupedResponseBodyText(
       return _formatWanderingResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.followSkyWitness:
       return _formatFollowSkyResponseGroup(specs, values);
-    case MaatFlowResponseJournalFormatter.weighingRecord:
-      return _formatWeighingResponseGroup(specs, values);
-    case MaatFlowResponseJournalFormatter.firstArrangementOrder:
-      return _formatFirstArrangementResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.livingPatternPrinciple:
       return _formatLivingPatternResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.houseOfLifeKnowledge:
@@ -906,8 +816,6 @@ String _formatGroupedResponseBodyText(
       return _formatShoreResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.livingTextLine:
       return _formatLivingTextResponseGroup(specs, values);
-    case MaatFlowResponseJournalFormatter.clearingSpace:
-      return _formatClearingResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.hetHeruJoy:
       return _formatHetHeruResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.fairHearingMeasure:
@@ -922,10 +830,6 @@ String _formatGroupedResponseBodyText(
       return _formatTrueNameResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.livingRecordCarried:
       return _formatLivingRecordResponseGroup(specs, values);
-    case MaatFlowResponseJournalFormatter.dawnHouseRite:
-    case MaatFlowResponseJournalFormatter.closingRelease:
-    case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
-    case MaatFlowResponseJournalFormatter.wepRonpetOpening:
     case MaatFlowResponseJournalFormatter.standard:
       final fragments = <String>[];
       for (final spec in specs) {
@@ -1043,117 +947,6 @@ String _formatDjedResponseGroup(
   }
   if (restored.isNotEmpty) {
     return '${specs.first.journalHeading}: I restored $restored and stood it upright again.';
-  }
-  return '';
-}
-
-String _formatTendingResponseGroup(
-  List<MaatFlowResponseSpec> specs,
-  Map<String, MaatFlowResponseValue> values,
-) {
-  final byRole = <String, MaatFlowResponseSpec>{
-    for (final spec in specs)
-      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
-  };
-
-  final careSpec = byRole['care'];
-  final actSpec = byRole['act'];
-  final care = careSpec == null
-      ? ''
-      : _joinNatural(
-          values[careSpec.id]?.optionIds
-                  .map((id) => careSpec.optionById(id)?._displayLabel ?? id)
-                  .where((label) => label.trim().isNotEmpty)
-                  .map((label) => label.trim().toLowerCase()) ??
-              const Iterable<String>.empty(),
-        );
-  final act = actSpec == null
-      ? ''
-      : _sentenceFragment(values[actSpec.id]?.displayText(actSpec));
-
-  if (care.isNotEmpty && act.isNotEmpty) {
-    return '${specs.first.journalHeading}: I made care specific through $care and completed $act.';
-  }
-  if (care.isNotEmpty) {
-    return '${specs.first.journalHeading}: I made care specific through $care today.';
-  }
-  if (act.isNotEmpty) {
-    return '${specs.first.journalHeading}: I made care specific today and completed $act.';
-  }
-  return '';
-}
-
-String _formatKeptWordResponseGroup(
-  List<MaatFlowResponseSpec> specs,
-  Map<String, MaatFlowResponseValue> values,
-) {
-  final byRole = <String, MaatFlowResponseSpec>{
-    for (final spec in specs)
-      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
-  };
-
-  final statusSpec = byRole['status'];
-  final rememberedSpec = byRole['remembered'];
-  final status = statusSpec == null
-      ? ''
-      : _firstNonEmpty(
-          values[statusSpec.id]?.optionIds.map(
-                (id) => statusSpec.optionById(id)?._displayLabel ?? id,
-              ) ??
-              const Iterable<String>.empty(),
-        ).toLowerCase();
-  final remembered = rememberedSpec == null
-      ? ''
-      : _sentenceFragment(
-          values[rememberedSpec.id]?.displayText(rememberedSpec),
-        );
-
-  if (status.isNotEmpty && remembered.isNotEmpty) {
-    return '${specs.first.journalHeading}: I brought one agreement back into clearer order; the word is $status, and I remember $remembered.';
-  }
-  if (status.isNotEmpty) {
-    return '${specs.first.journalHeading}: I brought one agreement back into clearer order; the word is $status.';
-  }
-  if (remembered.isNotEmpty) {
-    return '${specs.first.journalHeading}: I brought one agreement back into clearer order: $remembered.';
-  }
-  return '';
-}
-
-String _formatWagResponseGroup(
-  List<MaatFlowResponseSpec> specs,
-  Map<String, MaatFlowResponseValue> values,
-) {
-  final byRole = <String, MaatFlowResponseSpec>{
-    for (final spec in specs)
-      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
-  };
-
-  final rememberedSpec = byRole['remembered'];
-  final carriedSpec = byRole['carried'];
-  final remembered = rememberedSpec == null
-      ? ''
-      : _joinNatural(
-          values[rememberedSpec.id]?.optionIds
-                  .map(
-                    (id) => rememberedSpec.optionById(id)?._displayLabel ?? id,
-                  )
-                  .where((label) => label.trim().isNotEmpty)
-                  .map((label) => label.trim().toLowerCase()) ??
-              const Iterable<String>.empty(),
-        );
-  final carried = carriedSpec == null
-      ? ''
-      : _sentenceFragment(values[carriedSpec.id]?.displayText(carriedSpec));
-
-  if (remembered.isNotEmpty && carried.isNotEmpty) {
-    return '${specs.first.journalHeading}: I kept $remembered at the table and carried $carried forward.';
-  }
-  if (remembered.isNotEmpty) {
-    return '${specs.first.journalHeading}: I kept $remembered at the table and carried one remembered gift forward.';
-  }
-  if (carried.isNotEmpty) {
-    return '${specs.first.journalHeading}: I kept the table and carried $carried forward.';
   }
   return '';
 }
@@ -1292,75 +1085,6 @@ String _formatFollowSkyResponseGroup(
   }
   if (changed.isNotEmpty) {
     return '${specs.first.journalHeading}: I noticed the sky change and kept $changed.';
-  }
-  return '';
-}
-
-String _formatWeighingResponseGroup(
-  List<MaatFlowResponseSpec> specs,
-  Map<String, MaatFlowResponseValue> values,
-) {
-  final byRole = <String, MaatFlowResponseSpec>{
-    for (final spec in specs)
-      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
-  };
-
-  final revealedSpec = byRole['revealed'];
-  final witnessedSpec = byRole['witnessed'];
-  final revealed = revealedSpec == null
-      ? ''
-      : _joinNatural(
-          values[revealedSpec.id]?.optionIds
-                  .map((id) => revealedSpec.optionById(id)?._displayLabel ?? id)
-                  .where((label) => label.trim().isNotEmpty)
-                  .map((label) => label.trim().toLowerCase()) ??
-              const Iterable<String>.empty(),
-        );
-  final witnessed = witnessedSpec == null
-      ? ''
-      : _sentenceFragment(values[witnessedSpec.id]?.displayText(witnessedSpec));
-
-  if (revealed.isNotEmpty) {
-    return '${specs.first.journalHeading}: I placed $revealed on the scale and named one correction.';
-  }
-  if (witnessed.isNotEmpty) {
-    return '${specs.first.journalHeading}: I placed one record on the scale and named one correction.';
-  }
-  return '';
-}
-
-String _formatFirstArrangementResponseGroup(
-  List<MaatFlowResponseSpec> specs,
-  Map<String, MaatFlowResponseValue> values,
-) {
-  final byRole = <String, MaatFlowResponseSpec>{
-    for (final spec in specs)
-      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
-  };
-
-  final orderedSpec = byRole['ordered'];
-  final changedSpec = byRole['changed'];
-  final ordered = orderedSpec == null
-      ? ''
-      : _joinNatural(
-          values[orderedSpec.id]?.optionIds
-                  .map((id) => orderedSpec.optionById(id)?._displayLabel ?? id)
-                  .where((label) => label.trim().isNotEmpty)
-                  .map((label) => label.trim().toLowerCase()) ??
-              const Iterable<String>.empty(),
-        );
-  final changed = changedSpec == null
-      ? ''
-      : _sentenceFragment(values[changedSpec.id]?.displayText(changedSpec));
-
-  if (ordered.isNotEmpty && changed.isNotEmpty) {
-    return '${specs.first.journalHeading}: I put $ordered into order and made $changed visible.';
-  }
-  if (ordered.isNotEmpty) {
-    return '${specs.first.journalHeading}: I put $ordered back into order and made what belongs there visible.';
-  }
-  if (changed.isNotEmpty) {
-    return '${specs.first.journalHeading}: I put one space back into order and made $changed visible.';
   }
   return '';
 }
@@ -1535,39 +1259,6 @@ String _formatLivingTextResponseGroup(
   }
   if (applied.isNotEmpty) {
     return '${specs.first.journalHeading}: I received one line from the text and added $applied back to life.';
-  }
-  return '';
-}
-
-String _formatClearingResponseGroup(
-  List<MaatFlowResponseSpec> specs,
-  Map<String, MaatFlowResponseValue> values,
-) {
-  final byRole = <String, MaatFlowResponseSpec>{
-    for (final spec in specs)
-      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
-  };
-
-  final clearedSpec = byRole['cleared'];
-  final waitedSpec = byRole['waited'];
-  final cleared = clearedSpec == null
-      ? ''
-      : _joinNatural(
-          values[clearedSpec.id]?.optionIds
-                  .map((id) => clearedSpec.optionById(id)?._displayLabel ?? id)
-                  .where((label) => label.trim().isNotEmpty)
-                  .map((label) => label.trim().toLowerCase()) ??
-              const Iterable<String>.empty(),
-        );
-  final waited = waitedSpec == null
-      ? ''
-      : _sentenceFragment(values[waitedSpec.id]?.displayText(waitedSpec));
-
-  if (cleared.isNotEmpty) {
-    return '${specs.first.journalHeading}: I cleared $cleared before response and acted from the cleared place.';
-  }
-  if (waited.isNotEmpty) {
-    return '${specs.first.journalHeading}: I created space before response and acted from the cleared place.';
   }
   return '';
 }
@@ -1803,14 +1494,6 @@ String _formatLivingRecordResponseGroup(
   }
   if (carried.isNotEmpty) {
     return '${specs.first.journalHeading}: I turned one part of the decan into a record that can be carried forward.';
-  }
-  return '';
-}
-
-String _firstNonEmpty(Iterable<String> values) {
-  for (final value in values) {
-    final trimmed = value.trim();
-    if (trimmed.isNotEmpty) return trimmed;
   }
   return '';
 }

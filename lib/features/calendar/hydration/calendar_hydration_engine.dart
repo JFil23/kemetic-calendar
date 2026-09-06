@@ -838,28 +838,8 @@ extension _CalendarHydrationEngine on CalendarPageState {
 
             final meta = _decodeDetailMetadata(evt.detail);
             final storedCleanDetail = _cleanDetail(meta.detail);
-            final canonicalDawnDetail =
-                _canonicalDawnHouseRiteDetailForLoadedEvent(
-                  flow: owningFlow,
-                  event: evt,
-                );
-            final canonicalTheWeighingDetail =
-                _canonicalTheWeighingDetailForLoadedEvent(
-                  flow: owningFlow,
-                  event: evt,
-                );
             final canonicalOfferingTableDetail =
                 _canonicalOfferingTableDetailForLoadedEvent(
-                  flow: owningFlow,
-                  event: evt,
-                );
-            final canonicalTheTendingDetail =
-                _canonicalTheTendingDetailForLoadedEvent(
-                  flow: owningFlow,
-                  event: evt,
-                );
-            final canonicalKeptWordDetail =
-                _canonicalKeptWordDetailForLoadedEvent(
                   flow: owningFlow,
                   event: evt,
                 );
@@ -867,10 +847,6 @@ extension _CalendarHydrationEngine on CalendarPageState {
               flow: owningFlow,
               event: evt,
               localStart: localStart,
-            );
-            final canonicalWagDetail = _canonicalWagDetailForLoadedEvent(
-              flow: owningFlow,
-              event: evt,
             );
             final canonicalOpenHandDetail =
                 _canonicalOpenHandDetailForLoadedEvent(
@@ -887,13 +863,8 @@ extension _CalendarHydrationEngine on CalendarPageState {
                   event: evt,
                 );
             final canonicalDetail =
-                canonicalDawnDetail ??
-                canonicalTheWeighingDetail ??
                 canonicalOfferingTableDetail ??
-                canonicalTheTendingDetail ??
-                canonicalKeptWordDetail ??
                 canonicalCourseDetail ??
-                canonicalWagDetail ??
                 canonicalOpenHandDetail ??
                 canonicalDjedDetail ??
                 canonicalReadingHouseDetail;

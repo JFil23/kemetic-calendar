@@ -4,32 +4,60 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
-import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
-import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/moon_return_astronomy.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
-import 'package:mobile/features/calendar/the_days_outside_year_enrollment.dart';
-import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
-import 'package:mobile/features/calendar/the_days_outside_year_scheduler.dart';
 import 'package:mobile/features/calendar/the_decan_watch_enrollment.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_djed_enrollment.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
+import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
 import 'package:mobile/features/calendar/the_course_flow.dart';
-import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_enrollment.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
-import 'package:mobile/features/calendar/the_tending_flow.dart';
-import 'package:mobile/features/calendar/the_wag_enrollment.dart';
-import 'package:mobile/features/calendar/the_wag_flow.dart';
-import 'package:mobile/features/calendar/the_wag_scheduler.dart';
-import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/utils/event_cid_util.dart';
 
+const DjedV2Configuration _testDjedV2Configuration = DjedV2Configuration(
+  supports: <DjedV2SupportDefinition>[
+    DjedV2SupportDefinition(
+      slot: 1,
+      name: 'daily energy',
+      initialCondition: DjedV2SupportCondition.underPressure,
+    ),
+    DjedV2SupportDefinition(
+      slot: 2,
+      name: 'the work',
+      initialCondition: DjedV2SupportCondition.holding,
+    ),
+    DjedV2SupportDefinition(
+      slot: 3,
+      name: 'home',
+      initialCondition: DjedV2SupportCondition.wobbling,
+    ),
+    DjedV2SupportDefinition(
+      slot: 4,
+      name: 'close relationships',
+      initialCondition: DjedV2SupportCondition.holding,
+    ),
+  ],
+);
+
 void main() {
+  test('retired flows stop at the shared creation boundary', () {
+    for (final kind in kArchivedCompatibilityMaatFlowKinds) {
+      expect(isMaatFlowNewJoinAllowedKind(kind), isFalse, reason: kind.flowKey);
+      expect(
+        () => ensureNewFlowCreationAllowedByMaatCatalog(flowKey: kind.flowKey),
+        throwsA(isA<NonJoinableMaatFlowException>()),
+        reason: kind.flowKey,
+      );
+    }
+  });
+
   test(
     'default enrollment resolvers return no-window failures without throwing',
     () async {
@@ -88,15 +116,12 @@ void main() {
       Future<void> expectNoEnrollmentWindow(
         String label,
         Future<FlowJoinResult> Function(DateTime startDate) join,
-        DateTime startDate,
-      ) async {
+        DateTime startDate, {
+        FlowJoinFailureCode expected = FlowJoinFailureCode.noEnrollmentWindow,
+      }) async {
         final result = await join(startDate);
         expect(result.succeeded, isFalse, reason: label);
-        expect(
-          result.failureCode,
-          FlowJoinFailureCode.noEnrollmentWindow,
-          reason: label,
-        );
+        expect(result.failureCode, expected, reason: label);
         expect(result.flowIdOrNegativeOne, -1, reason: label);
         expect(result.clientEventIds, isEmpty, reason: label);
       }
@@ -120,43 +145,17 @@ void main() {
         ),
       );
 
-      await expectNoEnrollmentWindow(
-        'Wag',
-        (startDate) => service.joinWagHeadless(
-          templateKey: kTheWagFlowKey,
-          templateTitle: kTheWagTitle,
-          templateOverview: kTheWagOverview,
-          templateColor: Colors.brown,
-          personalCalendarId: 'personal-calendar',
-          timezone: timezone,
-          startDate: startDate,
-        ),
-        _firstUnavailableEnrollmentStart<WagEnrollmentWindow>(
-          (startDate) => resolveWagEnrollmentWindowSafely(
-            timezone: timezone,
-            startDate: startDate,
-          ),
-        ),
-      );
-
-      await expectNoEnrollmentWindow(
-        'Days Outside the Year',
-        (startDate) => service.joinDaysOutsideYearHeadless(
-          templateKey: kDaysOutsideTheYearFlowKey,
-          templateTitle: kDaysOutsideTheYearTitle,
-          templateOverview: kDaysOutsideTheYearOverview,
-          templateColor: Colors.orange,
-          personalCalendarId: 'personal-calendar',
-          timezone: timezone,
-          startDate: startDate,
-        ),
-        _firstUnavailableEnrollmentStart<DaysOutsideYearEnrollmentWindow>(
-          (startDate) => resolveDaysOutsideYearEnrollmentWindowSafely(
-            timezone: timezone,
-            startDate: startDate,
-          ),
-        ),
-      );
+      for (final kind in const <MaatFlowKind>[
+        MaatFlowKind.theWag,
+        MaatFlowKind.daysOutsideTheYear,
+      ]) {
+        expect(isMaatFlowNewJoinAllowedKind(kind), isFalse);
+        expect(
+          () =>
+              ensureNewFlowCreationAllowedByMaatCatalog(flowKey: kind.flowKey),
+          throwsA(isA<NonJoinableMaatFlowException>()),
+        );
+      }
 
       await expectNoEnrollmentWindow(
         'Decan Watch',
@@ -206,6 +205,7 @@ void main() {
           personalCalendarId: 'personal-calendar',
           timezone: timezone,
           startDate: startDate,
+          configuration: _testDjedV2Configuration,
         ),
         _firstUnavailableEnrollmentStart<DjedEnrollmentWindow>(
           (startDate) => resolveDjedEnrollmentWindowSafely(
@@ -583,460 +583,6 @@ void main() {
       expect(eventCalls.first['caller'], 'moon_return_join_headless');
     },
   );
-
-  test(
-    'headless Wag join persists events, files at-time delivery, invalidates once, and returns success',
-    () async {
-      final timezone = TrackSkyTimeZone.central;
-      final selectedStart = DateTime(2026, 7, 17);
-      final enrolledAt = DateTime(2026, 7, 17, 7);
-      final window = WagEnrollmentWindow(
-        kYear: 3,
-        opensAtLocal: selectedStart,
-        closesAtLocal: DateTime(2026, 7, 19),
-        wepRonpetLocalDate: selectedStart,
-        timezone: timezone,
-      );
-      final schedulesByEventNumber = <int, WagOccurrenceSchedule>{};
-
-      WagOccurrenceSchedule scheduleForEvent(WagEvent event) {
-        return schedulesByEventNumber.putIfAbsent(event.eventNumber, () {
-          final startLocal = DateTime(2026, 7, event.eventNumber, 8);
-          final endLocal = startLocal.add(
-            Duration(minutes: event.durationMinutesMax),
-          );
-          final startUtc = DateTime.utc(2026, 7, event.eventNumber, 13);
-          final endUtc = startUtc.add(
-            Duration(minutes: event.durationMinutesMax),
-          );
-          return WagOccurrenceSchedule(
-            startLocal: startLocal,
-            endLocal: endLocal,
-            startUtc: startUtc,
-            endUtc: endUtc,
-            usedFallback: false,
-            timezone: timezone,
-            referenceLocationName: 'Test horizon',
-            scheduleType: 'test_schedule',
-          );
-        });
-      }
-
-      final flowCalls = <Map<String, Object?>>[];
-      final eventCalls = <Map<String, Object?>>[];
-      final deliveryCalls = <Map<String, Object?>>[];
-      final invalidations = <CalendarInvalidated>[];
-
-      final service = FlowJoinService(
-        resolveWagWindow: ({required timezone, startDate}) {
-          expect(timezone, TrackSkyTimeZone.central);
-          expect(startDate, selectedStart);
-          return window;
-        },
-        wagScheduleForEvent:
-            ({required event, required kYear, required timezone}) {
-              expect(kYear, 3);
-              expect(timezone, TrackSkyTimeZone.central);
-              return scheduleForEvent(event);
-            },
-        wagNowInZone: (timezone) {
-          expect(timezone, TrackSkyTimeZone.central);
-          return enrolledAt;
-        },
-        upsertFlow:
-            ({
-              id,
-              required name,
-              required color,
-              required active,
-              calendarId,
-              startDate,
-              endDate,
-              notes,
-              required rules,
-              originType,
-            }) async {
-              flowCalls.add({
-                'name': name,
-                'active': active,
-                'calendarId': calendarId,
-                'startDate': startDate,
-                'endDate': endDate,
-                'notes': notes,
-                'rules': rules,
-                'originType': originType,
-              });
-              return 84;
-            },
-        upsertEvent:
-            ({
-              required clientEventId,
-              required title,
-              required startsAtUtc,
-              detail,
-              allDay = false,
-              endsAtUtc,
-              flowLocalId,
-              category,
-              actionId,
-              behaviorPayload,
-              calendarId,
-              caller,
-            }) async {
-              eventCalls.add({
-                'clientEventId': clientEventId,
-                'title': title,
-                'startsAtUtc': startsAtUtc,
-                'detail': detail,
-                'allDay': allDay,
-                'endsAtUtc': endsAtUtc,
-                'flowLocalId': flowLocalId,
-                'category': category,
-                'actionId': actionId,
-                'behaviorPayload': behaviorPayload,
-                'calendarId': calendarId,
-                'caller': caller,
-              });
-            },
-        fileHeadlessEventDelivery:
-            ({
-              required eventFiling,
-              required debugLabel,
-              required clientEventId,
-              required startsAtLocal,
-              required alertOffsetMinutes,
-              required title,
-              body,
-            }) async {
-              deliveryCalls.add({
-                'debugLabel': debugLabel,
-                'clientEventId': clientEventId,
-                'startsAtLocal': startsAtLocal,
-                'alertOffsetMinutes': alertOffsetMinutes,
-                'title': title,
-                'body': body,
-              });
-            },
-        publishHeadlessCalendarInvalidation:
-            ({required reason, required flowId, required clientEventIds}) {
-              invalidations.add(
-                CalendarInvalidated(
-                  reason: reason,
-                  flowId: flowId,
-                  clientEventIds: List<String>.from(clientEventIds),
-                ),
-              );
-            },
-      );
-
-      final result = await service.joinWagHeadless(
-        templateKey: kTheWagFlowKey,
-        templateTitle: kTheWagTitle,
-        templateOverview: kTheWagOverview,
-        templateColor: Colors.deepPurple,
-        personalCalendarId: 'personal-calendar',
-        timezone: timezone,
-        startDate: selectedStart,
-        lens: WagLens.anpu,
-        alertOffsetMinutes: 0,
-      );
-
-      final expectedIds = <String>[
-        for (final event in kWagEvents)
-          'wag:84:3:event-${event.eventNumber.toString().padLeft(2, '0')}',
-      ];
-
-      expect(result.succeeded, isTrue);
-      expect(result.hasLocalFastPath, isTrue);
-      expect(result.persistInBackground, isNotNull);
-      expect(eventCalls, isEmpty);
-      expect(deliveryCalls, isEmpty);
-      expect(invalidations, isEmpty);
-      await result.persistInBackground!();
-      await Future<void>.delayed(Duration.zero);
-      expect(result.flowId, 84);
-      expect(result.clientEventIds, expectedIds);
-
-      expect(flowCalls, hasLength(1));
-      expect(flowCalls.single['name'], kTheWagTitle);
-      expect(flowCalls.single['calendarId'], 'personal-calendar');
-      expect(flowCalls.single['originType'], 'template');
-      expect(flowCalls.single['notes'], contains('maat=$kTheWagFlowKey'));
-      expect(flowCalls.single['notes'], contains('wag_kyear=3'));
-      expect(flowCalls.single['notes'], contains('wag_tz=central'));
-      expect(flowCalls.single['notes'], contains('wag_lens=anpu'));
-      expect(
-        flowCalls.single['notes'],
-        contains('wag_enrolled_at=${enrolledAt.toIso8601String()}'),
-      );
-      final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
-      expect(rules.single, containsPair('type', 'dates'));
-
-      expect(eventCalls, hasLength(kWagEvents.length));
-      expect(deliveryCalls, hasLength(kWagEvents.length));
-      expect(
-        eventCalls.map((call) => call['clientEventId']).toList(),
-        expectedIds,
-      );
-      final firstEvent = kWagEvents.first;
-      final firstSchedule = schedulesByEventNumber[firstEvent.eventNumber]!;
-      expect(eventCalls.first['title'], wagEventTitle(firstEvent));
-      expect(eventCalls.first['startsAtUtc'], firstSchedule.startUtc);
-      expect(eventCalls.first['endsAtUtc'], firstSchedule.endUtc);
-      expect(eventCalls.first['flowLocalId'], 84);
-      expect(eventCalls.first['category'], 'Ritual');
-      expect(eventCalls.first['caller'], 'wag_join_headless');
-      expect(eventCalls.first['actionId'], wagActionId(firstEvent));
-      final firstPayload =
-          eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
-      expect(firstPayload['kind'], 'maat_wag_event');
-      expect(firstPayload['flow_key'], kTheWagFlowKey);
-      expect(firstPayload['k_year'], 3);
-      expect(firstPayload['lens'], 'anpu');
-      expect(firstPayload['schedule'], containsPair('timezone', 'central'));
-
-      expect(deliveryCalls.first['clientEventId'], expectedIds.first);
-      expect(deliveryCalls.first['startsAtLocal'], firstSchedule.startLocal);
-      expect(deliveryCalls.first['alertOffsetMinutes'], 0);
-      expect(deliveryCalls.first['debugLabel'], 'wagHeadless');
-
-      expect(invalidations, hasLength(1));
-      expect(
-        invalidations.single.reason,
-        CalendarInvalidationReason.flowJoined,
-      );
-      expect(invalidations.single.flowId, 84);
-      expect(invalidations.single.clientEventIds, expectedIds);
-    },
-  );
-
-  test(
-    'headless Days Outside join persists events, files at-time delivery, invalidates once, and returns success',
-    () async {
-      final timezone = TrackSkyTimeZone.mountain;
-      final selectedStart = DateTime(2026, 8, 9);
-      final enrolledAt = DateTime(2026, 8, 9, 6);
-      final window = DaysOutsideYearEnrollmentWindow(
-        closingKYear: 3,
-        opensAtLocal: selectedStart,
-        closesAtLocal: DateTime(2026, 8, 14),
-        anchorLocalDate: selectedStart,
-        timezone: timezone,
-      );
-      final schedulesByEventNumber = <int, DaysOutsideOccurrenceSchedule>{};
-
-      DaysOutsideOccurrenceSchedule scheduleForEvent(DaysOutsideEvent event) {
-        return schedulesByEventNumber.putIfAbsent(event.eventNumber, () {
-          final day = event.eventNumber + 1;
-          final startLocal = DateTime(2026, 8, day, 7);
-          final endLocal = startLocal.add(
-            Duration(minutes: event.durationMinutes),
-          );
-          final startUtc = DateTime.utc(2026, 8, day, 13);
-          final endUtc = startUtc.add(Duration(minutes: event.durationMinutes));
-          return DaysOutsideOccurrenceSchedule(
-            startLocal: startLocal,
-            endLocal: endLocal,
-            startUtc: startUtc,
-            endUtc: endUtc,
-            usedFallback: false,
-            timezone: timezone,
-            referenceLocationName: 'Test horizon',
-            scheduleType: 'test_schedule',
-          );
-        });
-      }
-
-      final flowCalls = <Map<String, Object?>>[];
-      final eventCalls = <Map<String, Object?>>[];
-      final deliveryCalls = <Map<String, Object?>>[];
-      final invalidations = <CalendarInvalidated>[];
-
-      final service = FlowJoinService(
-        resolveDaysOutsideYearWindow: ({required timezone, startDate}) {
-          expect(timezone, TrackSkyTimeZone.mountain);
-          expect(startDate, selectedStart);
-          return window;
-        },
-        daysOutsideYearScheduleForEvent:
-            ({required event, required closingKYear, required timezone}) {
-              expect(closingKYear, 3);
-              expect(timezone, TrackSkyTimeZone.mountain);
-              return scheduleForEvent(event);
-            },
-        daysOutsideYearNowInZone: (timezone) {
-          expect(timezone, TrackSkyTimeZone.mountain);
-          return enrolledAt;
-        },
-        upsertFlow:
-            ({
-              id,
-              required name,
-              required color,
-              required active,
-              calendarId,
-              startDate,
-              endDate,
-              notes,
-              required rules,
-              originType,
-            }) async {
-              flowCalls.add({
-                'name': name,
-                'active': active,
-                'calendarId': calendarId,
-                'startDate': startDate,
-                'endDate': endDate,
-                'notes': notes,
-                'rules': rules,
-                'originType': originType,
-              });
-              return 126;
-            },
-        upsertEvent:
-            ({
-              required clientEventId,
-              required title,
-              required startsAtUtc,
-              detail,
-              allDay = false,
-              endsAtUtc,
-              flowLocalId,
-              category,
-              actionId,
-              behaviorPayload,
-              calendarId,
-              caller,
-            }) async {
-              eventCalls.add({
-                'clientEventId': clientEventId,
-                'title': title,
-                'startsAtUtc': startsAtUtc,
-                'detail': detail,
-                'allDay': allDay,
-                'endsAtUtc': endsAtUtc,
-                'flowLocalId': flowLocalId,
-                'category': category,
-                'actionId': actionId,
-                'behaviorPayload': behaviorPayload,
-                'calendarId': calendarId,
-                'caller': caller,
-              });
-            },
-        fileHeadlessEventDelivery:
-            ({
-              required eventFiling,
-              required debugLabel,
-              required clientEventId,
-              required startsAtLocal,
-              required alertOffsetMinutes,
-              required title,
-              body,
-            }) async {
-              deliveryCalls.add({
-                'debugLabel': debugLabel,
-                'clientEventId': clientEventId,
-                'startsAtLocal': startsAtLocal,
-                'alertOffsetMinutes': alertOffsetMinutes,
-                'title': title,
-                'body': body,
-              });
-            },
-        publishHeadlessCalendarInvalidation:
-            ({required reason, required flowId, required clientEventIds}) {
-              invalidations.add(
-                CalendarInvalidated(
-                  reason: reason,
-                  flowId: flowId,
-                  clientEventIds: List<String>.from(clientEventIds),
-                ),
-              );
-            },
-      );
-
-      final result = await service.joinDaysOutsideYearHeadless(
-        templateKey: kDaysOutsideTheYearFlowKey,
-        templateTitle: kDaysOutsideTheYearTitle,
-        templateOverview: kDaysOutsideTheYearOverview,
-        templateColor: Colors.orange,
-        personalCalendarId: 'personal-calendar',
-        timezone: timezone,
-        startDate: selectedStart,
-        alertOffsetMinutes: 0,
-      );
-
-      final expectedIds = <String>[
-        for (final event in kDaysOutsideEvents)
-          'days-outside:126:3:${event.eventNumber}',
-      ];
-
-      expect(result.succeeded, isTrue);
-      expect(result.hasLocalFastPath, isTrue);
-      expect(result.persistInBackground, isNotNull);
-      expect(eventCalls, isEmpty);
-      expect(deliveryCalls, isEmpty);
-      expect(invalidations, isEmpty);
-      await result.persistInBackground!();
-      await Future<void>.delayed(Duration.zero);
-      expect(result.flowId, 126);
-      expect(result.clientEventIds, expectedIds);
-
-      expect(flowCalls, hasLength(1));
-      expect(flowCalls.single['name'], kDaysOutsideTheYearTitle);
-      expect(flowCalls.single['calendarId'], 'personal-calendar');
-      expect(flowCalls.single['startDate'], selectedStart);
-      expect(flowCalls.single['originType'], 'template');
-      expect(
-        flowCalls.single['notes'],
-        contains('maat=$kDaysOutsideTheYearFlowKey'),
-      );
-      expect(flowCalls.single['notes'], contains('doy_kyear=3'));
-      expect(flowCalls.single['notes'], contains('doy_tz=mountain'));
-      expect(
-        flowCalls.single['notes'],
-        contains('doy_enrolled_at=${enrolledAt.toIso8601String()}'),
-      );
-      final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
-      expect(rules.single, containsPair('type', 'dates'));
-
-      expect(eventCalls, hasLength(kDaysOutsideEvents.length));
-      expect(deliveryCalls, hasLength(kDaysOutsideEvents.length));
-      expect(
-        eventCalls.map((call) => call['clientEventId']).toList(),
-        expectedIds,
-      );
-      final firstEvent = kDaysOutsideEvents.first;
-      final firstSchedule = schedulesByEventNumber[firstEvent.eventNumber]!;
-      expect(eventCalls.first['title'], daysOutsideEventTitle(firstEvent));
-      expect(eventCalls.first['startsAtUtc'], firstSchedule.startUtc);
-      expect(eventCalls.first['endsAtUtc'], firstSchedule.endUtc);
-      expect(eventCalls.first['flowLocalId'], 126);
-      expect(eventCalls.first['category'], 'Ritual');
-      expect(eventCalls.first['caller'], 'days_outside_year_join_headless');
-      expect(eventCalls.first['actionId'], daysOutsideActionId(firstEvent));
-      final firstPayload =
-          eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
-      expect(firstPayload['kind'], 'maat_days_outside_year');
-      expect(firstPayload['flow_key'], kDaysOutsideTheYearFlowKey);
-      expect(firstPayload['closing_k_year'], 3);
-      expect(firstPayload['timezone'], 'mountain');
-      expect(firstPayload['schedule_type'], 'test_schedule');
-
-      expect(deliveryCalls.first['clientEventId'], expectedIds.first);
-      expect(deliveryCalls.first['startsAtLocal'], firstSchedule.startLocal);
-      expect(deliveryCalls.first['alertOffsetMinutes'], 0);
-      expect(deliveryCalls.first['debugLabel'], 'daysOutsideYearHeadless');
-
-      expect(invalidations, hasLength(1));
-      expect(
-        invalidations.single.reason,
-        CalendarInvalidationReason.flowJoined,
-      );
-      expect(invalidations.single.flowId, 126);
-      expect(invalidations.single.clientEventIds, expectedIds);
-    },
-  );
-
   test(
     'headless Decan Watch join persists events, files at-time delivery, invalidates once, and returns success',
     () async {
@@ -1573,13 +1119,13 @@ void main() {
       );
       final schedulesByEventNumber = <int, DjedOccurrenceSchedule>{};
 
-      DjedOccurrenceSchedule scheduleForEvent(DjedEvent event) {
+      DjedOccurrenceSchedule scheduleForEvent(DjedV2Event event) {
         return schedulesByEventNumber.putIfAbsent(event.eventNumber, () {
           final startLocal = selectedStart
               .add(Duration(days: event.flowDay - 1))
               .add(Duration(hours: 6 + event.eventNumber));
           final endLocal = startLocal.add(
-            Duration(minutes: event.durationMinutesMax),
+            Duration(minutes: event.durationMinutes),
           );
           final startUtc = DateTime.utc(
             2026,
@@ -1587,9 +1133,7 @@ void main() {
             event.flowDay,
             11 + event.eventNumber,
           );
-          final endUtc = startUtc.add(
-            Duration(minutes: event.durationMinutesMax),
-          );
+          final endUtc = startUtc.add(Duration(minutes: event.durationMinutes));
           return DjedOccurrenceSchedule(
             startLocal: startLocal,
             endLocal: endLocal,
@@ -1726,11 +1270,13 @@ void main() {
         timezone: timezone,
         startDate: selectedStart,
         lens: DjedLens.ptah,
+        configuration: _testDjedV2Configuration,
         alertOffsetMinutes: 0,
       );
 
       final expectedIds = <String>[
-        for (final event in kDjedEvents) 'djed:231:event-${event.eventNumber}',
+        for (final event in kDjedV2Events)
+          'djed-v2:231:${event.semanticStepId}',
       ];
 
       expect(result.succeeded, isTrue);
@@ -1756,6 +1302,11 @@ void main() {
       expect(flowCalls.single['notes'], contains('maat=$kTheDjedFlowKey'));
       expect(flowCalls.single['notes'], contains('djed_tz=mountain'));
       expect(flowCalls.single['notes'], contains('djed_lens=ptah'));
+      expect(
+        flowCalls.single['notes'],
+        contains('djed_schema_version=$kDjedV2SchemaVersion'),
+      );
+      expect(flowCalls.single['notes'], contains('djed_v2_config='));
       expect(flowCalls.single['notes'], contains('djed_decan_kyear=3'));
       expect(flowCalls.single['notes'], contains('djed_decan_month=6'));
       expect(flowCalls.single['notes'], contains('djed_decan_day=1'));
@@ -1766,27 +1317,32 @@ void main() {
       final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
       expect(rules.single, containsPair('type', 'dates'));
 
-      expect(eventCalls, hasLength(kDjedEvents.length));
-      expect(deliveryCalls, hasLength(kDjedEvents.length));
+      expect(eventCalls, hasLength(kDjedV2Events.length));
+      expect(deliveryCalls, hasLength(kDjedV2Events.length));
       expect(
         eventCalls.map((call) => call['clientEventId']).toList(),
         expectedIds,
       );
-      final firstEvent = kDjedEvents.first;
+      final firstEvent = kDjedV2Events.first;
       final firstSchedule = schedulesByEventNumber[firstEvent.eventNumber]!;
-      expect(eventCalls.first['title'], djedEventTitle(firstEvent));
+      expect(eventCalls.first['title'], djedV2EventTitle(firstEvent));
       expect(eventCalls.first['startsAtUtc'], firstSchedule.startUtc);
       expect(eventCalls.first['endsAtUtc'], firstSchedule.endUtc);
       expect(eventCalls.first['flowLocalId'], 231);
       expect(eventCalls.first['category'], 'Ritual');
       expect(eventCalls.first['caller'], 'djed_join_headless');
-      expect(eventCalls.first['actionId'], djedActionId(firstEvent));
+      expect(eventCalls.first['actionId'], djedV2ActionId(firstEvent));
       final firstPayload =
           eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
-      expect(firstPayload['kind'], 'maat_djed_event');
+      expect(firstPayload['kind'], kDjedV2BehaviorKind);
       expect(firstPayload['flow_key'], kTheDjedFlowKey);
+      expect(firstPayload['djed_schema_version'], kDjedV2SchemaVersion);
       expect(firstPayload['event_number'], 1);
-      expect(firstPayload['flow_day'], firstEvent.flowDay);
+      expect(firstPayload['semantic_step_id'], firstEvent.semanticStepId);
+      expect(
+        firstPayload['immutable_occurrence'],
+        containsPair('flow_day', firstEvent.flowDay),
+      );
       expect(firstPayload['lens'], 'ptah');
       expect(
         firstPayload['schedule'],
@@ -1808,1095 +1364,341 @@ void main() {
     },
   );
 
-  test(
-    'headless Ma’at decan join persists events, files at-time delivery, invalidates once, and returns success',
-    () async {
-      final timezone = TrackSkyTimeZone.pacific;
-      final selectedStart = DateTime(2026, 12, 1);
-      final definition = maatDecanFlowDefinitionForKey(kFairHearingFlowKey)!;
-      final openingOccurrence = DecanWatchOccurrence(
-        kYear: 3,
-        kMonth: 7,
-        decanIndex: 1,
-        decanStartDay: 1,
-        globalDecanId: 19,
-        decanName: 'Test Fair Hearing Decan',
-        eventDateIso: '2026-12-01',
-        timezone: timezone,
-        scheduleHour: kDecanWatchDefaultHour,
-        scheduleMinute: kDecanWatchDefaultMinute,
-        startLocal: selectedStart,
-        endLocal: selectedStart.add(
-          const Duration(minutes: kDecanWatchDurationMinutes),
-        ),
-        startUtc: DateTime.utc(2026, 12, 1, 16),
-        endUtc: DateTime.utc(2026, 12, 1, 16, kDecanWatchDurationMinutes),
-      );
-      final window = DecanWatchEnrollmentWindow(
-        opensAtLocal: selectedStart,
-        closesAtLocal: DateTime(2026, 12, 2),
-        openingOccurrence: openingOccurrence,
-      );
+  test('non-product Ma’at decan join is rejected before persistence', () async {
+    final timezone = TrackSkyTimeZone.pacific;
+    final selectedStart = DateTime(2026, 12, 1);
+    final definition = maatDecanFlowDefinitionForKey(kFairHearingFlowKey)!;
+    final openingOccurrence = DecanWatchOccurrence(
+      kYear: 3,
+      kMonth: 7,
+      decanIndex: 1,
+      decanStartDay: 1,
+      globalDecanId: 19,
+      decanName: 'Test Fair Hearing Decan',
+      eventDateIso: '2026-12-01',
+      timezone: timezone,
+      scheduleHour: kDecanWatchDefaultHour,
+      scheduleMinute: kDecanWatchDefaultMinute,
+      startLocal: selectedStart,
+      endLocal: selectedStart.add(
+        const Duration(minutes: kDecanWatchDurationMinutes),
+      ),
+      startUtc: DateTime.utc(2026, 12, 1, 16),
+      endUtc: DateTime.utc(2026, 12, 1, 16, kDecanWatchDurationMinutes),
+    );
+    final window = DecanWatchEnrollmentWindow(
+      opensAtLocal: selectedStart,
+      closesAtLocal: DateTime(2026, 12, 2),
+      openingOccurrence: openingOccurrence,
+    );
 
-      final flowCalls = <Map<String, Object?>>[];
-      final eventCalls = <Map<String, Object?>>[];
-      final deliveryCalls = <Map<String, Object?>>[];
-      final invalidations = <CalendarInvalidated>[];
+    final flowCalls = <Map<String, Object?>>[];
+    final eventCalls = <Map<String, Object?>>[];
+    final deliveryCalls = <Map<String, Object?>>[];
+    final invalidations = <CalendarInvalidated>[];
 
-      final service = FlowJoinService(
-        resolveDecanWatchWindow: ({required timezone, startDate}) {
-          expect(timezone, TrackSkyTimeZone.pacific);
-          expect(startDate, selectedStart);
-          return window;
-        },
-        upsertFlow:
-            ({
-              id,
-              required name,
-              required color,
-              required active,
-              calendarId,
-              startDate,
-              endDate,
-              notes,
-              required rules,
-              originType,
-            }) async {
-              flowCalls.add({
-                'name': name,
-                'active': active,
-                'calendarId': calendarId,
-                'startDate': startDate,
-                'endDate': endDate,
-                'notes': notes,
-                'rules': rules,
-                'originType': originType,
-              });
-              return 240;
-            },
-        upsertEvent:
-            ({
-              required clientEventId,
-              required title,
-              required startsAtUtc,
-              detail,
-              allDay = false,
-              endsAtUtc,
-              flowLocalId,
-              category,
-              actionId,
-              behaviorPayload,
-              calendarId,
-              caller,
-            }) async {
-              eventCalls.add({
-                'clientEventId': clientEventId,
-                'title': title,
-                'startsAtUtc': startsAtUtc,
-                'detail': detail,
-                'allDay': allDay,
-                'endsAtUtc': endsAtUtc,
-                'flowLocalId': flowLocalId,
-                'category': category,
-                'actionId': actionId,
-                'behaviorPayload': behaviorPayload,
-                'calendarId': calendarId,
-                'caller': caller,
-              });
-            },
-        fileHeadlessEventDelivery:
-            ({
-              required eventFiling,
-              required debugLabel,
-              required clientEventId,
-              required startsAtLocal,
-              required alertOffsetMinutes,
-              required title,
-              body,
-            }) async {
-              deliveryCalls.add({
-                'debugLabel': debugLabel,
-                'clientEventId': clientEventId,
-                'startsAtLocal': startsAtLocal,
-                'alertOffsetMinutes': alertOffsetMinutes,
-                'title': title,
-                'body': body,
-              });
-            },
-        publishHeadlessCalendarInvalidation:
-            ({required reason, required flowId, required clientEventIds}) {
-              invalidations.add(
-                CalendarInvalidated(
-                  reason: reason,
-                  flowId: flowId,
-                  clientEventIds: List<String>.from(clientEventIds),
-                ),
-              );
-            },
-      );
+    final service = FlowJoinService(
+      resolveDecanWatchWindow: ({required timezone, startDate}) {
+        expect(timezone, TrackSkyTimeZone.pacific);
+        expect(startDate, selectedStart);
+        return window;
+      },
+      upsertFlow:
+          ({
+            id,
+            required name,
+            required color,
+            required active,
+            calendarId,
+            startDate,
+            endDate,
+            notes,
+            required rules,
+            originType,
+          }) async {
+            flowCalls.add({
+              'name': name,
+              'active': active,
+              'calendarId': calendarId,
+              'startDate': startDate,
+              'endDate': endDate,
+              'notes': notes,
+              'rules': rules,
+              'originType': originType,
+            });
+            return 240;
+          },
+      upsertEvent:
+          ({
+            required clientEventId,
+            required title,
+            required startsAtUtc,
+            detail,
+            allDay = false,
+            endsAtUtc,
+            flowLocalId,
+            category,
+            actionId,
+            behaviorPayload,
+            calendarId,
+            caller,
+          }) async {
+            eventCalls.add({
+              'clientEventId': clientEventId,
+              'title': title,
+              'startsAtUtc': startsAtUtc,
+              'detail': detail,
+              'allDay': allDay,
+              'endsAtUtc': endsAtUtc,
+              'flowLocalId': flowLocalId,
+              'category': category,
+              'actionId': actionId,
+              'behaviorPayload': behaviorPayload,
+              'calendarId': calendarId,
+              'caller': caller,
+            });
+          },
+      fileHeadlessEventDelivery:
+          ({
+            required eventFiling,
+            required debugLabel,
+            required clientEventId,
+            required startsAtLocal,
+            required alertOffsetMinutes,
+            required title,
+            body,
+          }) async {
+            deliveryCalls.add({
+              'debugLabel': debugLabel,
+              'clientEventId': clientEventId,
+              'startsAtLocal': startsAtLocal,
+              'alertOffsetMinutes': alertOffsetMinutes,
+              'title': title,
+              'body': body,
+            });
+          },
+      publishHeadlessCalendarInvalidation:
+          ({required reason, required flowId, required clientEventIds}) {
+            invalidations.add(
+              CalendarInvalidated(
+                reason: reason,
+                flowId: flowId,
+                clientEventIds: List<String>.from(clientEventIds),
+              ),
+            );
+          },
+    );
 
-      final result = await service.joinMaatDecanFlowHeadless(
-        definition: definition,
-        templateOverview: kFairHearingOverview,
-        templateColor: Colors.amber,
-        personalCalendarId: 'personal-calendar',
-        timezone: timezone,
-        startDate: selectedStart,
-        alertOffsetMinutes: 0,
-      );
+    final result = await service.joinMaatDecanFlowHeadless(
+      definition: definition,
+      templateOverview: kFairHearingOverview,
+      templateColor: Colors.amber,
+      personalCalendarId: 'personal-calendar',
+      timezone: timezone,
+      startDate: selectedStart,
+      alertOffsetMinutes: 0,
+    );
 
-      final expectedIds = <String>[
-        for (final event in definition.events)
-          'the-fair-hearing:240:event-${event.eventNumber}',
-      ];
+    expect(result.succeeded, isFalse);
+    expect(result.failureCode, FlowJoinFailureCode.notJoinable);
+    expect(result.clientEventIds, isEmpty);
+    expect(flowCalls, isEmpty);
+    expect(eventCalls, isEmpty);
+    expect(deliveryCalls, isEmpty);
+    expect(invalidations, isEmpty);
+    return;
 
-      expect(result.succeeded, isTrue);
-      expect(result.hasLocalFastPath, isTrue);
-      expect(result.persistInBackground, isNotNull);
-      expect(eventCalls, isEmpty);
-      await result.persistInBackground!();
-      await Future<void>.delayed(Duration.zero);
-      expect(result.flowId, 240);
-      expect(result.clientEventIds, expectedIds);
+    // ignore: dead_code
+    final expectedIds = <String>[
+      for (final event in definition.events)
+        'the-fair-hearing:240:event-${event.eventNumber}',
+    ];
 
-      expect(flowCalls, hasLength(1));
-      expect(flowCalls.single['name'], kFairHearingTitle);
-      expect(flowCalls.single['calendarId'], 'personal-calendar');
-      expect(flowCalls.single['startDate'], selectedStart);
-      expect(
-        flowCalls.single['endDate'],
-        selectedStart.add(const Duration(days: 29)),
-      );
-      expect(flowCalls.single['originType'], 'template');
-      expect(flowCalls.single['notes'], contains('maat=$kFairHearingFlowKey'));
-      expect(
-        flowCalls.single['notes'],
-        contains('fair_hearing_start=2026-12-01'),
-      );
-      expect(flowCalls.single['notes'], contains('fair_hearing_tz=pacific'));
-      expect(flowCalls.single['notes'], contains('fair_hearing_decan_kyear=3'));
-      final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
-      expect(rules.single, containsPair('type', 'dates'));
+    expect(result.succeeded, isTrue);
+    expect(result.hasLocalFastPath, isTrue);
+    expect(result.persistInBackground, isNotNull);
+    expect(eventCalls, isEmpty);
+    await result.persistInBackground!();
+    await Future<void>.delayed(Duration.zero);
+    expect(result.flowId, 240);
+    expect(result.clientEventIds, expectedIds);
 
-      expect(eventCalls, hasLength(definition.events.length));
-      expect(deliveryCalls, hasLength(definition.events.length));
-      expect(
-        eventCalls.map((call) => call['clientEventId']).toList(),
-        expectedIds,
-      );
-      final firstEvent = definition.events.first;
-      expect(
-        eventCalls.first['title'],
-        maatDecanFlowEventTitle(definition, firstEvent),
-      );
-      expect(eventCalls.first['flowLocalId'], 240);
-      expect(eventCalls.first['category'], 'Ritual');
-      expect(eventCalls.first['caller'], 'maat_decan_flow_join_headless');
-      expect(
-        eventCalls.first['actionId'],
-        maatDecanFlowActionId(definition, firstEvent),
-      );
-      final firstPayload =
-          eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
-      expect(firstPayload['kind'], 'maat_fair_hearing_event');
-      expect(firstPayload['flow_key'], kFairHearingFlowKey);
-      expect(firstPayload['event_number'], firstEvent.eventNumber);
-      expect(firstPayload['flow_day'], firstEvent.flowDay);
+    expect(flowCalls, hasLength(1));
+    expect(flowCalls.single['name'], kFairHearingTitle);
+    expect(flowCalls.single['calendarId'], 'personal-calendar');
+    expect(flowCalls.single['startDate'], selectedStart);
+    expect(
+      flowCalls.single['endDate'],
+      selectedStart.add(const Duration(days: 29)),
+    );
+    expect(flowCalls.single['originType'], 'template');
+    expect(flowCalls.single['notes'], contains('maat=$kFairHearingFlowKey'));
+    expect(
+      flowCalls.single['notes'],
+      contains('fair_hearing_start=2026-12-01'),
+    );
+    expect(flowCalls.single['notes'], contains('fair_hearing_tz=pacific'));
+    expect(flowCalls.single['notes'], contains('fair_hearing_decan_kyear=3'));
+    final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
+    expect(rules.single, containsPair('type', 'dates'));
 
-      expect(deliveryCalls.first['clientEventId'], expectedIds.first);
-      expect(deliveryCalls.first['alertOffsetMinutes'], 0);
-      expect(deliveryCalls.first['debugLabel'], 'maatDecanFlowHeadless');
+    expect(eventCalls, hasLength(definition.events.length));
+    expect(deliveryCalls, hasLength(definition.events.length));
+    expect(
+      eventCalls.map((call) => call['clientEventId']).toList(),
+      expectedIds,
+    );
+    final firstEvent = definition.events.first;
+    expect(
+      eventCalls.first['title'],
+      maatDecanFlowEventTitle(definition, firstEvent),
+    );
+    expect(eventCalls.first['flowLocalId'], 240);
+    expect(eventCalls.first['category'], 'Ritual');
+    expect(eventCalls.first['caller'], 'maat_decan_flow_join_headless');
+    expect(
+      eventCalls.first['actionId'],
+      maatDecanFlowActionId(definition, firstEvent),
+    );
+    final firstPayload =
+        eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
+    expect(firstPayload['kind'], 'maat_fair_hearing_event');
+    expect(firstPayload['flow_key'], kFairHearingFlowKey);
+    expect(firstPayload['event_number'], firstEvent.eventNumber);
+    expect(firstPayload['flow_day'], firstEvent.flowDay);
 
-      expect(invalidations, hasLength(1));
-      expect(
-        invalidations.single.reason,
-        CalendarInvalidationReason.flowJoined,
-      );
-      expect(invalidations.single.flowId, 240);
-      expect(invalidations.single.clientEventIds, expectedIds);
-    },
-  );
+    expect(deliveryCalls.first['clientEventId'], expectedIds.first);
+    expect(deliveryCalls.first['alertOffsetMinutes'], 0);
+    expect(deliveryCalls.first['debugLabel'], 'maatDecanFlowHeadless');
 
-  test(
-    'headless Living Text join persists library CTA payloads for Events 4 and 7',
-    () async {
-      final timezone = TrackSkyTimeZone.pacific;
-      final selectedStart = DateTime(2026, 12, 1);
-      final openingOccurrence = DecanWatchOccurrence(
-        kYear: 3,
-        kMonth: 7,
-        decanIndex: 1,
-        decanStartDay: 1,
-        globalDecanId: 19,
-        decanName: 'Test Living Text Decan',
-        eventDateIso: '2026-12-01',
-        timezone: timezone,
-        scheduleHour: kDecanWatchDefaultHour,
-        scheduleMinute: kDecanWatchDefaultMinute,
-        startLocal: selectedStart,
-        endLocal: selectedStart.add(
-          const Duration(minutes: kDecanWatchDurationMinutes),
-        ),
-        startUtc: DateTime.utc(2026, 12, 1, 16),
-        endUtc: DateTime.utc(2026, 12, 1, 16, kDecanWatchDurationMinutes),
-      );
-      final window = DecanWatchEnrollmentWindow(
-        opensAtLocal: selectedStart,
-        closesAtLocal: DateTime(2026, 12, 2),
-        openingOccurrence: openingOccurrence,
-      );
-      final eventCalls = <Map<String, Object?>>[];
+    expect(invalidations, hasLength(1));
+    expect(invalidations.single.reason, CalendarInvalidationReason.flowJoined);
+    expect(invalidations.single.flowId, 240);
+    expect(invalidations.single.clientEventIds, expectedIds);
+  });
 
-      final service = FlowJoinService(
-        resolveDecanWatchWindow: ({required timezone, startDate}) => window,
-        upsertFlow:
-            ({
-              id,
-              required name,
-              required color,
-              required active,
-              calendarId,
-              startDate,
-              endDate,
-              notes,
-              required rules,
-              originType,
-            }) async {
-              return 441;
-            },
-        upsertEvent:
-            ({
-              required clientEventId,
-              required title,
-              required startsAtUtc,
-              detail,
-              allDay = false,
-              endsAtUtc,
-              flowLocalId,
-              category,
-              actionId,
-              behaviorPayload,
-              calendarId,
-              caller,
-            }) async {
-              eventCalls.add(<String, Object?>{
-                'title': title,
-                'behaviorPayload': behaviorPayload,
-              });
-            },
-        fileHeadlessEventDelivery:
-            ({
-              required eventFiling,
-              required debugLabel,
-              required clientEventId,
-              required startsAtLocal,
-              required alertOffsetMinutes,
-              required title,
-              body,
-            }) async {},
-        publishHeadlessCalendarInvalidation:
-            ({required reason, required flowId, required clientEventIds}) {},
-      );
+  test('absorbed Living Text cannot materialize new events', () async {
+    final timezone = TrackSkyTimeZone.pacific;
+    final selectedStart = DateTime(2026, 12, 1);
+    final openingOccurrence = DecanWatchOccurrence(
+      kYear: 3,
+      kMonth: 7,
+      decanIndex: 1,
+      decanStartDay: 1,
+      globalDecanId: 19,
+      decanName: 'Test Living Text Decan',
+      eventDateIso: '2026-12-01',
+      timezone: timezone,
+      scheduleHour: kDecanWatchDefaultHour,
+      scheduleMinute: kDecanWatchDefaultMinute,
+      startLocal: selectedStart,
+      endLocal: selectedStart.add(
+        const Duration(minutes: kDecanWatchDurationMinutes),
+      ),
+      startUtc: DateTime.utc(2026, 12, 1, 16),
+      endUtc: DateTime.utc(2026, 12, 1, 16, kDecanWatchDurationMinutes),
+    );
+    final window = DecanWatchEnrollmentWindow(
+      opensAtLocal: selectedStart,
+      closesAtLocal: DateTime(2026, 12, 2),
+      openingOccurrence: openingOccurrence,
+    );
+    var flowWrites = 0;
+    final eventCalls = <Map<String, Object?>>[];
 
-      final definition = maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!;
-      final result = await service.joinMaatDecanFlowHeadless(
-        definition: definition,
-        templateOverview: kLivingTextOverview,
-        templateColor: Colors.amber,
-        personalCalendarId: 'personal-calendar',
-        timezone: timezone,
-        startDate: selectedStart,
-      );
+    final service = FlowJoinService(
+      resolveDecanWatchWindow: ({required timezone, startDate}) => window,
+      upsertFlow:
+          ({
+            id,
+            required name,
+            required color,
+            required active,
+            calendarId,
+            startDate,
+            endDate,
+            notes,
+            required rules,
+            originType,
+          }) async {
+            flowWrites += 1;
+            return 441;
+          },
+      upsertEvent:
+          ({
+            required clientEventId,
+            required title,
+            required startsAtUtc,
+            detail,
+            allDay = false,
+            endsAtUtc,
+            flowLocalId,
+            category,
+            actionId,
+            behaviorPayload,
+            calendarId,
+            caller,
+          }) async {
+            eventCalls.add(<String, Object?>{
+              'title': title,
+              'behaviorPayload': behaviorPayload,
+            });
+          },
+      fileHeadlessEventDelivery:
+          ({
+            required eventFiling,
+            required debugLabel,
+            required clientEventId,
+            required startsAtLocal,
+            required alertOffsetMinutes,
+            required title,
+            body,
+          }) async {},
+      publishHeadlessCalendarInvalidation:
+          ({required reason, required flowId, required clientEventIds}) {},
+    );
 
-      expect(result.succeeded, isTrue);
-      expect(result.hasLocalFastPath, isTrue);
-      expect(result.persistInBackground, isNotNull);
-      expect(eventCalls, isEmpty);
-      await result.persistInBackground!();
-      await Future<void>.delayed(Duration.zero);
-      expect(eventCalls, hasLength(definition.events.length));
+    final definition = maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!;
+    final result = await service.joinMaatDecanFlowHeadless(
+      definition: definition,
+      templateOverview: kLivingTextOverview,
+      templateColor: Colors.amber,
+      personalCalendarId: 'personal-calendar',
+      timezone: timezone,
+      startDate: selectedStart,
+    );
 
-      final event4Payload =
-          eventCalls[3]['behaviorPayload']! as Map<String, dynamic>;
-      final event7Payload =
-          eventCalls[6]['behaviorPayload']! as Map<String, dynamic>;
-      expect(event4Payload['library_cta'], <String, dynamic>{
-        'type': kMaatLibraryCtaAddInsight,
-        'node_slug': null,
-        'label': 'Add your insight',
-      });
-      expect(event7Payload['library_cta'], <String, dynamic>{
-        'type': kMaatLibraryCtaAddInsight,
-        'node_slug': null,
-        'label': 'Revise your insight',
-      });
-    },
-  );
+    expect(result.succeeded, isFalse);
+    expect(result.failureCode, FlowJoinFailureCode.notJoinable);
+    expect(result.clientEventIds, isEmpty);
+    expect(flowWrites, 0);
+    expect(eventCalls, isEmpty);
+    return;
 
-  test(
-    'headless Dawn House Rite join persists events, intentionally skips delivery without alert, invalidates once, and returns success',
-    () async {
-      final timezone = TrackSkyTimeZone.pacific;
-      final selectedStart = DateTime(2026, 6, 1);
-      final days = <DawnHouseRiteDay>[
-        kDawnHouseRiteDays[0],
-        kDawnHouseRiteDays[1],
-      ];
+    // ignore: dead_code
+    expect(result.succeeded, isTrue);
+    expect(result.hasLocalFastPath, isTrue);
+    expect(result.persistInBackground, isNotNull);
+    expect(eventCalls, isEmpty);
+    await result.persistInBackground!();
+    await Future<void>.delayed(Duration.zero);
+    expect(eventCalls, hasLength(definition.events.length));
 
-      DawnHouseRiteOccurrenceSchedule scheduleForDate(DateTime date) {
-        final dayOffset = date.difference(selectedStart).inDays;
-        final startLocal = DateTime(2026, 6, 1 + dayOffset, 5, 30 + dayOffset);
-        final endLocal = startLocal.add(
-          const Duration(minutes: kDawnHouseRiteDurationMinutes),
-        );
-        final startUtc = DateTime.utc(2026, 6, 1 + dayOffset, 12, 30);
-        final endUtc = startUtc.add(
-          const Duration(minutes: kDawnHouseRiteDurationMinutes),
-        );
-        return DawnHouseRiteOccurrenceSchedule(
-          startLocal: startLocal,
-          endLocal: endLocal,
-          startUtc: startUtc,
-          endUtc: endUtc,
-          usedFallback: false,
-          timezone: timezone,
-          referenceLocation: kDawnHouseRiteReferenceLocations[timezone]!,
-        );
-      }
-
-      final schedules = <DawnHouseRiteOccurrenceSchedule>[
-        for (var i = 0; i < days.length; i++)
-          scheduleForDate(selectedStart.add(Duration(days: i))),
-      ];
-      final expectedIds = <String>[
-        for (var i = 0; i < days.length; i++)
-          EventCidUtil.buildClientEventId(
-            ky: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kYear,
-            km: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kMonth,
-            kd: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kDay,
-            title: dawnHouseRiteEventTitle(days[i]),
-            startHour: schedules[i].startLocal.hour,
-            startMinute: schedules[i].startLocal.minute,
-            allDay: false,
-            flowId: 302,
-          ),
-      ];
-
-      final order = <String>[];
-      final flowCalls = <Map<String, Object?>>[];
-      final eventCalls = <Map<String, Object?>>[];
-      final deliveryCalls = <Map<String, Object?>>[];
-      final invalidations = <CalendarInvalidated>[];
-
-      final service = FlowJoinService(
-        dawnHouseRiteDays: days,
-        dawnHouseRiteScheduleForDate: (date, timezone) {
-          expect(timezone, TrackSkyTimeZone.pacific);
-          return scheduleForDate(date);
-        },
-        upsertFlow:
-            ({
-              id,
-              required name,
-              required color,
-              required active,
-              calendarId,
-              startDate,
-              endDate,
-              notes,
-              required rules,
-              originType,
-            }) async {
-              order.add('flow');
-              flowCalls.add({
-                'name': name,
-                'active': active,
-                'calendarId': calendarId,
-                'startDate': startDate,
-                'endDate': endDate,
-                'notes': notes,
-                'rules': rules,
-                'originType': originType,
-              });
-              return 302;
-            },
-        upsertEvent:
-            ({
-              required clientEventId,
-              required title,
-              required startsAtUtc,
-              detail,
-              allDay = false,
-              endsAtUtc,
-              flowLocalId,
-              category,
-              actionId,
-              behaviorPayload,
-              calendarId,
-              caller,
-            }) async {
-              order.add('event:$clientEventId');
-              eventCalls.add({
-                'clientEventId': clientEventId,
-                'title': title,
-                'startsAtUtc': startsAtUtc,
-                'detail': detail,
-                'allDay': allDay,
-                'endsAtUtc': endsAtUtc,
-                'flowLocalId': flowLocalId,
-                'category': category,
-                'actionId': actionId,
-                'behaviorPayload': behaviorPayload,
-                'calendarId': calendarId,
-                'caller': caller,
-              });
-            },
-        fileHeadlessEventDelivery:
-            ({
-              required eventFiling,
-              required debugLabel,
-              required clientEventId,
-              required startsAtLocal,
-              required alertOffsetMinutes,
-              required title,
-              body,
-            }) async {
-              order.add('delivery:$clientEventId');
-              deliveryCalls.add({
-                'debugLabel': debugLabel,
-                'clientEventId': clientEventId,
-                'startsAtLocal': startsAtLocal,
-                'alertOffsetMinutes': alertOffsetMinutes,
-                'title': title,
-                'body': body,
-              });
-            },
-        publishHeadlessCalendarInvalidation:
-            ({required reason, required flowId, required clientEventIds}) {
-              order.add('invalidation');
-              invalidations.add(
-                CalendarInvalidated(
-                  reason: reason,
-                  flowId: flowId,
-                  clientEventIds: List<String>.from(clientEventIds),
-                ),
-              );
-            },
-      );
-
-      final result = await service.joinDawnHouseRiteHeadless(
-        templateKey: kDawnHouseRiteFlowKey,
-        templateTitle: kDawnHouseRiteTitle,
-        templateOverview: kDawnHouseRiteOverview,
-        templateColor: Colors.amber,
-        personalCalendarId: 'personal-calendar',
-        timezone: timezone,
-        startDate: selectedStart,
-        discreet: true,
-        lens: DawnHouseRiteLens.thothic,
-      );
-
-      expect(result.succeeded, isTrue);
-      expect(result.hasLocalFastPath, isTrue);
-      expect(result.persistInBackground, isNotNull);
-      expect(eventCalls, isEmpty);
-      expect(deliveryCalls, isEmpty);
-      expect(invalidations, isEmpty);
-      await result.persistInBackground!();
-      await Future<void>.delayed(Duration.zero);
-      expect(result.flowId, 302);
-      expect(result.flowIdOrNegativeOne, 302);
-      expect(result.clientEventIds, expectedIds);
-
-      expect(flowCalls, hasLength(1));
-      expect(flowCalls.single['name'], kDawnHouseRiteTitle);
-      expect(flowCalls.single['calendarId'], 'personal-calendar');
-      expect(flowCalls.single['startDate'], selectedStart);
-      expect(flowCalls.single['endDate'], DateTime(2026, 6, 2));
-      expect(flowCalls.single['originType'], 'template');
-      expect(
-        flowCalls.single['notes'],
-        contains('maat=$kDawnHouseRiteFlowKey'),
-      );
-      expect(flowCalls.single['notes'], contains('dawn_tz=pacific'));
-      expect(flowCalls.single['notes'], contains('dawn_discreet=1'));
-      expect(flowCalls.single['notes'], contains('dawn_lens=thothic'));
-      final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
-      expect(rules.single, containsPair('type', 'dates'));
-
-      expect(eventCalls, hasLength(days.length));
-      expect(
-        eventCalls.map((call) => call['clientEventId']).toList(),
-        expectedIds,
-      );
-      expect(eventCalls.first['title'], dawnHouseRiteEventTitle(days.first));
-      expect(eventCalls.first['startsAtUtc'], schedules.first.startUtc);
-      expect(eventCalls.first['endsAtUtc'], schedules.first.endUtc);
-      expect(eventCalls.first['flowLocalId'], 302);
-      expect(eventCalls.first['category'], 'Ritual');
-      expect(eventCalls.first['caller'], 'dawn_house_rite_join_headless');
-      expect(eventCalls.first['actionId'], dawnHouseRiteActionId(days.first));
-      final firstPayload =
-          eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
-      expect(firstPayload['kind'], 'maat_dawn_house_rite_day');
-      expect(firstPayload['flow_key'], kDawnHouseRiteFlowKey);
-      expect(firstPayload['day'], days.first.dayNumber);
-      expect(firstPayload['discreet_mode'], isTrue);
-      expect(firstPayload['lens'], 'thothic');
-      expect(firstPayload['schedule'], containsPair('timezone', 'pacific'));
-
-      expect(deliveryCalls, isEmpty);
-      expect(invalidations, hasLength(1));
-      expect(
-        invalidations.single.reason,
-        CalendarInvalidationReason.flowJoined,
-      );
-      expect(invalidations.single.flowId, 302);
-      expect(invalidations.single.clientEventIds, expectedIds);
-      expect(order, <String>[
-        'flow',
-        'event:${expectedIds[0]}',
-        'event:${expectedIds[1]}',
-        'invalidation',
-      ]);
-    },
-  );
-
-  test(
-    'headless Evening Threshold Rite join persists events, intentionally skips delivery without alert, invalidates once, and returns success',
-    () async {
-      final timezone = TrackSkyTimeZone.eastern;
-      final selectedStart = DateTime(2026, 6, 3);
-      final fallbackMinutes = (21 * 60) + 15;
-      final days = <EveningThresholdRiteDay>[
-        kEveningThresholdRiteDays[0],
-        kEveningThresholdRiteDays[1],
-      ];
-
-      EveningThresholdOccurrenceSchedule scheduleForDate(DateTime date) {
-        final dayOffset = date.difference(selectedStart).inDays;
-        final startLocal = DateTime(2026, 6, 3 + dayOffset, 21, 15);
-        final endLocal = startLocal.add(
-          const Duration(minutes: kEveningThresholdRiteDurationMinutes),
-        );
-        final startUtc = DateTime.utc(2026, 6, 4 + dayOffset, 1, 15);
-        final endUtc = startUtc.add(
-          const Duration(minutes: kEveningThresholdRiteDurationMinutes),
-        );
-        return EveningThresholdOccurrenceSchedule(
-          startLocal: startLocal,
-          endLocal: endLocal,
-          startUtc: startUtc,
-          endUtc: endUtc,
-          usedFallback: true,
-          timezone: timezone,
-          referenceLocation: kEveningThresholdReferenceLocations[timezone]!,
-          fallbackMinutesAfterMidnight: fallbackMinutes,
-        );
-      }
-
-      final schedules = <EveningThresholdOccurrenceSchedule>[
-        for (var i = 0; i < days.length; i++)
-          scheduleForDate(selectedStart.add(Duration(days: i))),
-      ];
-      final expectedIds = <String>[
-        for (var i = 0; i < days.length; i++)
-          EventCidUtil.buildClientEventId(
-            ky: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kYear,
-            km: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kMonth,
-            kd: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kDay,
-            title: eveningThresholdRiteEventTitle(days[i]),
-            startHour: schedules[i].startLocal.hour,
-            startMinute: schedules[i].startLocal.minute,
-            allDay: false,
-            flowId: 303,
-          ),
-      ];
-
-      final order = <String>[];
-      final flowCalls = <Map<String, Object?>>[];
-      final eventCalls = <Map<String, Object?>>[];
-      final deliveryCalls = <Map<String, Object?>>[];
-      final invalidations = <CalendarInvalidated>[];
-
-      final service = FlowJoinService(
-        eveningThresholdRiteDays: days,
-        eveningThresholdScheduleForDate:
-            (date, timezone, {required fallbackMinutesAfterMidnight}) {
-              expect(timezone, TrackSkyTimeZone.eastern);
-              expect(fallbackMinutesAfterMidnight, fallbackMinutes);
-              return scheduleForDate(date);
-            },
-        upsertFlow:
-            ({
-              id,
-              required name,
-              required color,
-              required active,
-              calendarId,
-              startDate,
-              endDate,
-              notes,
-              required rules,
-              originType,
-            }) async {
-              order.add('flow');
-              flowCalls.add({
-                'name': name,
-                'active': active,
-                'calendarId': calendarId,
-                'startDate': startDate,
-                'endDate': endDate,
-                'notes': notes,
-                'rules': rules,
-                'originType': originType,
-              });
-              return 303;
-            },
-        upsertEvent:
-            ({
-              required clientEventId,
-              required title,
-              required startsAtUtc,
-              detail,
-              allDay = false,
-              endsAtUtc,
-              flowLocalId,
-              category,
-              actionId,
-              behaviorPayload,
-              calendarId,
-              caller,
-            }) async {
-              order.add('event:$clientEventId');
-              eventCalls.add({
-                'clientEventId': clientEventId,
-                'title': title,
-                'startsAtUtc': startsAtUtc,
-                'detail': detail,
-                'allDay': allDay,
-                'endsAtUtc': endsAtUtc,
-                'flowLocalId': flowLocalId,
-                'category': category,
-                'actionId': actionId,
-                'behaviorPayload': behaviorPayload,
-                'calendarId': calendarId,
-                'caller': caller,
-              });
-            },
-        fileHeadlessEventDelivery:
-            ({
-              required eventFiling,
-              required debugLabel,
-              required clientEventId,
-              required startsAtLocal,
-              required alertOffsetMinutes,
-              required title,
-              body,
-            }) async {
-              order.add('delivery:$clientEventId');
-              deliveryCalls.add({
-                'debugLabel': debugLabel,
-                'clientEventId': clientEventId,
-                'startsAtLocal': startsAtLocal,
-                'alertOffsetMinutes': alertOffsetMinutes,
-                'title': title,
-                'body': body,
-              });
-            },
-        publishHeadlessCalendarInvalidation:
-            ({required reason, required flowId, required clientEventIds}) {
-              order.add('invalidation');
-              invalidations.add(
-                CalendarInvalidated(
-                  reason: reason,
-                  flowId: flowId,
-                  clientEventIds: List<String>.from(clientEventIds),
-                ),
-              );
-            },
-      );
-
-      final result = await service.joinEveningThresholdRiteHeadless(
-        templateKey: kEveningThresholdRiteFlowKey,
-        templateTitle: kEveningThresholdRiteTitle,
-        templateOverview: kEveningThresholdRiteOverview,
-        templateColor: Colors.deepOrange,
-        personalCalendarId: 'personal-calendar',
-        timezone: timezone,
-        startDate: selectedStart,
-        discreet: true,
-        lens: EveningThresholdRiteLens.hiddenRenewal,
-        fallbackMinutesAfterMidnight: fallbackMinutes,
-      );
-
-      expect(result.succeeded, isTrue);
-      expect(result.hasLocalFastPath, isTrue);
-      expect(result.persistInBackground, isNotNull);
-      expect(eventCalls, isEmpty);
-      expect(deliveryCalls, isEmpty);
-      expect(invalidations, isEmpty);
-      await result.persistInBackground!();
-      await Future<void>.delayed(Duration.zero);
-      expect(result.flowId, 303);
-      expect(result.flowIdOrNegativeOne, 303);
-      expect(result.clientEventIds, expectedIds);
-
-      expect(flowCalls, hasLength(1));
-      expect(flowCalls.single['name'], kEveningThresholdRiteTitle);
-      expect(flowCalls.single['calendarId'], 'personal-calendar');
-      expect(flowCalls.single['startDate'], selectedStart);
-      expect(flowCalls.single['endDate'], DateTime(2026, 6, 4));
-      expect(flowCalls.single['originType'], 'template');
-      expect(
-        flowCalls.single['notes'],
-        contains('maat=$kEveningThresholdRiteFlowKey'),
-      );
-      expect(flowCalls.single['notes'], contains('evening_tz=eastern'));
-      expect(flowCalls.single['notes'], contains('evening_discreet=1'));
-      expect(
-        flowCalls.single['notes'],
-        contains('evening_lens=hidden_renewal'),
-      );
-      expect(
-        flowCalls.single['notes'],
-        contains('evening_fallback=$fallbackMinutes'),
-      );
-      final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
-      expect(rules.single, containsPair('type', 'dates'));
-
-      expect(eventCalls, hasLength(days.length));
-      expect(
-        eventCalls.map((call) => call['clientEventId']).toList(),
-        expectedIds,
-      );
-      expect(
-        eventCalls.first['title'],
-        eveningThresholdRiteEventTitle(days.first),
-      );
-      expect(eventCalls.first['startsAtUtc'], schedules.first.startUtc);
-      expect(eventCalls.first['endsAtUtc'], schedules.first.endUtc);
-      expect(eventCalls.first['flowLocalId'], 303);
-      expect(eventCalls.first['category'], 'Ritual');
-      expect(
-        eventCalls.first['caller'],
-        'evening_threshold_rite_join_headless',
-      );
-      expect(
-        eventCalls.first['actionId'],
-        eveningThresholdRiteActionId(days.first),
-      );
-      final firstPayload =
-          eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
-      expect(firstPayload['kind'], 'maat_evening_threshold_rite_day');
-      expect(firstPayload['flow_key'], kEveningThresholdRiteFlowKey);
-      expect(firstPayload['day'], days.first.dayNumber);
-      expect(firstPayload['discreet_mode'], isTrue);
-      expect(firstPayload['lens'], 'hidden_renewal');
-      expect(firstPayload['schedule'], containsPair('timezone', 'eastern'));
-      expect(
-        firstPayload['schedule'],
-        containsPair('fallback_minutes_after_midnight', fallbackMinutes),
-      );
-
-      expect(deliveryCalls, isEmpty);
-      expect(invalidations, hasLength(1));
-      expect(
-        invalidations.single.reason,
-        CalendarInvalidationReason.flowJoined,
-      );
-      expect(invalidations.single.flowId, 303);
-      expect(invalidations.single.clientEventIds, expectedIds);
-      expect(order, <String>[
-        'flow',
-        'event:${expectedIds[0]}',
-        'event:${expectedIds[1]}',
-        'invalidation',
-      ]);
-    },
-  );
-
-  test(
-    'headless The Weighing join persists events, intentionally skips delivery without alert, invalidates once, and returns success',
-    () async {
-      final timezone = TrackSkyTimeZone.central;
-      final selectedStart = DateTime(2026, 6, 5);
-      final events = <TheWeighingEvent>[
-        kTheWeighingEvents[0],
-        kTheWeighingEvents[1],
-      ];
-
-      TheWeighingOccurrenceSchedule scheduleForEvent(
-        TheWeighingEvent event,
-        DateTime date,
-      ) {
-        final startLocal = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          event.slot == TheWeighingTimingSlot.checkMidday ? 11 : 6,
-          event.eventNumber,
-        );
-        final endLocal = startLocal.add(
-          Duration(minutes: event.durationMinutesMax),
-        );
-        final startUtc = DateTime.utc(
-          date.year,
-          date.month,
-          date.day,
-          event.slot == TheWeighingTimingSlot.checkMidday ? 16 : 11,
-          event.eventNumber,
-        );
-        final endUtc = startUtc.add(
-          Duration(minutes: event.durationMinutesMax),
-        );
-        return TheWeighingOccurrenceSchedule(
-          startLocal: startLocal,
-          endLocal: endLocal,
-          startUtc: startUtc,
-          endUtc: endUtc,
-          usedFallback: false,
-          timezone: timezone,
-          referenceLocationName: 'Test horizon',
-          scheduleType: 'test_weighing_${event.slot.key}',
-          fallback: 'test_fallback',
-          middayHour: event.slot == TheWeighingTimingSlot.checkMidday
-              ? kTheWeighingDefaultMiddayHour
-              : null,
-          middayMinute: event.slot == TheWeighingTimingSlot.checkMidday
-              ? kTheWeighingDefaultMiddayMinute
-              : null,
-        );
-      }
-
-      final schedules = <TheWeighingOccurrenceSchedule>[
-        for (final event in events)
-          scheduleForEvent(
-            event,
-            selectedStart.add(Duration(days: event.flowDay - 1)),
-          ),
-      ];
-      final expectedIds = <String>[
-        for (var i = 0; i < events.length; i++)
-          EventCidUtil.buildClientEventId(
-            ky: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kYear,
-            km: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kMonth,
-            kd: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kDay,
-            title: theWeighingEventTitle(events[i]),
-            startHour: schedules[i].startLocal.hour,
-            startMinute: schedules[i].startLocal.minute,
-            allDay: false,
-            flowId: 304,
-          ),
-      ];
-
-      final order = <String>[];
-      final flowCalls = <Map<String, Object?>>[];
-      final eventCalls = <Map<String, Object?>>[];
-      final deliveryCalls = <Map<String, Object?>>[];
-      final invalidations = <CalendarInvalidated>[];
-
-      final service = FlowJoinService(
-        theWeighingEvents: events,
-        theWeighingScheduleForDate: (event, date, timezone) {
-          expect(timezone, TrackSkyTimeZone.central);
-          return scheduleForEvent(event, date);
-        },
-        upsertFlow:
-            ({
-              id,
-              required name,
-              required color,
-              required active,
-              calendarId,
-              startDate,
-              endDate,
-              notes,
-              required rules,
-              originType,
-            }) async {
-              order.add('flow');
-              flowCalls.add({
-                'name': name,
-                'active': active,
-                'calendarId': calendarId,
-                'startDate': startDate,
-                'endDate': endDate,
-                'notes': notes,
-                'rules': rules,
-                'originType': originType,
-              });
-              return 304;
-            },
-        upsertEvent:
-            ({
-              required clientEventId,
-              required title,
-              required startsAtUtc,
-              detail,
-              allDay = false,
-              endsAtUtc,
-              flowLocalId,
-              category,
-              actionId,
-              behaviorPayload,
-              calendarId,
-              caller,
-            }) async {
-              order.add('event:$clientEventId');
-              eventCalls.add({
-                'clientEventId': clientEventId,
-                'title': title,
-                'startsAtUtc': startsAtUtc,
-                'detail': detail,
-                'allDay': allDay,
-                'endsAtUtc': endsAtUtc,
-                'flowLocalId': flowLocalId,
-                'category': category,
-                'actionId': actionId,
-                'behaviorPayload': behaviorPayload,
-                'calendarId': calendarId,
-                'caller': caller,
-              });
-            },
-        fileHeadlessEventDelivery:
-            ({
-              required eventFiling,
-              required debugLabel,
-              required clientEventId,
-              required startsAtLocal,
-              required alertOffsetMinutes,
-              required title,
-              body,
-            }) async {
-              order.add('delivery:$clientEventId');
-              deliveryCalls.add({
-                'debugLabel': debugLabel,
-                'clientEventId': clientEventId,
-                'startsAtLocal': startsAtLocal,
-                'alertOffsetMinutes': alertOffsetMinutes,
-                'title': title,
-                'body': body,
-              });
-            },
-        publishHeadlessCalendarInvalidation:
-            ({required reason, required flowId, required clientEventIds}) {
-              order.add('invalidation');
-              invalidations.add(
-                CalendarInvalidated(
-                  reason: reason,
-                  flowId: flowId,
-                  clientEventIds: List<String>.from(clientEventIds),
-                ),
-              );
-            },
-      );
-
-      final result = await service.joinTheWeighingHeadless(
-        templateKey: kTheWeighingFlowKey,
-        templateTitle: kTheWeighingTitle,
-        templateOverview: kTheWeighingOverview,
-        templateColor: Colors.blueGrey,
-        personalCalendarId: 'personal-calendar',
-        timezone: timezone,
-        startDate: selectedStart,
-        lens: TheWeighingLens.djehuty,
-      );
-
-      expect(result.succeeded, isTrue);
-      expect(result.hasLocalFastPath, isTrue);
-      expect(result.persistInBackground, isNotNull);
-      expect(eventCalls, isEmpty);
-      expect(deliveryCalls, isEmpty);
-      expect(invalidations, isEmpty);
-      await result.persistInBackground!();
-      await Future<void>.delayed(Duration.zero);
-      expect(result.flowId, 304);
-      expect(result.flowIdOrNegativeOne, 304);
-      expect(result.clientEventIds, expectedIds);
-
-      expect(flowCalls, hasLength(1));
-      expect(flowCalls.single['name'], kTheWeighingTitle);
-      expect(flowCalls.single['calendarId'], 'personal-calendar');
-      expect(flowCalls.single['startDate'], selectedStart);
-      expect(
-        flowCalls.single['endDate'],
-        selectedStart.add(const Duration(days: 29)),
-      );
-      expect(flowCalls.single['originType'], 'template');
-      expect(flowCalls.single['notes'], contains('maat=$kTheWeighingFlowKey'));
-      expect(flowCalls.single['notes'], contains('weighing_tz=central'));
-      expect(flowCalls.single['notes'], contains('weighing_lens=djehuty'));
-      expect(
-        flowCalls.single['notes'],
-        contains('weighing_midday_hour=$kTheWeighingDefaultMiddayHour'),
-      );
-      expect(
-        flowCalls.single['notes'],
-        contains('weighing_midday_minute=$kTheWeighingDefaultMiddayMinute'),
-      );
-      final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
-      expect(rules.single, containsPair('type', 'dates'));
-
-      expect(eventCalls, hasLength(events.length));
-      expect(
-        eventCalls.map((call) => call['clientEventId']).toList(),
-        expectedIds,
-      );
-      expect(eventCalls.first['title'], theWeighingEventTitle(events.first));
-      expect(eventCalls.first['startsAtUtc'], schedules.first.startUtc);
-      expect(eventCalls.first['endsAtUtc'], schedules.first.endUtc);
-      expect(eventCalls.first['flowLocalId'], 304);
-      expect(eventCalls.first['category'], 'Ritual');
-      expect(eventCalls.first['caller'], 'the_weighing_join_headless');
-      expect(eventCalls.first['actionId'], theWeighingActionId(events.first));
-      final firstPayload =
-          eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
-      expect(firstPayload['kind'], 'maat_the_weighing_event');
-      expect(firstPayload['flow_key'], kTheWeighingFlowKey);
-      expect(firstPayload['event_number'], events.first.eventNumber);
-      expect(firstPayload['flow_day'], events.first.flowDay);
-      expect(firstPayload['lens'], 'djehuty');
-      expect(
-        firstPayload['schedule'],
-        containsPair('type', 'test_weighing_open_morning'),
-      );
-
-      expect(deliveryCalls, isEmpty);
-      expect(invalidations, hasLength(1));
-      expect(
-        invalidations.single.reason,
-        CalendarInvalidationReason.flowJoined,
-      );
-      expect(invalidations.single.flowId, 304);
-      expect(invalidations.single.clientEventIds, expectedIds);
-      expect(order, <String>[
-        'flow',
-        'event:${expectedIds[0]}',
-        'event:${expectedIds[1]}',
-        'invalidation',
-      ]);
-    },
-  );
-
+    final event4Payload =
+        eventCalls[3]['behaviorPayload']! as Map<String, dynamic>;
+    final event7Payload =
+        eventCalls[6]['behaviorPayload']! as Map<String, dynamic>;
+    expect(event4Payload['library_cta'], <String, dynamic>{
+      'type': kMaatLibraryCtaAddInsight,
+      'node_slug': null,
+      'label': 'Add your insight',
+    });
+    expect(event7Payload['library_cta'], <String, dynamic>{
+      'type': kMaatLibraryCtaAddInsight,
+      'node_slug': null,
+      'label': 'Revise your insight',
+    });
+  });
   test(
     'headless Offering Table join persists events, files at-time delivery, invalidates once, and returns success',
     () async {
@@ -3167,572 +1969,6 @@ void main() {
       ]);
     },
   );
-
-  test(
-    'headless The Tending join persists events, files at-time delivery, invalidates once, and returns success',
-    () async {
-      final timezone = TrackSkyTimeZone.mountain;
-      final selectedStart = DateTime(2026, 6, 9);
-      final events = <TheTendingEvent>[
-        kTheTendingEvents[0],
-        kTheTendingEvents[1],
-      ];
-
-      TheTendingOccurrenceSchedule scheduleForEvent(
-        TheTendingEvent event,
-        DateTime date,
-      ) {
-        final startLocal = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          event.slot == TheTendingTimingSlot.checkMidday ? 11 : 6,
-          event.eventNumber,
-        );
-        final endLocal = startLocal.add(
-          Duration(minutes: event.durationMinutesMax),
-        );
-        final startUtc = DateTime.utc(
-          date.year,
-          date.month,
-          date.day,
-          event.slot == TheTendingTimingSlot.checkMidday ? 17 : 12,
-          event.eventNumber,
-        );
-        final endUtc = startUtc.add(
-          Duration(minutes: event.durationMinutesMax),
-        );
-        return TheTendingOccurrenceSchedule(
-          startLocal: startLocal,
-          endLocal: endLocal,
-          startUtc: startUtc,
-          endUtc: endUtc,
-          usedFallback: false,
-          timezone: timezone,
-          referenceLocationName: 'Test horizon',
-          scheduleType: 'test_tending_${event.slot.key}',
-          fallback: 'test_fallback',
-          middayHour: event.slot == TheTendingTimingSlot.checkMidday
-              ? kTheTendingDefaultMiddayHour
-              : null,
-          middayMinute: event.slot == TheTendingTimingSlot.checkMidday
-              ? kTheTendingDefaultMiddayMinute
-              : null,
-        );
-      }
-
-      final schedules = <TheTendingOccurrenceSchedule>[
-        for (final event in events)
-          scheduleForEvent(
-            event,
-            selectedStart.add(Duration(days: event.flowDay - 1)),
-          ),
-      ];
-      final expectedIds = <String>[
-        for (var i = 0; i < events.length; i++)
-          EventCidUtil.buildClientEventId(
-            ky: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kYear,
-            km: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kMonth,
-            kd: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kDay,
-            title: theTendingEventTitle(events[i]),
-            startHour: schedules[i].startLocal.hour,
-            startMinute: schedules[i].startLocal.minute,
-            allDay: false,
-            flowId: 306,
-          ),
-      ];
-
-      final order = <String>[];
-      final flowCalls = <Map<String, Object?>>[];
-      final eventCalls = <Map<String, Object?>>[];
-      final deliveryCalls = <Map<String, Object?>>[];
-      final invalidations = <CalendarInvalidated>[];
-
-      final service = FlowJoinService(
-        theTendingEvents: events,
-        theTendingScheduleForDate: (event, date, timezone) {
-          expect(timezone, TrackSkyTimeZone.mountain);
-          return scheduleForEvent(event, date);
-        },
-        upsertFlow:
-            ({
-              id,
-              required name,
-              required color,
-              required active,
-              calendarId,
-              startDate,
-              endDate,
-              notes,
-              required rules,
-              originType,
-            }) async {
-              order.add('flow');
-              flowCalls.add({
-                'name': name,
-                'active': active,
-                'calendarId': calendarId,
-                'startDate': startDate,
-                'endDate': endDate,
-                'notes': notes,
-                'rules': rules,
-                'originType': originType,
-              });
-              return 306;
-            },
-        upsertEvent:
-            ({
-              required clientEventId,
-              required title,
-              required startsAtUtc,
-              detail,
-              allDay = false,
-              endsAtUtc,
-              flowLocalId,
-              category,
-              actionId,
-              behaviorPayload,
-              calendarId,
-              caller,
-            }) async {
-              order.add('event:$clientEventId');
-              eventCalls.add({
-                'clientEventId': clientEventId,
-                'title': title,
-                'startsAtUtc': startsAtUtc,
-                'detail': detail,
-                'allDay': allDay,
-                'endsAtUtc': endsAtUtc,
-                'flowLocalId': flowLocalId,
-                'category': category,
-                'actionId': actionId,
-                'behaviorPayload': behaviorPayload,
-                'calendarId': calendarId,
-                'caller': caller,
-              });
-            },
-        fileHeadlessEventDelivery:
-            ({
-              required eventFiling,
-              required debugLabel,
-              required clientEventId,
-              required startsAtLocal,
-              required alertOffsetMinutes,
-              required title,
-              body,
-            }) async {
-              order.add('delivery:$clientEventId');
-              deliveryCalls.add({
-                'debugLabel': debugLabel,
-                'clientEventId': clientEventId,
-                'startsAtLocal': startsAtLocal,
-                'alertOffsetMinutes': alertOffsetMinutes,
-                'title': title,
-                'body': body,
-              });
-            },
-        publishHeadlessCalendarInvalidation:
-            ({required reason, required flowId, required clientEventIds}) {
-              order.add('invalidation');
-              invalidations.add(
-                CalendarInvalidated(
-                  reason: reason,
-                  flowId: flowId,
-                  clientEventIds: List<String>.from(clientEventIds),
-                ),
-              );
-            },
-      );
-
-      final result = await service.joinTheTendingHeadless(
-        templateKey: kTheTendingFlowKey,
-        templateTitle: kTheTendingTitle,
-        templateOverview: kTheTendingOverview,
-        templateColor: Colors.green,
-        personalCalendarId: 'personal-calendar',
-        timezone: timezone,
-        startDate: selectedStart,
-        lens: TheTendingLens.aset,
-        alertOffsetMinutes: 0,
-      );
-
-      expect(result.succeeded, isTrue);
-      expect(result.hasLocalFastPath, isTrue);
-      expect(result.persistInBackground, isNotNull);
-      expect(eventCalls, isEmpty);
-      expect(deliveryCalls, isEmpty);
-      expect(invalidations, isEmpty);
-      await result.persistInBackground!();
-      await Future<void>.delayed(Duration.zero);
-      expect(result.flowId, 306);
-      expect(result.flowIdOrNegativeOne, 306);
-      expect(result.clientEventIds, expectedIds);
-
-      expect(flowCalls, hasLength(1));
-      expect(flowCalls.single['name'], kTheTendingTitle);
-      expect(flowCalls.single['calendarId'], 'personal-calendar');
-      expect(flowCalls.single['startDate'], selectedStart);
-      expect(
-        flowCalls.single['endDate'],
-        selectedStart.add(const Duration(days: 29)),
-      );
-      expect(flowCalls.single['originType'], 'template');
-      expect(flowCalls.single['notes'], contains('maat=$kTheTendingFlowKey'));
-      expect(flowCalls.single['notes'], contains('tending_tz=mountain'));
-      expect(flowCalls.single['notes'], contains('tending_lens=aset'));
-      expect(
-        flowCalls.single['notes'],
-        contains('tending_midday_hour=$kTheTendingDefaultMiddayHour'),
-      );
-      expect(
-        flowCalls.single['notes'],
-        contains('tending_midday_minute=$kTheTendingDefaultMiddayMinute'),
-      );
-      final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
-      expect(rules.single, containsPair('type', 'dates'));
-
-      expect(eventCalls, hasLength(events.length));
-      expect(deliveryCalls, hasLength(events.length));
-      expect(
-        eventCalls.map((call) => call['clientEventId']).toList(),
-        expectedIds,
-      );
-      expect(eventCalls.first['title'], theTendingEventTitle(events.first));
-      expect(eventCalls.first['startsAtUtc'], schedules.first.startUtc);
-      expect(eventCalls.first['endsAtUtc'], schedules.first.endUtc);
-      expect(eventCalls.first['flowLocalId'], 306);
-      expect(eventCalls.first['category'], 'Ritual');
-      expect(eventCalls.first['caller'], 'the_tending_join_headless');
-      expect(eventCalls.first['actionId'], theTendingActionId(events.first));
-      final firstPayload =
-          eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
-      expect(firstPayload['kind'], 'maat_the_tending_event');
-      expect(firstPayload['flow_key'], kTheTendingFlowKey);
-      expect(firstPayload['event_number'], events.first.eventNumber);
-      expect(firstPayload['flow_day'], events.first.flowDay);
-      expect(firstPayload['local_prompt'], 'care_inventory');
-      expect(firstPayload['privacy'], containsPair('sync_care_names', false));
-      expect(firstPayload['lens'], 'aset');
-      expect(
-        firstPayload['schedule'],
-        containsPair('type', 'test_tending_open_morning'),
-      );
-
-      expect(deliveryCalls.first['debugLabel'], 'theTendingHeadless');
-      expect(deliveryCalls.first['clientEventId'], expectedIds.first);
-      expect(deliveryCalls.first['startsAtLocal'], schedules.first.startLocal);
-      expect(deliveryCalls.first['alertOffsetMinutes'], 0);
-      expect(deliveryCalls.first['title'], theTendingEventTitle(events.first));
-
-      expect(invalidations, hasLength(1));
-      expect(
-        invalidations.single.reason,
-        CalendarInvalidationReason.flowJoined,
-      );
-      expect(invalidations.single.flowId, 306);
-      expect(invalidations.single.clientEventIds, expectedIds);
-      expect(order, <String>[
-        'flow',
-        'event:${expectedIds[0]}',
-        'event:${expectedIds[1]}',
-        'invalidation',
-        'delivery:${expectedIds[0]}',
-        'delivery:${expectedIds[1]}',
-      ]);
-    },
-  );
-
-  test(
-    'headless Kept Word join persists events, files at-time delivery, invalidates once, and returns success',
-    () async {
-      final timezone = TrackSkyTimeZone.mountain;
-      final selectedStart = DateTime(2026, 6, 10);
-      final events = <KeptWordEvent>[kKeptWordEvents[0], kKeptWordEvents[1]];
-
-      KeptWordOccurrenceSchedule scheduleForEvent(
-        KeptWordEvent event,
-        DateTime date,
-      ) {
-        final startLocal = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          event.slot == KeptWordTimingSlot.checkMidday ? 11 : 6,
-          event.eventNumber,
-        );
-        final endLocal = startLocal.add(
-          Duration(minutes: event.durationMinutesMax),
-        );
-        final startUtc = DateTime.utc(
-          date.year,
-          date.month,
-          date.day,
-          event.slot == KeptWordTimingSlot.checkMidday ? 17 : 12,
-          event.eventNumber,
-        );
-        final endUtc = startUtc.add(
-          Duration(minutes: event.durationMinutesMax),
-        );
-        return KeptWordOccurrenceSchedule(
-          startLocal: startLocal,
-          endLocal: endLocal,
-          startUtc: startUtc,
-          endUtc: endUtc,
-          usedFallback: false,
-          timezone: timezone,
-          referenceLocationName: 'Test horizon',
-          scheduleType: 'test_kept_word_${event.slot.key}',
-          fallback: 'test_fallback',
-          middayHour: event.slot == KeptWordTimingSlot.checkMidday
-              ? kKeptWordDefaultMiddayHour
-              : null,
-          middayMinute: event.slot == KeptWordTimingSlot.checkMidday
-              ? kKeptWordDefaultMiddayMinute
-              : null,
-        );
-      }
-
-      final schedules = <KeptWordOccurrenceSchedule>[
-        for (final event in events)
-          scheduleForEvent(
-            event,
-            selectedStart.add(Duration(days: event.flowDay - 1)),
-          ),
-      ];
-      final expectedIds = <String>[
-        for (var i = 0; i < events.length; i++)
-          EventCidUtil.buildClientEventId(
-            ky: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kYear,
-            km: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kMonth,
-            kd: KemeticMath.fromGregorian(
-              DateUtils.dateOnly(schedules[i].startLocal),
-            ).kDay,
-            title: keptWordEventTitle(events[i]),
-            startHour: schedules[i].startLocal.hour,
-            startMinute: schedules[i].startLocal.minute,
-            allDay: false,
-            flowId: 307,
-          ),
-      ];
-
-      final order = <String>[];
-      final flowCalls = <Map<String, Object?>>[];
-      final eventCalls = <Map<String, Object?>>[];
-      final deliveryCalls = <Map<String, Object?>>[];
-      final invalidations = <CalendarInvalidated>[];
-
-      final service = FlowJoinService(
-        keptWordEvents: events,
-        keptWordScheduleForDate: (event, date, timezone) {
-          expect(timezone, TrackSkyTimeZone.mountain);
-          return scheduleForEvent(event, date);
-        },
-        upsertFlow:
-            ({
-              id,
-              required name,
-              required color,
-              required active,
-              calendarId,
-              startDate,
-              endDate,
-              notes,
-              required rules,
-              originType,
-            }) async {
-              order.add('flow');
-              flowCalls.add({
-                'name': name,
-                'active': active,
-                'calendarId': calendarId,
-                'startDate': startDate,
-                'endDate': endDate,
-                'notes': notes,
-                'rules': rules,
-                'originType': originType,
-              });
-              return 307;
-            },
-        upsertEvent:
-            ({
-              required clientEventId,
-              required title,
-              required startsAtUtc,
-              detail,
-              allDay = false,
-              endsAtUtc,
-              flowLocalId,
-              category,
-              actionId,
-              behaviorPayload,
-              calendarId,
-              caller,
-            }) async {
-              order.add('event:$clientEventId');
-              eventCalls.add({
-                'clientEventId': clientEventId,
-                'title': title,
-                'startsAtUtc': startsAtUtc,
-                'detail': detail,
-                'allDay': allDay,
-                'endsAtUtc': endsAtUtc,
-                'flowLocalId': flowLocalId,
-                'category': category,
-                'actionId': actionId,
-                'behaviorPayload': behaviorPayload,
-                'calendarId': calendarId,
-                'caller': caller,
-              });
-            },
-        fileHeadlessEventDelivery:
-            ({
-              required eventFiling,
-              required debugLabel,
-              required clientEventId,
-              required startsAtLocal,
-              required alertOffsetMinutes,
-              required title,
-              body,
-            }) async {
-              order.add('delivery:$clientEventId');
-              deliveryCalls.add({
-                'debugLabel': debugLabel,
-                'clientEventId': clientEventId,
-                'startsAtLocal': startsAtLocal,
-                'alertOffsetMinutes': alertOffsetMinutes,
-                'title': title,
-                'body': body,
-              });
-            },
-        publishHeadlessCalendarInvalidation:
-            ({required reason, required flowId, required clientEventIds}) {
-              order.add('invalidation');
-              invalidations.add(
-                CalendarInvalidated(
-                  reason: reason,
-                  flowId: flowId,
-                  clientEventIds: List<String>.from(clientEventIds),
-                ),
-              );
-            },
-      );
-
-      final result = await service.joinKeptWordHeadless(
-        templateKey: kKeptWordFlowKey,
-        templateTitle: kKeptWordTitle,
-        templateOverview: kKeptWordOverview,
-        templateColor: Colors.green,
-        personalCalendarId: 'personal-calendar',
-        timezone: timezone,
-        startDate: selectedStart,
-        lens: KeptWordLens.djehuty,
-        alertOffsetMinutes: 0,
-      );
-
-      expect(result.succeeded, isTrue);
-      expect(result.hasLocalFastPath, isTrue);
-      expect(result.persistInBackground, isNotNull);
-      expect(eventCalls, isEmpty);
-      expect(deliveryCalls, isEmpty);
-      expect(invalidations, isEmpty);
-      await result.persistInBackground!();
-      await Future<void>.delayed(Duration.zero);
-      expect(result.flowId, 307);
-      expect(result.flowIdOrNegativeOne, 307);
-      expect(result.clientEventIds, expectedIds);
-
-      expect(flowCalls, hasLength(1));
-      expect(flowCalls.single['name'], kKeptWordTitle);
-      expect(flowCalls.single['calendarId'], 'personal-calendar');
-      expect(flowCalls.single['startDate'], selectedStart);
-      expect(
-        flowCalls.single['endDate'],
-        selectedStart.add(const Duration(days: 29)),
-      );
-      expect(flowCalls.single['originType'], 'template');
-      expect(flowCalls.single['notes'], contains('maat=$kKeptWordFlowKey'));
-      expect(flowCalls.single['notes'], contains('kept_word_tz=mountain'));
-      expect(flowCalls.single['notes'], contains('kept_word_lens=djehuty'));
-      expect(
-        flowCalls.single['notes'],
-        contains('kept_word_midday_hour=$kKeptWordDefaultMiddayHour'),
-      );
-      expect(
-        flowCalls.single['notes'],
-        contains('kept_word_midday_minute=$kKeptWordDefaultMiddayMinute'),
-      );
-      final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
-      expect(rules.single, containsPair('type', 'dates'));
-
-      expect(eventCalls, hasLength(events.length));
-      expect(deliveryCalls, hasLength(events.length));
-      expect(
-        eventCalls.map((call) => call['clientEventId']).toList(),
-        expectedIds,
-      );
-      expect(eventCalls.first['title'], keptWordEventTitle(events.first));
-      expect(eventCalls.first['startsAtUtc'], schedules.first.startUtc);
-      expect(eventCalls.first['endsAtUtc'], schedules.first.endUtc);
-      expect(eventCalls.first['flowLocalId'], 307);
-      expect(eventCalls.first['category'], 'Ritual');
-      expect(eventCalls.first['caller'], 'the_kept_word_join_headless');
-      expect(eventCalls.first['actionId'], keptWordActionId(events.first));
-      final firstPayload =
-          eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
-      expect(firstPayload['kind'], 'maat_kept_word_event');
-      expect(firstPayload['flow_key'], kKeptWordFlowKey);
-      expect(firstPayload['event_number'], events.first.eventNumber);
-      expect(firstPayload['flow_day'], events.first.flowDay);
-      expect(firstPayload['local_prompt'], 'agreement_inventory');
-      expect(
-        firstPayload['privacy'],
-        containsPair('household_notes_storage', 'device_only'),
-      );
-      expect(
-        firstPayload['privacy'],
-        containsPair('sync_agreement_text', false),
-      );
-      expect(firstPayload['privacy'], containsPair('sync_names', false));
-      expect(firstPayload['lens'], 'djehuty');
-      expect(
-        firstPayload['schedule'],
-        containsPair('type', 'test_kept_word_open_morning'),
-      );
-
-      expect(deliveryCalls.first['debugLabel'], 'keptWordHeadless');
-      expect(deliveryCalls.first['clientEventId'], expectedIds.first);
-      expect(deliveryCalls.first['startsAtLocal'], schedules.first.startLocal);
-      expect(deliveryCalls.first['alertOffsetMinutes'], 0);
-      expect(deliveryCalls.first['title'], keptWordEventTitle(events.first));
-
-      expect(invalidations, hasLength(1));
-      expect(
-        invalidations.single.reason,
-        CalendarInvalidationReason.flowJoined,
-      );
-      expect(invalidations.single.flowId, 307);
-      expect(invalidations.single.clientEventIds, expectedIds);
-      expect(order, <String>[
-        'flow',
-        'event:${expectedIds[0]}',
-        'event:${expectedIds[1]}',
-        'invalidation',
-        'delivery:${expectedIds[0]}',
-        'delivery:${expectedIds[1]}',
-      ]);
-    },
-  );
-
   test(
     '62-event staged join returns before event writes then persists once',
     () async {

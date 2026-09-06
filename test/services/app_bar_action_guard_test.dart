@@ -1296,7 +1296,7 @@ void main() {
       );
 
       expect(persist, contains('SessionResumeService.clearResumeEntry'));
-      expect(source, contains('return PopScope('));
+      expect(source, contains('final page = PopScope('));
       expect(source, contains('unawaited(_leaveConversation())'));
       expect(leave, contains('suppressRestoreForUserNavigation'));
       expect(leave, contains('await SessionResumeService.clearResumeEntry'));

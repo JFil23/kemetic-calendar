@@ -69,6 +69,8 @@ class MaatFlowDetailShell extends StatefulWidget {
     this.scrollKey = const ValueKey<String>('maat-flow-detail-scroll'),
     this.heroLayerKey,
     this.sheetKey,
+    this.referenceHeroHeight = MaatFlowDetailGeometry.heroHeight,
+    this.referenceSheetOverlap = MaatFlowDetailGeometry.sheetOverlap,
   });
 
   final MaatFlowDetailTheme theme;
@@ -79,6 +81,8 @@ class MaatFlowDetailShell extends StatefulWidget {
   final Key scrollKey;
   final Key? heroLayerKey;
   final Key? sheetKey;
+  final double referenceHeroHeight;
+  final double referenceSheetOverlap;
 
   @override
   State<MaatFlowDetailShell> createState() => _MaatFlowDetailShellState();
@@ -115,15 +119,15 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final widthScaledHero =
-            MaatFlowDetailGeometry.heroHeight *
+            widget.referenceHeroHeight *
             (width / MaatFlowDetailGeometry.referenceWidth);
         final heightScaledHero =
             constraints.maxHeight *
-            (MaatFlowDetailGeometry.heroHeight /
+            (widget.referenceHeroHeight /
                 MaatFlowDetailGeometry.referenceHeight);
         final heroHeight = math.min(widthScaledHero, heightScaledHero);
         final overlap =
-            MaatFlowDetailGeometry.sheetOverlap *
+            widget.referenceSheetOverlap *
             (width / MaatFlowDetailGeometry.referenceWidth);
         final parallax =
             _scrollOffset * MaatFlowDetailGeometry.heroParallaxFactor;
@@ -201,9 +205,17 @@ class MaatFlowDetailHero extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.glyphKey,
+    this.glyphContent,
+    this.glyphOffset = Offset.zero,
     this.glyphGradient,
     this.glyphBorder,
     this.glyphGlow,
+    this.contentBottom = 72,
+    this.glyphToTitleSpacing = 16,
+    this.titleFontSize = 48,
+    this.subtitleSpacing = 10,
+    this.subtitleWidth = 250,
+    this.subtitleFontSize = 19,
   });
 
   final MaatFlowDetailTheme theme;
@@ -212,9 +224,17 @@ class MaatFlowDetailHero extends StatelessWidget {
   final String title;
   final String subtitle;
   final Key? glyphKey;
+  final Widget? glyphContent;
+  final Offset glyphOffset;
   final Gradient? glyphGradient;
   final Color? glyphBorder;
   final Color? glyphGlow;
+  final double contentBottom;
+  final double glyphToTitleSpacing;
+  final double titleFontSize;
+  final double subtitleSpacing;
+  final double subtitleWidth;
+  final double subtitleFontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -233,60 +253,65 @@ class MaatFlowDetailHero extends StatelessWidget {
               Positioned(
                 left: 24,
                 right: 24,
-                bottom: 72,
+                bottom: contentBottom,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient:
-                            glyphGradient ??
-                            RadialGradient(
-                              center: const Alignment(-0.24, -0.44),
-                              radius: 0.9,
-                              colors: [
-                                theme.accent.withValues(alpha: 0.82),
-                                theme.sheetBackground.withValues(alpha: 0.96),
-                                theme.pageBackground,
-                              ],
-                            ),
-                        border: Border.all(
-                          color:
-                              glyphBorder ??
-                              theme.accent.withValues(alpha: 0.30),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (glyphGlow ?? theme.glow).withValues(
-                              alpha: 0.13,
-                            ),
-                            blurRadius: 26,
+                    Transform.translate(
+                      offset: glyphOffset,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient:
+                              glyphGradient ??
+                              RadialGradient(
+                                center: const Alignment(-0.24, -0.44),
+                                radius: 0.9,
+                                colors: [
+                                  theme.accent.withValues(alpha: 0.82),
+                                  theme.sheetBackground.withValues(alpha: 0.96),
+                                  theme.pageBackground,
+                                ],
+                              ),
+                          border: Border.all(
+                            color:
+                                glyphBorder ??
+                                theme.accent.withValues(alpha: 0.30),
                           ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        glyph,
-                        key: glyphKey,
-                        style: TextStyle(
-                          color: theme.glow,
-                          fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-                          fontSize: 29,
-                          height: 1,
+                          boxShadow: [
+                            BoxShadow(
+                              color: (glyphGlow ?? theme.glow).withValues(
+                                alpha: 0.13,
+                              ),
+                              blurRadius: 26,
+                            ),
+                          ],
                         ),
+                        alignment: Alignment.center,
+                        child: glyphContent == null
+                            ? Text(
+                                glyph,
+                                key: glyphKey,
+                                style: TextStyle(
+                                  color: theme.glow,
+                                  fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                                  fontSize: 29,
+                                  height: 1,
+                                ),
+                              )
+                            : KeyedSubtree(key: glyphKey, child: glyphContent!),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: glyphToTitleSpacing),
                     Text(
                       title,
                       style: TextStyle(
                         color: theme.accent,
                         fontFamily: MaatFlowListTokens.fontFamily,
                         fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                        fontSize: 48 * titleScale,
+                        fontSize: titleFontSize * titleScale,
                         fontWeight: FontWeight.w500,
                         height: 1,
                         letterSpacing: -0.48 * titleScale,
@@ -299,29 +324,31 @@ class MaatFlowDetailHero extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: 250,
-                      child: Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: theme.primaryText,
-                          fontFamily: MaatFlowListTokens.fontFamily,
-                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w300,
-                          fontStyle: FontStyle.italic,
-                          height: 1.2,
-                          shadows: const [
-                            Shadow(
-                              color: Color(0xC7000000),
-                              blurRadius: 8,
-                              offset: Offset(0, 1),
-                            ),
-                          ],
+                    if (subtitle.isNotEmpty) ...[
+                      SizedBox(height: subtitleSpacing),
+                      SizedBox(
+                        width: subtitleWidth,
+                        child: Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: theme.primaryText,
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                            fontSize: subtitleFontSize,
+                            fontWeight: FontWeight.w300,
+                            fontStyle: FontStyle.italic,
+                            height: 1.2,
+                            shadows: const [
+                              Shadow(
+                                color: Color(0xC7000000),
+                                blurRadius: 8,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

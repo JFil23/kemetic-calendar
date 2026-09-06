@@ -1,5 +1,5 @@
 import 'maat_flow_identity.dart';
-import 'the_weighing_flow.dart';
+import 'maat_solar_schedule.dart';
 import 'track_sky_flow.dart';
 
 const String kTheDjedFlowKey = 'the-djed';
@@ -482,7 +482,7 @@ DateTime djedEventDate(DateTime startDate, DjedEvent event) {
 }
 
 DateTime djedNowInZone(TrackSkyTimeZone timezone, {DateTime? now}) {
-  return theWeighingNowInZone(timezone, now: now);
+  return maatNowInZone(timezone, now: now);
 }
 
 DjedOccurrenceSchedule djedScheduleForEvent(
@@ -491,40 +491,62 @@ DjedOccurrenceSchedule djedScheduleForEvent(
   TrackSkyTimeZone timezone, {
   int middayHour = kDjedDefaultMiddayHour,
   int middayMinute = kDjedDefaultMiddayMinute,
+}) => djedScheduleForOccurrence(
+  flowDay: event.flowDay,
+  slot: event.slot,
+  durationMinutes: event.durationMinutesMax,
+  flowStart: flowStart,
+  timezone: timezone,
+  middayHour: middayHour,
+  middayMinute: middayMinute,
+);
+
+DjedOccurrenceSchedule djedScheduleForOccurrence({
+  required int flowDay,
+  required DjedTimingSlot slot,
+  required int durationMinutes,
+  required DateTime flowStart,
+  required TrackSkyTimeZone timezone,
+  int middayHour = kDjedDefaultMiddayHour,
+  int middayMinute = kDjedDefaultMiddayMinute,
 }) {
-  final date = djedEventDate(flowStart, event);
-  switch (event.slot) {
+  final date = DateTime(
+    flowStart.year,
+    flowStart.month,
+    flowStart.day + flowDay - 1,
+  );
+  switch (slot) {
     case DjedTimingSlot.openMorning:
-      return _fromWeighingSchedule(
-        weighingMorningScheduleForDate(
+      return _fromDailySchedule(
+        maatMorningScheduleForDate(
           date,
           timezone,
-          durationMinutes: event.durationMinutesMax,
+          durationMinutes: durationMinutes,
         ),
       );
     case DjedTimingSlot.checkMidday:
-      return _fromWeighingSchedule(
-        weighingMiddayScheduleForDate(
+      return _fromDailySchedule(
+        maatMiddayScheduleForDate(
           date,
           timezone,
-          durationMinutes: event.durationMinutesMax,
+          durationMinutes: durationMinutes,
           hour: middayHour,
           minute: middayMinute,
         ),
       );
     case DjedTimingSlot.sealEvening:
-      return _fromWeighingSchedule(
-        weighingEveningScheduleForDate(
+      return _fromDailySchedule(
+        maatEveningScheduleForDate(
           date,
           timezone,
-          durationMinutes: event.durationMinutesMax,
+          durationMinutes: durationMinutes,
         ),
       );
   }
 }
 
-DjedOccurrenceSchedule _fromWeighingSchedule(
-  TheWeighingOccurrenceSchedule schedule,
+DjedOccurrenceSchedule _fromDailySchedule(
+  MaatDailyOccurrenceSchedule schedule,
 ) {
   return DjedOccurrenceSchedule(
     startLocal: schedule.startLocal,
@@ -634,6 +656,11 @@ String? canonicalDjedDetailTextForEvent({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
+  final rawSchema = behaviorPayload?['djed_schema_version'];
+  final schema = rawSchema is num
+      ? rawSchema.toInt()
+      : int.tryParse(rawSchema?.toString() ?? '');
+  if (schema != null && schema >= 2) return null;
   if (!isDjedFlowReference(
     flowName: flowName,
     flowNotes: flowNotes,

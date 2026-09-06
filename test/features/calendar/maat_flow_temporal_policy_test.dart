@@ -193,6 +193,16 @@ void main() {
     );
   });
 
+  test('all nine archived flows reject schedule materialization', () {
+    for (final kind in kArchivedCompatibilityMaatFlowKinds) {
+      expect(
+        () => resolve(kind, DateTime.utc(2026, 9, 2, 18)),
+        throwsUnsupportedError,
+        reason: kind.flowKey,
+      );
+    }
+  });
+
   test('Follow the Sky advances only after the effective event window', () {
     final equinoxNight = catalog.observingNight(
       catalog.byId('autumn-equinox-2026')!,

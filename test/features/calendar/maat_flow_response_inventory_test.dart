@@ -1,23 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/evening_threshold_flow.dart';
-import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
 import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/the_course_flow.dart';
-import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
-import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
-import 'package:mobile/features/calendar/the_tending_flow.dart';
-import 'package:mobile/features/calendar/the_wag_flow.dart';
-import 'package:mobile/features/calendar/the_weighing_flow.dart';
 
 const String _trackSkyFlowKey = 'track-the-sky';
 const String _trackSkyTitle = 'Follow the Sky';
@@ -37,8 +31,8 @@ class _InventoryFlow {
 }
 
 // Phase 3H inventory lock:
-// Response-enabled core/seasonal/ritual flows: 15
-// Response-enabled decan flows: 17
+// Response-enabled core/seasonal/ritual flows: 8
+// Response-enabled decan flows: 15
 // Remaining queued decan flows: 0
 // Legacy custom flow excluded from response rollout: evening_threshold
 const List<_InventoryFlow> _responseEnabledCoreFlows = <_InventoryFlow>[
@@ -49,40 +43,10 @@ const List<_InventoryFlow> _responseEnabledCoreFlows = <_InventoryFlow>[
     phase: 'Phase 3G',
   ),
   _InventoryFlow(
-    key: kDawnHouseRiteFlowKey,
-    title: kDawnHouseRiteTitle,
-    category: 'response-enabled core',
-    phase: 'Phase 2D',
-  ),
-  _InventoryFlow(
-    key: kEveningThresholdRiteFlowKey,
-    title: kEveningThresholdRiteTitle,
-    category: 'response-enabled core',
-    phase: 'Phase 2D',
-  ),
-  _InventoryFlow(
-    key: kTheWeighingFlowKey,
-    title: kTheWeighingTitle,
-    category: 'response-enabled core',
-    phase: 'Phase 3G',
-  ),
-  _InventoryFlow(
     key: kOfferingTableFlowKey,
     title: kOfferingTableTitle,
     category: 'response-enabled core',
     phase: 'Phase 3A',
-  ),
-  _InventoryFlow(
-    key: kTheTendingFlowKey,
-    title: kTheTendingTitle,
-    category: 'response-enabled core',
-    phase: 'Phase 3D',
-  ),
-  _InventoryFlow(
-    key: kKeptWordFlowKey,
-    title: kKeptWordTitle,
-    category: 'response-enabled core',
-    phase: 'Phase 3D',
   ),
   _InventoryFlow(
     key: kTheCourseFlowKey,
@@ -97,22 +61,10 @@ const List<_InventoryFlow> _responseEnabledCoreFlows = <_InventoryFlow>[
     phase: 'Phase 2B',
   ),
   _InventoryFlow(
-    key: kTheWagFlowKey,
-    title: kTheWagTitle,
-    category: 'response-enabled core',
-    phase: 'Phase 3E',
-  ),
-  _InventoryFlow(
     key: kDecanWatchFlowKey,
     title: kDecanWatchTitle,
     category: 'response-enabled core',
     phase: 'Phase 2C',
-  ),
-  _InventoryFlow(
-    key: kDaysOutsideTheYearFlowKey,
-    title: kDaysOutsideTheYearTitle,
-    category: 'response-enabled core',
-    phase: 'Phase 3A',
   ),
   _InventoryFlow(
     key: kTheOpenHandFlowKey,
@@ -135,12 +87,6 @@ const List<_InventoryFlow> _responseEnabledCoreFlows = <_InventoryFlow>[
 ];
 
 const List<_InventoryFlow> _responseEnabledDecanFlows = <_InventoryFlow>[
-  _InventoryFlow(
-    key: kFirstArrangementFlowKey,
-    title: kFirstArrangementTitle,
-    category: 'response-enabled decan',
-    phase: 'Phase 4A',
-  ),
   _InventoryFlow(
     key: kLivingPatternFlowKey,
     title: kLivingPatternTitle,
@@ -168,12 +114,6 @@ const List<_InventoryFlow> _responseEnabledDecanFlows = <_InventoryFlow>[
   _InventoryFlow(
     key: kLivingTextFlowKey,
     title: kLivingTextTitle,
-    category: 'response-enabled decan',
-    phase: 'Phase 4B',
-  ),
-  _InventoryFlow(
-    key: kClearingFlowKey,
-    title: kClearingTitle,
     category: 'response-enabled decan',
     phase: 'Phase 4B',
   ),
@@ -248,23 +188,27 @@ void main() {
   group('Maat response flow inventory', () {
     test('registered Maat response inventory is fully accounted', () {
       final registeredTemplateKeys = MaatFlowKind.values
-          .where((kind) => kind != MaatFlowKind.eveningThreshold)
+          .where(
+            (kind) =>
+                kind != MaatFlowKind.eveningThreshold &&
+                !kArchivedCompatibilityMaatFlowKinds.contains(kind),
+          )
           .map((kind) => kind.flowKey)
           .toSet();
 
       final inventoryKeys = _allInventoryFlows.map((flow) => flow.key).toSet();
 
-      expect(registeredTemplateKeys, hasLength(32));
+      expect(registeredTemplateKeys, hasLength(23));
       expect(inventoryKeys, registeredTemplateKeys);
-      expect(_allInventoryFlows, hasLength(32));
-      expect(_responseEnabledCoreFlows, hasLength(15));
-      expect(_responseEnabledDecanFlows, hasLength(17));
+      expect(_allInventoryFlows, hasLength(23));
+      expect(_responseEnabledCoreFlows, hasLength(8));
+      expect(_responseEnabledDecanFlows, hasLength(15));
       expect(_remainingDecanFlows, isEmpty);
       expect(_remainingPrivacySensitiveDecanFlows, isEmpty);
       expect(_remainingLowerRiskDecanFlows, isEmpty);
       expect(_categoryCounts, <String, int>{
-        'response-enabled core': 15,
-        'response-enabled decan': 17,
+        'response-enabled core': 8,
+        'response-enabled decan': 15,
       });
       expect(registeredTemplateKeys, isNot(contains(kEveningThresholdFlowKey)));
     });
@@ -278,7 +222,7 @@ void main() {
           .toSet();
 
       expect(resolverEnabledKeys, enabledInventoryKeys);
-      expect(resolverEnabledKeys, hasLength(32));
+      expect(resolverEnabledKeys, hasLength(23));
 
       for (final flow in _remainingDecanFlows) {
         expect(
@@ -327,6 +271,24 @@ void main() {
         );
       },
     );
+
+    test('all nine archived flows expose no active writable responses', () {
+      for (final kind in kArchivedCompatibilityMaatFlowKinds) {
+        expect(
+          resolveActiveMaatFlowResponseSpecs(
+            flowKey: kind.flowKey,
+            surface: MaatFlowResponseSurface.calendarSheet,
+          ),
+          isEmpty,
+          reason: kind.flowKey,
+        );
+        expect(
+          resolveActiveMaatFlowInitialPromptSpec(flowKey: kind.flowKey),
+          isNull,
+          reason: kind.flowKey,
+        );
+      }
+    });
 
     test('remaining decan flows stay assigned to named expansion phases', () {
       expect(_phaseKeys('Phase 4A'), isEmpty);

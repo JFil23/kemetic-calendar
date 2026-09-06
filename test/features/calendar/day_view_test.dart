@@ -21,8 +21,6 @@ import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
-import 'package:mobile/features/calendar/maat_flow_palette.dart';
-import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/services/app_restoration_service.dart';
@@ -259,7 +257,7 @@ void main() {
       expect(sharedHost, contains('useRootNavigator: false'));
       expect(sharedHost, isNot(contains('child: Align(')));
       expect(dayView, contains('InstrumentEventSheetHost('));
-      expect(dayView, contains('trailing: _buildEventDetailOverflowButton('));
+      expect(dayView, contains('_buildEventDetailOverflowButton('));
     },
   );
 
@@ -981,97 +979,50 @@ void main() {
       },
     );
 
-    testWidgets(
-      'Ma_at flow detail sheet uses gold section headers without duplicate labels',
-      (tester) async {
-        await _setPhoneViewport(tester);
-        final event = kTheWeighingEvents.singleWhere(
-          (event) => event.eventNumber == 9,
-        );
-        final title = theWeighingEventTitle(event);
-        final recordedStatuses = <CompletionStatus>[];
+    testWidgets('archived flow events expose no active completion controls', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      const title = 'Weighing 9: Seal the Record';
 
-        await tester.pumpWidget(
-          _DayViewHarness(
-            initialScrollOffset: 9 * 60,
-            flowIndex: const <int, FlowData>{
-              90: FlowData(
-                id: 90,
-                name: kTheWeighingTitle,
-                color: Colors.amber,
-                active: true,
-                notes: 'weighing_lens=neutral',
-              ),
-            },
-            notes: [
-              NoteData(
-                clientEventId: 'cid-the-weighing-9',
-                title: title,
-                detail: theWeighingDetailText(
-                  event,
-                  lens: TheWeighingLens.neutral,
-                ),
-                category: event.decanSection,
-                allDay: false,
-                start: const TimeOfDay(hour: 10, minute: 0),
-                end: const TimeOfDay(hour: 10, minute: 10),
-                flowId: 90,
-              ),
-            ],
-            onRecordCompletion:
-                ({
-                  required String clientEventId,
-                  required int flowId,
-                  required DateTime completedOnDate,
-                  Map<String, dynamic>? metadata,
-                }) async {
-                  recordedStatuses.add(
-                    CompletionStatusX.fromWireName(
-                      metadata?['completion_status']?.toString(),
-                    ),
-                  );
-                },
-          ),
-        );
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        const _DayViewHarness(
+          initialScrollOffset: 9 * 60,
+          flowIndex: <int, FlowData>{
+            90: FlowData(
+              id: 90,
+              name: 'The Weighing',
+              color: Colors.amber,
+              active: false,
+              notes: 'maat=the-weighing',
+            ),
+          },
+          notes: <NoteData>[
+            NoteData(
+              clientEventId: 'cid-the-weighing-9',
+              title: title,
+              detail: 'Historical record preserved.',
+              allDay: false,
+              start: TimeOfDay(hour: 10, minute: 0),
+              end: TimeOfDay(hour: 10, minute: 10),
+              flowId: 90,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        final eventSurface = find
-            .ancestor(
-              of: find.text(title).first,
-              matching: find.byType(GestureDetector),
-            )
-            .last;
-        await tester.tap(eventSurface);
-        await tester.pumpAndSettle();
+      await tester.tap(find.text(title).first);
+      await tester.pumpAndSettle();
 
-        for (final label in const <String>['PURPOSE', 'WORDS', 'STEPS']) {
-          final finder = find.text(label);
-          expect(finder, findsOneWidget);
-          final text = tester.widget<Text>(finder);
-          expect(text.style?.color, MaatFlowPalette.interiorLabel);
-          expect(text.style?.letterSpacing, 1.6);
-        }
-        expect(find.text('Purpose'), findsNothing);
-
-        final bodyFinder = find.textContaining(
-          'Speak only the truth-check lines you can speak honestly.',
-        );
-        expect(bodyFinder, findsOneWidget);
-        final bodyText = tester.widget<Text>(bodyFinder);
-        expect(bodyText.style?.color, isNot(MaatFlowPalette.interiorLabel));
-
-        expect(find.text('Observed'), findsWidgets);
-        expect(find.text('Partly'), findsWidgets);
-        expect(find.text('Skipped'), findsWidgets);
-
-        await tester.ensureVisible(find.text('Observed').last);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Observed').last);
-        await tester.pumpAndSettle();
-
-        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
-      },
-    );
+      expect(
+        find.text('Historical record preserved.', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.text('Observed'), findsNothing);
+      expect(find.text('Partly'), findsNothing);
+      expect(find.text('Skipped'), findsNothing);
+    });
 
     testWidgets('overlapping math cards remain visible as compact previews', (
       tester,

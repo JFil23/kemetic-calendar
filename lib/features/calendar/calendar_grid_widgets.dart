@@ -456,7 +456,6 @@ class _RenderFractionalMonthExtent extends RenderProxyBox {
 class _CalendarTone {
   static const Color calendarBlack = Color(0xFF060504);
   static const Color velvetBlack = Color(0xFF080705);
-  static const Color previewCardBase = Color(0xFF0B0806);
   static const Color antiqueGold = Color(0xFFC4A64A);
   static const Color dimGold = Color(0xFF89733A);
   static const Color bodyStone = Color(0xFFBBB0A5);
@@ -479,7 +478,6 @@ class _CalendarTone {
   );
   static final Color selectedDayBorder = antiqueGold.withValues(alpha: 0.54);
   static final Color softDivider = antiqueGold.withValues(alpha: 0.070);
-  static final Color softCardBorder = antiqueGold.withValues(alpha: 0.090);
 
   static const Gradient mutedGoldGloss = LinearGradient(
     begin: Alignment.topLeft,
@@ -531,12 +529,9 @@ class _CalendarTone {
 
 class _CalendarScale {
   static const double monthTitleMain = 27.5;
-  static const double monthTitleFramed = 24.75;
   static const double monthTransliterationRatio = 0.60;
   static const double rightSeasonMain = 13.8;
-  static const double rightSeasonFramed = 13.2;
   static const double decanLabelMain = 12.3;
-  static const double decanLabelFramed = 11.6;
   static const double dayNumber = 23.0;
   static const double dayDot = 2.35;
   static const double trackSkyDot = 4.2;
@@ -550,7 +545,6 @@ class _CalendarScale {
   static const double eventPurposeBody = 15.2;
 }
 
-const Color _kSoftGridBackground = _CalendarTone.previewCardBase;
 final Color _kSoftDayTileFill = _CalendarTone.dayCellFill;
 const double _kMonthCardHorizontalInset = 16.0;
 const double _kMonthCardTopInset = 8.0;
@@ -965,7 +959,6 @@ class _MonthCard extends StatelessWidget {
   final MonthExpansionLevel expansionLevel;
   final double? expansionProgress;
   final bool temporalAnchorVisible;
-  final bool framedSurface;
 
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
   final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
@@ -1002,7 +995,6 @@ class _MonthCard extends StatelessWidget {
     required this.onDayTap,
     required this.showGregorian,
     this.temporalAnchorVisible = true,
-    this.framedSurface = false,
     this.expansionLevel = MonthExpansionLevel.compact,
     this.expansionProgress,
     this.noteColorResolver = _defaultNoteColor,
@@ -1170,25 +1162,17 @@ class _MonthCard extends StatelessWidget {
       labeledGap: _kDecanLabelToDayGridGap,
       detailsGap: 3.0,
     );
-    final monthTitleSize = framedSurface
-        ? _CalendarScale.monthTitleFramed
-        : _CalendarScale.monthTitleMain;
+    const monthTitleSize = _CalendarScale.monthTitleMain;
     final rightLabelStyle = TextStyle(
-      color: const Color(
-        0xFF927842,
-      ).withValues(alpha: framedSurface ? 0.92 : 0.86),
-      fontSize: framedSurface
-          ? _CalendarScale.rightSeasonFramed
-          : _CalendarScale.rightSeasonMain,
+      color: const Color(0xFF927842).withValues(alpha: 0.86),
+      fontSize: _CalendarScale.rightSeasonMain,
       fontWeight: FontWeight.w500,
       fontStyle: FontStyle.italic,
       fontFamily: 'CormorantGaramond',
       fontFamilyFallback: const ['GentiumPlus', 'NotoSans', 'Roboto'],
       letterSpacing: 0,
     );
-    final decanLabelFontSize = framedSurface
-        ? _CalendarScale.decanLabelFramed
-        : _CalendarScale.decanLabelMain;
+    const decanLabelFontSize = _CalendarScale.decanLabelMain;
     final decanLabelRowHeight = decanLabelFontSize + 3.0;
     final decanLabelStrut = StrutStyle(
       fontFamily: 'GentiumPlus',
@@ -1201,9 +1185,7 @@ class _MonthCard extends StatelessWidget {
       applyHeightToLastDescent: false,
     );
     final decanLabelStyle = TextStyle(
-      color: _CalendarTone.decanLabel.withValues(
-        alpha: framedSurface ? 0.98 : 0.94,
-      ),
+      color: _CalendarTone.decanLabel.withValues(alpha: 0.94),
       fontSize: decanLabelFontSize,
       height: 1.0,
       fontWeight: FontWeight.w500,
@@ -1211,9 +1193,7 @@ class _MonthCard extends StatelessWidget {
       fontFamilyFallback: const ['NotoSans', 'Roboto'],
     );
     final gregorianDecanLabelStyle = decanLabelStyle.copyWith(
-      color: _CalendarTone.gregorianBlue.withValues(
-        alpha: framedSurface ? 0.90 : 0.84,
-      ),
+      color: _CalendarTone.gregorianBlue.withValues(alpha: 0.84),
     );
 
     Widget decanLabelText(String text, TextStyle style) {
@@ -1238,29 +1218,17 @@ class _MonthCard extends StatelessWidget {
       ),
       child: Card(
         margin: EdgeInsets.zero,
-        color: framedSurface ? _kSoftGridBackground : Colors.transparent,
+        color: Colors.transparent,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        clipBehavior: framedSurface ? Clip.antiAlias : Clip.none,
+        clipBehavior: Clip.none,
         shape: RoundedRectangleBorder(
-          side: framedSurface
-              ? BorderSide(color: _CalendarTone.softCardBorder, width: 0.7)
-              : BorderSide.none,
+          side: BorderSide.none,
           borderRadius: BorderRadius.circular(_kMonthCardRadius),
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_kMonthCardRadius),
-            gradient: framedSurface
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      _CalendarTone.antiqueGold.withValues(alpha: 0.029),
-                      Colors.transparent,
-                    ],
-                  )
-                : null,
           ),
           child: Padding(
             padding: const EdgeInsets.all(_kMonthCardInnerPadding),
@@ -1298,7 +1266,7 @@ class _MonthCard extends StatelessWidget {
                                   transliteration:
                                       monthMeta.displayTransliteration,
                                   fontSize: monthTitleSize,
-                                  opacity: framedSurface ? 0.98 : 0.96,
+                                  opacity: 0.96,
                                   showTransliteration: false,
                                 ),
                               ),

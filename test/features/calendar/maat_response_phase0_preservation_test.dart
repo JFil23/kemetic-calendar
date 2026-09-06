@@ -6,14 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/data/journal_repo.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
-import 'package:mobile/features/calendar/the_days_outside_year_local_store.dart';
 import 'package:mobile/features/calendar/the_decan_watch_local_store.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_djed_local_store.dart';
-import 'package:mobile/features/calendar/the_kept_word_local_store.dart';
 import 'package:mobile/features/calendar/the_open_hand_local_store.dart';
-import 'package:mobile/features/calendar/the_tending_local_store.dart';
-import 'package:mobile/features/calendar/the_wag_local_store.dart';
+import 'package:mobile/features/calendar/presentation/archived_maat_flow_detail_view.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
@@ -59,29 +56,25 @@ void main() {
   );
 
   test(
-    'existing interactive flow stores preserve their local namespaces',
+    'archived readers preserve legacy namespaces without new writes',
     () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'tending_42_care_list':
+            '[{"name":"Auntie","perceived_need":"weekly call"}]',
+        'kept_word_42_conversation_completed': true,
+        'the_wag_42_ancestor_names':
+            '[{"display":"Elder teacher","is_blood":true,"is_practice_ancestor":false}]',
+        'days_outside_42_wep_receipts': '{"day_1":"one word"}',
+      });
       final prefs = await SharedPreferences.getInstance();
       const flowId = 42;
 
-      await TheTendingLocalStore(prefs: prefs).saveCareList(flowId, const [
-        CareListEntry(name: 'Auntie', perceivedNeed: 'weekly call'),
-      ]);
-      await TheKeptWordLocalStore(
-        prefs: prefs,
-      ).saveConversationCompleted(flowId, true);
-      await TheWagLocalStore(prefs: prefs).saveAncestorNames(flowId, const [
-        AncestorNameEntry(display: 'Elder teacher'),
-      ]);
       await DecanWatchLocalStore(prefs: prefs).saveRecord(
         flowId: flowId,
         kYear: 6268,
         globalDecanId: 12,
         record: const DecanWatchRecord(skyNote: 'clouded western horizon'),
       );
-      await DaysOutsideYearLocalStore(
-        prefs: prefs,
-      ).saveReceipts(flowId, const <String, String>{'day_1': 'one word'});
       await TheOpenHandLocalStore(
         prefs: prefs,
       ).saveActCompleted(flowId, 3, true);
@@ -97,32 +90,29 @@ void main() {
       expect(prefs.getKeys(), contains('open_hand_42_act_completed_3'));
       expect(prefs.getKeys(), contains('djed_42_spine_elements'));
 
-      expect(
-        await TheTendingLocalStore(prefs: prefs).exportFlowData(flowId),
-        containsPair('care_list', isA<String>()),
-      );
-      expect(
-        await TheKeptWordLocalStore(
-          prefs: prefs,
-        ).loadConversationCompleted(flowId),
-        isTrue,
-      );
-      expect(
-        (await TheWagLocalStore(
-          prefs: prefs,
-        ).loadAncestorNames(flowId)).single.display,
-        'Elder teacher',
-      );
+      for (final flowKey in const <String>[
+        'the-tending',
+        'the-kept-word',
+        'the-wag',
+        'the-days-outside-the-year',
+      ]) {
+        expect(
+          await ArchivedMaatFlowLocalStateReader.load(
+            flowKey: flowKey,
+            flowId: flowId,
+            preferences: prefs,
+          ),
+          isNotEmpty,
+          reason: flowKey,
+        );
+      }
       expect(
         (await DecanWatchLocalStore(
           prefs: prefs,
         ).loadRecord(flowId: flowId, kYear: 6268, globalDecanId: 12)).skyNote,
         'clouded western horizon',
       );
-      expect(
-        await DaysOutsideYearLocalStore(prefs: prefs).loadReceipts(flowId),
-        containsPair('day_1', 'one word'),
-      );
+      expect(prefs.getKeys(), contains('the_wag_42_ancestor_names'));
       expect(
         await TheOpenHandLocalStore(prefs: prefs).loadActCompleted(flowId, 3),
         isTrue,

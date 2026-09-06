@@ -1,19 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
-import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/the_course_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
-import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
-import 'package:mobile/features/calendar/the_tending_flow.dart';
-import 'package:mobile/features/calendar/the_wag_flow.dart';
-import 'package:mobile/features/calendar/the_weighing_flow.dart';
 
 void main() {
   group('resolveMaatFlowKind', () {
@@ -181,11 +175,11 @@ void main() {
       'resolves The Closing display and legacy Evening Threshold Rite name',
       () {
         expect(
-          resolveMaatFlowKind(flowName: kEveningThresholdRiteTitle),
+          resolveMaatFlowKind(flowName: 'The Closing'),
           MaatFlowKind.eveningThresholdRite,
         );
         expect(
-          resolveMaatFlowKind(flowName: kEveningThresholdRiteLegacyTitle),
+          resolveMaatFlowKind(flowName: 'Evening Threshold Rite'),
           MaatFlowKind.eveningThresholdRite,
         );
         expect(
@@ -339,7 +333,7 @@ void main() {
         MaatFlowKind.theAutobiography,
       );
       expect(
-        resolveMaatFlowKind(flowName: kFirstArrangementTitle),
+        resolveMaatFlowKind(flowName: 'The First Arrangement'),
         MaatFlowKind.firstArrangement,
       );
       expect(
@@ -355,7 +349,7 @@ void main() {
         MaatFlowKind.livingText,
       );
       expect(
-        resolveMaatFlowKind(flowName: kClearingTitle),
+        resolveMaatFlowKind(flowName: 'The Clearing'),
         MaatFlowKind.clearing,
       );
       expect(
@@ -384,7 +378,10 @@ void main() {
         ),
         isTrue,
       );
-      expect(isWagFlowReference(actionId: 'the-wag-event-01'), isTrue);
+      expect(
+        isMaatFlowReference(MaatFlowKind.theWag, actionId: 'the-wag-event-01'),
+        isTrue,
+      );
       expect(
         isDecanWatchFlowReference(
           behaviorPayload: const <String, dynamic>{'kind': 'maat_decan_watch'},
@@ -408,11 +405,17 @@ void main() {
 
     test('preserve non-enrollment flow helpers', () {
       expect(
-        isDawnHouseRiteFlowReference(actionId: 'dawn-house-rite-day-01'),
+        isMaatFlowReference(
+          MaatFlowKind.dawnHouseRite,
+          actionId: 'dawn-house-rite-day-01',
+        ),
         isTrue,
       );
       expect(
-        isTheWeighingFlowReference(actionId: 'the-weighing-event-01'),
+        isMaatFlowReference(
+          MaatFlowKind.theWeighing,
+          actionId: 'the-weighing-event-01',
+        ),
         isTrue,
       );
       expect(
@@ -420,11 +423,17 @@ void main() {
         isTrue,
       );
       expect(
-        isTheTendingFlowReference(actionId: 'the-tending-event-01'),
+        isMaatFlowReference(
+          MaatFlowKind.theTending,
+          actionId: 'the-tending-event-01',
+        ),
         isTrue,
       );
       expect(
-        isKeptWordFlowReference(actionId: 'the-kept-word-event-01'),
+        isMaatFlowReference(
+          MaatFlowKind.keptWord,
+          actionId: 'the-kept-word-event-01',
+        ),
         isTrue,
       );
       expect(isCourseFlowReference(actionId: 'the-course-event-01'), isTrue);

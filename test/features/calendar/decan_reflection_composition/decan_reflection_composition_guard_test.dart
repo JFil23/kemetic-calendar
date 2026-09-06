@@ -108,6 +108,10 @@ void main() {
     expect(policy, contains('CompositionClaimId.breadthNeedsCenter'));
     expect(policy, contains('CompositionClaimId.singleFlowDepth'));
     expect(policy, contains('CompositionClaimId.zeroEvidence'));
+    expect(policy, contains('isMaatFlowNewJoinAllowed(catalogFlowKey)'));
+    expect(policy, contains("flowKey == 'reading-house'"));
+    expect(policy, contains("id: 'library:keeping-the-measure'"));
+    expect(policy, isNot(contains("id: 'flow:the-weighing'")));
     expect(policy, isNot(contains('facts.signals.contains')));
     expect(policy, isNot(contains("'mostly_partial'")));
     expect(policy, isNot(contains("'many_skips'")));

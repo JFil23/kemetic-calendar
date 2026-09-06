@@ -873,7 +873,7 @@ void main() {
       expect(daySheet, contains('EventCreateDatePickerAdapter'));
       expect(daySheet, isNot(contains('EventCreateDatePicker.show')));
       expect(daySheet, isNot(contains('DaySheetDatePicker.show')));
-      expect(source, contains("part 'calendar_maat_flows.dart';"));
+      expect(source, contains("part 'calendar_active_maat_flows.dart';"));
       expect(_occurrences(source, 'DaySheetDatePicker.show'), 0);
     },
   );

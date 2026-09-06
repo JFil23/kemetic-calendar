@@ -30,8 +30,11 @@ import '../../widgets/profile_avatar.dart';
 import '../../widgets/utility_sheet_route_scaffold.dart';
 import '../calendar/calendar_page.dart' show CalendarPage;
 import '../calendar/calendar_invalidation.dart';
+import '../calendar/the_reading_house/reading_house_room_repository.dart';
 import '../calendars/shared_calendars_sheet.dart';
 import 'inbox_threading.dart';
+import 'presentation/reading_house_inbox_section.dart';
+import 'presentation/reading_house_room_sheet.dart';
 
 void _logInboxImport(String message) {
   if (kDebugMode) {
@@ -144,18 +147,23 @@ class _InboxPageState extends State<InboxPage> {
   late final DmConversationRepo _dmConversationRepo;
   late final ShareRepo _shareRepo;
   late final SharedCalendarsRepo _sharedCalendarsRepo;
+  late final SupabaseReadingHouseRoomRepository _readingHouseRoomRepo;
   StreamSubscription<List<InboxShareItem>>? _inboxItemsSub;
   StreamSubscription<List<DmConversationSummary>>? _dmConversationsSub;
   StreamSubscription<InboxUnreadState>? _unreadStateSub;
   StreamSubscription<List<SharedCalendarSentInvite>>? _sentCalendarInvitesSub;
   StreamSubscription<List<SharedCalendarInvite>>? _incomingCalendarInvitesSub;
   StreamSubscription<CalendarInvalidated>? _flowLifecycleSub;
+  StreamSubscription<List<ReadingHouseRoomSummary>>? _readingHouseRoomsSub;
   Map<String, List<InboxShareItem>> _latestThreads = const {};
   List<InboxShareItem> _latestEventInvites = const [];
   List<InboxShareItem> _latestCalendarNotifications = const [];
   List<SharedCalendarSentInvite> _latestSentCalendarInvites = const [];
   List<SharedCalendarInvite> _latestIncomingCalendarInvites = const [];
   List<DmConversationSummary> _latestDmConversations = const [];
+  List<ReadingHouseRoomSummary> _latestReadingHouseRooms = const [];
+  ReadingHouseInboxSectionStatus _readingHouseRoomStatus =
+      ReadingHouseInboxSectionStatus.loading;
   List<_UnifiedInboxItem> _unified = const [];
   final Set<String> _optimisticReadShareIds = <String>{};
   bool _loading = true;
@@ -179,6 +187,10 @@ class _InboxPageState extends State<InboxPage> {
     _unreadState = _shareRepo.currentUnreadState;
     _inboxRepo = InboxRepo(client);
     _dmConversationRepo = DmConversationRepo(client);
+    _readingHouseRoomRepo = SupabaseReadingHouseRoomRepository(client);
+    if (widget.disableAuxiliarySubscriptionsForTesting) {
+      _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
+    }
     _subscribeInboxItems();
     if (!widget.disableAuxiliarySubscriptionsForTesting) {
       unawaited(_restoreCachedUnified());
@@ -193,6 +205,21 @@ class _InboxPageState extends State<InboxPage> {
               });
             }
           });
+      _readingHouseRoomsSub = _readingHouseRoomRepo.watchSummaries().listen(
+        (rooms) {
+          if (!mounted) return;
+          setState(() {
+            _latestReadingHouseRooms = rooms;
+            _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
+          });
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          if (!mounted) return;
+          setState(() {
+            _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
+          });
+        },
+      );
       _unreadStateSub = _shareRepo.watchUnreadState().listen((state) {
         if (!mounted) {
           _unreadState = state;
@@ -221,6 +248,7 @@ class _InboxPageState extends State<InboxPage> {
                 _loading = false;
               });
             }
+            unawaited(_refreshReadingHouseRooms());
           });
     }
     final flowLifecycleStream =
@@ -231,7 +259,10 @@ class _InboxPageState extends State<InboxPage> {
           (event) =>
               event.reason == CalendarInvalidationReason.flowEndedCommitted,
         )
-        .listen((_) => unawaited(_refreshCommittedFlowState()));
+        .listen((_) {
+          unawaited(_refreshCommittedFlowState());
+          unawaited(_refreshReadingHouseRooms());
+        });
     if (!widget.disableAuxiliarySubscriptionsForTesting) {
       _refreshUnified(showLoading: false);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -287,6 +318,13 @@ class _InboxPageState extends State<InboxPage> {
           .getConversationSummaries();
     } catch (e) {
       _logInboxImport('[InboxPage] Failed to refresh DM conversations: $e');
+    }
+    try {
+      _latestReadingHouseRooms = await _readingHouseRoomRepo.listSummaries();
+      _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
+    } catch (e) {
+      _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
+      _logInboxImport('[InboxPage] Failed to refresh Reading Houses: $e');
     }
 
     if (!mounted) return;
@@ -416,6 +454,7 @@ class _InboxPageState extends State<InboxPage> {
     _sentCalendarInvitesSub?.cancel();
     _incomingCalendarInvitesSub?.cancel();
     _flowLifecycleSub?.cancel();
+    _readingHouseRoomsSub?.cancel();
     super.dispose();
   }
 
@@ -704,11 +743,111 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
+  List<ReadingHouseInboxRoomFixture> get _readingHouseRoomFixtures {
+    final currentUserId = _readingHouseRoomRepo.currentUserId;
+    return _latestReadingHouseRooms
+        .map((summary) {
+          final latestBody = summary.latestMessage?.trim();
+          final latestAuthor = summary.latestAuthorId == currentUserId
+              ? 'You'
+              : _firstNonEmpty(<String?>[
+                  summary.latestAuthorDisplayName,
+                  summary.latestAuthorHandle,
+                ]);
+          final latestMessage = latestBody == null || latestBody.isEmpty
+              ? ''
+              : latestAuthor == null
+              ? latestBody
+              : '$latestAuthor: $latestBody';
+          return ReadingHouseInboxRoomFixture(
+            calendarId: summary.identity.calendarId,
+            flowId: summary.identity.flowId,
+            houseTitle: 'The Reading House',
+            bookTitle: summary.title,
+            latestMessage: latestMessage,
+            memberInitials: summary.members
+                .map((member) {
+                  if (member.userId == currentUserId) return 'Y';
+                  return _readingHouseMemberInitials(member);
+                })
+                .take(3)
+                .toList(growable: false),
+            memberCount: summary.memberCount,
+            unreadCount: summary.unreadCount,
+            status: summary.ended
+                ? ReadingHouseInboxRoomStatus.ended
+                : summary.locked
+                ? ReadingHouseInboxRoomStatus.locked
+                : latestBody == null || latestBody.isEmpty
+                ? ReadingHouseInboxRoomStatus.empty
+                : ReadingHouseInboxRoomStatus.active,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  Future<void> _refreshReadingHouseRooms() async {
+    if (mounted) {
+      setState(() {
+        _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loading;
+      });
+    }
+    try {
+      final rooms = await _readingHouseRoomRepo.listSummaries();
+      if (!mounted) return;
+      setState(() {
+        _latestReadingHouseRooms = rooms;
+        _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
+      });
+    }
+  }
+
+  Future<void> _openReadingHouseRoom(String calendarId, int flowId) async {
+    await ReadingHouseRoomSheet.show(
+      context,
+      identity: ReadingHouseRoomIdentity(
+        calendarId: calendarId,
+        flowId: flowId,
+      ),
+      dataSource: _readingHouseRoomRepo,
+    );
+    if (mounted) await _refreshReadingHouseRooms();
+  }
+
+  String _readingHouseMemberInitials(ReadingHouseRoomMember member) {
+    final label = _firstNonEmpty(<String?>[member.displayName, member.handle]);
+    if (label == null) return 'R';
+    final words = label
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .take(2);
+    return words.map((word) => word.characters.first.toUpperCase()).join();
+  }
+
+  String? _firstNonEmpty(Iterable<String?> values) {
+    for (final value in values) {
+      final trimmed = value?.trim();
+      if (trimmed != null && trimmed.isNotEmpty) return trimmed;
+    }
+    return null;
+  }
+
   Widget _buildBody() {
     const listBottomPadding = 16.0;
     final listChildren = <Widget>[
       _buildSectionLabel('Activity'),
       for (var i = 0; i < _summaryTileCount; i++) _buildSummaryTile(i),
+      ReadingHouseInboxRoomSection(
+        rooms: _readingHouseRoomFixtures,
+        status: _readingHouseRoomStatus,
+        onOpenRoom: _openReadingHouseRoom,
+        onRetry: () => unawaited(_refreshReadingHouseRooms()),
+      ),
       _buildSectionLabel('Messages', topMargin: 30),
       for (final item in _unified)
         if (item.kind == _UnifiedKind.message)

@@ -343,12 +343,17 @@ void main() {
 
       await tester.tap(find.text('Follow the sky'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('End Flow'));
       await tester.tap(find.text('End Flow'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Dawn House Rite'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('End Flow'));
+      final archivedEnd = find.byKey(
+        const ValueKey<String>('archived-flow-end-leave'),
+      );
+      await _scrollArchivedControlIntoViewport(tester, archivedEnd);
+      await tester.tap(archivedEnd);
       await tester.pumpAndSettle();
 
       expect(find.text('Follow the sky'), findsNothing);
@@ -373,7 +378,9 @@ void main() {
     },
   );
 
-  testWidgets('ended saved Ma’at flow remains in Saved', (tester) async {
+  testWidgets('ended archived Ma’at flow remains in Saved read-only history', (
+    tester,
+  ) async {
     await _pumpMyFlows(
       tester,
       onEndFlow: (_) async =>
@@ -384,7 +391,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('The Weighing'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('End Flow'));
+    expect(find.text('Ended · archived'), findsOneWidget);
+    expect(find.text('Leave history'), findsOneWidget);
+    expect(find.text('End Flow'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey<String>('archived-flow-back')));
     await tester.pumpAndSettle();
 
     expect(find.text('The Weighing'), findsOneWidget);
@@ -704,6 +714,20 @@ void _useSmallPhoneSurface(WidgetTester tester) {
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+}
+
+Future<void> _scrollArchivedControlIntoViewport(
+  WidgetTester tester,
+  Finder control,
+) async {
+  final scroll = find.byKey(const ValueKey<String>('archived-flow-scroll'));
+  for (var attempt = 0; attempt < 12; attempt++) {
+    final rect = tester.getRect(control);
+    if (rect.top >= 0 && rect.bottom <= 580) return;
+    await tester.drag(scroll, const Offset(0, -240));
+    await tester.pumpAndSettle();
+  }
+  expect(tester.getRect(control).bottom, lessThanOrEqualTo(580));
 }
 
 String _startLabel(DateTime date) {

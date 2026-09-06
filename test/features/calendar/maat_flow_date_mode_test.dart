@@ -25,7 +25,7 @@ void main() {
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
     final listSource = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
+      'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
 
     expect(source, contains('_flowMatchesActiveMaatTemplate'));
@@ -35,49 +35,53 @@ void main() {
     expect(listSource, contains('class _MaatFlowsListPageWithSnapshot'));
   });
 
-  test('Ma_at flow detail pages default to Kemetic date mode', () {
-    final source = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
+  test('retained date pickers declare their approved initial modes', () {
+    final readingHouse = File(
+      'lib/features/calendar/the_reading_house/presentation/'
+      'reading_house_sitting_editor.dart',
+    ).readAsStringSync();
+    final offeringTable = File(
+      'lib/features/calendar/the_offering_table/presentation/'
+      'offering_table_detail_page.dart',
     ).readAsStringSync();
 
-    expect(source, contains('bool _useKemetic = true;'));
-    expect(source, contains('void _toggleDateMode()'));
-    expect(source, contains('Widget _buildDateModeTitle'));
-    expect(source, contains("label: _useKemetic ? 'Show Gregorian dates'"));
-    expect(source, contains('gradient: _useKemetic ? goldGloss : whiteGloss'));
+    expect(readingHouse, contains('MaatFlowDatePicker.show'));
+    expect(readingHouse, contains('MaatFlowDatePickerMode.kemetic'));
+    expect(offeringTable, contains('MaatFlowDatePicker.show'));
+    expect(offeringTable, contains('MaatFlowDatePickerMode.gregorian'));
+    expect(readingHouse, isNot(contains('showDatePicker(')));
+    expect(offeringTable, isNot(contains('showDatePicker(')));
   });
 
-  test('Ma_at preview event cells expand inline with full details', () {
+  test('active product details delegate to four dedicated surfaces', () {
     final source = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
+      'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
 
-    expect(source, contains('Widget _buildExpandableFlowEventTile'));
-    expect(source, contains('AnimatedSize'));
-    expect(source, contains('_expandedMaatEventKey'));
-    expect(source, contains('_MyFlowDayContentCard'));
-    expect(source, isNot(contains('ExpansionTile')));
-    expect(source, isNot(contains('_showFlowEventDetails')));
-    expect(source, isNot(contains('DraggableScrollableSheet')));
+    expect(source, contains('Widget _buildFollowSky()'));
+    expect(source, contains('Widget _buildOfferingTable()'));
+    expect(source, contains('Widget _buildReadingHouse()'));
+    expect(source, contains('Widget _buildDjed()'));
+    expect(source, isNot(contains('Widget _buildDjedEventTile')));
+    expect(source, isNot(contains('Widget _buildWagEventTile')));
+    expect(source, isNot(contains('Widget _buildMoonReturnOccurrenceTile')));
+  });
 
-    for (final branch in _previewInlineDetailBranches) {
-      final tile = _sourceBetween(source, branch.start, branch.end);
-
-      expect(
-        tile,
-        contains('_buildExpandableFlowEventTile'),
-        reason: '${branch.name} event cells should expand inline.',
-      );
-      expect(
-        tile,
-        isNot(contains('showModalBottomSheet')),
-        reason: '${branch.name} should not use modal detail sheets.',
-      );
-      expect(
-        tile,
-        contains(branch.detailFunction),
-        reason: '${branch.name} should use its canonical detail text.',
-      );
+  test('retired product implementation sources are absent', () {
+    for (final path in const <String>[
+      'lib/features/calendar/dawn_house_rite_flow.dart',
+      'lib/features/calendar/evening_threshold_rite_flow.dart',
+      'lib/features/calendar/the_weighing_flow.dart',
+      'lib/features/calendar/the_tending_flow.dart',
+      'lib/features/calendar/the_kept_word_flow.dart',
+      'lib/features/calendar/the_wag_flow.dart',
+      'lib/features/calendar/the_wag_scheduler.dart',
+      'lib/features/calendar/the_wag_enrollment.dart',
+      'lib/features/calendar/the_days_outside_year_flow.dart',
+      'lib/features/calendar/the_days_outside_year_scheduler.dart',
+      'lib/features/calendar/the_days_outside_year_enrollment.dart',
+    ]) {
+      expect(File(path).existsSync(), isFalse, reason: path);
     }
   });
 
@@ -111,108 +115,42 @@ void main() {
   });
 
   test(
-    'Ma_at flow date references route through the shared date formatter',
+    'retired enrollment preview scaffolds are absent from active details',
     () {
       final source = File(
-        'lib/features/calendar/calendar_maat_flows.dart',
+        'lib/features/calendar/calendar_active_maat_flows.dart',
       ).readAsStringSync();
 
-      expect(
-        source,
-        contains('String _dateLabel(BuildContext context, DateTime date)'),
-      );
-      expect(source, contains('_startDateButtonLabel(context, selectedStart)'));
-      expect(
-        source,
-        contains(
-          r"'Start: ${_dateLabel(context, selectedStart)} at $firstTime'",
-        ),
-      );
-      expect(
-        source,
-        contains(
-          '_buildStartDateRow(\n'
-          '              context,\n'
-          '              selectedStart,',
-        ),
-      );
-      expect(
-        source,
-        isNot(contains(r'Start: ${_fmtGregorian(selectedStart)}')),
-      );
-      expect(source, isNot(contains(r'First dawn: ${_fmtGregorian')));
-      expect(source, isNot(contains('CupertinoSegmentedControl<bool>')));
+      for (final retiredBuilder in const <String>[
+        '_buildMoonReturnScaffold',
+        '_buildWagScaffold',
+        '_buildDecanWatchScaffold',
+        '_buildOpenHandScaffold',
+        '_buildDaysOutsideYearScaffold',
+      ]) {
+        expect(source, isNot(contains(retiredBuilder)), reason: retiredBuilder);
+      }
+      expect(source, contains('Widget _buildDjed()'));
+      expect(source, contains('ArchivedMaatFlowDetailView('));
     },
   );
 
-  test('Ma_at enrollment preview scaffolds use safe window resolvers', () {
-    final source = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
+  test('active detail enrollment keeps safe temporal boundaries', () {
+    final active = File(
+      'lib/features/calendar/calendar_active_maat_flows.dart',
+    ).readAsStringSync();
+    final service = File(
+      'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
 
-    for (final branch in _previewEnrollmentBranches) {
-      final scaffold = _sourceBetween(
-        source,
-        branch.scaffoldStart,
-        branch.scaffoldEnd,
-      );
-
-      expect(
-        scaffold,
-        contains(branch.resolverCall),
-        reason: '${branch.name} preview must use its safe resolver.',
-      );
-      expect(
-        scaffold,
-        contains('_buildEnrollmentUnavailableScaffold'),
-        reason:
-            '${branch.name} preview must render an unavailable state on null.',
-      );
-      expect(
-        scaffold,
-        isNot(contains('NextEnrollmentWindow(')),
-        reason:
-            '${branch.name} scaffold must not call throwing next-window APIs directly during build.',
-      );
-      expect(
-        scaffold,
-        isNot(contains('_tryEnrollmentWindow(')),
-        reason:
-            '${branch.name} scaffold should keep try/catch inside its resolver.',
-      );
-    }
-  });
-
-  test('Ma_at enrollment preview resolvers catch throwing window APIs', () {
-    final source = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
-    ).readAsStringSync();
-
-    expect(source, contains('T? _tryEnrollmentWindow<T>'));
-    expect(source, contains(r'timezone=${_previewTrackSkyTimeZone.key}'));
-    expect(source, contains('selectedDate='));
-    expect(source, contains(r'now=${DateTime.now().toIso8601String()}'));
-    expect(source, contains('_calendarDebugPrint'));
-
-    for (final branch in _previewEnrollmentBranches) {
-      final resolver = _sourceBetween(
-        source,
-        branch.resolverStart,
-        branch.resolverEnd,
-      );
-
-      expect(
-        resolver,
-        contains('_tryEnrollmentWindow'),
-        reason: '${branch.name} resolver must catch enrollment failures.',
-      );
-      expect(
-        resolver,
-        contains(branch.throwingApi),
-        reason:
-            '${branch.name} resolver should keep existing next-window behavior inside the safe boundary.',
-      );
-    }
+    expect(
+      active,
+      contains('djedNextEnrollmentWindow(_timezone).opensAtLocal'),
+    );
+    expect(active, contains('initialStartDate: widget.joinedFlow?.start'));
+    expect(service, contains('_resolveDjedWindow('));
+    expect(service, contains('_resolveTemporalStart('));
+    expect(service, contains('FlowJoinFailureCode.noEnrollmentWindow'));
   });
 
   test('FlowJoinService default enrollment resolvers use safe wrappers', () {
@@ -353,81 +291,56 @@ void main() {
     expect(flush, contains('_onInvalidation(invalidation)'));
   });
 
-  test('all Ma_at service joins call the universal staged completion', () {
-    final source = File(
+  test('four-flow joins cross the universal staging authority', () {
+    final page = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final active = File(
+      'lib/features/calendar/calendar_active_maat_flows.dart',
+    ).readAsStringSync();
+    final service = File(
       'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
 
-    expect(_countOccurrences(source, 'stagePlannedNotesAndDeferPersist('), 20);
     expect(
-      _countOccurrences(
-        source,
-        'FlowJoinResult stagePlannedNotesAndDeferPersist',
-      ),
-      1,
+      page,
+      contains('if (!isMaatFlowNewJoinAllowed(template.key)) return -1;'),
     );
-    expect(source, isNot(contains('_stageAndDeferPersist')));
-    expect(source, isNot(contains('_completeHeadlessJoin')));
-    expect(source, contains('joinTrackSkyHeadless'));
-    expect(source, contains('_joinSequenceHeadless'));
-    expect(source, contains('_repo.upsertManyDeterministic(rows)'));
+    expect(active, contains('joinTrackSkyV2Headless'));
+    expect(active, contains('_joinOfferingTableFromDetailAuthority'));
+    expect(active, contains('Future<void> _joinDjed('));
+    expect(active, contains('ReadingHouseAuthority'));
+    expect(page, contains('_stageHeadlessMaatFlowJoinResult('));
+    expect(service, contains('stagePlannedNotesAndDeferPersist('));
+    expect(service, isNot(contains('_stageAndDeferPersist')));
+    expect(service, isNot(contains('_completeHeadlessJoin')));
   });
 
-  test('mounted and detached Ma_at joins stage the same service result', () {
-    final source = File(
+  test('mounted and detached active joins share staging and policy gates', () {
+    final page = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
-    final maatFlowsSource = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
+    final active = File(
+      'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
     final headless = _sourceBetween(
-      source,
+      page,
       'static Future<int> _addMaatFlowInstanceHeadless',
       'static Future<EndFlowOutcome> _endFlowHeadless',
     );
-    final sharedStaging = _sourceBetween(
-      source,
-      'static int _stageHeadlessMaatFlowJoinResult',
-      'static Future<int> _addMaatFlowInstanceHeadless',
-    );
     final mounted = _sourceBetween(
-      source,
+      page,
       'Future<int> _addMaatFlowInstance({',
       '_MountedFlowEndPatch _optimisticallyPatchEndedFlow',
     );
 
-    expect(headless, contains('int stageResult(FlowJoinResult result)'));
+    expect(headless, contains('isMaatFlowNewJoinAllowed(template.key)'));
     expect(headless, contains('_stageHeadlessMaatFlowJoinResult('));
-    expect(sharedStaging, contains('_stageFlowForDeferredPersistence('));
-    expect(headless, contains('joinTrackSkyHeadless'));
-    expect(headless, contains('_joinSequenceHeadless'));
-    expect(
-      headless,
-      isNot(contains('if (template.kind == _MaatFlowTemplateKind.theCourse)')),
-    );
     expect(mounted, contains('_addMaatFlowInstanceHeadless('));
     expect(mounted, contains('_applyPendingStagedFlow(flowId)'));
-    expect(mounted, isNot(contains('upsertManyDeterministic')));
-
-    final followSkyV11 = _sourceBetween(
-      maatFlowsSource,
-      'return FollowSkyDetailPage(',
-      'if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
-    );
-    expect(followSkyV11, contains('_stageHeadlessMaatFlowJoinResult('));
-    expect(followSkyV11, contains('completionRequired: false'));
-    expect(followSkyV11, contains('_rememberJoinedMaatFlowTemplate('));
-    expect(followSkyV11, isNot(contains('_completeJoin(id)')));
-
-    final offeringTable = _sourceBetween(
-      maatFlowsSource,
-      'if (widget.template.kind == _MaatFlowTemplateKind.offeringTable)',
-      'if (widget.template.kind == _MaatFlowTemplateKind.theTending)',
-    );
-    expect(offeringTable, contains('_joinOfferingTable('));
-    expect(offeringTable, isNot(contains('widget.addInstance(')));
-    expect(offeringTable, isNot(contains('_completeJoin')));
-    expect(maatFlowsSource, contains('completionRequired: false'));
+    expect(active, contains('_stageHeadlessMaatFlowJoinResult('));
+    expect(active, contains('_joinOfferingTableFromDetailAuthority('));
+    expect(active, contains('completionRequired: false'));
   });
 
   test(
@@ -469,7 +382,7 @@ void main() {
     },
   );
 
-  test('instrument event sheets keep one shared resize authority', () {
+  test('instrument sheets and flow-owned previews keep distinct authorities', () {
     final shared = File(
       'lib/features/calendar/presentation/instrument_event_presentation_frame.dart',
     ).readAsStringSync();
@@ -479,26 +392,19 @@ void main() {
     final offering = File(
       'lib/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart',
     ).readAsStringSync();
-    final offeringOpen = _sourceBetween(
-      offering,
-      'Future<void> _openOfferingDaySheet(',
-      'Future<void> _pickStartDate()',
-    );
+    final offeringPreview = File(
+      'lib/features/calendar/the_offering_table/presentation/offering_table_preview_day_sheet.dart',
+    ).readAsStringSync();
 
     expect(shared, contains('class InstrumentEventSheetHost'));
-    expect(shared, contains('const double instrumentEventSheetMinExtent'));
     expect(shared, contains('delta / availableSheetHeight'));
-    expect(shared, contains('showCalendarEventDetailSheetModal'));
     expect(dayView, contains('InstrumentEventSheetHost('));
     expect(dayView, contains('showCalendarEventDetailSheetModal<void>('));
     expect(dayView, isNot(contains('_instrumentSheetExtent')));
-    expect(dayView, isNot(contains('_updateInstrumentSheetExtent')));
-    expect(offeringOpen, contains('InstrumentEventSheetHost('));
-    expect(offeringOpen, contains('showCalendarEventDetailSheetModal<void>('));
-    expect(offeringOpen, isNot(contains('showModalBottomSheet')));
-    expect(offeringOpen, isNot(contains('var extent')));
-    expect(offeringOpen, isNot(contains('delta /')));
-    expect(offeringOpen, isNot(contains('.clamp(0.58, 1.0)')));
+    expect(offering, contains('showOfferingTablePreviewDaySheet('));
+    expect(offeringPreview, contains('class OfferingTablePreviewDaySheet'));
+    expect(offeringPreview, isNot(contains('InstrumentEventSheetHost(')));
+    expect(offeringPreview, isNot(contains('delta / availableSheetHeight')));
   });
 
   test('Ma_at join completion never hydrates to rediscover staged notes', () {
@@ -576,80 +482,12 @@ void main() {
   });
 }
 
-const _previewEnrollmentBranches = [
-  (
-    name: 'Moon Return',
-    resolverStart:
-        'MoonReturnEnrollmentWindow? _resolveMoonReturnPreviewWindow',
-    resolverEnd: 'Widget _buildMoonReturnOccurrenceTile',
-    resolverCall: '_resolveMoonReturnPreviewWindow()',
-    scaffoldStart: 'Widget _buildMoonReturnScaffold',
-    scaffoldEnd: 'Widget _buildCourseScaffold',
-    throwingApi: 'moonReturnNextEnrollmentWindow',
-  ),
-  (
-    name: 'Wag',
-    resolverStart: 'WagEnrollmentWindow? _resolveWagPreviewWindow',
-    resolverEnd: 'Widget _buildWagEventTile',
-    resolverCall: '_resolveWagPreviewWindow()',
-    scaffoldStart: 'Widget _buildWagScaffold',
-    scaffoldEnd: 'DecanWatchEnrollmentWindow? _resolveDecanWatchPreviewWindow',
-    throwingApi: 'wagNextEnrollmentWindow',
-  ),
-  (
-    name: 'Decan Watch',
-    resolverStart:
-        'DecanWatchEnrollmentWindow? _resolveDecanWatchPreviewWindow',
-    resolverEnd: 'Widget _buildDecanWatchOccurrenceTile',
-    resolverCall: '_resolveDecanWatchPreviewWindow()',
-    scaffoldStart: 'Widget _buildDecanWatchScaffold',
-    scaffoldEnd: 'OpenHandEnrollmentWindow? _resolveOpenHandPreviewWindow',
-    throwingApi: 'decanWatchNextEnrollmentWindow',
-  ),
-  (
-    name: 'Open Hand',
-    resolverStart: 'OpenHandEnrollmentWindow? _resolveOpenHandPreviewWindow',
-    resolverEnd: 'Widget _buildOpenHandEventTile',
-    resolverCall: '_resolveOpenHandPreviewWindow()',
-    scaffoldStart: 'Widget _buildOpenHandScaffold',
-    scaffoldEnd: 'DjedEnrollmentWindow? _resolveDjedPreviewWindow',
-    throwingApi: 'openHandNextEnrollmentWindow',
-  ),
-  (
-    name: 'Djed',
-    resolverStart: 'DjedEnrollmentWindow? _resolveDjedPreviewWindow',
-    resolverEnd: 'Widget _buildDjedEventTile',
-    resolverCall: '_resolveDjedPreviewWindow()',
-    scaffoldStart: 'Widget _buildDjedScaffold',
-    scaffoldEnd:
-        'DaysOutsideYearEnrollmentWindow? _resolveDaysOutsideYearPreviewWindow',
-    throwingApi: 'djedNextEnrollmentWindow',
-  ),
-  (
-    name: 'Days Outside the Year',
-    resolverStart:
-        'DaysOutsideYearEnrollmentWindow? _resolveDaysOutsideYearPreviewWindow',
-    resolverEnd: 'Widget _buildDaysOutsideYearEventTile',
-    resolverCall: '_resolveDaysOutsideYearPreviewWindow()',
-    scaffoldStart: 'Widget _buildDaysOutsideYearScaffold',
-    scaffoldEnd: 'Widget _buildMoonReturnScaffold',
-    throwingApi: 'daysOutsideYearNextEnrollmentWindow',
-  ),
-];
-
 const _maatEventDetailSourceFiles = [
   'lib/features/calendar/track_sky_flow.dart',
-  'lib/features/calendar/dawn_house_rite_flow.dart',
-  'lib/features/calendar/evening_threshold_rite_flow.dart',
-  'lib/features/calendar/the_weighing_flow.dart',
   'lib/features/calendar/the_offering_table_flow.dart',
-  'lib/features/calendar/the_tending_flow.dart',
-  'lib/features/calendar/the_kept_word_flow.dart',
   'lib/features/calendar/the_course_flow.dart',
   'lib/features/calendar/moon_return_flow.dart',
-  'lib/features/calendar/the_wag_flow.dart',
   'lib/features/calendar/the_decan_watch_flow.dart',
-  'lib/features/calendar/the_days_outside_year_flow.dart',
   'lib/features/calendar/the_open_hand_flow.dart',
   'lib/features/calendar/the_djed_flow.dart',
   'lib/features/calendar/the_reading_house_flow.dart',
@@ -657,59 +495,10 @@ const _maatEventDetailSourceFiles = [
 ];
 
 const _sensitiveMaatEventDetailSourceFiles = [
-  'lib/features/calendar/the_tending_flow.dart',
-  'lib/features/calendar/the_kept_word_flow.dart',
-  'lib/features/calendar/the_wag_flow.dart',
   'lib/features/calendar/the_decan_watch_flow.dart',
-  'lib/features/calendar/the_days_outside_year_flow.dart',
   'lib/features/calendar/the_open_hand_flow.dart',
   'lib/features/calendar/the_djed_flow.dart',
   'lib/features/calendar/the_reading_house_flow.dart',
-];
-
-const _previewInlineDetailBranches = [
-  (
-    name: 'Moon Return',
-    start: 'Widget _buildMoonReturnOccurrenceTile',
-    end: 'WagEnrollmentWindow? _resolveWagPreviewWindow',
-    detailFunction: 'moonReturnDetailText',
-  ),
-  (
-    name: 'Wag',
-    start: 'Widget _buildWagEventTile',
-    end: 'DecanWatchEnrollmentWindow? _resolveDecanWatchPreviewWindow',
-    detailFunction: 'wagDetailText',
-  ),
-  (
-    name: 'Decan Watch',
-    start: 'Widget _buildDecanWatchOccurrenceTile',
-    end: 'Widget _buildDecanWatchScaffold',
-    detailFunction: 'decanWatchDetailText',
-  ),
-  (
-    name: 'Open Hand',
-    start: 'Widget _buildOpenHandEventTile',
-    end: 'DecanWatchEnrollmentWindow? _resolveMaatDecanPreviewWindow',
-    detailFunction: 'openHandDetailText',
-  ),
-  (
-    name: 'Ma’at Decan',
-    start: 'Widget _buildMaatDecanFlowEventTile',
-    end: 'Widget _buildMaatDecanFlowScaffold',
-    detailFunction: 'maatDecanFlowDetailText',
-  ),
-  (
-    name: 'Djed',
-    start: 'Widget _buildDjedEventTile',
-    end: 'Widget _buildDjedScaffold',
-    detailFunction: 'djedDetailText',
-  ),
-  (
-    name: 'Days Outside the Year',
-    start: 'Widget _buildDaysOutsideYearEventTile',
-    end: 'Widget _buildDaysOutsideYearScaffold',
-    detailFunction: 'daysOutsideDetailText',
-  ),
 ];
 
 const _flowJoinSafeDefaultEnrollmentResolvers = [
@@ -721,23 +510,6 @@ const _flowJoinSafeDefaultEnrollmentResolvers = [
     safeResolver: 'resolveMoonReturnEnrollmentWindowSafely',
     throwingNextApi: 'moonReturnNextEnrollmentWindow(',
     throwingSelectedApi: 'moonReturnEnrollmentWindowForStartDate(',
-  ),
-  (
-    name: 'Wag',
-    resolverStart: 'static WagEnrollmentWindow? _defaultResolveWagWindow',
-    resolverEnd: 'static WagOccurrenceSchedule',
-    safeResolver: 'resolveWagEnrollmentWindowSafely',
-    throwingNextApi: 'wagNextEnrollmentWindow(',
-    throwingSelectedApi: 'wagEnrollmentWindowForStartDate(',
-  ),
-  (
-    name: 'Days Outside the Year',
-    resolverStart:
-        'static DaysOutsideYearEnrollmentWindow? _defaultResolveDaysOutsideYearWindow',
-    resolverEnd: 'static DaysOutsideOccurrenceSchedule',
-    safeResolver: 'resolveDaysOutsideYearEnrollmentWindowSafely',
-    throwingNextApi: 'daysOutsideYearNextEnrollmentWindow(',
-    throwingSelectedApi: 'daysOutsideYearEnrollmentWindowForStartDate(',
   ),
   (
     name: 'Decan Watch',
@@ -773,15 +545,4 @@ String _sourceBetween(String source, String startMarker, String endMarker) {
   final end = source.indexOf(endMarker, start);
   expect(end, isNonNegative, reason: 'missing end marker $endMarker');
   return source.substring(start, end);
-}
-
-int _countOccurrences(String source, String needle) {
-  var count = 0;
-  var index = 0;
-  while (true) {
-    index = source.indexOf(needle, index);
-    if (index < 0) return count;
-    count++;
-    index += needle.length;
-  }
 }

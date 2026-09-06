@@ -46,7 +46,11 @@ void main() {
     expect(listRoute, isA<MaterialPageRoute<dynamic>>());
     expect(listRoute!.isCurrent, isTrue);
 
-    await tester.tap(card);
+    final openButton = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-open-track-the-sky'),
+    );
+    await tester.ensureVisible(openButton);
+    await tester.tap(openButton);
     final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
     await _pumpUntilFound(tester, detailBack);
 
@@ -82,7 +86,7 @@ void main() {
 
       final listAppBar = find.widgetWithText(
         AppBar,
-        "Ma'at Flows",
+        'Flows',
         skipOffstage: false,
       );
       final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
@@ -102,7 +106,7 @@ void main() {
 
       expect(listRoute.isCurrent, isTrue);
       expect(detailRoute.isCurrent, isFalse);
-      expect(find.text("Ma'at Flows"), findsOneWidget);
+      expect(find.text('Flows'), findsOneWidget);
       expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
     },
   );

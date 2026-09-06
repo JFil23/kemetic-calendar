@@ -108,7 +108,6 @@ import '../../shared/date_picker/stone_register_date_picker.dart'
 import '../../widgets/flow_start_date_picker.dart';
 import '../../widgets/day_sheet_components.dart';
 import '../../widgets/event_create_date_picker.dart';
-import '../../widgets/maat_flow_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart' show showGregorianDatePicker;
 import '../../widgets/kemetic_date_picker.dart' show showKemeticDatePicker;
 import '../../widgets/recurrence_until_date_picker.dart';
@@ -146,11 +145,9 @@ import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_palette.dart';
 import 'maat_flow_visual_tokens.dart';
+import 'presentation/maat_flow_discovery_view.dart';
 import 'presentation/maat_flow_detail_shell.dart';
-import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_response_journal_blocks.dart';
-import 'maat_flow_response_models.dart';
-import 'maat_flow_response_resolver.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_catalog.dart';
 import 'maat_flow_temporal_policy.dart';
@@ -158,31 +155,23 @@ import 'maat_flow_temporal_resolver.dart';
 import 'maat_flow_temporal_controller.dart';
 import 'track_sky_flow.dart';
 import 'follow_the_sky/follow_the_sky.dart';
-import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_flow.dart';
-import 'evening_threshold_rite_flow.dart';
-import 'the_weighing_flow.dart';
 import 'the_offering_table_flow.dart';
 import 'the_offering_table/presentation/offering_table_detail_page.dart';
-import 'the_tending_flow.dart';
-import 'the_kept_word_flow.dart';
 import 'the_course_flow.dart';
 import 'the_course_context.dart';
 import 'moon_return_flow.dart';
 import 'moon_return_astronomy.dart';
-import 'the_wag_flow.dart';
-import 'the_wag_scheduler.dart';
-import 'the_wag_enrollment.dart';
 import 'the_decan_watch_flow.dart';
 import 'the_decan_watch_scheduler.dart';
 import 'the_decan_watch_enrollment.dart';
-import 'the_days_outside_year_flow.dart';
-import 'the_days_outside_year_scheduler.dart';
-import 'the_days_outside_year_enrollment.dart';
 import 'the_open_hand_flow.dart';
 import 'the_open_hand_enrollment.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_enrollment.dart';
+import 'the_djed_v2_flow.dart';
+import 'the_djed/presentation/djed_detail_page.dart';
+import 'presentation/archived_maat_flow_detail_view.dart';
 import 'the_reading_house_flow.dart';
 import 'the_reading_house/reading_house_authority.dart';
 import 'the_reading_house/presentation/reading_house_detail_page.dart';
@@ -218,7 +207,7 @@ part 'calendar_grid_widgets.dart';
 part 'calendar_month_detail.dart';
 part 'calendar_flow_studio_page.dart';
 part 'calendar_flow_pages.dart';
-part 'calendar_maat_flows.dart';
+part 'calendar_active_maat_flows.dart';
 part 'reading_house_authoring_page.dart';
 part 'my_flow_card_spec.dart';
 part 'my_flow_maat_badge.dart';
@@ -987,18 +976,6 @@ const Color _gold = KemeticGold.base;
 const Color _cardBorderGold = _gold;
 
 // Gradients are now imported from shared/glossy_text.dart
-const Gradient _maatBadgeGoldGloss = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [
-    Color(0xFFFFF1BF),
-    Color(0xFFF2CF63),
-    Color(0xFFFFF8D9),
-    Color(0xFFF4D97A),
-  ],
-  stops: [0.0, 0.34, 0.62, 1.0],
-);
-
 // Base text styles (color overridden to white inside gloss wrappers)
 const TextStyle _titleGold = TextStyle(
   fontSize: 22,
@@ -3617,18 +3594,11 @@ class _MaatFlowDay {
 enum _MaatFlowTemplateKind {
   sequence,
   trackSky,
-  dawnHouseRite,
   eveningThreshold,
-  eveningThresholdRite,
-  theWeighing,
   offeringTable,
-  theTending,
-  keptWord,
   theCourse,
   moonReturn,
-  theWag,
   decanWatch,
-  daysOutsideTheYear,
   theOpenHand,
   theDjed,
   readingHouse,
@@ -3637,47 +3607,18 @@ enum _MaatFlowTemplateKind {
 
 enum _MaatFlowLibraryCategory { dailyRhythm, innerWork, livingInMaat }
 
-extension _MaatFlowLibraryCategoryLabel on _MaatFlowLibraryCategory {
-  String get label => switch (this) {
-    _MaatFlowLibraryCategory.dailyRhythm => 'DAILY RHYTHM',
-    _MaatFlowLibraryCategory.innerWork => 'INNER WORK',
-    _MaatFlowLibraryCategory.livingInMaat => "LIVING IN MA'AT",
-  };
-}
-
-const List<_MaatFlowLibraryCategory> _kMaatFlowLibraryCategories =
-    <_MaatFlowLibraryCategory>[
-      _MaatFlowLibraryCategory.dailyRhythm,
-      _MaatFlowLibraryCategory.innerWork,
-      _MaatFlowLibraryCategory.livingInMaat,
-    ];
-
 const String _kTrackSkyBadgeText =
     'In Kemet, the priests watched the sky to keep the calendar true, to read the coming of the flood, and to set the festivals in their seasons. The sky was the first clock and the first scripture - order written overhead for anyone who learned to read it.';
-const String _kDawnHouseRiteBadgeText =
-    "In Kemet, the priest entered the temple before sunrise, broke the seal on the shrine, and washed the god's image as the first light arrived. Dawn was not the start of work - it was the daily remaking of the world, and someone had to be awake to meet it.";
 const String _kEveningThresholdBadgeText =
     'In Kemet, every temple gate had a keeper, and nothing crossed without being named. The threshold was a real boundary, not a doorway - what passed through it passed by choice. What was left at the gate stayed at the gate.';
-const String _kClosingBadgeText =
-    'In Kemet, sunset was not an ending but a departure. Ra boarded the night barque and began the dangerous passage through the twelve hours of darkness. The living closed their work, cooled the day, and let it go - because what is not set down cannot rest.';
-const String _kWeighingBadgeText =
-    "In Kemet, the heart was set on a scale against the feather of Ma'at, and Djehuty recorded what the balance showed. The scale did not condemn - it measured. A heart heavy with falsehood was simply a heart that did not match the truth.";
 const String _kOfferingTableBadgeText =
     'In Kemet, the offering table was laid with water before bread, every single day, whether or not anyone felt moved to lay it. Provision was not gratitude - it was maintenance. What sustains life is fed first, and fed always.';
-const String _kTendingBadgeText =
-    'In Kemet, Aset gathered the scattered pieces of Ausar and Heru stood to restore the order that had collapsed. Care was never a warm feeling - it was specific labor, done for the vulnerable, whether or not it was easy. The gathering came before the standing.';
-const String _kKeptWordBadgeText =
-    'In Kemet, order in the kingdom began inside the palace walls. "The front of the house determines the back" - what was spoken truly in the closest relationships held everything further out together. You cannot keep order in the world while breaking it at home.';
 const String _kCourseBadgeText =
     "In Kemet, a person stood inside three clocks at once: the sun's daily arc, the ten-day decan, and the turning season. To know the hour was not enough - you had to know what kind of time it was, and what that time was asking of you.";
 const String _kMoonReturnBadgeText =
     'In Kemet, the moon was the Eye of Heru - wounded by Set, torn into pieces, and restored to wholeness by Djehuty across the month. The dark moon was not absence. It was the eye mid-healing, on its way back to full.';
-const String _kWagBadgeText =
-    'In Kemet, the Wag festival set water and bread before the blessed dead and spoke their names aloud. A name unspoken was a death deeper than the first. The living kept the dead alive by remembering them out loud - and trusted to be remembered in turn.';
 const String _kDecanWatchBadgeText =
     'In Kemet, thirty-six star groups rose in turn through the night, each marking the passage of ten days. And above them stood the Imperishable Stars, which never set - the fixed point against which all time was measured. To watch them was to add your own count to a count older than memory.';
-const String _kDaysOutsideYearBadgeText =
-    'In Kemet, five days belonged to no month and no season - the births of Ausar, Heru, Set, Aset, and Nebet-Het, when ordinary time was suspended. You crossed the gap carrying nothing finished, and stepped into the new year remade.';
 const String _kOpenHandBadgeText =
     'In Kemet, the just person recorded specific gifts on the tomb wall as proof of a life in Ma\'at: bread to the hungry, water to the thirsty, clothing to the naked, a boat to the one stranded on the shore. Generosity was not a sentiment. It was a list of things actually given.';
 const String _kDjedBadgeText =
@@ -3700,16 +3641,12 @@ const String _kShoreBadgeText =
     'In Kemet, honest trade was weighed on a true scale, and Djehuty\'s ape sat beside the balance as its heart. "The measure is the eye of Ra." Goods gained by a tilted scale turned to lead by morning - what is taken dishonestly never truly stays.';
 const String _kAutobiographyBadgeText =
     'In Kemet, a life was carved on the tomb wall for the living who passed by to read - not boasts, but a reckoning: what I built, what I gave, what I stood for. The account had to be honest, because the same deeds would be weighed on the scale. A life set down plainly is a life that endures.';
-const String _kFirstArrangementBadgeText =
-    'In Kemet, creation itself was Zep Tepi - the First Occasion, when the gods set each thing in its proper place and order rose out of the waters. To order a space is to repeat that first act in miniature: not to add, but to put what exists where it belongs.';
 const String _kLivingPatternBadgeText =
     'In Kemet, the deepest principles were read from the natural world - the flood that gave and withdrew, the jackal at the desert\'s edge, the star that vanished and returned. Nature was a text written by the gods, and patient watching, not invention, was how you read it.';
 const String _kTrueNameBadgeText =
     "In Kemet, the ren - the true name - was one of the real parts of a person, as real as the body. To know a thing's accurate name was to know its nature; Aset gained power over Ra by learning the name he had hidden. The account others gave you is not always the name the scale shows.";
 const String _kLivingTextBadgeText =
     "In Kemet, a scribe's note in the margin could be carried into the next copy, and the next - a reader's insight becoming part of the text itself. The writing was never finished. Each careful reader added to a thing that had been growing for generations.";
-const String _kClearingBadgeText =
-    'In Kemet, the temperate person was likened to a tree grown in open sun - fruitful, shading others, ending its days in a grove. The hot-headed person was a tree in an enclosure, stripped of its leaves in a single moment. The difference was not temperament. It was where the heat could reach.';
 const String _kWanderingBadgeText =
     'In Kemet, when Ausar was lost, Aset and Nebet-Het searched the length of the land, lamenting as they went, until they found him. Grief was given a shape and a journey. The searching was not weakness - it was the work, and "I found" was the cry at the end of it.';
 const String _kKhatBadgeText =
@@ -3782,20 +3719,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     kind: _MaatFlowTemplateKind.trackSky,
   ),
   _MaatFlowTemplate(
-    key: kDawnHouseRiteFlowKey,
-    title: kDawnHouseRiteTitle,
-    overview: kDawnHouseRiteOverview,
-    subtitle: 'Daily · Water, light, and one right act at dawn',
-    historicalBadgeText: _kDawnHouseRiteBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
-    glyph: '𓉐',
-    glyphMeaning: 'House',
-    glyphSourceWord: 'pr',
-    glyphType: 'ideogram',
-    color: const Color(0xFFEFA25C),
-    kind: _MaatFlowTemplateKind.dawnHouseRite,
-  ),
-  _MaatFlowTemplate(
     key: kEveningThresholdFlowKey,
     title: kEveningThresholdTitle,
     overview: kEveningThresholdOverview,
@@ -3808,34 +3731,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphType: 'composite',
     color: const Color(0xFFC2673F),
     kind: _MaatFlowTemplateKind.eveningThreshold,
-  ),
-  _MaatFlowTemplate(
-    key: kEveningThresholdRiteFlowKey,
-    title: kEveningThresholdRiteTitle,
-    overview: kEveningThresholdRiteOverview,
-    subtitle: 'Daily · Close the visible day before the night begins',
-    historicalBadgeText: _kClosingBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
-    glyph: '𓊌',
-    glyphMeaning: 'Boundary or threshold',
-    glyphSourceWord: 'ist',
-    glyphType: 'ideogram',
-    color: const Color(0xFF6F58D9),
-    kind: _MaatFlowTemplateKind.eveningThresholdRite,
-  ),
-  _MaatFlowTemplate(
-    key: kTheWeighingFlowKey,
-    title: kTheWeighingTitle,
-    overview: kTheWeighingOverview,
-    subtitle: 'Reckoning · Put material and spoken records on the scale',
-    historicalBadgeText: _kWeighingBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.innerWork,
-    glyph: kTheWeighingGlyph,
-    glyphMeaning: 'Balance and weighing',
-    glyphSourceWord: 'iwsw',
-    glyphType: 'ideogram',
-    color: const Color(0xFFB8A88A),
-    kind: _MaatFlowTemplateKind.theWeighing,
   ),
   _MaatFlowTemplate(
     key: kOfferingTableFlowKey,
@@ -3851,34 +3746,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphType: 'ideogram',
     color: const Color(0xFFC08A52),
     kind: _MaatFlowTemplateKind.offeringTable,
-  ),
-  _MaatFlowTemplate(
-    key: kTheTendingFlowKey,
-    title: kTheTendingTitle,
-    overview: kTheTendingOverview,
-    subtitle: 'Care · Find who needs you and do the labor',
-    historicalBadgeText: _kTendingBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
-    glyph: kTheTendingGlyph,
-    glyphMeaning: 'Field and tending',
-    glyphSourceWord: 'sekhet',
-    glyphType: 'determinative',
-    color: const Color(0xFF7A6B9E),
-    kind: _MaatFlowTemplateKind.theTending,
-  ),
-  _MaatFlowTemplate(
-    key: kKeptWordFlowKey,
-    title: kKeptWordTitle,
-    overview: kKeptWordOverview,
-    subtitle: 'Speech · Name broken agreements and restore right order',
-    historicalBadgeText: _kKeptWordBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
-    glyph: kKeptWordGlyph,
-    glyphMeaning: 'Mouth and speech',
-    glyphSourceWord: 'r',
-    glyphType: 'ideogram',
-    color: const Color(0xFF8B7355),
-    kind: _MaatFlowTemplateKind.keptWord,
   ),
   _MaatFlowTemplate(
     key: kTheCourseFlowKey,
@@ -3909,20 +3776,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     kind: _MaatFlowTemplateKind.moonReturn,
   ),
   _MaatFlowTemplate(
-    key: kTheWagFlowKey,
-    title: kTheWagTitle,
-    overview: kTheWagOverview,
-    subtitle: 'Ancestors · Name the dead, set the table, hold the feast',
-    historicalBadgeText: _kWagBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
-    glyph: kTheWagGlyph,
-    glyphMeaning: 'Bark and procession',
-    glyphSourceWord: 'wia',
-    glyphType: 'ideogram',
-    color: const Color(0xFF9C6B4E),
-    kind: _MaatFlowTemplateKind.theWag,
-  ),
-  _MaatFlowTemplate(
     key: kDecanWatchFlowKey,
     title: kDecanWatchTitle,
     overview: kDecanWatchOverview,
@@ -3935,20 +3788,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphType: 'ideogram',
     color: const Color(0xFF2F4A75),
     kind: _MaatFlowTemplateKind.decanWatch,
-  ),
-  _MaatFlowTemplate(
-    key: kDaysOutsideTheYearFlowKey,
-    title: kDaysOutsideTheYearTitle,
-    overview: kDaysOutsideTheYearOverview,
-    subtitle: 'Threshold · Five births before the year opens',
-    historicalBadgeText: _kDaysOutsideYearBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
-    glyph: kDaysOutsideTheYearGlyph,
-    glyphMeaning: 'Year',
-    glyphSourceWord: 'rnpt',
-    glyphType: 'ideogram',
-    color: const Color(0xFF6A5A86),
-    kind: _MaatFlowTemplateKind.daysOutsideTheYear,
   ),
   _MaatFlowTemplate(
     key: kTheOpenHandFlowKey,
@@ -4120,20 +3959,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     kind: _MaatFlowTemplateKind.maatDecan,
   ),
   _MaatFlowTemplate(
-    key: kFirstArrangementFlowKey,
-    title: kFirstArrangementTitle,
-    overview: kFirstArrangementOverview,
-    subtitle: 'Space · See what is there and order it from the first occasion',
-    historicalBadgeText: _kFirstArrangementBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
-    glyph: kFirstArrangementGlyph,
-    glyphMeaning: 'Ordered land or ground',
-    glyphSourceWord: 'tA',
-    glyphType: 'determinative',
-    color: const Color(0xFF6E8E68),
-    kind: _MaatFlowTemplateKind.maatDecan,
-  ),
-  _MaatFlowTemplate(
     key: kLivingPatternFlowKey,
     title: kLivingPatternTitle,
     overview: kLivingPatternOverview,
@@ -4174,21 +3999,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphSourceWord: 'sS anx',
     glyphType: 'compound',
     color: const Color(0xFF6F7F99),
-    kind: _MaatFlowTemplateKind.maatDecan,
-  ),
-  _MaatFlowTemplate(
-    key: kClearingFlowKey,
-    title: kClearingTitle,
-    overview: kClearingOverview,
-    subtitle:
-        'Stillness · Find the heat-driven pattern. Create space before response.',
-    historicalBadgeText: _kClearingBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.innerWork,
-    glyph: kClearingGlyph,
-    glyphMeaning: 'Water and cleansing',
-    glyphSourceWord: 'n',
-    glyphType: 'determinative',
-    color: const Color(0xFF8FA76B),
     kind: _MaatFlowTemplateKind.maatDecan,
   ),
   _MaatFlowTemplate(
@@ -4239,7 +4049,9 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
 
 final List<_MaatFlowTemplate> _kCoreMaatFlowTemplates =
     List<_MaatFlowTemplate>.unmodifiable(
-      _kMaatFlowTemplates.where((template) => isCoreMaatFlowKey(template.key)),
+      _kMaatFlowTemplates.where(
+        (template) => isMaatFlowDiscoverable(template.key),
+      ),
     );
 
 /* ─────────────────────────── CALENDAR PAGE (flows + notes) ─────────────────────────── */
@@ -5218,7 +5030,26 @@ class CalendarPage extends StatefulWidget {
     );
     if (templateKey == null) return null;
 
-    for (final template in _kMaatFlowTemplates) {
+    final kind = resolveMaatFlowKind(
+      behaviorPayload: <String, dynamic>{'flow_key': templateKey},
+    );
+    if (kind != null && kArchivedCompatibilityMaatFlowKinds.contains(kind)) {
+      return Builder(
+        builder: (context) => ArchivedMaatFlowDetailView(
+          fixture: _archivedMaatFlowFixtureFromSnapshot(
+            kind: kind,
+            name: name,
+            eventsJson: eventsJson,
+          ),
+          onBack: () => popMaatFlowDetailOrGo(
+            context,
+            fallbackLocation: backFallbackLocation,
+          ),
+        ),
+      );
+    }
+
+    for (final template in _kCoreMaatFlowTemplates) {
       if (template.key != templateKey) continue;
       return _MaatFlowTemplateDetailPage(
         template: template,
@@ -5228,6 +5059,131 @@ class CalendarPage extends StatefulWidget {
     }
     return null;
   }
+
+  static ArchivedMaatFlowFixture _archivedMaatFlowFixtureFromSnapshot({
+    required MaatFlowKind kind,
+    required String name,
+    required List<dynamic> eventsJson,
+    bool ended = false,
+  }) {
+    final decoded = <({DateTime? date, String title, String status})>[];
+    final responses = <ArchivedMaatFlowResponseFixture>[];
+    for (final raw in eventsJson) {
+      if (raw is! Map) continue;
+      final event = Map<String, dynamic>.from(raw);
+      final date =
+          _dateOnlyFromSnapshot(event['date']) ??
+          _dateOnlyFromSnapshot(event['start_date']) ??
+          _dateOnlyFromSnapshot(event['starts_at_utc']);
+      final title = event['title']?.toString().trim();
+      final payload = event['behavior_payload'] is Map
+          ? Map<String, dynamic>.from(event['behavior_payload'] as Map)
+          : const <String, dynamic>{};
+      final status =
+          event['completion_status']?.toString().trim() ??
+          payload['completion_status']?.toString().trim() ??
+          'Preserved';
+      decoded.add((
+        date: date,
+        title: title?.isNotEmpty == true ? title! : name,
+        status: status.isEmpty ? 'Preserved' : status,
+      ));
+      final rawResponses =
+          event['responses'] ??
+          payload['responses'] ??
+          payload['response_values'];
+      if (rawResponses is Map) {
+        for (final entry in rawResponses.entries) {
+          final response = entry.value?.toString().trim() ?? '';
+          if (response.isEmpty) continue;
+          responses.add(
+            ArchivedMaatFlowResponseFixture(
+              prompt: entry.key.toString(),
+              response: response,
+            ),
+          );
+        }
+      }
+    }
+    decoded.sort((a, b) {
+      final aDate = a.date;
+      final bDate = b.date;
+      if (aDate == null && bDate == null) return 0;
+      if (aDate == null) return 1;
+      if (bDate == null) return -1;
+      return aDate.compareTo(bDate);
+    });
+    final dated = decoded.where((entry) => entry.date != null).toList();
+    final dateRange = dated.isEmpty
+        ? 'Original dates preserved'
+        : dated.length == 1
+        ? _formatArchivedFlowDate(dated.first.date!)
+        : '${_formatArchivedFlowDate(dated.first.date!)}–${_formatArchivedFlowDate(dated.last.date!)}';
+    return ArchivedMaatFlowFixture(
+      flowKey: kind.flowKey,
+      title: name.trim().isEmpty ? _archivedMaatFlowTitle(kind) : name.trim(),
+      glyph: _archivedMaatFlowGlyph(kind),
+      dateRange: dateRange,
+      events: <ArchivedMaatFlowEventFixture>[
+        for (final entry in decoded)
+          ArchivedMaatFlowEventFixture(
+            dateLabel: entry.date == null
+                ? 'DATE PRESERVED'
+                : _formatArchivedFlowDate(entry.date!).toUpperCase(),
+            title: entry.title,
+            status: entry.status,
+          ),
+      ],
+      responses: responses,
+      ended: ended,
+    );
+  }
+
+  static ArchivedMaatFlowFixture _archivedMaatFlowFixtureFromRows({
+    required MaatFlowKind kind,
+    required _Flow flow,
+    required List<FlowEventRow> events,
+  }) {
+    return _archivedMaatFlowFixtureFromSnapshot(
+      kind: kind,
+      name: flow.name,
+      ended: !flow.active,
+      eventsJson: <Map<String, dynamic>>[
+        for (final event in events)
+          <String, dynamic>{
+            'title': event.title,
+            'starts_at_utc': event.startsAtUtc.toIso8601String(),
+            'action_id': event.actionId,
+            if (event.behaviorPayload != null)
+              'behavior_payload': event.behaviorPayload,
+          },
+      ],
+    );
+  }
+
+  static String _formatArchivedFlowDate(DateTime date) {
+    const months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  static String _archivedMaatFlowTitle(MaatFlowKind kind) =>
+      archivedMaatFlowTitle(kind);
+
+  static String _archivedMaatFlowGlyph(MaatFlowKind kind) =>
+      archivedMaatFlowGlyph(kind);
 
   static String? _canonicalMaatTemplateKeyForSnapshot({
     required String name,
@@ -7644,22 +7600,14 @@ class CalendarPage extends StatefulWidget {
     bool? useKemetic,
     TrackSkyTimeZone? trackSkyTimeZone,
     int? alertMinutesBefore,
-    bool? dawnDiscreetMode,
-    DawnHouseRiteLens? dawnLens,
-    bool? eveningDiscreetMode,
-    EveningThresholdRiteLens? eveningLens,
-    int? eveningFallbackMinutesAfterMidnight,
-    TheWeighingLens? theWeighingLens,
     OfferingTableLens? offeringTableLens,
     bool? offeringNoCupMode,
-    TheTendingLens? theTendingLens,
-    KeptWordLens? keptWordLens,
     CourseLens? courseLens,
     MoonReturnLens? moonReturnLens,
-    WagLens? wagLens,
     DecanWatchLens? decanWatchLens,
     OpenHandLens? openHandLens,
     DjedLens? djedLens,
+    DjedV2Configuration? djedConfiguration,
     List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   }) async {
@@ -7724,35 +7672,6 @@ class CalendarPage extends StatefulWidget {
       return stageResult(result);
     }
 
-    if (template.kind == _MaatFlowTemplateKind.theWag) {
-      final result = await FlowJoinService().joinWagHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        lens: wagLens ?? WagLens.neutral,
-        alertOffsetMinutes: 0,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear) {
-      final result = await FlowJoinService().joinDaysOutsideYearHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        alertOffsetMinutes: 0,
-      );
-      return stageResult(result);
-    }
-
     if (template.kind == _MaatFlowTemplateKind.theOpenHand) {
       final result = await FlowJoinService().joinOpenHandHeadless(
         templateKey: template.key,
@@ -7778,6 +7697,9 @@ class CalendarPage extends StatefulWidget {
         timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
         startDate: startDate,
         lens: djedLens ?? DjedLens.neutral,
+        configuration:
+            djedConfiguration ??
+            const DjedV2Configuration(supports: <DjedV2SupportDefinition>[]),
         alertOffsetMinutes: 0,
       );
       return stageResult(result);
@@ -7825,21 +7747,6 @@ class CalendarPage extends StatefulWidget {
       return snapshot.flowId ?? -1;
     }
 
-    if (template.kind == _MaatFlowTemplateKind.maatDecan) {
-      final definition = maatDecanFlowDefinitionForKey(template.key);
-      if (definition == null) return -1;
-      final result = await FlowJoinService().joinMaatDecanFlowHeadless(
-        definition: definition,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        alertOffsetMinutes: 0,
-      );
-      return stageResult(result);
-    }
-
     if (template.kind == _MaatFlowTemplateKind.decanWatch) {
       final result = await FlowJoinService().joinDecanWatchHeadless(
         templateKey: template.key,
@@ -7855,22 +7762,6 @@ class CalendarPage extends StatefulWidget {
       return stageResult(result);
     }
 
-    if (template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
-      final result = await FlowJoinService().joinDawnHouseRiteHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        discreet: dawnDiscreetMode == true,
-        lens: dawnLens ?? DawnHouseRiteLens.neutral,
-        alertOffsetMinutes: kEventFilingNoAlertMinutes,
-      );
-      return stageResult(result);
-    }
-
     if (template.kind == _MaatFlowTemplateKind.eveningThreshold) {
       final result = await FlowJoinService().joinEveningThresholdHeadless(
         templateKey: template.key,
@@ -7882,71 +7773,6 @@ class CalendarPage extends StatefulWidget {
         startDate: startDate,
         alertOffsetMinutes: 0,
         initialCarryText: eveningThresholdInitialCarry,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
-      final fallbackMinutes =
-          eveningFallbackMinutesAfterMidnight ??
-          kEveningThresholdDefaultFallbackMinutes;
-      final result = await FlowJoinService().joinEveningThresholdRiteHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        discreet: eveningDiscreetMode == true,
-        lens: eveningLens ?? EveningThresholdRiteLens.neutral,
-        fallbackMinutesAfterMidnight: fallbackMinutes,
-        alertOffsetMinutes: kEventFilingNoAlertMinutes,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.theWeighing) {
-      final result = await FlowJoinService().joinTheWeighingHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        lens: theWeighingLens ?? TheWeighingLens.neutral,
-        alertOffsetMinutes: kEventFilingNoAlertMinutes,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.theTending) {
-      final result = await FlowJoinService().joinTheTendingHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        lens: theTendingLens ?? TheTendingLens.neutral,
-        alertOffsetMinutes: 0,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.keptWord) {
-      final result = await FlowJoinService().joinKeptWordHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        lens: keptWordLens ?? KeptWordLens.neutral,
-        alertOffsetMinutes: 0,
       );
       return stageResult(result);
     }
@@ -7985,22 +7811,14 @@ class CalendarPage extends StatefulWidget {
     bool? useKemetic,
     TrackSkyTimeZone? trackSkyTimeZone,
     int? alertMinutesBefore,
-    bool? dawnDiscreetMode,
-    DawnHouseRiteLens? dawnLens,
-    bool? eveningDiscreetMode,
-    EveningThresholdRiteLens? eveningLens,
-    int? eveningFallbackMinutesAfterMidnight,
-    TheWeighingLens? theWeighingLens,
     OfferingTableLens? offeringTableLens,
     bool? offeringNoCupMode,
-    TheTendingLens? theTendingLens,
-    KeptWordLens? keptWordLens,
     CourseLens? courseLens,
     MoonReturnLens? moonReturnLens,
-    WagLens? wagLens,
     DecanWatchLens? decanWatchLens,
     OpenHandLens? openHandLens,
     DjedLens? djedLens,
+    DjedV2Configuration? djedConfiguration,
     List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   }) {
@@ -8012,22 +7830,14 @@ class CalendarPage extends StatefulWidget {
       useKemetic: useKemetic,
       trackSkyTimeZone: trackSkyTimeZone,
       alertMinutesBefore: alertMinutesBefore,
-      dawnDiscreetMode: dawnDiscreetMode,
-      dawnLens: dawnLens,
-      eveningDiscreetMode: eveningDiscreetMode,
-      eveningLens: eveningLens,
-      eveningFallbackMinutesAfterMidnight: eveningFallbackMinutesAfterMidnight,
-      theWeighingLens: theWeighingLens,
       offeringTableLens: offeringTableLens,
       offeringNoCupMode: offeringNoCupMode,
-      theTendingLens: theTendingLens,
-      keptWordLens: keptWordLens,
       courseLens: courseLens,
       moonReturnLens: moonReturnLens,
-      wagLens: wagLens,
       decanWatchLens: decanWatchLens,
       openHandLens: openHandLens,
       djedLens: djedLens,
+      djedConfiguration: djedConfiguration,
       readingHouseSittings: readingHouseSittings,
       eveningThresholdInitialCarry: eveningThresholdInitialCarry,
     );
@@ -8742,7 +8552,7 @@ class CalendarPage extends StatefulWidget {
     }
 
     _MaatFlowTemplate? template;
-    for (final candidate in _kMaatFlowTemplates) {
+    for (final candidate in _kCoreMaatFlowTemplates) {
       if (candidate.key == templateKey) {
         template = candidate;
         break;
@@ -9004,6 +8814,23 @@ class CalendarPage extends StatefulWidget {
     final state = globalKey.currentState;
     if (state == null || !state.mounted) return;
     await state._shareFlowFromEventItem(event);
+  }
+
+  static Future<void> postReadingHouseSharedNote(
+    EventItem event,
+    String body,
+  ) async {
+    final flowId = event.flowId;
+    final note = body.trim();
+    if (flowId == null || note.isEmpty) {
+      throw StateError('A Reading House flow and shared note are required.');
+    }
+    final created = await ProfileRepo(
+      Supabase.instance.client,
+    ).postFlow(flowId, sharedNote: note);
+    if (created == null) {
+      throw StateError('Could not post the Reading House note.');
+    }
   }
 
   static Future<bool> makeTodoFromEventTarget(
@@ -13186,7 +13013,7 @@ class CalendarPageState extends State<CalendarPage>
   _MaatFlowTemplate? _maatTemplateForKey(String key) {
     final trimmed = key.trim();
     if (trimmed.isEmpty) return null;
-    for (final template in _kMaatFlowTemplates) {
+    for (final template in _kCoreMaatFlowTemplates) {
       if (template.key == trimmed) return template;
     }
     return null;
@@ -13372,22 +13199,14 @@ class CalendarPageState extends State<CalendarPage>
             bool? useKemetic,
             TrackSkyTimeZone? trackSkyTimeZone,
             int? alertMinutesBefore,
-            bool? dawnDiscreetMode,
-            DawnHouseRiteLens? dawnLens,
-            bool? eveningDiscreetMode,
-            EveningThresholdRiteLens? eveningLens,
-            int? eveningFallbackMinutesAfterMidnight,
-            TheWeighingLens? theWeighingLens,
             OfferingTableLens? offeringTableLens,
             bool? offeringNoCupMode,
-            TheTendingLens? theTendingLens,
-            KeptWordLens? keptWordLens,
             CourseLens? courseLens,
             MoonReturnLens? moonReturnLens,
-            WagLens? wagLens,
             DecanWatchLens? decanWatchLens,
             OpenHandLens? openHandLens,
             DjedLens? djedLens,
+            DjedV2Configuration? djedConfiguration,
             List<ReadingHouseSitting>? readingHouseSittings,
             String? eveningThresholdInitialCarry,
           }) async {
@@ -13397,24 +13216,14 @@ class CalendarPageState extends State<CalendarPage>
               useKemetic: useKemetic ?? false,
               trackSkyTimeZone: trackSkyTimeZone,
               alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
-              dawnDiscreetMode: dawnDiscreetMode ?? false,
-              dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
-              eveningDiscreetMode: eveningDiscreetMode ?? false,
-              eveningLens: eveningLens ?? EveningThresholdRiteLens.neutral,
-              eveningFallbackMinutesAfterMidnight:
-                  eveningFallbackMinutesAfterMidnight ??
-                  kEveningThresholdDefaultFallbackMinutes,
-              theWeighingLens: theWeighingLens ?? TheWeighingLens.neutral,
               offeringTableLens: offeringTableLens ?? OfferingTableLens.neutral,
               offeringNoCupMode: offeringNoCupMode ?? false,
-              theTendingLens: theTendingLens ?? TheTendingLens.neutral,
-              keptWordLens: keptWordLens ?? KeptWordLens.neutral,
               courseLens: courseLens ?? CourseLens.neutral,
               moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
-              wagLens: wagLens ?? WagLens.neutral,
               decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
               openHandLens: openHandLens ?? OpenHandLens.neutral,
               djedLens: djedLens ?? DjedLens.neutral,
+              djedConfiguration: djedConfiguration,
               readingHouseSittings: readingHouseSittings,
               eveningThresholdInitialCarry: eveningThresholdInitialCarry,
             );
@@ -16811,22 +16620,14 @@ class CalendarPageState extends State<CalendarPage>
             bool? useKemetic,
             TrackSkyTimeZone? trackSkyTimeZone,
             int? alertMinutesBefore,
-            bool? dawnDiscreetMode,
-            DawnHouseRiteLens? dawnLens,
-            bool? eveningDiscreetMode,
-            EveningThresholdRiteLens? eveningLens,
-            int? eveningFallbackMinutesAfterMidnight,
-            TheWeighingLens? theWeighingLens,
             OfferingTableLens? offeringTableLens,
             bool? offeringNoCupMode,
-            TheTendingLens? theTendingLens,
-            KeptWordLens? keptWordLens,
             CourseLens? courseLens,
             MoonReturnLens? moonReturnLens,
-            WagLens? wagLens,
             DecanWatchLens? decanWatchLens,
             OpenHandLens? openHandLens,
             DjedLens? djedLens,
+            DjedV2Configuration? djedConfiguration,
             List<ReadingHouseSitting>? readingHouseSittings,
             String? eveningThresholdInitialCarry,
           }) {
@@ -16836,24 +16637,14 @@ class CalendarPageState extends State<CalendarPage>
               useKemetic: useKemetic ?? false,
               trackSkyTimeZone: trackSkyTimeZone,
               alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
-              dawnDiscreetMode: dawnDiscreetMode ?? false,
-              dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
-              eveningDiscreetMode: eveningDiscreetMode ?? false,
-              eveningLens: eveningLens ?? EveningThresholdRiteLens.neutral,
-              eveningFallbackMinutesAfterMidnight:
-                  eveningFallbackMinutesAfterMidnight ??
-                  kEveningThresholdDefaultFallbackMinutes,
-              theWeighingLens: theWeighingLens ?? TheWeighingLens.neutral,
               offeringTableLens: offeringTableLens ?? OfferingTableLens.neutral,
               offeringNoCupMode: offeringNoCupMode ?? false,
-              theTendingLens: theTendingLens ?? TheTendingLens.neutral,
-              keptWordLens: keptWordLens ?? KeptWordLens.neutral,
               courseLens: courseLens ?? CourseLens.neutral,
               moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
-              wagLens: wagLens ?? WagLens.neutral,
               decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
               openHandLens: openHandLens ?? OpenHandLens.neutral,
               djedLens: djedLens ?? DjedLens.neutral,
+              djedConfiguration: djedConfiguration,
               readingHouseSittings: readingHouseSittings,
               eveningThresholdInitialCarry: eveningThresholdInitialCarry,
             );
@@ -28366,23 +28157,14 @@ class CalendarPageState extends State<CalendarPage>
     bool useKemetic = false,
     TrackSkyTimeZone? trackSkyTimeZone,
     int alertMinutesBefore = _alertNoneMinutes,
-    bool dawnDiscreetMode = false,
-    DawnHouseRiteLens dawnLens = DawnHouseRiteLens.neutral,
-    bool eveningDiscreetMode = false,
-    EveningThresholdRiteLens eveningLens = EveningThresholdRiteLens.neutral,
-    int eveningFallbackMinutesAfterMidnight =
-        kEveningThresholdDefaultFallbackMinutes,
-    TheWeighingLens theWeighingLens = TheWeighingLens.neutral,
     OfferingTableLens offeringTableLens = OfferingTableLens.neutral,
     bool offeringNoCupMode = false,
-    TheTendingLens theTendingLens = TheTendingLens.neutral,
-    KeptWordLens keptWordLens = KeptWordLens.neutral,
     CourseLens courseLens = CourseLens.neutral,
     MoonReturnLens moonReturnLens = MoonReturnLens.neutral,
-    WagLens wagLens = WagLens.neutral,
     DecanWatchLens decanWatchLens = DecanWatchLens.neutral,
     OpenHandLens openHandLens = OpenHandLens.neutral,
     DjedLens djedLens = DjedLens.neutral,
+    DjedV2Configuration? djedConfiguration,
     List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   }) async {
@@ -28394,22 +28176,14 @@ class CalendarPageState extends State<CalendarPage>
       useKemetic: useKemetic,
       trackSkyTimeZone: trackSkyTimeZone,
       alertMinutesBefore: alertMinutesBefore,
-      dawnDiscreetMode: dawnDiscreetMode,
-      dawnLens: dawnLens,
-      eveningDiscreetMode: eveningDiscreetMode,
-      eveningLens: eveningLens,
-      eveningFallbackMinutesAfterMidnight: eveningFallbackMinutesAfterMidnight,
-      theWeighingLens: theWeighingLens,
       offeringTableLens: offeringTableLens,
       offeringNoCupMode: offeringNoCupMode,
-      theTendingLens: theTendingLens,
-      keptWordLens: keptWordLens,
       courseLens: courseLens,
       moonReturnLens: moonReturnLens,
-      wagLens: wagLens,
       decanWatchLens: decanWatchLens,
       openHandLens: openHandLens,
       djedLens: djedLens,
+      djedConfiguration: djedConfiguration,
       readingHouseSittings: readingHouseSittings,
       eveningThresholdInitialCarry: eveningThresholdInitialCarry,
     );
@@ -31935,63 +31709,11 @@ class CalendarPageState extends State<CalendarPage>
     }());
   }
 
-  String? _canonicalDawnHouseRiteDetailForLoadedEvent({
-    required _Flow? flow,
-    required FlowEventRow event,
-  }) {
-    return canonicalDawnHouseRiteDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
-  }
-
-  String? _canonicalTheWeighingDetailForLoadedEvent({
-    required _Flow? flow,
-    required FlowEventRow event,
-  }) {
-    return canonicalTheWeighingDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
-  }
-
   String? _canonicalOfferingTableDetailForLoadedEvent({
     required _Flow? flow,
     required FlowEventRow event,
   }) {
     return canonicalOfferingTableDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
-  }
-
-  String? _canonicalTheTendingDetailForLoadedEvent({
-    required _Flow? flow,
-    required FlowEventRow event,
-  }) {
-    return canonicalTheTendingDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
-  }
-
-  String? _canonicalKeptWordDetailForLoadedEvent({
-    required _Flow? flow,
-    required FlowEventRow event,
-  }) {
-    return canonicalKeptWordDetailTextForEvent(
       flowName: flow?.name,
       flowNotes: flow?.notes,
       title: event.title,
@@ -32020,26 +31742,6 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  String? _canonicalWagDetailForLoadedEvent({
-    required _Flow? flow,
-    required FlowEventRow event,
-  }) {
-    int? parseYear(dynamic value) {
-      if (value is num) return value.toInt();
-      return int.tryParse(value?.toString().trim() ?? '');
-    }
-
-    final kYear = parseYear(event.behaviorPayload?['k_year']);
-    return canonicalWagDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-      nextWagDate: kYear == null ? null : wagNextFeastGregorian(kYear),
-    );
-  }
-
   String? _canonicalOpenHandDetailForLoadedEvent({
     required _Flow? flow,
     required FlowEventRow event,
@@ -32057,13 +31759,17 @@ class CalendarPageState extends State<CalendarPage>
     required _Flow? flow,
     required FlowEventRow event,
   }) {
-    return canonicalDjedDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
+    return canonicalDjedV2DetailTextForEvent(
+          actionId: event.actionId,
+          behaviorPayload: event.behaviorPayload,
+        ) ??
+        canonicalDjedDetailTextForEvent(
+          flowName: flow?.name,
+          flowNotes: flow?.notes,
+          title: event.title,
+          actionId: event.actionId,
+          behaviorPayload: event.behaviorPayload,
+        );
   }
 
   String? _canonicalReadingHouseDetailForLoadedEvent({

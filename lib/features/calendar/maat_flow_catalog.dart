@@ -3,7 +3,7 @@ import 'dart:async';
 import 'maat_flow_identity.dart';
 import 'maat_flow_temporal_policy.dart';
 
-enum MaatFlowCatalogStatus { core, absorbed, retired, legacy }
+enum MaatFlowCatalogStatus { core, archived, absorbed, retired, legacy }
 
 class MaatFlowCatalogEntry {
   const MaatFlowCatalogEntry({
@@ -11,15 +11,53 @@ class MaatFlowCatalogEntry {
     required this.status,
     required this.temporalPolicy,
     this.verb,
+    this.compatibilityTitle,
+    this.compatibilityGlyph,
   });
 
   final MaatFlowKind kind;
   final MaatFlowCatalogStatus status;
   final MaatFlowTemporalPolicy temporalPolicy;
   final String? verb;
+  final String? compatibilityTitle;
+  final String? compatibilityGlyph;
 
-  bool get isJoinable => status == MaatFlowCatalogStatus.core;
+  bool get isDiscoverable => isMaatFlowDiscoverableKind(kind);
+  bool get isJoinable => isMaatFlowNewJoinAllowedKind(kind);
+  bool get isCompatibilitySupported =>
+      isMaatFlowCompatibilitySupportedKind(kind);
 }
+
+const Set<MaatFlowKind> kDiscoverableMaatFlowKinds = <MaatFlowKind>{
+  MaatFlowKind.trackSky,
+  MaatFlowKind.offeringTable,
+  MaatFlowKind.readingHouse,
+  MaatFlowKind.theDjed,
+};
+
+const Set<MaatFlowKind> kNewJoinAllowedMaatFlowKinds = <MaatFlowKind>{
+  MaatFlowKind.trackSky,
+  MaatFlowKind.offeringTable,
+  MaatFlowKind.readingHouse,
+  MaatFlowKind.theDjed,
+};
+
+const Set<MaatFlowKind> kArchivedCompatibilityMaatFlowKinds = <MaatFlowKind>{
+  MaatFlowKind.dawnHouseRite,
+  MaatFlowKind.eveningThresholdRite,
+  MaatFlowKind.theWeighing,
+  MaatFlowKind.keptWord,
+  MaatFlowKind.theTending,
+  MaatFlowKind.firstArrangement,
+  MaatFlowKind.clearing,
+  MaatFlowKind.theWag,
+  MaatFlowKind.daysOutsideTheYear,
+};
+
+const Set<MaatFlowKind> kCompatibilitySupportedMaatFlowKinds = <MaatFlowKind>{
+  ...kDiscoverableMaatFlowKinds,
+  ...kArchivedCompatibilityMaatFlowKinds,
+};
 
 const Map<MaatFlowKind, MaatFlowCatalogEntry> kMaatFlowCatalog =
     <MaatFlowKind, MaatFlowCatalogEntry>{
@@ -31,9 +69,10 @@ const Map<MaatFlowKind, MaatFlowCatalogEntry> kMaatFlowCatalog =
       ),
       MaatFlowKind.dawnHouseRite: MaatFlowCatalogEntry(
         kind: MaatFlowKind.dawnHouseRite,
-        status: MaatFlowCatalogStatus.core,
-        temporalPolicy: MaatFlowTemporalPolicy.dawnHouseRite,
-        verb: 'BEGIN',
+        status: MaatFlowCatalogStatus.archived,
+        temporalPolicy: MaatFlowTemporalPolicy.archivedReadOnly,
+        compatibilityTitle: 'Dawn House Rite',
+        compatibilityGlyph: '𓉐',
       ),
       MaatFlowKind.eveningThreshold: MaatFlowCatalogEntry(
         kind: MaatFlowKind.eveningThreshold,
@@ -42,15 +81,17 @@ const Map<MaatFlowKind, MaatFlowCatalogEntry> kMaatFlowCatalog =
       ),
       MaatFlowKind.eveningThresholdRite: MaatFlowCatalogEntry(
         kind: MaatFlowKind.eveningThresholdRite,
-        status: MaatFlowCatalogStatus.core,
-        temporalPolicy: MaatFlowTemporalPolicy.eveningThresholdRite,
-        verb: 'CLOSE',
+        status: MaatFlowCatalogStatus.archived,
+        temporalPolicy: MaatFlowTemporalPolicy.archivedReadOnly,
+        compatibilityTitle: 'The Closing',
+        compatibilityGlyph: '𓊌',
       ),
       MaatFlowKind.theWeighing: MaatFlowCatalogEntry(
         kind: MaatFlowKind.theWeighing,
-        status: MaatFlowCatalogStatus.core,
-        temporalPolicy: MaatFlowTemporalPolicy.theWeighing,
-        verb: 'CORRECT',
+        status: MaatFlowCatalogStatus.archived,
+        temporalPolicy: MaatFlowTemporalPolicy.archivedReadOnly,
+        compatibilityTitle: 'The Weighing',
+        compatibilityGlyph: '𓍝',
       ),
       MaatFlowKind.offeringTable: MaatFlowCatalogEntry(
         kind: MaatFlowKind.offeringTable,
@@ -60,15 +101,17 @@ const Map<MaatFlowKind, MaatFlowCatalogEntry> kMaatFlowCatalog =
       ),
       MaatFlowKind.theTending: MaatFlowCatalogEntry(
         kind: MaatFlowKind.theTending,
-        status: MaatFlowCatalogStatus.core,
-        temporalPolicy: MaatFlowTemporalPolicy.theTending,
-        verb: 'CARE',
+        status: MaatFlowCatalogStatus.archived,
+        temporalPolicy: MaatFlowTemporalPolicy.archivedReadOnly,
+        compatibilityTitle: 'The Tending',
+        compatibilityGlyph: '𓇐',
       ),
       MaatFlowKind.keptWord: MaatFlowCatalogEntry(
         kind: MaatFlowKind.keptWord,
-        status: MaatFlowCatalogStatus.core,
-        temporalPolicy: MaatFlowTemporalPolicy.keptWord,
-        verb: 'KEEP',
+        status: MaatFlowCatalogStatus.archived,
+        temporalPolicy: MaatFlowTemporalPolicy.archivedReadOnly,
+        compatibilityTitle: 'The Kept Word',
+        compatibilityGlyph: '𓂋',
       ),
       MaatFlowKind.theCourse: MaatFlowCatalogEntry(
         kind: MaatFlowKind.theCourse,
@@ -82,9 +125,10 @@ const Map<MaatFlowKind, MaatFlowCatalogEntry> kMaatFlowCatalog =
       ),
       MaatFlowKind.theWag: MaatFlowCatalogEntry(
         kind: MaatFlowKind.theWag,
-        status: MaatFlowCatalogStatus.core,
-        temporalPolicy: MaatFlowTemporalPolicy.nextWepRonpetWindow,
-        verb: 'REMEMBER',
+        status: MaatFlowCatalogStatus.archived,
+        temporalPolicy: MaatFlowTemporalPolicy.archivedReadOnly,
+        compatibilityTitle: 'The Wag',
+        compatibilityGlyph: '𓊝',
       ),
       MaatFlowKind.decanWatch: MaatFlowCatalogEntry(
         kind: MaatFlowKind.decanWatch,
@@ -93,9 +137,10 @@ const Map<MaatFlowKind, MaatFlowCatalogEntry> kMaatFlowCatalog =
       ),
       MaatFlowKind.daysOutsideTheYear: MaatFlowCatalogEntry(
         kind: MaatFlowKind.daysOutsideTheYear,
-        status: MaatFlowCatalogStatus.core,
-        temporalPolicy: MaatFlowTemporalPolicy.nextDaysOutsideYearWindow,
-        verb: 'RENEW',
+        status: MaatFlowCatalogStatus.archived,
+        temporalPolicy: MaatFlowTemporalPolicy.archivedReadOnly,
+        compatibilityTitle: 'The Days Outside the Year',
+        compatibilityGlyph: '𓆱',
       ),
       MaatFlowKind.theOpenHand: MaatFlowCatalogEntry(
         kind: MaatFlowKind.theOpenHand,
@@ -161,9 +206,10 @@ const Map<MaatFlowKind, MaatFlowCatalogEntry> kMaatFlowCatalog =
       ),
       MaatFlowKind.firstArrangement: MaatFlowCatalogEntry(
         kind: MaatFlowKind.firstArrangement,
-        status: MaatFlowCatalogStatus.core,
-        temporalPolicy: MaatFlowTemporalPolicy.nextDecanWindow,
-        verb: 'ORDER',
+        status: MaatFlowCatalogStatus.archived,
+        temporalPolicy: MaatFlowTemporalPolicy.archivedReadOnly,
+        compatibilityTitle: 'The First Arrangement',
+        compatibilityGlyph: '𓇾',
       ),
       MaatFlowKind.livingPattern: MaatFlowCatalogEntry(
         kind: MaatFlowKind.livingPattern,
@@ -182,9 +228,10 @@ const Map<MaatFlowKind, MaatFlowCatalogEntry> kMaatFlowCatalog =
       ),
       MaatFlowKind.clearing: MaatFlowCatalogEntry(
         kind: MaatFlowKind.clearing,
-        status: MaatFlowCatalogStatus.core,
-        temporalPolicy: MaatFlowTemporalPolicy.nextDecanWindow,
-        verb: 'CLEAR',
+        status: MaatFlowCatalogStatus.archived,
+        temporalPolicy: MaatFlowTemporalPolicy.archivedReadOnly,
+        compatibilityTitle: 'The Clearing',
+        compatibilityGlyph: '𓈖',
       ),
       MaatFlowKind.wandering: MaatFlowCatalogEntry(
         kind: MaatFlowKind.wandering,
@@ -211,8 +258,34 @@ MaatFlowCatalogEntry maatFlowCatalogEntry(MaatFlowKind kind) {
   return entry;
 }
 
-bool isCoreMaatFlowKind(MaatFlowKind kind) =>
-    maatFlowCatalogEntry(kind).isJoinable;
+bool isMaatFlowDiscoverableKind(MaatFlowKind kind) =>
+    kDiscoverableMaatFlowKinds.contains(kind);
+
+bool isMaatFlowNewJoinAllowedKind(MaatFlowKind kind) =>
+    kNewJoinAllowedMaatFlowKinds.contains(kind);
+
+bool isMaatFlowCompatibilitySupportedKind(MaatFlowKind kind) =>
+    kCompatibilitySupportedMaatFlowKinds.contains(kind);
+
+String archivedMaatFlowTitle(MaatFlowKind kind) {
+  final entry = maatFlowCatalogEntry(kind);
+  if (entry.status != MaatFlowCatalogStatus.archived ||
+      entry.compatibilityTitle == null) {
+    throw StateError('${kind.name} has no archived compatibility title.');
+  }
+  return entry.compatibilityTitle!;
+}
+
+String archivedMaatFlowGlyph(MaatFlowKind kind) {
+  final entry = maatFlowCatalogEntry(kind);
+  if (entry.status != MaatFlowCatalogStatus.archived ||
+      entry.compatibilityGlyph == null) {
+    throw StateError('${kind.name} has no archived compatibility glyph.');
+  }
+  return entry.compatibilityGlyph!;
+}
+
+bool isCoreMaatFlowKind(MaatFlowKind kind) => isMaatFlowDiscoverableKind(kind);
 
 bool isCoreMaatFlowKey(String flowKey) {
   final kind = resolveMaatFlowKind(
@@ -221,11 +294,38 @@ bool isCoreMaatFlowKey(String flowKey) {
   return kind != null && isCoreMaatFlowKind(kind);
 }
 
-bool isMaatFlowNewJoinAllowed(String flowKey) => isCoreMaatFlowKey(flowKey);
+bool isMaatFlowDiscoverable(String flowKey) {
+  final kind = resolveMaatFlowKind(
+    behaviorPayload: <String, dynamic>{'flow_key': flowKey},
+  );
+  return kind != null && isMaatFlowDiscoverableKind(kind);
+}
 
-List<MaatFlowKind> get coreMaatFlowKinds => List<MaatFlowKind>.unmodifiable(
-  MaatFlowKind.values.where(isCoreMaatFlowKind),
+bool isMaatFlowNewJoinAllowed(String flowKey) {
+  final kind = resolveMaatFlowKind(
+    behaviorPayload: <String, dynamic>{'flow_key': flowKey},
+  );
+  return kind != null && isMaatFlowNewJoinAllowedKind(kind);
+}
+
+bool isMaatFlowCompatibilitySupported(String flowKey) {
+  final kind = resolveMaatFlowKind(
+    behaviorPayload: <String, dynamic>{'flow_key': flowKey},
+  );
+  return kind != null && isMaatFlowCompatibilitySupportedKind(kind);
+}
+
+List<MaatFlowKind> get discoverableMaatFlowKinds =>
+    List<MaatFlowKind>.unmodifiable(
+      MaatFlowKind.values.where(isMaatFlowDiscoverableKind),
+    );
+
+Set<String> get discoverableMaatFlowKeys => Set<String>.unmodifiable(
+  discoverableMaatFlowKinds.map((kind) => kind.flowKey),
 );
+
+List<MaatFlowKind> get coreMaatFlowKinds =>
+    List<MaatFlowKind>.unmodifiable(discoverableMaatFlowKinds);
 
 Set<String> get coreMaatFlowKeys =>
     Set<String>.unmodifiable(coreMaatFlowKinds.map((kind) => kind.flowKey));
@@ -273,7 +373,7 @@ bool isNewFlowCreationAllowedByMaatCatalog({
     flowKey: flowKey,
     events: events,
   );
-  return kind == null || isCoreMaatFlowKind(kind);
+  return kind == null || isMaatFlowNewJoinAllowedKind(kind);
 }
 
 class NonJoinableMaatFlowException implements Exception {
@@ -299,7 +399,7 @@ void ensureNewFlowCreationAllowedByMaatCatalog({
     flowKey: flowKey,
     events: events,
   );
-  if (kind != null && !isCoreMaatFlowKind(kind)) {
+  if (kind != null && !isMaatFlowNewJoinAllowedKind(kind)) {
     throw NonJoinableMaatFlowException(kind);
   }
 }

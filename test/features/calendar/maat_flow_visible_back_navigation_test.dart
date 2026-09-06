@@ -65,7 +65,11 @@ void main() {
         expect(listRoute, isNotNull);
         expect(listRoute!.isCurrent, isTrue);
 
-        await tester.tap(card);
+        final openButton = find.byKey(
+          ValueKey<String>('maat-flow-discovery-open-${scenario.templateKey}'),
+        );
+        await _scrollDiscoveryControlIntoViewport(tester, openButton);
+        await tester.tap(openButton);
         final back = find.byKey(scenario.backKey);
         await _pumpUntilFound(tester, back);
         expect(back, findsOneWidget);
@@ -82,7 +86,7 @@ void main() {
         expect(find.byKey(scenario.backKey), findsNothing);
         expect(listRoute.isCurrent, isTrue);
         expect(detailRoute.isCurrent, isFalse);
-        expect(find.text("Ma'at Flows"), findsOneWidget);
+        expect(find.text('Flows'), findsOneWidget);
         expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
       },
     );
@@ -150,7 +154,7 @@ void main() {
 
     final listAppBar = find.widgetWithText(
       AppBar,
-      "Ma'at Flows",
+      'Flows',
       skipOffstage: false,
     );
     final back = find.byKey(const ValueKey<String>('reading-house-back'));
@@ -170,7 +174,7 @@ void main() {
 
     expect(listRoute.isCurrent, isTrue);
     expect(detailRoute.isCurrent, isFalse);
-    expect(find.text("Ma'at Flows"), findsOneWidget);
+    expect(find.text('Flows'), findsOneWidget);
     expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
   });
 
@@ -191,7 +195,7 @@ void main() {
 
     final listAppBar = find.widgetWithText(
       AppBar,
-      "Ma'at Flows",
+      'Flows',
       skipOffstage: false,
     );
     final listRoute = ModalRoute.of(tester.element(listAppBar));
@@ -209,7 +213,7 @@ void main() {
       find.byKey(const ValueKey<String>('offering-table-back')),
       findsNothing,
     );
-    expect(find.text("Ma'at Flows"), findsOneWidget);
+    expect(find.text('Flows'), findsOneWidget);
     expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
   });
 }
@@ -246,4 +250,20 @@ Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
     await tester.pump(const Duration(milliseconds: 100));
   }
   await tester.pumpAndSettle();
+}
+
+Future<void> _scrollDiscoveryControlIntoViewport(
+  WidgetTester tester,
+  Finder control,
+) async {
+  final scroll = find.byKey(
+    const ValueKey<String>('maat-flow-discovery-scroll'),
+  );
+  for (var attempt = 0; attempt < 12; attempt++) {
+    final rect = tester.getRect(control);
+    if (rect.top >= 64 && rect.bottom <= 820) return;
+    await tester.drag(scroll, const Offset(0, -260));
+    await tester.pump();
+  }
+  expect(tester.getRect(control).bottom, lessThanOrEqualTo(820));
 }

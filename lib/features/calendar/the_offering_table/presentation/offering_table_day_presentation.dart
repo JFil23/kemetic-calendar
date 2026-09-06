@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -249,17 +250,22 @@ class _OfferingTableDayPresentationState
 
   @override
   Widget build(BuildContext context) {
+    final dayOneHeroHeight = MediaQuery.sizeOf(context).width < 350
+        ? 488.0
+        : 470.0;
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('offering-table-day-presentation'),
       decoration: const BoxDecoration(color: _velvet),
-      fixedHeroHeight: 238,
+      fixedHeroHeight: widget.day.dayNumber == 1 ? dayOneHeroHeight : 238,
       instrument: _buildCupHero(),
       instrumentFooter: _buildPlacementControl(),
       inputBuilder: (context, _, instrumentHeight) => Align(
         alignment: Alignment.bottomCenter,
         child: SizedBox(
           height: InstrumentEventPresentationFrame.footerHeight,
-          child: _buildCupInput(),
+          child: widget.day.dayNumber == 1
+              ? const SizedBox.shrink()
+              : _buildCupInput(),
         ),
       ),
       body: _buildBody(),
@@ -271,6 +277,7 @@ class _OfferingTableDayPresentationState
   }
 
   Widget _buildCupHero() {
+    if (widget.day.dayNumber == 1) return _buildSmallSupplyHero();
     final stage = offeringTableStage(widget.day.dayNumber);
     final stageDay = ((widget.day.dayNumber - 1) % 10) + 1;
     final intention = _intentionController.text.trim();
@@ -507,6 +514,102 @@ class _OfferingTableDayPresentationState
     );
   }
 
+  Widget _buildSmallSupplyHero() {
+    return Container(
+      key: const ValueKey<String>('offering-table-small-supply-hero'),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[Color(0xFF130C07), Color(0xFF0D0906)],
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(10, 18, 10, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Expanded(
+                child: Text(
+                  '✦  THE OFFERING TABLE',
+                  style: TextStyle(
+                    color: Color(0xFFC7963A),
+                    fontFamily: _ui,
+                    fontSize: 8.5,
+                    letterSpacing: 2.2,
+                  ),
+                ),
+              ),
+              Text(
+                '${_dateLabel(widget.localDate)}\nPERSONAL TABLE · DAY 01',
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: Color(0xFF816C4C),
+                  fontFamily: _ui,
+                  fontSize: 7.5,
+                  height: 1.25,
+                  letterSpacing: .7,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  widget.day.title,
+                  key: const ValueKey<String>('offering-table-event-title'),
+                  style: const TextStyle(
+                    color: _bone,
+                    fontFamily: _display,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w500,
+                    height: 1,
+                  ),
+                ),
+              ),
+              Text(
+                _formatMinute(widget.startMinute),
+                style: const TextStyle(
+                  color: Color(0xFFCBA268),
+                  fontFamily: _display,
+                  fontSize: 18,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _presentation.previewSummary,
+            style: const TextStyle(
+              color: Color(0xFFD7CDBA),
+              fontFamily: _display,
+              fontSize: 14,
+              fontStyle: FontStyle.italic,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: 11),
+          const SizedBox(
+            height: 254,
+            child: Row(
+              children: <Widget>[
+                Expanded(flex: 43, child: _SmallSupplyJarVisual()),
+                SizedBox(width: 10),
+                Expanded(flex: 57, child: _SmallSupplyRitualCard()),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCupInput() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -542,6 +645,9 @@ class _OfferingTableDayPresentationState
   }
 
   Widget _buildPlacementControl() {
+    if (widget.day.dayNumber == 1) {
+      return const _SmallSupplyInstrumentFooter();
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
       child: Column(
@@ -641,6 +747,7 @@ class _OfferingTableDayPresentationState
   }
 
   Widget _buildBody() {
+    if (widget.day.dayNumber == 1) return _buildSmallSupplyBody();
     final stage = offeringTableStage(widget.day.dayNumber);
     final stageDay = ((widget.day.dayNumber - 1) % 10) + 1;
     return Container(
@@ -859,6 +966,153 @@ class _OfferingTableDayPresentationState
     );
   }
 
+  Widget _buildSmallSupplyBody() {
+    return Container(
+      key: const ValueKey<String>('offering-table-foreground-layer'),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[Color(0xFF0B0805), Color(0xFF080604)],
+        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        border: Border(top: BorderSide(color: Color(0x303A2C17))),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Color(0x9E000000),
+            blurRadius: 32,
+            offset: Offset(0, -15),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const Center(
+            child: SizedBox(
+              width: 38,
+              height: 3,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0xFF4E3B1B),
+                  borderRadius: BorderRadius.all(Radius.circular(4)),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 13),
+          const Text(
+            'PERSONAL · DAY 01',
+            style: TextStyle(
+              color: Color(0xFF95732D),
+              fontFamily: _ui,
+              fontSize: 8,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _presentation.instruction,
+            style: const TextStyle(
+              color: Color(0xFFD2C6B5),
+              fontFamily: _display,
+              fontSize: 17,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            constraints: const BoxConstraints(minHeight: 49),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Color(0xFF332413))),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                const SizedBox(
+                  width: 76,
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child: Text(
+                      'SUPPLY',
+                      style: TextStyle(
+                        color: Color(0xFF81682E),
+                        fontFamily: _ui,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey<String>(
+                      'offering-table-intention-field',
+                    ),
+                    controller: _intentionController,
+                    cursorColor: const Color(0xFFF0C96A),
+                    minLines: 1,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      hintText: 'supply…',
+                      hintStyle: TextStyle(color: Color(0xFF5E564C)),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.only(bottom: 8),
+                    ),
+                    style: const TextStyle(
+                      color: Color(0xFFE8B27C),
+                      fontFamily: _display,
+                      fontSize: 17,
+                      fontStyle: FontStyle.italic,
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 29),
+          const _OfferingCourseTrack(),
+          const SizedBox(height: 24),
+          OfferingTableContextDisclosure(
+            day: widget.day,
+            lens: widget.lens,
+            why: _presentation.why,
+          ),
+          const SizedBox(height: 22),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0x06C99A3D),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0x293E2E1C)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const Text(
+                  'COMPLETION',
+                  style: TextStyle(
+                    color: Color(0xFFA88135),
+                    fontFamily: _ui,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                widget.completionPanel,
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _dateLabel(DateTime date) {
     const weekdays = <String>['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
     const months = <String>[
@@ -971,6 +1225,258 @@ class _OfferingChecklistStep extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SmallSupplyRitualCard extends StatelessWidget {
+  const _SmallSupplyRitualCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        Text(
+          'TODAY',
+          style: TextStyle(
+            color: Color(0xFF9A7635),
+            fontFamily: _OfferingTableDayPresentationState._ui,
+            fontSize: 7.5,
+            letterSpacing: 1.35,
+          ),
+        ),
+        SizedBox(height: 3),
+        _SmallSupplyLine('Name one supply running low.'),
+        _SmallSupplyLine('Refill it, or write down the next step.'),
+        _SmallSupplyLine('Put it in sight or set one reminder.'),
+      ],
+    );
+  }
+}
+
+class _SmallSupplyLine extends StatelessWidget {
+  const _SmallSupplyLine(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xC4302313))),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: 13,
+            height: 13,
+            margin: const EdgeInsets.only(top: 2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF6B5327), width: 1),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Color(0xFFA89B89),
+                fontFamily: _OfferingTableDayPresentationState._display,
+                fontSize: 11.4,
+                height: 1.22,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SmallSupplyJarVisual extends StatelessWidget {
+  const _SmallSupplyJarVisual();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      key: const ValueKey<String>('offering-table-small-supply-jar'),
+      painter: const _SmallSupplyJarPainter(),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _SmallSupplyJarPainter extends CustomPainter {
+  const _SmallSupplyJarPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale = math.min(size.width / 142, size.height / 204);
+    canvas.save();
+    canvas.translate(
+      (size.width - 142 * scale) / 2,
+      (size.height - 204 * scale) / 2,
+    );
+    canvas.scale(scale);
+
+    final halo = Rect.fromCenter(
+      center: const Offset(71, 110),
+      width: 130,
+      height: 124,
+    );
+    canvas.drawOval(
+      halo,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: <Color>[Color(0x24F0C96A), Color(0x00F0C96A)],
+        ).createShader(halo),
+    );
+
+    final jar = Path()
+      ..moveTo(42, 43)
+      ..lineTo(100, 43)
+      ..lineTo(108, 60)
+      ..lineTo(108, 157)
+      ..quadraticBezierTo(71, 172, 34, 157)
+      ..lineTo(34, 60)
+      ..close();
+    canvas.drawPath(
+      jar,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.55
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = const Color(0xFFC99A3D),
+    );
+    final cap = Path()
+      ..moveTo(42, 43)
+      ..lineTo(48, 31)
+      ..lineTo(94, 31)
+      ..lineTo(100, 43);
+    canvas.drawPath(
+      cap,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.55
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = const Color(0xFFC99A3D),
+    );
+    canvas.drawLine(
+      const Offset(45, 94),
+      const Offset(97, 94),
+      Paint()
+        ..strokeWidth = .8
+        ..color = const Color(0x57C99A3D),
+    );
+    const label = TextSpan(
+      text: 'supply…',
+      style: TextStyle(
+        color: Color(0x61E8B27C),
+        fontFamily: _OfferingTableDayPresentationState._display,
+        fontSize: 9,
+        fontStyle: FontStyle.italic,
+      ),
+    );
+    final painter = TextPainter(
+      text: label,
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout();
+    painter.paint(canvas, Offset(71 - painter.width / 2, 79));
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _SmallSupplyJarPainter oldDelegate) => false;
+}
+
+class _SmallSupplyInstrumentFooter extends StatelessWidget {
+  const _SmallSupplyInstrumentFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 11),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0D0906),
+        border: Border(top: BorderSide(color: Color(0xFF302313))),
+      ),
+      child: const Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              'THE SUPPLY IN VIEW  ·  Medication, groceries, soap…',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Color(0xFFD7CDBA),
+                fontFamily: _OfferingTableDayPresentationState._display,
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+          Text(
+            'PERSONAL · 01',
+            style: TextStyle(
+              color: Color(0xFFC99A3D),
+              fontFamily: _OfferingTableDayPresentationState._ui,
+              fontSize: 8,
+              letterSpacing: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OfferingCourseTrack extends StatelessWidget {
+  const _OfferingCourseTrack();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Row(
+            children: <Widget>[
+              for (var index = 1; index <= 30; index++)
+                Expanded(
+                  child: Align(
+                    child: Container(
+                      width: index == 1 ? 5 : 4,
+                      height: index == 1 ? 5 : 4,
+                      decoration: BoxDecoration(
+                        color: index == 1
+                            ? const Color(0xFFC99A3D)
+                            : const Color(0xFF2C2318),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        const Text(
+          'PERSONAL',
+          style: TextStyle(
+            color: Color(0xFF8F6D2C),
+            fontFamily: _OfferingTableDayPresentationState._ui,
+            fontSize: 8,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
     );
   }
 }

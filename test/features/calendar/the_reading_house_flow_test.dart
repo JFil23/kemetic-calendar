@@ -720,7 +720,7 @@ void main() {
         'lib/features/calendar/calendar_page.dart',
       ).readAsStringSync();
       final detailSource = File(
-        'lib/features/calendar/calendar_maat_flows.dart',
+        'lib/features/calendar/calendar_active_maat_flows.dart',
       ).readAsStringSync();
       final sittingEditorSource = File(
         'lib/features/calendar/the_reading_house/presentation/'
@@ -744,23 +744,21 @@ void main() {
         contains('historicalBadgeText: kReadingHouseHistoricalBadgeText'),
       );
 
-      final overviewZones = _sourceBetween(
-        detailSource,
-        'List<Widget> _buildMaatFlowOverviewZones',
-        '  Widget _buildMaatFlowDetailHero',
-      );
-      expect(overviewZones, contains('widget.template.historicalBadgeText'));
-      expect(overviewZones, contains('_buildMaatFlowHistoricalBadge'));
-
       final readingHouseDetail = _sourceBetween(
         detailSource,
-        'Widget _buildReadingHouseVisualScaffold',
-        '  DaysOutsideYearEnrollmentWindow?',
+        'Widget _buildReadingHouse()',
+        '  @override\n  Widget build(BuildContext context)',
       );
       expect(readingHouseDetail, contains('ReadingHouseDetailPage('));
       expect(readingHouseDetail, contains('LiveReadingHouseAuthority('));
-      expect(readingHouseDetail, isNot(contains('Phase 4A keeps')));
-      expect(readingHouseDetail, isNot(contains('pods, public sharing')));
+      expect(
+        readingHouseDetail,
+        contains('initiallyHeld: widget.alreadyJoined'),
+      );
+      expect(
+        readingHouseDetail,
+        isNot(contains('_buildMaatFlowHistoricalBadge')),
+      );
 
       expect(sittingEditorSource, contains('MaatFlowDatePicker.show'));
       expect(sittingEditorSource, contains('MaatFlowDatePickerMode.kemetic'));

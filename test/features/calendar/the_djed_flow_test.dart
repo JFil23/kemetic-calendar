@@ -239,36 +239,34 @@ void main() {
     },
   );
 
-  test('source wires template, picker, local store, and raised completion', () {
-    final calendarPage = File(
-      'lib/features/calendar/calendar_page.dart',
+  test('Djed v2 owns new joins while v1 remains readable in Day View', () {
+    final activeCoordinator = File(
+      'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
     final joinService = File(
       'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
-    final enrollmentSource = File(
-      'lib/features/calendar/the_djed_enrollment.dart',
-    ).readAsStringSync();
-    final detailPage = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
+    final v2 = File(
+      'lib/features/calendar/the_djed_v2_flow.dart',
     ).readAsStringSync();
     final dayView = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
 
-    expect(calendarPage, contains('_MaatFlowTemplateKind.theDjed'));
-    expect(calendarPage, contains('joinDjedHeadless'));
-    expect(joinService, contains('resolveDjedEnrollmentWindowSafely'));
-    expect(enrollmentSource, contains('djedNextEnrollmentWindow'));
-    expect(enrollmentSource, contains('djedEnrollmentWindowForStartDate'));
-    expect(calendarPage, isNot(contains('djedEnrollmentIsOpen')));
-    expect(joinService, contains('djedClientEventId'));
-    expect(joinService, contains('stagePlannedNotesAndDeferPersist('));
-    expect(detailPage, contains('_pickDjedWindowDate'));
-    expect(detailPage, contains('Djed Start Windows'));
-    expect(detailPage, contains('designated decan-opening enrollment windows'));
-    expect(detailPage, contains('Add Flow'));
-    expect(detailPage, isNot(contains("'KYear ")));
+    expect(activeCoordinator, contains('Widget _buildDjed()'));
+    expect(activeCoordinator, contains('return DjedDetailPage('));
+    expect(activeCoordinator, contains('djedConfiguration: configuration'));
+    expect(joinService, contains('required DjedV2Configuration configuration'));
+    expect(joinService, contains('configuration.isComplete'));
+    expect(v2, contains("kDjedV2BehaviorKind = 'maat_djed_v2_event'"));
+    expect(v2, contains('String djedV2ClientEventId('));
+
+    expect(dayView, contains('djedV2EventForEvent('));
+    expect(dayView, contains('djedEventForEvent('));
+    expect(
+      dayView,
+      contains('final djedV1Event = isDjed && djedV2Event == null'),
+    );
     expect(dayView, contains('TheDjedLocalStore'));
     expect(dayView, contains("'raised': 'Raised'"));
   });

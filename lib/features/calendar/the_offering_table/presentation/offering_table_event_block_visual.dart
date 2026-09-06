@@ -37,6 +37,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
     this.dashedBorder = false,
     this.visualState,
     this.animateRipple = false,
+    this.timeLabel,
   }) : assert(prompt != '');
 
   final int dayNumber;
@@ -49,6 +50,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
   final double opacity;
   final bool dashedBorder;
   final bool animateRipple;
+  final String? timeLabel;
 
   /// Presentation-only fixture seam. Day View intentionally leaves this null
   /// until completion-to-received behavior is approved separately.
@@ -129,6 +131,19 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
                 ),
               ),
             ),
+            if (timeLabel?.trim().isNotEmpty == true && isTall)
+              Positioned(
+                left: 13,
+                bottom: 7,
+                child: Text(
+                  timeLabel!.trim(),
+                  style: const TextStyle(
+                    color: Color(0xFFB18A39),
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 9,
+                  ),
+                ),
+              ),
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(

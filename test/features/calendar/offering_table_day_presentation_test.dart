@@ -55,65 +55,36 @@ void main() {
     }
     expect(
       kOfferingTableDays[2].eventBlockPrompt,
-      'Eat something before the day begins',
+      'put real food within reach',
     );
   });
 
-  test('all thirty days close the shared ritual checklist with water once', () {
-    const daysWithExistingDrinkingWaterAct = <int>{2, 26, 30};
-
-    for (final day in kOfferingTableDays) {
-      final presentation = offeringTablePracticePresentation(day);
-      expect(presentation.steps, isNotEmpty, reason: 'Day ${day.dayNumber}');
-      final appendedClosures = presentation.steps
-          .where((step) => step == 'Drink water.')
-          .length;
-      if (daysWithExistingDrinkingWaterAct.contains(day.dayNumber)) {
-        expect(appendedClosures, 0, reason: 'Day ${day.dayNumber}');
-      } else {
-        expect(presentation.steps.last, 'Drink water.');
-        expect(appendedClosures, 1, reason: 'Day ${day.dayNumber}');
+  test(
+    'all thirty days preserve their authored mockup steps without additions',
+    () {
+      for (final day in kOfferingTableDays) {
+        final presentation = offeringTablePracticePresentation(day);
+        expect(presentation.steps, isNotEmpty, reason: 'Day ${day.dayNumber}');
       }
-    }
 
-    expect(
-      offeringTablePracticePresentation(kOfferingTableDays.first).steps,
-      const <String>[
-        'Fill a cup of water.',
-        'Name one basic need that has been unmet for a few days.',
-        'Do the smallest thing that begins to meet it.',
-        'Drink water.',
-      ],
-    );
-    expect(
-      offeringTablePracticePresentation(kOfferingTableDays[1]).steps,
-      const <String>[
-        'Drink water before opening a feed or message thread.',
-        'Name what you want your first real input to be today.',
-        'Protect one quiet minute for it.',
-      ],
-    );
-    expect(
-      offeringTablePracticePresentation(kOfferingTableDays[5]).steps.length,
-      3,
-      reason: 'an existing 2-step ritual gains one closing water step',
-    );
-    expect(
-      offeringTablePracticePresentation(kOfferingTableDays[7]).steps.length,
-      2,
-      reason: 'an existing 1-step ritual gains one closing water step',
-    );
-    expect(
-      offeringTablePracticePresentation(kOfferingTableDays[25]).steps.single,
-      contains('drink the water'),
-    );
-    expect(
-      offeringTablePracticePresentation(
-        kOfferingTableDays[29],
-      ).steps.any((step) => step.contains('after drinking the water')),
-      isTrue,
-    );
-  });
+      expect(
+        offeringTablePracticePresentation(kOfferingTableDays.first).steps,
+        const <String>[
+          'Name one supply running low.',
+          'Refill it, or write down the next step.',
+          'Put it in sight or set one reminder.',
+        ],
+      );
+      expect(
+        offeringTablePracticePresentation(kOfferingTableDays[1]).steps,
+        const <String>[
+          'Name the first thing you want to give your attention to today.',
+          'Drink a glass of water before you open feeds, messages, or tasks.',
+          'Give that first thing one quiet minute.',
+        ],
+      );
+    },
+  );
 
   testWidgets('ritual count and checkbox use the closed presentation steps', (
     tester,
@@ -121,19 +92,19 @@ void main() {
     final day = kOfferingTableDays[2];
     await _pumpPresentation(tester, day: day);
 
-    expect(find.text('4 steps'), findsOneWidget);
+    expect(find.text('2 steps'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey<String>('offering-table-day-03-step-4')),
+      find.byKey(const ValueKey<String>('offering-table-day-03-step-2')),
       findsOneWidget,
     );
-    expect(find.text('Drink water.'), findsOneWidget);
+    expect(find.text('Drink water.'), findsNothing);
   });
 
   testWidgets('uses Follow Sky gesture mapping and semantic 0.02 steps', (
     tester,
   ) async {
     final semanticsHandle = tester.ensureSemantics();
-    await _pumpPresentation(tester);
+    await _pumpPresentation(tester, day: kOfferingTableDays[1]);
 
     final gesture = find.byKey(
       const ValueKey<String>('offering-table-intention-drag'),
@@ -168,7 +139,7 @@ void main() {
   testWidgets('uses the quiet instruction and a clean upper graphic edge', (
     tester,
   ) async {
-    await _pumpPresentation(tester);
+    await _pumpPresentation(tester, day: kOfferingTableDays[1]);
 
     final instruction = tester.widget<Text>(
       find.byKey(const ValueKey<String>('offering-table-placement-label')),
@@ -195,7 +166,7 @@ void main() {
       kOfferingTableDays.first,
     );
 
-    expect(find.text("TODAY'S RITUAL"), findsOneWidget);
+    expect(find.text('PERSONAL · DAY 01'), findsOneWidget);
     for (final step in presentation.steps) {
       expect(find.text(step), findsOneWidget);
     }
@@ -221,6 +192,7 @@ void main() {
     final saved = <String>[];
     await _pumpPresentation(
       tester,
+      day: kOfferingTableDays[1],
       initialIntention: '',
       intentionSaveDebounce: Duration.zero,
       onSaveIntention: (value) async => saved.add(value),
@@ -257,6 +229,7 @@ void main() {
     final blocks = <MaatJournalResponseBlock>[];
     await _pumpPresentation(
       tester,
+      day: kOfferingTableDays[1],
       reflectionSaveDebounce: Duration.zero,
       onWriteJournalResponse: (block) async => blocks.add(block),
     );
@@ -337,23 +310,25 @@ void main() {
       const ValueKey<String>('follow-sky-sheet-resize-handle'),
     );
     final page = find.descendant(of: sheet, matching: find.byType(PageView));
-    final hero = find.byKey(const ValueKey<String>('offering-table-cup-hero'));
+    final hero = find.byKey(
+      const ValueKey<String>('offering-table-small-supply-hero'),
+    );
     expect(sheet, findsOneWidget);
     expect(handle, findsOneWidget);
-    expect(tester.getSize(hero).height, 238);
+    expect(tester.getSize(hero).height, 470);
     expect(
       find.byKey(const ValueKey<String>('offering-table-day-presentation')),
       findsOneWidget,
     );
 
     final availableHeight = _viewport.height - 12;
-    final minimumPageHeight = availableHeight * 0.58 - 120;
-    expect(tester.getSize(page).height, closeTo(minimumPageHeight, 0.1));
+    final authoredPageHeight = availableHeight * 0.72 - 120;
+    expect(tester.getSize(page).height, closeTo(authoredPageHeight, 0.1));
 
     await tester.drag(handle, const Offset(0, -120));
     await tester.pumpAndSettle();
-    expect(tester.getSize(page).height, closeTo(minimumPageHeight + 120, 0.1));
-    expect(tester.getSize(hero).height, 238);
+    expect(tester.getSize(page).height, closeTo(authoredPageHeight + 120, 0.1));
+    expect(tester.getSize(hero).height, 470);
 
     final body = find.byKey(
       const ValueKey<String>('offering-table-presentation-body'),

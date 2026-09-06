@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
-@visibleForTesting
 const double instrumentEventSheetMinExtent = 0.58;
 
 Future<T?> showCalendarEventDetailSheetModal<T>({
@@ -109,13 +108,19 @@ class InstrumentEventSheetHost extends StatefulWidget {
     required this.body,
     this.trailing,
     this.footer,
-  });
+    this.initialExtent = instrumentEventSheetMinExtent,
+    this.geometry,
+  }) : assert(
+         initialExtent >= instrumentEventSheetMinExtent && initialExtent <= 1,
+       );
 
   final String semanticLabel;
   final Color handleColor;
   final Widget body;
   final Widget? trailing;
   final Widget? footer;
+  final double initialExtent;
+  final InstrumentEventSheetGeometry? geometry;
 
   @override
   State<InstrumentEventSheetHost> createState() =>
@@ -123,7 +128,13 @@ class InstrumentEventSheetHost extends StatefulWidget {
 }
 
 class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
-  double _extent = instrumentEventSheetMinExtent;
+  late double _extent;
+
+  @override
+  void initState() {
+    super.initState();
+    _extent = widget.initialExtent;
+  }
 
   void _updateExtent(DragUpdateDetails details, double availableSheetHeight) {
     final delta = details.primaryDelta;
@@ -150,18 +161,33 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
     final effectiveExtent = keyboardInset > 0 ? 1.0 : _extent;
     final maxSheetHeight = availableSheetHeight * effectiveExtent;
     final hasFooter = widget.footer != null;
+    final geometry = widget.geometry;
 
     // These values preserve the two production geometries that existed before
     // extraction: Day View reserves 120px for its fixed actions, while the
     // preview has no external footer and gives that space to the presentation.
-    final bodyHeight = math.max(
-      0.0,
-      maxSheetHeight - (hasFooter ? 120.0 : 66.0),
-    );
-    final outerHeight = maxSheetHeight + (hasFooter ? 8.0 : 0.0);
-    final outerPadding = hasFooter
-        ? const EdgeInsets.fromLTRB(10, 8, 10, 10)
-        : const EdgeInsets.fromLTRB(10, 0, 10, 10);
+    final outerHeight = geometry == null
+        ? maxSheetHeight + (hasFooter ? 8.0 : 0.0)
+        : maxSheetHeight;
+    final outerPadding =
+        geometry?.outerPadding ??
+        (hasFooter
+            ? const EdgeInsets.fromLTRB(10, 8, 10, 10)
+            : const EdgeInsets.fromLTRB(10, 0, 10, 10));
+    final bodyTopGap = geometry?.bodyTopGap ?? 8.0;
+    final footerGap = geometry?.footerGap ?? 8.0;
+    final footerHeight = geometry?.footerHeight ?? 46.0;
+    final topBarHeight = geometry?.topBarHeight ?? 48.0;
+    final bodyHeight = geometry == null
+        ? math.max(0.0, maxSheetHeight - (hasFooter ? 120.0 : 66.0))
+        : math.max(
+            0.0,
+            outerHeight -
+                outerPadding.vertical -
+                topBarHeight -
+                bodyTopGap -
+                (hasFooter ? footerGap + footerHeight : 0),
+          );
 
     return Padding(
       padding: EdgeInsets.only(bottom: keyboardInset),
@@ -172,31 +198,41 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
           child: Padding(
             padding: outerPadding,
             child: DayViewBottomSheetFrame(
+              borderRadius: geometry?.sheetBorderRadius ?? 20,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   InstrumentEventSheetTopBar(
                     semanticLabel: widget.semanticLabel,
                     handleColor: widget.handleColor,
+                    height: topBarHeight,
+                    handleTop: geometry?.handleTop,
                     onVerticalDragUpdate: keyboardInset == 0
                         ? (details) =>
                               _updateExtent(details, availableSheetHeight)
                         : null,
                     trailing: widget.trailing,
                   ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: bodyHeight,
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20),
+                  SizedBox(height: bodyTopGap),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: geometry?.bodyHorizontalInset ?? 0,
+                    ),
+                    child: SizedBox(
+                      height: bodyHeight,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(
+                            geometry?.bodyBorderRadius ?? 20,
+                          ),
+                        ),
+                        child: widget.body,
                       ),
-                      child: widget.body,
                     ),
                   ),
                   if (widget.footer != null) ...<Widget>[
-                    const SizedBox(height: 8),
-                    SizedBox(height: 46, child: widget.footer),
+                    SizedBox(height: footerGap),
+                    SizedBox(height: footerHeight, child: widget.footer),
                   ],
                 ],
               ),
@@ -206,6 +242,45 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
       ),
     );
   }
+}
+
+@immutable
+class InstrumentEventSheetGeometry {
+  const InstrumentEventSheetGeometry({
+    required this.outerPadding,
+    required this.topBarHeight,
+    required this.bodyTopGap,
+    required this.footerGap,
+    required this.footerHeight,
+    this.sheetBorderRadius = 20,
+    this.bodyHorizontalInset = 0,
+    this.bodyBorderRadius = 20,
+    this.handleTop,
+  });
+
+  /// Geometry copied from the layered Djed/Offering HTML sheets: a 48px
+  /// chrome row, a 72px fixed footer, and no gaps between the three layers.
+  static const layered = InstrumentEventSheetGeometry(
+    outerPadding: EdgeInsets.zero,
+    topBarHeight: 48,
+    bodyTopGap: 0,
+    footerGap: 0,
+    footerHeight: 72,
+    sheetBorderRadius: 24,
+    bodyHorizontalInset: 10,
+    bodyBorderRadius: 18,
+    handleTop: 19,
+  );
+
+  final EdgeInsets outerPadding;
+  final double topBarHeight;
+  final double bodyTopGap;
+  final double footerGap;
+  final double footerHeight;
+  final double sheetBorderRadius;
+  final double bodyHorizontalInset;
+  final double bodyBorderRadius;
+  final double? handleTop;
 }
 
 typedef InstrumentEventInputBuilder =
@@ -231,6 +306,8 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
     required this.bodyScrollKey,
     required this.lowerSheetKey,
     this.fixedHeroHeight,
+    this.instrumentFooterHeight = footerHeight,
+    this.initialLowerSheetPeek,
   });
 
   static const double footerHeight = 76;
@@ -243,6 +320,8 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
   final Key bodyScrollKey;
   final Key lowerSheetKey;
   final double? fixedHeroHeight;
+  final double instrumentFooterHeight;
+  final double? initialLowerSheetPeek;
 
   @override
   Widget build(BuildContext context) {
@@ -251,10 +330,15 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
         final boundedHeight = constraints.hasBoundedHeight
             ? constraints.maxHeight
             : 620.0;
-        final heroHeight =
-            fixedHeroHeight ??
-            math.min(282.0, math.max(238.0, boundedHeight * 0.46));
-        final instrumentHeight = heroHeight + footerHeight;
+        final instrumentHeight = initialLowerSheetPeek == null
+            ? (fixedHeroHeight ??
+                      math.min(282.0, math.max(238.0, boundedHeight * 0.46))) +
+                  instrumentFooterHeight
+            : math.max(0.0, boundedHeight - initialLowerSheetPeek!);
+        final heroHeight = math.max(
+          0.0,
+          instrumentHeight - instrumentFooterHeight,
+        );
         return DecoratedBox(
           decoration: decoration,
           child: Stack(
@@ -275,7 +359,11 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                         ),
                       ),
                     ),
-                    SizedBox(height: footerHeight, child: instrumentFooter),
+                    if (instrumentFooterHeight > 0)
+                      SizedBox(
+                        height: instrumentFooterHeight,
+                        child: instrumentFooter,
+                      ),
                   ],
                 ),
               ),
@@ -579,19 +667,23 @@ class InstrumentEventSheetTopBar extends StatelessWidget {
     super.key,
     required this.semanticLabel,
     required this.handleColor,
+    this.height = 48,
+    this.handleTop,
     this.onVerticalDragUpdate,
     this.trailing,
   });
 
   final String semanticLabel;
   final Color handleColor;
+  final double height;
+  final double? handleTop;
   final GestureDragUpdateCallback? onVerticalDragUpdate;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 48,
+      height: height,
       child: Stack(
         alignment: Alignment.center,
         children: <Widget>[
@@ -604,18 +696,24 @@ class InstrumentEventSheetTopBar extends StatelessWidget {
               key: const ValueKey<String>('follow-sky-sheet-resize-handle'),
               behavior: HitTestBehavior.opaque,
               onVerticalDragUpdate: onVerticalDragUpdate,
-              child: Center(
-                child: Semantics(
-                  label: semanticLabel,
-                  child: Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: handleColor,
-                      borderRadius: BorderRadius.circular(999),
+              child: Stack(
+                alignment: Alignment.center,
+                children: <Widget>[
+                  Positioned(
+                    top: handleTop,
+                    child: Semantics(
+                      label: semanticLabel,
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: handleColor,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           ),

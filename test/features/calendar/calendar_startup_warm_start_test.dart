@@ -64,7 +64,7 @@ void main() {
     final sync = _sourceBetween(
       source,
       'Future<void> _syncAcceptedInviteCalendarImports(String reason) async {',
-      'String? _canonicalDawnHouseRiteDetailForLoadedEvent',
+      'String? _canonicalOfferingTableDetailForLoadedEvent',
     );
 
     expect(sync, contains('final changed = await ShareRepo'));

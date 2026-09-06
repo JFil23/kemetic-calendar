@@ -1,19 +1,14 @@
-import 'dawn_house_rite_flow.dart';
-import 'evening_threshold_rite_flow.dart';
 import 'maat_decan_flow.dart';
+import 'maat_flow_catalog.dart';
+import 'maat_flow_identity.dart';
 import 'maat_flow_response_models.dart';
 import 'moon_return_flow.dart';
 import 'the_course_flow.dart';
-import 'the_days_outside_year_flow.dart';
 import 'the_decan_watch_flow.dart';
 import 'the_djed_flow.dart';
-import 'the_kept_word_flow.dart';
 import 'the_open_hand_flow.dart';
 import 'the_offering_table_flow.dart';
 import 'the_reading_house_flow.dart';
-import 'the_tending_flow.dart';
-import 'the_wag_flow.dart';
-import 'the_weighing_flow.dart';
 
 const String _trackSkyFlowKey = 'track-the-sky';
 const String _trackSkyTitle = 'Follow the Sky';
@@ -154,26 +149,6 @@ kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
     journalRole: 'bearing',
   ),
   MaatFlowResponseSpec(
-    id: 'dawn-house-order-act',
-    flowKey: kDawnHouseRiteFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.text,
-    label: 'One act of order today',
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalLabel: kDawnHouseRiteTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.dawnHouseRite,
-  ),
-  MaatFlowResponseSpec(
-    id: 'closing-release-tonight',
-    flowKey: kEveningThresholdRiteFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What do you release tonight?',
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalLabel: kEveningThresholdRiteTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.closingRelease,
-  ),
-  MaatFlowResponseSpec(
     id: 'offering-table-fed',
     flowKey: kOfferingTableFlowKey,
     surface: MaatFlowResponseSurface.calendarSheet,
@@ -219,90 +194,6 @@ kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
     journalGroupLabel: kOfferingTableTitle,
     journalFormatter: MaatFlowResponseJournalFormatter.offeringTable,
     journalRole: 'provided',
-  ),
-  MaatFlowResponseSpec(
-    id: 'days-outside-receipt',
-    flowKey: kDaysOutsideTheYearFlowKey,
-    eventKey: 'event-0',
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What receipt do you carry from this threshold?',
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kDaysOutsideTheYearTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.daysOutsideReceipt,
-  ),
-  MaatFlowResponseSpec(
-    id: 'days-outside-receipt',
-    flowKey: kDaysOutsideTheYearFlowKey,
-    eventKey: 'event-1',
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What receipt do you carry from this threshold?',
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kDaysOutsideTheYearTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.daysOutsideReceipt,
-  ),
-  MaatFlowResponseSpec(
-    id: 'days-outside-receipt',
-    flowKey: kDaysOutsideTheYearFlowKey,
-    eventKey: 'event-2',
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What receipt do you carry from this threshold?',
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kDaysOutsideTheYearTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.daysOutsideReceipt,
-  ),
-  MaatFlowResponseSpec(
-    id: 'days-outside-receipt',
-    flowKey: kDaysOutsideTheYearFlowKey,
-    eventKey: 'event-3',
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What receipt do you carry from this threshold?',
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kDaysOutsideTheYearTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.daysOutsideReceipt,
-  ),
-  MaatFlowResponseSpec(
-    id: 'days-outside-receipt',
-    flowKey: kDaysOutsideTheYearFlowKey,
-    eventKey: 'event-4',
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What receipt do you carry from this threshold?',
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kDaysOutsideTheYearTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.daysOutsideReceipt,
-  ),
-  MaatFlowResponseSpec(
-    id: 'days-outside-receipt',
-    flowKey: kDaysOutsideTheYearFlowKey,
-    eventKey: 'event-5',
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What receipt do you carry from this threshold?',
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kDaysOutsideTheYearTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.daysOutsideReceipt,
-  ),
-  MaatFlowResponseSpec(
-    id: 'wep-ronpet-year-intention',
-    flowKey: kDaysOutsideTheYearFlowKey,
-    eventKey: 'event-6',
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What intention opens the year?',
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: 'Wep Ronpet',
-    journalFormatter: MaatFlowResponseJournalFormatter.wepRonpetOpening,
   ),
   MaatFlowResponseSpec(
     id: 'open-hand-given',
@@ -421,200 +312,6 @@ kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
     journalFormatter: MaatFlowResponseJournalFormatter.djedRestoration,
     journalRole: 'restored',
     privacyClass: 'sensitive_structure',
-  ),
-  MaatFlowResponseSpec(
-    id: 'tending-care-specific',
-    flowKey: kTheTendingFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.chips,
-    label: 'What care became specific?',
-    options: <MaatFlowResponseOption>[
-      MaatFlowResponseOption(id: 'seen', label: 'Seen', journalLabel: 'seen'),
-      MaatFlowResponseOption(id: 'fed', label: 'Fed', journalLabel: 'fed'),
-      MaatFlowResponseOption(
-        id: 'called',
-        label: 'Called',
-        journalLabel: 'called',
-      ),
-      MaatFlowResponseOption(
-        id: 'protected',
-        label: 'Protected',
-        journalLabel: 'protected',
-      ),
-      MaatFlowResponseOption(
-        id: 'cleaned',
-        label: 'Cleaned',
-        journalLabel: 'cleaned',
-      ),
-      MaatFlowResponseOption(
-        id: 'repaired',
-        label: 'Repaired',
-        journalLabel: 'repaired',
-      ),
-      MaatFlowResponseOption(
-        id: 'rested',
-        label: 'Rested',
-        journalLabel: 'rested',
-      ),
-      MaatFlowResponseOption(
-        id: 'returned',
-        label: 'Returned',
-        journalLabel: 'returned',
-      ),
-    ],
-    journalPolicy: MaatFlowJournalPolicy.offer,
-    journalLabel: kTheTendingTitle,
-    journalGroupId: 'tending-care',
-    journalGroupLabel: kTheTendingTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.tendingCare,
-    journalRole: 'care',
-    privacyClass: 'care_private',
-    offerJournalInclusionDefault: false,
-  ),
-  MaatFlowResponseSpec(
-    id: 'tending-act-completed',
-    flowKey: kTheTendingFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What tending act did you complete?',
-    journalPolicy: MaatFlowJournalPolicy.offer,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kTheTendingTitle,
-    journalGroupId: 'tending-care',
-    journalGroupLabel: kTheTendingTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.tendingCare,
-    journalRole: 'act',
-    privacyClass: 'care_private',
-    offerJournalInclusionDefault: false,
-  ),
-  MaatFlowResponseSpec(
-    id: 'kept-word-status',
-    flowKey: kKeptWordFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.choice,
-    label: 'What happened with the word?',
-    options: <MaatFlowResponseOption>[
-      MaatFlowResponseOption(id: 'kept', label: 'Kept', journalLabel: 'kept'),
-      MaatFlowResponseOption(
-        id: 'repaired',
-        label: 'Repaired',
-        journalLabel: 'repaired',
-      ),
-      MaatFlowResponseOption(
-        id: 'renegotiated',
-        label: 'Renegotiated',
-        journalLabel: 'renegotiated',
-      ),
-      MaatFlowResponseOption(
-        id: 'released',
-        label: 'Released',
-        journalLabel: 'released',
-      ),
-      MaatFlowResponseOption(
-        id: 'still_in_process',
-        label: 'Still in process',
-        journalLabel: 'still in process',
-      ),
-    ],
-    journalPolicy: MaatFlowJournalPolicy.offer,
-    journalLabel: kKeptWordTitle,
-    journalGroupId: 'kept-word-agreement',
-    journalGroupLabel: kKeptWordTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.keptWordAgreement,
-    journalRole: 'status',
-    privacyClass: 'agreement_private',
-    offerJournalInclusionDefault: false,
-  ),
-  MaatFlowResponseSpec(
-    id: 'kept-word-remembered',
-    flowKey: kKeptWordFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What word, repair, or conversation needs to be remembered?',
-    journalPolicy: MaatFlowJournalPolicy.offer,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kKeptWordTitle,
-    journalGroupId: 'kept-word-agreement',
-    journalGroupLabel: kKeptWordTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.keptWordAgreement,
-    journalRole: 'remembered',
-    privacyClass: 'agreement_private',
-    offerJournalInclusionDefault: false,
-  ),
-  MaatFlowResponseSpec(
-    id: 'wag-remembered',
-    flowKey: kTheWagFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.chips,
-    label: 'What was remembered?',
-    options: <MaatFlowResponseOption>[
-      MaatFlowResponseOption(
-        id: 'water',
-        label: 'Water',
-        journalLabel: 'water',
-      ),
-      MaatFlowResponseOption(
-        id: 'bread',
-        label: 'Bread',
-        journalLabel: 'bread',
-      ),
-      MaatFlowResponseOption(id: 'name', label: 'Name', journalLabel: 'name'),
-      MaatFlowResponseOption(
-        id: 'story',
-        label: 'Story',
-        journalLabel: 'story',
-      ),
-      MaatFlowResponseOption(id: 'gift', label: 'Gift', journalLabel: 'gift'),
-      MaatFlowResponseOption(
-        id: 'vigil',
-        label: 'Vigil',
-        journalLabel: 'vigil',
-      ),
-      MaatFlowResponseOption(
-        id: 'feast',
-        label: 'Feast',
-        journalLabel: 'feast',
-      ),
-      MaatFlowResponseOption(
-        id: 'legacy',
-        label: 'Legacy',
-        journalLabel: 'legacy',
-      ),
-      MaatFlowResponseOption(
-        id: 'table',
-        label: 'Table',
-        journalLabel: 'table',
-      ),
-      MaatFlowResponseOption(
-        id: 'return',
-        label: 'Return',
-        journalLabel: 'return',
-      ),
-    ],
-    journalPolicy: MaatFlowJournalPolicy.offer,
-    journalLabel: kTheWagTitle,
-    journalGroupId: 'wag-memory',
-    journalGroupLabel: kTheWagTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.wagMemory,
-    journalRole: 'remembered',
-    privacyClass: 'ancestor_memory_private',
-    offerJournalInclusionDefault: false,
-  ),
-  MaatFlowResponseSpec(
-    id: 'wag-carried',
-    flowKey: kTheWagFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What gift, memory, or legacy did you carry?',
-    journalPolicy: MaatFlowJournalPolicy.offer,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kTheWagTitle,
-    journalGroupId: 'wag-memory',
-    journalGroupLabel: kTheWagTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.wagMemory,
-    journalRole: 'carried',
-    privacyClass: 'ancestor_memory_private',
-    offerJournalInclusionDefault: false,
   ),
   MaatFlowResponseSpec(
     id: 'khat-body-asked',
@@ -923,149 +620,6 @@ kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
     journalGroupId: 'follow-sky-witness',
     journalGroupLabel: _trackSkyTitle,
     journalFormatter: MaatFlowResponseJournalFormatter.followSkyWitness,
-    journalRole: 'changed',
-  ),
-  MaatFlowResponseSpec(
-    id: 'weighing-scale-revealed',
-    flowKey: kTheWeighingFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.chips,
-    label: 'What did the scale reveal?',
-    options: <MaatFlowResponseOption>[
-      MaatFlowResponseOption(
-        id: 'material',
-        label: 'Material',
-        journalLabel: 'material',
-      ),
-      MaatFlowResponseOption(
-        id: 'speech',
-        label: 'Speech',
-        journalLabel: 'speech',
-      ),
-      MaatFlowResponseOption(
-        id: 'conduct',
-        label: 'Conduct',
-        journalLabel: 'conduct',
-      ),
-      MaatFlowResponseOption(
-        id: 'record',
-        label: 'Record',
-        journalLabel: 'record',
-      ),
-      MaatFlowResponseOption(
-        id: 'correction',
-        label: 'Correction',
-        journalLabel: 'correction',
-      ),
-      MaatFlowResponseOption(id: 'debt', label: 'Debt', journalLabel: 'debt'),
-      MaatFlowResponseOption(
-        id: 'repair',
-        label: 'Repair',
-        journalLabel: 'repair',
-      ),
-      MaatFlowResponseOption(
-        id: 'truth',
-        label: 'Truth',
-        journalLabel: 'truth',
-      ),
-      MaatFlowResponseOption(id: 'gap', label: 'Gap', journalLabel: 'gap'),
-      MaatFlowResponseOption(
-        id: 'balance',
-        label: 'Balance',
-        journalLabel: 'balance',
-      ),
-    ],
-    journalPolicy: MaatFlowJournalPolicy.offer,
-    journalLabel: kTheWeighingTitle,
-    journalGroupId: 'weighing-record',
-    journalGroupLabel: kTheWeighingTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.weighingRecord,
-    journalRole: 'revealed',
-    privacyClass: 'record_accounting_private',
-    offerJournalInclusionDefault: false,
-  ),
-  MaatFlowResponseSpec(
-    id: 'weighing-record-witnessed',
-    flowKey: kTheWeighingFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What record, number, or correction needs to be witnessed?',
-    journalPolicy: MaatFlowJournalPolicy.offer,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kTheWeighingTitle,
-    journalGroupId: 'weighing-record',
-    journalGroupLabel: kTheWeighingTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.weighingRecord,
-    journalRole: 'witnessed',
-    privacyClass: 'record_accounting_private',
-    offerJournalInclusionDefault: false,
-  ),
-  MaatFlowResponseSpec(
-    id: 'first-arrangement-ordered',
-    flowKey: kFirstArrangementFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.chips,
-    label: 'What did you put in order?',
-    options: <MaatFlowResponseOption>[
-      MaatFlowResponseOption(
-        id: 'cleared',
-        label: 'Cleared',
-        journalLabel: 'cleared',
-      ),
-      MaatFlowResponseOption(
-        id: 'arranged',
-        label: 'Arranged',
-        journalLabel: 'arranged',
-      ),
-      MaatFlowResponseOption(
-        id: 'removed',
-        label: 'Removed',
-        journalLabel: 'removed',
-      ),
-      MaatFlowResponseOption(
-        id: 'cleaned',
-        label: 'Cleaned',
-        journalLabel: 'cleaned',
-      ),
-      MaatFlowResponseOption(
-        id: 'placed',
-        label: 'Placed',
-        journalLabel: 'placed',
-      ),
-      MaatFlowResponseOption(
-        id: 'maintained',
-        label: 'Maintained',
-        journalLabel: 'maintained',
-      ),
-      MaatFlowResponseOption(
-        id: 'returned',
-        label: 'Returned',
-        journalLabel: 'returned',
-      ),
-      MaatFlowResponseOption(
-        id: 'made_visible',
-        label: 'Made visible',
-        journalLabel: 'made visible',
-      ),
-    ],
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalLabel: kFirstArrangementTitle,
-    journalGroupId: 'first-arrangement-order',
-    journalGroupLabel: kFirstArrangementTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.firstArrangementOrder,
-    journalRole: 'ordered',
-  ),
-  MaatFlowResponseSpec(
-    id: 'first-arrangement-space-changed',
-    flowKey: kFirstArrangementFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What changed in the space?',
-    journalPolicy: MaatFlowJournalPolicy.mirror,
-    journalLabel: kFirstArrangementTitle,
-    journalGroupId: 'first-arrangement-order',
-    journalGroupLabel: kFirstArrangementTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.firstArrangementOrder,
     journalRole: 'changed',
   ),
   MaatFlowResponseSpec(
@@ -1406,75 +960,6 @@ kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
     journalGroupLabel: kLivingTextTitle,
     journalFormatter: MaatFlowResponseJournalFormatter.livingTextLine,
     journalRole: 'applied',
-  ),
-  MaatFlowResponseSpec(
-    id: 'clearing-cleared',
-    flowKey: kClearingFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.chips,
-    label: 'What cleared before you acted?',
-    options: <MaatFlowResponseOption>[
-      MaatFlowResponseOption(id: 'heat', label: 'Heat', journalLabel: 'heat'),
-      MaatFlowResponseOption(
-        id: 'pause',
-        label: 'Pause',
-        journalLabel: 'pause',
-      ),
-      MaatFlowResponseOption(
-        id: 'breath',
-        label: 'Breath',
-        journalLabel: 'breath',
-      ),
-      MaatFlowResponseOption(
-        id: 'silence',
-        label: 'Silence',
-        journalLabel: 'silence',
-      ),
-      MaatFlowResponseOption(
-        id: 'space',
-        label: 'Space',
-        journalLabel: 'space',
-      ),
-      MaatFlowResponseOption(
-        id: 'reply',
-        label: 'Reply',
-        journalLabel: 'reply',
-      ),
-      MaatFlowResponseOption(
-        id: 'action',
-        label: 'Action',
-        journalLabel: 'action',
-      ),
-      MaatFlowResponseOption(
-        id: 'sweetness',
-        label: 'Sweetness',
-        journalLabel: 'sweetness',
-      ),
-    ],
-    journalPolicy: MaatFlowJournalPolicy.offer,
-    journalLabel: kClearingTitle,
-    journalGroupId: 'clearing-space',
-    journalGroupLabel: kClearingTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.clearingSpace,
-    journalRole: 'cleared',
-    privacyClass: 'heated_response_private',
-    offerJournalInclusionDefault: false,
-  ),
-  MaatFlowResponseSpec(
-    id: 'clearing-waited-response',
-    flowKey: kClearingFlowKey,
-    surface: MaatFlowResponseSurface.calendarSheet,
-    kind: MaatFlowResponseKind.multiline,
-    label: 'What changed because you waited before responding?',
-    journalPolicy: MaatFlowJournalPolicy.offer,
-    journalCarryMode: MaatFlowJournalCarryMode.userReflection,
-    journalLabel: kClearingTitle,
-    journalGroupId: 'clearing-space',
-    journalGroupLabel: kClearingTitle,
-    journalFormatter: MaatFlowResponseJournalFormatter.clearingSpace,
-    journalRole: 'waited',
-    privacyClass: 'heated_response_private',
-    offerJournalInclusionDefault: false,
   ),
   MaatFlowResponseSpec(
     id: 'het-heru-force-cooled',
@@ -1990,7 +1475,6 @@ class MaatFlowResponseResolver {
     if (normalizedFlowKey.isEmpty || specs.isEmpty) {
       return const <MaatFlowResponseSpec>[];
     }
-
     final normalizedEventKey = eventKey?.trim();
     final normalizedSittingKey = sittingKey?.trim();
     return specs
@@ -2033,7 +1517,6 @@ class MaatFlowInitialPromptResolver {
   MaatFlowInitialPromptSpec? resolve({required String flowKey}) {
     final normalizedFlowKey = flowKey.trim();
     if (normalizedFlowKey.isEmpty || specs.isEmpty) return null;
-
     for (final spec in specs) {
       if (spec.flowKey == normalizedFlowKey && spec.isRenderable) {
         return spec;
@@ -2078,36 +1561,6 @@ kInitialMaatFlowPromptSpecs = <MaatFlowInitialPromptSpec>[
         surface: MaatFlowResponseSurface.initialDetail,
         kind: MaatFlowResponseKind.text,
         label: 'What action fits this hour?',
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-    ],
-  ),
-  MaatFlowInitialPromptSpec(
-    flowKey: kDawnHouseRiteFlowKey,
-    title: 'Begin reflection',
-    subtitle: "Take a moment to begin today's practice. You can finish later.",
-    fields: <MaatFlowResponseSpec>[
-      MaatFlowResponseSpec(
-        id: 'dawn-house-order-act',
-        flowKey: kDawnHouseRiteFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.text,
-        label: 'What order do you bring into the day?',
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-    ],
-  ),
-  MaatFlowInitialPromptSpec(
-    flowKey: kEveningThresholdRiteFlowKey,
-    title: 'Begin reflection',
-    subtitle: "Take a moment to begin today's practice. You can finish later.",
-    fields: <MaatFlowResponseSpec>[
-      MaatFlowResponseSpec(
-        id: 'closing-release-tonight',
-        flowKey: kEveningThresholdRiteFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.multiline,
-        label: 'What do you release tonight?',
         journalPolicy: MaatFlowJournalPolicy.localOnly,
       ),
     ],
@@ -2218,71 +1671,6 @@ kInitialMaatFlowPromptSpecs = <MaatFlowInitialPromptSpec>[
             label: 'Solo study',
           ),
         ],
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-    ],
-  ),
-  MaatFlowInitialPromptSpec(
-    flowKey: kFirstArrangementFlowKey,
-    title: 'Begin reflection',
-    subtitle: "Take a moment to begin today's practice. You can finish later.",
-    fields: <MaatFlowResponseSpec>[
-      MaatFlowResponseSpec(
-        id: 'first-arrangement-ordered',
-        flowKey: kFirstArrangementFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.chips,
-        label: 'What space will you put in order?',
-        options: <MaatFlowResponseOption>[
-          MaatFlowResponseOption(
-            id: 'cleared',
-            label: 'Cleared',
-            journalLabel: 'cleared',
-          ),
-          MaatFlowResponseOption(
-            id: 'arranged',
-            label: 'Arranged',
-            journalLabel: 'arranged',
-          ),
-          MaatFlowResponseOption(
-            id: 'removed',
-            label: 'Removed',
-            journalLabel: 'removed',
-          ),
-          MaatFlowResponseOption(
-            id: 'cleaned',
-            label: 'Cleaned',
-            journalLabel: 'cleaned',
-          ),
-          MaatFlowResponseOption(
-            id: 'placed',
-            label: 'Placed',
-            journalLabel: 'placed',
-          ),
-          MaatFlowResponseOption(
-            id: 'maintained',
-            label: 'Maintained',
-            journalLabel: 'maintained',
-          ),
-          MaatFlowResponseOption(
-            id: 'returned',
-            label: 'Returned',
-            journalLabel: 'returned',
-          ),
-          MaatFlowResponseOption(
-            id: 'made_visible',
-            label: 'Made visible',
-            journalLabel: 'made visible',
-          ),
-        ],
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-      MaatFlowResponseSpec(
-        id: 'first-arrangement-space-changed',
-        flowKey: kFirstArrangementFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.multiline,
-        label: 'What changed in the space?',
         journalPolicy: MaatFlowJournalPolicy.localOnly,
       ),
     ],
@@ -2554,107 +1942,6 @@ kInitialMaatFlowPromptSpecs = <MaatFlowInitialPromptSpec>[
     ],
   ),
   MaatFlowInitialPromptSpec(
-    flowKey: kTheTendingFlowKey,
-    title: 'Begin reflection',
-    subtitle: "Take a moment to begin today's practice. You can finish later.",
-    fields: <MaatFlowResponseSpec>[
-      MaatFlowResponseSpec(
-        id: 'tending-care-specific',
-        flowKey: kTheTendingFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.chips,
-        label: 'What care needs to become specific?',
-        options: <MaatFlowResponseOption>[
-          MaatFlowResponseOption(id: 'seen', label: 'Seen'),
-          MaatFlowResponseOption(id: 'fed', label: 'Fed'),
-          MaatFlowResponseOption(id: 'called', label: 'Called'),
-          MaatFlowResponseOption(id: 'protected', label: 'Protected'),
-          MaatFlowResponseOption(id: 'cleaned', label: 'Cleaned'),
-          MaatFlowResponseOption(id: 'repaired', label: 'Repaired'),
-          MaatFlowResponseOption(id: 'rested', label: 'Rested'),
-          MaatFlowResponseOption(id: 'returned', label: 'Returned'),
-        ],
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-      MaatFlowResponseSpec(
-        id: 'tending-act-completed',
-        flowKey: kTheTendingFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.multiline,
-        label: 'What tending act did you complete?',
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-    ],
-  ),
-  MaatFlowInitialPromptSpec(
-    flowKey: kKeptWordFlowKey,
-    title: 'Begin reflection',
-    subtitle: "Take a moment to begin today's practice. You can finish later.",
-    fields: <MaatFlowResponseSpec>[
-      MaatFlowResponseSpec(
-        id: 'kept-word-status',
-        flowKey: kKeptWordFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.choice,
-        label: 'What word or agreement needs attention?',
-        options: <MaatFlowResponseOption>[
-          MaatFlowResponseOption(id: 'kept', label: 'Kept'),
-          MaatFlowResponseOption(id: 'repaired', label: 'Repaired'),
-          MaatFlowResponseOption(id: 'renegotiated', label: 'Renegotiated'),
-          MaatFlowResponseOption(id: 'released', label: 'Released'),
-          MaatFlowResponseOption(
-            id: 'still_in_process',
-            label: 'Still in process',
-          ),
-        ],
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-      MaatFlowResponseSpec(
-        id: 'kept-word-remembered',
-        flowKey: kKeptWordFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.multiline,
-        label: 'What word, repair, or conversation needs to be remembered?',
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-    ],
-  ),
-  MaatFlowInitialPromptSpec(
-    flowKey: kTheWagFlowKey,
-    title: 'Begin reflection',
-    subtitle: "Take a moment to begin today's practice. You can finish later.",
-    fields: <MaatFlowResponseSpec>[
-      MaatFlowResponseSpec(
-        id: 'wag-remembered',
-        flowKey: kTheWagFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.chips,
-        label: 'What gift, memory, or legacy will you carry?',
-        options: <MaatFlowResponseOption>[
-          MaatFlowResponseOption(id: 'water', label: 'Water'),
-          MaatFlowResponseOption(id: 'bread', label: 'Bread'),
-          MaatFlowResponseOption(id: 'name', label: 'Name'),
-          MaatFlowResponseOption(id: 'story', label: 'Story'),
-          MaatFlowResponseOption(id: 'gift', label: 'Gift'),
-          MaatFlowResponseOption(id: 'vigil', label: 'Vigil'),
-          MaatFlowResponseOption(id: 'feast', label: 'Feast'),
-          MaatFlowResponseOption(id: 'legacy', label: 'Legacy'),
-          MaatFlowResponseOption(id: 'table', label: 'Table'),
-          MaatFlowResponseOption(id: 'return', label: 'Return'),
-        ],
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-      MaatFlowResponseSpec(
-        id: 'wag-carried',
-        flowKey: kTheWagFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.multiline,
-        label: 'What gift, memory, or legacy did you carry?',
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-    ],
-  ),
-  MaatFlowInitialPromptSpec(
     flowKey: kKhatFlowKey,
     title: 'Begin reflection',
     subtitle: "Take a moment to begin today's practice. You can finish later.",
@@ -2720,56 +2007,6 @@ kInitialMaatFlowPromptSpecs = <MaatFlowInitialPromptSpec>[
         surface: MaatFlowResponseSurface.initialDetail,
         kind: MaatFlowResponseKind.multiline,
         label: 'What changed above you?',
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-    ],
-  ),
-  MaatFlowInitialPromptSpec(
-    flowKey: kTheWeighingFlowKey,
-    title: 'Begin reflection',
-    subtitle: "Take a moment to begin today's practice. You can finish later.",
-    fields: <MaatFlowResponseSpec>[
-      MaatFlowResponseSpec(
-        id: 'weighing-scale-revealed',
-        flowKey: kTheWeighingFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.chips,
-        label: 'What needs to be placed on the scale?',
-        options: <MaatFlowResponseOption>[
-          MaatFlowResponseOption(id: 'material', label: 'Material'),
-          MaatFlowResponseOption(id: 'speech', label: 'Speech'),
-          MaatFlowResponseOption(id: 'conduct', label: 'Conduct'),
-          MaatFlowResponseOption(id: 'record', label: 'Record'),
-          MaatFlowResponseOption(id: 'correction', label: 'Correction'),
-          MaatFlowResponseOption(id: 'debt', label: 'Debt'),
-          MaatFlowResponseOption(id: 'repair', label: 'Repair'),
-          MaatFlowResponseOption(id: 'truth', label: 'Truth'),
-          MaatFlowResponseOption(id: 'gap', label: 'Gap'),
-          MaatFlowResponseOption(id: 'balance', label: 'Balance'),
-        ],
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-      MaatFlowResponseSpec(
-        id: 'weighing-record-witnessed',
-        flowKey: kTheWeighingFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.multiline,
-        label: 'What record, number, or correction needs to be witnessed?',
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-    ],
-  ),
-  MaatFlowInitialPromptSpec(
-    flowKey: kDaysOutsideTheYearFlowKey,
-    title: 'Begin reflection',
-    subtitle: "Take a moment to begin today's practice. You can finish later.",
-    fields: <MaatFlowResponseSpec>[
-      MaatFlowResponseSpec(
-        id: 'days-outside-receipt',
-        flowKey: kDaysOutsideTheYearFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.multiline,
-        label: 'What threshold are you crossing?',
         journalPolicy: MaatFlowJournalPolicy.localOnly,
       ),
     ],
@@ -2936,39 +2173,6 @@ kInitialMaatFlowPromptSpecs = <MaatFlowInitialPromptSpec>[
         surface: MaatFlowResponseSurface.initialDetail,
         kind: MaatFlowResponseKind.multiline,
         label: 'What did you read, question, connect, or apply?',
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-    ],
-  ),
-  MaatFlowInitialPromptSpec(
-    flowKey: kClearingFlowKey,
-    title: 'Begin reflection',
-    subtitle: "Take a moment to begin today's practice. You can finish later.",
-    fields: <MaatFlowResponseSpec>[
-      MaatFlowResponseSpec(
-        id: 'clearing-cleared',
-        flowKey: kClearingFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.chips,
-        label: 'What heat needs space before response?',
-        options: <MaatFlowResponseOption>[
-          MaatFlowResponseOption(id: 'heat', label: 'Heat'),
-          MaatFlowResponseOption(id: 'pause', label: 'Pause'),
-          MaatFlowResponseOption(id: 'breath', label: 'Breath'),
-          MaatFlowResponseOption(id: 'silence', label: 'Silence'),
-          MaatFlowResponseOption(id: 'space', label: 'Space'),
-          MaatFlowResponseOption(id: 'reply', label: 'Reply'),
-          MaatFlowResponseOption(id: 'action', label: 'Action'),
-          MaatFlowResponseOption(id: 'sweetness', label: 'Sweetness'),
-        ],
-        journalPolicy: MaatFlowJournalPolicy.localOnly,
-      ),
-      MaatFlowResponseSpec(
-        id: 'clearing-waited-response',
-        flowKey: kClearingFlowKey,
-        surface: MaatFlowResponseSurface.initialDetail,
-        kind: MaatFlowResponseKind.multiline,
-        label: 'What changed because you waited before responding?',
         journalPolicy: MaatFlowJournalPolicy.localOnly,
       ),
     ],
@@ -3255,11 +2459,50 @@ List<MaatFlowResponseSpec> resolveMaatFlowResponseSpecs({
   );
 }
 
+/// Resolves only response controls that an active product may render.
+///
+/// The underlying resolver remains an immutable historical decoder, while
+/// archived compatibility flows are blocked from every writable surface.
+List<MaatFlowResponseSpec> resolveActiveMaatFlowResponseSpecs({
+  required String flowKey,
+  required MaatFlowResponseSurface surface,
+  String? eventKey,
+  String? sittingKey,
+  MaatFlowResponseResolver resolver = kDefaultMaatFlowResponseResolver,
+}) {
+  final kind = resolveMaatFlowKind(
+    behaviorPayload: <String, dynamic>{'flow_key': flowKey},
+  );
+  if (kind != null && kArchivedCompatibilityMaatFlowKinds.contains(kind)) {
+    return const <MaatFlowResponseSpec>[];
+  }
+  return resolver.resolve(
+    flowKey: flowKey,
+    surface: surface,
+    eventKey: eventKey,
+    sittingKey: sittingKey,
+  );
+}
+
 MaatFlowInitialPromptSpec? resolveMaatFlowInitialPromptSpec({
   required String flowKey,
   MaatFlowInitialPromptResolver resolver =
       kDefaultMaatFlowInitialPromptResolver,
 }) {
+  return resolver.resolve(flowKey: flowKey);
+}
+
+MaatFlowInitialPromptSpec? resolveActiveMaatFlowInitialPromptSpec({
+  required String flowKey,
+  MaatFlowInitialPromptResolver resolver =
+      kDefaultMaatFlowInitialPromptResolver,
+}) {
+  final kind = resolveMaatFlowKind(
+    behaviorPayload: <String, dynamic>{'flow_key': flowKey},
+  );
+  if (kind != null && kArchivedCompatibilityMaatFlowKinds.contains(kind)) {
+    return null;
+  }
   return resolver.resolve(flowKey: flowKey);
 }
 

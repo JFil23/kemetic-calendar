@@ -17,71 +17,63 @@ class OfferingTablePracticePresentation {
   final List<String> steps;
 }
 
-const String _closingWaterStep = 'Drink water.';
-final RegExp _drinkingWaterActPattern = RegExp(
-  r'\bdrink(?:ing)?\s+(?:the\s+)?water\b',
-  caseSensitive: false,
-);
-
 const _firstFivePracticePresentations = <int, OfferingTablePracticePresentation>{
   1: OfferingTablePracticePresentation(
-    previewSummary:
-        'Start with your most basic need before the day starts asking.',
+    previewSummary: 'Check one supply before it becomes an emergency.',
     why:
-        'Provision begins with the most basic need. Today you practice noticing yours before the day takes over.',
+        'The supplies that run out do so silently. This rite checks them while they can still be replenished easily.',
     instruction:
-        'Start with water, then name one need you have been putting off.',
+        'Check one thing you rely on: medication, water bottle, groceries, soap, clean clothes, or transit fare. Refill it, or write down the next concrete step.',
     steps: <String>[
-      'Fill a cup of water.',
-      'Name one basic need that has been unmet for a few days.',
-      'Do the smallest thing that begins to meet it.',
+      'Name one supply running low.',
+      'Refill it, or write down the next step.',
+      'Put it in sight or set one reminder.',
     ],
   ),
   2: OfferingTablePracticePresentation(
-    previewSummary: 'Choose what reaches you before messages and tasks do.',
+    previewSummary: 'Choose what reaches you before the noise does.',
     why:
         'The day starts competing for your attention immediately. This practice lets you choose your first input.',
     instruction:
-        'Give your body something before your feeds, messages, or task list.',
+        'Choose the first thing you want to give your attention to. Then give your body water before feeds, messages, or tasks get first claim.',
     steps: <String>[
-      'Drink water before opening a feed or message thread.',
-      'Name what you want your first real input to be today.',
-      'Protect one quiet minute for it.',
+      'Name the first thing you want to give your attention to today.',
+      'Drink a glass of water before you open feeds, messages, or tasks.',
+      'Give that first thing one quiet minute.',
     ],
   ),
   3: OfferingTablePracticePresentation(
-    previewSummary: 'Turn one meal from fuel into actual provision.',
+    previewSummary: 'Make sure real food has a place in your day.',
     why:
         'Food can become something you rush through. Today you treat one meal as actual provision.',
-    instruction: 'Make your first real food deliberate instead of accidental.',
+    instruction:
+        'Choose your first real food before hunger has to improvise for you.',
     steps: <String>[
-      'Name your first real food for the day.',
-      'If it is not planned, choose one reachable option now.',
-      'Prepare or place one part of it where you will see it.',
+      'Name the first real food you will eat today.',
+      'Put it within reach now — on the counter, in the fridge front, or in your bag.',
     ],
   ),
   4: OfferingTablePracticePresentation(
-    previewSummary:
-        'Correct one small act of body-care you have been deferring.',
+    previewSummary: 'Give your body one piece of care you’ve been putting off.',
     why:
         'Small acts of neglect build quietly. Today you correct one before it becomes normal.',
-    instruction: 'Give your body one piece of care you have been postponing.',
+    instruction: 'Make one delayed care task small enough to move today.',
     steps: <String>[
-      'Wash your face, hands, or mouth with attention.',
-      'Name one body-care task you have delayed.',
-      'Do its smallest useful version today.',
+      'Wash your face, hands, or mouth slowly.',
+      'Name the body-care task you keep putting off.',
+      'Do the two-minute version now — or book it.',
     ],
   ),
   5: OfferingTablePracticePresentation(
-    previewSummary:
-        'Treat rest as something that must be provided, not hoped for.',
+    previewSummary: 'Protect tonight’s rest before the day spends it.',
     why:
         'Rest is not leftover time. It is something that has to be provided for on purpose.',
-    instruction: 'Look at tonight before the day fills it for you.',
+    instruction:
+        'Make one concrete change now that gives tonight a better chance.',
     steps: <String>[
       'Name how many hours you slept last night.',
-      "Name one thing likely to shorten tonight's sleep.",
-      'Reduce that thing by one small amount.',
+      'Name what is most likely to cut tonight short.',
+      'Cut thirty minutes from it, or set a stop time.',
     ],
   ),
 };
@@ -99,24 +91,8 @@ OfferingTablePracticePresentation offeringTablePracticePresentation(
         steps: <String>[day.provisionAct, ...day.optionalSteps],
       );
 
-  return _ensureClosingWaterStep(presentation);
+  return presentation;
 }
-
-OfferingTablePracticePresentation _ensureClosingWaterStep(
-  OfferingTablePracticePresentation presentation,
-) {
-  if (presentation.steps.any(_containsDrinkingWaterAct)) return presentation;
-
-  return OfferingTablePracticePresentation(
-    previewSummary: presentation.previewSummary,
-    why: presentation.why,
-    instruction: presentation.instruction,
-    steps: <String>[...presentation.steps, _closingWaterStep],
-  );
-}
-
-bool _containsDrinkingWaterAct(String step) =>
-    _drinkingWaterActPattern.hasMatch(step);
 
 String _firstSentence(String value) {
   final normalized = value.trim();

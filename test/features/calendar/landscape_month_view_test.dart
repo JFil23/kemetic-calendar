@@ -1308,13 +1308,15 @@ void main() {
       );
       expect(monthCardBlock, contains('_SoftMonthNameTitle'));
       expect(monthCardBlock, contains('_CalendarScale.monthTitleMain'));
-      expect(monthCardBlock, contains('opacity: framedSurface ? 0.98 : 0.96'));
-      expect(monthCardBlock, contains('alpha: 0.029'));
+      expect(monthCardBlock, contains('opacity: 0.96'));
+      expect(monthCardBlock, isNot(contains('framedSurface')));
       expect(monthCardBlock, contains('final rightLabelStyle = TextStyle('));
       expect(monthCardBlock, contains('final decanLabelStyle = TextStyle('));
-      expect(monthCardBlock, contains('alpha: framedSurface ? 0.92 : 0.86'));
+      expect(monthCardBlock, contains('alpha: 0.86'));
+      expect(monthCardBlock, contains('alpha: 0.94'));
       expect(monthCardBlock, contains('final gregorianDecanLabelStyle ='));
       expect(monthCardBlock, contains('_CalendarTone.gregorianBlue'));
+      expect(monthCardBlock, contains('alpha: 0.84'));
       expect(monthCardBlock, contains('final decanLabelRowHeight ='));
       expect(monthCardBlock, contains('final decanLabelStrut = StrutStyle('));
       expect(monthCardBlock, contains('height: decanLabelRowHeight'));
@@ -1400,11 +1402,10 @@ void main() {
       ).readAsStringSync();
       final constantsBlock = _sourceBetween(
         source,
-        'const Color _kSoftGridBackground',
+        'final Color _kSoftDayTileFill',
         'bool _usesTabletLandscapeMonthGrid',
       );
 
-      expect(constantsBlock, contains('_kSoftGridBackground'));
       expect(constantsBlock, contains('_kSoftDayTileFill'));
       expect(constantsBlock, contains('_kDayTileRadius'));
       expect(constantsBlock, contains('_kLabeledPillVisibleCap'));
@@ -1413,14 +1414,10 @@ void main() {
       expect(constantsBlock, contains('_kDetailsPillHeight'));
       expect(
         constantsBlock,
-        contains(
-          'const Color _kSoftGridBackground = _CalendarTone.previewCardBase;',
-        ),
-      );
-      expect(
-        constantsBlock,
         contains('final Color _kSoftDayTileFill = _CalendarTone.dayCellFill;'),
       );
+      expect(source, isNot(contains('_kSoftGridBackground')));
+      expect(source, isNot(contains('previewCardBase')));
       expect(constantsBlock, contains('const double _kDayTileRadius = 3.0;'));
       expect(
         constantsBlock,

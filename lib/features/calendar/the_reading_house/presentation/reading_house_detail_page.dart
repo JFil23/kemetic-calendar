@@ -19,6 +19,7 @@ import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../reading_house_authority.dart';
+import 'reading_house_event_block_visual.dart';
 import 'reading_house_sitting_editor.dart';
 
 abstract final class ReadingHouseDetailTokens {
@@ -793,6 +794,8 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
       scrollKey: const ValueKey<String>('reading-house-scroll'),
       heroLayerKey: const ValueKey<String>('reading-house-hero-layer'),
       sheetKey: const ValueKey<String>('reading-house-sheet'),
+      referenceHeroHeight: 258,
+      referenceSheetOverlap: 26,
       hero: const _ReadingHouseHero(),
       bottomDock: !_canEdit
           ? null
@@ -851,7 +854,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _SheetHandle(),
-        const _BeforeCalendarIntro(),
+        const ReadingHouseDetailFeaturedSection(),
         _buildHouseSetup(),
         _buildCalendar(),
         _buildSittings(context),
@@ -1196,7 +1199,8 @@ class _ReadingHouseHero extends StatelessWidget {
       glyphBorder: ReadingHouseDetailTokens.houseHighlight,
       glyphGlow: ReadingHouseDetailTokens.houseHighlight,
       title: 'The Reading\nHouse',
-      subtitle: 'One book. A few people. Shared attention.',
+      subtitle: '',
+      contentBottom: 8,
     );
   }
 }
@@ -1277,59 +1281,6 @@ class _SheetHandle extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _BeforeCalendarIntro extends StatelessWidget {
-  const _BeforeCalendarIntro();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('reading-house-before-calendar'),
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 26),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: ReadingHouseDetailTokens.separator),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionEyebrow('BEFORE THE CALENDAR'),
-          const SizedBox(height: 13),
-          Text.rich(
-            TextSpan(
-              text: 'Pick the book first.\n',
-              children: [
-                TextSpan(
-                  text: 'Nothing has to be scheduled yet.',
-                  style: TextStyle(
-                    color: ReadingHouseDetailTokens.silver,
-                    fontStyle: FontStyle.italic,
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
-              ],
-            ),
-            style: _displayStyle(
-              color: ReadingHouseDetailTokens.bone,
-              fontSize: 25,
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Invite the readers, then set the sittings whenever you’re ready.',
-            style: _uiStyle(
-              color: ReadingHouseDetailTokens.silverLow,
-              fontSize: 13,
-              height: 1.45,
-            ),
-          ),
-        ],
       ),
     );
   }

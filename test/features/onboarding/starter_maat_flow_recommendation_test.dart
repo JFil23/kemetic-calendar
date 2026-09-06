@@ -17,18 +17,18 @@ void main() {
     ]);
   });
 
-  test('dawn daily discipline makes Dawn House Rite prominent', () {
+  test('daily discipline makes The Djed prominent', () {
     final result = service.recommend(
       goal: FirstRhythmGoal.buildDailyDiscipline,
       timePreference: RhythmTimePreference.dawn,
       duration: RhythmDuration.twoMinutes,
     );
 
-    expect(result.first.templateKey, StarterMaatFlowKeys.dawnHouseRite);
+    expect(result.first.templateKey, StarterMaatFlowKeys.theDjed);
     expect(result.first.prominent, isTrue);
   });
 
-  test('care for the body recommends Offering Table and Tending', () {
+  test('care for the body recommends Offering Table and Follow the Sky', () {
     final result = service.recommend(
       goal: FirstRhythmGoal.careForTheBody,
       timePreference: RhythmTimePreference.midday,
@@ -37,11 +37,11 @@ void main() {
 
     expect(result.map((flow) => flow.templateKey), <String>[
       StarterMaatFlowKeys.offeringTable,
-      StarterMaatFlowKeys.theTending,
+      StarterMaatFlowKeys.followTheSky,
     ]);
   });
 
-  test('study and remember recommends Reading House and Kept Word', () {
+  test('study and remember recommends Reading House and The Djed', () {
     final result = service.recommend(
       goal: FirstRhythmGoal.studyAndRemember,
       timePreference: RhythmTimePreference.evening,
@@ -52,7 +52,7 @@ void main() {
       result.map((flow) => flow.templateKey),
       containsAllInOrder([
         StarterMaatFlowKeys.readingHouse,
-        StarterMaatFlowKeys.keptWord,
+        StarterMaatFlowKeys.theDjed,
       ]),
     );
   });
@@ -68,7 +68,7 @@ void main() {
           );
           expect(result, hasLength(lessThanOrEqualTo(3)));
           expect(
-            result.every((flow) => isCoreMaatFlowKey(flow.templateKey)),
+            result.every((flow) => isMaatFlowNewJoinAllowed(flow.templateKey)),
             isTrue,
             reason: '$goal / $timePreference / $duration',
           );

@@ -47,10 +47,7 @@ void main() {
 
       expect(find.text('THE OFFERING TABLE · DAY 03'), findsOneWidget);
       expect(find.text(day.title), findsWidgets);
-      expect(
-        find.text('“Eat something before the day begins”'),
-        findsOneWidget,
-      );
+      expect(find.text('“put real food within reach”'), findsOneWidget);
       expect(find.textContaining('Protect my sleep.'), findsNothing);
       final block = tester.widget<OfferingTableEventBlockVisual>(
         find.byType(OfferingTableEventBlockVisual),
@@ -60,8 +57,9 @@ void main() {
       expect(block.resolvedVisualState, OfferingTableBlockVisualState.named);
       expect(
         tester.getSize(find.byType(OfferingTableCupVisual)),
-        const Size(48, 50),
+        const Size(58, 60),
       );
+      expect(block.height, 92);
 
       await tester.tap(find.byType(OfferingTableEventBlockVisual));
       await tester.pumpAndSettle();
@@ -77,7 +75,7 @@ void main() {
     await _pumpDayView(tester, flowId: 72);
 
     expect(find.text(kOfferingTableDays.first.title), findsWidgets);
-    expect(find.text('“Name what needs to be fed”'), findsOneWidget);
+    expect(find.text('“check one thing before it runs out”'), findsOneWidget);
     expect(find.textContaining('No need was named'), findsNothing);
     final block = tester.widget<OfferingTableEventBlockVisual>(
       find.byType(OfferingTableEventBlockVisual),
@@ -366,7 +364,7 @@ void main() {
     expect(end.opacity, closeTo(0, 0.0001));
   });
 
-  testWidgets('Day View renders the canonical closing water checkbox', (
+  testWidgets('Day View preserves the exact authored checklist', (
     tester,
   ) async {
     final day = kOfferingTableDays[2];
@@ -380,12 +378,12 @@ void main() {
     await tester.tap(find.byType(OfferingTableEventBlockVisual));
     await tester.pumpAndSettle();
 
-    expect(find.text('4 steps'), findsOneWidget);
+    expect(find.text('2 steps'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey<String>('offering-table-day-03-step-4')),
+      find.byKey(const ValueKey<String>('offering-table-day-03-step-2')),
       findsOneWidget,
     );
-    expect(find.text('Drink water.'), findsOneWidget);
+    expect(find.text('Drink water.'), findsNothing);
   });
 
   testWidgets('Day View Reflect writes through the shared Journal authority', (
@@ -395,6 +393,7 @@ void main() {
     await _pumpDayView(
       tester,
       flowId: 73,
+      day: kOfferingTableDays[1],
       initialIntention: 'Protect my sleep.',
       onWriteJournalResponse: (block) async => blocks.add(block),
     );

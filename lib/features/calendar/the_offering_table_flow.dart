@@ -1,7 +1,7 @@
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-import 'dawn_house_rite_flow.dart';
+import 'maat_solar_schedule.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_temporal_policy.dart';
 import 'track_sky_flow.dart';
@@ -123,23 +123,19 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
   OfferingTableDay(
     dayNumber: 1,
     section: 'Personal Table',
-    title: 'The First Water',
-    eventBlockPrompt: 'Name what needs to be fed',
+    title: 'The Small Supply',
+    eventBlockPrompt: 'check one thing before it runs out',
     purpose:
-        'The Kemetic offering table began with water before anything else — not because water is symbolic, but because it is the most immediate provision. This rite does the same.',
+        'The supplies that run out do so silently. This rite checks them while they can still be replenished easily.',
     provisionAct:
-        'Before food, phone, or work, fill the cup. Name one basic need that has been unmet for three days or more.',
-    optionalSteps: <String>[
-      'Write the need in one sentence without explaining it away.',
-    ],
-    sourceNote:
-        'Kemetic offering ritual begins with water before bread, oil, or incense. The table starts by acknowledging what sustains life first.',
+        'Check one thing you rely on: medication, water bottle, groceries, soap, clean clothes, or transit fare. Refill it, or write down the next concrete step.',
+    optionalSteps: <String>['Put it in sight or set one reminder.'],
   ),
   OfferingTableDay(
     dayNumber: 2,
     section: 'Personal Table',
     title: 'The Cup Before the Noise',
-    eventBlockPrompt: 'Drink before the day starts talking',
+    eventBlockPrompt: 'choose your first input',
     purpose:
         'The day\'s demands begin competing for attention before the body has been given anything. This rite reverses that order.',
     provisionAct:
@@ -152,7 +148,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 3,
     section: 'Personal Table',
     title: 'Bread Enough',
-    eventBlockPrompt: 'Eat something before the day begins',
+    eventBlockPrompt: 'put real food within reach',
     purpose:
         'Food treated as fuel is not being received — it\'s being used. This rite makes one meal an act of provision rather than consumption.',
     provisionAct:
@@ -165,7 +161,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 4,
     section: 'Personal Table',
     title: 'The Body Washed',
-    eventBlockPrompt: 'Care for the body before delay wins',
+    eventBlockPrompt: 'do one piece of delayed care',
     purpose:
         'Neglect rarely announces itself — it accumulates in small deferrals. This rite names one and corrects it.',
     provisionAct:
@@ -178,7 +174,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 5,
     section: 'Personal Table',
     title: 'The Midpoint: Rest',
-    eventBlockPrompt: 'Make a little room for tonight’s rest',
+    eventBlockPrompt: 'protect tonight’s rest now',
     purpose:
         'The Kemite counted rest as provision alongside bread and oil. This rite asks for the actual sleep count before it becomes a problem.',
     provisionAct:
@@ -192,14 +188,14 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
   OfferingTableDay(
     dayNumber: 6,
     section: 'Personal Table',
-    title: 'The Small Supply',
-    eventBlockPrompt: 'refill one thing running low',
+    title: 'The Standing Appointment',
+    eventBlockPrompt: 'book the thing you’ve been meaning to book',
     purpose:
-        'The supplies that run out do so silently. This rite checks them while they can still be replenished easily.',
+        'Some needs stay abstract because they depend on business hours, a number, or a booking page. This rite makes one reachable.',
     provisionAct:
-        'Check one supply: medication, water bottle, groceries, soap, clean clothes, or transit fare. Refill or list the next concrete step.',
+        'Name one appointment you have been deferring. Find the number or booking page. Book it, or put the call on today’s calendar with the number already in the note.',
     optionalSteps: <String>[
-      'Put the item on a visible surface or add one direct reminder.',
+      'Put the call on today’s calendar with the number already in the note.',
     ],
   ),
   OfferingTableDay(
@@ -541,7 +537,7 @@ OfferingTableOccurrenceSchedule offeringTableScheduleForDate(
 }) {
   _ensureOfferingTableTimeZonesInitialized();
   final localDate = DateTime(date.year, date.month, date.day);
-  final dawn = dawnHouseRiteScheduleForDate(localDate, timezone);
+  final dawn = maatDawnScheduleForDate(localDate, timezone);
   final clampedHour = hour.clamp(0, 23).toInt();
   final clampedMinute = minute.clamp(0, 59).toInt();
   final configuredLocal = DateTime(

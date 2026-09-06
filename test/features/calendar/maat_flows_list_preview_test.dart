@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
 
 void main() {
   setUp(EndFlowVisibilityStore.instance.debugReset);
@@ -100,7 +102,7 @@ void main() {
     );
   });
 
-  testWidgets('Ma’at product catalog renders exactly the 13 core templates', (
+  testWidgets('Ma’at product catalog renders exactly the four active flows', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 16000);
@@ -110,21 +112,17 @@ void main() {
 
     const expectedTitles = <String, String>{
       'track-the-sky': 'Follow the Sky',
-      'dawn-house-rite': 'Dawn House Rite',
-      'evening-threshold-rite': 'The Closing',
       'the-offering-table': 'The Offering Table',
-      'the-weighing': 'The Weighing',
-      'the-kept-word': 'The Kept Word',
       'the-djed': 'The Djed',
-      'the-tending': 'The Tending',
-      'the-first-arrangement': 'The First Arrangement',
-      'the-clearing': 'The Clearing',
       'the-reading-house': 'The Reading House',
-      'the-wag': 'The Wag',
-      'the-days-outside-the-year': 'The Days Outside the Year',
     };
 
-    expect(knownMaatFlowTemplateKeysForTesting(), hasLength(33));
+    expect(
+      knownMaatFlowTemplateKeysForTesting(),
+      hasLength(
+        MaatFlowKind.values.length - kArchivedCompatibilityMaatFlowKinds.length,
+      ),
+    );
     expect(
       coreMaatFlowTemplateKeysForTesting().toSet(),
       expectedTitles.keys.toSet(),
@@ -141,78 +139,84 @@ void main() {
 
     for (final key in expectedTitles.keys) {
       expect(
-        find.byKey(maatFlowCatalogCardKeyForTesting(key)),
+        find.byKey(ValueKey<String>('maat-flow-discovery-card-$key')),
         findsOneWidget,
         reason: key,
       );
     }
     for (final key in <String>[
-      'the-course',
-      'the-moon-return',
-      'the-decan-watch',
-      'the-open-hand',
-      'evening_threshold',
+      'dawn-house-rite',
+      'evening-threshold-rite',
+      'the-weighing',
+      'the-kept-word',
+      'the-tending',
+      'the-first-arrangement',
+      'the-clearing',
+      'the-wag',
+      'the-days-outside-the-year',
     ]) {
       expect(
-        find.byKey(maatFlowCatalogCardKeyForTesting(key)),
+        find.byKey(ValueKey<String>('maat-flow-discovery-card-$key')),
         findsNothing,
         reason: key,
       );
     }
-    expect(find.byKey(kMaatFlowCategoryDailyRhythmTabKey), findsOneWidget);
-    expect(find.byKey(kMaatFlowCategoryInnerWorkTabKey), findsOneWidget);
-    expect(find.byKey(kMaatFlowCategoryLivingInMaatTabKey), findsOneWidget);
+    expect(find.byKey(kMaatFlowCategoryDailyRhythmTabKey), findsNothing);
+    expect(find.byKey(kMaatFlowCategoryInnerWorkTabKey), findsNothing);
+    expect(find.byKey(kMaatFlowCategoryLivingInMaatTabKey), findsNothing);
   });
 
-  testWidgets('Ma’at flows list groups joined flows above waiting flows', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(786, 1566);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'discovery remains a four-flow catalog regardless of joined rows',
+    (tester) async {
+      tester.view.physicalSize = const Size(786, 1566);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: buildMaatFlowsListPreviewForTesting(
-          joinedKeys: const <String>{'the-weighing', 'track-the-sky'},
-          completionCounts: const <String, (int total, int remaining)>{
-            'the-weighing': (12, 7),
-            'track-the-sky': (10, 4),
-          },
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: buildMaatFlowsListPreviewForTesting(
+            joinedKeys: const <String>{'track-the-sky'},
+            completionCounts: const <String, (int total, int remaining)>{
+              'track-the-sky': (10, 4),
+            },
+          ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-    final exception = tester.takeException();
-    if (exception is FlutterError) {
-      for (final diagnostic in exception.diagnostics) {
-        debugPrint(diagnostic.toStringDeep());
+      final exception = tester.takeException();
+      if (exception is FlutterError) {
+        for (final diagnostic in exception.diagnostics) {
+          debugPrint(diagnostic.toStringDeep());
+        }
       }
-    }
-    expect(exception, isNull);
-    expect(find.text("Ma'at Flows"), findsOneWidget);
-    expect(find.text('NOT YET JOINED'), findsOneWidget);
-    expect(find.text('DAILY RHYTHM'), findsOneWidget);
-    expect(find.text('INNER WORK'), findsOneWidget);
-    expect(find.text("LIVING IN MA'AT"), findsOneWidget);
-    expect(find.text('5 of 12'), findsOneWidget);
-    expect(find.text('6 of 10'), findsOneWidget);
-    expect(find.text('3 of 10'), findsNothing);
-    expect(find.text('30%'), findsNothing);
-    expect(find.text('The Weighing'), findsOneWidget);
-    expect(find.text('Follow the Sky'), findsOneWidget);
-    expect(find.text('Dawn House Rite'), findsOneWidget);
-  });
+      expect(exception, isNull);
+      expect(find.text('Flows'), findsOneWidget);
+      expect(find.text('NOT YET JOINED'), findsNothing);
+      expect(find.text('6 of 10'), findsNothing);
+      expect(find.text('Follow the Sky'), findsOneWidget);
+      expect(find.text('The Weighing'), findsNothing);
+      final djedCard = find.byKey(
+        const ValueKey<String>('maat-flow-discovery-card-the-djed'),
+      );
+      await tester.scrollUntilVisible(
+        djedCard,
+        500,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(djedCard, findsOneWidget);
+    },
+  );
 
   testWidgets(
     'Ma’at flow cards show the complete description and grow when it wraps',
     (tester) async {
       const description =
-          'Major turnings in the sky carry a meaning. Attach your own intention to that meaning.';
+          'The sky keeps moving. What you’re working toward moves with it.';
       tester.view.physicalSize = const Size(760, 1000);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -230,13 +234,9 @@ void main() {
 
       final descriptionFinder = find.text(description);
       expect(descriptionFinder, findsOneWidget);
-      final descriptionText = tester.widget<Text>(descriptionFinder);
-      expect(descriptionText.maxLines, isNull);
-      expect(descriptionText.overflow, isNull);
-
-      final cardFinder = find
-          .ancestor(of: descriptionFinder, matching: find.byType(InkWell))
-          .first;
+      final cardFinder = find.byKey(
+        const ValueKey<String>('maat-flow-discovery-card-track-the-sky'),
+      );
       final wideCardHeight = tester.getSize(cardFinder).height;
 
       tester.view.physicalSize = const Size(393, 1000);
@@ -252,7 +252,7 @@ void main() {
     'Offering identity and full description remain clear at mobile widths',
     (tester) async {
       const description =
-          'Notice what needs to be fed. Name an intention, make one small act of provision, then drink the water.';
+          'Declare your intention before the day asks anything of you.';
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -264,9 +264,6 @@ void main() {
             debugShowCheckedModeBanner: false,
             home: buildMaatFlowsListPreviewForTesting(
               joinedKeys: const <String>{'the-offering-table'},
-              completionCounts: const <String, (int total, int remaining)>{
-                'the-offering-table': (30, 29),
-              },
             ),
           ),
         );
@@ -274,13 +271,10 @@ void main() {
 
         final descriptionFinder = find.text(description);
         final cardFinder = find.byKey(
-          maatFlowCatalogCardKeyForTesting('the-offering-table'),
+          const ValueKey<String>('maat-flow-discovery-card-the-offering-table'),
         );
         expect(descriptionFinder, findsOneWidget);
-        expect(find.text('1 of 30'), findsOneWidget);
-        final descriptionText = tester.widget<Text>(descriptionFinder);
-        expect(descriptionText.maxLines, isNull);
-        expect(descriptionText.overflow, isNull);
+        expect(find.text('1 of 30'), findsNothing);
         expect(
           tester
               .getRect(cardFinder)
@@ -297,7 +291,7 @@ void main() {
     },
   );
 
-  testWidgets('Ma’at not-yet-joined category tabs filter and toggle', (
+  testWidgets('archived flows and old category tabs stay out of discovery', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 2200);
@@ -313,43 +307,30 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Dawn House Rite'), findsOneWidget);
-    expect(find.text('Follow the Sky'), findsOneWidget);
-    expect(find.text('The Weighing'), findsOneWidget);
-
-    await tester.tap(find.byKey(kMaatFlowCategoryInnerWorkTabKey));
-    await tester.pumpAndSettle();
-
-    expect(find.text('The Weighing'), findsOneWidget);
     expect(find.text('Dawn House Rite'), findsNothing);
-    expect(find.text('Follow the Sky'), findsNothing);
-
-    await tester.tap(find.byKey(kMaatFlowCategoryInnerWorkTabKey));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Dawn House Rite'), findsOneWidget);
     expect(find.text('Follow the Sky'), findsOneWidget);
-    expect(find.text('The Weighing'), findsOneWidget);
+    expect(find.text('The Weighing'), findsNothing);
+    expect(find.byKey(kMaatFlowCategoryInnerWorkTabKey), findsNothing);
   });
 
-  testWidgets(
-    'Ma’at joined card without counts shows active, not fake progress',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: buildMaatFlowsListPreviewForTesting(
-            joinedKeys: const <String>{'the-weighing', 'track-the-sky'},
-          ),
+  testWidgets('joined state does not alter the approved discovery cards', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: buildMaatFlowsListPreviewForTesting(
+          joinedKeys: const <String>{'track-the-sky'},
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      expect(find.text('active'), findsWidgets);
-      expect(find.text('3 of 10'), findsNothing);
-      expect(find.text('30%'), findsNothing);
-    },
-  );
+    expect(find.text('active'), findsNothing);
+    expect(find.text('3 of 10'), findsNothing);
+    expect(find.text('30%'), findsNothing);
+    expect(find.text('Follow the Sky'), findsOneWidget);
+  });
 
   testWidgets('Ma’at flows back button delegates to route close handler', (
     tester,
@@ -400,13 +381,13 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
-    expect(find.text("Ma'at Flows"), findsOneWidget);
+    expect(find.text('Flows'), findsOneWidget);
     await tester.tap(find.byTooltip('Back'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.text('Flow Studio hub'), findsOneWidget);
-    expect(find.text("Ma'at Flows"), findsNothing);
+    expect(find.text('Flows'), findsNothing);
   });
 
   testWidgets(
@@ -445,12 +426,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text("Ma'at Flows"), findsOneWidget);
+      expect(find.text('Flows'), findsOneWidget);
       await tester.tap(find.byTooltip('Back'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text("Ma'at Flows"), findsNothing);
+      expect(find.text('Flows'), findsNothing);
       expect(find.text('Open Ma’at flows'), findsOneWidget);
     },
   );
@@ -471,13 +452,13 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byTooltip('New flow'));
+    await tester.tap(find.byTooltip('Create a flow'));
     await tester.pump();
 
     expect(createCount, 1);
   });
 
-  testWidgets('The Weighing detail lays out its overview body', (tester) async {
+  testWidgets('The Djed detail uses the approved v2 visual', (tester) async {
     tester.view.physicalSize = const Size(768, 1536);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.resetPhysicalSize);
@@ -486,14 +467,17 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: buildMaatFlowTemplateDetailPreviewForTesting(),
+        home: buildMaatFlowTemplateDetailPreviewForTesting(
+          templateKey: 'the-djed',
+        ),
       ),
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Sit with what is true.'), findsOneWidget);
-    expect(find.text('THREE-DECAN ARC'), findsOneWidget);
-    expect(find.text('Join Flow'), findsOneWidget);
+    expect(find.text('The Djed'), findsOneWidget);
+    expect(find.text('4 SUPPORTS'), findsOneWidget);
+    expect(find.text('9 SITTINGS'), findsOneWidget);
+    expect(find.text('Join Flow'), findsNothing);
   });
 
   testWidgets(
@@ -503,86 +487,58 @@ void main() {
         MaterialApp(
           debugShowCheckedModeBanner: false,
           home: buildMaatFlowTemplateDetailPreviewForTesting(
-            templateKey: 'the-course',
+            templateKey: 'the-djed',
             joinedStartDate: DateTime(2026, 9, 1),
           ),
         ),
       );
 
-      expect(find.text('Joined'), findsOneWidget);
-      final button = tester.widget<ElevatedButton>(
-        find.ancestor(
-          of: find.text('Joined'),
-          matching: find.byType(ElevatedButton),
-        ),
+      expect(find.text('Carried in My Flows'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('djed-carried')),
+        findsOneWidget,
       );
-      expect(button.onPressed, isNull);
     },
   );
 
-  testWidgets(
-    'The Course ignores a second join tap while the first is pending',
-    (tester) async {
-      final pendingJoin = Completer<int>();
-      var joinCalls = 0;
-      await tester.pumpWidget(
-        MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: buildMaatFlowTemplateDetailPreviewForTesting(
-            templateKey: 'the-course',
-            onJoin: () {
-              joinCalls += 1;
-              return pendingJoin.future;
-            },
-          ),
+  testWidgets('discovery opens only the selected active flow', (tester) async {
+    final opened = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: buildMaatFlowsListPreviewForTesting(
+          onPickTemplate: (key) async {
+            opened.add(key);
+            return null;
+          },
         ),
-      );
+      ),
+    );
 
-      final joinButton = find.text('Join Flow');
-      await tester.tap(joinButton);
-      await tester.tap(joinButton);
-      await tester.pump();
+    final button = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-open-track-the-sky'),
+    );
+    await tester.tap(button);
+    await tester.pump();
+    expect(opened, <String>['track-the-sky']);
+  });
 
-      expect(joinCalls, 1);
-      expect(find.text('Joining…'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'join result does not impersonate the persisted active instance',
-    (tester) async {
-      Future<int?> joinTemplate(String key) async {
-        return key == 'dawn-house-rite' ? 441 : null;
-      }
-
-      await tester.pumpWidget(
-        MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: buildMaatFlowsListPreviewForTesting(
-            onPickTemplate: joinTemplate,
-          ),
+  testWidgets('archived joined keys cannot reappear through discovery state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: buildMaatFlowsListPreviewForTesting(
+          joinedKeys: const <String>{'dawn-house-rite'},
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      expect(find.text('active'), findsNothing);
-      await tester.tap(find.text('Dawn House Rite'));
-      await tester.pumpAndSettle();
-      expect(find.text('active'), findsNothing);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: buildMaatFlowsListPreviewForTesting(
-            joinedKeys: const <String>{'dawn-house-rite'},
-            onPickTemplate: joinTemplate,
-          ),
-        ),
-      );
-      await tester.pump();
-
-      expect(find.text('active'), findsOneWidget);
-      expect(find.text('NOT YET JOINED'), findsOneWidget);
-    },
-  );
+    expect(find.text('Dawn House Rite'), findsNothing);
+    expect(find.text('The Weighing'), findsNothing);
+    expect(find.text('Follow the Sky'), findsOneWidget);
+    expect(coreMaatFlowTemplateKeysForTesting(), hasLength(4));
+  });
 }

@@ -319,7 +319,7 @@ void main() {
   );
 
   testWidgets(
-    'Ma’at payload renders canonical Ma’at detail before custom policy',
+    'archived Ma’at payload renders read-only history before custom policy',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -348,7 +348,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('Dawn House Rite'), findsWidgets);
-      expect(find.text('Join Flow'), findsOneWidget);
+      expect(find.text('This flow is archived'), findsOneWidget);
+      expect(find.textContaining('Join'), findsNothing);
       expect(find.text('Remove from profile'), findsNothing);
       expect(find.text('Overview'), findsNothing);
     },

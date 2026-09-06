@@ -4,7 +4,7 @@ import 'package:mobile/features/calendar/calendar_event_visual_style.dart';
 
 void main() {
   group('CalendarEventVisualStyle', () {
-    test('The Weighing detail surface preserves the event block palette', () {
+    test('archived flows use the generic historical event palette', () {
       final block = resolveCalendarEventVisualStyle(
         eventColor: Colors.red,
         eventTitle: 'Weighing 9: Seal the Record',
@@ -15,12 +15,9 @@ void main() {
       );
       final detail = block.asDetailSurface();
 
-      expect(block.graphic?.kind, CalendarEventGraphicKind.theWeighing);
-      expect(block.paletteKey, 'graphic:theWeighing');
+      expect(block.graphic, isNull);
       expect(detail.paletteKey, block.paletteKey);
       expect(detail.graphic, same(block.graphic));
-      expect(_isRedOrange(block.source), isFalse);
-      expect(_isRedOrange(detail.source), isFalse);
       expect(_hueDistance(block.source, detail.source), lessThan(3));
     });
 
@@ -71,14 +68,12 @@ void main() {
           flowName: 'Dawn House Rite',
           eventTitle: 'Day 1: Open the House',
           eventColor: Colors.orange,
-          graphicKind: CalendarEventGraphicKind.dawnHouseRite,
         ),
         _PaletteCase(
           label: 'Evening Threshold Rite',
           flowName: 'The Closing',
           eventTitle: 'Day 1: Close the threshold',
           eventColor: Colors.deepPurple,
-          graphicKind: CalendarEventGraphicKind.eveningThresholdRite,
         ),
         _PaletteCase(
           label: 'Generated flow',
@@ -149,11 +144,6 @@ class _PaletteCase {
   final CalendarEventGraphicKind? graphicKind;
   final bool isReminder;
   final bool isNutrition;
-}
-
-bool _isRedOrange(Color color) {
-  final hue = HSLColor.fromColor(color).hue;
-  return hue <= 32 || hue >= 342;
 }
 
 double _hueDistance(Color a, Color b) {

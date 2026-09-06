@@ -4,127 +4,87 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'Ma_at generic date picker routes only through Stone Register wrapper',
+    'retained authoring date pickers route through the shared wrapper',
     () async {
-      final source = await File(
-        'lib/features/calendar/calendar_maat_flows.dart',
+      final readingHouse = await File(
+        'lib/features/calendar/the_reading_house/presentation/'
+        'reading_house_sitting_editor.dart',
       ).readAsString();
-      final picker = _sourceBetween(
-        source,
+      final offeringTable = await File(
+        'lib/features/calendar/the_offering_table/presentation/'
+        'offering_table_detail_page.dart',
+      ).readAsString();
+      final readingPicker = _sourceBetween(
+        readingHouse,
         'Future<void> _pickDate() async',
-        'Future<void> _pickMoonReturnWindowDate() async',
+        'Future<void> _pickTime() async',
+      );
+      final offeringPicker = _sourceBetween(
+        offeringTable,
+        'Future<void> _pickStartDate() async',
+        'List<OfferingTablePreviewOccurrence> _previewOccurrences()',
       );
 
-      expect(picker, contains('MaatFlowDatePicker.show'));
-      expect(picker, contains('initialDate: _picked'));
-      expect(picker, contains('initialMode: _useKemetic'));
-      expect(picker, contains('MaatFlowDatePickerMode.kemetic'));
-      expect(picker, contains('MaatFlowDatePickerMode.gregorian'));
-      expect(picker, contains('_picked = DateUtils.dateOnly(picked.date)'));
-      expect(picker, contains('_markGenericMaatStartDateTouched()'));
-      expect(picker, isNot(contains('CupertinoPicker')));
-      expect(picker, isNot(contains('FixedExtentScrollController')));
-      expect(picker, isNot(contains('showModalBottomSheet')));
-      expect(picker, isNot(contains('Use this date')));
-      expect(_occurrences(source, 'MaatFlowDatePicker.show'), 1);
+      expect(readingPicker, contains('MaatFlowDatePicker.show'));
+      expect(readingPicker, contains('initialDate: _scheduledDate'));
+      expect(readingPicker, contains('MaatFlowDatePickerMode.kemetic'));
+      expect(readingPicker, contains('DateUtils.dateOnly(picked.date)'));
+      expect(offeringPicker, contains('MaatFlowDatePicker.show'));
+      expect(offeringPicker, contains('initialDate: _startDate'));
+      expect(offeringPicker, contains('MaatFlowDatePickerMode.gregorian'));
+      expect(offeringPicker, contains('lockExplicitDate(result.date)'));
+      for (final picker in <String>[readingPicker, offeringPicker]) {
+        expect(picker, isNot(contains('CupertinoPicker')));
+        expect(picker, isNot(contains('showDatePicker(')));
+        expect(picker, isNot(contains('showModalBottomSheet')));
+      }
     },
   );
 
   test(
-    'Ma_at window-only pickers remain outside generic date migration',
+    'retired window-only pickers are absent from active detail authority',
     () async {
-      final source = await File(
-        'lib/features/calendar/calendar_maat_flows.dart',
+      final active = await File(
+        'lib/features/calendar/calendar_active_maat_flows.dart',
       ).readAsString();
-      final picker = _sourceBetween(
-        source,
-        'Future<void> _pickDate() async',
-        'Future<void> _pickMoonReturnWindowDate() async',
-      );
-      final wrapperIndex = picker.indexOf('MaatFlowDatePicker.show');
 
-      for (final call in <String>[
+      for (final retiredPicker in <String>[
         '_pickMoonReturnWindowDate',
         '_pickWagWindowDate',
         '_pickDecanWatchWindowDate',
         '_pickDaysOutsideYearWindowDate',
         '_pickOpenHandWindowDate',
-        '_pickDjedWindowDate',
         '_pickMaatDecanWindowDate',
       ]) {
-        final index = picker.indexOf(call);
-        expect(index, isNonNegative, reason: '$call should remain routed');
-        expect(
-          index,
-          lessThan(wrapperIndex),
-          reason: '$call must stay special',
-        );
+        expect(active, isNot(contains(retiredPicker)), reason: retiredPicker);
       }
-
-      for (final functionName in <String>[
-        '_pickMoonReturnWindowDate',
-        '_pickWagWindowDate',
-        '_pickDecanWatchWindowDate',
-        '_pickDaysOutsideYearWindowDate',
-        '_pickOpenHandWindowDate',
-        '_pickDjedWindowDate',
-        '_pickMaatDecanWindowDate',
-      ]) {
-        final windowPicker = _sourceBetween(
-          source,
-          'Future<void> $functionName() async',
-          functionName == '_pickMaatDecanWindowDate'
-              ? 'Future<void> _pickDaysOutsideYearWindowDate() async'
-              : _nextWindowPickerMarker(functionName),
-        );
-        expect(windowPicker, contains('window.opensAtLocal'));
-        expect(windowPicker, contains('ListView.separated'));
-        expect(windowPicker, isNot(contains('MaatFlowDatePicker.show')));
-      }
+      expect(active, contains('Widget _buildDjed()'));
+      expect(active, contains('djedNextEnrollmentWindow'));
     },
   );
 
-  test('Ma_at touched flags and join state remain caller-owned', () async {
-    final source = await File(
-      'lib/features/calendar/calendar_maat_flows.dart',
+  test('retained picker state remains owned by each flow surface', () async {
+    final offeringTable = await File(
+      'lib/features/calendar/the_offering_table/presentation/'
+      'offering_table_detail_page.dart',
     ).readAsString();
-    final picker = _sourceBetween(
-      source,
-      'Future<void> _pickDate() async',
-      'Future<void> _pickMoonReturnWindowDate() async',
-    );
-    final startRow = _sourceBetween(
-      source,
-      'Widget _buildStartDateRow',
-      'Widget _buildDetailChoiceChips',
-    );
-    final sequenceJoin = _sourceBetween(
-      source,
-      'Widget _buildSequenceScaffold(BuildContext context)',
-      '@override\n  Widget build(BuildContext context)',
-    );
+    final readingHouse = await File(
+      'lib/features/calendar/the_reading_house/presentation/'
+      'reading_house_sitting_editor.dart',
+    ).readAsString();
 
-    // Lock semantics are exercised behaviorally by the shared temporal
-    // controller tests. This guard keeps the picker and Carry call sites on
-    // that authority without requiring the obsolete page-local flag shape.
-    expect(
-      picker,
-      contains('_temporalController.lockExplicitDate(picked.date)'),
-    );
-    expect(source, contains('_temporalController.startDateForCarry'));
-    expect(source, contains('_temporalController.lockCarried('));
-    expect(startRow, contains('onPressed: _pickDate'));
-    expect(startRow, contains('minimumSize: const Size.fromHeight(60)'));
-    expect(sequenceJoin, contains('startDate: _picked!'));
-    expect(sequenceJoin, contains('useKemetic: _useKemetic'));
-    expect(sequenceJoin, contains('_startDateButtonLabel(context, _picked!)'));
+    expect(offeringTable, contains('_temporalController.lockExplicitDate'));
+    expect(offeringTable, contains('_temporalController.startDateForCarry'));
+    expect(offeringTable, contains('_temporalController.lockCarried('));
+    expect(readingHouse, contains('_placementChosen = true'));
+    expect(readingHouse, contains('_scheduledDate = DateUtils.dateOnly'));
   });
 
   test(
     'Ma_at completion, journal badge, palette, sizing, and scroll contracts remain intact',
     () async {
-      final source = await File(
-        'lib/features/calendar/calendar_maat_flows.dart',
+      final detailShell = await File(
+        'lib/features/calendar/presentation/maat_flow_detail_shell.dart',
       ).readAsString();
       final dayView = await File(
         'lib/features/calendar/day_view.dart',
@@ -133,19 +93,16 @@ void main() {
         'lib/features/calendar/calendar_completion.dart',
       ).readAsString();
 
-      final detailScaffold = _sourceBetween(
-        source,
-        'Widget _buildMaatFlowDetailScaffold',
-        'List<Widget> _buildMaatFlowOverviewZones',
+      expect(detailShell, contains('class MaatFlowDetailShell'));
+      expect(detailShell, contains('CustomScrollView('));
+      expect(detailShell, contains('MaatFlowDetailGeometry.heroHeight'));
+      expect(
+        detailShell,
+        contains('MaatFlowDetailGeometry.bottomContentClearance'),
       );
-      expect(source, contains('MaatFlowPalette get _palette'));
-      expect(detailScaffold, contains('final scrollBottomPadding ='));
-      expect(detailScaffold, contains('MaatFlowListTokens.pageBg'));
-      expect(detailScaffold, contains('ListView('));
-      expect(detailScaffold, contains('final bodyPadding = embedded'));
-      expect(detailScaffold, contains('final ctaPadding = embedded'));
-      expect(detailScaffold, contains('bottomNavigationBar: SafeArea'));
-      expect(detailScaffold, contains('BoxConstraints(maxWidth: 720)'));
+      expect(detailShell, contains('keyboardIsVisible(context)'));
+      expect(detailShell, contains('child: SafeArea('));
+      expect(detailShell, contains('top: false'));
 
       expect(dayView, contains('class _MaatFlowCompletionPanel'));
       expect(dayView, contains('CalendarCompletionPicker'));
@@ -171,34 +128,10 @@ void main() {
   });
 }
 
-String _nextWindowPickerMarker(String functionName) {
-  return switch (functionName) {
-    '_pickMoonReturnWindowDate' => 'Future<void> _pickWagWindowDate() async',
-    '_pickWagWindowDate' => 'Future<void> _pickDecanWatchWindowDate() async',
-    '_pickDecanWatchWindowDate' =>
-      'Future<void> _pickOpenHandWindowDate() async',
-    '_pickDaysOutsideYearWindowDate' => 'void _setTrackSkyPreviewTimeZone',
-    '_pickOpenHandWindowDate' => 'Future<void> _pickDjedWindowDate() async',
-    '_pickDjedWindowDate' => 'Future<void> _pickMaatDecanWindowDate() async',
-    _ => throw ArgumentError.value(functionName, 'functionName'),
-  };
-}
-
 String _sourceBetween(String source, String startNeedle, String endNeedle) {
   final start = source.indexOf(startNeedle);
   expect(start, isNonNegative, reason: 'Missing start needle: $startNeedle');
   final end = source.indexOf(endNeedle, start + startNeedle.length);
   expect(end, isNonNegative, reason: 'Missing end needle: $endNeedle');
   return source.substring(start, end);
-}
-
-int _occurrences(String source, String needle) {
-  var count = 0;
-  var index = 0;
-  while (true) {
-    index = source.indexOf(needle, index);
-    if (index < 0) return count;
-    count += 1;
-    index += needle.length;
-  }
 }

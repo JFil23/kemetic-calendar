@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/the_course_context.dart';
@@ -232,40 +234,39 @@ void main() {
     },
   );
 
-  test('source wires template, window-only picker, and rolling ids', () {
-    final calendarPage = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
-    final joinService = File(
-      'lib/features/calendar/flow_join_service.dart',
-    ).readAsStringSync();
-    final enrollmentSource = File(
-      'lib/features/calendar/the_decan_watch_enrollment.dart',
-    ).readAsStringSync();
-    final detailPage = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
-    ).readAsStringSync();
-    final dayView = File(
-      'lib/features/calendar/day_view.dart',
-    ).readAsStringSync();
+  test(
+    'Decan Watch is absorbed while historical response state stays legible',
+    () {
+      final activeSource = File(
+        'lib/features/calendar/calendar_active_maat_flows.dart',
+      ).readAsStringSync();
+      final joinService = File(
+        'lib/features/calendar/flow_join_service.dart',
+      ).readAsStringSync();
+      final enrollmentSource = File(
+        'lib/features/calendar/the_decan_watch_enrollment.dart',
+      ).readAsStringSync();
+      final dayView = File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync();
 
-    expect(calendarPage, contains('_MaatFlowTemplateKind.decanWatch'));
-    expect(calendarPage, contains('joinDecanWatchHeadless'));
-    expect(joinService, contains('resolveDecanWatchEnrollmentWindowSafely'));
-    expect(enrollmentSource, contains('decanWatchNextEnrollmentWindow'));
-    expect(
-      enrollmentSource,
-      contains('decanWatchEnrollmentWindowForStartDate'),
-    );
-    expect(calendarPage, isNot(contains('decanWatchEnrollmentIsOpen')));
-    expect(joinService, contains('decanWatchClientEventId'));
-    expect(joinService, contains('stagePlannedNotesAndDeferPersist('));
-    expect(detailPage, contains('_pickDecanWatchWindowDate'));
-    expect(detailPage, contains('designated decan-opening enrollment windows'));
-    expect(detailPage, contains('Add Flow'));
-    expect(detailPage, isNot(contains("'KYear ")));
-    expect(dayView, contains('DecanWatchLocalStore'));
-    expect(dayView, contains('_persistDecanWatchResponseValues'));
-    expect(dayView, isNot(contains('Kemetic Year')));
-  });
+      final entry = maatFlowCatalogEntry(MaatFlowKind.decanWatch);
+      expect(entry.status, MaatFlowCatalogStatus.absorbed);
+      expect(entry.isDiscoverable, isFalse);
+      expect(entry.isJoinable, isFalse);
+      expect(entry.isCompatibilitySupported, isFalse);
+      expect(activeSource, isNot(contains('_pickDecanWatchWindowDate')));
+      expect(activeSource, isNot(contains('_buildDecanWatchScaffold')));
+      expect(joinService, contains('resolveDecanWatchEnrollmentWindowSafely'));
+      expect(enrollmentSource, contains('decanWatchNextEnrollmentWindow'));
+      expect(
+        enrollmentSource,
+        contains('decanWatchEnrollmentWindowForStartDate'),
+      );
+      expect(joinService, contains('decanWatchClientEventId'));
+      expect(dayView, contains('DecanWatchLocalStore'));
+      expect(dayView, contains('_persistDecanWatchResponseValues'));
+      expect(dayView, isNot(contains('Kemetic Year')));
+    },
+  );
 }

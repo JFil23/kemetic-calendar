@@ -250,7 +250,7 @@ A strong year does not begin with perfection. It begins with truthful correction
   // 🌿 ŠEF-BEDET I — DAYS 1–10  (First Decan - knmw)
   // ==========================================================
   'sefbedet_1_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 1 (Day 1 of Šef-Bedet)',
+    kemeticDate: 'Šef-Bedet I, Day 1',
     season: '🌱 Peret – Emergence Season',
     month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
@@ -1127,7 +1127,7 @@ Only what is seen in full can be tended well. The knowing comes before the stead
   // 🌿 ŠEF-BEDET II — DAYS 11–20  (Second Decan - smd srt)
   // ==========================================================
   'sefbedet_11_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 11 (Day 11 of Šef-Bedet)',
+    kemeticDate: 'Šef-Bedet II, Day 11',
     season: '🌱 Peret – Emergence Season',
     month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
@@ -1947,7 +1947,7 @@ Good tending looks past the present moment. It prepares for the weather that has
         '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
     maatPrinciple: 'Justice Keeps the Field from Bitterness',
     cosmicContext:
-        '''At the edge of two plots, elders judge a boundary stone shifted by water. No blade is drawn. No voice wins by loudness. They remember old marks, listen to both houses, and set the stone again. Justice is also fieldwork. It keeps tomorrow from being poisoned. When the stone stands again, no one has won. Two houses have been spared from teaching their children to hate a furrow.''',
+        '''At the edge of two plots, elders judge a boundary stone shifted by water. They remember old marks, listen to both houses, and set the stone again. Justice is also fieldwork. It keeps tomorrow from being poisoned. When the stone stands again, no one has won. Two houses have been spared from teaching their children to hate a furrow.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -2031,7 +2031,7 @@ Good tending looks past the present moment. It prepares for the weather that has
   // 🌿 ŠEF-BEDET III — DAYS 21–30  (Third Decan - srt)
   // ==========================================================
   'sefbedet_21_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 21 (Day 21 of Šef-Bedet)',
+    kemeticDate: 'Šef-Bedet III, Day 21',
     season: '🌱 Peret – Emergence Season',
     month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',

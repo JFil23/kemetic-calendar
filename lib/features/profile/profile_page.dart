@@ -6140,6 +6140,7 @@ class _ProfilePageState extends State<ProfilePage>
   }) {
     final title = cleanFlowTitle(post.name);
     final overview = cleanFlowOverview(post.notes);
+    final sharedNote = post.sharedNote;
     final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
     final headerContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -6204,6 +6205,20 @@ class _ProfilePageState extends State<ProfilePage>
             ),
           ],
         ),
+        if (sharedNote != null) ...[
+          const SizedBox(height: 16),
+          Text(
+            sharedNote,
+            maxLines: inPager ? 5 : 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.92),
+              fontSize: 16,
+              fontStyle: FontStyle.italic,
+              height: 1.28,
+            ),
+          ),
+        ],
         if (overview.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text(

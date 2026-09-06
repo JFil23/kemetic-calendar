@@ -94,7 +94,7 @@ void main() {
     expect(GuidedOnboardingController.instance.target, isNull);
   });
 
-  testWidgets('route-backed Ma at detail back returns to list before hub', (
+  testWidgets('route-backed detail returns to four-flow discovery before hub', (
     tester,
   ) async {
     await _seedCompletedOnboarding(
@@ -113,7 +113,7 @@ void main() {
 
     final listAppBar = find.widgetWithText(
       AppBar,
-      "Ma'at Flows",
+      'Flows',
       skipOffstage: false,
     );
     final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
@@ -133,7 +133,7 @@ void main() {
     expect(find.byKey(const ValueKey<String>('follow-sky-back')), findsNothing);
     expect(listRoute.isCurrent, isTrue);
     expect(detailRoute.isCurrent, isFalse);
-    expect(find.text("Ma'at Flows"), findsOneWidget);
+    expect(find.text('Flows'), findsOneWidget);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();

@@ -13,7 +13,7 @@ void main() {
         'Future<FlowJoinResult> joinMoonReturnHeadless',
       );
       final end = source.indexOf(
-        'Future<FlowJoinResult> joinWagHeadless',
+        'Future<FlowJoinResult> joinDecanWatchHeadless',
         start,
       );
 

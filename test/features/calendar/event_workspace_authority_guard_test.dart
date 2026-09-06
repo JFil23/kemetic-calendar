@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// appears. Empty prefix is not an allowlist hole.
 void main() {
   late String dayView;
+  late String presentationFrame;
   late String calendarPage;
   late String externalLinks;
   late String restoration;
@@ -20,6 +21,9 @@ void main() {
 
   setUpAll(() {
     dayView = File('lib/features/calendar/day_view.dart').readAsStringSync();
+    presentationFrame = File(
+      'lib/features/calendar/presentation/instrument_event_presentation_frame.dart',
+    ).readAsStringSync();
     eventResource = File(
       'lib/features/calendar/event_resource.dart',
     ).readAsStringSync();
@@ -69,8 +73,11 @@ void main() {
         dayView,
         contains('class CalendarEventDetailSheet extends StatefulWidget'),
       );
-      expect(dayView, contains('class CalendarEventDetailSheetCoordinator'));
-      expect(dayView, contains('static bool tryMarkOpenOrOpening()'));
+      expect(
+        presentationFrame,
+        contains('class CalendarEventDetailSheetCoordinator'),
+      );
+      expect(presentationFrame, contains('static bool tryMarkOpenOrOpening()'));
       expect(calendarPage, contains('CalendarEventDetailSheet('));
       expect(
         File(
@@ -192,7 +199,9 @@ void main() {
     expect(mutation, contains('canonicalEnd: persistedEnd'));
     expect(
       mutation,
-      contains('event.allDay || event.isReminder || !event.hasCanonicalSchedule'),
+      contains(
+        'event.allDay || event.isReminder || !event.hasCanonicalSchedule',
+      ),
     );
     expect(mutation, contains('_repeatingNoteFlowForId(event.flowId)'));
     expect(mutation, isNot(contains('23 * 60 + 59')));

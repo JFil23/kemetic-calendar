@@ -2285,6 +2285,56 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     final currentFlow = _flowSequence[_currentIndex];
     final currentMeta = _metaFor(currentFlow);
     final currentEvents = _eventsByFlow[currentFlow.id] ?? const [];
+    final currentKind = resolveMaatFlowKind(
+      flowName: currentFlow.name,
+      flowNotes: currentFlow.notes,
+      behaviorPayload: currentMeta.maatKey == null
+          ? null
+          : <String, dynamic>{'flow_key': currentMeta.maatKey},
+    );
+    if (currentKind != null &&
+        kArchivedCompatibilityMaatFlowKinds.contains(currentKind)) {
+      final canEnd =
+          widget.mode == _FlowPreviewMode.active &&
+          currentFlow.active &&
+          widget.onEndMaatFlow != null;
+      return ArchivedMaatFlowDetailView(
+        fixture: CalendarPage._archivedMaatFlowFixtureFromRows(
+          kind: currentKind,
+          flow: currentFlow,
+          events: currentEvents,
+        ),
+        legacyLocalStateFlowId: currentFlow.id,
+        onEndOrLeave: canEnd
+            ? () {
+                if (_endingFlowIds.contains(currentFlow.id)) return;
+                final navigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
+                setState(() => _endingFlowIds.add(currentFlow.id));
+                unawaited(() async {
+                  try {
+                    final operation = widget.onEndMaatFlow!(currentFlow);
+                    if (navigator.mounted) await navigator.maybePop();
+                    final result = await operation;
+                    if (result.result != EndFlowActionResult.success) {
+                      if (!messenger.mounted) return;
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(endFlowFailureDisplayMessage(result)),
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) {
+                      setState(() => _endingFlowIds.remove(currentFlow.id));
+                    }
+                  }
+                }());
+              }
+            : null,
+        onDismiss: () => unawaited(Navigator.of(context).maybePop()),
+      );
+    }
     final currentReminderRule = _reminderRuleFromFlow(currentFlow);
     final usesDashboard = _usesDashboardBody(currentFlow, currentReminderRule);
     final isMaatInstance = currentMeta.maatKey != null;
@@ -2990,18 +3040,12 @@ class _MyFlowDayContentCard extends StatelessWidget {
     required this.palette,
     required this.variant,
     required this.eyebrow,
-    this.body,
-    this.titleColor = const Color(0xFFF0D46E),
-    this.metadataColor = const Color(0xFF8F817A),
   });
 
   final _FlowDayContent content;
   final _MyFlowCardPalette palette;
   final _MyFlowDayCardVariant variant;
   final String eyebrow;
-  final Widget? body;
-  final Color titleColor;
-  final Color metadataColor;
 
   @override
   Widget build(BuildContext context) {
@@ -3089,7 +3133,7 @@ class _MyFlowDayContentCard extends StatelessWidget {
                   Text(
                     content.title,
                     style: TextStyle(
-                      color: titleColor,
+                      color: const Color(0xFFF0D46E),
                       fontFamily: MaatFlowListTokens.fontFamily,
                       fontFamilyFallback: MaatFlowListTokens.fontFallback,
                       fontSize: titleSize,
@@ -3101,7 +3145,7 @@ class _MyFlowDayContentCard extends StatelessWidget {
                   Text(
                     content.timeRange,
                     style: TextStyle(
-                      color: metadataColor,
+                      color: const Color(0xFF8F817A),
                       fontFamily: MaatFlowListTokens.fontFamily,
                       fontFamilyFallback: MaatFlowListTokens.fontFallback,
                       fontSize: 17,
@@ -3110,10 +3154,7 @@ class _MyFlowDayContentCard extends StatelessWidget {
                       height: 1.2,
                     ),
                   ),
-                  if (body != null) ...[
-                    const SizedBox(height: 28),
-                    body!,
-                  ] else if (content.body != null) ...[
+                  if (content.body != null) ...[
                     const SizedBox(height: 28),
                     RichText(
                       text: TextSpan(

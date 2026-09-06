@@ -2,26 +2,31 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
-import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
-import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/the_course_flow.dart';
-import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
-import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
-import 'package:mobile/features/calendar/the_tending_flow.dart';
-import 'package:mobile/features/calendar/the_wag_flow.dart';
-import 'package:mobile/features/calendar/the_weighing_flow.dart';
 
 void main() {
+  test('archived flows expose no prompt drafts to hydrate', () {
+    for (final kind in kArchivedCompatibilityMaatFlowKinds) {
+      expect(
+        resolveActiveMaatFlowInitialPromptSpec(flowKey: kind.flowKey),
+        isNull,
+        reason: kind.flowKey,
+      );
+    }
+  });
+
   test(
     'Moon Return initial prompt draft hydrates Day Sheet response specs',
     () {
@@ -86,70 +91,6 @@ void main() {
       'Write the answer plainly.',
     );
   });
-
-  test(
-    'Dawn House Rite initial prompt draft hydrates Day Sheet response specs',
-    () {
-      final store = MaatFlowResponseDraftStore();
-      final prompt = _prompt(kDawnHouseRiteFlowKey);
-      final sheet = _sheet(kDawnHouseRiteFlowKey);
-
-      store.rememberValue(
-        flowKey: prompt.flowKey,
-        value: MaatFlowResponseValue.text(
-          specId: 'dawn-house-order-act',
-          text: 'clear the table before sunrise',
-        ),
-      );
-
-      expect(
-        _textValue(store.valuesForSpecs(sheet)),
-        'clear the table before sunrise',
-      );
-
-      store.rememberValue(
-        flowKey: sheet.single.flowKey,
-        value: MaatFlowResponseValue.text(
-          specId: 'dawn-house-order-act',
-          text: 'wash the cup and return the cloth',
-        ),
-      );
-
-      expect(
-        _textValue(store.valuesForSpecs(prompt.fields)),
-        'wash the cup and return the cloth',
-      );
-    },
-  );
-
-  test('Closing initial prompt draft hydrates Day Sheet response specs', () {
-    final store = MaatFlowResponseDraftStore();
-    final prompt = _prompt(kEveningThresholdRiteFlowKey);
-    final sheet = _sheet(kEveningThresholdRiteFlowKey);
-
-    store.rememberValue(
-      flowKey: prompt.flowKey,
-      value: MaatFlowResponseValue.text(
-        specId: 'closing-release-tonight',
-        text: 'the unfinished worry',
-        multiline: true,
-      ),
-    );
-
-    expect(_textValue(store.valuesForSpecs(sheet)), 'the unfinished worry');
-
-    store.rememberValue(
-      flowKey: sheet.single.flowKey,
-      value: MaatFlowResponseValue.text(
-        specId: 'closing-release-tonight',
-        text: 'the old loop',
-        multiline: true,
-      ),
-    );
-
-    expect(_textValue(store.valuesForSpecs(prompt.fields)), 'the old loop');
-  });
-
   test('Offering Table prompt shares chip and text drafts with Day Sheet', () {
     final store = MaatFlowResponseDraftStore();
     final prompt = _prompt(kOfferingTableFlowKey);
@@ -195,58 +136,6 @@ void main() {
       'water, care, and rest',
     );
   });
-
-  test(
-    'First Arrangement prompt shares chip and text drafts with Day Sheet',
-    () {
-      final store = MaatFlowResponseDraftStore();
-      final prompt = _prompt(kFirstArrangementFlowKey);
-      final sheet = _sheet(kFirstArrangementFlowKey);
-
-      store.rememberValue(
-        flowKey: prompt.flowKey,
-        value: MaatFlowResponseValue.chips(
-          specId: 'first-arrangement-ordered',
-          optionIds: <String>['cleared', 'made_visible'],
-        ),
-      );
-      store.rememberValue(
-        flowKey: prompt.flowKey,
-        value: MaatFlowResponseValue.text(
-          specId: 'first-arrangement-space-changed',
-          text: 'the entry shelf',
-          multiline: true,
-        ),
-      );
-
-      final sheetValues = store.valuesForSpecs(sheet);
-      expect(sheetValues['first-arrangement-ordered']?.optionIds, <String>[
-        'cleared',
-        'made_visible',
-      ]);
-      expect(
-        sheetValues['first-arrangement-space-changed']?.text,
-        'the entry shelf',
-      );
-
-      store.rememberValue(
-        flowKey: sheet.first.flowKey,
-        value: MaatFlowResponseValue.text(
-          specId: 'first-arrangement-space-changed',
-          text: 'the desk and tray',
-          multiline: true,
-        ),
-      );
-
-      expect(
-        store
-            .valuesForSpecs(prompt.fields)['first-arrangement-space-changed']
-            ?.text,
-        'the desk and tray',
-      );
-    },
-  );
-
   test('Living Pattern prompt shares chip and text drafts with Day Sheet', () {
     final store = MaatFlowResponseDraftStore();
     final prompt = _prompt(kLivingPatternFlowKey);
@@ -410,49 +299,6 @@ void main() {
       updatedText: 'one restored load-bearing habit',
     );
   });
-
-  test('Tending prompt shares default-off care drafts with Day Sheet', () {
-    _expectChipTextDraftSharing(
-      flowKey: kTheTendingFlowKey,
-      chipSpecId: 'tending-care-specific',
-      initialOptions: <String>['seen', 'repaired'],
-      updatedOptions: <String>['seen', 'repaired', 'cleaned'],
-      textSpecId: 'tending-act-completed',
-      initialText: 'calling before the day closed',
-      updatedText: 'clearing one practical obstacle',
-      expectedDefaultOff: true,
-    );
-  });
-
-  test(
-    'Kept Word prompt shares default-off agreement drafts with Day Sheet',
-    () {
-      _expectChoiceTextDraftSharing(
-        flowKey: kKeptWordFlowKey,
-        choiceSpecId: 'kept-word-status',
-        initialOption: 'renegotiated',
-        updatedOption: 'still_in_process',
-        textSpecId: 'kept-word-remembered',
-        initialText: 'the repaired conversation belongs in memory',
-        updatedText: 'the next repair step is named',
-        expectedDefaultOff: true,
-      );
-    },
-  );
-
-  test('Wag prompt shares default-off memory drafts with Day Sheet', () {
-    _expectChipTextDraftSharing(
-      flowKey: kTheWagFlowKey,
-      chipSpecId: 'wag-remembered',
-      initialOptions: <String>['table', 'legacy'],
-      updatedOptions: <String>['story'],
-      textSpecId: 'wag-carried',
-      initialText: 'one remembered gift',
-      updatedText: 'the updated remembered story',
-      expectedDefaultOff: true,
-    );
-  });
-
   test('Khat prompt shares default-off body-care drafts with Day Sheet', () {
     _expectChipTextDraftSharing(
       flowKey: kKhatFlowKey,
@@ -477,33 +323,6 @@ void main() {
       updatedText: 'updated sky line',
     );
   });
-
-  test('Weighing prompt shares default-off scale drafts with Day Sheet', () {
-    _expectChipTextDraftSharing(
-      flowKey: kTheWeighingFlowKey,
-      chipSpecId: 'weighing-scale-revealed',
-      initialOptions: <String>['record', 'correction'],
-      updatedOptions: <String>['truth'],
-      textSpecId: 'weighing-record-witnessed',
-      initialText: 'private ledger detail',
-      updatedText: 'updated correction detail',
-      expectedDefaultOff: true,
-    );
-  });
-
-  test(
-    'Days Outside prompt shares threshold receipt drafts with Day Sheet',
-    () {
-      _expectTextDraftSharing(
-        flowKey: kDaysOutsideTheYearFlowKey,
-        specId: 'days-outside-receipt',
-        initialText: 'I survived the old year with clarity.',
-        updatedText: 'I carried one clear receipt across the threshold.',
-        eventKey: 'event-1',
-      );
-    },
-  );
-
   test(
     'Fair Hearing prompt shares default-off measure drafts with Day Sheet',
     () {
@@ -573,20 +392,6 @@ void main() {
       updatedText: 'testing a line in action',
     );
   });
-
-  test('Clearing prompt shares default-off response drafts with Day Sheet', () {
-    _expectChipTextDraftSharing(
-      flowKey: kClearingFlowKey,
-      chipSpecId: 'clearing-cleared',
-      initialOptions: <String>['heat', 'pause'],
-      updatedOptions: <String>['heat', 'pause', 'breath'],
-      textSpecId: 'clearing-waited-response',
-      initialText: 'private heated response detail',
-      updatedText: 'updated cleared response',
-      expectedDefaultOff: true,
-    );
-  });
-
   test('Het-Heru prompt shares default-off cooling drafts with Day Sheet', () {
     _expectChipTextDraftSharing(
       flowKey: kHetHeruFlowKey,
@@ -806,28 +611,28 @@ void main() {
     expect(draftStore, isNot(contains('Journal')));
     expect(draftStore, isNot(contains('completion')));
 
-    final detailSource = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
-    ).readAsStringSync();
-    final initialPromptSlot = _sourceBetween(
-      detailSource,
-      start: 'Widget _buildMaatFlowInitialPromptSlot',
-      end: 'List<Widget> _buildMaatFlowOverviewZones',
-    );
-    expect(
-      initialPromptSlot,
-      contains('_initialPromptDraftValuesForFlow(spec.flowKey)'),
-    );
-    expect(detailSource, contains('kMaatFlowResponseDraftStore.rememberValue'));
-    expect(initialPromptSlot, isNot(contains('onWriteJournalResponse')));
-    expect(
-      initialPromptSlot,
-      isNot(contains('buildMaatJournalResponseBlocksForPolicy')),
-    );
-
     final dayViewSource = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
+    final initialPromptDraftBridge = _sourceBetween(
+      dayViewSource,
+      start: 'bool get _usesSharedInitialPromptDrafts',
+      end: 'int get _decanWatchGlobalDecanId',
+    );
+    expect(
+      initialPromptDraftBridge,
+      contains('kMaatFlowResponseDraftStore.mergeValuesForSpecs'),
+    );
+    expect(
+      initialPromptDraftBridge,
+      contains('kMaatFlowResponseDraftStore.rememberValue'),
+    );
+    expect(initialPromptDraftBridge, isNot(contains('onWriteJournalResponse')));
+    expect(
+      initialPromptDraftBridge,
+      isNot(contains('buildMaatJournalResponseBlocksForPolicy')),
+    );
+
     final responseChangeHandler = _sourceBetween(
       dayViewSource,
       start: 'void _handleResponseChanged',
@@ -952,102 +757,6 @@ void _expectChipTextDraftSharing({
 
   final promptValues = store.valuesForSpecs(prompt.fields);
   expect(promptValues[chipSpecId]?.optionIds, updatedOptions);
-  expect(promptValues[textSpecId]?.text, updatedText);
-}
-
-void _expectTextDraftSharing({
-  required String flowKey,
-  required String specId,
-  required String initialText,
-  required String updatedText,
-  String? eventKey,
-}) {
-  final store = MaatFlowResponseDraftStore();
-  final prompt = _prompt(flowKey);
-  final sheet = _sheet(flowKey, eventKey: eventKey);
-
-  store.rememberValue(
-    flowKey: prompt.flowKey,
-    value: MaatFlowResponseValue.text(
-      specId: specId,
-      text: initialText,
-      multiline: true,
-    ),
-  );
-
-  expect(store.valuesForSpecs(sheet)[specId]?.text, initialText);
-
-  store.rememberValue(
-    flowKey: sheet.first.flowKey,
-    value: MaatFlowResponseValue.text(
-      specId: specId,
-      text: updatedText,
-      multiline: true,
-    ),
-  );
-
-  expect(store.valuesForSpecs(prompt.fields)[specId]?.text, updatedText);
-}
-
-void _expectChoiceTextDraftSharing({
-  required String flowKey,
-  required String choiceSpecId,
-  required String initialOption,
-  required String updatedOption,
-  required String textSpecId,
-  required String initialText,
-  required String updatedText,
-  bool expectedDefaultOff = false,
-}) {
-  final store = MaatFlowResponseDraftStore();
-  final prompt = _prompt(flowKey);
-  final sheet = _sheet(flowKey);
-
-  if (expectedDefaultOff) {
-    expect(
-      sheet.every((spec) => spec.offerJournalInclusionDefault == false),
-      isTrue,
-    );
-  }
-
-  store.rememberValue(
-    flowKey: prompt.flowKey,
-    value: MaatFlowResponseValue.choice(
-      specId: choiceSpecId,
-      optionId: initialOption,
-    ),
-  );
-  store.rememberValue(
-    flowKey: prompt.flowKey,
-    value: MaatFlowResponseValue.text(
-      specId: textSpecId,
-      text: initialText,
-      multiline: true,
-    ),
-  );
-
-  final sheetValues = store.valuesForSpecs(sheet);
-  expect(sheetValues[choiceSpecId]?.optionIds, <String>[initialOption]);
-  expect(sheetValues[textSpecId]?.text, initialText);
-
-  store.rememberValue(
-    flowKey: sheet.first.flowKey,
-    value: MaatFlowResponseValue.choice(
-      specId: choiceSpecId,
-      optionId: updatedOption,
-    ),
-  );
-  store.rememberValue(
-    flowKey: sheet.first.flowKey,
-    value: MaatFlowResponseValue.text(
-      specId: textSpecId,
-      text: updatedText,
-      multiline: true,
-    ),
-  );
-
-  final promptValues = store.valuesForSpecs(prompt.fields);
-  expect(promptValues[choiceSpecId]?.optionIds, <String>[updatedOption]);
   expect(promptValues[textSpecId]?.text, updatedText);
 }
 

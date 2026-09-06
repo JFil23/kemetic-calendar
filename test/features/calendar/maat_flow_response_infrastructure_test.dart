@@ -3,27 +3,35 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
-import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
-import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
-import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
-import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
-import 'package:mobile/features/calendar/the_tending_flow.dart';
-import 'package:mobile/features/calendar/the_wag_flow.dart';
-import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
 
 void main() {
+  test('archived flows have no active response infrastructure', () {
+    for (final kind in kArchivedCompatibilityMaatFlowKinds) {
+      expect(
+        resolveActiveMaatFlowResponseSpecs(
+          flowKey: kind.flowKey,
+          surface: MaatFlowResponseSurface.calendarSheet,
+        ),
+        isEmpty,
+        reason: kind.flowKey,
+      );
+    }
+  });
+
   test('response enum wire names are stable', () {
     expect(MaatFlowResponseSurface.initialDetail.wireName, 'initial_detail');
     expect(MaatFlowResponseSurface.calendarSheet.wireName, 'calendar_sheet');
@@ -68,24 +76,8 @@ void main() {
     expect(MaatFlowResponseJournalFormatter.standard.wireName, 'standard');
     expect(MaatFlowResponseJournalFormatter.decanWatch.wireName, 'decan_watch');
     expect(
-      MaatFlowResponseJournalFormatter.dawnHouseRite.wireName,
-      'dawn_house_rite',
-    );
-    expect(
-      MaatFlowResponseJournalFormatter.closingRelease.wireName,
-      'closing_release',
-    );
-    expect(
       MaatFlowResponseJournalFormatter.offeringTable.wireName,
       'offering_table',
-    );
-    expect(
-      MaatFlowResponseJournalFormatter.daysOutsideReceipt.wireName,
-      'days_outside_receipt',
-    );
-    expect(
-      MaatFlowResponseJournalFormatter.wepRonpetOpening.wireName,
-      'wep_ronpet_opening',
     );
     expect(
       MaatFlowResponseJournalFormatter.openHandProvision.wireName,
@@ -94,10 +86,6 @@ void main() {
     expect(
       MaatFlowResponseJournalFormatter.djedRestoration.wireName,
       'djed_restoration',
-    );
-    expect(
-      MaatFlowResponseJournalFormatter.firstArrangementOrder.wireName,
-      'first_arrangement_order',
     );
     expect(
       MaatFlowResponseJournalFormatter.livingPatternPrinciple.wireName,
@@ -115,10 +103,6 @@ void main() {
     expect(
       MaatFlowResponseJournalFormatter.livingTextLine.wireName,
       'living_text_line',
-    );
-    expect(
-      MaatFlowResponseJournalFormatter.clearingSpace.wireName,
-      'clearing_space',
     );
     expect(
       MaatFlowResponseJournalFormatter.hetHeruJoy.wireName,
@@ -153,24 +137,8 @@ void main() {
       MaatFlowResponseJournalFormatter.decanWatch,
     );
     expect(
-      MaatFlowResponseJournalFormatterX.fromWireName('dawn-house-rite'),
-      MaatFlowResponseJournalFormatter.dawnHouseRite,
-    );
-    expect(
-      MaatFlowResponseJournalFormatterX.fromWireName('closing-release'),
-      MaatFlowResponseJournalFormatter.closingRelease,
-    );
-    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('offering-table'),
       MaatFlowResponseJournalFormatter.offeringTable,
-    );
-    expect(
-      MaatFlowResponseJournalFormatterX.fromWireName('days-outside-receipt'),
-      MaatFlowResponseJournalFormatter.daysOutsideReceipt,
-    );
-    expect(
-      MaatFlowResponseJournalFormatterX.fromWireName('wep-ronpet-opening'),
-      MaatFlowResponseJournalFormatter.wepRonpetOpening,
     );
     expect(
       MaatFlowResponseJournalFormatterX.fromWireName('open-hand-provision'),
@@ -179,10 +147,6 @@ void main() {
     expect(
       MaatFlowResponseJournalFormatterX.fromWireName('djed-restoration'),
       MaatFlowResponseJournalFormatter.djedRestoration,
-    );
-    expect(
-      MaatFlowResponseJournalFormatterX.fromWireName('first-arrangement-order'),
-      MaatFlowResponseJournalFormatter.firstArrangementOrder,
     );
     expect(
       MaatFlowResponseJournalFormatterX.fromWireName(
@@ -205,10 +169,6 @@ void main() {
     expect(
       MaatFlowResponseJournalFormatterX.fromWireName('living-text-line'),
       MaatFlowResponseJournalFormatter.livingTextLine,
-    );
-    expect(
-      MaatFlowResponseJournalFormatterX.fromWireName('clearing-space'),
-      MaatFlowResponseJournalFormatter.clearingSpace,
     );
     expect(
       MaatFlowResponseJournalFormatterX.fromWireName('het-heru-joy'),
@@ -241,18 +201,6 @@ void main() {
       MaatFlowResponseJournalFormatter.livingRecordCarried,
     );
     expect(
-      MaatFlowResponseJournalFormatterX.fromWireName('tending-care'),
-      MaatFlowResponseJournalFormatter.tendingCare,
-    );
-    expect(
-      MaatFlowResponseJournalFormatterX.fromWireName('kept-word-agreement'),
-      MaatFlowResponseJournalFormatter.keptWordAgreement,
-    );
-    expect(
-      MaatFlowResponseJournalFormatterX.fromWireName('wag-memory'),
-      MaatFlowResponseJournalFormatter.wagMemory,
-    );
-    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('khat-body-care'),
       MaatFlowResponseJournalFormatter.khatBodyCare,
     );
@@ -268,14 +216,10 @@ void main() {
       MaatFlowResponseJournalFormatterX.fromWireName('follow-sky-witness'),
       MaatFlowResponseJournalFormatter.followSkyWitness,
     );
-    expect(
-      MaatFlowResponseJournalFormatterX.fromWireName('weighing-record'),
-      MaatFlowResponseJournalFormatter.weighingRecord,
-    );
   });
 
-  test('default resolver exposes all 31 Ma_at response sheet specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(70));
+  test('default resolver exposes the retained response sheet specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(49));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -313,48 +257,10 @@ void main() {
     );
     expect(
       resolveMaatFlowResponseSpecs(
-        flowKey: kDawnHouseRiteFlowKey,
-        surface: MaatFlowResponseSurface.calendarSheet,
-      ).map((spec) => spec.id),
-      <String>['dawn-house-order-act'],
-    );
-    expect(
-      resolveMaatFlowResponseSpecs(
-        flowKey: kEveningThresholdRiteFlowKey,
-        surface: MaatFlowResponseSurface.calendarSheet,
-      ).map((spec) => spec.id),
-      <String>['closing-release-tonight'],
-    );
-    expect(
-      resolveMaatFlowResponseSpecs(
         flowKey: kOfferingTableFlowKey,
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
       <String>['offering-table-fed', 'offering-table-provided'],
-    );
-    expect(
-      resolveMaatFlowResponseSpecs(
-        flowKey: kDaysOutsideTheYearFlowKey,
-        surface: MaatFlowResponseSurface.calendarSheet,
-        eventKey: 'event-1',
-      ).map((spec) => spec.id),
-      <String>['days-outside-receipt'],
-    );
-    expect(
-      resolveMaatFlowResponseSpecs(
-        flowKey: kDaysOutsideTheYearFlowKey,
-        surface: MaatFlowResponseSurface.calendarSheet,
-        eventKey: 'event-6',
-      ).map((spec) => spec.id),
-      <String>['wep-ronpet-year-intention'],
-    );
-    expect(
-      resolveMaatFlowResponseSpecs(
-        flowKey: kDaysOutsideTheYearFlowKey,
-        surface: MaatFlowResponseSurface.calendarSheet,
-        eventKey: 'event-7',
-      ),
-      isEmpty,
     );
     expect(
       resolveMaatFlowResponseSpecs(
@@ -369,13 +275,6 @@ void main() {
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
       <String>['djed-stood-upright', 'djed-restored'],
-    );
-    expect(
-      resolveMaatFlowResponseSpecs(
-        flowKey: kTheWagFlowKey,
-        surface: MaatFlowResponseSurface.calendarSheet,
-      ).map((spec) => spec.id),
-      <String>['wag-remembered', 'wag-carried'],
     );
     expect(
       resolveMaatFlowResponseSpecs(
@@ -411,20 +310,6 @@ void main() {
     );
     expect(
       resolveMaatFlowResponseSpecs(
-        flowKey: kTheWeighingFlowKey,
-        surface: MaatFlowResponseSurface.calendarSheet,
-      ).map((spec) => spec.id),
-      <String>['weighing-scale-revealed', 'weighing-record-witnessed'],
-    );
-    expect(
-      resolveMaatFlowResponseSpecs(
-        flowKey: kFirstArrangementFlowKey,
-        surface: MaatFlowResponseSurface.calendarSheet,
-      ).map((spec) => spec.id),
-      <String>['first-arrangement-ordered', 'first-arrangement-space-changed'],
-    );
-    expect(
-      resolveMaatFlowResponseSpecs(
         flowKey: kLivingPatternFlowKey,
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
@@ -457,13 +342,6 @@ void main() {
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
       <String>['living-text-added', 'living-text-applied'],
-    );
-    expect(
-      resolveMaatFlowResponseSpecs(
-        flowKey: kClearingFlowKey,
-        surface: MaatFlowResponseSurface.calendarSheet,
-      ).map((spec) => spec.id),
-      <String>['clearing-cleared', 'clearing-waited-response'],
     );
     expect(
       resolveMaatFlowResponseSpecs(
@@ -532,10 +410,6 @@ void main() {
   });
 
   test('journal carry mode is explicit and reflection-aware', () {
-    final eveningThreshold = resolveMaatFlowResponseSpecs(
-      flowKey: kEveningThresholdRiteFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    ).single;
     final boundaryStoneSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kBoundaryStoneFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -547,7 +421,6 @@ void main() {
       (spec) => spec.id == 'boundary-stone-restored',
     );
 
-    expect(eveningThreshold.journalCarryMode, MaatFlowJournalCarryMode.none);
     expect(boundaryMarker.journalCarryMode, MaatFlowJournalCarryMode.none);
     expect(
       boundaryReflection.journalCarryMode,
@@ -786,66 +659,6 @@ void main() {
       <bool>{true},
     );
 
-    final tendingSpecs = resolveMaatFlowResponseSpecs(
-      flowKey: kTheTendingFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    );
-    expect(tendingSpecs.map((spec) => spec.id), <String>[
-      'tending-care-specific',
-      'tending-act-completed',
-    ]);
-    expect(
-      tendingSpecs.map((spec) => spec.journalPolicy).toSet(),
-      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
-    );
-    expect(tendingSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
-      'care_private',
-    });
-    expect(
-      tendingSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
-      <bool>{false},
-    );
-
-    final keptWordSpecs = resolveMaatFlowResponseSpecs(
-      flowKey: kKeptWordFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    );
-    expect(keptWordSpecs.map((spec) => spec.id), <String>[
-      'kept-word-status',
-      'kept-word-remembered',
-    ]);
-    expect(
-      keptWordSpecs.map((spec) => spec.journalPolicy).toSet(),
-      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
-    );
-    expect(keptWordSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
-      'agreement_private',
-    });
-    expect(
-      keptWordSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
-      <bool>{false},
-    );
-
-    final wagSpecs = resolveMaatFlowResponseSpecs(
-      flowKey: kTheWagFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    );
-    expect(wagSpecs.map((spec) => spec.id), <String>[
-      'wag-remembered',
-      'wag-carried',
-    ]);
-    expect(
-      wagSpecs.map((spec) => spec.journalPolicy).toSet(),
-      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
-    );
-    expect(wagSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
-      'ancestor_memory_private',
-    });
-    expect(
-      wagSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
-      <bool>{false},
-    );
-
     final khatSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kKhatFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -906,65 +719,7 @@ void main() {
       wanderingSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
       <bool>{false},
     );
-
-    final weighingSpecs = resolveMaatFlowResponseSpecs(
-      flowKey: kTheWeighingFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    );
-    expect(weighingSpecs.map((spec) => spec.id), <String>[
-      'weighing-scale-revealed',
-      'weighing-record-witnessed',
-    ]);
-    expect(
-      weighingSpecs.map((spec) => spec.journalPolicy).toSet(),
-      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
-    );
-    expect(weighingSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
-      'record_accounting_private',
-    });
-    expect(
-      weighingSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
-      <bool>{false},
-    );
   });
-
-  test('Dawn House and Closing journal formatters read naturally', () {
-    final dawnSpec = resolveMaatFlowResponseSpecs(
-      flowKey: kDawnHouseRiteFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    ).single;
-    final dawn = buildMaatFlowResponseJournalPreview(
-      spec: dawnSpec,
-      value: MaatFlowResponseValue.text(
-        specId: dawnSpec.id,
-        text: 'clearing the table before the day began.',
-      ),
-    );
-
-    expect(
-      dawn!.text,
-      'Dawn House Rite: I brought order by clearing the table before the day began.',
-    );
-
-    final closingSpec = resolveMaatFlowResponseSpecs(
-      flowKey: kEveningThresholdRiteFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    ).single;
-    final closing = buildMaatFlowResponseJournalPreview(
-      spec: closingSpec,
-      value: MaatFlowResponseValue.text(
-        specId: closingSpec.id,
-        text: 'the unfinished worry and leave it for tomorrow\'s light.',
-        multiline: true,
-      ),
-    );
-
-    expect(
-      closing!.text,
-      'The Closing: I release the unfinished worry and leave it for tomorrow\'s light.',
-    );
-  });
-
   test('Offering Table and Days Outside formatters read naturally', () {
     final offeringSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kOfferingTableFlowKey,
@@ -1010,42 +765,6 @@ void main() {
       'The Offering Table: I provided water and care today.',
     );
 
-    final daysSpec = resolveMaatFlowResponseSpecs(
-      flowKey: kDaysOutsideTheYearFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-      eventKey: 'event-1',
-    ).single;
-    final days = buildMaatFlowResponseJournalPreview(
-      spec: daysSpec,
-      value: MaatFlowResponseValue.text(
-        specId: daysSpec.id,
-        text: 'I survived the old year with more clarity than I entered it.',
-        multiline: true,
-      ),
-    );
-    expect(
-      days!.text,
-      'The Days Outside the Year: I carry the receipt that I survived the old year with more clarity than I entered it.',
-    );
-
-    final wepSpec = resolveMaatFlowResponseSpecs(
-      flowKey: kDaysOutsideTheYearFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-      eventKey: 'event-6',
-    ).single;
-    final wep = buildMaatFlowResponseJournalPreview(
-      spec: wepSpec,
-      value: MaatFlowResponseValue.text(
-        specId: wepSpec.id,
-        text: 'steadiness, clean speech, and finished work.',
-        multiline: true,
-      ),
-    );
-    expect(
-      wep!.text,
-      'Wep Ronpet: I open the year with steadiness, clean speech, and finished work.',
-    );
-
     final skySpecs = resolveMaatFlowResponseSpecs(
       flowKey: 'track-the-sky',
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -1078,36 +797,6 @@ void main() {
   });
 
   test('Phase 4A decan previews read naturally', () {
-    final firstArrangementSpecs = resolveMaatFlowResponseSpecs(
-      flowKey: kFirstArrangementFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    );
-    final firstArrangement = buildMaatFlowResponseJournalPreviews(
-      specs: firstArrangementSpecs,
-      values: <String, MaatFlowResponseValue>{
-        'first-arrangement-ordered': MaatFlowResponseValue.chips(
-          specId: 'first-arrangement-ordered',
-          optionIds: <String>['cleared', 'made_visible'],
-        ),
-        'first-arrangement-space-changed': MaatFlowResponseValue.text(
-          specId: 'first-arrangement-space-changed',
-          text: 'the entry shelf',
-          multiline: true,
-        ),
-      },
-      clientEventId: 'cid-first-arrangement',
-    );
-    expect(firstArrangement, hasLength(1));
-    expect(firstArrangement.single.policy, MaatFlowJournalPolicy.mirror);
-    expect(
-      firstArrangement.single.sourceId,
-      'maat_response:the-first-arrangement:cid:cid-first-arrangement:first-arrangement-order',
-    );
-    expect(
-      firstArrangement.single.text,
-      'The First Arrangement: I put cleared and made visible into order and made the entry shelf visible.',
-    );
-
     final livingPatternSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kLivingPatternFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -1253,35 +942,6 @@ void main() {
       livingText.single.text,
       'The Living Text: I received question and application from the text and added copying a line into practice back to life.',
     );
-
-    final clearingSpecs = resolveMaatFlowResponseSpecs(
-      flowKey: kClearingFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    );
-    final clearing = buildMaatFlowResponseJournalPreviews(
-      specs: clearingSpecs,
-      values: <String, MaatFlowResponseValue>{
-        'clearing-cleared': MaatFlowResponseValue.chips(
-          specId: 'clearing-cleared',
-          optionIds: <String>['heat', 'pause'],
-        ),
-        'clearing-waited-response': MaatFlowResponseValue.text(
-          specId: 'clearing-waited-response',
-          text: 'private conflict details',
-          multiline: true,
-        ),
-      },
-      clientEventId: 'cid-clearing',
-    );
-    expect(clearing, hasLength(1));
-    expect(clearing.single.policy, MaatFlowJournalPolicy.offer);
-    expect(clearing.single.requiresUserChoice, isTrue);
-    expect(clearing.single.includeInJournalByDefault, isFalse);
-    expect(
-      clearing.single.text,
-      'The Clearing: I cleared heat and pause before response and acted from the cleared place.',
-    );
-    expect(clearing.single.text, isNot(contains('private conflict')));
 
     final hetHeruSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kHetHeruFlowKey,
@@ -1590,99 +1250,6 @@ void main() {
       'The Djed: I restored practice by restoring one load-bearing part of my life and stood it upright again.',
     );
 
-    final tendingSpecs = resolveMaatFlowResponseSpecs(
-      flowKey: kTheTendingFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    );
-    final tending = buildMaatFlowResponseJournalPreviews(
-      specs: tendingSpecs,
-      values: <String, MaatFlowResponseValue>{
-        'tending-care-specific': MaatFlowResponseValue.chips(
-          specId: 'tending-care-specific',
-          optionIds: <String>['seen', 'repaired'],
-        ),
-        'tending-act-completed': MaatFlowResponseValue.text(
-          specId: 'tending-act-completed',
-          text: 'calling before the day closed.',
-          multiline: true,
-        ),
-      },
-      clientEventId: 'cid-tending',
-    );
-    expect(tending, hasLength(1));
-    expect(tending.single.policy, MaatFlowJournalPolicy.offer);
-    expect(tending.single.requiresUserChoice, isTrue);
-    expect(tending.single.includeInJournalByDefault, isFalse);
-    expect(
-      tending.single.sourceId,
-      'maat_response:the-tending:cid:cid-tending:tending-care',
-    );
-    expect(
-      tending.single.text,
-      'The Tending: I made care specific through seen and repaired and completed calling before the day closed.',
-    );
-
-    final keptWordSpecs = resolveMaatFlowResponseSpecs(
-      flowKey: kKeptWordFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    );
-    final keptWord = buildMaatFlowResponseJournalPreviews(
-      specs: keptWordSpecs,
-      values: <String, MaatFlowResponseValue>{
-        'kept-word-status': MaatFlowResponseValue.choice(
-          specId: 'kept-word-status',
-          optionId: 'renegotiated',
-        ),
-        'kept-word-remembered': MaatFlowResponseValue.text(
-          specId: 'kept-word-remembered',
-          text: 'the repaired conversation belongs in memory.',
-          multiline: true,
-        ),
-      },
-      clientEventId: 'cid-kept-word',
-    );
-    expect(keptWord, hasLength(1));
-    expect(keptWord.single.policy, MaatFlowJournalPolicy.offer);
-    expect(keptWord.single.requiresUserChoice, isTrue);
-    expect(keptWord.single.includeInJournalByDefault, isFalse);
-    expect(
-      keptWord.single.sourceId,
-      'maat_response:the-kept-word:cid:cid-kept-word:kept-word-agreement',
-    );
-    expect(
-      keptWord.single.text,
-      'The Kept Word: I brought one agreement back into clearer order; the word is renegotiated, and I remember the repaired conversation belongs in memory.',
-    );
-
-    final wagSpecs = resolveMaatFlowResponseSpecs(
-      flowKey: kTheWagFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    );
-    final wag = buildMaatFlowResponseJournalPreviews(
-      specs: wagSpecs,
-      values: <String, MaatFlowResponseValue>{
-        'wag-remembered': MaatFlowResponseValue.chips(
-          specId: 'wag-remembered',
-          optionIds: <String>['table', 'legacy'],
-        ),
-        'wag-carried': MaatFlowResponseValue.text(
-          specId: 'wag-carried',
-          text: 'one remembered gift',
-          multiline: true,
-        ),
-      },
-      clientEventId: 'cid-wag',
-    );
-    expect(wag, hasLength(1));
-    expect(wag.single.policy, MaatFlowJournalPolicy.offer);
-    expect(wag.single.requiresUserChoice, isTrue);
-    expect(wag.single.includeInJournalByDefault, isFalse);
-    expect(wag.single.sourceId, 'maat_response:the-wag:cid:cid-wag:wag-memory');
-    expect(
-      wag.single.text,
-      'The Wag: I kept table and legacy at the table and carried one remembered gift forward.',
-    );
-
     final khatSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kKhatFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -1786,40 +1353,6 @@ void main() {
     );
     expect(wandering.single.text, isNot(contains('raw grief')));
     expect(wandering.single.text, isNot(contains('private name')));
-
-    final weighingSpecs = resolveMaatFlowResponseSpecs(
-      flowKey: kTheWeighingFlowKey,
-      surface: MaatFlowResponseSurface.calendarSheet,
-    );
-    final weighing = buildMaatFlowResponseJournalPreviews(
-      specs: weighingSpecs,
-      values: <String, MaatFlowResponseValue>{
-        'weighing-scale-revealed': MaatFlowResponseValue.chips(
-          specId: 'weighing-scale-revealed',
-          optionIds: <String>['record', 'correction'],
-        ),
-        'weighing-record-witnessed': MaatFlowResponseValue.text(
-          specId: 'weighing-record-witnessed',
-          text: 'private ledger number and conflict detail',
-          multiline: true,
-        ),
-      },
-      clientEventId: 'cid-weighing',
-    );
-    expect(weighing, hasLength(1));
-    expect(weighing.single.policy, MaatFlowJournalPolicy.offer);
-    expect(weighing.single.requiresUserChoice, isTrue);
-    expect(weighing.single.includeInJournalByDefault, isFalse);
-    expect(
-      weighing.single.sourceId,
-      'maat_response:the-weighing:cid:cid-weighing:weighing-record',
-    );
-    expect(
-      weighing.single.text,
-      'The Weighing: I placed record and correction on the scale and named one correction.',
-    );
-    expect(weighing.single.text, isNot(contains('ledger number')));
-    expect(weighing.single.text, isNot(contains('conflict detail')));
   });
 
   test(
@@ -1933,50 +1466,10 @@ void main() {
   });
 
   test('Phase 4D wiring stays isolated to shared sheet panels and pilots', () {
-    expect(
-      kDefaultMaatFlowResponseResolver.specs
-          .map((spec) => spec.flowKey)
-          .toSet(),
-      <String>{
-        'the-moon-return',
-        'the-course',
-        'the-decan-watch',
-        kDawnHouseRiteFlowKey,
-        kEveningThresholdRiteFlowKey,
-        kOfferingTableFlowKey,
-        kDaysOutsideTheYearFlowKey,
-        kTheOpenHandFlowKey,
-        kTheDjedFlowKey,
-        kReadingHouseFlowKey,
-        kTheTendingFlowKey,
-        kKeptWordFlowKey,
-        kTheWagFlowKey,
-        kKhatFlowKey,
-        kOracleFlowKey,
-        kWanderingFlowKey,
-        'track-the-sky',
-        kTheWeighingFlowKey,
-        kFirstArrangementFlowKey,
-        kLivingPatternFlowKey,
-        kHouseOfLifeFlowKey,
-        kHotepFlowKey,
-        kTheShoreFlowKey,
-        kLivingTextFlowKey,
-        kClearingFlowKey,
-        kHetHeruFlowKey,
-        kFairHearingFlowKey,
-        kBoundaryStoneFlowKey,
-        kOpenMouthFlowKey,
-        kTheAutobiographyFlowKey,
-        kTrueNameFlowKey,
-        kLivingRecordFlowKey,
-      },
-    );
-
     final dayView = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
-    expect(dayView, contains('resolveMaatFlowResponseSpecs('));
+    expect(dayView, contains('resolveActiveMaatFlowResponseSpecs('));
     expect(dayView, contains('MaatFlowResponseSurface.calendarSheet'));
     expect(dayView, contains('MaatFlowResponseSection('));
     expect(dayView, contains('buildMaatJournalPlainUserTextBlocks('));
@@ -2007,17 +1500,28 @@ void main() {
     expect(landscape, contains('onWriteJournalResponse'));
     expect(landscape, isNot(contains('resolveMaatFlowResponseSpecs(')));
 
-    final detail = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
+    expect(dayView, contains('resolveActiveMaatFlowInitialPromptSpec('));
+    expect(dayView, contains('MaatFlowResponseSection('));
+    final djedBehavior = File(
+      'lib/features/calendar/the_djed/presentation/'
+      'djed_day_behavior_surface.dart',
     ).readAsStringSync();
-    expect(detail, contains('resolveMaatFlowInitialPromptSpec('));
-    expect(detail, contains('MaatFlowResponseSection('));
-    expect(detail, isNot(contains('onWriteJournalResponse')));
-    expect(detail, isNot(contains('buildMaatJournalResponseBlocksForPolicy')));
+    final offeringBehavior = File(
+      'lib/features/calendar/the_offering_table/presentation/'
+      'offering_table_day_presentation.dart',
+    ).readAsStringSync();
+    expect(djedBehavior, contains('kMaatFlowResponseDraftStore.rememberValue'));
+    expect(
+      offeringBehavior,
+      contains('kMaatFlowResponseDraftStore.rememberValue'),
+    );
+    expect(djedBehavior, isNot(contains('onWriteJournalResponse')));
+    expect(offeringBehavior, contains('onWriteJournalResponse'));
+    expect(offeringBehavior, contains('buildMaatFlowResponseSourceId('));
+    expect(offeringBehavior, contains('MaatJournalResponseBlock('));
 
     for (final path in const <String>[
       'lib/features/calendar/evening_threshold_flow.dart',
-      'lib/features/calendar/evening_threshold_rite_flow.dart',
       'lib/features/calendar/the_decan_watch_local_store.dart',
     ]) {
       final source = File(path).readAsStringSync();

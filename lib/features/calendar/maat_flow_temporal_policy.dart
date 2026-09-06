@@ -10,17 +10,11 @@ DateTime maatFlowSystemClock() => DateTime.now().toUtc();
 enum MaatFlowTemporalPolicyKind {
   relativeCalendarDays,
   nextEligibleSkyEvent,
-  dawnHouseRite,
+  archivedReadOnly,
   eveningThreshold,
-  eveningThresholdRite,
-  theWeighing,
-  theTending,
-  keptWord,
   theCourse,
   moonReturn,
-  nextWepRonpetWindow,
   nextDecanWindow,
-  nextDaysOutsideYearWindow,
 }
 
 class MaatFlowTemporalPolicy {
@@ -33,23 +27,11 @@ class MaatFlowTemporalPolicy {
   static const nextEligibleSkyEvent = MaatFlowTemporalPolicy._(
     MaatFlowTemporalPolicyKind.nextEligibleSkyEvent,
   );
-  static const dawnHouseRite = MaatFlowTemporalPolicy._(
-    MaatFlowTemporalPolicyKind.dawnHouseRite,
+  static const archivedReadOnly = MaatFlowTemporalPolicy._(
+    MaatFlowTemporalPolicyKind.archivedReadOnly,
   );
   static const eveningThreshold = MaatFlowTemporalPolicy._(
     MaatFlowTemporalPolicyKind.eveningThreshold,
-  );
-  static const eveningThresholdRite = MaatFlowTemporalPolicy._(
-    MaatFlowTemporalPolicyKind.eveningThresholdRite,
-  );
-  static const theWeighing = MaatFlowTemporalPolicy._(
-    MaatFlowTemporalPolicyKind.theWeighing,
-  );
-  static const theTending = MaatFlowTemporalPolicy._(
-    MaatFlowTemporalPolicyKind.theTending,
-  );
-  static const keptWord = MaatFlowTemporalPolicy._(
-    MaatFlowTemporalPolicyKind.keptWord,
   );
   static const theCourse = MaatFlowTemporalPolicy._(
     MaatFlowTemporalPolicyKind.theCourse,
@@ -57,14 +39,8 @@ class MaatFlowTemporalPolicy {
   static const moonReturn = MaatFlowTemporalPolicy._(
     MaatFlowTemporalPolicyKind.moonReturn,
   );
-  static const nextWepRonpetWindow = MaatFlowTemporalPolicy._(
-    MaatFlowTemporalPolicyKind.nextWepRonpetWindow,
-  );
   static const nextDecanWindow = MaatFlowTemporalPolicy._(
     MaatFlowTemporalPolicyKind.nextDecanWindow,
-  );
-  static const nextDaysOutsideYearWindow = MaatFlowTemporalPolicy._(
-    MaatFlowTemporalPolicyKind.nextDaysOutsideYearWindow,
   );
 
   final MaatFlowTemporalPolicyKind kind;

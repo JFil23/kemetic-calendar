@@ -1,8 +1,7 @@
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-import 'dawn_house_rite_flow.dart';
-import 'evening_threshold_rite_flow.dart';
+import 'maat_solar_schedule.dart';
 import 'maat_flow_reflection_metadata.dart';
 import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
@@ -60,12 +59,6 @@ const String kTheAutobiographyGlyph = '𓏞𓀀';
 const String kTheAutobiographyTagline =
     'I will put my annals among people and love of me among the gods.';
 
-const String kFirstArrangementFlowKey = 'the-first-arrangement';
-const String kFirstArrangementTitle = 'The First Arrangement';
-const String kFirstArrangementGlyph = '𓇾';
-const String kFirstArrangementTagline =
-    'For I ordered everything in its proper place.';
-
 const String kLivingPatternFlowKey = 'the-living-pattern';
 const String kLivingPatternTitle = 'The Living Pattern';
 const String kLivingPatternGlyph = '𓆭';
@@ -84,12 +77,6 @@ const String kLivingTextGlyph = '𓏛𓋹';
 const String kLivingTextTagline =
     'The Library was written by those who came before. What do you add?';
 const String kMaatLibraryCtaAddInsight = 'add_insight';
-
-const String kClearingFlowKey = 'the-clearing';
-const String kClearingTitle = 'The Clearing';
-const String kClearingGlyph = '𓈖';
-const String kClearingTagline =
-    'Its fruit is something sweet, its shade is pleasant, and it reaches its end in a grove.';
 
 const String kWanderingFlowKey = 'the-wandering';
 const String kWanderingTitle = 'The Wandering';
@@ -110,7 +97,7 @@ const String kOracleTagline =
 const int kMaatDecanFlowDefaultMiddayHour = 11;
 const int kMaatDecanFlowDefaultMiddayMinute = 0;
 const int kMaatDecanFlowEveningFallbackMinutes =
-    kEveningThresholdDefaultFallbackMinutes + 20;
+    kMaatDefaultEveningFallbackMinutes + 20;
 
 enum MaatDecanFlowTiming { morning, anyTime, midday, evening }
 
@@ -277,9 +264,6 @@ const String kTheShoreOverview =
 const String kTheAutobiographyOverview =
     'A 30-day life-record practice: name capacities, works, gifts, and one honest claim supported by evidence.';
 
-const String kFirstArrangementOverview =
-    'A 30-day space-order practice: choose one place, see what belongs, remove what does not, and establish maintenance.';
-
 const String kLivingPatternOverview =
     'A 30-day observation practice: watch one natural subject until a real pattern appears, then act from its principle.';
 
@@ -288,9 +272,6 @@ const String kTrueNameOverview =
 
 const String kLivingTextOverview =
     'A 30-day Library practice: read carefully, add reflection or connection, and close with a living mark.';
-
-const String kClearingOverview =
-    'A 30-day temperance practice: notice where heat drives action, create space before reply, and act from the cleared state.';
 
 const String kWanderingOverview =
     'A 30-day evening grief accompaniment: name the loss, search gently, and notice one capacity that remains or returns.';
@@ -328,9 +309,6 @@ const String kTheShoreConfidence =
 const String kTheAutobiographyConfidence =
     'Draws on Kemetic tomb and stela autobiography as a dated account of lived conduct.';
 
-const String kFirstArrangementConfidence =
-    'The First Arrangement draws on Zep Tepi, temple order, offering-table placement, and purification practice.';
-
 const String kLivingPatternConfidence =
     'The Living Pattern reads natural phenomena as demonstrations of durable principles, beginning with observation before interpretation.';
 
@@ -339,9 +317,6 @@ const String kTrueNameConfidence =
 
 const String kLivingTextConfidence =
     'The Living Text draws on scribal copying, colophon, variant, and commentary practices.';
-
-const String kClearingConfidence =
-    'The Clearing draws on Instruction of Amenemope’s teaching of the temperate person as a tree in a sunlit field.';
 
 const String kWanderingConfidence =
     'The Wandering draws on Aset and Nebet-Het’s search, lament, and finding in the Pyramid Texts. This household flow accompanies grief without treating it as something to win.';
@@ -560,191 +535,6 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         ],
         sourceNote:
             'The Eloquent Peasant\'s nine appeals end with justice finally pronounced and goods restored. The balance protects both the judged and the judge. The judge who hears unfairly does not only harm the petitioner — they become an unreliable measure.',
-      ),
-    ],
-  ),
-  MaatDecanFlowDefinition(
-    key: kFirstArrangementFlowKey,
-    title: kFirstArrangementTitle,
-    eventTitlePrefix: 'Arrangement',
-    glyph: kFirstArrangementGlyph,
-    tagline: kFirstArrangementTagline,
-    overview: kFirstArrangementOverview,
-    confidenceLabel: kFirstArrangementConfidence,
-    routingSummary:
-        'Best for clutter, physical space, room, desk, office, studio, home, mess, organization, focus, environment, and physical reset.',
-    notesPrefix: 'first_arrangement',
-    behaviorKind: 'maat_first_arrangement_event',
-    graphNodeSlugs: <String>['maat', 'ptah', 'anpu', 'hapy'],
-    burdenLabel: 'Low-Medium',
-    specialRequirementLabel: 'Requires one physical space',
-    events: <MaatDecanFlowEvent>[
-      MaatDecanFlowEvent(
-        eventNumber: 1,
-        flowDay: 1,
-        decanSection: 'See the Space',
-        title: 'See What Is There',
-        timing: MaatDecanFlowTiming.anyTime,
-        durationMinutesMin: 15,
-        durationMinutesMax: 15,
-        purpose:
-            'The space cannot be arranged until it is seen accurately — as it is right now, with every accumulated thing in its current position.',
-        spokenLine: 'Order begins with seeing what is actually there.',
-        steps: <String>[
-          'Stand at the entrance of your chosen space.',
-          'Write what is actually there, where it sits, and what the current arrangement communicates.',
-          'Do not clean yet.',
-        ],
-        sourceNote:
-            'Temple restoration texts began by inventorying what was present before anything was moved. The unseen object cannot be placed correctly.',
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 2,
-        flowDay: 5,
-        decanSection: 'See the Space',
-        title: 'What Is This Space For?',
-        timing: MaatDecanFlowTiming.anyTime,
-        durationMinutesMin: 10,
-        durationMinutesMax: 10,
-        purpose: 'Define the space by purpose rather than preference.',
-        spokenLine: 'Every place has a right relation.',
-        steps: <String>[
-          'Define the space’s true purpose in one or two precise sentences.',
-          'Write what this space should make easier.',
-          'Name the quality of attention it should support.',
-        ],
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 3,
-        flowDay: 9,
-        decanSection: 'See the Space',
-        title: 'What Is Isfet in This Space?',
-        timing: MaatDecanFlowTiming.anyTime,
-        durationMinutesMin: 10,
-        durationMinutesMax: 10,
-        purpose: 'Mark what belongs, what does not, and what is misplaced.',
-        spokenLine: 'Disorder can be named before it is removed.',
-        steps: <String>[
-          'Review the inventory.',
-          'Mark each item: belongs here, does not belong here, or belongs but is misplaced.',
-          'Do not remove anything yet.',
-        ],
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 4,
-        flowDay: 11,
-        decanSection: 'Clear the Space',
-        title: 'Remove What Doesn’t Belong',
-        timing: MaatDecanFlowTiming.anyTime,
-        durationMinutesMin: 30,
-        durationMinutesMax: 60,
-        purpose:
-            'Removal is the active half of ordering. The object in the wrong space does the same damage to the room\'s function as the boundary stone in the wrong field. A hallway pile or same-room corner keeps the false relation in place.',
-        spokenLine: 'What does not belong here is set in its true place.',
-        steps: <String>[
-          'Physically remove every item marked "does not belong here."',
-          'Put each item where it truly belongs, not in the hallway or a corner of the same room.',
-          'If it belongs nowhere you inhabit, discard it or release it.',
-          'Record what remains.',
-        ],
-        requiresRealWorldAction: true,
-        extraCompletionStatusLabels: <String, String>{'cleared': 'Cleared'},
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 5,
-        flowDay: 15,
-        decanSection: 'Clear the Space',
-        title: 'Find the Center and Threshold',
-        timing: MaatDecanFlowTiming.anyTime,
-        durationMinutesMin: 15,
-        durationMinutesMax: 15,
-        purpose: 'Orient the arrangement around center and entry.',
-        spokenLine: 'The center and threshold orient the whole room.',
-        steps: <String>[
-          'Name the space’s center.',
-          'Name the entry point.',
-          'Decide how everything else will relate to these two points.',
-        ],
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 6,
-        flowDay: 19,
-        decanSection: 'Clear the Space',
-        title: 'The Arrangement',
-        timing: MaatDecanFlowTiming.anyTime,
-        durationMinutesMin: 30,
-        durationMinutesMax: 60,
-        purpose:
-            'Zep Tepi was not the creation of new things but the placing of existing things in right relationship. Each item goes where it belongs in relation to the center and the threshold.',
-        spokenLine: 'For I ordered everything in its proper place.',
-        steps: <String>[
-          'Arrange what remains by purpose, proximity, clear path, clean surfaces, and orientation.',
-          'Stand at the threshold.',
-          'Write what the space now says.',
-        ],
-        sourceNote:
-            '"For I ordered everything in its proper place" — the Kemetic standard for good governance applied to any space. The arrangement is relational first: what is in right relationship to the center, what is in right relationship to the entry, what has a clear path between them.',
-        requiresRealWorldAction: true,
-        extraCompletionStatusLabels: <String, String>{'arranged': 'Arranged'},
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 7,
-        flowDay: 21,
-        decanSection: 'Maintain the Space',
-        title: 'The Purification',
-        timing: MaatDecanFlowTiming.anyTime,
-        durationMinutesMin: 20,
-        durationMinutesMax: 20,
-        purpose: 'Purify the arranged space before inhabiting it.',
-        spokenLine: 'Water, air, and scent return the space to clean order.',
-        steps: <String>[
-          'Open air into the space.',
-          'Wipe surfaces with water.',
-          'Add one intentional scent.',
-          'Record the state of the space after purification.',
-        ],
-        requiresRealWorldAction: true,
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 8,
-        flowDay: 25,
-        decanSection: 'Maintain the Space',
-        title: 'Inhabit the Space',
-        timing: MaatDecanFlowTiming.anyTime,
-        durationMinutesMin: 10,
-        durationMinutesMax: 15,
-        purpose: 'Use the space and listen to what the arrangement enables.',
-        spokenLine: 'The arranged space is tested by use.',
-        steps: <String>[
-          'Use the space for its main purpose.',
-          'Do not adjust while using it.',
-          'Afterward, write what was easier.',
-          'Write what remains misaligned and what the space communicated.',
-        ],
-        requiresRealWorldAction: true,
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 9,
-        flowDay: 29,
-        decanSection: 'Maintain the Space',
-        title: 'The Maintenance Practice',
-        timing: MaatDecanFlowTiming.anyTime,
-        durationMinutesMin: 5,
-        durationMinutesMax: 10,
-        purpose:
-            'The ordering established in the second ten-day section returns to disorder without maintenance. The five-minute daily practice is what makes the ordering permanent rather than a one-time reset. The instruction must be specific enough to follow without thinking about it.',
-        spokenLine: 'What is arranged must be returned to arrangement.',
-        steps: <String>[
-          'Write the maintenance practice as a specific instruction: When I [enter/leave] this space each [morning/evening], I will [specific acts].',
-          'Include how the practice returns objects.',
-          'Include how the practice clears surfaces and performs one sensory act of purification.',
-          'Share only the one-sentence statement of what the space now communicates.',
-        ],
-        sourceNote:
-            'The offering ritual was daily — not because the offering expired, but because the space required continued attention to remain ordered. What is arranged once and not maintained is not an ordered space. It is a space that was arranged once.',
-        extraCompletionStatusLabels: <String, String>{
-          'maintenance_established': 'Maintenance established',
-        },
       ),
     ],
   ),
@@ -2885,184 +2675,6 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
     ],
   ),
   MaatDecanFlowDefinition(
-    key: kClearingFlowKey,
-    title: kClearingTitle,
-    eventTitlePrefix: 'Clearing',
-    glyph: kClearingGlyph,
-    tagline: kClearingTagline,
-    overview: kClearingOverview,
-    confidenceLabel: kClearingConfidence,
-    routingSummary:
-        'Best for reactivity, anger, conflict, heated speech, patience, temper, stillness, and creating space before response.',
-    notesPrefix: 'clearing',
-    behaviorKind: 'maat_clearing_event',
-    graphNodeSlugs: <String>['maat', 'ra', 'sekhmet', 'djehuty'],
-    burdenLabel: 'Low',
-    specialRequirementLabel: 'Practice stillness before response',
-    events: <MaatDecanFlowEvent>[
-      MaatDecanFlowEvent(
-        eventNumber: 1,
-        flowDay: 1,
-        decanSection: 'Indoor Tree',
-        title: 'Find the Indoor Tree',
-        timing: MaatDecanFlowTiming.morning,
-        durationMinutesMin: 8,
-        durationMinutesMax: 8,
-        purpose:
-            'The indoor tree is growing toward the available light, not toward the actual light. The direction it has been growing is visible in what it has been producing — and in what the heat has been costing.',
-        spokenLine:
-            'The hot-headed man is like a tree grown in an enclosed space.',
-        steps: <String>[
-          'Name one situation where heat or reaction drives your actions before the cleared state is available.',
-          'Write the specific situation and what generates the heat.',
-          'Record what the heat-driven pattern has cost.',
-        ],
-        sourceNote:
-            'Amenemope\'s image is precise: the indoor tree loses its foliage in a moment because it grew toward whatever light was available, not toward the actual sun. The heat-driven response does the same — it goes toward the available outlet, not the right one.',
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 2,
-        flowDay: 5,
-        decanSection: 'Indoor Tree',
-        title: 'What Has the Heat Cost?',
-        timing: MaatDecanFlowTiming.morning,
-        durationMinutesMin: 5,
-        durationMinutesMax: 8,
-        purpose: 'Name one concrete cost of the heat-driven pattern.',
-        spokenLine: 'In a moment is its loss of foliage.',
-        steps: <String>[
-          'Return to the situation from Event 1.',
-          'Name one specific cost of the heat-driven pattern: relationship, work, energy, goodwill, or opportunity.',
-          'Write what would change if the response came from steadiness instead.',
-        ],
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 3,
-        flowDay: 9,
-        decanSection: 'Indoor Tree',
-        title: 'Where Is the Clearing Already Present?',
-        timing: MaatDecanFlowTiming.morning,
-        durationMinutesMin: 5,
-        durationMinutesMax: 8,
-        purpose: 'Find an existing domain of steadiness.',
-        spokenLine: 'The truly temperate person sets himself apart.',
-        steps: <String>[
-          'Name one domain where you already act from steadiness rather than heat.',
-          'Write what this clearing produces.',
-          'Name how it feels different from the heat-driven situation.',
-        ],
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 4,
-        flowDay: 11,
-        decanSection: 'Sunlit Field',
-        title: 'Set Yourself Apart',
-        timing: MaatDecanFlowTiming.morning,
-        durationMinutesMin: 5,
-        durationMinutesMax: 8,
-        purpose:
-            'The act of setting yourself apart is physical and procedural, not just intentional. The clearing is found by getting out of the enclosure, not by deciding the enclosure is no longer one.',
-        spokenLine: 'Set yourself apart before the response forms.',
-        steps: <String>[
-          'Choose one concrete physical or procedural act that creates space before response: wait one hour, walk outside, write before sending, sleep on it, or consult the day card first.',
-          'Do not use "try to be calmer" as the act.',
-          'Write it as: Before responding to [situation], I will [specific act].',
-          'Write when you will use it and what heat situation it interrupts.',
-        ],
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 5,
-        flowDay: 15,
-        decanSection: 'Sunlit Field',
-        title: 'One Act From the Clearing',
-        timing: MaatDecanFlowTiming.morning,
-        durationMinutesMin: 5,
-        durationMinutesMax: 8,
-        purpose:
-            'The cleared state becomes part of the record only when one real action happens before logging.',
-        spokenLine: 'The clearing acts without heat.',
-        steps: <String>[
-          'Take one real action from the cleared state before logging.',
-          'Record the situation and what the heat response would have been.',
-          'Write what you did instead and what changed.',
-        ],
-        requiresRealWorldAction: true,
-        extraCompletionStatusLabels: <String, String>{
-          'from_the_clearing': 'from the clearing',
-        },
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 6,
-        flowDay: 19,
-        decanSection: 'Sunlit Field',
-        title: 'What Your Clearing Has Already Produced',
-        timing: MaatDecanFlowTiming.morning,
-        durationMinutesMin: 5,
-        durationMinutesMax: 8,
-        purpose: 'Account for the output of steadiness.',
-        spokenLine: 'It becomes verdant and doubles its yield.',
-        steps: <String>[
-          'Return to the domain where the clearing already exists.',
-          'Name what has grown there and what has become easier.',
-          'Write what output came from steadiness instead of strain.',
-        ],
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 7,
-        flowDay: 21,
-        decanSection: 'Fruit and Shade',
-        title: 'The Grove',
-        timing: MaatDecanFlowTiming.morning,
-        durationMinutesMin: 5,
-        durationMinutesMax: 8,
-        purpose: 'Name the ecosystem your cleared state supports.',
-        spokenLine: 'It reaches its end in a grove.',
-        steps: <String>[
-          'Name the relationship, community, household, or work ecosystem that your cleared state supports.',
-          'Write what your steadiness contributes to the grove.',
-          'Name one way the grove changes when you act from heat instead.',
-        ],
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 8,
-        flowDay: 25,
-        decanSection: 'Fruit and Shade',
-        title: 'The Fruit',
-        timing: MaatDecanFlowTiming.morning,
-        durationMinutesMin: 5,
-        durationMinutesMax: 8,
-        purpose: 'Name fruit others received from your cleared state.',
-        spokenLine: 'Its fruit is something sweet.',
-        steps: <String>[
-          'Name three specific things your cleared state has produced that others received.',
-          'Focus on fruit that came without depletion, resentment, or reactive heat.',
-          'Write which fruit you want to keep producing.',
-        ],
-      ),
-      MaatDecanFlowEvent(
-        eventNumber: 9,
-        flowDay: 29,
-        decanSection: 'Fruit and Shade',
-        title: 'The Shade',
-        timing: MaatDecanFlowTiming.evening,
-        durationMinutesMin: 5,
-        durationMinutesMax: 8,
-        purpose:
-            'The shade is pleasant — Amenemope is specific. Not merely useful, not protective, but pleasant. The cleared person is a pleasure to be near because their stillness creates a different climate.',
-        spokenLine: 'Its shade is pleasant.',
-        steps: <String>[
-          'Name one person or situation that benefits from your shade.',
-          'Write the heat situation where you will continue setting yourself apart.',
-          'Record the shade you intend to provide.',
-        ],
-        optionalSteps: <String>['Share only the one-line commitment.'],
-        sourceNote:
-            'Amenemope says the temperate person reaches their end in a grove — surrounded by other trees, part of an ecosystem. The shade is not a side effect of the clearing. It is the clearing\'s gift to the people around it.',
-        sharePromptOnComplete: true,
-      ),
-    ],
-  ),
-  MaatDecanFlowDefinition(
     key: kWanderingFlowKey,
     title: kWanderingTitle,
     eventTitlePrefix: 'Wandering',
@@ -3705,7 +3317,7 @@ MaatDecanFlowOccurrenceSchedule maatDecanFlowMorningScheduleForDate(
   TrackSkyTimeZone timezone, {
   required int durationMinutes,
 }) {
-  final base = dawnHouseRiteScheduleForDate(date, timezone);
+  final base = maatDawnScheduleForDate(date, timezone);
   final startUtc = base.startUtc.add(const Duration(minutes: 30));
   final endUtc = startUtc.add(Duration(minutes: durationMinutes));
   final location = tz.getLocation(timezone.ianaName);
@@ -3765,7 +3377,7 @@ MaatDecanFlowOccurrenceSchedule maatDecanFlowEveningScheduleForDate(
   TrackSkyTimeZone timezone, {
   required int durationMinutes,
 }) {
-  final base = eveningThresholdScheduleForDate(
+  final base = maatSunsetScheduleForDate(
     date,
     timezone,
     fallbackMinutesAfterMidnight: kMaatDecanFlowEveningFallbackMinutes,

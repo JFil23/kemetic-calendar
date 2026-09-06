@@ -42,7 +42,8 @@ void main() {
     expect(source, isNot(contains('onCommitStartTime')));
     expect(source, contains('FollowSkyObservationPresentationLoader('));
     expect(source, contains('onWriteJournalResponse'));
-    expect(source, contains('_commitFollowSkyCompletion('));
+    expect(source, contains('_commitMaatFlowCompletion('));
+    expect(source, contains('onCommitCompletion: (status) =>'));
   });
 
   testWidgets('presentation starts on the HTML mockup hierarchy', (

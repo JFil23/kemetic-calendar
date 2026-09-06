@@ -119,7 +119,7 @@ void main() {
       'lib/features/inbox/shared_flow_details_page.dart',
     ).readAsStringSync();
     final calendarSource = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
+      'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
 
     expect(mainSource, contains('SharedPracticeRoomRoutePage(roomId: roomId)'));
@@ -130,6 +130,7 @@ void main() {
       contains('CalendarPage.buildCanonicalMaatFlowDetail('),
     );
     expect(calendarSource, contains('return ReadingHouseDetailPage('));
+    expect(calendarSource, contains('LiveReadingHouseAuthority('));
   });
 }
 

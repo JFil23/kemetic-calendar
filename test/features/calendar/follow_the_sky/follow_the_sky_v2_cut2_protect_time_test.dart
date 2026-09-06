@@ -77,7 +77,10 @@ void main() {
       saved.behaviorPayload?[FollowSkyCourseOwnership.createdByKey],
       FollowSkyCourseOwnership.createdByValue,
     );
-    expect(FollowSkyCourseOwnership.isProtectTime(saved.behaviorPayload), isTrue);
+    expect(
+      FollowSkyCourseOwnership.isProtectTime(saved.behaviorPayload),
+      isTrue,
+    );
   });
 
   test('a protected block is a single calendar block, not a Flow', () {
@@ -114,7 +117,7 @@ void main() {
   test('live inputs attribute measurement through the shared rule', () {
     final body = _methodBody(
       File('lib/features/calendar/calendar_page.dart').readAsStringSync(),
-      '}) _followSkyLiveInputs() {',
+      '_followSkyLiveInputs() {',
     );
 
     expect(body, contains('FollowSkyCourseAttribution().intervalsFor('));
@@ -145,10 +148,7 @@ void main() {
       freeTextCourse.courseId,
     );
     expect(
-      attribution.attributes(
-        course: freeTextCourse,
-        block: _blockOf(renamed),
-      ),
+      attribution.attributes(course: freeTextCourse, block: _blockOf(renamed)),
       isTrue,
     );
   });
@@ -200,10 +200,7 @@ void main() {
     );
 
     expect(
-      attribution.intervalsFor(
-        course: freeTextCourse,
-        blocks: store.blocks(),
-      ),
+      attribution.intervalsFor(course: freeTextCourse, blocks: store.blocks()),
       hasLength(1),
     );
 
@@ -383,12 +380,12 @@ int _matchBrace(String source, int open) {
 }
 
 FollowSkyCalendarBlock _blockOf(UserEvent event) => FollowSkyCalendarBlock(
-      start: event.startsAt,
-      end: event.endsAt,
-      flowId: event.flowLocalId,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
+  start: event.startsAt,
+  end: event.endsAt,
+  flowId: event.flowLocalId,
+  actionId: event.actionId,
+  behaviorPayload: event.behaviorPayload,
+);
 
 UserEvent _copyWith(
   UserEvent event, {
@@ -415,7 +412,8 @@ UserEvent _copyWith(
 /// Persists through the same row encoders `UserEventsRepo` uses, so an edit that
 /// silently dropped `action_id` / `behavior_payload` would fail here too.
 class _EventStore {
-  final Map<String, Map<String, dynamic>> _rows = <String, Map<String, dynamic>>{};
+  final Map<String, Map<String, dynamic>> _rows =
+      <String, Map<String, dynamic>>{};
 
   UserEvent insert(UserEvent event) {
     final row = event.toInsert(userId: 'user-1')..['id'] = event.id;

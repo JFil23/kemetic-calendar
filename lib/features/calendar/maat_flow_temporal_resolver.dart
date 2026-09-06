@@ -1,6 +1,4 @@
-import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_flow.dart';
-import 'evening_threshold_rite_flow.dart';
 import 'follow_the_sky/domain/sky_catalog.dart';
 import 'follow_the_sky/domain/sky_observing_night.dart';
 import 'follow_the_sky/services/track_sky_enrollment_service.dart';
@@ -9,12 +7,7 @@ import 'maat_flow_identity.dart';
 import 'maat_flow_temporal_policy.dart';
 import 'moon_return_astronomy.dart';
 import 'the_course_flow.dart';
-import 'the_days_outside_year_enrollment.dart';
 import 'the_decan_watch_enrollment.dart';
-import 'the_kept_word_flow.dart';
-import 'the_tending_flow.dart';
-import 'the_wag_enrollment.dart';
-import 'the_weighing_flow.dart';
 import 'track_sky_timezone.dart';
 
 class MaatFlowTemporalResolution {
@@ -46,9 +39,12 @@ class MaatFlowTemporalResolver {
     SkyCatalog? skyCatalog,
     TrackSkyEnrollmentService? skyEnrollment,
     int eveningThresholdMinutes = kEveningThresholdDefaultMinutesAfterMidnight,
-    int eveningThresholdFallbackMinutes =
-        kEveningThresholdDefaultFallbackMinutes,
   }) {
+    if (kArchivedCompatibilityMaatFlowKinds.contains(kind)) {
+      throw UnsupportedError(
+        'Archived Ma\u2019at flows are read-only and cannot be scheduled.',
+      );
+    }
     final policy = maatFlowCatalogEntry(kind).temporalPolicy;
     switch (policy.kind) {
       case MaatFlowTemporalPolicyKind.relativeCalendarDays:
@@ -86,13 +82,8 @@ class MaatFlowTemporalResolver {
           ),
           skyNights: nights,
         );
-      case MaatFlowTemporalPolicyKind.dawnHouseRite:
-        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
-        return _dateResolution(
-          kind,
-          context,
-          defaultDawnHouseRiteStartDate(timezone, now: context.nowUtc),
-        );
+      case MaatFlowTemporalPolicyKind.archivedReadOnly:
+        throw StateError('Archived temporal policy reached for ${kind.name}.');
       case MaatFlowTemporalPolicyKind.eveningThreshold:
         final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
@@ -103,38 +94,6 @@ class MaatFlowTemporalResolver {
             now: context.nowUtc,
             defaultMinutesAfterMidnight: eveningThresholdMinutes,
           ),
-        );
-      case MaatFlowTemporalPolicyKind.eveningThresholdRite:
-        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
-        return _dateResolution(
-          kind,
-          context,
-          defaultEveningThresholdRiteStartDate(
-            timezone,
-            now: context.nowUtc,
-            fallbackMinutesAfterMidnight: eveningThresholdFallbackMinutes,
-          ),
-        );
-      case MaatFlowTemporalPolicyKind.theWeighing:
-        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
-        return _dateResolution(
-          kind,
-          context,
-          defaultTheWeighingStartDate(timezone, now: context.nowUtc),
-        );
-      case MaatFlowTemporalPolicyKind.theTending:
-        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
-        return _dateResolution(
-          kind,
-          context,
-          defaultTheTendingStartDate(timezone, now: context.nowUtc),
-        );
-      case MaatFlowTemporalPolicyKind.keptWord:
-        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
-        return _dateResolution(
-          kind,
-          context,
-          defaultKeptWordStartDate(timezone, now: context.nowUtc),
         );
       case MaatFlowTemporalPolicyKind.theCourse:
         final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
@@ -150,26 +109,12 @@ class MaatFlowTemporalResolver {
           context,
           moonReturnDefaultStartDate(timezone, now: context.nowUtc),
         );
-      case MaatFlowTemporalPolicyKind.nextWepRonpetWindow:
-        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
-        return _dateResolution(
-          kind,
-          context,
-          defaultTheWagStartDate(timezone, now: context.nowUtc),
-        );
       case MaatFlowTemporalPolicyKind.nextDecanWindow:
         final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
           defaultTheDecanWatchStartDate(timezone, now: context.nowUtc),
-        );
-      case MaatFlowTemporalPolicyKind.nextDaysOutsideYearWindow:
-        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
-        return _dateResolution(
-          kind,
-          context,
-          defaultTheDaysOutsideYearStartDate(timezone, now: context.nowUtc),
         );
     }
   }
