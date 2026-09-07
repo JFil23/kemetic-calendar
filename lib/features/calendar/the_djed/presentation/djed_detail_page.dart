@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
+import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 
 enum DjedSupportCondition { unassessed, holding, underPressure, wobbling }
 
@@ -1073,16 +1075,27 @@ class _DjedScheduleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(15, 17, 15, 15),
+      padding: const EdgeInsets.fromLTRB(15, 19, 15, 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D0906),
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: const Color(0xFF2C2016)),
+        border: Border.all(color: const Color(0x33E0873C)),
+        gradient: const RadialGradient(
+          center: Alignment(-0.86, -1),
+          radius: 1.2,
+          colors: <Color>[Color(0x09E0873C), Color(0xFF0D0D09)],
+        ),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x38000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _ScheduleDate(date: date, flowDay: sitting.flowDay),
+          _ScheduleDate(date: date),
           const SizedBox(height: 10),
           DjedEventBlockVisual(
             sittingNumber: sitting.number,
@@ -1098,13 +1111,12 @@ class _DjedScheduleCard extends StatelessWidget {
 }
 
 class _ScheduleDate extends StatelessWidget {
-  const _ScheduleDate({required this.date, required this.flowDay});
+  const _ScheduleDate({required this.date});
   final DateTime date;
-  final int flowDay;
 
   @override
   Widget build(BuildContext context) {
-    const months = <String>[
+    const gregorianMonths = <String>[
       'Jan',
       'Feb',
       'Mar',
@@ -1118,16 +1130,34 @@ class _ScheduleDate extends StatelessWidget {
       'Nov',
       'Dec',
     ];
+    const weekdays = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final kemetic = KemeticMath.fromGregorian(date);
+    final month = getMonthById(kemetic.kMonth);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
-        Text(
-          'FLOW DAY $flowDay',
-          style: _uiStyle(fontSize: 9, letterSpacing: 1.5),
+        Flexible(
+          child: Text(
+            '${month.displayShort} ${kemetic.kDay}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: DjedDetailTokens.gold,
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontSize: 22,
+              fontWeight: FontWeight.w500,
+              height: 1,
+            ),
+          ),
         ),
+        const SizedBox(width: 14),
         Text(
-          '${months[date.month - 1]} ${date.day}',
-          style: _uiStyle(fontSize: 10, color: DjedDetailTokens.low),
+          '${weekdays[date.weekday - 1]} · ${gregorianMonths[date.month - 1]} ${date.day}',
+          style: _uiStyle(
+            fontSize: 10.5,
+            letterSpacing: 1.55,
+            color: const Color(0xFFA98950),
+          ),
         ),
       ],
     );

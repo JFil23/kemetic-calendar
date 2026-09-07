@@ -67,6 +67,7 @@ import 'the_reading_house_flow.dart';
 import 'the_reading_house/reading_house_room_repository.dart';
 import 'the_reading_house/presentation/reading_house_day_behavior_surface.dart';
 import 'the_reading_house/presentation/reading_house_day_presentation.dart';
+import 'the_reading_house/presentation/reading_house_event_block_visual.dart';
 import 'reading_house_private_margin_store.dart';
 import 'reading_house_shared_fragments_repo.dart';
 import 'maat_decan_flow.dart';
@@ -865,14 +866,6 @@ bool _isOpenHandFlowName(String? name) {
 bool _isDjedFlowName(String? name) {
   return name?.trim().toLowerCase() == kTheDjedTitle.toLowerCase();
 }
-
-String _djedEventBlockOrdinal(int sittingNumber) => switch (sittingNumber) {
-  2 => 'First of four',
-  4 => 'Second of four',
-  6 => 'Third of four',
-  8 => 'Fourth of four',
-  _ => '${sittingNumber.clamp(1, 9)} of nine',
-};
 
 String _compactEventTimeLabel(int minuteOfDay) {
   final hour24 = (minuteOfDay ~/ 60).clamp(0, 23);
@@ -4910,6 +4903,11 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) =>
           title: event.title,
           behaviorPayload: event.behaviorPayload,
         ) !=
+        null ||
+    readingHouseSittingForEvent(
+          title: event.title,
+          behaviorPayload: event.behaviorPayload,
+        ) !=
         null;
 
 double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
@@ -4923,6 +4921,14 @@ double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
 
   if (djedV2EventForEvent(behaviorPayload: event.behaviorPayload) != null) {
     return math.max(106, durationMinutes.toDouble());
+  }
+
+  if (readingHouseSittingForEvent(
+        title: event.title,
+        behaviorPayload: event.behaviorPayload,
+      ) !=
+      null) {
+    return math.max(61, durationMinutes.toDouble());
   }
 
   if (offeringTableDayForEvent(
@@ -8097,7 +8103,21 @@ class _DayViewGridState extends State<DayViewGrid> {
           timeLabel: fixture.timeLabel,
           durationLabel: fixture.durationLabel,
           supportName: event.behaviorPayload?['support_name']?.toString(),
-          ordinalLabel: _djedEventBlockOrdinal(fixture.number),
+        );
+      }
+    }
+
+    if (_isReadingHouseFlowName(flow?.name)) {
+      final sitting = readingHouseSittingForEvent(
+        title: event.title,
+        behaviorPayload: event.behaviorPayload,
+      );
+      if (sitting != null) {
+        return ReadingHouseEventBlockVisual(
+          size: ReadingHouseEventBlockSize.compact,
+          sittingNumber: sitting.eventNumber,
+          title: sitting.title,
+          prompt: sitting.privatePrompt,
         );
       }
     }

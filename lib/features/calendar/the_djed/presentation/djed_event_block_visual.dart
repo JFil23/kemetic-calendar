@@ -41,8 +41,6 @@ class DjedEventBlockVisual extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact = size == DjedEventBlockSize.compact;
-    final supportIndex = _supportIndexForSitting(sittingNumber);
-    final blockPhase = supportIndex < 0 ? 'ORIENTATION' : phase;
     final height = compact ? 86.0 : 106.0;
     final radius = BorderRadius.circular(10);
     final content = Container(
@@ -121,7 +119,8 @@ class DjedEventBlockVisual extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'THE DJED · $blockPhase',
+                  'The Djed · ${_kickerPhase(sittingNumber, phase)}'
+                      .toUpperCase(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: _ui(
@@ -194,13 +193,19 @@ class DjedEventBlockVisual extends StatelessWidget {
             ),
           ),
           Positioned(
-            right: 10,
-            top: compact ? 6 : 16,
+            right: compact ? 8 : 10,
+            top: 0,
+            bottom: 0,
             width: compact ? 64 : 70,
-            height: compact ? 68 : 74,
-            child: CustomPaint(
-              painter: _EmberDjedPainter(
-                angleDegrees: _sittingAngle(sittingNumber),
+            child: Center(
+              child: SizedBox(
+                width: compact ? 64 : 70,
+                height: compact ? 68 : 74,
+                child: CustomPaint(
+                  painter: _EmberDjedPainter(
+                    angleDegrees: _sittingAngle(sittingNumber),
+                  ),
+                ),
               ),
             ),
           ),
@@ -326,17 +331,26 @@ class _EmberDjedPainter extends CustomPainter {
 }
 
 int _supportIndexForSitting(int sitting) => switch (sitting) {
-  2 || 3 => 0,
+  1 || 2 || 3 => 0,
   4 || 5 => 1,
   6 || 7 => 2,
   8 || 9 => 3,
-  _ => -1,
+  _ => 0,
 };
 
+String _kickerPhase(int sittingNumber, String phase) {
+  if (sittingNumber == 1 ||
+      phase.toUpperCase() == 'ORIENTATION' ||
+      phase.toUpperCase() == 'FIND YOUR FOOTING') {
+    return 'Orientation';
+  }
+  return phase;
+}
+
 String _eventProgressCopy(int sittingNumber, String title) {
-  if (sittingNumber == 1) return 'Name the structure';
-  if (title == 'Read the result') return 'Return and read it';
-  return 'One small thing today';
+  if (sittingNumber == 1) return 'Start here';
+  if (title == 'Make one move') return 'One small thing today';
+  return 'Return and read what happened';
 }
 
 double _sittingAngle(int sitting) => switch (sitting.clamp(1, 9)) {
@@ -352,26 +366,26 @@ double _sittingAngle(int sitting) => switch (sitting.clamp(1, 9)) {
 };
 
 String _supportFallback(int sitting) => switch (sitting) {
-  1 => 'choose the first support',
-  2 || 3 => 'the first support',
+  1 => 'four supports · one at a time',
+  2 || 3 => 'support 01',
   4 || 5 => 'the weekly call with my sister',
-  6 || 7 => 'the third support',
-  _ => 'the fourth support',
+  6 || 7 => 'support 03',
+  _ => 'support 04',
 };
 
 String _ordinal(int sitting) {
+  if (sitting == 1) return 'Start here';
   const labels = <String>[
-    'First of nine',
-    'Second of nine',
-    'Third of nine',
-    'Fourth of nine',
-    'Fifth of nine',
-    'Sixth of nine',
-    'Seventh of nine',
-    'Eighth of nine',
-    'Ninth of nine',
+    'First of four',
+    'First of four',
+    'Second of four',
+    'Second of four',
+    'Third of four',
+    'Third of four',
+    'Fourth of four',
+    'Fourth of four',
   ];
-  return labels[sitting.clamp(1, 9) - 1];
+  return labels[(sitting.clamp(2, 9) - 2)];
 }
 
 TextStyle _display({

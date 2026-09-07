@@ -106,46 +106,43 @@ class _FeaturedBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Container(
       key: const ValueKey<String>('reading-house-event-block-featured'),
-      constraints: const BoxConstraints(minHeight: 212),
+      constraints: const BoxConstraints(minHeight: 164),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: const Color(0xFF315E50)),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            Color(0xFF07130F),
-            Color(0xFF0B251D),
-            Color(0xFF0A1713),
-          ],
-        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0x6B7FD9BC)),
         boxShadow: const <BoxShadow>[
-          BoxShadow(color: Color(0x291A8B6C), blurRadius: 28),
+          BoxShadow(
+            color: Color(0x8C000000),
+            blurRadius: 18,
+            offset: Offset(0, 7),
+          ),
+          BoxShadow(color: Color(0x127FD9BC), blurRadius: 16),
         ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: Stack(
         children: <Widget>[
-          const Positioned(right: -24, top: -28, child: _MintGlow(size: 150)),
+          const Positioned.fill(child: _ReadingHouseCardSurface()),
           Padding(
-            padding: const EdgeInsets.fromLTRB(17, 20, 112, 18),
+            padding: const EdgeInsets.fromLTRB(17, 17, 104, 15),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
                   '${data.sittingNumber.toString().padLeft(2, '0')} · Opening section',
                   style: _uiStyle(
-                    color: const Color(0xFF9C844A),
+                    color: const Color(0xFF8A7030),
                     fontSize: 11,
-                    letterSpacing: 1.25,
+                    letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 Text(
                   data.title,
                   style: _displayStyle(
-                    color: const Color(0xFFF2EEE7),
-                    fontSize: 29,
-                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFFFBF7EF),
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
                     height: 1,
                   ),
                 ),
@@ -153,26 +150,42 @@ class _FeaturedBlock extends StatelessWidget {
                 Text(
                   data.prompt,
                   style: _displayStyle(
-                    color: const Color(0xFFD9D3C8),
+                    color: const Color(0xFFD8D2C8),
                     fontSize: 17,
                     fontStyle: FontStyle.italic,
-                    height: 1.3,
+                    height: 1.32,
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Divider(height: 1, color: Color(0xFF24473D)),
+                const Divider(height: 1, color: Color(0x267FD9BC)),
                 const SizedBox(height: 10),
-                Text(
-                  'Opening section · share only if you choose',
-                  style: _uiStyle(color: const Color(0xFF99A9A2), fontSize: 11),
+                Text.rich(
+                  TextSpan(
+                    children: <InlineSpan>[
+                      TextSpan(
+                        text: 'Opening section',
+                        style: _uiStyle(
+                          color: const Color(0xFFA5BBB1),
+                          fontSize: 11.5,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' · share only if you choose',
+                        style: _uiStyle(
+                          color: const Color(0xFF96B3A6),
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
           const Positioned(
-            right: 18,
-            top: 44,
-            child: _ReadingScrollArtwork(width: 78, height: 88),
+            right: 17,
+            top: 19,
+            child: _ReadingScrollArtwork(width: 73, height: 94),
           ),
         ],
       ),
@@ -182,7 +195,7 @@ class _FeaturedBlock extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(18),
         onTap: data.onTap,
         child: content,
       ),
@@ -199,70 +212,77 @@ class _CompactBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Container(
       key: const ValueKey<String>('reading-house-event-block-compact'),
-      constraints: const BoxConstraints(minHeight: 68),
-      padding: const EdgeInsets.fromLTRB(13, 9, 76, 9),
+      height: 61,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: const Color(0xFF315E50)),
-        gradient: const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: <Color>[Color(0xFF07110E), Color(0xFF17372D)],
-        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x6B7FD9BC)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x8C000000),
+            blurRadius: 18,
+            offset: Offset(0, 7),
+          ),
+          BoxShadow(color: Color(0x127FD9BC), blurRadius: 16),
+        ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: Stack(
-        clipBehavior: Clip.none,
         children: <Widget>[
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(
-                'THE READING HOUSE · SITTING ${data.sittingNumber.toString().padLeft(2, '0')}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _uiStyle(
-                  color: const Color(0xFFC4B88E),
-                  fontSize: 8,
-                  letterSpacing: 1.15,
+          const Positioned.fill(child: _ReadingHouseCardSurface()),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 7, 70, 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'THE READING HOUSE · SITTING ${data.sittingNumber.toString().padLeft(2, '0')}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _uiStyle(
+                    color: const Color(0xFF9FE0C6),
+                    fontSize: 7.5,
+                    letterSpacing: 1.25,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                data.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _displayStyle(
-                  color: const Color(0xFFF2EEE7),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  height: 1,
+                const SizedBox(height: 4),
+                Text(
+                  data.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _displayStyle(
+                    color: const Color(0xFFFBF7EF),
+                    fontSize: 17.5,
+                    fontWeight: FontWeight.w600,
+                    height: 0.96,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 5),
-              Row(
-                children: <Widget>[
-                  _ReaderStack(initials: data.memberInitials),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      data.timingLabel ?? data.memberLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _uiStyle(
-                        color: const Color(0xFFB3C8C0),
-                        fontSize: 9.5,
+                const Spacer(),
+                Row(
+                  children: <Widget>[
+                    _ReaderStack(initials: data.memberInitials, compact: true),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        data.timingLabel ?? data.memberLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _uiStyle(
+                          color: const Color(0xFF96B3A6),
+                          fontSize: 8.4,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
           const Positioned(
-            right: -66,
-            top: -5,
-            child: _ReadingScrollArtwork(width: 56, height: 58),
+            right: 8,
+            top: 0,
+            bottom: 0,
+            width: 55,
+            child: Center(child: _ReadingScrollArtwork(width: 55, height: 49)),
           ),
         ],
       ),
@@ -271,7 +291,7 @@ class _CompactBlock extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(10),
         onTap: data.onTap,
         child: content,
       ),
@@ -280,37 +300,48 @@ class _CompactBlock extends StatelessWidget {
 }
 
 class _ReaderStack extends StatelessWidget {
-  const _ReaderStack({required this.initials});
+  const _ReaderStack({required this.initials, this.compact = false});
 
   final List<String> initials;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final visible = initials.take(3).toList(growable: false);
+    final size = compact ? 13.0 : 18.0;
+    final overlap = compact ? 8.0 : 11.0;
     return SizedBox(
-      width: visible.isEmpty ? 0 : 18 + (visible.length - 1) * 11,
-      height: 18,
+      width: visible.isEmpty ? 0 : size + (visible.length - 1) * overlap,
+      height: size,
       child: Stack(
         children: <Widget>[
           for (var index = 0; index < visible.length; index++)
             Positioned(
-              left: index * 11,
+              left: index * overlap,
               child: Container(
-                width: 18,
-                height: 18,
+                width: size,
+                height: size,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: index == 0
-                      ? const Color(0xFF78D8B9)
-                      : const Color(0xFF3D8E75),
+                  gradient: index == 0
+                      ? const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: <Color>[Color(0xFFA8E6D1), Color(0xFF3FA98A)],
+                        )
+                      : null,
+                  color: index == 0 ? null : const Color(0xFF3D8E75),
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF092019)),
+                  border: Border.all(
+                    color: const Color(0xFF0E241B),
+                    width: compact ? 1.5 : 1,
+                  ),
                 ),
                 child: Text(
                   visible[index],
                   style: _uiStyle(
-                    color: const Color(0xFF07130F),
-                    fontSize: 6.5,
+                    color: const Color(0xFF0A1B14),
+                    fontSize: compact ? 7 : 6.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -322,21 +353,49 @@ class _ReaderStack extends StatelessWidget {
   }
 }
 
-class _MintGlow extends StatelessWidget {
-  const _MintGlow({required this.size});
-
-  final double size;
+class _ReadingHouseCardSurface extends StatelessWidget {
+  const _ReadingHouseCardSurface();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: <Color>[Color(0x337FD9BC), Color(0x0017362E)],
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment(-0.72, -1),
+          end: Alignment(0.72, 1),
+          colors: <Color>[
+            Color(0xFF0C2119),
+            Color(0xFF1E4436),
+            Color(0xFF0A1911),
+          ],
+          stops: <double>[0, 0.54, 1],
         ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0.68, -0.04),
+                radius: 0.78,
+                colors: <Color>[Color(0x33F0D296), Color(0x00F0D296)],
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: <Color>[
+                  Color(0xCC030806),
+                  Color(0x75030806),
+                  Color(0x05030806),
+                ],
+                stops: <double>[0, 0.46, 1],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -361,70 +420,120 @@ class _ReadingScrollArtwork extends StatelessWidget {
 class _ReadingScrollPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final glow = Paint()
-      ..shader = const RadialGradient(
-        colors: <Color>[Color(0x88DCCB91), Color(0x00DCCB91)],
-      ).createShader(Offset.zero & size);
-    canvas.drawOval(Offset.zero & size, glow);
+    canvas.save();
+    canvas.scale(size.width / 76, size.height / 68);
 
-    final pageRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.22,
-        size.height * 0.2,
-        size.width * 0.58,
-        size.height * 0.62,
-      ),
-      Radius.circular(size.width * 0.04),
+    canvas.drawOval(
+      const Rect.fromLTWH(8, 54, 60, 12),
+      Paint()..color = const Color(0x8C000000),
     );
-    final page = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: <Color>[Color(0xFFF1E3B5), Color(0xFFC5A766)],
-      ).createShader(pageRect.outerRect);
-    canvas.drawRRect(pageRect, page);
 
-    final roller = Paint()
-      ..shader = const LinearGradient(
-        colors: <Color>[
-          Color(0xFF8B632D),
-          Color(0xFFF1D58B),
-          Color(0xFF754B21),
-        ],
-      ).createShader(Offset.zero & size);
-    final top = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.15,
-        size.height * 0.14,
-        size.width * 0.7,
-        size.height * 0.13,
-      ),
-      Radius.circular(size.height * 0.08),
+    final sheet = Path()
+      ..moveTo(19, 24)
+      ..lineTo(57, 24)
+      ..lineTo(69, 60)
+      ..lineTo(7, 60)
+      ..close();
+    canvas.drawPath(
+      sheet,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[Color(0xFFF1E3B5), Color(0xFFC5A766)],
+        ).createShader(const Rect.fromLTWH(7, 24, 62, 36)),
     );
-    canvas.drawRRect(top, roller);
-    final bottom = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.19,
-        size.height * 0.75,
-        size.width * 0.62,
-        size.height * 0.12,
-      ),
-      Radius.circular(size.height * 0.07),
-    );
-    canvas.drawRRect(bottom, roller);
 
-    final ink = Paint()
-      ..color = const Color(0xFF9D503C)
-      ..strokeWidth = size.width * 0.018
-      ..strokeCap = StrokeCap.round;
-    for (var index = 0; index < 3; index++) {
-      final y = size.height * (0.39 + index * 0.11);
-      canvas.drawLine(
-        Offset(size.width * 0.34, y),
-        Offset(size.width * (index == 2 ? 0.61 : 0.7), y),
-        ink,
-      );
+    canvas.save();
+    canvas.clipPath(sheet);
+    final grain = Paint()
+      ..color = const Color(0x16FFF6E0)
+      ..strokeWidth = 1.1;
+    for (final y in <double>[30, 37, 44, 51]) {
+      canvas.drawLine(Offset(10, y), Offset(68, y), grain);
     }
+    canvas.drawLine(
+      const Offset(25, 32.5),
+      const Offset(52, 32.5),
+      Paint()
+        ..color = const Color(0xEBA8442A)
+        ..strokeWidth = 1.9
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      const Offset(23.6, 40),
+      const Offset(55, 40),
+      Paint()
+        ..color = const Color(0xD12E2418)
+        ..strokeWidth = 1.7
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      const Offset(22.6, 46.5),
+      const Offset(48, 46.5),
+      Paint()
+        ..color = const Color(0xB32E2418)
+        ..strokeWidth = 1.7
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      const Offset(21.4, 53),
+      const Offset(53, 53),
+      Paint()
+        ..color = const Color(0x852E2418)
+        ..strokeWidth = 1.7
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.restore();
+
+    canvas.drawPath(
+      sheet,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..color = const Color(0x57FFF1D4)
+        ..strokeWidth = 0.9,
+    );
+
+    final roller = RRect.fromLTRBR(15, 14, 61, 25, const Radius.circular(5.5));
+    canvas.drawRRect(
+      roller,
+      Paint()
+        ..shader = const LinearGradient(
+          colors: <Color>[
+            Color(0xFF8B632D),
+            Color(0xFFF1D58B),
+            Color(0xFF754B21),
+          ],
+        ).createShader(const Rect.fromLTWH(15, 14, 46, 11)),
+    );
+    canvas.drawLine(
+      const Offset(15, 15.4),
+      const Offset(61, 15.4),
+      Paint()
+        ..color = const Color(0x80FFF3D8)
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(15, 19.5), width: 6.4, height: 11),
+      Paint()..color = const Color(0xFFC6AF87),
+    );
+
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(38, 34), width: 76, height: 68),
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(-0.28, -0.52),
+          radius: 0.64,
+          colors: <Color>[
+            Color(0x99FFE9BC),
+            Color(0x2BF0D296),
+            Color(0x00F0D296),
+          ],
+          stops: <double>[0, 0.54, 1],
+        ).createShader(const Rect.fromLTWH(0, 0, 76, 68)),
+    );
+    canvas.restore();
   }
 
   @override
