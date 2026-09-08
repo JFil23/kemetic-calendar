@@ -24,10 +24,12 @@ import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart'
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../support/maat_flow_visual_goldens.dart';
+
 const _visualCaptureSurfaceKey = ValueKey<String>(
   'offering-table-visual-capture-surface',
 );
-const _goldenRoot = '../../visual_reference/maat_flows/goldens';
+final _goldenRoot = maatFlowVisualGoldenRoot;
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -1072,7 +1074,7 @@ void main() {
     });
   }
 
-  testWidgets('matches the locked Offering Table detail and ritual sheet', (
+  testWidgets('captures the flow-detail preview sheet visual checkpoint', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -1155,7 +1157,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('matches the locked Offering Table Day View and layered sheet', (
+  testWidgets('captures the static Offering Table visual checkpoint', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;

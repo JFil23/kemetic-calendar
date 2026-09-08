@@ -9,11 +9,12 @@ import 'package:mobile/features/calendar/the_reading_house/presentation/reading_
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
+import '../../support/maat_flow_visual_goldens.dart';
 
 const _captureReadingHouseDayVisuals = bool.fromEnvironment(
   'CAPTURE_READING_HOUSE_DAY_VISUALS',
 );
-const _goldenRoot = '../../visual_reference/maat_flows/goldens';
+final _goldenRoot = maatFlowVisualGoldenRoot;
 
 double _authoredOpenSheetExtent(Size size) =>
     math.min(600, size.height * .72) / (size.height - 12);

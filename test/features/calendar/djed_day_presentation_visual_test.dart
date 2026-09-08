@@ -14,9 +14,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
+import '../../support/maat_flow_visual_goldens.dart';
 
 const _captureDjedDayVisuals = bool.fromEnvironment('CAPTURE_DJED_DAY_VISUALS');
-const _goldenRoot = '../../visual_reference/maat_flows/goldens';
+final _goldenRoot = maatFlowVisualGoldenRoot;
 
 Future<void> _ensureSupabaseInitialized() async {
   try {

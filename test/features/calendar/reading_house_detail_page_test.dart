@@ -15,11 +15,12 @@ import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
+import '../../support/maat_flow_visual_goldens.dart';
 
 const _captureSurfaceKey = ValueKey<String>(
   'reading-house-visual-capture-surface',
 );
-const _goldenRoot = '../../visual_reference/maat_flows/goldens';
+final _goldenRoot = maatFlowVisualGoldenRoot;
 
 void main() {
   Future<_FakeReadingHouseAuthority> pumpHouse(
@@ -1009,9 +1010,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('matches the locked Reading House detail checkpoints', (
-    tester,
-  ) async {
+  testWidgets('captures Reading House visual checkpoints', (tester) async {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
     await loadMaatFlowVisualTestFonts();

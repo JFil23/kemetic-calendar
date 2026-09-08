@@ -3,11 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_discovery_view.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
+import '../../support/maat_flow_visual_goldens.dart';
 
 const _captureDiscoveryVisuals = bool.fromEnvironment(
   'CAPTURE_MAAT_FLOW_DISCOVERY_VISUALS',
 );
-const _goldenRoot = '../../visual_reference/maat_flows/goldens';
+final _goldenRoot = maatFlowVisualGoldenRoot;
 
 void main() {
   setUpAll(() async {

@@ -11,10 +11,24 @@ CSS, embedded artwork, SVG geometry, typography, copy, and observable
 interaction states govern the visual result. Their JavaScript is not copied
 into the app.
 
-This package contains **39** Flutter goldens. **34** have an independent
-HTML-to-Flutter evidence set in `evidence/`; the other **5** are explicitly
-supplemental product/safety contracts for states the supplied HTML does not
-author. A prior report of 18 goldens was a stale partial count.
+This package contains **39** visual states, each with an exact macOS golden and
+an exact Linux golden. **34** have an independent HTML-to-Flutter evidence set
+in `evidence/`; the other **5** are explicitly supplemental product/safety
+contracts for states the supplied HTML does not author. A prior report of 18
+goldens was a stale partial count.
+
+The macOS captures in `goldens/` remain the reviewed visual acceptance
+authority. The captures in `goldens/linux/` are exact expectations for the
+Linux renderer used by the release gate. They were generated with Flutter
+3.35.3 (framework revision `a402d9a437`, engine revision `ddf47dd3ff`, engine
+hash `672c59cfa87c8070c20ba2cd1a6c2a1baf5cf08b`) and Dart 3.9.2 from the
+digest-pinned Linux image
+`ghcr.io/cirruslabs/flutter@sha256:884b23ca58e874a704a5d9bfea6a3207e4061c9e9d45c6bed98fe76b6fd107c5`.
+The two sets preserve the same geometry, layout, typography, artwork, color,
+copy, and state. They differ only where the host renderer produces different
+pixels. Tests select the matching platform directory and still compare with
+zero tolerance; no normalization, fallback, or automatic baseline acceptance
+is used.
 
 | Surface | Locked source | SHA-256 |
 | --- | --- | --- |
@@ -79,6 +93,7 @@ Regenerate only after an approved visual change:
 
 ```sh
 flutter test --update-goldens \
+  test/features/calendar/authored_event_block_day_view_test.dart \
   test/features/calendar/djed_detail_page_visual_test.dart \
   test/features/calendar/djed_day_presentation_visual_test.dart \
   test/features/calendar/reading_house_detail_page_test.dart \

@@ -5,9 +5,10 @@ import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
+import '../../support/maat_flow_visual_goldens.dart';
 
 const _captureDjedVisuals = bool.fromEnvironment('CAPTURE_DJED_VISUALS');
-const _goldenRoot = '../../visual_reference/maat_flows/goldens';
+final _goldenRoot = maatFlowVisualGoldenRoot;
 
 void main() {
   setUpAll(loadMaatFlowVisualTestFonts);

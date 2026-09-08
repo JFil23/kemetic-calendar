@@ -14,11 +14,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
+import '../../support/maat_flow_visual_goldens.dart';
 
 const _captureReadingHouseInboxVisuals = bool.fromEnvironment(
   'CAPTURE_READING_HOUSE_INBOX_VISUALS',
 );
-const _goldenRoot = '../../visual_reference/maat_flows/goldens';
+final _goldenRoot = maatFlowVisualGoldenRoot;
 const _captureKey = ValueKey<String>('reading-house-inbox-visual-capture');
 final _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 
@@ -265,7 +266,7 @@ void main() {
     }
   }
 
-  testWidgets('actual Inbox route places each House above Messages', (
+  testWidgets('accepted room sits directly below Invites and before Messages', (
     tester,
   ) async {
     await pumpPage(tester, size: const Size(390, 844));
@@ -312,7 +313,7 @@ void main() {
     expect(flowId, 82);
   });
 
-  testWidgets('loading and error remain dedicated room-section states', (
+  testWidgets('loading and error are dedicated Reading House section states', (
     tester,
   ) async {
     for (final state in const <ReadingHouseInboxSectionStatus>[
@@ -386,9 +387,7 @@ void main() {
           true,
         ),
       ]) {
-    testWidgets('actual Reading House Inbox visual ${fixture.$1}', (
-      tester,
-    ) async {
+    testWidgets('Reading House Inbox visual ${fixture.$1}', (tester) async {
       await pumpPage(
         tester,
         size: fixture.$2,

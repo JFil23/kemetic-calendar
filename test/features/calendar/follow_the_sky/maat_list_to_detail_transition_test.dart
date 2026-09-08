@@ -26,9 +26,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  testWidgets('discovery opens its authored inline detail on the same route', (
-    tester,
-  ) async {
+  testWidgets('list shell shifts on secondary animation', (tester) async {
     _setPhoneViewport(tester);
     await _pumpFlowStudio(
       tester,
@@ -81,7 +79,7 @@ void main() {
   });
 
   testWidgets(
-    'restored detail route preserves a discoverable list route beneath it',
+    'list shell reveals a stationary detail with exact V11 geometry and timing',
     (tester) async {
       _setPhoneViewport(tester);
       await _pumpFlowStudio(
