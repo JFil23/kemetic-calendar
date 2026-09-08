@@ -266,7 +266,7 @@ void main() {
     }
   }
 
-  testWidgets('accepted room sits directly below Invites and before Messages', (
+  testWidgets('actual Inbox route places each House above Messages', (
     tester,
   ) async {
     await pumpPage(tester, size: const Size(390, 844));
@@ -313,7 +313,7 @@ void main() {
     expect(flowId, 82);
   });
 
-  testWidgets('loading and error are dedicated Reading House section states', (
+  testWidgets('loading and error remain dedicated room-section states', (
     tester,
   ) async {
     for (final state in const <ReadingHouseInboxSectionStatus>[
@@ -387,7 +387,9 @@ void main() {
           true,
         ),
       ]) {
-    testWidgets('Reading House Inbox visual ${fixture.$1}', (tester) async {
+    testWidgets('actual Reading House Inbox visual ${fixture.$1}', (
+      tester,
+    ) async {
       await pumpPage(
         tester,
         size: fixture.$2,

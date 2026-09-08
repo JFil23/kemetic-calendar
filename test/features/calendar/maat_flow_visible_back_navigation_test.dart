@@ -34,7 +34,7 @@ void main() {
 
   for (final templateKey in scenarios) {
     testWidgets(
-      '$templateKey visible back dismisses detail but keeps Ma’at Flows open',
+      '$templateKey discovery Back dismisses its inline detail but keeps Ma’at Flows open',
       (tester) async {
         _setPhoneViewport(tester);
         await _pumpFlowStudio(

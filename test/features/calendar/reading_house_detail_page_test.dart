@@ -1010,7 +1010,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('captures Reading House visual checkpoints', (tester) async {
+  testWidgets('matches the locked Reading House detail checkpoints', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
     await loadMaatFlowVisualTestFonts();

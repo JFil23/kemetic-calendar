@@ -1074,7 +1074,7 @@ void main() {
     });
   }
 
-  testWidgets('captures the flow-detail preview sheet visual checkpoint', (
+  testWidgets('matches the locked Offering Table detail and ritual sheet', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -1157,7 +1157,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('captures the static Offering Table visual checkpoint', (
+  testWidgets('matches the locked Offering Table Day View and layered sheet', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
