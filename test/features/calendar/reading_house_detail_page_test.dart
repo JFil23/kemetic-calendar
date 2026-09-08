@@ -122,6 +122,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> openHouseQuestionEditor(WidgetTester tester) async {
+    final edit = find.byKey(
+      const ValueKey<String>('reading-house-question-edit'),
+    );
+    await bringHouseControlIntoView(tester, edit);
+    await tester.tap(edit);
+    await tester.pump();
+  }
+
   testWidgets('uses the shared detail architecture and revised visual copy', (
     tester,
   ) async {
@@ -155,7 +164,7 @@ void main() {
     );
     expect(find.text('Open the Text'), findsWidgets);
     expect(find.text('Set the house'), findsNothing);
-    expect(find.text('No invites yet'), findsOneWidget);
+    expect(find.text('Host · no invites yet'), findsOneWidget);
     expect(find.text('You'), findsOneWidget);
     expect(find.text('Hold this house'), findsOneWidget);
     expect(
@@ -169,7 +178,6 @@ void main() {
       find.byKey(const ValueKey<String>('reading-house-held')),
       findsOneWidget,
     );
-    expect(find.text('House is open'), findsOneWidget);
     expect(find.text('Held in your flows'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -179,14 +187,14 @@ void main() {
   ) async {
     final authority = await pumpHouse(tester);
     await jumpHouseScroll(tester, 650);
-    await tester.tap(find.text('Solo study'));
+    await tester.tap(find.text('Solo'));
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey<String>('reading-house-readers')),
       findsNothing,
     );
 
-    await tester.tap(find.text('With readers · recommended'));
+    await tester.tap(find.text('Readers'));
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey<String>('reading-house-readers')),
@@ -194,7 +202,7 @@ void main() {
     );
 
     await jumpHouseScroll(tester, 820);
-    await tester.tap(find.text('Open · appears in the Commons'));
+    await tester.tap(find.text('Commons'));
     await tester.pumpAndSettle();
     expect(
       find.text('Community members can discover this house in the Commons.'),
@@ -220,7 +228,7 @@ void main() {
     await tester.tap(find.text('Amina Reed'));
     await tester.pumpAndSettle();
     expect(find.text('Amina Reed'), findsOneWidget);
-    expect(find.text('1 invite pending'), findsOneWidget);
+    expect(find.text('Host · 1 invite pending'), findsOneWidget);
     expect(authority.inviteCount, 1);
     expect(authority.lastSnapshot?.openDoors, isTrue);
     expect(tester.takeException(), isNull);
@@ -233,7 +241,7 @@ void main() {
       final firstSitting = find.byKey(
         const ValueKey<String>('reading-house-sitting-1'),
       );
-      await jumpHouseScroll(tester, 2300);
+      await bringHouseControlIntoView(tester, firstSitting);
       await tester.tap(firstSitting);
       await tester.pumpAndSettle();
 
@@ -250,7 +258,7 @@ void main() {
         find.byKey(const ValueKey<String>('reading_house_sitting_save_button')),
       );
       await tester.pumpAndSettle();
-      expect(find.text('NOT PLACED'), findsWidgets);
+      expect(find.textContaining('NOT PLACED'), findsWidgets);
       expect(tester.takeException(), isNull);
     },
   );
@@ -394,6 +402,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('reading-house-hold')));
     await tester.pumpAndSettle();
     await jumpHouseScroll(tester, 700);
+    await openHouseQuestionEditor(tester);
     await tester.enterText(
       find.byKey(const ValueKey<String>('reading-house-book')),
       'The Odyssey',
@@ -402,14 +411,15 @@ void main() {
       find.byKey(const ValueKey<String>('reading-house-question')),
       'What does homecoming require?',
     );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('reading-house-question-save')),
+    );
     await tester.pump();
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('reading-house-reading-frame')),
-        matching: find.text('What does homecoming require?'),
-      ),
+      find.byKey(const ValueKey<String>('reading-house-question-display')),
       findsOneWidget,
     );
+    expect(find.text('What does homecoming require?'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
     expect(authority.lastSnapshot?.plan.bookTitle, 'The Odyssey');
@@ -428,17 +438,12 @@ void main() {
       find.byKey(const ValueKey<String>('reading-house-book')),
     );
     expect(book.controller?.text, 'The Odyssey');
+    expect(find.text('What does homecoming require?'), findsOneWidget);
+    await openHouseQuestionEditor(tester);
     final question = tester.widget<TextField>(
       find.byKey(const ValueKey<String>('reading-house-question')),
     );
     expect(question.controller?.text, 'What does homecoming require?');
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('reading-house-reading-frame')),
-        matching: find.text('What does homecoming require?'),
-      ),
-      findsOneWidget,
-    );
   });
 
   testWidgets('blank House Question uses the canonical frame fallback', (
@@ -446,6 +451,7 @@ void main() {
   ) async {
     await pumpHouse(tester);
     await jumpHouseScroll(tester, 700);
+    await openHouseQuestionEditor(tester);
     final question = find.byKey(
       const ValueKey<String>('reading-house-question'),
     );
@@ -453,14 +459,16 @@ void main() {
     await tester.pump();
     await tester.enterText(question, '');
     await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('reading-house-question-save')),
+    );
+    await tester.pump();
 
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('reading-house-reading-frame')),
-        matching: find.text(kReadingHouseDefaultQuestion),
-      ),
+      find.byKey(const ValueKey<String>('reading-house-question-display')),
       findsOneWidget,
     );
+    expect(find.text(kReadingHouseDefaultQuestion), findsOneWidget);
   });
 
   testWidgets('all setup and invite inputs obtain system text focus', (
@@ -470,7 +478,6 @@ void main() {
     for (final key in const <String>[
       'reading-house-book',
       'reading-house-edition',
-      'reading-house-question',
     ]) {
       final finder = find.byKey(ValueKey<String>(key));
       await Scrollable.ensureVisible(
@@ -493,6 +500,23 @@ void main() {
       expect(tester.testTextInput.isVisible, isTrue);
     }
 
+    await openHouseQuestionEditor(tester);
+    final question = find.byKey(
+      const ValueKey<String>('reading-house-question'),
+    );
+    await tester.tap(question);
+    await tester.pump();
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(of: question, matching: find.byType(EditableText)),
+          )
+          .focusNode
+          .hasFocus,
+      isTrue,
+    );
+    expect(tester.testTextInput.isVisible, isTrue);
+
     final invite = find.byKey(
       const ValueKey<String>('reading-house-invite-reader'),
     );
@@ -510,11 +534,10 @@ void main() {
     'sitting editor keeps every field above the keyboard and clears modal focus',
     (tester) async {
       await pumpHouse(tester);
-      await jumpHouseScroll(tester, 2300);
       final firstSitting = find.byKey(
         const ValueKey<String>('reading-house-sitting-1'),
       );
-      await tester.ensureVisible(firstSitting);
+      await bringHouseControlIntoView(tester, firstSitting);
       await tester.tap(firstSitting);
       await tester.pumpAndSettle();
 
@@ -642,11 +665,10 @@ void main() {
       authority: authority,
       initialFlowId: authority.flowId,
     );
-    await jumpHouseScroll(tester, 2300);
     final firstSitting = find.byKey(
       const ValueKey<String>('reading-house-sitting-1'),
     );
-    await tester.ensureVisible(firstSitting);
+    await bringHouseControlIntoView(tester, firstSitting);
     await tester.tap(firstSitting);
     await tester.pumpAndSettle();
     await tester.tap(
@@ -879,7 +901,7 @@ void main() {
     );
     authority.resetOperationCounts();
     await jumpHouseScroll(tester, 820);
-    await tester.tap(find.text('Open · appears in the Commons'));
+    await tester.tap(find.text('Commons'));
     await tester.pump();
 
     expect(
@@ -920,11 +942,10 @@ void main() {
       initialFlowId: authority.flowId,
     );
     authority.resetOperationCounts();
-    await jumpHouseScroll(tester, 2300);
     final firstSitting = find.byKey(
       const ValueKey<String>('reading-house-sitting-1'),
     );
-    await tester.ensureVisible(firstSitting);
+    await bringHouseControlIntoView(tester, firstSitting);
     final position = tester.state<ScrollableState>(houseScrollable()).position;
     final beforeOffset = position.pixels;
     await tester.tap(firstSitting);

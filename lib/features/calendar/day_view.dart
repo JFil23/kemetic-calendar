@@ -2161,6 +2161,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   FlowData? _chromeFlowForId(int? flowId) => widget.flowResolver?.call(flowId);
 
   bool _isOfferingTableInstrumentEvent(EventItem event) {
+    if (resolveMaatFlowKind(behaviorPayload: event.behaviorPayload) ==
+        MaatFlowKind.offeringTable) {
+      return true;
+    }
     final flow = _chromeFlowForId(event.flowId);
     return event.flowId != null &&
         isOfferingTableFlowReference(
@@ -2176,6 +2180,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   }
 
   bool _isDjedInstrumentEvent(EventItem event) {
+    if (resolveMaatFlowKind(behaviorPayload: event.behaviorPayload) ==
+        MaatFlowKind.theDjed) {
+      return true;
+    }
     final flow = _chromeFlowForId(event.flowId);
     return event.flowId != null &&
         isDjedFlowReference(
@@ -2184,6 +2192,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           behaviorPayload: event.behaviorPayload,
         ) &&
         djedV2EventForEvent(behaviorPayload: event.behaviorPayload) != null;
+  }
+
+  bool _isReadingHouseInstrumentEvent(EventItem event) {
+    if (resolveMaatFlowKind(behaviorPayload: event.behaviorPayload) ==
+        MaatFlowKind.readingHouse) {
+      return true;
+    }
+    final flow = _chromeFlowForId(event.flowId);
+    return _isReadingHouseFlowName(flow?.name);
   }
 
   bool _isRepeatingNoteFlowId(int? flowId) {
@@ -4246,40 +4263,49 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildEventDetailPrimaryAction(
-          rootContext: rootContext,
-          sheetContext: sheetContext,
-          target: target,
+        Flexible(
+          child: _buildEventDetailPrimaryAction(
+            rootContext: rootContext,
+            sheetContext: sheetContext,
+            target: target,
+          ),
         ),
-        TextButton(
-          onPressed: calendarEnabled
-              ? () async {
-                  final updatedTarget =
-                      await CalendarPage.showDetailSheetCalendarPicker(
-                        context: sheetContext,
-                        target: target,
-                        onOptimisticTargetChanged: (optimisticTarget) {
-                          if (sheetContext.mounted) {
-                            _moveToTarget(optimisticTarget);
-                          }
-                        },
-                      );
-                  if (!sheetContext.mounted || updatedTarget == null) return;
-                  _moveToTarget(updatedTarget);
-                }
-              : null,
-          child: calendarEnabled
-              ? KemeticGold.text(
-                  calendarLabel,
-                  style: _goldHeaderStyle.copyWith(fontSize: 15),
-                )
-              : Text(
-                  calendarLabel,
-                  style: _goldHeaderStyle.copyWith(
-                    fontSize: 15,
-                    color: Colors.white24,
-                  ),
-                ),
+        Flexible(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: calendarEnabled
+                  ? () async {
+                      final updatedTarget =
+                          await CalendarPage.showDetailSheetCalendarPicker(
+                            context: sheetContext,
+                            target: target,
+                            onOptimisticTargetChanged: (optimisticTarget) {
+                              if (sheetContext.mounted) {
+                                _moveToTarget(optimisticTarget);
+                              }
+                            },
+                          );
+                      if (!sheetContext.mounted || updatedTarget == null) {
+                        return;
+                      }
+                      _moveToTarget(updatedTarget);
+                    }
+                  : null,
+              child: calendarEnabled
+                  ? KemeticGold.text(
+                      calendarLabel,
+                      style: _goldHeaderStyle.copyWith(fontSize: 15),
+                    )
+                  : Text(
+                      calendarLabel,
+                      style: _goldHeaderStyle.copyWith(
+                        fontSize: 15,
+                        color: Colors.white24,
+                      ),
+                    ),
+            ),
+          ),
         ),
       ],
     );
@@ -4362,10 +4388,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       target.event,
     );
     final activeDjedInstrument = _isDjedInstrumentEvent(target.event);
-    final activeInstrumentPresentation =
-        activeFollowSkyInstrument ||
+    final activeReadingHouseInstrument = _isReadingHouseInstrumentEvent(
+      target.event,
+    );
+    final activeLayeredInstrument =
         activeOfferingTableInstrument ||
-        activeDjedInstrument;
+        activeDjedInstrument ||
+        activeReadingHouseInstrument;
+    final activeInstrumentPresentation =
+        activeFollowSkyInstrument || activeLayeredInstrument;
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
         : keyboardInset > 0
@@ -4427,20 +4458,28 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               ? 'follow-sky-resizable-sheet'
               : activeOfferingTableInstrument
               ? 'offering-table-resizable-sheet'
+              : activeReadingHouseInstrument
+              ? 'reading-house-resizable-sheet'
               : 'djed-resizable-sheet',
         ),
         semanticLabel: activeFollowSkyInstrument
             ? 'Resize Follow Sky sheet'
             : activeOfferingTableInstrument
             ? 'Resize Offering Table sheet'
+            : activeReadingHouseInstrument
+            ? 'Resize Reading House sheet'
             : 'Resize Djed sheet',
-        handleColor: _dayGold.withValues(alpha: 0.48),
+        handleColor: activeReadingHouseInstrument
+            ? const Color(0xFF33463E)
+            : activeLayeredInstrument
+            ? const Color(0xFF72571E)
+            : _dayGold.withValues(alpha: 0.48),
         initialExtent: activeFollowSkyInstrument
             ? instrumentEventSheetMinExtent
-            : activeDjedInstrument
+            : activeReadingHouseInstrument
             ? .71
-            : .72,
-        geometry: activeDjedInstrument
+            : .70,
+        geometry: activeLayeredInstrument
             ? InstrumentEventSheetGeometry.layered
             : null,
         trailing: activeDjedInstrument
@@ -4897,18 +4936,53 @@ bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
 
 double _eventVisualTop(EventItem event) => event.startMin.toDouble();
 
-bool _usesFullWidthAuthoredEventBlock(EventItem event) =>
-    djedV2EventForEvent(behaviorPayload: event.behaviorPayload) != null ||
-    offeringTableDayForEvent(
-          title: event.title,
-          behaviorPayload: event.behaviorPayload,
-        ) !=
-        null ||
-    readingHouseSittingForEvent(
-          title: event.title,
-          behaviorPayload: event.behaviorPayload,
-        ) !=
-        null;
+bool _usesFullWidthAuthoredEventBlock(EventItem event) {
+  final kind = resolveMaatFlowKind(behaviorPayload: event.behaviorPayload);
+  return kind == MaatFlowKind.theDjed ||
+      kind == MaatFlowKind.readingHouse ||
+      kind == MaatFlowKind.offeringTable;
+}
+
+double _authoredEventBlockMinHeight(MaatFlowKind? kind) {
+  return switch (kind) {
+    MaatFlowKind.theDjed => 106,
+    MaatFlowKind.readingHouse => 61,
+    MaatFlowKind.offeringTable => 92,
+    _ => 0,
+  };
+}
+
+DjedSittingFixture _djedSittingFaceForEvent(EventItem event) {
+  final resolved = djedV2EventForEvent(behaviorPayload: event.behaviorPayload);
+  final rawNumber =
+      resolved?.eventNumber ??
+      (event.behaviorPayload?['event_number'] is num
+          ? (event.behaviorPayload!['event_number'] as num).toInt()
+          : int.tryParse(
+              event.behaviorPayload?['event_number']?.toString() ?? '',
+            ));
+  final index = ((rawNumber ?? 1) - 1).clamp(
+    0,
+    kDjedSittingFixtures.length - 1,
+  );
+  return kDjedSittingFixtures[index];
+}
+
+OfferingTableDay _offeringTableDayFaceForEvent(EventItem event) {
+  return offeringTableDayForEvent(
+        title: event.title,
+        behaviorPayload: event.behaviorPayload,
+      ) ??
+      kOfferingTableDays.first;
+}
+
+ReadingHouseSitting _readingHouseSittingFaceForEvent(EventItem event) {
+  return readingHouseSittingForEvent(
+        title: event.title,
+        behaviorPayload: event.behaviorPayload,
+      ) ??
+      kReadingHouseSittings.first;
+}
 
 double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
   int durationMinutes = event.endMin - event.startMin;
@@ -4919,24 +4993,11 @@ double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
     durationMinutes = 180;
   }
 
-  if (djedV2EventForEvent(behaviorPayload: event.behaviorPayload) != null) {
-    return math.max(106, durationMinutes.toDouble());
-  }
-
-  if (readingHouseSittingForEvent(
-        title: event.title,
-        behaviorPayload: event.behaviorPayload,
-      ) !=
-      null) {
-    return math.max(61, durationMinutes.toDouble());
-  }
-
-  if (offeringTableDayForEvent(
-        title: event.title,
-        behaviorPayload: event.behaviorPayload,
-      ) !=
-      null) {
-    return math.max(92, durationMinutes.toDouble());
+  final authoredHeight = _authoredEventBlockMinHeight(
+    resolveMaatFlowKind(behaviorPayload: event.behaviorPayload),
+  );
+  if (authoredHeight > 0) {
+    return authoredHeight;
   }
 
   if (event.isReminder) {
@@ -8037,9 +8098,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
     final graphic = visual.graphic;
     final isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
-    final isOfferingTable =
-        graphic?.kind == CalendarEventGraphicKind.offeringTable;
-    final isDjed = _isDjedFlowName(flow?.name);
     final trackSkySpec = isTrackSky ? graphic : null;
 
     final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
@@ -8063,63 +8121,58 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
-    if (isOfferingTable) {
-      final offeringTableDay = offeringTableDayForEvent(
-        title: event.title,
-        behaviorPayload: event.behaviorPayload,
+    if (graphic?.kind == CalendarEventGraphicKind.offeringTable) {
+      final offeringTableDay = _offeringTableDayFaceForEvent(event);
+      return OfferingTableEventBlockVisual(
+        dayNumber: offeringTableDay.dayNumber,
+        title: offeringTableDay.title,
+        prompt: offeringTableDay.eventBlockPrompt,
+        width: block.width,
+        height: height,
+        isPreview: isPreview,
+        dashedBorder: true,
+        timeLabel: _compactEventTimeLabel(event.startMin),
+        animateRipple:
+            !isPreview &&
+            offeringTableEventIsToday(
+              ky: widget.ky,
+              km: widget.km,
+              kd: widget.kd,
+              now: DateTime.now(),
+            ),
       );
-      if (offeringTableDay != null) {
-        return OfferingTableEventBlockVisual(
-          dayNumber: offeringTableDay.dayNumber,
-          title: offeringTableDay.title,
-          prompt: offeringTableDay.eventBlockPrompt,
-          width: block.width,
-          height: height,
-          isPreview: isPreview,
-          dashedBorder: true,
-          timeLabel: _compactEventTimeLabel(event.startMin),
-          animateRipple:
-              !isPreview &&
-              offeringTableEventIsToday(
-                ky: widget.ky,
-                km: widget.km,
-                kd: widget.kd,
-                now: DateTime.now(),
-              ),
-        );
-      }
     }
 
-    if (isDjed) {
-      final djedEvent = djedV2EventForEvent(
-        behaviorPayload: event.behaviorPayload,
+    if (graphic?.kind == CalendarEventGraphicKind.djed) {
+      final fixture = _djedSittingFaceForEvent(event);
+      final orientation = fixture.number == 1;
+      return DjedEventBlockVisual(
+        sittingNumber: fixture.number,
+        title: fixture.title,
+        phase: fixture.phase,
+        timeLabel: fixture.timeLabel,
+        durationLabel: fixture.durationLabel,
+        supportName:
+            event.behaviorPayload?['support_name']?.toString() ??
+            (orientation ? 'name the four parts that need strengthening' : null),
+        progressCopy: orientation ? 'Name the structure' : null,
+        ordinalLabel: orientation ? 'Find your footing' : null,
+        supportPipIndex: orientation ? -1 : null,
+        width: block.width,
+        height: height,
       );
-      if (djedEvent != null) {
-        final fixture = kDjedSittingFixtures[djedEvent.eventNumber - 1];
-        return DjedEventBlockVisual(
-          sittingNumber: fixture.number,
-          title: fixture.title,
-          phase: fixture.phase,
-          timeLabel: fixture.timeLabel,
-          durationLabel: fixture.durationLabel,
-          supportName: event.behaviorPayload?['support_name']?.toString(),
-        );
-      }
     }
 
-    if (_isReadingHouseFlowName(flow?.name)) {
-      final sitting = readingHouseSittingForEvent(
-        title: event.title,
-        behaviorPayload: event.behaviorPayload,
+    if (graphic?.kind == CalendarEventGraphicKind.readingHouse) {
+      final sitting = _readingHouseSittingFaceForEvent(event);
+      return ReadingHouseEventBlockVisual(
+        size: ReadingHouseEventBlockSize.compact,
+        sittingNumber: sitting.eventNumber,
+        title: sitting.title,
+        prompt: sitting.privatePrompt,
+        width: block.width,
+        height: height,
       );
-      if (sitting != null) {
-        return ReadingHouseEventBlockVisual(
-          size: ReadingHouseEventBlockSize.compact,
-          sittingNumber: sitting.eventNumber,
-          title: sitting.title,
-          prompt: sitting.privatePrompt,
-        );
-      }
     }
 
     return Container(

@@ -211,11 +211,17 @@ class MaatFlowDetailHero extends StatelessWidget {
     this.glyphBorder,
     this.glyphGlow,
     this.contentBottom = 72,
+    this.contentLeft = 24,
+    this.contentRight = 24,
     this.glyphToTitleSpacing = 16,
     this.titleFontSize = 48,
+    this.titleHeight = 1,
+    this.titleLetterSpacing = -0.48,
     this.subtitleSpacing = 10,
     this.subtitleWidth = 250,
     this.subtitleFontSize = 19,
+    this.subtitleColor,
+    this.subtitleHeight = 1.2,
   });
 
   final MaatFlowDetailTheme theme;
@@ -230,11 +236,17 @@ class MaatFlowDetailHero extends StatelessWidget {
   final Color? glyphBorder;
   final Color? glyphGlow;
   final double contentBottom;
+  final double contentLeft;
+  final double contentRight;
   final double glyphToTitleSpacing;
   final double titleFontSize;
+  final double titleHeight;
+  final double titleLetterSpacing;
   final double subtitleSpacing;
   final double subtitleWidth;
   final double subtitleFontSize;
+  final Color? subtitleColor;
+  final double subtitleHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -251,8 +263,8 @@ class MaatFlowDetailHero extends StatelessWidget {
             children: [
               background,
               Positioned(
-                left: 24,
-                right: 24,
+                left: contentLeft,
+                right: contentRight,
                 bottom: contentBottom,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,8 +325,8 @@ class MaatFlowDetailHero extends StatelessWidget {
                         fontFamilyFallback: MaatFlowListTokens.fontFallback,
                         fontSize: titleFontSize * titleScale,
                         fontWeight: FontWeight.w500,
-                        height: 1,
-                        letterSpacing: -0.48 * titleScale,
+                        height: titleHeight,
+                        letterSpacing: titleLetterSpacing * titleScale,
                         shadows: const [
                           Shadow(
                             color: Color(0xB8000000),
@@ -331,13 +343,13 @@ class MaatFlowDetailHero extends StatelessWidget {
                         child: Text(
                           subtitle,
                           style: TextStyle(
-                            color: theme.primaryText,
+                            color: subtitleColor ?? theme.primaryText,
                             fontFamily: MaatFlowListTokens.fontFamily,
                             fontFamilyFallback: MaatFlowListTokens.fontFallback,
                             fontSize: subtitleFontSize,
                             fontWeight: FontWeight.w300,
                             fontStyle: FontStyle.italic,
-                            height: 1.2,
+                            height: subtitleHeight,
                             shadows: const [
                               Shadow(
                                 color: Color(0xC7000000),
@@ -417,7 +429,7 @@ class MaatFlowDetailDock extends StatelessWidget {
                     backgroundColor: theme.pageBackground,
                     foregroundColor: joined
                         ? theme.secondaryText
-                        : theme.accent,
+                        : theme.glow,
                     disabledBackgroundColor: theme.pageBackground,
                     disabledForegroundColor: theme.secondaryText,
                     shape: RoundedRectangleBorder(
@@ -459,7 +471,7 @@ class MaatFlowDetailDock extends StatelessWidget {
                         ),
                 ),
               ),
-              const SizedBox(height: 11),
+              const SizedBox(height: 9),
               Text(
                 joined ? joinedNote : actionNote,
                 textAlign: TextAlign.center,

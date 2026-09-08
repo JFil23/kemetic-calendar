@@ -64,6 +64,26 @@ void main() {
           graphicKind: CalendarEventGraphicKind.offeringTable,
         ),
         _PaletteCase(
+          label: 'Djed staged identity',
+          eventTitle: 'Set your footing',
+          eventColor: Colors.orange,
+          behaviorPayload: const <String, dynamic>{
+            'flow_key': 'the-djed',
+            'kind': 'maat_djed_v2_event',
+          },
+          graphicKind: CalendarEventGraphicKind.djed,
+        ),
+        _PaletteCase(
+          label: 'Reading House staged identity',
+          eventTitle: 'Open the Text',
+          eventColor: Colors.teal,
+          behaviorPayload: const <String, dynamic>{
+            'flow_key': 'the-reading-house',
+            'kind': 'maat_reading_house_sitting',
+          },
+          graphicKind: CalendarEventGraphicKind.readingHouse,
+        ),
+        _PaletteCase(
           label: 'Dawn House Rite',
           flowName: 'Dawn House Rite',
           eventTitle: 'Day 1: Open the House',

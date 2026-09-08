@@ -324,6 +324,8 @@ ReadingHouseDayVisualFixture readingHouseRoomVisualFixture({
       ReadingHouseCompletionVisualState.none,
   String hostAnnouncement = '',
   String privateReflection = '',
+  String? roomSubtitle,
+  String roomGlyph = '◌',
 }) {
   final summary = controller.summary;
   final members = summary?.members ?? const <ReadingHouseRoomMember>[];
@@ -372,6 +374,8 @@ ReadingHouseDayVisualFixture readingHouseRoomVisualFixture({
     completion: completion,
     hostAnnouncement: hostAnnouncement,
     privateReflection: privateReflection,
+    roomSubtitle: roomSubtitle ?? 'Logistics and quick notes',
+    roomGlyph: roomGlyph,
   );
 }
 

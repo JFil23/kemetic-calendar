@@ -207,6 +207,7 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
                     handleColor: widget.handleColor,
                     height: topBarHeight,
                     handleTop: geometry?.handleTop,
+                    handleWidth: geometry?.handleWidth ?? 42,
                     onVerticalDragUpdate: keyboardInset == 0
                         ? (details) =>
                               _updateExtent(details, availableSheetHeight)
@@ -256,12 +257,13 @@ class InstrumentEventSheetGeometry {
     this.bodyHorizontalInset = 0,
     this.bodyBorderRadius = 20,
     this.handleTop,
+    this.handleWidth = 42,
   });
 
   /// Geometry copied from the layered Djed/Offering HTML sheets: a 48px
   /// chrome row, a 72px fixed footer, and no gaps between the three layers.
   static const layered = InstrumentEventSheetGeometry(
-    outerPadding: EdgeInsets.zero,
+    outerPadding: EdgeInsets.fromLTRB(9, 0, 9, 0),
     topBarHeight: 48,
     bodyTopGap: 0,
     footerGap: 0,
@@ -270,6 +272,7 @@ class InstrumentEventSheetGeometry {
     bodyHorizontalInset: 10,
     bodyBorderRadius: 18,
     handleTop: 19,
+    handleWidth: 41,
   );
 
   final EdgeInsets outerPadding;
@@ -281,6 +284,7 @@ class InstrumentEventSheetGeometry {
   final double bodyHorizontalInset;
   final double bodyBorderRadius;
   final double? handleTop;
+  final double handleWidth;
 }
 
 typedef InstrumentEventInputBuilder =
@@ -669,6 +673,7 @@ class InstrumentEventSheetTopBar extends StatelessWidget {
     required this.handleColor,
     this.height = 48,
     this.handleTop,
+    this.handleWidth = 42,
     this.onVerticalDragUpdate,
     this.trailing,
   });
@@ -677,6 +682,7 @@ class InstrumentEventSheetTopBar extends StatelessWidget {
   final Color handleColor;
   final double height;
   final double? handleTop;
+  final double handleWidth;
   final GestureDragUpdateCallback? onVerticalDragUpdate;
   final Widget? trailing;
 
@@ -704,7 +710,7 @@ class InstrumentEventSheetTopBar extends StatelessWidget {
                     child: Semantics(
                       label: semanticLabel,
                       child: Container(
-                        width: 42,
+                        width: handleWidth,
                         height: 4,
                         decoration: BoxDecoration(
                           color: handleColor,

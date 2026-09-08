@@ -57,7 +57,7 @@ void main() {
       expect(block.resolvedVisualState, OfferingTableBlockVisualState.named);
       expect(
         tester.getSize(find.byType(OfferingTableCupVisual)),
-        const Size(58, 60),
+        const Size(58, 54),
       );
       expect(block.height, 92);
 
@@ -378,7 +378,7 @@ void main() {
     await tester.tap(find.byType(OfferingTableEventBlockVisual));
     await tester.pumpAndSettle();
 
-    expect(find.text('2 steps'), findsOneWidget);
+    expect(find.text('2 steps'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('offering-table-day-03-step-2')),
       findsOneWidget,

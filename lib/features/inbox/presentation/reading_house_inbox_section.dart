@@ -184,12 +184,12 @@ class ReadingHouseInboxRoomRow extends StatelessWidget {
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 94),
-          padding: const EdgeInsets.fromLTRB(18, 11, 14, 11),
+          padding: const EdgeInsets.fromLTRB(18, 11, 18, 11),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: <Color>[
-                Color(0xFF08120E),
-                Color(0xE60B1410),
+                Color(0xDB08120E),
+                Color(0x940B1410),
                 Color(0x00120F09),
               ],
             ),
@@ -197,6 +197,13 @@ class ReadingHouseInboxRoomRow extends StatelessWidget {
               horizontal: BorderSide(
                 color: ReadingHouseInboxTokens.mint.withValues(alpha: 0.06),
               ),
+            ),
+          ),
+          foregroundDecoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0.94, -1),
+              radius: 1.3,
+              colors: <Color>[Color(0x173FA98A), Color(0x003FA98A)],
             ),
           ),
           child: Row(
@@ -208,16 +215,24 @@ class ReadingHouseInboxRoomRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const RadialGradient(
-                    center: Alignment(-0.35, -0.45),
+                    center: Alignment(-0.28, -0.44),
                     colors: <Color>[
-                      Color(0xFF214A3D),
-                      Color(0xFF17362E),
+                      Color(0x2E7FD9BC),
+                      Color(0xA617362E),
                       Color(0xFF0A1511),
                     ],
+                    stops: <double>[0, 0.62, 1],
                   ),
                   border: Border.all(
                     color: ReadingHouseInboxTokens.mint.withValues(alpha: 0.28),
                   ),
+                  boxShadow: const <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x47000000),
+                      blurRadius: 20,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: const Text(
                   '𓉐',
@@ -247,6 +262,7 @@ class ReadingHouseInboxRoomRow extends StatelessWidget {
                               fontSize: 24,
                               fontWeight: FontWeight.w600,
                               height: 1.08,
+                              letterSpacing: 0.4,
                             ),
                           ),
                         ),
@@ -297,7 +313,8 @@ class ReadingHouseInboxRoomRow extends StatelessWidget {
               ),
               const SizedBox(width: 9),
               SizedBox(
-                width: 35,
+                width: 48,
+                height: 66,
                 child: room.unreadCount > 0
                     ? Container(
                         height: 22,
@@ -319,7 +336,7 @@ class ReadingHouseInboxRoomRow extends StatelessWidget {
                     : const Icon(
                         Icons.chevron_right,
                         color: Color(0xFF625E57),
-                        size: 25,
+                        size: 26,
                       ),
               ),
             ],
@@ -602,7 +619,20 @@ class _PendingInviteSheet extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 22),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    key: const ValueKey<String>('reading-house-invites-close'),
+                    onPressed: null,
+                    icon: const Icon(Icons.close, size: 28),
+                    color: const Color(0xFFD8B23C),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
+                  ),
+                ),
                 const Text(
                   'Invites',
                   textAlign: TextAlign.center,
@@ -614,7 +644,7 @@ class _PendingInviteSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 25),
-                const _SectionLabel('Waiting on you'),
+                const _SectionLabel('Pending'),
                 ReadingHousePendingInviteCard(
                   invite: kReadingHousePendingInviteFixture,
                   onAccept: null,
@@ -746,16 +776,16 @@ class _MiniAvatars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: initials.isEmpty ? 0 : 18 + (initials.length - 1) * 14,
-      height: 18,
+      width: initials.isEmpty ? 0 : 17 + (initials.length - 1) * 14,
+      height: 17,
       child: Stack(
         children: <Widget>[
           for (var index = 0; index < initials.length; index++)
             Positioned(
               left: index * 14,
               child: Container(
-                width: 18,
-                height: 18,
+                width: 17,
+                height: 17,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,

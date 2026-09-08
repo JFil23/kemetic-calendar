@@ -43,9 +43,9 @@ class _ReadingHouseContractLine extends StatelessWidget {
           Text(
             labels[index],
             style: _uiStyle(
-              color: const Color(0xFFB9A15E),
-              fontSize: 9,
-              letterSpacing: 1.65,
+              color: const Color(0xFFD4AE43),
+              fontSize: 11,
+              letterSpacing: 1.45,
             ),
           ),
           if (index != labels.length - 1)
@@ -54,7 +54,7 @@ class _ReadingHouseContractLine extends StatelessWidget {
               height: 3,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Color(0xFF7E6C3D),
+                  color: Color(0xFF544426),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -76,6 +76,8 @@ class ReadingHouseEventBlockVisual extends StatelessWidget {
     this.memberInitials = const <String>['Y', 'M', 'A'],
     this.memberLabel = 'You and 2 other readers',
     this.timingLabel,
+    this.width,
+    this.height,
     this.onTap,
   });
 
@@ -86,6 +88,8 @@ class ReadingHouseEventBlockVisual extends StatelessWidget {
   final List<String> memberInitials;
   final String memberLabel;
   final String? timingLabel;
+  final double? width;
+  final double? height;
   final VoidCallback? onTap;
 
   @override
@@ -185,7 +189,9 @@ class _FeaturedBlock extends StatelessWidget {
           const Positioned(
             right: 17,
             top: 19,
-            child: _ReadingScrollArtwork(width: 73, height: 94),
+            width: 73,
+            height: 94,
+            child: Center(child: _ReadingScrollArtwork(width: 73, height: 65)),
           ),
         ],
       ),
@@ -212,7 +218,8 @@ class _CompactBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Container(
       key: const ValueKey<String>('reading-house-event-block-compact'),
-      height: 61,
+      width: data.width,
+      height: data.height ?? 61,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0x6B7FD9BC)),
@@ -229,50 +236,55 @@ class _CompactBlock extends StatelessWidget {
       child: Stack(
         children: <Widget>[
           const Positioned.fill(child: _ReadingHouseCardSurface()),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 7, 70, 6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Positioned(
+            left: 14,
+            right: 70,
+            top: 9,
+            child: Text(
+              'THE READING HOUSE · SITTING ${data.sittingNumber.toString().padLeft(2, '0')}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _uiStyle(
+                color: const Color(0xFF9FE0C6),
+                fontSize: 7.5,
+                letterSpacing: 1.25,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 14,
+            right: 70,
+            top: 20,
+            child: Text(
+              data.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _displayStyle(
+                color: const Color(0xFFFBF7EF),
+                fontSize: 17.5,
+                fontWeight: FontWeight.w600,
+                height: 0.96,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 14,
+            right: 70,
+            bottom: 5,
+            child: Row(
               children: <Widget>[
-                Text(
-                  'THE READING HOUSE · SITTING ${data.sittingNumber.toString().padLeft(2, '0')}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _uiStyle(
-                    color: const Color(0xFF9FE0C6),
-                    fontSize: 7.5,
-                    letterSpacing: 1.25,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  data.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _displayStyle(
-                    color: const Color(0xFFFBF7EF),
-                    fontSize: 17.5,
-                    fontWeight: FontWeight.w600,
-                    height: 0.96,
-                  ),
-                ),
-                const Spacer(),
-                Row(
-                  children: <Widget>[
-                    _ReaderStack(initials: data.memberInitials, compact: true),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        data.timingLabel ?? data.memberLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: _uiStyle(
-                          color: const Color(0xFF96B3A6),
-                          fontSize: 8.4,
-                        ),
-                      ),
+                _ReaderStack(initials: data.memberInitials, compact: true),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    data.timingLabel ?? data.memberLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _uiStyle(
+                      color: const Color(0xFF96B3A6),
+                      fontSize: 8.4,
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -323,14 +335,11 @@ class _ReaderStack extends StatelessWidget {
                 height: size,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  gradient: index == 0
-                      ? const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: <Color>[Color(0xFFA8E6D1), Color(0xFF3FA98A)],
-                        )
-                      : null,
-                  color: index == 0 ? null : const Color(0xFF3D8E75),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[Color(0xFFA8E6D1), Color(0xFF3FA98A)],
+                  ),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: const Color(0xFF0E241B),
@@ -342,7 +351,6 @@ class _ReaderStack extends StatelessWidget {
                   style: _uiStyle(
                     color: const Color(0xFF0A1B14),
                     fontSize: compact ? 7 : 6.5,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -440,7 +448,13 @@ class _ReadingScrollPainter extends CustomPainter {
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: <Color>[Color(0xFFF1E3B5), Color(0xFFC5A766)],
+          colors: <Color>[
+            Color(0xFFF5E9CE),
+            Color(0xFFDCC9A2),
+            Color(0xFF9C8760),
+            Color(0xFF4B3E29),
+          ],
+          stops: <double>[0, 0.38, 0.76, 1],
         ).createShader(const Rect.fromLTWH(7, 24, 62, 36)),
     );
 
@@ -452,6 +466,14 @@ class _ReadingScrollPainter extends CustomPainter {
     for (final y in <double>[30, 37, 44, 51]) {
       canvas.drawLine(Offset(10, y), Offset(68, y), grain);
     }
+    final verticalGrain = Paint()
+      ..color = const Color(0x1A5C4C31)
+      ..strokeWidth = 1.1;
+    canvas.drawLine(const Offset(23, 24), const Offset(21, 60), verticalGrain);
+    canvas.drawLine(const Offset(31, 24), const Offset(30, 60), verticalGrain);
+    canvas.drawLine(const Offset(39, 24), const Offset(39, 60), verticalGrain);
+    canvas.drawLine(const Offset(47, 24), const Offset(48, 60), verticalGrain);
+    canvas.drawLine(const Offset(55, 24), const Offset(57, 60), verticalGrain);
     canvas.drawLine(
       const Offset(25, 32.5),
       const Offset(52, 32.5),
@@ -499,11 +521,15 @@ class _ReadingScrollPainter extends CustomPainter {
       roller,
       Paint()
         ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
           colors: <Color>[
-            Color(0xFF8B632D),
-            Color(0xFFF1D58B),
-            Color(0xFF754B21),
+            Color(0xFFF0E1C0),
+            Color(0xFFC8B189),
+            Color(0xFF7C6845),
+            Color(0xFF3D3221),
           ],
+          stops: <double>[0, 0.42, 0.8, 1],
         ).createShader(const Rect.fromLTWH(15, 14, 46, 11)),
     );
     canvas.drawLine(

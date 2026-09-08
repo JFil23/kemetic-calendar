@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'maat_flow_identity.dart';
 
-enum CalendarEventGraphicKind { trackSky, offeringTable }
+enum CalendarEventGraphicKind { trackSky, offeringTable, djed, readingHouse }
 
 enum CalendarTrackSkyCardKind {
   moon,
@@ -406,6 +406,8 @@ CalendarEventGraphicStyle? _graphicStyleForEvent({
   return switch (kind) {
     MaatFlowKind.trackSky => _trackSkyGraphicStyleForTitle(eventTitle ?? ''),
     MaatFlowKind.offeringTable => _offeringTableGraphicStyle,
+    MaatFlowKind.theDjed => _djedGraphicStyle,
+    MaatFlowKind.readingHouse => _readingHouseGraphicStyle,
     _ => null,
   };
 }
@@ -416,10 +418,14 @@ CalendarEventVisualStyle _graphicVisualStyle(
   final base = switch (graphic.kind) {
     CalendarEventGraphicKind.trackSky => const Color(0xFF05070F),
     CalendarEventGraphicKind.offeringTable => const Color(0xFF0A0603),
+    CalendarEventGraphicKind.djed => const Color(0xFF150B04),
+    CalendarEventGraphicKind.readingHouse => const Color(0xFF0A1911),
   };
   final lowWash = switch (graphic.kind) {
     CalendarEventGraphicKind.trackSky => _mix(graphic.accentColor, base, 0.42),
     CalendarEventGraphicKind.offeringTable => const Color(0xFF6B4027),
+    CalendarEventGraphicKind.djed => const Color(0xFF3A1F0E),
+    CalendarEventGraphicKind.readingHouse => const Color(0xFF1E4436),
   };
   final body = _mix(graphic.detailColor, _dayViewWarmStone, 0.28);
   final support = _mix(graphic.detailColor, graphic.accentColor, 0.34);
@@ -491,6 +497,43 @@ const CalendarEventGraphicStyle _offeringTableGraphicStyle =
       labelColor: Color(0xFFFFE7B3),
       detailColor: Color(0xFFE8B27C),
       glowColor: Color(0xFFC08A52),
+    );
+
+const CalendarEventGraphicStyle _djedGraphicStyle = CalendarEventGraphicStyle(
+  kind: CalendarEventGraphicKind.djed,
+  background: LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF1E120A), Color(0xFF3A1F0E), Color(0xFF150B04)],
+    stops: [0, 0.56, 1],
+  ),
+  flowLabelGradient: _trackSkyFlowGoldGloss,
+  borderColor: Color(0xFFE0873C),
+  accentColor: Color(0xFFF5B963),
+  accentSecondaryColor: Color(0xFFE0873C),
+  titleColor: Color(0xFFF3EADF),
+  labelColor: Color(0xFFEDB874),
+  detailColor: Color(0xFFE8B98A),
+  glowColor: Color(0xFFF5B963),
+);
+
+const CalendarEventGraphicStyle _readingHouseGraphicStyle =
+    CalendarEventGraphicStyle(
+      kind: CalendarEventGraphicKind.readingHouse,
+      background: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF0C2119), Color(0xFF1E4436), Color(0xFF0A1911)],
+        stops: [0, 0.54, 1],
+      ),
+      flowLabelGradient: _trackSkyFlowGoldGloss,
+      borderColor: Color(0xFF7FD9BC),
+      accentColor: Color(0xFF9FE0C6),
+      accentSecondaryColor: Color(0xFF3FA98A),
+      titleColor: Color(0xFFFBF7EF),
+      labelColor: Color(0xFF9FE0C6),
+      detailColor: Color(0xFFD8D2C8),
+      glowColor: Color(0xFFF0D296),
     );
 
 CalendarTrackSkyCardKind _trackSkyCardKindForTitle(String title) {

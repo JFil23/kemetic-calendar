@@ -103,24 +103,81 @@ class _ReadingHouseRoomSheetState extends State<ReadingHouseRoomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final summary = _controller.summary;
+    final memberCount = summary?.memberCount ?? 0;
     final fixture = readingHouseRoomVisualFixture(
       context: context,
       controller: _controller,
       currentUserId: widget.dataSource.currentUserId,
       newMessageCount: _controller.newMessageCount,
+      roomGlyph: '𓉐',
+      roomSubtitle: summary == null
+          ? 'The Reading House'
+          : 'The Reading House · ${summary.title} · $memberCount ${memberCount == 1 ? 'reader' : 'readers'}',
     );
-    return FractionallySizedBox(
-      heightFactor: 0.84,
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: ReadingHouseChatPresentation(
-          fixture: fixture,
-          chatScrollController: _scrollController,
-          onFollowingLatestChanged: _controller.setFollowingLatest,
-          onLoadOlderMessages: () => unawaited(_controller.loadOlder()),
-          onSendMessage: _send,
-          onDeleteMessage: _delete,
-          onJumpToLatest: () => unawaited(_moveToLatest()),
+    final mediaHeight = MediaQuery.sizeOf(context).height * 0.78;
+    final sheetHeight = mediaHeight < 720 ? mediaHeight : 720.0;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        height: sheetHeight,
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              Color(0xFF0D1712),
+              Color(0xFF08100C),
+              Color(0xFF060906),
+            ],
+            stops: <double>[0, 0.38, 1],
+          ),
+        ),
+        child: Stack(
+          children: <Widget>[
+            const Positioned(
+              top: 11,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: SizedBox(
+                  width: 42,
+                  height: 4,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color(0xFF514D42),
+                      borderRadius: BorderRadius.all(Radius.circular(4)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 13,
+              child: IconButton(
+                key: const ValueKey<String>('reading-house-chat-sheet-close'),
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, size: 28, color: Color(0xFFD8B23C)),
+              ),
+            ),
+            Positioned(
+              top: 42,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: ReadingHouseChatPresentation(
+                fixture: fixture,
+                chatScrollController: _scrollController,
+                onFollowingLatestChanged: _controller.setFollowingLatest,
+                onLoadOlderMessages: () => unawaited(_controller.loadOlder()),
+                onSendMessage: _send,
+                onDeleteMessage: _delete,
+                onJumpToLatest: () => unawaited(_moveToLatest()),
+              ),
+            ),
+          ],
         ),
       ),
     );

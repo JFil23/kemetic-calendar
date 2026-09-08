@@ -240,16 +240,25 @@ class _DjedInstrument extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Expanded(
-            child: Transform.translate(
-              offset: const Offset(-5, 0),
-              child: SizedBox(
-                width: double.infinity,
-                child: _DjedSheetStage(
-                  key: const ValueKey<String>('djed-day-live-stage'),
-                  fixture: fixture,
-                  supports: supports,
-                ),
-              ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final stageHeight = math.min(230.0, constraints.maxHeight);
+                return Align(
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    height: stageHeight,
+                    width: double.infinity,
+                    child: Transform.translate(
+                      offset: const Offset(-5, 0),
+                      child: _DjedSheetStage(
+                        key: const ValueKey<String>('djed-day-live-stage'),
+                        fixture: fixture,
+                        supports: supports,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -907,19 +916,82 @@ class _DjedDecisionSurface extends StatelessWidget {
   }
 
   Widget _buildOrientation() {
+    return _DjedOrientationDecision(
+      onDoToday: onDoToday ?? onStageAction,
+      onPutOnCalendar: onPutOnCalendar ?? onStageAction,
+    );
+  }
+}
+
+class _DjedOrientationDecision extends StatefulWidget {
+  const _DjedOrientationDecision({this.onDoToday, this.onPutOnCalendar});
+
+  final VoidCallback? onDoToday;
+  final VoidCallback? onPutOnCalendar;
+
+  @override
+  State<_DjedOrientationDecision> createState() =>
+      _DjedOrientationDecisionState();
+}
+
+class _DjedOrientationDecisionState extends State<_DjedOrientationDecision> {
+  String? _choice;
+
+  static const List<(String, String)> _choices = <(String, String)>[
+    ('clear', 'clear one space'),
+    ('prepare', 'prepare something you need'),
+    ('outside', 'step outside'),
+    ('move', 'move for 10 minutes'),
+    ('reach', 'reach out to someone'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         const _DecisionLabel('START SMALL'),
         const SizedBox(height: 7),
         const Text('Pick one ten-minute reset.', style: _decisionQuestionStyle),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 7,
+          runSpacing: 7,
+          children: <Widget>[
+            for (final choice in _choices)
+              _DjedChoiceButton(
+                label: choice.$2,
+                selected: _choice == choice.$1,
+                onPressed: () => setState(() => _choice = choice.$1),
+              ),
+          ],
+        ),
         const SizedBox(height: 9),
         const Text(
           'Small is the point. Start by giving yourself one quick piece of control.',
           style: _decisionNoteStyle,
         ),
         const SizedBox(height: 12),
-        _DecisionTextButton(label: 'Do today', onPressed: onStageAction),
+        const Divider(height: 1, thickness: 1, color: Color(0x1AD4AE43)),
+        const SizedBox(height: 7),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: _DecisionTextButton(
+                label: 'Do today',
+                onPressed: widget.onDoToday,
+              ),
+            ),
+            const SizedBox(width: 18),
+            Expanded(
+              child: _DecisionTextButton(
+                label: 'Put on calendar',
+                color: Color(0xFFC9912F),
+                onPressed: widget.onPutOnCalendar,
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -1078,12 +1150,22 @@ class _DjedRaisingSurface extends StatelessWidget {
               style: _decisionNoteStyle,
             )
           else ...<Widget>[
-            FilledButton(
+            OutlinedButton(
               key: const ValueKey<String>('djed-raise-button'),
               onPressed: fixture.raisingActive ? null : onRaise,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFB57925),
-                foregroundColor: const Color(0xFF120B05),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(42),
+                foregroundColor: const Color(0xFFE7C66C),
+                disabledForegroundColor: const Color(0xFFE7C66C),
+                backgroundColor: const Color(0x0AD4AE43),
+                side: const BorderSide(color: Color(0x7AD4AE43)),
+                shape: const StadiumBorder(),
+                textStyle: const TextStyle(
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  height: 1,
+                ),
               ),
               child: Text(
                 fixture.raisingActive

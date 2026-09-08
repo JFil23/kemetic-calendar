@@ -256,18 +256,46 @@ class _OfferingTableDayPresentationState
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('offering-table-day-presentation'),
       decoration: const BoxDecoration(color: _velvet),
-      fixedHeroHeight: widget.day.dayNumber == 1 ? dayOneHeroHeight : 238,
+      fixedHeroHeight: widget.day.dayNumber == 1 ? dayOneHeroHeight : 360,
       instrument: _buildCupHero(),
       instrumentFooter: _buildPlacementControl(),
-      inputBuilder: (context, _, instrumentHeight) => Align(
-        alignment: Alignment.bottomCenter,
-        child: SizedBox(
-          height: InstrumentEventPresentationFrame.footerHeight,
-          child: widget.day.dayNumber == 1
-              ? const SizedBox.shrink()
-              : _buildCupInput(),
-        ),
-      ),
+      inputBuilder: (context, _, instrumentHeight) {
+        if (widget.day.dayNumber == 1) return const SizedBox.shrink();
+        return Stack(
+          children: <Widget>[
+            Positioned(
+              top: 108,
+              left: 10,
+              right: 10,
+              bottom: 8,
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    flex: 43,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: SizedBox(
+                        height: InstrumentEventPresentationFrame.footerHeight,
+                        child: _buildCupInput(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 57,
+                    child: _OfferingHeroRitual(
+                      steps: _presentation.steps,
+                      checkedSteps: _checkedSteps,
+                      stepId: _stepId,
+                      onToggle: _toggleStep,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
       body: _buildBody(),
       bodyScrollKey: const ValueKey<String>('offering-table-presentation-body'),
       lowerSheetKey: const ValueKey<String>(
@@ -285,115 +313,137 @@ class _OfferingTableDayPresentationState
       key: const ValueKey<String>('offering-table-cup-hero'),
       fit: StackFit.expand,
       children: <Widget>[
-        Positioned.fill(
-          child: CustomPaint(
-            painter: _OfferingCupInstrumentPainter(
-              placement: _placement,
-              foreground: false,
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (intention.isEmpty) return const SizedBox.shrink();
-              final surfaceY = constraints.maxHeight * (168 / 238);
-              final wordTop =
-                  constraints.maxHeight * (96 / 238) +
-                  (_placement * constraints.maxHeight * (70 / 238));
-              final scale = 1 - (_placement * 0.18);
-              final fontSize = intention.length > 46
-                  ? 14.5
-                  : intention.length > 28
-                  ? 16.0
-                  : 17.5;
-              Widget word({
-                required Key key,
-                required Color color,
-                required bool submerged,
-              }) {
-                return Stack(
+        Positioned(
+          top: 108,
+          left: 10,
+          right: 10,
+          bottom: 8,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                flex: 43,
+                child: Stack(
                   fit: StackFit.expand,
                   children: <Widget>[
-                    Positioned(
-                      left: (constraints.maxWidth - 176) / 2,
-                      top: wordTop,
-                      width: 176,
-                      child: Transform(
-                        alignment: Alignment.topCenter,
-                        transform: Matrix4.diagonal3Values(
-                          submerged ? scale * 1.04 : scale,
-                          scale,
-                          1,
-                        ),
-                        child: Text(
-                          intention,
-                          key: key,
-                          textAlign: TextAlign.center,
-                          maxLines: 3,
-                          overflow: TextOverflow.fade,
-                          style: TextStyle(
-                            color: color,
-                            fontFamily: _display,
-                            fontSize: fontSize,
-                            fontStyle: FontStyle.italic,
-                            height: intention.length > 46 ? 1.24 : 1.3,
-                            letterSpacing: 0.35,
-                            shadows: submerged
-                                ? const <Shadow>[
-                                    Shadow(color: _water, blurRadius: 6),
-                                  ]
-                                : const <Shadow>[
-                                    Shadow(
-                                      color: Colors.black87,
-                                      blurRadius: 12,
+                    CustomPaint(
+                      painter: _OfferingCupInstrumentPainter(
+                        placement: _placement,
+                        foreground: false,
+                      ),
+                    ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        if (intention.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        final surfaceY = constraints.maxHeight * (168 / 238);
+                        final wordTop =
+                            constraints.maxHeight * (96 / 238) +
+                            (_placement * constraints.maxHeight * (70 / 238));
+                        final scale = 1 - (_placement * 0.18);
+                        final fontSize = intention.length > 46
+                            ? 14.5
+                            : intention.length > 28
+                            ? 16.0
+                            : 17.5;
+                        Widget word({
+                          required Key key,
+                          required Color color,
+                          required bool submerged,
+                        }) {
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: <Widget>[
+                              Positioned(
+                                left: (constraints.maxWidth - 176) / 2,
+                                top: wordTop,
+                                width: 176,
+                                child: Transform(
+                                  alignment: Alignment.topCenter,
+                                  transform: Matrix4.diagonal3Values(
+                                    submerged ? scale * 1.04 : scale,
+                                    scale,
+                                    1,
+                                  ),
+                                  child: Text(
+                                    intention,
+                                    key: key,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.fade,
+                                    style: TextStyle(
+                                      color: color,
+                                      fontFamily: _display,
+                                      fontSize: fontSize,
+                                      fontStyle: FontStyle.italic,
+                                      height: intention.length > 46
+                                          ? 1.24
+                                          : 1.3,
+                                      letterSpacing: 0.35,
+                                      shadows: submerged
+                                          ? const <Shadow>[
+                                              Shadow(
+                                                color: _water,
+                                                blurRadius: 6,
+                                              ),
+                                            ]
+                                          : const <Shadow>[
+                                              Shadow(
+                                                color: Colors.black87,
+                                                blurRadius: 12,
+                                              ),
+                                            ],
                                     ),
-                                  ],
-                          ),
-                        ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: <Widget>[
+                            ClipPath(
+                              clipper: _OfferingWaterEllipseClipper(surfaceY),
+                              child: ClipRect(
+                                clipper: _OfferingBelowWaterClipper(surfaceY),
+                                child: word(
+                                  key: const ValueKey<String>(
+                                    'offering-table-intention-water',
+                                  ),
+                                  color: const Color(0xFFA9DCD5),
+                                  submerged: true,
+                                ),
+                              ),
+                            ),
+                            ClipRect(
+                              clipper: _OfferingAboveWaterClipper(surfaceY),
+                              child: word(
+                                key: const ValueKey<String>(
+                                  'offering-table-intention-air',
+                                ),
+                                color: const Color(0xFFE8B27C),
+                                submerged: false,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    CustomPaint(
+                      painter: _OfferingCupInstrumentPainter(
+                        placement: _placement,
+                        foreground: true,
                       ),
                     ),
                   ],
-                );
-              }
-
-              return Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  ClipPath(
-                    clipper: _OfferingWaterEllipseClipper(surfaceY),
-                    child: ClipRect(
-                      clipper: _OfferingBelowWaterClipper(surfaceY),
-                      child: word(
-                        key: const ValueKey<String>(
-                          'offering-table-intention-water',
-                        ),
-                        color: const Color(0xFFA9DCD5),
-                        submerged: true,
-                      ),
-                    ),
-                  ),
-                  ClipRect(
-                    clipper: _OfferingAboveWaterClipper(surfaceY),
-                    child: word(
-                      key: const ValueKey<String>(
-                        'offering-table-intention-air',
-                      ),
-                      color: const Color(0xFFE8B27C),
-                      submerged: false,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        Positioned.fill(
-          child: CustomPaint(
-            painter: _OfferingCupInstrumentPainter(
-              placement: _placement,
-              foreground: true,
-            ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(flex: 57, child: SizedBox.expand()),
+            ],
           ),
         ),
         Positioned(
@@ -451,6 +501,19 @@ class _OfferingTableDayPresentationState
                             shadows: <Shadow>[
                               Shadow(color: Colors.black87, blurRadius: 22),
                             ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _presentation.previewSummary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFB9AA95),
+                            fontFamily: _display,
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                            height: 1.28,
                           ),
                         ),
                       ],
@@ -595,8 +658,7 @@ class _OfferingTableDayPresentationState
             ),
           ),
           const SizedBox(height: 11),
-          const SizedBox(
-            height: 254,
+          const Expanded(
             child: Row(
               children: <Widget>[
                 Expanded(flex: 43, child: _SmallSupplyJarVisual()),
@@ -766,71 +828,55 @@ class _OfferingTableDayPresentationState
             Text(
               '${stage.name.toUpperCase()} · DAY $stageDay',
               style: const TextStyle(
-                color: _goldDim,
+                color: Color(0xFF95732D),
                 fontFamily: _ui,
-                fontSize: 10.5,
-                letterSpacing: 2.7,
+                fontSize: 8,
+                letterSpacing: 2,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               _presentation.previewSummary,
               style: const TextStyle(
-                color: _bone,
+                color: Color(0xFFD2C6B5),
                 fontFamily: _display,
-                fontSize: 21,
-                height: 1.3,
+                fontSize: 17,
+                height: 1.25,
               ),
             ),
             Container(
               key: const ValueKey<String>('offering-table-named-need'),
-              margin: const EdgeInsets.only(top: 17),
-              padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFFE8B27C).withValues(alpha: 0.24),
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
-                  colors: <Color>[
-                    const Color(0xFFC08A52).withValues(alpha: 0.11),
-                    Colors.white.withValues(alpha: 0.016),
-                  ],
-                ),
+              margin: const EdgeInsets.only(top: 16),
+              constraints: const BoxConstraints(minHeight: 49),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Color(0xFF332413))),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
-                  const Text(
-                    'THE NEED YOU NAMED',
-                    style: TextStyle(
-                      color: Color(0xFFE8B27C),
-                      fontFamily: _ui,
-                      fontSize: 10,
-                      letterSpacing: 2.4,
-                    ),
-                  ),
-                  const SizedBox(height: 9),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(2, 4, 2, 10),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: const Color(
-                            0xFFE8B27C,
-                          ).withValues(alpha: 0.30),
+                  const SizedBox(
+                    width: 76,
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: 10, right: 10),
+                      child: Text(
+                        'INTENTION',
+                        style: TextStyle(
+                          color: Color(0xFF81682E),
+                          fontFamily: _ui,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
                         ),
                       ),
                     ),
+                  ),
+                  Expanded(
                     child: TextField(
                       key: const ValueKey<String>(
                         'offering-table-intention-field',
                       ),
                       controller: _intentionController,
-                      cursorColor: const Color(0xFFE8B27C),
+                      cursorColor: const Color(0xFFF0C96A),
                       minLines: 1,
                       maxLines: 2,
                       textInputAction: TextInputAction.done,
@@ -840,86 +886,25 @@ class _OfferingTableDayPresentationState
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                        hintText: 'Name today’s intention…',
+                        contentPadding: EdgeInsets.fromLTRB(0, 5, 0, 8),
+                        hintText: 'name it…',
                         hintStyle: TextStyle(
-                          color: Color(0x737F756A),
+                          color: Color(0xFF5E564C),
                           fontFamily: _display,
-                          fontSize: 18,
+                          fontSize: 17,
                           fontStyle: FontStyle.italic,
-                          height: 1.3,
+                          height: 1.1,
                         ),
                       ),
                       style: const TextStyle(
                         color: Color(0xFFE8B27C),
                         fontFamily: _display,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w400,
+                        fontSize: 17,
                         fontStyle: FontStyle.italic,
-                        height: 1.3,
-                        letterSpacing: 0.3,
+                        height: 1.1,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final narrow = constraints.maxWidth < 300;
-                final gap = narrow ? 6.0 : 11.0;
-                return Row(
-                  children: <Widget>[
-                    Text(
-                      "TODAY'S RITUAL",
-                      style: TextStyle(
-                        color: _goldDim,
-                        fontFamily: _ui,
-                        fontSize: 10.5,
-                        letterSpacing: narrow ? 1.7 : 2.7,
-                      ),
-                    ),
-                    SizedBox(width: gap),
-                    const Expanded(
-                      child: Divider(color: _separator, height: 1),
-                    ),
-                    SizedBox(width: gap),
-                    Text(
-                      '${_presentation.steps.length} ${_presentation.steps.length == 1 ? 'step' : 'steps'}',
-                      style: const TextStyle(
-                        color: _silverLow,
-                        fontFamily: _ui,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.022),
-                border: Border.all(color: _separator),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: Column(
-                children: <Widget>[
-                  for (
-                    var index = 0;
-                    index < _presentation.steps.length;
-                    index++
-                  )
-                    _OfferingChecklistStep(
-                      key: ValueKey<String>(_stepId(index)),
-                      number: index + 1,
-                      text: _presentation.steps[index],
-                      checked: _checkedSteps[_stepId(index)] ?? false,
-                      showTopBorder: index > 0,
-                      onTap: () => _toggleStep(index),
-                    ),
                 ],
               ),
             ),
@@ -1140,20 +1125,63 @@ class _OfferingTableDayPresentationState
   }
 }
 
+class _OfferingHeroRitual extends StatelessWidget {
+  const _OfferingHeroRitual({
+    required this.steps,
+    required this.checkedSteps,
+    required this.stepId,
+    required this.onToggle,
+  });
+
+  final List<String> steps;
+  final Map<String, bool> checkedSteps;
+  final String Function(int index) stepId;
+  final void Function(int index) onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        const Text(
+          'TODAY',
+          style: TextStyle(
+            color: Color(0xFF9A7635),
+            fontFamily: _OfferingTableDayPresentationState._ui,
+            fontSize: 7.5,
+            letterSpacing: 1.35,
+          ),
+        ),
+        const SizedBox(height: 3),
+        for (var index = 0; index < steps.length; index++)
+          _OfferingChecklistStep(
+            key: ValueKey<String>(stepId(index)),
+            number: index + 1,
+            text: steps[index],
+            checked: checkedSteps[stepId(index)] ?? false,
+            last: index == steps.length - 1,
+            onTap: () => onToggle(index),
+          ),
+      ],
+    );
+  }
+}
+
 class _OfferingChecklistStep extends StatelessWidget {
   const _OfferingChecklistStep({
     super.key,
     required this.number,
     required this.text,
     required this.checked,
-    required this.showTopBorder,
+    required this.last,
     required this.onTap,
   });
 
   final int number;
   final String text;
   final bool checked;
-  final bool showTopBorder;
+  final bool last;
   final VoidCallback onTap;
 
   @override
@@ -1165,59 +1193,63 @@ class _OfferingChecklistStep extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+          padding: const EdgeInsets.symmetric(vertical: 7),
           decoration: BoxDecoration(
-            border: showTopBorder
-                ? const Border(
-                    top: BorderSide(
-                      color: _OfferingTableDayPresentationState._separator,
-                    ),
-                  )
-                : null,
+            border: last
+                ? null
+                : const Border(
+                    bottom: BorderSide(color: Color(0xC7302313)),
+                  ),
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
-                width: 25,
-                height: 25,
+                width: 13,
+                height: 13,
+                margin: const EdgeInsets.only(top: 2),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: checked
-                      ? const Color(0xFFC08A52).withValues(alpha: 0.13)
-                      : const Color(0xFFC08A52).withValues(alpha: 0.035),
-                  borderRadius: BorderRadius.circular(8),
+                  shape: BoxShape.circle,
+                  color: checked ? const Color(0xFFD4A13D) : Colors.transparent,
                   border: Border.all(
                     color: checked
-                        ? const Color(0xFFE8B27C)
-                        : const Color(0xFFE8B27C).withValues(alpha: 0.42),
+                        ? const Color(0xFFE4B754)
+                        : const Color(0xFF6B5327),
                   ),
+                  boxShadow: checked
+                      ? const <BoxShadow>[
+                          BoxShadow(
+                            color: Color(0x47DCAB46),
+                            blurRadius: 8,
+                          ),
+                        ]
+                      : null,
                 ),
                 child: checked
                     ? const Text(
                         '✓',
                         style: TextStyle(
-                          color: Color(0xFFE8B27C),
+                          color: Color(0xFF161008),
                           fontFamily: _OfferingTableDayPresentationState._ui,
-                          fontSize: 14,
+                          fontSize: 8,
                           height: 1,
                         ),
                       )
                     : null,
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   text,
                   style: TextStyle(
                     color: checked
-                        ? const Color(0xFF9D9488)
-                        : _OfferingTableDayPresentationState._bone,
+                        ? const Color(0xFFDFD4C3)
+                        : const Color(0xFFA89B89),
                     fontFamily: _OfferingTableDayPresentationState._display,
-                    fontSize: 17,
-                    height: 1.25,
+                    fontSize: 11.4,
+                    height: 1.22,
                   ),
                 ),
               ),

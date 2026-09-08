@@ -519,6 +519,13 @@ void main() {
       const ValueKey<String>('maat-flow-discovery-open-track-the-sky'),
     );
     await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(opened, isEmpty);
+    expect(find.text('Carry this flow'), findsOneWidget);
+    final carry = find.byKey(const ValueKey<String>('maat-flow-discovery-carry'));
+    await tester.ensureVisible(carry);
+    await tester.pumpAndSettle();
+    await tester.tap(carry);
     await tester.pump();
     expect(opened, <String>['track-the-sky']);
   });

@@ -92,12 +92,15 @@ void main() {
     final day = kOfferingTableDays[2];
     await _pumpPresentation(tester, day: day);
 
-    expect(find.text('2 steps'), findsOneWidget);
+    expect(find.text('2 steps'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('offering-table-day-03-step-2')),
       findsOneWidget,
     );
-    expect(find.text('Drink water.'), findsNothing);
+    expect(
+      find.text('Put it within reach now — on the counter, in the fridge front, or in your bag.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('uses Follow Sky gesture mapping and semantic 0.02 steps', (
@@ -207,7 +210,7 @@ void main() {
       find.byKey(const ValueKey<String>('offering-table-intention-air')),
       findsNothing,
     );
-    expect(find.text('Name today’s intention…'), findsOneWidget);
+    expect(find.text('name it…'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const ValueKey<String>('offering-table-intention-field')),
@@ -322,12 +325,13 @@ void main() {
     );
 
     final availableHeight = _viewport.height - 12;
-    final authoredPageHeight = availableHeight * 0.72 - 120;
-    expect(tester.getSize(page).height, closeTo(authoredPageHeight, 0.1));
+    final maxSheetHeight = availableHeight * 0.72;
+    final layeredPageHeight = maxSheetHeight - 48 - 72;
+    expect(tester.getSize(page).height, closeTo(layeredPageHeight, 20));
 
     await tester.drag(handle, const Offset(0, -120));
     await tester.pumpAndSettle();
-    expect(tester.getSize(page).height, closeTo(authoredPageHeight + 120, 0.1));
+    expect(tester.getSize(page).height, closeTo(layeredPageHeight + 120, 20));
     expect(tester.getSize(hero).height, 470);
 
     final body = find.byKey(

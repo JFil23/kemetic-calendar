@@ -35,7 +35,7 @@ abstract final class ReadingHouseDetailTokens {
   static const Color houseDeep = Color(0xFF17362E);
   static const Color separator = Color(0xFF1E2A24);
   static const String heroAsset = 'assets/the_reading_house/hero.png';
-  static const Alignment heroImageAlignment = Alignment(-0.18, 0);
+  static const Alignment heroImageAlignment = Alignment(0, 0.10);
 
   static const MaatFlowDetailTheme theme = MaatFlowDetailTheme(
     pageBackground: pageBackground,
@@ -858,11 +858,6 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
         _buildHouseSetup(),
         _buildCalendar(),
         _buildSittings(context),
-        ValueListenableBuilder<TextEditingValue>(
-          valueListenable: _questionController,
-          builder: (context, _, child) =>
-              _ReadingFrame(question: _plan.displayQuestion),
-        ),
         const _HistoricalContext(),
       ],
     );
@@ -894,10 +889,11 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
         .where((member) => member.isPending)
         .length;
     final inviteSummary = pendingCount == 0
-        ? 'No invites yet'
+        ? 'no invites yet'
         : pendingCount == 1
         ? '1 invite pending'
         : '$pendingCount invites pending';
+    // Everyone who accepts sees this same house, even before it has dates.
     return Container(
       key: const ValueKey<String>('reading-house-setup'),
       padding: const EdgeInsets.fromLTRB(24, 26, 24, 30),
@@ -909,148 +905,254 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SetupTextField(
-            label: 'YOU’RE READING',
-            hintText: 'Name the book',
-            controller: _bookController,
-            enabled: _canEdit,
-            readOnlyValue: _plan.displayBookTitle,
-            topPadding: 0,
-            fieldKey: const ValueKey<String>('reading-house-book'),
+          _BookObject(
+            bookController: _bookController,
+            editionController: _editionController,
+            questionController: _questionController,
+            canEdit: _canEdit,
+            bookReadOnly: _plan.displayBookTitle,
+            editionReadOnly: _plan.editionNote,
+            questionReadOnly: _plan.displayQuestion,
           ),
-          _SetupTextField(
-            label: 'EDITION / TRANSLATION',
-            trailing: 'can skip',
-            hintText: 'Translator, edition, or link',
-            controller: _editionController,
-            enabled: _canEdit,
-            readOnlyValue: _plan.editionNote,
-            fieldKey: const ValueKey<String>('reading-house-edition'),
-          ),
-          _SetupTextField(
-            label: 'THE QUESTION THIS HOUSE WILL HOLD',
-            trailing: 'can skip',
-            hintText: 'What would you do if you could live forever?',
-            controller: _questionController,
-            enabled: _canEdit,
-            readOnlyValue: _plan.displayQuestion,
-            fieldKey: const ValueKey<String>('reading-house-question'),
-          ),
-          _SetupChoiceField(
-            label: 'HOW WILL YOU READ?',
-            firstLabel: 'Solo study',
-            secondLabel: 'With readers · recommended',
-            secondSelected: _withReaders,
-            onFirst: !_canEdit || _savingMode
-                ? null
-                : () => unawaited(_changeMode(false)),
-            onSecond: !_canEdit || _savingMode
-                ? null
-                : () => unawaited(_changeMode(true)),
-            note: _withReaders
-                ? 'Everyone who accepts sees this same house, even before it has dates.'
-                : 'A solo house stays with you and your private calendar.',
-            fieldKey: const ValueKey<String>('reading-house-mode'),
-            busy: _savingMode,
-            readOnly: !_canEdit,
-          ),
-          IgnorePointer(
-            ignoring: !_withReaders,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 180),
-              opacity: _withReaders ? 1 : 0.32,
-              child: _SetupChoiceField(
-                label: 'WHO CAN SEE THIS HOUSE?',
-                firstLabel: 'Closed · invite only',
-                secondLabel: 'Open · appears in the Commons',
-                secondSelected: _openDoors,
-                onFirst: !_canEdit || _savingDoors
-                    ? null
-                    : () => unawaited(_changeDoors(false)),
-                onSecond: !_canEdit || _savingDoors
-                    ? null
-                    : () => unawaited(_changeDoors(true)),
-                note: _openDoors
-                    ? 'Community members can discover this house in the Commons.'
-                    : 'Closed houses only appear to people you invite.',
-                highlightedNote: _openDoors,
-                fieldKey: const ValueKey<String>('reading-house-doors'),
-                busy: _savingDoors,
-                readOnly: !_canEdit,
-              ),
+          const SizedBox(height: 12),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFF070A08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0x243FA98A)),
             ),
-          ),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: !_withReaders
-                ? const SizedBox.shrink()
-                : Padding(
-                    key: const ValueKey<String>('reading-house-readers'),
-                    padding: const EdgeInsets.only(top: 18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    key: const ValueKey<String>('reading-house-mode'),
+                    child: Row(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const _UpperLabel('READERS'),
-                            Text(
-                              inviteSummary,
-                              style: _uiStyle(
-                                color: ReadingHouseDetailTokens.house,
-                                fontSize: 11,
-                              ),
+                        const Expanded(
+                          child: Text(
+                            'Reading with',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: ReadingHouseDetailTokens.bone,
+                              fontFamily: MaatFlowListTokens.fontFamily,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              height: 1,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        _ReaderRow(
-                          initials: hostInitials,
-                          name: hostName,
-                          status: 'HOST',
-                          host: true,
-                        ),
-                        for (final reader in invitedReaders) ...[
-                          const SizedBox(height: 12),
-                          _ReaderRow(
-                            initials: _memberInitials(reader),
-                            name: reader.displayLabel,
-                            status: reader.isPending ? 'INVITED' : 'ACCEPTED',
                           ),
-                        ],
-                        if (invitedReaders.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 43, top: 12),
-                            child: Text(
-                              'No one else is here yet.',
-                              style: _uiStyle(
-                                color: const Color(0xFF59635E),
-                                fontSize: 12.5,
-                                fontStyle: FontStyle.italic,
-                                height: 1.35,
+                        ),
+                        if (_savingMode)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: SizedBox(
+                              key: ValueKey<String>(
+                                'reading-house-choice-busy',
+                              ),
+                              width: 13,
+                              height: 13,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: ReadingHouseDetailTokens.houseHighlight,
                               ),
                             ),
                           ),
-                        if (_canManageMembership) ...[
-                          const SizedBox(height: 16),
-                          _DashedPillButton(
-                            key: const ValueKey<String>(
-                              'reading-house-invite-reader',
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // onFirst: !_canEdit
+                                _HouseChip(
+                                  label: 'Solo',
+                                  selected: !_withReaders,
+                                  onTap: !_canEdit || _savingMode
+                                      ? null
+                                      : () => unawaited(_changeMode(false)),
+                                  readOnly: !_canEdit,
+                                ),
+                                const SizedBox(width: 6),
+                                // onSecond: !_canEdit
+                                _HouseChip(
+                                  label: 'Readers',
+                                  selected: _withReaders,
+                                  onTap: !_canEdit || _savingMode
+                                      ? null
+                                      : () => unawaited(_changeMode(true)),
+                                  readOnly: !_canEdit,
+                                ),
+                              ],
                             ),
-                            label: '+ Invite someone',
-                            onTap: () => unawaited(_inviteReader()),
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
-          ),
-          const SizedBox(height: 22),
-          _HouseStateLine(
-            held: _held,
-            openDoors: _openDoors && _withReaders,
-            invitedCount: _withReaders ? pendingCount : 0,
-            placedCount: _placedCount,
+                  ClipRect(
+                    child: AnimatedAlign(
+                      duration: const Duration(milliseconds: 250),
+                      alignment: Alignment.topCenter,
+                      heightFactor: _withReaders ? 1 : 0,
+                      child: IgnorePointer(
+                        ignoring: !_withReaders,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 15),
+                          child: DecoratedBox(
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                top: BorderSide(color: Color(0x1A3FA98A)),
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Container(
+                                    key: const ValueKey<String>(
+                                      'reading-house-doors',
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Expanded(
+                                          child: Text(
+                                            'Who enters?',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color: Color(0xFFAFA89D),
+                                              fontFamily:
+                                                  MaatFlowListTokens.fontFamily,
+                                              fontSize: 14,
+                                              height: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        if (_savingDoors)
+                                          const Padding(
+                                            padding: EdgeInsets.only(right: 8),
+                                            child: SizedBox(
+                                              key: ValueKey<String>(
+                                                'reading-house-choice-busy',
+                                              ),
+                                              width: 13,
+                                              height: 13,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 1.5,
+                                                color:
+                                                    ReadingHouseDetailTokens
+                                                        .houseHighlight,
+                                              ),
+                                            ),
+                                          ),
+                                        Flexible(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerRight,
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                _HouseChip(
+                                                  label: 'Invited only',
+                                                  selected: !_openDoors,
+                                                  compact: true,
+                                                  onTap:
+                                                      !_canEdit || _savingDoors
+                                                      ? null
+                                                      : () => unawaited(
+                                                          _changeDoors(false),
+                                                        ),
+                                                  readOnly: !_canEdit,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                _HouseChip(
+                                                  label: 'Commons',
+                                                  selected: _openDoors,
+                                                  compact: true,
+                                                  onTap:
+                                                      !_canEdit || _savingDoors
+                                                      ? null
+                                                      : () => unawaited(
+                                                          _changeDoors(true),
+                                                        ),
+                                                  readOnly: !_canEdit,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (_openDoors)
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        'Community members can discover this house in the Commons.',
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                          color: Color(0xFF688177),
+                                          fontFamily: 'GentiumPlus',
+                                          fontSize: 11,
+                                          fontStyle: FontStyle.italic,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ),
+                                  if (_withReaders)
+                                    Padding(
+                                      key: const ValueKey<String>(
+                                        'reading-house-readers',
+                                      ),
+                                      padding: const EdgeInsets.only(top: 14),
+                                      child: Column(
+                                        children: [
+                                          _PeopleLine(
+                                            initials: hostInitials,
+                                            name: hostName,
+                                            state: 'Host · $inviteSummary',
+                                            inviteLabel: _canManageMembership
+                                                ? '+ Invite'
+                                                : null,
+                                            onInvite: _canManageMembership
+                                                ? () => unawaited(
+                                                    _inviteReader(),
+                                                  )
+                                                : null,
+                                          ),
+                                          for (final reader in invitedReaders)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 12,
+                                              ),
+                                              child: _PeopleLine(
+                                                initials: _memberInitials(
+                                                  reader,
+                                                ),
+                                                name: reader.displayLabel,
+                                                state: reader.isPending
+                                                    ? 'Invited'
+                                                    : 'Accepted',
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -1077,8 +1179,8 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             windowStart: _windowStart,
             markers: _calendarMarkers(),
             theme: ReadingHouseDetailTokens.calendarTheme,
-            introFirstLine: 'Ready?',
-            introSecondLine: 'Place the reading now.',
+            introFirstLine: 'The reading',
+            introSecondLine: '',
             keyPrefix: 'reading-house-calendar',
           ),
           Padding(
@@ -1102,7 +1204,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                     ? 'Placing reading…'
                     : waiting <= 0
                     ? 'Reading placed'
-                    : 'Place the sittings',
+                    : 'Place the reading',
                 color: ReadingHouseDetailTokens.gold,
                 onTap: waiting <= 0 || _placingReading ? null : _placeReading,
                 busy: _placingReading,
@@ -1128,8 +1230,17 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: _SectionEyebrow('THE SITTINGS'),
+            padding: EdgeInsets.fromLTRB(24, 0, 24, 0),
+            child: Text(
+              'The sittings',
+              style: TextStyle(
+                color: ReadingHouseDetailTokens.bone,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontSize: 29,
+                fontWeight: FontWeight.w500,
+                height: 1,
+              ),
+            ),
           ),
           for (final sitting in _sittings)
             _SittingRow(
@@ -1144,7 +1255,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                 key: const ValueKey<String>('reading-house-add-sitting'),
                 label: _addingSitting
                     ? 'Adding sitting…'
-                    : '+ Add another sitting',
+                    : '+ Add sitting',
                 onTap: !_addingSitting ? () => unawaited(_addSitting()) : null,
               ),
             )
@@ -1157,11 +1268,11 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
 
   String _sittingStatus(BuildContext context, ReadingHouseSitting sitting) {
     final date = sitting.scheduledDate;
-    if (date == null) return 'NOT PLACED';
+    if (date == null) return '${sitting.section} · NOT PLACED';
     final time = MaterialLocalizations.of(
       context,
     ).formatTimeOfDay(TimeOfDay(hour: sitting.hour, minute: sitting.minute));
-    return '${_kemeticDate(date)} · $time';
+    return '${sitting.section} · ${_kemeticDate(date)} · $time';
   }
 
   String _memberInitials(SharedCalendarMember member) {
@@ -1196,11 +1307,17 @@ class _ReadingHouseHero extends StatelessWidget {
         radius: 0.9,
         colors: [Color(0xFF3C9277), Color(0xFF1A4638), Color(0xFF08140F)],
       ),
-      glyphBorder: ReadingHouseDetailTokens.houseHighlight,
+      glyphBorder: const Color(0xB87FD9BC),
       glyphGlow: ReadingHouseDetailTokens.houseHighlight,
       title: 'The Reading\nHouse',
       subtitle: '',
-      contentBottom: 8,
+      contentBottom: 26,
+      contentLeft: 23,
+      contentRight: 23,
+      glyphToTitleSpacing: 10,
+      titleFontSize: 42,
+      titleHeight: 0.94,
+      titleLetterSpacing: -0.42,
     );
   }
 }
@@ -1240,7 +1357,7 @@ class _ReadingHouseHeroBackdrop extends StatelessWidget {
           left: 0,
           right: 0,
           bottom: 0,
-          height: 200,
+          height: 135,
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -1286,244 +1403,315 @@ class _SheetHandle extends StatelessWidget {
   }
 }
 
-class _SectionEyebrow extends StatelessWidget {
-  const _SectionEyebrow(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          text,
-          style: _uiStyle(
-            color: ReadingHouseDetailTokens.goldDim,
-            fontSize: 10,
-            letterSpacing: 2.3,
-          ),
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Divider(color: ReadingHouseDetailTokens.separator, height: 1),
-        ),
-      ],
-    );
-  }
-}
-
-class _UpperLabel extends StatelessWidget {
-  const _UpperLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: _uiStyle(
-        color: ReadingHouseDetailTokens.goldDim,
-        fontSize: 10,
-        letterSpacing: 2.1,
-        height: 1.1,
-      ),
-    );
-  }
-}
-
-class _SetupTextField extends StatelessWidget {
-  const _SetupTextField({
-    required this.label,
-    required this.hintText,
-    required this.controller,
-    required this.fieldKey,
-    this.enabled = true,
-    this.readOnlyValue,
-    this.trailing,
-    this.topPadding = 17,
+class _BookObject extends StatefulWidget {
+  const _BookObject({
+    required this.bookController,
+    required this.editionController,
+    required this.questionController,
+    required this.canEdit,
+    required this.bookReadOnly,
+    required this.editionReadOnly,
+    required this.questionReadOnly,
   });
 
-  final String label;
-  final String hintText;
-  final TextEditingController controller;
-  final Key fieldKey;
-  final bool enabled;
-  final String? readOnlyValue;
-  final String? trailing;
-  final double topPadding;
+  final TextEditingController bookController;
+  final TextEditingController editionController;
+  final TextEditingController questionController;
+  final bool canEdit;
+  final String bookReadOnly;
+  final String editionReadOnly;
+  final String questionReadOnly;
+
+  @override
+  State<_BookObject> createState() => _BookObjectState();
+}
+
+class _BookObjectState extends State<_BookObject> {
+  bool _editingQuestion = false;
+  String _questionSnapshot = '';
+
+  @override
+  void didUpdateWidget(covariant _BookObject oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.canEdit && _editingQuestion) {
+      widget.questionController.text = _questionSnapshot;
+      _editingQuestion = false;
+    }
+  }
+
+  String get _questionDisplay {
+    final typed = widget.questionController.text.trim();
+    if (typed.isNotEmpty) return typed;
+    final fallback = widget.questionReadOnly.trim();
+    if (fallback.isNotEmpty) return fallback;
+    return 'What is this book asking the reader to hold?';
+  }
+
+  void _beginQuestionEdit() {
+    if (!widget.canEdit) return;
+    setState(() {
+      _questionSnapshot = widget.questionController.text;
+      _editingQuestion = true;
+    });
+  }
+
+  void _cancelQuestionEdit() {
+    widget.questionController.text = _questionSnapshot;
+    setState(() => _editingQuestion = false);
+  }
+
+  void _saveQuestionEdit() {
+    setState(() => _editingQuestion = false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(0, topPadding, 0, 15),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x1F3FA98A))),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF070A08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x2B3FA98A)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(child: _UpperLabel(label)),
-              if (trailing != null)
-                Flexible(
-                  child: Text(
-                    trailing!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end,
-                    style: _uiStyle(
-                      color: const Color(0xFF4F5B55),
-                      fontSize: 10,
-                      letterSpacing: 0.6,
-                    ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'The book',
+                  style: TextStyle(
+                    color: Color(0xFF7F867F),
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 12,
+                    height: 1,
                   ),
                 ),
-            ],
-          ),
-          if (enabled)
-            TextField(
-              key: fieldKey,
-              controller: controller,
-              cursorColor: ReadingHouseDetailTokens.houseHighlight,
-              style: _displayStyle(
-                color: ReadingHouseDetailTokens.houseHighlight,
-                fontSize: 22,
-                fontStyle: FontStyle.italic,
-                height: 1.25,
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: const EdgeInsets.only(top: 9, bottom: 6),
-                border: InputBorder.none,
-                hintText: hintText,
-                hintStyle: _displayStyle(
-                  color: const Color(0xFF3F4A44),
-                  fontSize: 22,
-                  fontStyle: FontStyle.italic,
-                  height: 1.25,
-                ),
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(top: 9, bottom: 6),
-              child: Text(
-                readOnlyValue?.trim().isNotEmpty == true
-                    ? readOnlyValue!.trim()
-                    : 'Not specified',
-                key: fieldKey,
-                style: _displayStyle(
-                  color: ReadingHouseDetailTokens.houseHighlight,
-                  fontSize: 22,
-                  fontStyle: FontStyle.italic,
-                  height: 1.25,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SetupChoiceField extends StatelessWidget {
-  const _SetupChoiceField({
-    required this.label,
-    required this.firstLabel,
-    required this.secondLabel,
-    required this.secondSelected,
-    required this.onFirst,
-    required this.onSecond,
-    required this.note,
-    required this.fieldKey,
-    this.highlightedNote = false,
-    this.busy = false,
-    this.readOnly = false,
-  });
-
-  final String label;
-  final String firstLabel;
-  final String secondLabel;
-  final bool secondSelected;
-  final VoidCallback? onFirst;
-  final VoidCallback? onSecond;
-  final String note;
-  final Key fieldKey;
-  final bool highlightedNote;
-  final bool busy;
-  final bool readOnly;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: fieldKey,
-      padding: const EdgeInsets.fromLTRB(0, 17, 0, 15),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x1F3FA98A))),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(child: _UpperLabel(label)),
-              if (busy)
-                const SizedBox(
-                  key: ValueKey<String>('reading-house-choice-busy'),
-                  width: 13,
-                  height: 13,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
+                _SetupBareField(
+                  fieldKey: const ValueKey<String>('reading-house-book'),
+                  controller: widget.bookController,
+                  enabled: widget.canEdit, // enabled: _canEdit
+                  readOnlyValue: widget.bookReadOnly,
+                  hintText: 'Name the book',
+                  style: _displayStyle(
                     color: ReadingHouseDetailTokens.houseHighlight,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w500,
+                    height: 1.08,
+                  ),
+                  hintStyle: _displayStyle(
+                    color: const Color(0xFF3D4943),
+                    fontSize: 25,
+                    fontWeight: FontWeight.w500,
+                    height: 1.08,
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 11),
-          Row(
-            children: [
-              Expanded(
-                child: _ChoiceButton(
-                  label: firstLabel,
-                  selected: !secondSelected,
-                  onTap: onFirst,
-                  readOnly: readOnly,
+                const SizedBox(height: 7),
+                Row(
+                  children: [
+                    const Text(
+                      'Edition',
+                      style: TextStyle(
+                        color: Color(0xFF58625D),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        height: 1.2,
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 7),
+                      child: SizedBox(
+                        width: 3,
+                        height: 3,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xFF3D4A44),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: _SetupBareField(
+                        fieldKey: const ValueKey<String>(
+                          'reading-house-edition',
+                        ),
+                        controller: widget.editionController,
+                        enabled: widget.canEdit,
+                        readOnlyValue: widget.editionReadOnly,
+                        hintText: 'Translator, edition, or link',
+                        style: const TextStyle(
+                          color: Color(0xFF8D9993),
+                          fontFamily: 'GentiumPlus',
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          height: 1.2,
+                        ),
+                        hintStyle: const TextStyle(
+                          color: Color(0xFF4C5751),
+                          fontFamily: 'GentiumPlus',
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: _ChoiceButton(
-                  label: secondLabel,
-                  selected: secondSelected,
-                  onTap: onSecond,
-                  readOnly: readOnly,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 9),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: highlightedNote
-                ? const EdgeInsets.symmetric(horizontal: 12, vertical: 11)
-                : EdgeInsets.zero,
-            decoration: highlightedNote
-                ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(11),
-                    border: Border.all(color: const Color(0x293FA98A)),
-                    color: const Color(0x0E3FA98A),
-                  )
-                : null,
-            child: Text(
-              note,
-              style: _uiStyle(
-                color: highlightedNote
-                    ? const Color(0xFF8BB5A6)
-                    : const Color(0xFF68766F),
-                fontSize: highlightedNote ? 12.5 : 12,
-                fontStyle: FontStyle.italic,
-                height: 1.38,
+          DecoratedBox(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0x1A3FA98A))),
+              color: Color(0x053FA98A),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 13, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'House question',
+                          style: TextStyle(
+                            color: Color(0xFF7F867F),
+                            fontFamily: 'GentiumPlus',
+                            fontSize: 12,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                      if (widget.canEdit && !_editingQuestion)
+                        GestureDetector(
+                          key: const ValueKey<String>(
+                            'reading-house-question-edit',
+                          ),
+                          onTap: _beginQuestionEdit,
+                          child: const Text(
+                            'Edit',
+                            style: TextStyle(
+                              color: Color(0xFF527A6C),
+                              fontFamily: 'GentiumPlus',
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (_editingQuestion) ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      key: const ValueKey<String>('reading-house-question'),
+                      controller: widget.questionController,
+                      enabled: widget.canEdit,
+                      autofocus: true,
+                      minLines: 3,
+                      maxLines: null,
+                      cursorColor: ReadingHouseDetailTokens.houseHighlight,
+                      style: _displayStyle(
+                        color: ReadingHouseDetailTokens.bone,
+                        fontSize: 16,
+                        height: 1.35,
+                      ),
+                      decoration: InputDecoration(
+                        hintText:
+                            'What is this book asking the reader to hold?',
+                        hintStyle: _displayStyle(
+                          color: const Color(0xFF3D4943),
+                          fontSize: 16,
+                          height: 1.35,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF07100D),
+                        contentPadding: const EdgeInsets.all(10),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: ReadingHouseDetailTokens.houseHighlight.withValues(
+                              alpha: 0.26,
+                            ),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: ReadingHouseDetailTokens.houseHighlight.withValues(
+                              alpha: 0.55,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        GestureDetector(
+                          key: const ValueKey<String>(
+                            'reading-house-question-cancel',
+                          ),
+                          onTap: _cancelQuestionEdit,
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 3,
+                              vertical: 3,
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: Color(0xFF6F756F),
+                                fontFamily: 'GentiumPlus',
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        GestureDetector(
+                          key: const ValueKey<String>(
+                            'reading-house-question-save',
+                          ),
+                          onTap: _saveQuestionEdit,
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 3,
+                              vertical: 3,
+                            ),
+                            child: Text(
+                              'Save question',
+                              style: TextStyle(
+                                color: ReadingHouseDetailTokens.houseHighlight,
+                                fontFamily: 'GentiumPlus',
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        _questionDisplay,
+                        key: const ValueKey<String>(
+                          'reading-house-question-display',
+                        ),
+                        style: _displayStyle(
+                          color: ReadingHouseDetailTokens.bone,
+                          fontSize: 18.5,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -1533,41 +1721,90 @@ class _SetupChoiceField extends StatelessWidget {
   }
 }
 
-class _ChoiceButton extends StatelessWidget {
-  const _ChoiceButton({
+class _SetupBareField extends StatelessWidget {
+  const _SetupBareField({
+    required this.fieldKey,
+    required this.controller,
+    required this.enabled,
+    required this.readOnlyValue,
+    required this.hintText,
+    required this.style,
+    required this.hintStyle,
+  });
+
+  final Key fieldKey;
+  final TextEditingController controller;
+  final bool enabled;
+  final String readOnlyValue;
+  final String hintText;
+  final TextStyle style;
+  final TextStyle hintStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 5),
+        child: Text(
+          readOnlyValue.trim().isNotEmpty ? readOnlyValue.trim() : hintText,
+          key: fieldKey,
+          style: style,
+        ),
+      );
+    }
+    return TextField(
+      key: fieldKey,
+      controller: controller,
+      enabled: enabled,
+      cursorColor: ReadingHouseDetailTokens.houseHighlight,
+      style: style,
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.only(top: 5, bottom: 1),
+        border: InputBorder.none,
+        hintText: hintText,
+        hintStyle: hintStyle,
+      ),
+    );
+  }
+}
+
+class _HouseChip extends StatelessWidget {
+  const _HouseChip({
     required this.label,
     required this.selected,
-    required this.onTap,
-    this.readOnly = false,
+    required this.readOnly,
+    this.onTap,
+    this.compact = false,
   });
 
   final String label;
   final bool selected;
-  final VoidCallback? onTap;
   final bool readOnly;
+  final VoidCallback? onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final content = AnimatedContainer(
       duration: const Duration(milliseconds: 160),
-      constraints: const BoxConstraints(minHeight: 44),
+      constraints: BoxConstraints(minHeight: compact ? 31 : 34),
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 13),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: selected ? const Color(0xC27FD9BC) : const Color(0x24E8E2D6),
+          color: selected ? const Color(0xAD7FD9BC) : const Color(0x24E8E2D6),
         ),
-        color: selected ? const Color(0x1A3FA98A) : Colors.transparent,
+        color: selected ? const Color(0x173FA98A) : Colors.transparent,
       ),
       child: Text(
         label,
-        textAlign: TextAlign.center,
         style: _displayStyle(
           color: selected
               ? ReadingHouseDetailTokens.houseHighlight
-              : ReadingHouseDetailTokens.silver,
-          fontSize: 15.5,
+              : const Color(0xFF7D857F),
+          fontSize: compact ? 11.5 : 12.5,
         ),
       ),
     );
@@ -1577,7 +1814,7 @@ class _ChoiceButton extends StatelessWidget {
       child: readOnly
           ? content
           : InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(999),
               onTap: onTap,
               child: content,
             ),
@@ -1585,157 +1822,97 @@ class _ChoiceButton extends StatelessWidget {
   }
 }
 
-class _ReaderRow extends StatelessWidget {
-  const _ReaderRow({
+class _PeopleLine extends StatelessWidget {
+  const _PeopleLine({
     required this.initials,
     required this.name,
-    required this.status,
-    this.host = false,
+    required this.state,
+    this.inviteLabel,
+    this.onInvite,
   });
 
   final String initials;
   final String name;
-  final String status;
-  final bool host;
+  final String state;
+  final String? inviteLabel;
+  final VoidCallback? onInvite;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0x427FD9BC)),
-            color: const Color(0x143FA98A),
-          ),
-          child: Text(
-            initials,
-            style: _uiStyle(
-              color: ReadingHouseDetailTokens.houseHighlight,
-              fontSize: 12,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Color(0x143FA98A))),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 29,
+              height: 29,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0x427FD9BC)),
+                color: const Color(0x143FA98A),
+              ),
+              child: Text(
+                initials,
+                style: _uiStyle(
+                  color: ReadingHouseDetailTokens.houseHighlight,
+                  fontSize: 11,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Text(
-            name,
-            style: _displayStyle(
-              color: ReadingHouseDetailTokens.bone,
-              fontSize: 17,
-              height: 1,
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: _displayStyle(
+                      color: ReadingHouseDetailTokens.bone,
+                      fontSize: 15.5,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    state,
+                    style: _uiStyle(
+                      color: const Color(0xFF59635E),
+                      fontSize: 10.5,
+                      fontStyle: FontStyle.italic,
+                      height: 1,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
-        Text(
-          status,
-          style: _uiStyle(
-            color: host
-                ? ReadingHouseDetailTokens.gold
-                : ReadingHouseDetailTokens.houseHighlight,
-            fontSize: 10,
-            letterSpacing: 1.2,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HouseStateLine extends StatelessWidget {
-  const _HouseStateLine({
-    required this.held,
-    required this.openDoors,
-    required this.invitedCount,
-    required this.placedCount,
-  });
-
-  final bool held;
-  final bool openDoors;
-  final int invitedCount;
-  final int placedCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('reading-house-state-line'),
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x243FA98A)),
-        color: const Color(0x0A3FA98A),
-      ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 10,
-        runSpacing: 7,
-        children: [
-          _StateText(held ? 'House is open' : 'Not yet held', emphasized: true),
-          const _StateDot(),
-          _StateText(openDoors ? 'Open in Commons' : 'Closed house'),
-          const _StateDot(),
-          _StateText(
-            invitedCount == 0
-                ? 'No readers invited'
-                : 'Waiting on $invitedCount ${invitedCount == 1 ? 'reader' : 'readers'}',
-          ),
-          const _StateDot(),
-          _StateText(
-            placedCount == 0
-                ? 'Not scheduled'
-                : '$placedCount ${placedCount == 1 ? 'sitting' : 'sittings'} ready',
-            muted: placedCount == 0,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StateText extends StatelessWidget {
-  const _StateText(this.text, {this.emphasized = false, this.muted = false});
-
-  final String text;
-  final bool emphasized;
-  final bool muted;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: _uiStyle(
-        color: emphasized
-            ? ReadingHouseDetailTokens.houseHighlight
-            : muted
-            ? const Color(0xFF59615D)
-            : const Color(0xFF718179),
-        fontSize: 11.5,
-        height: 1.35,
-      ),
-    );
-  }
-}
-
-class _StateDot extends StatelessWidget {
-  const _StateDot();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 3,
-      height: 3,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Color(0xFF32423B),
+            if (inviteLabel != null)
+              TextButton(
+                key: const ValueKey<String>('reading-house-invite-reader'),
+                onPressed: onInvite,
+                style: TextButton.styleFrom(
+                  foregroundColor: ReadingHouseDetailTokens.houseHighlight,
+                  padding: const EdgeInsets.fromLTRB(8, 5, 0, 5),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 12,
+                  ),
+                ),
+                child: Text(inviteLabel!),
+              ),
+          ],
         ),
       ),
     );
   }
 }
+
 
 class _SittingRow extends StatelessWidget {
   const _SittingRow({
@@ -1751,32 +1928,30 @@ class _SittingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final number = sitting.eventNumber.toString().padLeft(2, '0');
-    return InkWell(
-      key: ValueKey<String>('reading-house-sitting-${sitting.eventNumber}'),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey<String>('reading-house-sitting-${sitting.eventNumber}'),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
         decoration: const BoxDecoration(
           border: Border(bottom: BorderSide(color: Color(0x173FA98A))),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(
-              width: 32,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: Text(
-                  number,
-                  style: _uiStyle(
-                    color: ReadingHouseDetailTokens.goldDim,
-                    fontSize: 10,
-                    letterSpacing: 1.2,
-                  ),
+              width: 29,
+              child: Text(
+                number,
+                style: _uiStyle(
+                  color: ReadingHouseDetailTokens.goldDim,
+                  fontSize: 10,
+                  letterSpacing: 1.1,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1784,106 +1959,32 @@ class _SittingRow extends StatelessWidget {
                   Text(
                     sitting.title,
                     style: _displayStyle(
-                      color: ReadingHouseDetailTokens.gold,
-                      fontSize: 21,
-                      fontStyle: FontStyle.italic,
-                      height: 1.15,
+                      color: ReadingHouseDetailTokens.houseHighlight,
+                      fontSize: 20,
+                      height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   Text(
                     status,
                     style: _uiStyle(
-                      color: const Color(0xFF59635E),
-                      fontSize: 10.5,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    sitting.privatePrompt,
-                    style: _displayStyle(
-                      color: ReadingHouseDetailTokens.silver,
-                      fontSize: 15.5,
-                      fontStyle: FontStyle.italic,
-                      height: 1.38,
+                      color: const Color(0xFF67716B),
+                      fontSize: 11,
+                      height: 1.25,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            if (onTap != null) ...[
-              const SizedBox(width: 8),
-              const Padding(
-                padding: EdgeInsets.only(top: 5),
-                child: Icon(
-                  Icons.chevron_right,
-                  size: 17,
-                  color: ReadingHouseDetailTokens.house,
-                ),
+            if (onTap != null)
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: ReadingHouseDetailTokens.house,
               ),
-            ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ReadingFrame extends StatelessWidget {
-  const _ReadingFrame({required this.question});
-
-  final String question;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      key: const ValueKey<String>('reading-house-reading-frame'),
-      padding: const EdgeInsets.fromLTRB(24, 30, 24, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _SectionEyebrow('THE READING FRAME'),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: const Color(0x293FA98A)),
-              gradient: const LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-                colors: [Color(0x0F3FA98A), Color(0x03FFFFFF)],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _UpperLabel('HOUSE QUESTION · CAN WAIT'),
-                const SizedBox(height: 9),
-                Text(
-                  question,
-                  style: _displayStyle(
-                    color: ReadingHouseDetailTokens.bone,
-                    fontSize: 19,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'This becomes the quiet center everyone returns to.',
-                  style: _uiStyle(
-                    color: ReadingHouseDetailTokens.silverLow,
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1920,8 +2021,9 @@ class _HistoricalContext extends StatelessWidget {
           title: Text(
             'In Kemet',
             style: _displayStyle(
-              color: ReadingHouseDetailTokens.silver,
-              fontSize: 16.5,
+              color: const Color(0xFFAAA197),
+              fontSize: 18,
+              fontStyle: FontStyle.italic,
             ),
           ),
           children: [
@@ -1931,8 +2033,8 @@ class _HistoricalContext extends StatelessWidget {
                 kReadingHouseHistoricalBadgeText,
                 style: _displayStyle(
                   color: const Color(0xFF858B86),
-                  fontSize: 16,
-                  height: 1.48,
+                  fontSize: 15.5,
+                  height: 1.52,
                 ),
               ),
             ),

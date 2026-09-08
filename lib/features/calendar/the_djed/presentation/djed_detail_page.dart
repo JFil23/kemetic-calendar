@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
@@ -321,11 +324,17 @@ class _DjedHero extends StatelessWidget {
       key: const ValueKey<String>('djed-hero'),
       theme: DjedDetailTokens.theme,
       contentBottom: 25,
+      contentLeft: 23,
+      contentRight: 150,
       glyphToTitleSpacing: 10,
       titleFontSize: 46,
+      titleHeight: 0.96,
+      titleLetterSpacing: -0.46,
       subtitleSpacing: 8,
       subtitleWidth: 225,
       subtitleFontSize: 17,
+      subtitleColor: Color(0xFFC8C4BC),
+      subtitleHeight: 1.15,
       glyph: '𓊽',
       glyphKey: const ValueKey<String>('djed-hero-glyph'),
       title: 'The Djed',
@@ -333,12 +342,12 @@ class _DjedHero extends StatelessWidget {
       glyphGradient: const RadialGradient(
         center: Alignment(-0.25, -0.45),
         colors: <Color>[
-          Color(0xFF947631),
-          Color(0xFF332712),
-          Color(0xFF0A0805),
+          Color(0xFF7E6327),
+          Color(0xFF33250F),
+          Color(0xFF0B0905),
         ],
       ),
-      glyphBorder: const Color(0xFF9E813A),
+      glyphBorder: const Color(0xB8E0873C),
       background: Stack(
         fit: StackFit.expand,
         children: <Widget>[
@@ -351,14 +360,49 @@ class _DjedHero extends StatelessWidget {
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
+                colors: <Color>[
+                  Color(0xBD050504),
+                  Color(0x57050504),
+                  Color(0x0F050504),
+                  Color(0x14050504),
+                ],
+                stops: <double>[0, 0.34, 0.66, 1],
+              ),
+            ),
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: <Color>[
-                  Color(0x08000000),
-                  Color(0x22050504),
-                  Color(0xB8050504),
+                  Color(0x14050504),
+                  Color(0x05050504),
+                  Color(0x33050504),
+                  Color(0xD1050504),
                 ],
-                stops: <double>[0, 0.55, 1],
+                stops: <double>[0, 0.42, 0.68, 1],
+              ),
+            ),
+          ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 118,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[
+                    Colors.transparent,
+                    Color(0x38050504),
+                    Color(0xE0050504),
+                    Color(0xFF050403),
+                  ],
+                  stops: <double>[0, 0.34, 0.82, 1],
+                ),
               ),
             ),
           ),
@@ -489,11 +533,7 @@ class _DjedThirtyDayCalendar extends StatelessWidget {
                           LayoutBuilder(
                             builder: (context, constraints) {
                               final decan = Text(
-                                const <String>[
-                                  'First Decan',
-                                  'Second Decan',
-                                  'Third Decan',
-                                ][phase],
+                                _phaseDecanName(startDate, phase),
                                 style: _displayStyle(
                                   fontSize: 13.5,
                                   color: const Color(0xFFAA9A70),
@@ -502,7 +542,7 @@ class _DjedThirtyDayCalendar extends StatelessWidget {
                               final phaseName = Text(
                                 const <String>[
                                   'FIND YOUR FOOTING',
-                                  'WORK THE SUPPORTS',
+                                  'WORK THE BEAMS',
                                   'RAISE THE DJED',
                                 ][phase],
                                 maxLines: 1,
@@ -515,6 +555,9 @@ class _DjedThirtyDayCalendar extends StatelessWidget {
                               );
                               final dates = Text(
                                 _decanRange(startDate, phase),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
                                 style: _uiStyle(
                                   fontSize: 9.5,
                                   color: const Color(0xFF5F5B54),
@@ -545,10 +588,10 @@ class _DjedThirtyDayCalendar extends StatelessWidget {
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
-                                    decan,
+                                    Flexible(child: decan),
                                     const SizedBox(width: 6),
                                     Expanded(child: phaseName),
-                                    dates,
+                                    Flexible(child: dates),
                                   ],
                                 ),
                               );
@@ -561,7 +604,10 @@ class _DjedThirtyDayCalendar extends StatelessWidget {
                                 for (var offset = 1; offset <= 10; offset++)
                                   Expanded(
                                     child: _DjedCalendarDay(
-                                      day: phase * 10 + offset,
+                                      day: _kemeticDayNumber(
+                                        startDate,
+                                        phase * 10 + offset,
+                                      ),
                                       sitting: sittingDays.contains(
                                         phase * 10 + offset,
                                       ),
@@ -648,31 +694,47 @@ class _DjedCalendarDay extends StatelessWidget {
   }
 }
 
-String _calendarRange(DateTime _) => 'Rekh-Wer 21 → Rekh-Nedjes 20';
+DateTime _djedFlowDate(DateTime startDate, int flowDay) => DateTime(
+  startDate.year,
+  startDate.month,
+  startDate.day,
+).add(Duration(days: flowDay - 1));
+
+int _kemeticDayNumber(DateTime startDate, int flowDay) =>
+    KemeticMath.fromGregorian(_djedFlowDate(startDate, flowDay)).kDay;
+
+String _kemeticMonthDay(DateTime date) {
+  final kemetic = KemeticMath.fromGregorian(date);
+  return '${getMonthById(kemetic.kMonth).displayShort} ${kemetic.kDay}';
+}
+
+String _calendarRange(DateTime startDate) {
+  final last = _djedFlowDate(startDate, 30);
+  return '${_kemeticMonthDay(startDate)} → ${_kemeticMonthDay(last)}';
+}
+
+String _phaseDecanName(DateTime startDate, int phase) {
+  final kemetic = KemeticMath.fromGregorian(
+    startDate.add(Duration(days: phase * 10)),
+  );
+  return DecanMetadata.decanNameFor(
+    kMonth: kemetic.kMonth,
+    kDay: kemetic.kDay,
+  );
+}
 
 String _decanRange(DateTime startDate, int phase) {
   final first = startDate.add(Duration(days: phase * 10));
   final last = first.add(const Duration(days: 9));
-  if (first.month == last.month) {
-    return '${_djedMonth(first.month)} ${first.day}–${last.day}';
+  final firstK = KemeticMath.fromGregorian(first);
+  final lastK = KemeticMath.fromGregorian(last);
+  final firstMonth = getMonthById(firstK.kMonth).displayShort;
+  final lastMonth = getMonthById(lastK.kMonth).displayShort;
+  if (firstK.kMonth == lastK.kMonth) {
+    return '$firstMonth ${firstK.kDay}–${lastK.kDay}';
   }
-  return '${_djedMonth(first.month)} ${first.day}–${_djedMonth(last.month)} ${last.day}';
+  return '$firstMonth ${firstK.kDay}–$lastMonth ${lastK.kDay}';
 }
-
-String _djedMonth(int month) => const <String>[
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-][month.clamp(1, 12) - 1];
 
 class _DjedHandle extends StatelessWidget {
   const _DjedHandle();
@@ -680,7 +742,7 @@ class _DjedHandle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SizedBox(
-      height: 32,
+      height: 34,
       child: Align(
         alignment: Alignment(0, -0.25),
         child: SizedBox(
@@ -688,7 +750,7 @@ class _DjedHandle extends StatelessWidget {
           height: 4,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Color(0xFF3A2418),
+              color: Color(0xFF3A3429),
               borderRadius: BorderRadius.all(Radius.circular(99)),
             ),
           ),
@@ -704,15 +766,25 @@ class _DjedContract extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.fromLTRB(22, 8, 22, 20),
-      child: Row(
-        children: <Widget>[
-          _ContractLabel('30 DAYS'),
-          _ContractDot(),
-          _ContractLabel('4 SUPPORTS'),
-          _ContractDot(),
-          _ContractLabel('9 SITTINGS'),
-        ],
+      padding: EdgeInsets.fromLTRB(0, 5, 0, 0),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: DjedDetailTokens.separator),
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: 14),
+          child: Row(
+            children: <Widget>[
+              _ContractLabel('30 DAYS'),
+              _ContractDot(),
+              _ContractLabel('4 SUPPORTS'),
+              _ContractDot(),
+              _ContractLabel('9 SITTINGS'),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -728,7 +800,14 @@ class _ContractLabel extends StatelessWidget {
       child: Center(
         child: FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(label, style: _uiStyle(fontSize: 9, letterSpacing: 1.8)),
+          child: Text(
+            label,
+            style: _uiStyle(
+              fontSize: 11,
+              letterSpacing: 1.4,
+              color: DjedDetailTokens.gold,
+            ),
+          ),
         ),
       ),
     );
@@ -748,7 +827,7 @@ class _ContractDot extends StatelessWidget {
           height: 3,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: DjedDetailTokens.goldDim,
+              color: Color(0xFF544426),
               shape: BoxShape.circle,
             ),
           ),
@@ -788,10 +867,10 @@ class _DjedSupports extends StatelessWidget {
           const SizedBox(height: 7),
           Text(
             'Name four parts of your life you want to feel more steady in. You will work them one at a time.',
-            style: _displayStyle(
-              fontSize: 15,
-              color: DjedDetailTokens.silver,
-              height: 1.35,
+            style: _uiStyle(
+              fontSize: 13,
+              color: DjedDetailTokens.low,
+              height: 1.45,
             ),
           ),
           const SizedBox(height: 18),
@@ -827,67 +906,80 @@ class DjedSpineVisual extends StatelessWidget {
       key: const ValueKey<String>('djed-live-spine'),
       height: 214,
       decoration: BoxDecoration(
-        color: const Color(0xFF0B0704),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: const Color(0xFF3A1F0E)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0x2BE0873C)),
         gradient: const RadialGradient(
-          center: Alignment(0, -0.1),
-          radius: 0.9,
-          colors: <Color>[Color(0xFF241208), Color(0xFF080503)],
+          center: Alignment(0, -0.12),
+          radius: 0.95,
+          colors: <Color>[Color(0x1AE0873C), Color(0xFF0D0D0A)],
         ),
       ),
-      child: Center(
-        child: SizedBox(
-          width: 258,
-          height: 178,
-          child: Stack(
-            alignment: Alignment.center,
-            children: <Widget>[
-              Container(width: 16, height: 143, decoration: _shaftDecoration()),
-              Positioned(
-                top: 1,
-                child: Container(
-                  width: 56,
-                  height: 25,
-                  decoration: _capDecoration(),
+      child: Stack(
+        children: <Widget>[
+          const Positioned(
+            left: 22,
+            right: 22,
+            bottom: 20,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: <Color>[
+                    Color(0x00E0873C),
+                    Color(0x2EE0873C),
+                    Color(0x00E0873C),
+                  ],
                 ),
               ),
-              for (var index = 0; index < visible.length; index++)
-                Positioned(
-                  top: 30 + (visible.length - 1 - index) * 31,
-                  child: Opacity(
-                    opacity: index == activeSupport ? 1 : .42,
+              child: SizedBox(height: 1),
+            ),
+          ),
+          Center(
+            child: SizedBox(
+              width: 258,
+              height: 176,
+              child: Stack(
+                alignment: Alignment.center,
+                children: <Widget>[
+                  Container(
+                    width: 16,
+                    height: 143,
+                    decoration: _shaftDecoration(),
+                  ),
+                  Positioned(
+                    top: 1,
                     child: Container(
-                      width: 202,
-                      height: 26,
-                      alignment: Alignment.center,
-                      decoration: _conditionDecoration(
-                        visible[index].condition,
-                        active: index == activeSupport,
-                      ),
-                      child: Text(
-                        'SUPPORT ${(index + 1).toString().padLeft(2, '0')}${visible[index].name.isEmpty ? '' : ' · ${visible[index].name.toUpperCase()}'}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: _displayStyle(
-                          fontSize: 15.5,
-                          color: const Color(0xFF2A1308),
+                      width: 56,
+                      height: 25,
+                      decoration: _capDecoration(),
+                    ),
+                  ),
+                  for (var index = 0; index < visible.length; index++)
+                    Positioned(
+                      top: 30.0 + (visible.length - 1 - index) * 31,
+                      left: 28,
+                      right: 28,
+                      child: Opacity(
+                        opacity: index == activeSupport ? 1 : .42,
+                        child: _DjedSpineBeam(
+                          index: index,
+                          support: visible[index],
+                          active: index == activeSupport,
                         ),
                       ),
                     ),
+                  Positioned(
+                    bottom: 0,
+                    child: Container(
+                      width: 66,
+                      height: 21,
+                      decoration: _baseDecoration(),
+                    ),
                   ),
-                ),
-              Positioned(
-                bottom: 0,
-                child: Container(
-                  width: 66,
-                  height: 21,
-                  decoration: _baseDecoration(),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -914,7 +1006,7 @@ class _DjedSupportRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(0, 13, 0, 14),
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0x172E160B))),
+          border: Border(bottom: BorderSide(color: Color(0x17E0873C))),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -923,7 +1015,7 @@ class _DjedSupportRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
                 SizedBox(
-                  width: 72,
+                  width: 62,
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 9),
                     child: Text(
@@ -939,7 +1031,7 @@ class _DjedSupportRow extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 8),
                     decoration: const BoxDecoration(
                       border: Border(
-                        bottom: BorderSide(color: Color(0x383C2112)),
+                        bottom: BorderSide(color: Color(0x38E0873C)),
                       ),
                     ),
                     child: TextFormField(
@@ -949,7 +1041,7 @@ class _DjedSupportRow extends StatelessWidget {
                       maxLines: 1,
                       style: _displayStyle(
                         fontSize: 19,
-                        color: DjedDetailTokens.ivory,
+                        color: DjedDetailTokens.bone,
                         fontStyle: FontStyle.italic,
                       ),
                       decoration: InputDecoration.collapsed(
@@ -967,7 +1059,7 @@ class _DjedSupportRow extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Padding(
-              padding: const EdgeInsets.only(left: 72),
+              padding: const EdgeInsets.only(left: 62),
               child: Row(
                 children: <Widget>[
                   for (final condition in const <DjedSupportCondition>[
@@ -1020,14 +1112,66 @@ class _DjedSupportRow extends StatelessWidget {
   }
 }
 
-class _DjedSittings extends StatelessWidget {
+class _DjedSpineBeam extends StatelessWidget {
+  const _DjedSpineBeam({
+    required this.index,
+    required this.support,
+    required this.active,
+  });
+
+  final int index;
+  final DjedSupportFixture support;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget beam = Container(
+      height: 26,
+      alignment: Alignment.center,
+      decoration: _conditionDecoration(support.condition, active: active),
+      child: Text(
+        'SUPPORT ${(index + 1).toString().padLeft(2, '0')}${support.name.isEmpty ? '' : ' · ${support.name.toUpperCase()}'}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: _displayStyle(
+          fontSize: 15.5,
+          color: support.condition == DjedSupportCondition.unassessed
+              ? const Color(0xFF302416)
+              : const Color(0xFF21170B),
+        ),
+      ),
+    );
+    beam = switch (support.condition) {
+      DjedSupportCondition.underPressure => Transform.scale(
+        scaleX: 0.94,
+        child: beam,
+      ),
+      DjedSupportCondition.wobbling => Transform.translate(
+        offset: const Offset(7, 0),
+        child: Transform.rotate(angle: -1.5 * math.pi / 180, child: beam),
+      ),
+      _ => beam,
+    };
+    return beam;
+  }
+}
+
+class _DjedSittings extends StatefulWidget {
   const _DjedSittings({required this.sittings, required this.startDate});
 
   final List<DjedSittingFixture> sittings;
   final DateTime startDate;
 
   @override
+  State<_DjedSittings> createState() => _DjedSittingsState();
+}
+
+class _DjedSittingsState extends State<_DjedSittings> {
+  bool _showRemaining = false;
+
+  @override
   Widget build(BuildContext context) {
+    final remaining = widget.sittings.skip(5).toList(growable: false);
     return Container(
       key: const ValueKey<String>('djed-sittings-section'),
       padding: const EdgeInsets.fromLTRB(22, 30, 22, 28),
@@ -1039,27 +1183,64 @@ class _DjedSittings extends StatelessWidget {
         children: <Widget>[
           Text('The sittings', style: _displayStyle(fontSize: 29)),
           const SizedBox(height: 18),
-          for (final sitting in sittings.take(5)) ...<Widget>[
+          for (final sitting in widget.sittings.take(5)) ...<Widget>[
             _DjedScheduleCard(
               sitting: sitting,
-              date: startDate.add(Duration(days: sitting.flowDay - 1)),
+              date: widget.startDate.add(Duration(days: sitting.flowDay - 1)),
             ),
-            const SizedBox(height: 13),
+            const SizedBox(height: 14),
           ],
-          const Padding(
-            padding: EdgeInsets.only(top: 4, bottom: 10),
-            child: Text(
-              'SITTINGS 06–09',
-              style: TextStyle(
-                color: DjedDetailTokens.goldDim,
-                fontFamily: 'GentiumPlus',
-                fontSize: 9,
-                letterSpacing: 1.7,
+          if (remaining.isNotEmpty) ...<Widget>[
+            InkWell(
+              key: const ValueKey<String>('djed-see-remaining-sittings'),
+              onTap: () => setState(() => _showRemaining = !_showRemaining),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        _showRemaining
+                            ? 'Hide remaining sittings'
+                            : 'See remaining ${remaining.length} sittings',
+                        style: const TextStyle(
+                          color: Color(0xFFA58B4B),
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _showRemaining ? '–' : '+',
+                      style: const TextStyle(
+                        color: Color(0xFF7E6E43),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          for (final sitting in sittings.skip(5))
-            _CompactSittingRow(sitting: sitting),
+            if (_showRemaining) ...<Widget>[
+              const Padding(
+                padding: EdgeInsets.only(top: 3, bottom: 5),
+                child: Text(
+                  'SITTINGS 06–09',
+                  style: TextStyle(
+                    color: Color(0xFF756435),
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 8,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+              for (final sitting in remaining)
+                _CompactSittingRow(sitting: sitting),
+            ],
+          ],
         ],
       ),
     );
@@ -1096,7 +1277,7 @@ class _DjedScheduleCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           _ScheduleDate(date: date),
-          const SizedBox(height: 10),
+          const SizedBox(height: 13),
           DjedEventBlockVisual(
             sittingNumber: sitting.number,
             title: sitting.title,
@@ -1104,6 +1285,7 @@ class _DjedScheduleCard extends StatelessWidget {
             timeLabel: sitting.timeLabel,
             durationLabel: sitting.durationLabel,
           ),
+          _DjedCalendarContextRows(sittingNumber: sitting.number),
         ],
       ),
     );
@@ -1178,21 +1360,28 @@ class _CompactSittingRow extends StatelessWidget {
       child: Row(
         children: <Widget>[
           SizedBox(
-            width: 40,
+            width: 25,
             child: Text(
               sitting.number.toString().padLeft(2, '0'),
-              style: _uiStyle(fontSize: 10, letterSpacing: 1.2),
+              style: _uiStyle(fontSize: 9, letterSpacing: 1),
             ),
           ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(sitting.title, style: _displayStyle(fontSize: 18)),
-                const SizedBox(height: 3),
+                Text(
+                  sitting.title,
+                  style: _displayStyle(
+                    fontSize: 18,
+                    color: const Color(0xFFD7D0C5),
+                    height: 1.08,
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Text(
                   'Day ${sitting.flowDay} · ${sitting.timeLabel} · ${sitting.durationLabel}',
-                  style: _uiStyle(fontSize: 9.5, color: DjedDetailTokens.low),
+                  style: _uiStyle(fontSize: 10.5, color: const Color(0xFF656962)),
                 ),
               ],
             ),
@@ -1208,26 +1397,170 @@ class _CompactSittingRow extends StatelessWidget {
   }
 }
 
-class _DjedHistory extends StatelessWidget {
+class _DjedCalendarContextRows extends StatelessWidget {
+  const _DjedCalendarContextRows({required this.sittingNumber});
+
+  final int sittingNumber;
+
+  static const Map<int, List<(Color, String, String)>> _rows =
+      <int, List<(Color, String, String)>>{
+        1: <(Color, String, String)>[
+          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
+          (Color(0xFF399BEA), '12:00 PM', 'Bits and Operations'),
+          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
+        ],
+        2: <(Color, String, String)>[
+          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
+          (Color(0xFFF5696B), '12:00 PM', "The Spider's Shortcut"),
+          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
+        ],
+        3: <(Color, String, String)>[
+          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
+          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
+        ],
+        4: <(Color, String, String)>[
+          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
+          (Color(0xFF399BEA), '12:00 PM', 'Bits and Operations'),
+          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
+        ],
+        5: <(Color, String, String)>[
+          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
+          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
+        ],
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = _rows[sittingNumber];
+    if (rows == null || rows.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 11),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Color(0x24E0873C))),
+        ),
+        child: Column(
+          children: <Widget>[
+            for (var index = 0; index < rows.length; index++)
+              Container(
+                constraints: const BoxConstraints(minHeight: 47),
+                decoration: BoxDecoration(
+                  border: index == rows.length - 1
+                      ? null
+                      : const Border(
+                          bottom: BorderSide(color: Color(0x1FE0873C)),
+                        ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    SizedBox(
+                      width: 7,
+                      child: Center(
+                        child: Container(
+                          width: 4,
+                          height: 15,
+                          decoration: BoxDecoration(
+                            color: rows[index].$1,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    SizedBox(
+                      width: 67,
+                      child: Text(
+                        rows[index].$2,
+                        style: _uiStyle(
+                          fontSize: 10.5,
+                          color: const Color(0xFF8F8B83),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        rows[index].$3,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _displayStyle(
+                          fontSize: 16,
+                          color: const Color(0xFFCBC5BA),
+                          height: 1.15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DjedHistory extends StatefulWidget {
   const _DjedHistory();
+
+  @override
+  State<_DjedHistory> createState() => _DjedHistoryState();
+}
+
+class _DjedHistoryState extends State<_DjedHistory> {
+  bool _open = false;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 26, 22, 34),
+      padding: const EdgeInsets.fromLTRB(22, 27, 22, 4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text('History', style: _displayStyle(fontSize: 27)),
-          const SizedBox(height: 8),
-          Text(
-            'The djed pillar carried the idea of stability and uprightness. Its raising made that stability physical: the pillar had to stand.',
-            style: _displayStyle(
-              fontSize: 15,
-              color: DjedDetailTokens.silver,
-              height: 1.4,
+          InkWell(
+            key: const ValueKey<String>('djed-in-kemet'),
+            onTap: () => setState(() => _open = !_open),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Row(
+                children: <Widget>[
+                  const Expanded(
+                    child: Text(
+                      'In Kemet',
+                      style: TextStyle(
+                        color: Color(0xFFAAA197),
+                        fontFamily: MaatFlowListTokens.fontFamily,
+                        fontSize: 18,
+                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _open ? '–' : '+',
+                    style: const TextStyle(
+                      color: Color(0xFFAAA197),
+                      fontFamily: 'GentiumPlus',
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          if (_open)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(0, 0, 0, 4),
+              child: Text(
+                'The djed pillar carried the idea of stability and uprightness. Its raising made that stability physical: the pillar had to stand. This flow keeps that logic intact by asking what actually bears weight, what has been tested, and what can be raised again.',
+                style: TextStyle(
+                  color: Color(0xFF858B86),
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontSize: 15,
+                  height: 1.52,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1253,16 +1586,19 @@ BoxDecoration _conditionDecoration(
       Color(0xFF3F2C1B),
     ],
     DjedSupportCondition.holding => const <Color>[
-      Color(0xFFF0B663),
-      Color(0xFFB95A28),
+      Color(0xFFFBDCA4),
+      Color(0xFFE0873C),
+      Color(0xFF8A4418),
     ],
     DjedSupportCondition.underPressure => const <Color>[
-      Color(0xFFDD9250),
-      Color(0xFF8F3E20),
+      Color(0xFFEBCBAD),
+      Color(0xFFC58D61),
+      Color(0xFF7D4D32),
     ],
     DjedSupportCondition.wobbling => const <Color>[
-      Color(0xFFC77739),
-      Color(0xFF6F2C18),
+      Color(0xFFD9B47A),
+      Color(0xFFB07A45),
+      Color(0xFF69451F),
     ],
   };
   return BoxDecoration(

@@ -101,37 +101,42 @@ class MaatFlowThirtyDayCalendar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 36, 24, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                introFirstLine,
-                style: TextStyle(
-                  color: theme.introText,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w400,
-                  height: 1.36,
-                ),
-              ),
-              Text(
-                introSecondLine,
-                style: TextStyle(
-                  color: theme.introEmphasis,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w400,
-                  fontStyle: FontStyle.italic,
-                  height: 1.36,
-                ),
-              ),
-            ],
+        if (introFirstLine.isNotEmpty || introSecondLine.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 36, 24, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (introFirstLine.isNotEmpty)
+                  Text(
+                    introFirstLine,
+                    style: TextStyle(
+                      color: theme.introText,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: introSecondLine.isEmpty ? 29 : 24,
+                      fontWeight: introSecondLine.isEmpty
+                          ? FontWeight.w500
+                          : FontWeight.w400,
+                      height: introSecondLine.isEmpty ? 1 : 1.36,
+                    ),
+                  ),
+                if (introSecondLine.isNotEmpty)
+                  Text(
+                    introSecondLine,
+                    style: TextStyle(
+                      color: theme.introEmphasis,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w400,
+                      fontStyle: FontStyle.italic,
+                      height: 1.36,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
         const SizedBox(height: 4),
         for (final section in sections) ...[
           _MonthBand(monthId: section.monthId, theme: theme),

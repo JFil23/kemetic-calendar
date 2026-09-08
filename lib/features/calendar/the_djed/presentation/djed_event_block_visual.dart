@@ -20,7 +20,10 @@ class DjedEventBlockVisual extends StatelessWidget {
     this.supportName,
     this.progressCopy,
     this.ordinalLabel,
+    this.supportPipIndex,
     this.size = DjedEventBlockSize.detail,
+    this.width,
+    this.height,
     this.onTap,
   });
 
@@ -32,28 +35,33 @@ class DjedEventBlockVisual extends StatelessWidget {
   final String? supportName;
   final String? progressCopy;
   final String? ordinalLabel;
+  /// `-1` paints empty pips (Day View orientation). Null uses sitting defaults.
+  final int? supportPipIndex;
   final DjedEventBlockSize size;
+  final double? width;
+  final double? height;
   final VoidCallback? onTap;
 
-  static const _bone = Color(0xFFF3EADF);
+  static const _bone = Color(0xFFF2EADD);
   static const _emberCopy = Color(0xFFE8B98A);
 
   @override
   Widget build(BuildContext context) {
     final compact = size == DjedEventBlockSize.compact;
-    final height = compact ? 86.0 : 106.0;
+    final blockHeight = height ?? (compact ? 86.0 : 106.0);
     final radius = BorderRadius.circular(10);
     final content = Container(
       key: ValueKey<String>(
         'djed-event-block-${compact ? 'compact' : 'detail'}-$sittingNumber',
       ),
-      height: height,
+      width: width,
+      height: blockHeight,
       decoration: BoxDecoration(
         borderRadius: radius,
         border: Border.all(color: const Color(0x70E0873C), width: 1),
         gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment(-0.45, -1),
+          end: Alignment(0.72, 1),
           colors: <Color>[
             Color(0xFF1E120A),
             Color(0xFF3A1F0E),
@@ -63,7 +71,7 @@ class DjedEventBlockVisual extends StatelessWidget {
         ),
         boxShadow: const <BoxShadow>[
           BoxShadow(
-            color: Color(0xA6000000),
+            color: Color(0x94000000),
             blurRadius: 18,
             offset: Offset(0, 7),
           ),
@@ -113,7 +121,7 @@ class DjedEventBlockVisual extends StatelessWidget {
           Positioned(
             left: compact ? 12 : 14,
             top: compact ? 9 : 11,
-            right: compact ? 76 : 82,
+            right: compact ? 70 : 82,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,7 +164,10 @@ class DjedEventBlockVisual extends StatelessWidget {
                 SizedBox(height: compact ? 5 : 9),
                 Row(
                   children: <Widget>[
-                    _SittingPips(sittingNumber: sittingNumber),
+                    _SittingPips(
+                      sittingNumber: sittingNumber,
+                      supportPipIndex: supportPipIndex,
+                    ),
                     SizedBox(width: compact ? 4 : 9),
                     Expanded(
                       child: Text(
@@ -222,13 +233,14 @@ class DjedEventBlockVisual extends StatelessWidget {
 }
 
 class _SittingPips extends StatelessWidget {
-  const _SittingPips({required this.sittingNumber});
+  const _SittingPips({required this.sittingNumber, this.supportPipIndex});
 
   final int sittingNumber;
+  final int? supportPipIndex;
 
   @override
   Widget build(BuildContext context) {
-    final supportIndex = _supportIndexForSitting(sittingNumber);
+    final supportIndex = supportPipIndex ?? _supportIndexForSitting(sittingNumber);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -245,6 +257,17 @@ class _SittingPips extends StatelessWidget {
                   ? const Color(0xFFE0873C)
                   : const Color(0xFF493322),
               borderRadius: BorderRadius.circular(2),
+              boxShadow: supportIndex < 0
+                  ? const <BoxShadow>[]
+                  : index - 1 < supportIndex
+                  ? const <BoxShadow>[
+                      BoxShadow(color: Color(0x80F5B963), blurRadius: 7),
+                    ]
+                  : index - 1 == supportIndex
+                  ? const <BoxShadow>[
+                      BoxShadow(color: Color(0xB3E0873C), blurRadius: 9),
+                    ]
+                  : const <BoxShadow>[],
             ),
           ),
           if (index < 4) const SizedBox(width: 4),

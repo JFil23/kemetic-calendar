@@ -1317,7 +1317,7 @@ void main() {
     expect(authoritySource, contains('_ensureSharedHouseCalendar'));
     expect(authoritySource, contains('setSharedPracticeVisibility'));
     expect(authoritySource, contains('_materializeScheduledSittings'));
-    expect(detailSource, contains("label: '+ Invite someone'"));
+    expect(detailSource, contains("'+ Invite'"));
     expect(detailSource, contains('Everyone who accepts sees this same house'));
 
     expect(adapterSource, contains('ReadingHouseDetailPage('));

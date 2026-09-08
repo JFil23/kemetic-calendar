@@ -2236,11 +2236,8 @@ class _InboxPageState extends State<InboxPage> {
       if (!mounted) return;
       await showModalBottomSheet(
         context: context,
-        backgroundColor: _bg,
+        backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-        ),
         builder: (sheetContext) {
           final inviteNotifications = _calendarSectionNotifications.toList();
           final eventInvites = _latestEventInvites.toList();
@@ -2253,91 +2250,143 @@ class _InboxPageState extends State<InboxPage> {
           final incomingInvites =
               _incomingCalendarInvitesWithoutNotification.toList()
                 ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
+          final mediaHeight = MediaQuery.sizeOf(sheetContext).height * 0.78;
+          final sheetHeight = mediaHeight < 720 ? mediaHeight : 720.0;
 
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const Text(
-                    'Invites',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (sentInvites.isEmpty &&
-                      inviteResponseItems.isEmpty &&
-                      incomingInvites.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'Calendar invites and responses will appear here.',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
+          return Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: sheetHeight,
+              decoration: const BoxDecoration(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border(top: BorderSide(color: Color(0x33D4AE43))),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[
+                    Color(0xFF121009),
+                    Color(0xFF0D0B07),
+                    Color(0xFF090805),
+                  ],
+                  stops: <double>[0, 0.38, 1],
+                ),
+              ),
+              child: Stack(
+                children: <Widget>[
+                  const Positioned(
+                    top: 11,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: SizedBox(
+                        width: 42,
+                        height: 4,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xFF514D42),
+                            borderRadius: BorderRadius.all(Radius.circular(4)),
+                          ),
                         ),
                       ),
-                    )
-                  else
-                    Flexible(
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: [
-                          if (incomingInvites.isNotEmpty) ...[
-                            _calendarSheetSectionTitle('Invites for you'),
-                            const SizedBox(height: 8),
-                            for (final invite in incomingInvites)
-                              _buildIncomingCalendarInviteRow(
-                                invite,
-                                closeContext: sheetContext,
-                              ),
-                          ],
-                          if (sentInvites.isNotEmpty) ...[
-                            if (incomingInvites.isNotEmpty)
-                              const SizedBox(height: 12),
-                            _calendarSheetSectionTitle('Pending from you'),
-                            const SizedBox(height: 8),
-                            for (final invite in sentInvites)
-                              _buildSentCalendarInviteRow(
-                                invite,
-                                closeContext: sheetContext,
-                              ),
-                          ],
-                          if (inviteResponseItems.isNotEmpty) ...[
-                            if (sentInvites.isNotEmpty ||
-                                incomingInvites.isNotEmpty)
-                              const SizedBox(height: 12),
-                            _calendarSheetSectionTitle('Invites & responses'),
-                            const SizedBox(height: 8),
-                            for (final item in inviteResponseItems)
-                              item.isEvent
-                                  ? _buildEventInviteRow(
-                                      item,
-                                      closeContext: sheetContext,
-                                    )
-                                  : _buildCalendarInviteNotificationRow(
-                                      item,
-                                      closeContext: sheetContext,
-                                    ),
-                          ],
-                        ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 13,
+                    child: IconButton(
+                      key: const ValueKey<String>('inbox-invites-close'),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      icon: const Icon(Icons.close, size: 28),
+                      color: const Color(0xFFD8B23C),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
                       ),
                     ),
+                  ),
+                  const Positioned(
+                    top: 39,
+                    left: 18,
+                    right: 18,
+                    height: 57,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Text(
+                        'Invites',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFFF5E8CB),
+                          fontFamily: _serifFont,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w600,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 96,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 34),
+                      child: sentInvites.isEmpty &&
+                              inviteResponseItems.isEmpty &&
+                              incomingInvites.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Text(
+                                'Calendar invites and responses will appear here.',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                ),
+                              ),
+                            )
+                          : ListView(
+                              children: [
+                                if (incomingInvites.isNotEmpty) ...[
+                                  _calendarSheetSectionTitle('Pending'),
+                                  const SizedBox(height: 8),
+                                  for (final invite in incomingInvites)
+                                    _buildIncomingCalendarInviteRow(
+                                      invite,
+                                      closeContext: sheetContext,
+                                    ),
+                                ],
+                                if (sentInvites.isNotEmpty) ...[
+                                  if (incomingInvites.isNotEmpty)
+                                    const SizedBox(height: 12),
+                                  _calendarSheetSectionTitle('Pending from you'),
+                                  const SizedBox(height: 8),
+                                  for (final invite in sentInvites)
+                                    _buildSentCalendarInviteRow(
+                                      invite,
+                                      closeContext: sheetContext,
+                                    ),
+                                ],
+                                if (inviteResponseItems.isNotEmpty) ...[
+                                  if (sentInvites.isNotEmpty ||
+                                      incomingInvites.isNotEmpty)
+                                    const SizedBox(height: 12),
+                                  _calendarSheetSectionTitle('Invites & responses'),
+                                  const SizedBox(height: 8),
+                                  for (final item in inviteResponseItems)
+                                    item.isEvent
+                                        ? _buildEventInviteRow(
+                                            item,
+                                            closeContext: sheetContext,
+                                          )
+                                        : _buildCalendarInviteNotificationRow(
+                                            item,
+                                            closeContext: sheetContext,
+                                          ),
+                                ],
+                              ],
+                            ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2361,13 +2410,18 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Widget _calendarSheetSectionTitle(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.7),
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.3,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(3, 8, 3, 10),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: Color(0xFF746F66),
+          fontFamily: _serifFont,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 2.5,
+          height: 1,
+        ),
       ),
     );
   }
@@ -2376,134 +2430,251 @@ class _InboxPageState extends State<InboxPage> {
     SharedCalendarInvite invite, {
     BuildContext? closeContext,
   }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          color: invite.color.withValues(alpha: 0.14),
-          border: Border.all(color: invite.color.withValues(alpha: 0.32)),
-        ),
-        child: Icon(Icons.person_add_alt_1_rounded, color: invite.color),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0C08),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0x21D4AE43)),
       ),
-      title: Text(
-        invite.calendarName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-        ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0x1AD4AE43),
+              border: Border.all(color: const Color(0x3DD4AE43)),
+            ),
+            child: const Text(
+              '𓉐',
+              style: TextStyle(
+                color: Color(0xFFDFB535),
+                fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                fontSize: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  invite.calendarName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFF3EEE2),
+                    fontFamily: _serifFont,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w600,
+                    height: 1.05,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${invite.inviterLabel} invited you to this calendar.',
+                  style: const TextStyle(
+                    color: Color(0xFF8F8A82),
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 13,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 9),
+                Row(
+                  children: <Widget>[
+                    TextButton(
+                      onPressed: () => unawaited(
+                        _respondToIncomingCalendarInvite(
+                          invite,
+                          accept: true,
+                          closeContext: closeContext,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF8AD9BD),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: const TextStyle(
+                          fontFamily: _serifFont,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Accept'),
+                    ),
+                    const SizedBox(width: 16),
+                    TextButton(
+                      onPressed: () => unawaited(
+                        _respondToIncomingCalendarInvite(
+                          invite,
+                          accept: false,
+                          closeContext: closeContext,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF8B7A70),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: const TextStyle(
+                          fontFamily: _serifFont,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Decline'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      subtitle: Text(
-        '${invite.inviterLabel} invited you to join this calendar',
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.7),
-          fontSize: 14,
-        ),
-      ),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: invite.color.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          'Pending',
-          style: TextStyle(
-            color: invite.color,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+    );
+  }
+
+  Future<void> _respondToIncomingCalendarInvite(
+    SharedCalendarInvite invite, {
+    required bool accept,
+    BuildContext? closeContext,
+  }) async {
+    try {
+      await _sharedCalendarsRepo.respondToInvite(
+        calendarId: invite.calendarId,
+        accept: accept,
+        invite: invite,
+      );
+      if (closeContext != null && closeContext.mounted) {
+        Navigator.of(closeContext).pop();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            accept
+                ? 'Could not accept this invite.'
+                : 'Could not decline this invite.',
           ),
         ),
-      ),
-      onTap: () async {
-        if (closeContext != null) {
-          Navigator.of(closeContext).pop();
-        }
-        await SharedCalendarsSheet.show(
-          context,
-          repo: _sharedCalendarsRepo,
-          onEventTapRequested:
-              (calendar, filedEvent, {calendarEvents = const []}) =>
-                  CalendarPage.openFiledCalendarEventFromAnyContext(
-                    context,
-                    calendar: calendar,
-                    filedEvent: filedEvent,
-                    calendarEvents: calendarEvents,
-                  ),
-        );
-      },
-    );
+      );
+    }
   }
 
   Widget _buildSentCalendarInviteRow(
     SharedCalendarSentInvite invite, {
     BuildContext? closeContext,
   }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      leading: ProfileAvatar(
-        radius: 22,
-        displayName: invite.inviteeLabel,
-        avatarUrl: invite.inviteeAvatarUrl,
-        backgroundColor: invite.color.withValues(alpha: 0.16),
-        foregroundColor: invite.color,
-      ),
-      title: Text(
-        invite.calendarName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: Text(
-        'Waiting on ${invite.inviteeLabel}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.7),
-          fontSize: 14,
-        ),
-      ),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: invite.color.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          'Pending',
-          style: TextStyle(
-            color: invite.color,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+    final invitedDate = MaterialLocalizations.of(
+      context,
+    ).formatShortDate(invite.invitedAt.toLocal());
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: () async {
+          if (closeContext != null) {
+            Navigator.of(closeContext).pop();
+          }
+          await SharedCalendarsSheet.show(
+            context,
+            repo: _sharedCalendarsRepo,
+            onEventTapRequested:
+                (calendar, filedEvent, {calendarEvents = const []}) =>
+                    CalendarPage.openFiledCalendarEventFromAnyContext(
+                      context,
+                      calendar: calendar,
+                      filedEvent: filedEvent,
+                      calendarEvents: calendarEvents,
+                    ),
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D0C08),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color(0x21D4AE43)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 50,
+                height: 50,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0x1AD4AE43),
+                  border: Border.all(color: const Color(0x3DD4AE43)),
+                ),
+                child: const Text(
+                  '𓉐',
+                  style: TextStyle(
+                    color: Color(0xFFDFB535),
+                    fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                    fontSize: 22,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      invite.calendarName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFF3EEE2),
+                        fontFamily: _serifFont,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w600,
+                        height: 1.05,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Waiting on ${invite.inviteeLabel}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF8F8A82),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 13,
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Pending · $invitedDate',
+                      style: const TextStyle(
+                        color: Color(0xFF6F746F),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 11,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      onTap: () async {
-        if (closeContext != null) {
-          Navigator.of(closeContext).pop();
-        }
-        await SharedCalendarsSheet.show(
-          context,
-          repo: _sharedCalendarsRepo,
-          onEventTapRequested:
-              (calendar, filedEvent, {calendarEvents = const []}) =>
-                  CalendarPage.openFiledCalendarEventFromAnyContext(
-                    context,
-                    calendar: calendar,
-                    filedEvent: filedEvent,
-                    calendarEvents: calendarEvents,
-                  ),
-        );
-      },
     );
   }
 

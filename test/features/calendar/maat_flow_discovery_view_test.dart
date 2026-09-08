@@ -74,7 +74,25 @@ void main() {
     );
     await tester.ensureVisible(followSkyButton);
     await tester.tap(followSkyButton);
+    await tester.pumpAndSettle();
+    expect(opened, isNull);
+    expect(
+      find.byKey(
+        const ValueKey<String>('maat-flow-discovery-detail-track-the-sky'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Carry this flow'), findsOneWidget);
+    final carry = find.byKey(const ValueKey<String>('maat-flow-discovery-carry'));
+    await tester.ensureVisible(carry);
+    await tester.pumpAndSettle();
+    await tester.tap(carry);
+    await tester.pump();
     expect(opened, 'track-the-sky');
+    await tester.tap(
+      find.byKey(const ValueKey<String>('maat-flow-discovery-back')),
+    );
+    await tester.pumpAndSettle();
 
     final djedCard = find.byKey(
       const ValueKey<String>('maat-flow-discovery-card-the-djed'),

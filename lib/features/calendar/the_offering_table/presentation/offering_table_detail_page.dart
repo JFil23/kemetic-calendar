@@ -3,6 +3,7 @@ import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/maat_flow_date_picker.dart';
 
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
+import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/maat_flow_temporal_controller.dart';
 import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
@@ -16,6 +17,7 @@ import 'package:mobile/features/calendar/the_offering_table/presentation/offerin
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
+import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 
 typedef OfferingTableJoinCallback =
     Future<int> Function({
@@ -387,7 +389,8 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   Widget _buildSheet() {
     final occurrences = _previewOccurrences();
     final today = _temporalContext.presentLocalDate;
-    final remaining = occurrences.skip(1).toList(growable: false);
+    final remaining = occurrences.skip(5).toList(growable: false);
+    final firstFive = occurrences.take(5).toList(growable: false);
     final ordinaryRowsByDay = _ordinaryRowsByDay(occurrences);
 
     return Column(
@@ -435,7 +438,10 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
           keyPrefix: 'offering-table-calendar',
         ),
         _OfferingAllDaysList(
+          firstFive: firstFive,
           remaining: remaining,
+          ordinaryRowsByDay: ordinaryRowsByDay,
+          carried: _joined,
           expanded: _showAllDays,
           onToggle: () => setState(() => _showAllDays = !_showAllDays),
           onOpenOfferingDay: _openOfferingDaySheet,
@@ -748,7 +754,7 @@ class _OfferingTableInitialEntry extends StatelessWidget {
               height: 1,
             ),
           ),
-          const SizedBox(height: 11),
+          const SizedBox(height: 8),
           Focus(
             child: TextField(
               key: const ValueKey<String>('offering-table-initial-input'),
@@ -895,13 +901,19 @@ class _OfferingFlowEventCard extends StatelessWidget {
 
 class _OfferingAllDaysList extends StatelessWidget {
   const _OfferingAllDaysList({
+    required this.firstFive,
     required this.remaining,
+    required this.ordinaryRowsByDay,
+    required this.carried,
     required this.expanded,
     required this.onToggle,
     required this.onOpenOfferingDay,
   });
 
+  final List<OfferingTablePreviewOccurrence> firstFive;
   final List<OfferingTablePreviewOccurrence> remaining;
+  final Map<DateTime, List<FollowSkyCalendarPreviewRow>> ordinaryRowsByDay;
+  final bool carried;
   final bool expanded;
   final VoidCallback onToggle;
   final ValueChanged<OfferingTablePreviewOccurrence> onOpenOfferingDay;
@@ -971,7 +983,30 @@ class _OfferingAllDaysList extends StatelessWidget {
                   ? Padding(
                       padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          for (final occurrence in firstFive)
+                            _OfferingScheduleDay(
+                              occurrence: occurrence,
+                              carried: carried,
+                              ordinaryRows:
+                                  ordinaryRowsByDay[occurrence.date] ??
+                                  const <FollowSkyCalendarPreviewRow>[],
+                              onOpenOfferingDay: onOpenOfferingDay,
+                            ),
+                          const Padding(
+                            padding: EdgeInsets.only(top: 6, bottom: 5),
+                            child: Text(
+                              'OFFERINGS 06–30',
+                              style: TextStyle(
+                                color: Color(0xFF8A7030),
+                                fontFamily: MaatFlowListTokens.fontFamily,
+                                fontSize: 9.5,
+                                letterSpacing: 1.8,
+                                height: 1,
+                              ),
+                            ),
+                          ),
                           for (final occurrence in remaining)
                             _OfferingAllDayRow(
                               occurrence: occurrence,
@@ -1021,15 +1056,18 @@ class _OfferingAllDayRow extends StatelessWidget {
           children: [
             SizedBox(
               width: 28,
-              child: Text(
-                day.dayNumber.toString().padLeft(2, '0'),
-                style: const TextStyle(
-                  color: OfferingTableDetailTokens.warmGold,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 0.76,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  day.dayNumber.toString().padLeft(2, '0'),
+                  style: const TextStyle(
+                    color: OfferingTableDetailTokens.warmGold,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: 0.76,
+                  ),
                 ),
               ),
             ),
@@ -1073,13 +1111,128 @@ class _OfferingAllDayRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              size: 16,
-              color: OfferingTableDetailTokens.warmGold,
+            const Padding(
+              padding: EdgeInsets.only(top: 5, left: 8),
+              child: Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: OfferingTableDetailTokens.warmGold,
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _OfferingScheduleDay extends StatelessWidget {
+  const _OfferingScheduleDay({
+    required this.occurrence,
+    required this.carried,
+    required this.ordinaryRows,
+    required this.onOpenOfferingDay,
+  });
+
+  final OfferingTablePreviewOccurrence occurrence;
+  final bool carried;
+  final List<FollowSkyCalendarPreviewRow> ordinaryRows;
+  final ValueChanged<OfferingTablePreviewOccurrence> onOpenOfferingDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final kemetic = KemeticMath.fromGregorian(occurrence.date);
+    final month = getMonthById(kemetic.kMonth);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF120F08),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: const Color(0x45C99A3D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(
+                  '${month.displayShort} ${kemetic.kDay}',
+                  style: const TextStyle(
+                    color: OfferingTableDetailTokens.warmGold,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    height: 1,
+                  ),
+                ),
+              ),
+              Text(
+                '${_shortWeekday(occurrence.date)} · ${_shortMonth(occurrence.date)} ${occurrence.date.day}',
+                style: const TextStyle(
+                  color: Color(0xFFC39B4C),
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontSize: 10.5,
+                  letterSpacing: 1.65,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _OfferingFlowEventCard(
+            occurrence: occurrence,
+            carried: carried,
+            onTap: () => onOpenOfferingDay(occurrence),
+          ),
+          if (ordinaryRows.isNotEmpty)
+            DecoratedBox(
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: Color(0x2BC99A3D))),
+              ),
+              child: Column(
+                children: [
+                  for (final row in ordinaryRows)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 3,
+                            height: 12,
+                            margin: const EdgeInsets.only(right: 8),
+                            color: row.eventColor,
+                          ),
+                          Text(
+                            _formatTime(row.start),
+                            style: const TextStyle(
+                              color: OfferingTableDetailTokens.silver,
+                              fontFamily: MaatFlowListTokens.fontFamily,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              row.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: OfferingTableDetailTokens.mutedIvory,
+                                fontFamily: MaatFlowListTokens.fontFamily,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1091,41 +1244,50 @@ class _OfferingTableKemetNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.fromLTRB(22, 28, 22, 34),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            'IN KEMET',
-            style: TextStyle(
-              color: Color(0xFF9A7635),
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontSize: 10,
-              letterSpacing: 2,
-            ),
+      padding: EdgeInsets.fromLTRB(22, 26, 22, 0),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: OfferingTableDetailTokens.separator)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(top: 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'IN KEMET',
+                style: TextStyle(
+                  color: OfferingTableDetailTokens.warmGold,
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontSize: 10.5,
+                  letterSpacing: 2.7,
+                  height: 1,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Kemetic offering practice treats provision as material and relational: food, water, care, reciprocity, and what keeps life functioning.',
+                style: TextStyle(
+                  color: OfferingTableDetailTokens.mutedIvory,
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontSize: 16,
+                  height: 1.48,
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                '“Wash yourself and your Ka will wash itself. Your Ka will sit and eat bread with you without ceasing.”',
+                style: TextStyle(
+                  color: Color(0xFF8E867C),
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontSize: 16,
+                  fontStyle: FontStyle.italic,
+                  height: 1.48,
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 10),
-          Text(
-            'Kemetic offering practice treats provision as material and relational: food, water, care, reciprocity, and what keeps life functioning.',
-            style: TextStyle(
-              color: OfferingTableDetailTokens.mutedIvory,
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontSize: 16,
-              height: 1.38,
-            ),
-          ),
-          SizedBox(height: 12),
-          Text(
-            '“Wash yourself and your Ka will wash itself. Your Ka will sit and eat bread with you without ceasing.”',
-            style: TextStyle(
-              color: OfferingTableDetailTokens.silver,
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontSize: 15,
-              fontStyle: FontStyle.italic,
-              height: 1.38,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
