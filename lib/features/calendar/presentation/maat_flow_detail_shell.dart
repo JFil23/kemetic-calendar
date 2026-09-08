@@ -20,6 +20,61 @@ void popMaatFlowDetailOrGo(
   popOrGo(context, fallbackLocation);
 }
 
+/// The authored 34 px circular back control shared by Ma'at detail pages.
+///
+/// Keeping this chrome in one authority prevents each flow from drifting while
+/// still allowing the flow palette to own its color.
+class MaatFlowDetailBackButton extends StatelessWidget {
+  const MaatFlowDetailBackButton({
+    super.key,
+    required this.color,
+    required this.onPressed,
+    this.backgroundColor = const Color(0x73000000),
+    this.borderColor,
+    this.size = 34,
+    this.iconSize = 20,
+    this.tooltip = 'Back',
+    this.icon = Icons.arrow_back,
+  });
+
+  final Color color;
+  final Color backgroundColor;
+  final Color? borderColor;
+  final double size;
+  final double iconSize;
+  final VoidCallback onPressed;
+  final String tooltip;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: backgroundColor,
+          shape: CircleBorder(
+            side: BorderSide(
+              color: borderColor ?? color.withValues(alpha: 0.28),
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onPressed,
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Icon(icon, color: color, size: iconSize),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Flow-owned colors applied to the shared Ma'at detail geometry.
 class MaatFlowDetailTheme {
   const MaatFlowDetailTheme({
@@ -387,6 +442,7 @@ class MaatFlowDetailDock extends StatelessWidget {
     required this.actionKey,
     required this.joinedKey,
     this.onJoinedPressed,
+    this.showNote = true,
   });
 
   final MaatFlowDetailTheme theme;
@@ -400,6 +456,7 @@ class MaatFlowDetailDock extends StatelessWidget {
   final Key actionKey;
   final Key joinedKey;
   final VoidCallback? onJoinedPressed;
+  final bool showNote;
 
   @override
   Widget build(BuildContext context) {
@@ -427,9 +484,7 @@ class MaatFlowDetailDock extends StatelessWidget {
                   key: joined ? joinedKey : actionKey,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.pageBackground,
-                    foregroundColor: joined
-                        ? theme.secondaryText
-                        : theme.glow,
+                    foregroundColor: joined ? theme.secondaryText : theme.glow,
                     disabledBackgroundColor: theme.pageBackground,
                     disabledForegroundColor: theme.secondaryText,
                     shape: RoundedRectangleBorder(
@@ -471,18 +526,20 @@ class MaatFlowDetailDock extends StatelessWidget {
                         ),
                 ),
               ),
-              const SizedBox(height: 9),
-              Text(
-                joined ? joinedNote : actionNote,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: theme.secondaryText,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w300,
+              if (showNote) ...<Widget>[
+                const SizedBox(height: 9),
+                Text(
+                  joined ? joinedNote : actionNote,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: theme.secondaryText,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w300,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

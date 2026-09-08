@@ -34,7 +34,7 @@ abstract final class ReadingHouseDetailTokens {
   static const Color houseHighlight = Color(0xFF7FD9BC);
   static const Color houseDeep = Color(0xFF17362E);
   static const Color separator = Color(0xFF1E2A24);
-  static const String heroAsset = 'assets/the_reading_house/hero.png';
+  static const String heroAsset = 'assets/the_reading_house/reference_hero.jpg';
   static const Alignment heroImageAlignment = Alignment(0, 0.10);
 
   static const MaatFlowDetailTheme theme = MaatFlowDetailTheme(
@@ -809,8 +809,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                   ? () => unawaited(_endHouse())
                   : null,
               actionLabel: 'Hold this house',
-              actionNote:
-                  'This creates the house in My Flows. You do not need to schedule it yet.',
+              actionNote: 'Creates the house in My Flows.',
               joinedLabel: widget.onEndFlow == null
                   ? 'Held in your flows'
                   : 'End this house',
@@ -832,11 +831,12 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             body,
             if (widget.showBackButton)
               Positioned(
-                top: MediaQuery.paddingOf(context).top + 4,
-                left: 4,
-                child: BackButton(
+                top: MediaQuery.paddingOf(context).top + 6,
+                left: 18,
+                child: MaatFlowDetailBackButton(
                   key: const ValueKey<String>('reading-house-back'),
                   color: ReadingHouseDetailTokens.gold,
+                  backgroundColor: const Color(0xA60A0806),
                   onPressed: () => popMaatFlowDetailOrGo(
                     context,
                     fallbackLocation: widget.backFallbackLocation,
@@ -1043,9 +1043,8 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                                               height: 13,
                                               child: CircularProgressIndicator(
                                                 strokeWidth: 1.5,
-                                                color:
-                                                    ReadingHouseDetailTokens
-                                                        .houseHighlight,
+                                                color: ReadingHouseDetailTokens
+                                                    .houseHighlight,
                                               ),
                                             ),
                                           ),
@@ -1119,9 +1118,8 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                                                 ? '+ Invite'
                                                 : null,
                                             onInvite: _canManageMembership
-                                                ? () => unawaited(
-                                                    _inviteReader(),
-                                                  )
+                                                ? () =>
+                                                      unawaited(_inviteReader())
                                                 : null,
                                           ),
                                           for (final reader in invitedReaders)
@@ -1253,9 +1251,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 22),
               child: _DashedPillButton(
                 key: const ValueKey<String>('reading-house-add-sitting'),
-                label: _addingSitting
-                    ? 'Adding sitting…'
-                    : '+ Add sitting',
+                label: _addingSitting ? 'Adding sitting…' : '+ Add sitting',
                 onTap: !_addingSitting ? () => unawaited(_addSitting()) : null,
               ),
             )
@@ -1325,18 +1321,50 @@ class _ReadingHouseHero extends StatelessWidget {
 class _ReadingHouseHeroBackdrop extends StatelessWidget {
   const _ReadingHouseHeroBackdrop();
 
+  static const ColorFilter _mockupImageTreatment = ColorFilter.matrix(<double>[
+    0.60118134,
+    0.09014148,
+    0.00907718,
+    0,
+    -3.825,
+    0.02685334,
+    0.66446948,
+    0.00907718,
+    0,
+    -3.825,
+    0.02685334,
+    0.09014148,
+    0.58340518,
+    0,
+    -3.825,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ]);
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(
-          ReadingHouseDetailTokens.heroAsset,
-          key: const ValueKey<String>('reading-house-hero-image'),
-          fit: BoxFit.cover,
-          alignment: ReadingHouseDetailTokens.heroImageAlignment,
-          errorBuilder: (context, error, stackTrace) =>
-              const ColoredBox(color: ReadingHouseDetailTokens.pageBackground),
+        Transform.scale(
+          key: const ValueKey<String>('reading-house-hero-image-scale'),
+          scale: 1.01,
+          child: ColorFiltered(
+            key: const ValueKey<String>('reading-house-hero-image-treatment'),
+            colorFilter: _mockupImageTreatment,
+            child: Image.asset(
+              ReadingHouseDetailTokens.heroAsset,
+              key: const ValueKey<String>('reading-house-hero-image'),
+              fit: BoxFit.cover,
+              alignment: ReadingHouseDetailTokens.heroImageAlignment,
+              errorBuilder: (context, error, stackTrace) => const ColoredBox(
+                color: ReadingHouseDetailTokens.pageBackground,
+              ),
+            ),
+          ),
         ),
         const DecoratedBox(
           decoration: BoxDecoration(
@@ -1634,17 +1662,15 @@ class _BookObjectState extends State<_BookObject> {
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(
-                            color: ReadingHouseDetailTokens.houseHighlight.withValues(
-                              alpha: 0.26,
-                            ),
+                            color: ReadingHouseDetailTokens.houseHighlight
+                                .withValues(alpha: 0.26),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(
-                            color: ReadingHouseDetailTokens.houseHighlight.withValues(
-                              alpha: 0.55,
-                            ),
+                            color: ReadingHouseDetailTokens.houseHighlight
+                                .withValues(alpha: 0.55),
                           ),
                         ),
                       ),
@@ -1913,7 +1939,6 @@ class _PeopleLine extends StatelessWidget {
   }
 }
 
-
 class _SittingRow extends StatelessWidget {
   const _SittingRow({
     required this.sitting,
@@ -1935,55 +1960,55 @@ class _SittingRow extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0x173FA98A))),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 29,
-              child: Text(
-                number,
-                style: _uiStyle(
-                  color: ReadingHouseDetailTokens.goldDim,
-                  fontSize: 10,
-                  letterSpacing: 1.1,
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0x173FA98A))),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 29,
+                child: Text(
+                  number,
+                  style: _uiStyle(
+                    color: ReadingHouseDetailTokens.goldDim,
+                    fontSize: 10,
+                    letterSpacing: 1.1,
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    sitting.title,
-                    style: _displayStyle(
-                      color: ReadingHouseDetailTokens.houseHighlight,
-                      fontSize: 20,
-                      height: 1.1,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sitting.title,
+                      style: _displayStyle(
+                        color: ReadingHouseDetailTokens.houseHighlight,
+                        fontSize: 20,
+                        height: 1.1,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    status,
-                    style: _uiStyle(
-                      color: const Color(0xFF67716B),
-                      fontSize: 11,
-                      height: 1.25,
+                    const SizedBox(height: 5),
+                    Text(
+                      status,
+                      style: _uiStyle(
+                        color: const Color(0xFF67716B),
+                        fontSize: 11,
+                        height: 1.25,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            if (onTap != null)
-              const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: ReadingHouseDetailTokens.house,
-              ),
-          ],
-        ),
+              if (onTap != null)
+                const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: ReadingHouseDetailTokens.house,
+                ),
+            ],
+          ),
         ),
       ),
     );

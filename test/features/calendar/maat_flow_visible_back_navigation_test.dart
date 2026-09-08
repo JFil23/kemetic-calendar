@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/inbox/shared_flow_details_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,24 +26,15 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  const scenarios = <({String templateKey, Key backKey})>[
-    (
-      templateKey: 'track-the-sky',
-      backKey: ValueKey<String>('follow-sky-back'),
-    ),
-    (
-      templateKey: 'the-offering-table',
-      backKey: ValueKey<String>('offering-table-back'),
-    ),
-    (
-      templateKey: 'the-reading-house',
-      backKey: ValueKey<String>('reading-house-back'),
-    ),
+  const scenarios = <String>[
+    'track-the-sky',
+    'the-offering-table',
+    'the-reading-house',
   ];
 
-  for (final scenario in scenarios) {
+  for (final templateKey in scenarios) {
     testWidgets(
-      '${scenario.templateKey} visible back dismisses detail but keeps Ma’at Flows open',
+      '$templateKey discovery Back dismisses its inline detail but keeps Ma’at Flows open',
       (tester) async {
         _setPhoneViewport(tester);
         await _pumpFlowStudio(
@@ -53,9 +45,7 @@ void main() {
           ),
         );
 
-        final card = find.byKey(
-          maatFlowCatalogCardKeyForTesting(scenario.templateKey),
-        );
+        final card = find.byKey(maatFlowCatalogCardKeyForTesting(templateKey));
         await tester.scrollUntilVisible(
           card,
           280,
@@ -66,26 +56,38 @@ void main() {
         expect(listRoute!.isCurrent, isTrue);
 
         final openButton = find.byKey(
-          ValueKey<String>('maat-flow-discovery-open-${scenario.templateKey}'),
+          ValueKey<String>('maat-flow-discovery-open-$templateKey'),
         );
         await _scrollDiscoveryControlIntoViewport(tester, openButton);
         await tester.tap(openButton);
-        final back = find.byKey(scenario.backKey);
-        await _pumpUntilFound(tester, back);
+        await tester.pumpAndSettle();
+        final back = find.byKey(
+          const ValueKey<String>('maat-flow-discovery-back'),
+        );
         expect(back, findsOneWidget);
-        expect(tester.widget(back), isA<BackButton>());
+        expect(
+          find.byKey(
+            ValueKey<String>('maat-flow-discovery-detail-$templateKey'),
+          ),
+          findsOneWidget,
+        );
         final detailRoute = ModalRoute.of(tester.element(back));
         expect(detailRoute, isNotNull);
-        expect(detailRoute, isNot(same(listRoute)));
+        expect(detailRoute, same(listRoute));
         expect(detailRoute!.isCurrent, isTrue);
-        expect(listRoute.isCurrent, isFalse);
+        expect(listRoute.isCurrent, isTrue);
 
         await tester.tap(back);
         await tester.pumpAndSettle();
 
-        expect(find.byKey(scenario.backKey), findsNothing);
+        expect(back, findsNothing);
+        expect(
+          find.byKey(
+            ValueKey<String>('maat-flow-discovery-detail-$templateKey'),
+          ),
+          findsNothing,
+        );
         expect(listRoute.isCurrent, isTrue);
-        expect(detailRoute.isCurrent, isFalse);
         expect(find.text('Flows'), findsOneWidget);
         expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
       },
@@ -123,7 +125,7 @@ void main() {
 
     final back = find.byKey(const ValueKey<String>('reading-house-back'));
     expect(back, findsOneWidget);
-    expect(tester.widget(back), isA<BackButton>());
+    expect(tester.widget(back), isA<MaatFlowDetailBackButton>());
 
     await tester.tap(back);
     await tester.pumpAndSettle();
@@ -152,16 +154,15 @@ void main() {
       ),
     );
 
-    final listAppBar = find.widgetWithText(
-      AppBar,
-      'Flows',
+    final listSurface = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-view'),
       skipOffstage: false,
     );
     final back = find.byKey(const ValueKey<String>('reading-house-back'));
-    expect(listAppBar, findsOneWidget);
+    expect(listSurface, findsOneWidget);
     expect(back, findsOneWidget);
 
-    final listRoute = ModalRoute.of(tester.element(listAppBar));
+    final listRoute = ModalRoute.of(tester.element(listSurface));
     final detailRoute = ModalRoute.of(tester.element(back));
     expect(listRoute, isNotNull);
     expect(detailRoute, isNotNull);
@@ -193,12 +194,11 @@ void main() {
       ),
     );
 
-    final listAppBar = find.widgetWithText(
-      AppBar,
-      'Flows',
+    final listSurface = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-view'),
       skipOffstage: false,
     );
-    final listRoute = ModalRoute.of(tester.element(listAppBar));
+    final listRoute = ModalRoute.of(tester.element(listSurface));
     expect(
       find.byKey(const ValueKey<String>('offering-table-back')),
       findsOneWidget,
@@ -243,13 +243,6 @@ Future<void> _pumpFlowStudio(WidgetTester tester, Uri initialUri) async {
   addTearDown(router.dispose);
   await tester.pumpWidget(MaterialApp.router(routerConfig: router));
   await tester.pump();
-}
-
-Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
-  for (var attempt = 0; attempt < 40 && finder.evaluate().isEmpty; attempt++) {
-    await tester.pump(const Duration(milliseconds: 100));
-  }
-  await tester.pumpAndSettle();
 }
 
 Future<void> _scrollDiscoveryControlIntoViewport(

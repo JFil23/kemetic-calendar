@@ -169,11 +169,19 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
     final outerHeight = geometry == null
         ? maxSheetHeight + (hasFooter ? 8.0 : 0.0)
         : maxSheetHeight;
-    final outerPadding =
+    final configuredOuterPadding =
         geometry?.outerPadding ??
         (hasFooter
             ? const EdgeInsets.fromLTRB(10, 8, 10, 10)
             : const EdgeInsets.fromLTRB(10, 0, 10, 10));
+    final outerPadding = geometry != null && media.size.width <= 430
+        ? EdgeInsets.fromLTRB(
+            0,
+            configuredOuterPadding.top,
+            0,
+            configuredOuterPadding.bottom,
+          )
+        : configuredOuterPadding;
     final bodyTopGap = geometry?.bodyTopGap ?? 8.0;
     final footerGap = geometry?.footerGap ?? 8.0;
     final footerHeight = geometry?.footerHeight ?? 46.0;
@@ -710,6 +718,9 @@ class InstrumentEventSheetTopBar extends StatelessWidget {
                     child: Semantics(
                       label: semanticLabel,
                       child: Container(
+                        key: const ValueKey<String>(
+                          'instrument-sheet-handle-mark',
+                        ),
                         width: handleWidth,
                         height: 4,
                         decoration: BoxDecoration(

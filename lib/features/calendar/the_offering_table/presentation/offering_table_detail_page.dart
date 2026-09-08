@@ -369,11 +369,16 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
             body,
             if (widget.showBackButton)
               Positioned(
-                top: MediaQuery.paddingOf(context).top + 4,
-                left: 4,
-                child: BackButton(
+                top: MediaQuery.paddingOf(context).top + 6,
+                left: 16,
+                child: MaatFlowDetailBackButton(
                   key: const ValueKey<String>('offering-table-back'),
                   color: OfferingTableDetailTokens.warmGold,
+                  backgroundColor: Colors.transparent,
+                  borderColor: Colors.transparent,
+                  size: 40,
+                  iconSize: 27,
+                  icon: Icons.chevron_left,
                   onPressed: () => popMaatFlowDetailOrGo(
                     context,
                     fallbackLocation: widget.backFallbackLocation,
@@ -476,29 +481,95 @@ class _OfferingTableHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaatFlowDetailHero(
+    final safeTop = MediaQuery.paddingOf(context).top;
+    return Stack(
       key: const ValueKey<String>('offering-table-hero'),
-      theme: OfferingTableDetailTokens.theme,
-      background: const _OfferingTableHeroBackdrop(),
-      contentBottom: 25,
-      glyphToTitleSpacing: 10,
-      titleFontSize: 48,
-      subtitleSpacing: 8,
-      subtitleWidth: 250,
-      subtitleFontSize: 19,
-      glyph: kOfferingTableGlyph,
-      glyphKey: const ValueKey<String>('offering-table-hero-glyph'),
-      glyphContent: const _OfferingTableGlyph(),
-      glyphOffset: const Offset(0, 15),
-      glyphGradient: const RadialGradient(
-        center: Alignment(-0.28, -0.42),
-        radius: 0.92,
-        colors: [Color(0xFFE2B559), Color(0xFF62401D), Color(0xFF120B04)],
-      ),
-      glyphBorder: OfferingTableDetailTokens.warmGold,
-      glyphGlow: OfferingTableDetailTokens.glow,
-      title: 'The Offering\nTable',
-      subtitle: kOfferingTableTagline,
+      fit: StackFit.expand,
+      children: <Widget>[
+        const _OfferingTableHeroBackdrop(),
+        Positioned(
+          left: 68,
+          top: safeTop + 6,
+          child: Container(
+            key: const ValueKey<String>('offering-table-hero-glyph'),
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const RadialGradient(
+                center: Alignment(-0.28, -0.42),
+                radius: 0.92,
+                colors: <Color>[
+                  Color(0xFFE2B559),
+                  Color(0xFF62401D),
+                  Color(0xFF120B04),
+                ],
+              ),
+              border: Border.all(color: OfferingTableDetailTokens.warmGold),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: OfferingTableDetailTokens.glow.withValues(alpha: .13),
+                  blurRadius: 26,
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: const _OfferingTableGlyph(),
+          ),
+        ),
+        const Positioned(
+          left: 22,
+          right: 22,
+          bottom: 27,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'The Offering\nTable',
+                style: TextStyle(
+                  color: OfferingTableDetailTokens.warmGold,
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: 48,
+                  fontWeight: FontWeight.w500,
+                  height: 1,
+                  letterSpacing: -.48,
+                  shadows: <Shadow>[
+                    Shadow(
+                      color: Color(0xB8000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 8),
+              SizedBox(
+                width: 250,
+                child: Text(
+                  kOfferingTableTagline,
+                  style: TextStyle(
+                    color: Color(0xFFD7CDBA),
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w300,
+                    fontStyle: FontStyle.italic,
+                    height: 1.2,
+                    shadows: <Shadow>[
+                      Shadow(
+                        color: Color(0xC7000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -612,7 +683,7 @@ class _OfferingTableHeroBackdrop extends StatelessWidget {
             left: 0,
             right: 0,
             bottom: 0,
-            height: 200,
+            height: 150,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -1247,7 +1318,9 @@ class _OfferingTableKemetNote extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(22, 26, 22, 0),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: OfferingTableDetailTokens.separator)),
+          border: Border(
+            top: BorderSide(color: OfferingTableDetailTokens.separator),
+          ),
         ),
         child: Padding(
           padding: EdgeInsets.only(top: 18),

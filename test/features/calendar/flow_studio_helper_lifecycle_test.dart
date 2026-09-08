@@ -111,15 +111,14 @@ void main() {
     await _pumpRouteBackedMaatDetail(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
-    final listAppBar = find.widgetWithText(
-      AppBar,
-      'Flows',
+    final listSurface = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-view'),
       skipOffstage: false,
     );
     final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
-    expect(listAppBar, findsOneWidget);
+    expect(listSurface, findsOneWidget);
     expect(detailBack, findsOneWidget);
-    final listRoute = ModalRoute.of(tester.element(listAppBar));
+    final listRoute = ModalRoute.of(tester.element(listSurface));
     final detailRoute = ModalRoute.of(tester.element(detailBack));
     expect(listRoute, isNotNull);
     expect(detailRoute, isNotNull);

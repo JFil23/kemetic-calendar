@@ -65,11 +65,23 @@ void main() {
     expect(find.byType(ReadingHouseDetailPage), findsOneWidget);
     expect(find.byType(SharedPracticeRoomPage), findsNothing);
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('reading-house-setup')),
-        matching: find.byType(TextField),
-      ),
-      findsNWidgets(3),
+      find.byKey(const ValueKey<String>('reading-house-book')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-edition')),
+      findsOneWidget,
+    );
+    final editQuestion = find.byKey(
+      const ValueKey<String>('reading-house-question-edit'),
+    );
+    await tester.ensureVisible(editQuestion);
+    await tester.pumpAndSettle();
+    await tester.tap(editQuestion);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-question')),
+      findsOneWidget,
     );
     expect(find.byType(MaatFlowDetailDock), findsOneWidget);
   });

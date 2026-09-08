@@ -1601,12 +1601,20 @@ class EventLayoutEngine {
       for (final event in group) {
         final column = columnAssignments[event] ?? 0;
         final visibleColumn = column % dayViewMaxVisibleEventColumns;
-        final leftOffset = visibleColumn * (columnWidth + columnGap);
+        final authoredExpansion = group.length == 1
+            ? _authoredEventBlockHorizontalExpansion(event)
+            : null;
+        final leftOffset =
+            visibleColumn * (columnWidth + columnGap) -
+            (authoredExpansion?.leading ?? 0);
         blocks.add(
           PositionedEventBlock(
             event: event,
             leftOffset: leftOffset,
-            width: columnWidth,
+            width:
+                columnWidth +
+                (authoredExpansion?.leading ?? 0) +
+                (authoredExpansion?.trailing ?? 0),
             overlapGroupIndex: groupIndex,
             columnIndex: column,
             totalColumns: totalColumns,
@@ -4292,18 +4300,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                       _moveToTarget(updatedTarget);
                     }
                   : null,
-              child: calendarEnabled
-                  ? KemeticGold.text(
-                      calendarLabel,
-                      style: _goldHeaderStyle.copyWith(fontSize: 15),
-                    )
-                  : Text(
-                      calendarLabel,
-                      style: _goldHeaderStyle.copyWith(
-                        fontSize: 15,
-                        color: Colors.white24,
-                      ),
-                    ),
+              child: KemeticGold.text(
+                calendarLabel,
+                style: _goldHeaderStyle.copyWith(fontSize: 15),
+              ),
             ),
           ),
         ),
@@ -4476,7 +4476,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             : _dayGold.withValues(alpha: 0.48),
         initialExtent: activeFollowSkyInstrument
             ? instrumentEventSheetMinExtent
-            : activeReadingHouseInstrument
+            : activeLayeredInstrument
             ? .71
             : .70,
         geometry: activeLayeredInstrument
@@ -4941,6 +4941,22 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) {
   return kind == MaatFlowKind.theDjed ||
       kind == MaatFlowKind.readingHouse ||
       kind == MaatFlowKind.offeringTable;
+}
+
+({double leading, double trailing})? _authoredEventBlockHorizontalExpansion(
+  EventItem event,
+) {
+  final kind = resolveMaatFlowKind(behaviorPayload: event.behaviorPayload);
+  return switch (kind) {
+    // The supplied Day View places this authored block at x=38 and x=376.
+    // The shared production timeline lane starts at x=60 and ends at x=374.
+    MaatFlowKind.theDjed => (leading: 22, trailing: 2),
+    // Reading House and Offering Table both begin at x=50 in their supplied
+    // Day Views while preserving the production lane's x=374 trailing edge.
+    MaatFlowKind.readingHouse ||
+    MaatFlowKind.offeringTable => (leading: 10, trailing: 0),
+    _ => null,
+  };
 }
 
 double _authoredEventBlockMinHeight(MaatFlowKind? kind) {
@@ -8154,7 +8170,9 @@ class _DayViewGridState extends State<DayViewGrid> {
         durationLabel: fixture.durationLabel,
         supportName:
             event.behaviorPayload?['support_name']?.toString() ??
-            (orientation ? 'name the four parts that need strengthening' : null),
+            (orientation
+                ? 'name the four parts that need strengthening'
+                : null),
         progressCopy: orientation ? 'Name the structure' : null,
         ordinalLabel: orientation ? 'Find your footing' : null,
         supportPipIndex: orientation ? -1 : null,

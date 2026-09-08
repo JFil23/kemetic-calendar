@@ -522,7 +522,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(opened, isEmpty);
     expect(find.text('Carry this flow'), findsOneWidget);
-    final carry = find.byKey(const ValueKey<String>('maat-flow-discovery-carry'));
+    final carry = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-carry'),
+    );
     await tester.ensureVisible(carry);
     await tester.pumpAndSettle();
     await tester.tap(carry);

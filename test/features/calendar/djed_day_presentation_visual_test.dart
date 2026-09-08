@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
@@ -15,6 +16,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../support/maat_flow_visual_test_fonts.dart';
 
 const _captureDjedDayVisuals = bool.fromEnvironment('CAPTURE_DJED_DAY_VISUALS');
+const _goldenRoot = '../../visual_reference/maat_flows/goldens';
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -45,7 +47,7 @@ void main() {
     });
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await _ensureSupabaseInitialized();
-    if (_captureDjedDayVisuals) await loadMaatFlowVisualTestFonts();
+    await loadMaatFlowVisualTestFonts();
   });
 
   setUp(() {
@@ -149,16 +151,19 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData(fontFamily: 'GentiumPlus'),
-        home: Scaffold(
-          body: RepaintBoundary(
-            key: const ValueKey<String>('djed-production-day-view-capture'),
-            child: DayViewGrid(
-              ky: 1,
-              km: 1,
-              kd: 1,
-              notes: <NoteData>[
+      RepaintBoundary(
+        key: const ValueKey<String>('djed-production-day-view-capture'),
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.dark,
+          home: DayViewPage(
+            initialKy: 2,
+            initialKm: 6,
+            initialKd: 28,
+            showGregorian: false,
+            getMonthName: (_) => 'Rekh-Wer (Rḫ-wr)',
+            notesForDay: (ky, km, kd) => <NoteData>[
+              if (ky == 2 && km == 6 && kd == 28) ...<NoteData>[
                 NoteData(
                   clientEventId: 'djed-event-4',
                   title: 'Djed 4: Make one move',
@@ -175,21 +180,44 @@ void main() {
                     'support_name': 'the weekly call with my sister',
                   },
                 ),
-              ],
-              showGregorian: false,
-              flowIndex: <int, FlowData>{
-                84: FlowData(
-                  id: 84,
-                  name: kTheDjedTitle,
-                  color: const Color(0xFFE0873C),
-                  active: true,
-                  notes:
-                      'mode=gregorian;maat=$kTheDjedFlowKey;djed_schema_version=2',
+                const NoteData(
+                  clientEventId: 'journal-context-event',
+                  title: 'journal every day',
+                  allDay: false,
+                  start: TimeOfDay(hour: 6, minute: 8),
+                  end: TimeOfDay(hour: 6, minute: 38),
+                  manualColor: Color(0xFF62C18C),
                 ),
-              },
-              activeLedgerFlowIds: const <int>{84},
-              initialScrollOffset: 6 * 60,
-            ),
+                const NoteData(
+                  clientEventId: 'bits-context-event',
+                  title: 'Bits and Operations',
+                  allDay: false,
+                  start: TimeOfDay(hour: 10, minute: 7),
+                  end: TimeOfDay(hour: 10, minute: 37),
+                  manualColor: Color(0xFF4D8FD1),
+                ),
+                const NoteData(
+                  clientEventId: 'spider-context-event',
+                  title: "The Spider's Shortcut",
+                  allDay: false,
+                  start: TimeOfDay(hour: 11, minute: 42),
+                  end: TimeOfDay(hour: 12, minute: 12),
+                  manualColor: Color(0xFFD6625C),
+                ),
+              ],
+            ],
+            flowIndex: const <int, FlowData>{
+              84: FlowData(
+                id: 84,
+                name: kTheDjedTitle,
+                color: Color(0xFFE0873C),
+                active: true,
+                notes:
+                    'mode=gregorian;maat=$kTheDjedFlowKey;djed_schema_version=2',
+              ),
+            },
+            activeLedgerFlowIds: const <int>{84},
+            initialFirstVisibleMinute: 6 * 60,
           ),
         ),
       ),
@@ -202,23 +230,30 @@ void main() {
     expect(tester.getSize(find.byType(DjedEventBlockVisual)).height, 106);
     expect(find.byType(InstrumentEventSheetHost), findsNothing);
 
-    if (_captureDjedDayVisuals) {
-      await expectLater(
-        find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
-        matchesGoldenFile('/tmp/djed-flutter-day-view-390.png'),
-      );
-    }
+    await expectLater(
+      find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
+      matchesGoldenFile('$_goldenRoot/djed-day-view-390x844.png'),
+    );
 
     await tester.tap(find.byType(DjedEventBlockVisual));
     await tester.pumpAndSettle();
     expect(find.byType(InstrumentEventSheetHost), findsOneWidget);
     expect(find.byType(InstrumentEventPresentationFrame), findsOneWidget);
-    if (_captureDjedDayVisuals) {
-      await expectLater(
-        find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
-        matchesGoldenFile('/tmp/djed-flutter-day-sheet-390.png'),
-      );
-    }
+    await expectLater(
+      find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
+      matchesGoldenFile('$_goldenRoot/djed-day-sheet-390x844.png'),
+    );
+    await tester.drag(
+      find.byKey(const ValueKey<String>('djed-presentation-body')),
+      const Offset(0, -440),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
+      matchesGoldenFile(
+        '$_goldenRoot/djed-day-sheet-practice-raised-production-390x844.png',
+      ),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -296,12 +331,12 @@ void main() {
     expect(dockedPracticeRect.top, lessThanOrEqualTo(frameRect.top + 1));
     expect(tester.takeException(), isNull);
 
-    if (_captureDjedDayVisuals) {
-      await expectLater(
-        find.byKey(const ValueKey<String>('djed-day-visual-capture')),
-        matchesGoldenFile('/tmp/djed-day-docked.png'),
-      );
-    }
+    await expectLater(
+      find.byKey(const ValueKey<String>('djed-day-visual-capture')),
+      matchesGoldenFile(
+        '$_goldenRoot/djed-day-sheet-practice-raised-390x844.png',
+      ),
+    );
   });
 
   for (final fixture in <(String, Size, double, DjedDayVisualFixture)>[
@@ -356,11 +391,19 @@ void main() {
         fixture: fixture.$4,
       );
       expect(tester.takeException(), isNull);
-      if (!_captureDjedDayVisuals) return;
-      await expectLater(
-        find.byKey(const ValueKey<String>('djed-day-visual-capture')),
-        matchesGoldenFile('/tmp/djed-day-${fixture.$1}.png'),
-      );
+      final goldenPath = switch (fixture.$1) {
+        'result' => '$_goldenRoot/djed-day-result-390x720.png',
+        'retry' => '$_goldenRoot/djed-day-retry-390x720.png',
+        'raising' => '$_goldenRoot/djed-day-raising-390x720.png',
+        _ when _captureDjedDayVisuals => '/tmp/djed-day-${fixture.$1}.png',
+        _ => null,
+      };
+      if (goldenPath != null) {
+        await expectLater(
+          find.byKey(const ValueKey<String>('djed-day-visual-capture')),
+          matchesGoldenFile(goldenPath),
+        );
+      }
     });
   }
 }

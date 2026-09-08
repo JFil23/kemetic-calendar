@@ -19,14 +19,12 @@ class OfferingTablePreviewOccurrence {
 class OfferingTableContextDisclosure extends StatefulWidget {
   const OfferingTableContextDisclosure({
     super.key,
-    required this.day,
-    required this.lens,
-    required this.why,
+    required this.context,
+    required this.instruction,
   });
 
-  final OfferingTableDay day;
-  final OfferingTableLens lens;
-  final String why;
+  final String context;
+  final String instruction;
 
   @override
   State<OfferingTableContextDisclosure> createState() =>
@@ -35,17 +33,13 @@ class OfferingTableContextDisclosure extends StatefulWidget {
 
 class _OfferingTableContextDisclosureState
     extends State<OfferingTableContextDisclosure> {
-  static const _gold = Color(0xFFD4AE43);
   static const _separator = Color(0xFF2A2415);
   static const _muted = Color(0xFF8E867C);
-  static const _ivory = Color(0xFFE8E2D6);
 
   bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
-    final sourceNote = widget.day.sourceNote?.trim();
-    final lensLine = widget.lens.detailLine.trim();
     return Container(
       decoration: const BoxDecoration(
         border: Border(
@@ -69,21 +63,26 @@ class _OfferingTableContextDisclosureState
                     child: Text(
                       'Why this belongs at the Offering Table',
                       style: TextStyle(
-                        color: Color(0xFF9E9A94),
+                        color: Color(0xFFA99D8E),
                         fontFamily: MaatFlowListTokens.fontFamily,
                         fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                        fontSize: 16.5,
+                        fontSize: 18,
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 220),
-                    child: const Icon(
-                      Icons.keyboard_arrow_down,
+                  Text(
+                    _expanded ? '−' : '+',
+                    key: const ValueKey<String>(
+                      'offering-table-day-sheet-context-sign',
+                    ),
+                    style: const TextStyle(
                       color: Color(0xFF7A4E2E),
-                      size: 18,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 18,
+                      height: 1,
                     ),
                   ),
                 ],
@@ -97,38 +96,13 @@ class _OfferingTableContextDisclosureState
               curve: Curves.easeOut,
               child: _expanded
                   ? Padding(
-                      padding: const EdgeInsets.only(bottom: 15),
+                      padding: const EdgeInsets.only(bottom: 22),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          const Text(
-                            'WHY THIS DAY',
-                            style: TextStyle(
-                              color: _gold,
-                              fontFamily: MaatFlowListTokens.fontFamily,
-                              fontFamilyFallback:
-                                  MaatFlowListTokens.fontFallback,
-                              fontSize: 10.5,
-                              letterSpacing: 2.7,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(widget.why, style: _whyStyle),
-                          if (sourceNote?.isNotEmpty == true) ...<Widget>[
-                            const SizedBox(height: 14),
-                            Text(sourceNote!, style: _contextStyle),
-                          ],
-                          const SizedBox(height: 10),
-                          Text(
-                            '“${offeringTableDecanLine(widget.day.dayNumber)}”',
-                            style: _contextStyle.copyWith(
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                          if (lensLine.isNotEmpty) ...<Widget>[
-                            const SizedBox(height: 10),
-                            Text(lensLine, style: _contextStyle),
-                          ],
+                          Text(widget.context, style: _contextStyle),
+                          const SizedBox(height: 12),
+                          Text(widget.instruction, style: _contextStyle),
                         ],
                       ),
                     )
@@ -142,18 +116,10 @@ class _OfferingTableContextDisclosureState
 
   static const _contextStyle = TextStyle(
     color: _muted,
-    fontFamily: MaatFlowListTokens.fontFamily,
-    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-    fontSize: 16,
-    height: 1.45,
-  );
-
-  static const _whyStyle = TextStyle(
-    color: _ivory,
-    fontFamily: MaatFlowListTokens.fontFamily,
-    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-    fontSize: 16,
-    height: 1.45,
+    fontFamily: 'GentiumPlus',
+    fontFamilyFallback: <String>['Georgia', 'serif'],
+    fontSize: 13,
+    height: 1.42,
   );
 }
 

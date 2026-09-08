@@ -16,12 +16,10 @@ import 'package:mobile/features/calendar/track_sky_flow.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
 
-const _captureVisualCheckpoint = bool.fromEnvironment(
-  'CAPTURE_READING_HOUSE_VISUAL_CHECKPOINT',
-);
 const _captureSurfaceKey = ValueKey<String>(
   'reading-house-visual-capture-surface',
 );
+const _goldenRoot = '../../visual_reference/maat_flows/goldens';
 
 void main() {
   Future<_FakeReadingHouseAuthority> pumpHouse(
@@ -31,24 +29,32 @@ void main() {
     int? initialFlowId,
     bool computedStart = false,
     MaatFlowClock? clock,
+    double topPadding = 0,
   }) async {
     final fake = authority ?? _FakeReadingHouseAuthority();
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       MaterialApp(
-        home: RepaintBoundary(
-          key: _captureSurfaceKey,
-          child: ReadingHouseDetailPage(
-            key: ValueKey<Size>(size),
-            timezone: TrackSkyTimeZone.pacific,
-            initialStartDate: computedStart ? null : DateTime(2026, 9, 14),
-            initialFlowId: initialFlowId,
-            initiallyHeld: initialFlowId != null,
-            authority: fake,
-            resolvePersonalCalendarId: () async => 'personal-calendar',
-            clock: clock,
-            presentDayIanaTimeZone: TrackSkyTimeZone.pacific.ianaName,
+        home: MediaQuery(
+          data: MediaQueryData(
+            size: size,
+            padding: EdgeInsets.only(top: topPadding),
+            viewPadding: EdgeInsets.only(top: topPadding),
+          ),
+          child: RepaintBoundary(
+            key: _captureSurfaceKey,
+            child: ReadingHouseDetailPage(
+              key: ValueKey<Size>(size),
+              timezone: TrackSkyTimeZone.pacific,
+              initialStartDate: computedStart ? null : DateTime(2026, 9, 14),
+              initialFlowId: initialFlowId,
+              initiallyHeld: initialFlowId != null,
+              authority: fake,
+              resolvePersonalCalendarId: () async => 'personal-calendar',
+              clock: clock,
+              presentDayIanaTimeZone: TrackSkyTimeZone.pacific.ianaName,
+            ),
           ),
         ),
       ),
@@ -150,6 +156,18 @@ void main() {
     );
     expect(heroImage.fit, BoxFit.cover);
     expect(heroImage.alignment, ReadingHouseDetailTokens.heroImageAlignment);
+    final hero = tester.widget<MaatFlowDetailHero>(
+      find.byType(MaatFlowDetailHero),
+    );
+    expect(hero.contentBottom, 26);
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-hero-image-treatment')),
+      findsOneWidget,
+    );
+    final heroScale = tester.widget<Transform>(
+      find.byKey(const ValueKey<String>('reading-house-hero-image-scale')),
+    );
+    expect(heroScale.transform.getMaxScaleOnAxis(), closeTo(1.01, .0001));
     expect(find.text('The Reading\nHouse'), findsOneWidget);
     expect(find.text('1 BOOK'), findsOneWidget);
     expect(find.text('3 STARTER SITTINGS'), findsOneWidget);
@@ -991,40 +1009,40 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('captures Reading House visual checkpoints', (tester) async {
-    if (!_captureVisualCheckpoint) return;
+  testWidgets('matches the locked Reading House detail checkpoints', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
     await loadMaatFlowVisualTestFonts();
 
-    for (final fixture in const <({String name, Size size})>[
-      (name: '390', size: Size(390, 844)),
-      (name: '340', size: Size(340, 700)),
-    ]) {
-      await pumpHouse(tester, size: fixture.size);
-      await expectLater(
-        find.byKey(_captureSurfaceKey),
-        matchesGoldenFile('/tmp/reading-house-${fixture.name}-hero.png'),
-      );
+    await pumpHouse(tester, size: const Size(390, 844), topPadding: 52);
+    await expectLater(
+      find.byKey(_captureSurfaceKey),
+      matchesGoldenFile('$_goldenRoot/reading-house-detail-390x844.png'),
+    );
 
-      await jumpHouseScroll(tester, 650);
-      await expectLater(
-        find.byKey(_captureSurfaceKey),
-        matchesGoldenFile('/tmp/reading-house-${fixture.name}-setup.png'),
-      );
+    await jumpHouseScroll(tester, 650);
+    await expectLater(
+      find.byKey(_captureSurfaceKey),
+      matchesGoldenFile('$_goldenRoot/reading-house-detail-setup-390x844.png'),
+    );
 
-      await jumpHouseScroll(tester, 1400);
-      await expectLater(
-        find.byKey(_captureSurfaceKey),
-        matchesGoldenFile('/tmp/reading-house-${fixture.name}-calendar.png'),
-      );
+    await jumpHouseScroll(tester, 1400);
+    await expectLater(
+      find.byKey(_captureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/reading-house-detail-calendar-390x844.png',
+      ),
+    );
 
-      await jumpHouseScroll(tester, 2300);
-      await expectLater(
-        find.byKey(_captureSurfaceKey),
-        matchesGoldenFile('/tmp/reading-house-${fixture.name}-sittings.png'),
-      );
-    }
+    await jumpHouseScroll(tester, 2300);
+    await expectLater(
+      find.byKey(_captureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/reading-house-detail-sittings-390x844.png',
+      ),
+    );
     expect(tester.takeException(), isNull);
   });
 }

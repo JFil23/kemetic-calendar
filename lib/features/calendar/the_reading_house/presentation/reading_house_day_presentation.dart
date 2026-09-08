@@ -66,23 +66,31 @@ class ReadingHouseDayVisualFixture {
 const ReadingHouseDayVisualFixture kReadingHouseDayVisualFixture =
     ReadingHouseDayVisualFixture(
       roomState: ReadingHouseRoomVisualState.active,
-      newMessageCount: 1,
       messages: <ReadingHouseChatMessageFixture>[
         ReadingHouseChatMessageFixture(
           id: 'fixture-message-1',
           author: 'Amina',
           initials: 'AR',
-          timeLabel: '1:42 PM',
-          body: 'I’m finishing the opening section now.',
-          host: true,
+          timeLabel: '7:18',
+          body: 'Can we start fifteen minutes later?',
+          host: false,
         ),
         ReadingHouseChatMessageFixture(
           id: 'fixture-message-2',
           author: 'You',
           initials: 'Y',
-          timeLabel: '1:47 PM',
-          body: 'Perfect. I marked the passage I want us to return to.',
+          timeLabel: '7:20',
+          body: 'Works for me.',
+          host: true,
           mine: true,
+        ),
+        ReadingHouseChatMessageFixture(
+          id: 'fixture-message-3',
+          author: 'Amina',
+          initials: 'AR',
+          timeLabel: '7:21',
+          body: 'Perfect. I’m finishing the opening section now.',
+          host: false,
         ),
       ],
     );
@@ -169,7 +177,7 @@ class ReadingHouseDayPresentation extends StatelessWidget {
         onCompletionSelected: onCompletionSelected,
       ),
       bodyScrollKey: const ValueKey<String>('reading-house-presentation-body'),
-      lowerSheetKey: const ValueKey<String>('reading-house-practice-sheet'      ),
+      lowerSheetKey: const ValueKey<String>('reading-house-practice-sheet'),
     );
   }
 }
@@ -189,7 +197,7 @@ class _HouseChatRoom extends StatelessWidget {
           right: 16,
           top: 16,
           height: 54,
-          child: _HouseChatHeader(fixture: fixture),
+          child: _HouseChatHeader(fixture: fixture, showRoomPeople: true),
         ),
       ],
     );
@@ -261,6 +269,9 @@ class ReadingHouseChatPresentation extends StatelessWidget {
     this.onFollowingLatestChanged,
     this.onLoadOlderMessages,
     this.onDeleteMessage,
+    this.messagesTopAligned = false,
+    this.showRoomPeople = true,
+    this.showDeleteAffordance = true,
   });
 
   final ReadingHouseDayVisualFixture fixture;
@@ -270,6 +281,9 @@ class ReadingHouseChatPresentation extends StatelessWidget {
   final ValueChanged<bool>? onFollowingLatestChanged;
   final VoidCallback? onLoadOlderMessages;
   final ValueChanged<String>? onDeleteMessage;
+  final bool messagesTopAligned;
+  final bool showRoomPeople;
+  final bool showDeleteAffordance;
 
   @override
   Widget build(BuildContext context) {
@@ -284,6 +298,9 @@ class ReadingHouseChatPresentation extends StatelessWidget {
               onFollowingLatestChanged: onFollowingLatestChanged,
               onLoadOlderMessages: onLoadOlderMessages,
               onDeleteMessage: onDeleteMessage,
+              messagesTopAligned: messagesTopAligned,
+              showRoomPeople: showRoomPeople,
+              showDeleteAffordance: showDeleteAffordance,
             ),
           ),
           ReadingHouseChatComposer(
@@ -306,6 +323,9 @@ class ReadingHouseChatTranscript extends StatelessWidget {
     this.onFollowingLatestChanged,
     this.onLoadOlderMessages,
     this.onDeleteMessage,
+    this.messagesTopAligned = false,
+    this.showRoomPeople = true,
+    this.showDeleteAffordance = true,
   });
 
   final ReadingHouseDayVisualFixture fixture;
@@ -313,26 +333,31 @@ class ReadingHouseChatTranscript extends StatelessWidget {
   final ValueChanged<bool>? onFollowingLatestChanged;
   final VoidCallback? onLoadOlderMessages;
   final ValueChanged<String>? onDeleteMessage;
+  final bool messagesTopAligned;
+  final bool showRoomPeople;
+  final bool showDeleteAffordance;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       key: const ValueKey<String>('reading-house-fixed-chat-layer'),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(0.85, -0.9),
-          radius: 1.25,
-          colors: <Color>[
-            Color(0xFF173128),
-            ReadingHouseDayTokens.upper,
-            ReadingHouseDayTokens.velvet,
-          ],
-        ),
-      ),
+      decoration: showRoomPeople
+          ? const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0.85, -0.9),
+                radius: 1.25,
+                colors: <Color>[
+                  Color(0xFF173128),
+                  ReadingHouseDayTokens.upper,
+                  ReadingHouseDayTokens.velvet,
+                ],
+              ),
+            )
+          : null,
       child: Column(
         children: <Widget>[
-          _HouseChatHeader(fixture: fixture),
+          _HouseChatHeader(fixture: fixture, showRoomPeople: showRoomPeople),
           const Divider(height: 1, color: Color(0x1C7FD9BC)),
           Expanded(
             child: _HouseChatBody(
@@ -341,6 +366,8 @@ class ReadingHouseChatTranscript extends StatelessWidget {
               onFollowingLatestChanged: onFollowingLatestChanged,
               onLoadOlderMessages: onLoadOlderMessages,
               onDeleteMessage: onDeleteMessage,
+              messagesTopAligned: messagesTopAligned,
+              showDeleteAffordance: showDeleteAffordance,
             ),
           ),
         ],
@@ -350,12 +377,15 @@ class ReadingHouseChatTranscript extends StatelessWidget {
 }
 
 class _HouseChatHeader extends StatelessWidget {
-  const _HouseChatHeader({required this.fixture});
+  const _HouseChatHeader({required this.fixture, required this.showRoomPeople});
 
   final ReadingHouseDayVisualFixture fixture;
+  final bool showRoomPeople;
 
   @override
   Widget build(BuildContext context) {
+    final compactVerticalRhythm =
+        MediaQuery.textScalerOf(context).scale(1) > 1.2;
     return SizedBox(
       height: 54,
       child: DecoratedBox(
@@ -363,7 +393,7 @@ class _HouseChatHeader extends StatelessWidget {
           border: Border(bottom: BorderSide(color: Color(0x1C7FD9BC))),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 1, 2, 10),
+          padding: EdgeInsets.fromLTRB(2, 1, 2, compactVerticalRhythm ? 8 : 10),
           child: Row(
             children: <Widget>[
               Container(
@@ -377,14 +407,21 @@ class _HouseChatHeader extends StatelessWidget {
                     color: ReadingHouseDayTokens.mint.withValues(alpha: 0.35),
                   ),
                 ),
-                child: Text(
-                  fixture.roomGlyph,
-                  style: const TextStyle(
-                    color: ReadingHouseDayTokens.mint,
-                    fontSize: 16,
-                    height: 1,
-                  ),
-                ),
+                child: fixture.roomGlyph == '◌'
+                    ? const Icon(
+                        Icons.radio_button_unchecked,
+                        color: ReadingHouseDayTokens.mint,
+                        size: 17,
+                      )
+                    : Text(
+                        fixture.roomGlyph,
+                        style: const TextStyle(
+                          color: ReadingHouseDayTokens.mint,
+                          fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                          fontSize: 16,
+                          height: 1,
+                        ),
+                      ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -404,7 +441,7 @@ class _HouseChatHeader extends StatelessWidget {
                         height: 1,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: compactVerticalRhythm ? 2 : 4),
                     Text(
                       fixture.roomSubtitle,
                       maxLines: 1,
@@ -419,21 +456,26 @@ class _HouseChatHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              for (
-                var index = 0;
-                index < fixture.memberInitials.length && index < 3;
-                index++
-              )
-                _RoomAvatar(fixture.memberInitials[index], overlap: index > 0),
-              const SizedBox(width: 7),
-              Text(
-                '${fixture.memberCount} ${fixture.memberCount == 1 ? 'reader' : 'readers'}',
-                style: const TextStyle(
-                  color: Color(0xFF779188),
-                  fontFamily: 'GentiumPlus',
-                  fontSize: 10,
+              if (showRoomPeople) ...<Widget>[
+                for (
+                  var index = 0;
+                  index < fixture.memberInitials.length && index < 3;
+                  index++
+                )
+                  _RoomAvatar(
+                    fixture.memberInitials[index],
+                    overlap: index > 0,
+                  ),
+                const SizedBox(width: 7),
+                Text(
+                  '${fixture.memberCount} ${fixture.memberCount == 1 ? 'reader' : 'readers'}',
+                  style: const TextStyle(
+                    color: Color(0xFF779188),
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 10,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -482,6 +524,8 @@ class _HouseChatBody extends StatelessWidget {
     this.onFollowingLatestChanged,
     this.onLoadOlderMessages,
     this.onDeleteMessage,
+    this.messagesTopAligned = false,
+    this.showDeleteAffordance = true,
   });
 
   final ReadingHouseDayVisualFixture fixture;
@@ -489,6 +533,8 @@ class _HouseChatBody extends StatelessWidget {
   final ValueChanged<bool>? onFollowingLatestChanged;
   final VoidCallback? onLoadOlderMessages;
   final ValueChanged<String>? onDeleteMessage;
+  final bool messagesTopAligned;
+  final bool showDeleteAffordance;
 
   Widget _messageList() => _MessageList(
     messages: fixture.messages,
@@ -496,6 +542,8 @@ class _HouseChatBody extends StatelessWidget {
     onFollowingLatestChanged: onFollowingLatestChanged,
     onLoadOlderMessages: onLoadOlderMessages,
     onDeleteMessage: onDeleteMessage,
+    messagesTopAligned: messagesTopAligned,
+    showDeleteAffordance: showDeleteAffordance,
   );
 
   @override
@@ -555,6 +603,8 @@ class _MessageList extends StatelessWidget {
     this.onFollowingLatestChanged,
     this.onLoadOlderMessages,
     this.onDeleteMessage,
+    this.messagesTopAligned = false,
+    this.showDeleteAffordance = true,
   });
 
   final List<ReadingHouseChatMessageFixture> messages;
@@ -562,6 +612,8 @@ class _MessageList extends StatelessWidget {
   final ValueChanged<bool>? onFollowingLatestChanged;
   final VoidCallback? onLoadOlderMessages;
   final ValueChanged<String>? onDeleteMessage;
+  final bool messagesTopAligned;
+  final bool showDeleteAffordance;
 
   @override
   Widget build(BuildContext context) {
@@ -578,16 +630,19 @@ class _MessageList extends StatelessWidget {
       child: ListView.builder(
         key: const ValueKey<String>('reading-house-chat-transcript'),
         controller: controller,
-        reverse: true,
+        reverse: !messagesTopAligned,
         padding: const EdgeInsets.symmetric(vertical: 5),
         itemCount: messages.length,
         itemBuilder: (context, index) {
-          final message = messages[messages.length - index - 1];
+          final message = messagesTopAligned
+              ? messages[index]
+              : messages[messages.length - index - 1];
           return _ChatMessage(
             message: message,
             onDelete: message.mine && message.id != null
                 ? () => onDeleteMessage?.call(message.id!)
                 : null,
+            showDeleteAffordance: showDeleteAffordance,
           );
         },
       ),
@@ -596,130 +651,168 @@ class _MessageList extends StatelessWidget {
 }
 
 class _ChatMessage extends StatelessWidget {
-  const _ChatMessage({required this.message, this.onDelete});
+  const _ChatMessage({
+    required this.message,
+    required this.showDeleteAffordance,
+    this.onDelete,
+  });
 
   final ReadingHouseChatMessageFixture message;
   final VoidCallback? onDelete;
+  final bool showDeleteAffordance;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 6, 2, 5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Container(
-            width: 29,
-            height: 29,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: ReadingHouseDayTokens.mintLow.withValues(alpha: 0.10),
-              border: Border.all(
-                color: ReadingHouseDayTokens.mint.withValues(alpha: 0.18),
+    return Semantics(
+      onLongPress: onDelete,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPress: onDelete,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(2, 6, 2, 5),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 29,
+                height: 29,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ReadingHouseDayTokens.mintLow.withValues(alpha: 0.10),
+                  border: Border.all(
+                    color: ReadingHouseDayTokens.mint.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Text(
+                  message.initials,
+                  style: const TextStyle(
+                    color: Color(0xFF8EDBBF),
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-            ),
-            child: Text(
-              message.initials,
-              style: const TextStyle(
-                color: Color(0xFF8EDBBF),
-                fontFamily: 'GentiumPlus',
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      message.author,
-                      style: const TextStyle(
-                        color: Color(0xFFC5D0CA),
-                        fontFamily: 'GentiumPlus',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (message.host) ...<Widget>[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: ReadingHouseDayTokens.gold.withValues(
-                            alpha: 0.10,
-                          ),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: const Text(
-                          'HOST',
-                          style: TextStyle(
-                            color: Color(0xFFBFA357),
+                    Row(
+                      children: <Widget>[
+                        Text(
+                          message.author,
+                          style: const TextStyle(
+                            color: Color(0xFFC5D0CA),
                             fontFamily: 'GentiumPlus',
-                            fontSize: 7,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ),
-                    ],
-                    const SizedBox(width: 7),
-                    Text(
-                      message.timeLabel,
-                      style: const TextStyle(
-                        color: Color(0xFF52635B),
-                        fontFamily: 'GentiumPlus',
-                        fontSize: 9,
-                      ),
-                    ),
-                    if (onDelete != null) ...<Widget>[
-                      const Spacer(),
-                      GestureDetector(
-                        key: ValueKey<String>(
-                          'reading-house-delete-message-${message.id}',
-                        ),
-                        behavior: HitTestBehavior.opaque,
-                        onTap: onDelete,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 3),
-                          child: Text(
-                            '⌫',
-                            style: TextStyle(
-                              color: Color(0xFF645C58),
-                              fontFamily: 'GentiumPlus',
-                              fontSize: 13,
+                        if (message.host) ...<Widget>[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: ReadingHouseDayTokens.gold.withValues(
+                                alpha: 0.10,
+                              ),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: const Text(
+                              'HOST',
+                              style: TextStyle(
+                                color: Color(0xFFBFA357),
+                                fontFamily: 'GentiumPlus',
+                                fontSize: 7,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
+                        ],
+                        const SizedBox(width: 7),
+                        Text(
+                          message.timeLabel,
+                          style: const TextStyle(
+                            color: Color(0xFF52635B),
+                            fontFamily: 'GentiumPlus',
+                            fontSize: 9,
+                          ),
                         ),
+                        if (showDeleteAffordance &&
+                            onDelete != null) ...<Widget>[
+                          const Spacer(),
+                          GestureDetector(
+                            key: ValueKey<String>(
+                              'reading-house-delete-message-${message.id}',
+                            ),
+                            behavior: HitTestBehavior.opaque,
+                            onTap: onDelete,
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 3),
+                              child: CustomPaint(
+                                size: Size(14, 10),
+                                painter: _ReadingHouseDeleteGlyphPainter(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      message.body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: ReadingHouseDayTokens.copy,
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 13.5,
+                        height: 1.25,
                       ),
-                    ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  message.body,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: ReadingHouseDayTokens.copy,
-                    fontFamily: 'GentiumPlus',
-                    fontSize: 13.5,
-                    height: 1.25,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
+
+class _ReadingHouseDeleteGlyphPainter extends CustomPainter {
+  const _ReadingHouseDeleteGlyphPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF645C58)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.85
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final outline = Path()
+      ..moveTo(size.width, 1)
+      ..lineTo(5, 1)
+      ..lineTo(1, size.height / 2)
+      ..lineTo(5, size.height - 1)
+      ..lineTo(size.width, size.height - 1)
+      ..close();
+    canvas
+      ..drawPath(outline, paint)
+      ..drawLine(const Offset(8, 3), const Offset(11, 7), paint)
+      ..drawLine(const Offset(11, 3), const Offset(8, 7), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ReadingHouseDeleteGlyphPainter oldDelegate) =>
+      false;
 }
 
 class _ChatEmpty extends StatelessWidget {
@@ -992,15 +1085,18 @@ class _ReadingPracticeSheet extends StatelessWidget {
             _PracticeOutputBlock(
               title: 'Host announcement',
               initialText: fixture.hostAnnouncement,
+              initialTextMetadata: 'HOST · just now',
               hintText: 'Host announcement',
               actionLabel: 'Post announcement',
               onAction: onPostAnnouncement,
+              first: true,
             ),
             _PracticeOutputBlock(
               title: 'Shared note',
               hintText: 'What do you want to share publicly?',
               actionLabel: 'Post to Feed',
               onAction: onPostSharedNote,
+              publicAction: true,
             ),
             _PrivateReflectionBlock(
               initialText: fixture.privateReflection,
@@ -1023,14 +1119,20 @@ class _PracticeOutputBlock extends StatefulWidget {
     required this.hintText,
     required this.actionLabel,
     this.initialText,
+    this.initialTextMetadata,
     this.onAction,
+    this.first = false,
+    this.publicAction = false,
   });
 
   final String title;
   final String hintText;
   final String actionLabel;
   final String? initialText;
+  final String? initialTextMetadata;
   final ValueChanged<String>? onAction;
+  final bool first;
+  final bool publicAction;
 
   @override
   State<_PracticeOutputBlock> createState() => _PracticeOutputBlockState();
@@ -1055,8 +1157,7 @@ class _PracticeOutputBlockState extends State<_PracticeOutputBlock> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.fromLTRB(0, 10, 0, 11),
+      padding: EdgeInsets.fromLTRB(0, widget.first ? 0 : 10, 0, 11),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0x1A7FD9BC))),
       ),
@@ -1066,18 +1167,43 @@ class _PracticeOutputBlockState extends State<_PracticeOutputBlock> {
           Text(widget.title, style: _practiceTitleStyle),
           if (widget.initialText != null) ...<Widget>[
             const SizedBox(height: 9),
-            Text(
-              widget.initialText!,
-              style: const TextStyle(
-                color: ReadingHouseDayTokens.copy,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontSize: 15,
-                fontStyle: FontStyle.italic,
-                height: 1.25,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFF080C0A),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0x147FD9BC)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  if (widget.initialTextMetadata != null) ...<Widget>[
+                    Text(
+                      widget.initialTextMetadata!,
+                      style: const TextStyle(
+                        color: Color(0xFF829188),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                  ],
+                  Text(
+                    widget.initialText!,
+                    style: const TextStyle(
+                      color: Color(0xFFBBC6C0),
+                      fontFamily: 'GentiumPlus',
+                      fontSize: 13,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-          const SizedBox(height: 9),
+          if (widget.initialText != null) const SizedBox(height: 9),
           TextField(
             controller: _controller,
             minLines: 2,
@@ -1089,17 +1215,23 @@ class _PracticeOutputBlockState extends State<_PracticeOutputBlock> {
             ),
             decoration: _practiceInputDecoration(widget.hintText),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 3),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: widget.onAction == null ? null : _submit,
               style: TextButton.styleFrom(
-                foregroundColor: ReadingHouseDayTokens.mint,
-                visualDensity: VisualDensity.compact,
+                foregroundColor: widget.publicAction
+                    ? const Color(0xFFC8A94F)
+                    : ReadingHouseDayTokens.mint,
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.fromLTRB(0, 5, 0, 1),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 textStyle: const TextStyle(
                   fontFamily: MaatFlowListTokens.fontFamily,
-                  fontSize: 13,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  height: 1,
                 ),
               ),
               child: Text(widget.actionLabel),
@@ -1146,7 +1278,6 @@ class _PrivateReflectionBlockState extends State<_PrivateReflectionBlock> {
   Widget build(BuildContext context) {
     return Container(
       key: const ValueKey<String>('reading-house-private-reflection'),
-      margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.fromLTRB(0, 10, 0, 11),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0x1A7FD9BC))),
@@ -1155,7 +1286,6 @@ class _PrivateReflectionBlockState extends State<_PrivateReflectionBlock> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           const Text('Private reflection', style: _practiceTitleStyle),
-          const SizedBox(height: 9),
           TextField(
             key: const ValueKey<String>(
               'reading-house-private-reflection-field',
@@ -1273,37 +1403,44 @@ class ReadingHouseDayFooterActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
-        Expanded(
-          child: OutlinedButton(
-            key: const ValueKey<String>('reading-house-make-todo'),
-            onPressed: onMakeTodo,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: ReadingHouseDayTokens.bone,
-              side: const BorderSide(color: ReadingHouseDayTokens.separator),
-              textStyle: const TextStyle(
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontSize: 15,
-              ),
+        TextButton.icon(
+          key: const ValueKey<String>('reading-house-make-todo'),
+          onPressed: onMakeTodo,
+          style: TextButton.styleFrom(
+            foregroundColor: ReadingHouseDayTokens.mint,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            textStyle: const TextStyle(
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
-            child: const Text('Make to-do'),
           ),
+          icon: const Text(
+            '≡✓',
+            style: TextStyle(
+              color: ReadingHouseDayTokens.mint,
+              fontFamily: 'GentiumPlus',
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          label: const Text('Make to-do'),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: OutlinedButton(
-            key: const ValueKey<String>('reading-house-calendar-action'),
-            onPressed: onCalendar,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: ReadingHouseDayTokens.bone,
-              side: const BorderSide(color: ReadingHouseDayTokens.separator),
-              textStyle: const TextStyle(
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontSize: 15,
-              ),
+        TextButton(
+          key: const ValueKey<String>('reading-house-calendar-action'),
+          onPressed: onCalendar,
+          style: TextButton.styleFrom(
+            foregroundColor: ReadingHouseDayTokens.mint,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            textStyle: const TextStyle(
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
-            child: const Text('Calendar'),
           ),
+          child: const Text('Calendar'),
         ),
       ],
     );
@@ -1322,8 +1459,8 @@ InputDecoration _practiceInputDecoration(String hintText) {
     hintText: hintText,
     hintStyle: const TextStyle(color: Color(0xFF506058)),
     filled: true,
-    fillColor: const Color(0x297FD9BC),
-    contentPadding: const EdgeInsets.fromLTRB(11, 14, 11, 14),
+    fillColor: const Color(0xFF070A08),
+    contentPadding: const EdgeInsets.all(10),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
       borderSide: const BorderSide(color: Color(0x297FD9BC)),

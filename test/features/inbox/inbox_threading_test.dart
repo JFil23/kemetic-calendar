@@ -366,8 +366,10 @@ void main() {
         expect(unifiedBuilder, isNot(contains('inviteItems')));
         expect(invitesSheet, contains('..._latestEventInvites'));
         expect(
-          invitesSheet,
-          contains("_calendarSheetSectionTitle('Invites & responses')"),
+          RegExp(
+            r"_calendarSheetSectionTitle\(\s*'Invites & responses'\s*,?\s*\)",
+          ).hasMatch(invitesSheet),
+          isTrue,
         );
         expect(invitesSheet, contains('_buildEventInviteRow('));
       });

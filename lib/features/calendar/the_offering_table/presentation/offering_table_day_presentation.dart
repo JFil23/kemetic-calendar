@@ -87,6 +87,7 @@ class _OfferingTableDayPresentationState
   bool _updatingIntentionFromWidget = false;
   bool _reflectionDirty = false;
   bool _reflectionOpen = false;
+  int _contextGeneration = 0;
   double _placement = 0;
   late Map<String, bool> _checkedSteps;
 
@@ -248,6 +249,25 @@ class _OfferingTableDayPresentationState
     );
   }
 
+  void _resetDay() {
+    _intentionController.clear();
+    _reflectionController.clear();
+    setState(() {
+      _placement = 0;
+      _reflectionOpen = false;
+      _contextGeneration += 1;
+      for (final id in _checkedSteps.keys) {
+        _checkedSteps[id] = false;
+        if (widget.persistResponses) {
+          kMaatFlowResponseDraftStore.rememberValue(
+            flowKey: kOfferingTableFlowKey,
+            value: MaatFlowResponseValue.checkbox(specId: id, checked: false),
+          );
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final dayOneHeroHeight = MediaQuery.sizeOf(context).width < 350
@@ -257,6 +277,7 @@ class _OfferingTableDayPresentationState
       key: const ValueKey<String>('offering-table-day-presentation'),
       decoration: const BoxDecoration(color: _velvet),
       fixedHeroHeight: widget.day.dayNumber == 1 ? dayOneHeroHeight : 360,
+      initialLowerSheetPeek: widget.day.dayNumber == 1 ? 28 : null,
       instrument: _buildCupHero(),
       instrumentFooter: _buildPlacementControl(),
       inputBuilder: (context, _, instrumentHeight) {
@@ -658,13 +679,35 @@ class _OfferingTableDayPresentationState
             ),
           ),
           const SizedBox(height: 11),
-          const Expanded(
-            child: Row(
-              children: <Widget>[
-                Expanded(flex: 43, child: _SmallSupplyJarVisual()),
-                SizedBox(width: 10),
-                Expanded(flex: 57, child: _SmallSupplyRitualCard()),
-              ],
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const authoredHeight = 254.0;
+                return Align(
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    height: math.min(authoredHeight, constraints.maxHeight),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.topCenter,
+                      child: SizedBox(
+                        width: constraints.maxWidth,
+                        height: authoredHeight,
+                        child: const Row(
+                          children: <Widget>[
+                            Expanded(
+                              flex: 43,
+                              child: OfferingTableSmallSupplyJarVisual(),
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(flex: 57, child: _SmallSupplyRitualCard()),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -910,9 +953,9 @@ class _OfferingTableDayPresentationState
             ),
             const SizedBox(height: 20),
             OfferingTableContextDisclosure(
-              day: widget.day,
-              lens: widget.lens,
-              why: _presentation.why,
+              key: ValueKey<int>(_contextGeneration),
+              context: _presentation.context,
+              instruction: _presentation.instruction,
             ),
             InstrumentEventReflectionSection(
               key: const ValueKey<String>('offering-table-reflection-section'),
@@ -954,7 +997,6 @@ class _OfferingTableDayPresentationState
   Widget _buildSmallSupplyBody() {
     return Container(
       key: const ValueKey<String>('offering-table-foreground-layer'),
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -971,125 +1013,157 @@ class _OfferingTableDayPresentationState
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: <Widget>[
-          const Center(
-            child: SizedBox(
-              width: 38,
-              height: 3,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Color(0xFF4E3B1B),
-                  borderRadius: BorderRadius.all(Radius.circular(4)),
+          const Positioned(
+            top: 7,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: SizedBox(
+                width: 38,
+                height: 3,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Color(0xFF4E3B1B),
+                    borderRadius: BorderRadius.all(Radius.circular(4)),
+                  ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 13),
-          const Text(
-            'PERSONAL · DAY 01',
-            style: TextStyle(
-              color: Color(0xFF95732D),
-              fontFamily: _ui,
-              fontSize: 8,
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _presentation.instruction,
-            style: const TextStyle(
-              color: Color(0xFFD2C6B5),
-              fontFamily: _display,
-              fontSize: 17,
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            constraints: const BoxConstraints(minHeight: 49),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFF332413))),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                const SizedBox(
-                  width: 76,
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: 10),
-                    child: Text(
-                      'SUPPLY',
-                      style: TextStyle(
-                        color: Color(0xFF81682E),
-                        fontFamily: _ui,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey<String>(
-                      'offering-table-intention-field',
-                    ),
-                    controller: _intentionController,
-                    cursorColor: const Color(0xFFF0C96A),
-                    minLines: 1,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      hintText: 'supply…',
-                      hintStyle: TextStyle(color: Color(0xFF5E564C)),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.only(bottom: 8),
-                    ),
-                    style: const TextStyle(
-                      color: Color(0xFFE8B27C),
-                      fontFamily: _display,
-                      fontSize: 17,
-                      fontStyle: FontStyle.italic,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 29),
-          const _OfferingCourseTrack(),
-          const SizedBox(height: 24),
-          OfferingTableContextDisclosure(
-            day: widget.day,
-            lens: widget.lens,
-            why: _presentation.why,
-          ),
-          const SizedBox(height: 22),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0x06C99A3D),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0x293E2E1C)),
-            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 const Text(
-                  'COMPLETION',
+                  'PERSONAL · DAY 01',
                   style: TextStyle(
-                    color: Color(0xFFA88135),
+                    color: Color(0xFF95732D),
                     fontFamily: _ui,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 8,
                     letterSpacing: 2,
                   ),
                 ),
                 const SizedBox(height: 8),
-                widget.completionPanel,
+                Text(
+                  _presentation.instruction,
+                  style: const TextStyle(
+                    color: Color(0xFFD2C6B5),
+                    fontFamily: _display,
+                    fontSize: 17,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  constraints: const BoxConstraints(minHeight: 49),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFF332413)),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      const SizedBox(
+                        width: 76,
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: 10),
+                          child: Text(
+                            'SUPPLY',
+                            style: TextStyle(
+                              color: Color(0xFF81682E),
+                              fontFamily: _ui,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          key: const ValueKey<String>(
+                            'offering-table-intention-field',
+                          ),
+                          controller: _intentionController,
+                          cursorColor: const Color(0xFFF0C96A),
+                          minLines: 1,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            hintText: 'supply…',
+                            hintStyle: TextStyle(color: Color(0xFF5E564C)),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.only(bottom: 8),
+                          ),
+                          style: const TextStyle(
+                            color: Color(0xFFE8B27C),
+                            fontFamily: _display,
+                            fontSize: 17,
+                            fontStyle: FontStyle.italic,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 58),
+                const OfferingTableCourseTrack(),
+                const SizedBox(height: 141),
+                OfferingTableContextDisclosure(
+                  key: ValueKey<int>(_contextGeneration),
+                  context: _presentation.context,
+                  instruction: _presentation.instruction,
+                ),
+                SizedBox(
+                  height: 52,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      key: const ValueKey<String>('offering-table-day-reset'),
+                      onPressed: _resetDay,
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF5F5648),
+                        padding: const EdgeInsets.only(left: 12),
+                        textStyle: const TextStyle(
+                          fontFamily: _ui,
+                          fontSize: 12,
+                        ),
+                      ),
+                      child: const Text('reset this day'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0x06C99A3D),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0x293E2E1C)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      const Text(
+                        'COMPLETION',
+                        style: TextStyle(
+                          color: Color(0xFFA88135),
+                          fontFamily: _ui,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      widget.completionPanel,
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -1197,9 +1271,7 @@ class _OfferingChecklistStep extends StatelessWidget {
           decoration: BoxDecoration(
             border: last
                 ? null
-                : const Border(
-                    bottom: BorderSide(color: Color(0xC7302313)),
-                  ),
+                : const Border(bottom: BorderSide(color: Color(0xC7302313))),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1220,10 +1292,7 @@ class _OfferingChecklistStep extends StatelessWidget {
                   ),
                   boxShadow: checked
                       ? const <BoxShadow>[
-                          BoxShadow(
-                            color: Color(0x47DCAB46),
-                            blurRadius: 8,
-                          ),
+                          BoxShadow(color: Color(0x47DCAB46), blurRadius: 8),
                         ]
                       : null,
                 ),
@@ -1330,21 +1399,47 @@ class _SmallSupplyLine extends StatelessWidget {
   }
 }
 
-class _SmallSupplyJarVisual extends StatelessWidget {
-  const _SmallSupplyJarVisual();
+class OfferingTableSmallSupplyJarVisual extends StatelessWidget {
+  const OfferingTableSmallSupplyJarVisual({
+    super.key,
+    this.label = 'supply…',
+    this.refilled = false,
+    this.visible = false,
+    this.complete = false,
+  });
+
+  final String label;
+  final bool refilled;
+  final bool visible;
+  final bool complete;
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      key: const ValueKey<String>('offering-table-small-supply-jar'),
-      painter: const _SmallSupplyJarPainter(),
+      key: key ?? const ValueKey<String>('offering-table-small-supply-jar'),
+      painter: _SmallSupplyJarPainter(
+        label: label,
+        refilled: refilled,
+        visible: visible,
+        complete: complete,
+      ),
       child: const SizedBox.expand(),
     );
   }
 }
 
 class _SmallSupplyJarPainter extends CustomPainter {
-  const _SmallSupplyJarPainter();
+  const _SmallSupplyJarPainter({
+    required this.label,
+    required this.refilled,
+    required this.visible,
+    required this.complete,
+  });
+
+  final String label;
+  final bool refilled;
+  final bool visible;
+  final bool complete;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1361,13 +1456,15 @@ class _SmallSupplyJarPainter extends CustomPainter {
       width: 130,
       height: 124,
     );
-    canvas.drawOval(
-      halo,
-      Paint()
-        ..shader = const RadialGradient(
-          colors: <Color>[Color(0x24F0C96A), Color(0x00F0C96A)],
-        ).createShader(halo),
-    );
+    if (complete) {
+      canvas.drawOval(
+        halo,
+        Paint()
+          ..shader = const RadialGradient(
+            colors: <Color>[Color(0x57F0C96A), Color(0x00F0C96A)],
+          ).createShader(halo),
+      );
+    }
 
     final jar = Path()
       ..moveTo(42, 43)
@@ -1386,6 +1483,28 @@ class _SmallSupplyJarPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..color = const Color(0xFFC99A3D),
     );
+    if (refilled) {
+      canvas
+        ..save()
+        ..clipPath(jar)
+        ..drawRect(
+          const Rect.fromLTRB(34, 110, 108, 165),
+          Paint()
+            ..shader = const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[Color(0xFFCBEAE6), Color(0xFF5A928D)],
+            ).createShader(const Rect.fromLTRB(34, 110, 108, 165)),
+        )
+        ..restore();
+      canvas.drawLine(
+        const Offset(35, 111),
+        const Offset(107, 111),
+        Paint()
+          ..strokeWidth = 1.2
+          ..color = const Color(0xFFBFE4DF),
+      );
+    }
     final cap = Path()
       ..moveTo(42, 43)
       ..lineTo(48, 31)
@@ -1400,6 +1519,24 @@ class _SmallSupplyJarPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..color = const Color(0xFFC99A3D),
     );
+    if (visible) {
+      final provisionMark = Path()
+        ..moveTo(112, 72)
+        ..lineTo(131, 72)
+        ..lineTo(131, 136)
+        ..lineTo(112, 136)
+        ..moveTo(117, 80)
+        ..lineTo(126, 80);
+      canvas.drawPath(
+        provisionMark,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..color = const Color(0xFFF0C96A),
+      );
+    }
     canvas.drawLine(
       const Offset(45, 94),
       const Offset(97, 94),
@@ -1407,17 +1544,17 @@ class _SmallSupplyJarPainter extends CustomPainter {
         ..strokeWidth = .8
         ..color = const Color(0x57C99A3D),
     );
-    const label = TextSpan(
-      text: 'supply…',
+    final labelSpan = TextSpan(
+      text: label,
       style: TextStyle(
-        color: Color(0x61E8B27C),
+        color: refilled ? const Color(0xFFE8B27C) : const Color(0x61E8B27C),
         fontFamily: _OfferingTableDayPresentationState._display,
         fontSize: 9,
         fontStyle: FontStyle.italic,
       ),
     );
     final painter = TextPainter(
-      text: label,
+      text: labelSpan,
       textDirection: TextDirection.ltr,
       textAlign: TextAlign.center,
     )..layout();
@@ -1426,7 +1563,11 @@ class _SmallSupplyJarPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SmallSupplyJarPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SmallSupplyJarPainter oldDelegate) =>
+      oldDelegate.label != label ||
+      oldDelegate.refilled != refilled ||
+      oldDelegate.visible != visible ||
+      oldDelegate.complete != complete;
 }
 
 class _SmallSupplyInstrumentFooter extends StatelessWidget {
@@ -1470,8 +1611,15 @@ class _SmallSupplyInstrumentFooter extends StatelessWidget {
   }
 }
 
-class _OfferingCourseTrack extends StatelessWidget {
-  const _OfferingCourseTrack();
+class OfferingTableCourseTrack extends StatelessWidget {
+  const OfferingTableCourseTrack({
+    super.key,
+    this.dayNumber = 1,
+    this.stageLabel = 'PERSONAL',
+  });
+
+  final int dayNumber;
+  final String stageLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -1483,14 +1631,40 @@ class _OfferingCourseTrack extends StatelessWidget {
               for (var index = 1; index <= 30; index++)
                 Expanded(
                   child: Align(
-                    child: Container(
-                      width: index == 1 ? 5 : 4,
-                      height: index == 1 ? 5 : 4,
-                      decoration: BoxDecoration(
-                        color: index == 1
-                            ? const Color(0xFFC99A3D)
-                            : const Color(0xFF2C2318),
-                        shape: BoxShape.circle,
+                    child: Transform.rotate(
+                      angle: index % 10 == 0 ? .7853981633974483 : 0,
+                      child: Container(
+                        width: index % 10 == 0
+                            ? 7
+                            : index == dayNumber
+                            ? 5
+                            : 4,
+                        height: index % 10 == 0
+                            ? 7
+                            : index == dayNumber
+                            ? 5
+                            : 4,
+                        decoration: BoxDecoration(
+                          color: index < dayNumber
+                              ? const Color(0xFF8A7030)
+                              : index == dayNumber
+                              ? const Color(0xFFF0C96A)
+                              : const Color(0xFF2C2318),
+                          shape: index % 10 == 0
+                              ? BoxShape.rectangle
+                              : BoxShape.circle,
+                          border: index % 10 == 0
+                              ? Border.all(color: const Color(0xFF4B3B1F))
+                              : null,
+                          boxShadow: index == dayNumber
+                              ? const <BoxShadow>[
+                                  BoxShadow(
+                                    color: Color(0x75F0C96A),
+                                    blurRadius: 8,
+                                  ),
+                                ]
+                              : null,
+                        ),
                       ),
                     ),
                   ),
@@ -1499,9 +1673,9 @@ class _OfferingCourseTrack extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        const Text(
-          'PERSONAL',
-          style: TextStyle(
+        Text(
+          stageLabel,
+          style: const TextStyle(
             color: Color(0xFF8F6D2C),
             fontFamily: _OfferingTableDayPresentationState._ui,
             fontSize: 8,

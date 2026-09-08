@@ -98,7 +98,9 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Put it within reach now — on the counter, in the fridge front, or in your bag.'),
+      find.text(
+        'Put it within reach now — on the counter, in the fridge front, or in your bag.',
+      ),
       findsOneWidget,
     );
   });
@@ -183,10 +185,36 @@ void main() {
     final toggle = find.byKey(
       const ValueKey<String>('offering-table-day-sheet-context-toggle'),
     );
-    await tester.ensureVisible(toggle);
+    await tester.drag(body, const Offset(0, -160));
+    await tester.pumpAndSettle();
     await tester.tap(toggle);
     await tester.pumpAndSettle();
-    expect(find.text(presentation.why), findsOneWidget);
+    expect(find.text(presentation.context), findsOneWidget);
+    expect(find.text(presentation.instruction), findsWidgets);
+    expect(find.text(presentation.why), findsNothing);
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(
+              const ValueKey<String>('offering-table-day-sheet-context-sign'),
+            ),
+          )
+          .data,
+      '−',
+    );
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(
+              const ValueKey<String>('offering-table-day-sheet-context-sign'),
+            ),
+          )
+          .data,
+      '+',
+    );
   });
 
   testWidgets('blank intention is honest and editing updates the cup', (
@@ -313,15 +341,19 @@ void main() {
       const ValueKey<String>('follow-sky-sheet-resize-handle'),
     );
     final page = find.descendant(of: sheet, matching: find.byType(PageView));
-    final hero = find.byKey(
-      const ValueKey<String>('offering-table-small-supply-hero'),
+    final presentation = find.byKey(
+      const ValueKey<String>('offering-table-day-presentation'),
+    );
+    final lowerSheet = find.byKey(
+      const ValueKey<String>('offering-table-static-lower-sheet'),
     );
     expect(sheet, findsOneWidget);
     expect(handle, findsOneWidget);
-    expect(tester.getSize(hero).height, 470);
+    expect(presentation, findsOneWidget);
     expect(
-      find.byKey(const ValueKey<String>('offering-table-day-presentation')),
-      findsOneWidget,
+      tester.getRect(presentation).bottom - tester.getRect(lowerSheet).top,
+      closeTo(28, .5),
+      reason: 'Day 1 keeps the authored lower ritual card peeking by 28 px.',
     );
 
     final availableHeight = _viewport.height - 12;
@@ -332,7 +364,11 @@ void main() {
     await tester.drag(handle, const Offset(0, -120));
     await tester.pumpAndSettle();
     expect(tester.getSize(page).height, closeTo(layeredPageHeight + 120, 20));
-    expect(tester.getSize(hero).height, 470);
+    expect(
+      tester.getRect(presentation).bottom - tester.getRect(lowerSheet).top,
+      closeTo(28, .5),
+      reason: 'Resizing the outer sheet preserves the authored card peek.',
+    );
 
     final body = find.byKey(
       const ValueKey<String>('offering-table-presentation-body'),

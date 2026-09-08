@@ -181,10 +181,21 @@ class DjedDetailPage extends StatefulWidget {
 
 class _DjedDetailPageState extends State<DjedDetailPage> {
   late List<DjedSupportFixture> _supports;
+  late final List<FocusNode> _supportFocusNodes;
+  int _activeSupport = 0;
 
   @override
   void initState() {
     super.initState();
+    _supportFocusNodes = List<FocusNode>.generate(4, (index) {
+      final node = FocusNode(debugLabel: 'djed-support-${index + 1}-name');
+      node.addListener(() {
+        if (node.hasFocus && mounted && _activeSupport != index) {
+          setState(() => _activeSupport = index);
+        }
+      });
+      return node;
+    });
     _supports = List<DjedSupportFixture>.from(widget.supports.take(4));
     while (_supports.length < 4) {
       _supports.add(
@@ -194,6 +205,14 @@ class _DjedDetailPageState extends State<DjedDetailPage> {
         ),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    for (final node in _supportFocusNodes) {
+      node.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -214,6 +233,7 @@ class _DjedDetailPageState extends State<DjedDetailPage> {
 
   void _updateName(int index, String value) {
     setState(() {
+      _activeSupport = index;
       _supports[index] = DjedSupportFixture(
         name: value,
         condition: _supports[index].condition,
@@ -222,12 +242,31 @@ class _DjedDetailPageState extends State<DjedDetailPage> {
   }
 
   void _updateCondition(int index, DjedSupportCondition condition) {
+    final advance = _supports[index].name.trim().isNotEmpty && index < 3;
     setState(() {
       _supports[index] = DjedSupportFixture(
         name: _supports[index].name,
         condition: condition,
       );
+      _activeSupport = advance ? index + 1 : index;
     });
+    if (advance) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _supportFocusNodes[index + 1].requestFocus();
+      });
+    }
+  }
+
+  void _selectSupport(int index, {bool focusName = false}) {
+    if (index < 0 || index >= _supports.length) return;
+    if (_activeSupport != index) {
+      setState(() => _activeSupport = index);
+    }
+    if (focusName) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _supportFocusNodes[index].requestFocus();
+      });
+    }
   }
 
   void _carry() {
@@ -283,6 +322,9 @@ class _DjedDetailPageState extends State<DjedDetailPage> {
               startDate: widget._windowStart,
               supports: _supports,
               sittings: widget.sittings,
+              activeSupport: _activeSupport,
+              supportFocusNodes: _supportFocusNodes,
+              onSupportSelected: _selectSupport,
               onNameChanged: _updateName,
               onConditionChanged: _updateCondition,
             ),
@@ -298,14 +340,16 @@ class _DjedDetailPageState extends State<DjedDetailPage> {
               joinedNote: 'Your four supports and nine sittings stay together.',
               actionKey: const ValueKey<String>('djed-carry'),
               joinedKey: const ValueKey<String>('djed-carried'),
+              showNote: false,
             ),
           ),
           Positioned(
-            left: 4,
-            top: MediaQuery.paddingOf(context).top + 4,
-            child: BackButton(
+            left: 18,
+            top: MediaQuery.paddingOf(context).top + 6,
+            child: MaatFlowDetailBackButton(
               key: const ValueKey<String>('djed-back'),
               color: DjedDetailTokens.gold,
+              backgroundColor: const Color(0xA60D0905),
               onPressed: widget.onBack ?? () => popMaatFlowDetailOrGo(context),
             ),
           ),
@@ -355,7 +399,7 @@ class _DjedHero extends StatelessWidget {
             DjedDetailTokens.heroAsset,
             key: const ValueKey<String>('djed-hero-image'),
             fit: BoxFit.cover,
-            alignment: const Alignment(0, 0.08),
+            alignment: Alignment.center,
           ),
           const DecoratedBox(
             decoration: BoxDecoration(
@@ -417,6 +461,9 @@ class _DjedSheet extends StatelessWidget {
     required this.startDate,
     required this.supports,
     required this.sittings,
+    required this.activeSupport,
+    required this.supportFocusNodes,
+    required this.onSupportSelected,
     required this.onNameChanged,
     required this.onConditionChanged,
   });
@@ -424,6 +471,9 @@ class _DjedSheet extends StatelessWidget {
   final DateTime startDate;
   final List<DjedSupportFixture> supports;
   final List<DjedSittingFixture> sittings;
+  final int activeSupport;
+  final List<FocusNode> supportFocusNodes;
+  final void Function(int index, {bool focusName}) onSupportSelected;
   final void Function(int index, String value) onNameChanged;
   final void Function(int index, DjedSupportCondition condition)
   onConditionChanged;
@@ -437,6 +487,9 @@ class _DjedSheet extends StatelessWidget {
         const _DjedContract(),
         _DjedSupports(
           supports: supports,
+          activeSupport: activeSupport,
+          supportFocusNodes: supportFocusNodes,
+          onSupportSelected: onSupportSelected,
           onNameChanged: onNameChanged,
           onConditionChanged: onConditionChanged,
         ),
@@ -481,16 +534,27 @@ class _DjedThirtyDayCalendar extends StatelessWidget {
                   height: 1.45,
                 ),
               );
-              final range = Text(
-                _calendarRange(startDate),
-                style: _uiStyle(
-                  fontSize: 11,
-                  color: const Color(0xFF676963),
-                  fontStyle: FontStyle.italic,
-                ),
+              final rangeLabel = _calendarRange(startDate);
+              final rangeStyle = _uiStyle(
+                fontSize: 11,
+                color: const Color(0xFF676963),
+                fontStyle: FontStyle.italic,
               );
+              final range = Text(rangeLabel, style: rangeStyle);
               final textScale = MediaQuery.textScalerOf(context).scale(1);
-              if (constraints.maxWidth < 310 || textScale > 1.15) {
+              final rangePainter = TextPainter(
+                text: TextSpan(text: rangeLabel, style: rangeStyle),
+                textDirection: Directionality.of(context),
+                textScaler: MediaQuery.textScalerOf(context),
+                maxLines: 1,
+              )..layout();
+              final rangeWidth = rangePainter.width;
+              rangePainter.dispose();
+              final shouldStack =
+                  constraints.maxWidth < 310 ||
+                  textScale > 1.15 ||
+                  rangeWidth + 8 + 96 > constraints.maxWidth;
+              if (shouldStack) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[copy, const SizedBox(height: 6), range],
@@ -500,7 +564,7 @@ class _DjedThirtyDayCalendar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Expanded(child: copy),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   range,
                 ],
               );
@@ -717,10 +781,7 @@ String _phaseDecanName(DateTime startDate, int phase) {
   final kemetic = KemeticMath.fromGregorian(
     startDate.add(Duration(days: phase * 10)),
   );
-  return DecanMetadata.decanNameFor(
-    kMonth: kemetic.kMonth,
-    kDay: kemetic.kDay,
-  );
+  return DecanMetadata.decanNameFor(kMonth: kemetic.kMonth, kDay: kemetic.kDay);
 }
 
 String _decanRange(DateTime startDate, int phase) {
@@ -769,9 +830,7 @@ class _DjedContract extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(0, 5, 0, 0),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: DjedDetailTokens.separator),
-          ),
+          border: Border(bottom: BorderSide(color: DjedDetailTokens.separator)),
         ),
         child: Padding(
           padding: EdgeInsets.only(bottom: 14),
@@ -840,11 +899,17 @@ class _ContractDot extends StatelessWidget {
 class _DjedSupports extends StatelessWidget {
   const _DjedSupports({
     required this.supports,
+    required this.activeSupport,
+    required this.supportFocusNodes,
+    required this.onSupportSelected,
     required this.onNameChanged,
     required this.onConditionChanged,
   });
 
   final List<DjedSupportFixture> supports;
+  final int activeSupport;
+  final List<FocusNode> supportFocusNodes;
+  final void Function(int index, {bool focusName}) onSupportSelected;
   final void Function(int index, String value) onNameChanged;
   final void Function(int index, DjedSupportCondition condition)
   onConditionChanged;
@@ -874,12 +939,20 @@ class _DjedSupports extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          DjedSpineVisual(supports: supports, activeSupport: 0),
+          DjedSpineVisual(
+            supports: supports,
+            activeSupport: activeSupport,
+            onSupportSelected: (index) =>
+                onSupportSelected(index, focusName: true),
+          ),
           const SizedBox(height: 20),
           for (var index = 0; index < supports.length; index++)
             _DjedSupportRow(
               index: index,
               support: supports[index],
+              active: index == activeSupport,
+              focusNode: supportFocusNodes[index],
+              onActivate: () => onSupportSelected(index),
               onNameChanged: onNameChanged,
               onConditionChanged: onConditionChanged,
             ),
@@ -894,10 +967,12 @@ class DjedSpineVisual extends StatelessWidget {
     super.key,
     required this.supports,
     this.activeSupport = 0,
+    this.onSupportSelected,
   });
 
   final List<DjedSupportFixture> supports;
   final int activeSupport;
+  final ValueChanged<int>? onSupportSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -958,12 +1033,25 @@ class DjedSpineVisual extends StatelessWidget {
                       top: 30.0 + (visible.length - 1 - index) * 31,
                       left: 28,
                       right: 28,
-                      child: Opacity(
-                        opacity: index == activeSupport ? 1 : .42,
-                        child: _DjedSpineBeam(
-                          index: index,
-                          support: visible[index],
-                          active: index == activeSupport,
+                      child: Semantics(
+                        button: onSupportSelected != null,
+                        selected: index == activeSupport,
+                        label: 'Support ${index + 1}: ${visible[index].name}',
+                        child: InkWell(
+                          key: ValueKey<String>(
+                            'djed-spine-support-${index + 1}',
+                          ),
+                          onTap: onSupportSelected == null
+                              ? null
+                              : () => onSupportSelected!(index),
+                          child: Opacity(
+                            opacity: index == activeSupport ? 1 : .42,
+                            child: _DjedSpineBeam(
+                              index: index,
+                              support: visible[index],
+                              active: index == activeSupport,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -989,123 +1077,135 @@ class _DjedSupportRow extends StatelessWidget {
   const _DjedSupportRow({
     required this.index,
     required this.support,
+    required this.active,
+    required this.focusNode,
+    required this.onActivate,
     required this.onNameChanged,
     required this.onConditionChanged,
   });
 
   final int index;
   final DjedSupportFixture support;
+  final bool active;
+  final FocusNode focusNode;
+  final VoidCallback onActivate;
   final void Function(int index, String value) onNameChanged;
   final void Function(int index, DjedSupportCondition condition)
   onConditionChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: index == 0 ? 1 : .48,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(0, 13, 0, 14),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0x17E0873C))),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                SizedBox(
-                  width: 62,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
-                    child: Text(
-                      'SUPPORT ${(index + 1).toString().padLeft(2, '0')}',
-                      style: _uiStyle(fontSize: 9, letterSpacing: 1.25),
+    return Listener(
+      key: ValueKey<String>('djed-support-row-${index + 1}'),
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => onActivate(),
+      child: Opacity(
+        opacity: active ? 1 : .48,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(0, 13, 0, 14),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0x17E0873C))),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  SizedBox(
+                    width: 62,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 9),
+                      child: Text(
+                        'SUPPORT ${(index + 1).toString().padLeft(2, '0')}',
+                        style: _uiStyle(fontSize: 9, letterSpacing: 1.25),
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Container(
-                    height: 33,
-                    alignment: Alignment.bottomLeft,
-                    padding: const EdgeInsets.only(bottom: 8),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: Color(0x38E0873C)),
+                  Expanded(
+                    child: Container(
+                      height: 33,
+                      alignment: Alignment.bottomLeft,
+                      padding: const EdgeInsets.only(bottom: 8),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Color(0x38E0873C)),
+                        ),
                       ),
-                    ),
-                    child: TextFormField(
-                      key: ValueKey<String>('djed-support-name-${index + 1}'),
-                      initialValue: support.name,
-                      onChanged: (value) => onNameChanged(index, value),
-                      maxLines: 1,
-                      style: _displayStyle(
-                        fontSize: 19,
-                        color: DjedDetailTokens.bone,
-                        fontStyle: FontStyle.italic,
-                      ),
-                      decoration: InputDecoration.collapsed(
-                        hintText: 'what needs strengthening',
-                        hintStyle: _displayStyle(
+                      child: TextFormField(
+                        key: ValueKey<String>('djed-support-name-${index + 1}'),
+                        focusNode: focusNode,
+                        initialValue: support.name,
+                        onChanged: (value) => onNameChanged(index, value),
+                        maxLines: 1,
+                        style: _displayStyle(
                           fontSize: 19,
-                          color: const Color(0xFF4F4B43),
+                          color: DjedDetailTokens.bone,
                           fontStyle: FontStyle.italic,
                         ),
+                        decoration: InputDecoration.collapsed(
+                          hintText: 'what needs strengthening',
+                          hintStyle: _displayStyle(
+                            fontSize: 19,
+                            color: const Color(0xFF4F4B43),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.only(left: 62),
-              child: Row(
-                children: <Widget>[
-                  for (final condition in const <DjedSupportCondition>[
-                    DjedSupportCondition.holding,
-                    DjedSupportCondition.underPressure,
-                    DjedSupportCondition.wobbling,
-                  ]) ...<Widget>[
-                    Expanded(
-                      child: InkWell(
-                        key: ValueKey<String>(
-                          'djed-support-${index + 1}-${condition.name}',
-                        ),
-                        onTap: () => onConditionChanged(index, condition),
-                        child: Container(
-                          height: 18,
-                          alignment: Alignment.centerLeft,
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
+                ],
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(left: 62),
+                child: Row(
+                  children: <Widget>[
+                    for (final condition in const <DjedSupportCondition>[
+                      DjedSupportCondition.holding,
+                      DjedSupportCondition.underPressure,
+                      DjedSupportCondition.wobbling,
+                    ]) ...<Widget>[
+                      Expanded(
+                        child: InkWell(
+                          key: ValueKey<String>(
+                            'djed-support-${index + 1}-${condition.name}',
+                          ),
+                          onTap: () => onConditionChanged(index, condition),
+                          child: Container(
+                            height: 18,
+                            alignment: Alignment.centerLeft,
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: support.condition == condition
+                                      ? _conditionAccent(condition)
+                                      : const Color(0x172E160B),
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              _labelForCondition(condition),
+                              maxLines: 1,
+                              overflow: TextOverflow.fade,
+                              style: _uiStyle(
+                                fontSize: 11,
                                 color: support.condition == condition
                                     ? _conditionAccent(condition)
-                                    : const Color(0x172E160B),
+                                    : const Color(0xFF6F6C66),
                               ),
                             ),
                           ),
-                          child: Text(
-                            _labelForCondition(condition),
-                            maxLines: 1,
-                            overflow: TextOverflow.fade,
-                            style: _uiStyle(
-                              fontSize: 11,
-                              color: support.condition == condition
-                                  ? _conditionAccent(condition)
-                                  : const Color(0xFF6F6C66),
-                            ),
-                          ),
                         ),
                       ),
-                    ),
-                    if (condition != DjedSupportCondition.wobbling)
-                      const SizedBox(width: 13),
+                      if (condition != DjedSupportCondition.wobbling)
+                        const SizedBox(width: 13),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1381,7 +1481,10 @@ class _CompactSittingRow extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Day ${sitting.flowDay} · ${sitting.timeLabel} · ${sitting.durationLabel}',
-                  style: _uiStyle(fontSize: 10.5, color: const Color(0xFF656962)),
+                  style: _uiStyle(
+                    fontSize: 10.5,
+                    color: const Color(0xFF656962),
+                  ),
                 ),
               ],
             ),

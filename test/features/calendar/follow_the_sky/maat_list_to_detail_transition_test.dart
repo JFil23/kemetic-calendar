@@ -26,7 +26,9 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  testWidgets('list shell shifts on secondary animation', (tester) async {
+  testWidgets('discovery opens its authored inline detail on the same route', (
+    tester,
+  ) async {
     _setPhoneViewport(tester);
     await _pumpFlowStudio(
       tester,
@@ -51,14 +53,23 @@ void main() {
     );
     await tester.ensureVisible(openButton);
     await tester.tap(openButton);
-    final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
-    await _pumpUntilFound(tester, detailBack);
+    await tester.pumpAndSettle();
+    final detailBack = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-back'),
+    );
+    expect(detailBack, findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey<String>('maat-flow-discovery-detail-track-the-sky'),
+      ),
+      findsOneWidget,
+    );
 
     final detailRoute = ModalRoute.of(tester.element(detailBack));
     expect(detailRoute, isA<MaterialPageRoute<dynamic>>());
-    expect(detailRoute, isNot(same(listRoute)));
+    expect(detailRoute, same(listRoute));
     expect(detailRoute!.isCurrent, isTrue);
-    expect(listRoute.isCurrent, isFalse);
+    expect(listRoute.isCurrent, isTrue);
 
     expect(
       File(
@@ -70,7 +81,7 @@ void main() {
   });
 
   testWidgets(
-    'list shell reveals a stationary detail with exact V11 geometry and timing',
+    'restored detail route preserves a discoverable list route beneath it',
     (tester) async {
       _setPhoneViewport(tester);
       await _pumpFlowStudio(
@@ -84,16 +95,15 @@ void main() {
         ),
       );
 
-      final listAppBar = find.widgetWithText(
-        AppBar,
-        'Flows',
+      final listSurface = find.byKey(
+        const ValueKey<String>('maat-flow-discovery-view'),
         skipOffstage: false,
       );
       final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
-      expect(listAppBar, findsOneWidget);
+      expect(listSurface, findsOneWidget);
       expect(detailBack, findsOneWidget);
 
-      final listRoute = ModalRoute.of(tester.element(listAppBar));
+      final listRoute = ModalRoute.of(tester.element(listSurface));
       final detailRoute = ModalRoute.of(tester.element(detailBack));
       expect(listRoute, isA<MaterialPageRoute<dynamic>>());
       expect(detailRoute, isA<MaterialPageRoute<dynamic>>());
@@ -137,11 +147,4 @@ Future<void> _pumpFlowStudio(WidgetTester tester, Uri initialUri) async {
   addTearDown(router.dispose);
   await tester.pumpWidget(MaterialApp.router(routerConfig: router));
   await tester.pump();
-}
-
-Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
-  for (var attempt = 0; attempt < 40 && finder.evaluate().isEmpty; attempt++) {
-    await tester.pump(const Duration(milliseconds: 100));
-  }
-  await tester.pumpAndSettle();
 }

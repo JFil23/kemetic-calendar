@@ -7,10 +7,11 @@ import '../../support/maat_flow_visual_test_fonts.dart';
 const _captureDiscoveryVisuals = bool.fromEnvironment(
   'CAPTURE_MAAT_FLOW_DISCOVERY_VISUALS',
 );
+const _goldenRoot = '../../visual_reference/maat_flows/goldens';
 
 void main() {
   setUpAll(() async {
-    if (_captureDiscoveryVisuals) await loadMaatFlowVisualTestFonts();
+    await loadMaatFlowVisualTestFonts();
   });
 
   Future<void> pumpDiscovery(
@@ -23,9 +24,12 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       MaterialApp(
+        debugShowCheckedModeBanner: false,
         home: MediaQuery(
           data: MediaQueryData(
             size: size,
+            padding: const EdgeInsets.only(top: 32),
+            viewPadding: const EdgeInsets.only(top: 32),
             textScaler: TextScaler.linear(textScale),
           ),
           child: RepaintBoundary(
@@ -35,6 +39,19 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
+    final discoveryContext = tester.element(find.byType(MaatFlowDiscoveryView));
+    Object? heroLoadError;
+    for (final card in kFourMaatFlowDiscoveryFixtures) {
+      await tester.runAsync(
+        () => precacheImage(
+          AssetImage(card.heroAsset),
+          discoveryContext,
+          onError: (exception, stackTrace) => heroLoadError = exception,
+        ),
+      );
+    }
+    expect(heroLoadError, isNull);
     await tester.pumpAndSettle();
   }
 
@@ -83,12 +100,21 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Carry this flow'), findsOneWidget);
-    final carry = find.byKey(const ValueKey<String>('maat-flow-discovery-carry'));
+    final carry = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-carry'),
+    );
     await tester.ensureVisible(carry);
     await tester.pumpAndSettle();
     await tester.tap(carry);
     await tester.pump();
     expect(opened, 'track-the-sky');
+    await tester.drag(
+      find.byKey(
+        const ValueKey<String>('maat-flow-discovery-detail-track-the-sky'),
+      ),
+      const Offset(0, 2000),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const ValueKey<String>('maat-flow-discovery-back')),
     );
@@ -108,6 +134,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('tracks the complete four-card discovery scroll inventory', (
+    tester,
+  ) async {
+    await pumpDiscovery(tester, size: const Size(390, 844), onOpen: (_) {});
+    for (final state in const <({String flowKey, String golden})>[
+      (
+        flowKey: 'the-offering-table',
+        golden: 'maat-flow-discovery-offering-390x844.png',
+      ),
+      (
+        flowKey: 'the-reading-house',
+        golden: 'maat-flow-discovery-reading-house-390x844.png',
+      ),
+      (flowKey: 'the-djed', golden: 'maat-flow-discovery-djed-390x844.png'),
+    ]) {
+      final card = find.byKey(
+        ValueKey<String>('maat-flow-discovery-card-${state.flowKey}'),
+      );
+      await tester.scrollUntilVisible(
+        card,
+        420,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byKey(const ValueKey<String>('discovery-visual-capture')),
+        matchesGoldenFile('$_goldenRoot/${state.golden}'),
+      );
+    }
+  });
+
   for (final fixture in <(String, Size, double)>[
     ('minimum', const Size(320, 700), 1),
     ('mockup', const Size(390, 844), 1),
@@ -122,11 +179,17 @@ void main() {
         onOpen: (_) {},
       );
       expect(tester.takeException(), isNull);
-      if (!_captureDiscoveryVisuals) return;
-      await expectLater(
-        find.byKey(const ValueKey<String>('discovery-visual-capture')),
-        matchesGoldenFile('/tmp/maat-flow-discovery-${fixture.$1}.png'),
-      );
+      final goldenPath = fixture.$1 == 'mockup'
+          ? '$_goldenRoot/maat-flow-discovery-390x844.png'
+          : _captureDiscoveryVisuals
+          ? '/tmp/maat-flow-discovery-${fixture.$1}.png'
+          : null;
+      if (goldenPath != null) {
+        await expectLater(
+          find.byKey(const ValueKey<String>('discovery-visual-capture')),
+          matchesGoldenFile(goldenPath),
+        );
+      }
     });
   }
 }

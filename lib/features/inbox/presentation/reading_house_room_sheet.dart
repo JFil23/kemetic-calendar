@@ -159,7 +159,11 @@ class _ReadingHouseRoomSheetState extends State<ReadingHouseRoomSheet> {
               child: IconButton(
                 key: const ValueKey<String>('reading-house-chat-sheet-close'),
                 onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close, size: 28, color: Color(0xFFD8B23C)),
+                icon: const Icon(
+                  Icons.close,
+                  size: 28,
+                  color: Color(0xFFD8B23C),
+                ),
               ),
             ),
             Positioned(
@@ -175,6 +179,9 @@ class _ReadingHouseRoomSheetState extends State<ReadingHouseRoomSheet> {
                 onSendMessage: _send,
                 onDeleteMessage: _delete,
                 onJumpToLatest: () => unawaited(_moveToLatest()),
+                messagesTopAligned: true,
+                showRoomPeople: false,
+                showDeleteAffordance: false,
               ),
             ),
           ],

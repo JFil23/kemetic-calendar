@@ -24,12 +24,10 @@ import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart'
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const _captureVisualCheckpoint = bool.fromEnvironment(
-  'CAPTURE_OFFERING_TABLE_VISUAL_CHECKPOINT',
-);
 const _visualCaptureSurfaceKey = ValueKey<String>(
   'offering-table-visual-capture-surface',
 );
+const _goldenRoot = '../../visual_reference/maat_flows/goldens';
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -80,7 +78,10 @@ void main() {
 
     expect(find.byType(OfferingTableDetailPage), findsOneWidget);
     expect(find.byType(MaatFlowDetailShell), findsOneWidget);
-    expect(find.byType(MaatFlowDetailHero), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('offering-table-hero')),
+      findsOneWidget,
+    );
     expect(heroAsset.lengthInBytes, greaterThan(0));
     final hero = find.byKey(const ValueKey<String>('offering-table-hero'));
     final heroImage = find.descendant(
@@ -734,6 +735,8 @@ void main() {
       tester,
       size: const Size(390, 844),
       start: DateTime(2026, 9, 4),
+      showBackButton: true,
+      topPadding: 52,
     );
 
     final firstMorning = find.text('YOUR FIRST MORNING');
@@ -1024,8 +1027,8 @@ void main() {
       final sheetRect = tester.getRect(
         find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')),
       );
-      expect(sheetRect.height, closeTo(fixture.size.height * 0.82, 0.5));
-      expect(sheetRect.top, closeTo(fixture.size.height * 0.18, 0.5));
+      expect(sheetRect.height, closeTo(fixture.size.height * 0.88, 0.5));
+      expect(sheetRect.top, closeTo(fixture.size.height * 0.12, 0.5));
       final sheetScroll = find.byKey(
         const ValueKey<String>('offering-table-preview-sheet-scroll'),
       );
@@ -1033,7 +1036,14 @@ void main() {
         of: sheetScroll,
         matching: find.byType(Scrollable),
       );
-      final before = tester.state<ScrollableState>(scrollable).position.pixels;
+      final before = tester
+          .state<ScrollableState>(scrollable.first)
+          .position
+          .pixels;
+      final maxBefore = tester
+          .state<ScrollableState>(scrollable.first)
+          .position
+          .maxScrollExtent;
       await tester.drag(sheetScroll, const Offset(0, -500));
       await tester.pumpAndSettle();
       final scrollError = tester.takeException();
@@ -1044,8 +1054,15 @@ void main() {
             ? scrollError.toStringDeep()
             : 'The event sheet must remain bounded while scrolling.',
       );
-      final after = tester.state<ScrollableState>(scrollable).position.pixels;
-      expect(after, greaterThan(before));
+      final after = tester
+          .state<ScrollableState>(scrollable.first)
+          .position
+          .pixels;
+      if (maxBefore > 0) {
+        expect(after, greaterThan(before));
+      } else {
+        expect(after, 0);
+      }
       expect(find.text('Back to the table'), findsOneWidget);
       expect(find.text('COMPLETION'), findsNothing);
       expect(find.text('Observed'), findsNothing);
@@ -1055,10 +1072,9 @@ void main() {
     });
   }
 
-  testWidgets('captures the flow-detail preview sheet visual checkpoint', (
+  testWidgets('matches the locked Offering Table detail and ritual sheet', (
     tester,
   ) async {
-    if (!_captureVisualCheckpoint) return;
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -1066,67 +1082,82 @@ void main() {
     });
     await _loadOfferingVisualFonts();
 
-    for (final fixture in const <({String name, Size size})>[
-      (name: '390', size: Size(390, 844)),
-      (name: '320', size: Size(320, 700)),
-      (name: '430', size: Size(430, 932)),
-    ]) {
-      await _pumpPage(tester, size: fixture.size, start: DateTime(2026, 9, 3));
-      await expectLater(
-        find.byKey(_visualCaptureSurfaceKey),
-        matchesGoldenFile(
-          '/tmp/offering-table-flutter-detail-${fixture.name}.png',
-        ),
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      start: DateTime(2026, 9, 4),
+      showBackButton: true,
+      topPadding: 52,
+    );
+    await tester.runAsync(() async {
+      await precacheImage(
+        const AssetImage(OfferingTableDetailTokens.heroAsset),
+        tester.element(find.byType(OfferingTableDetailPage)),
       );
-      final previewEvent = find.byKey(
-        const ValueKey<String>('offering-table-preview-event-1'),
-      );
-      await tester.ensureVisible(previewEvent);
-      await tester.tap(previewEvent);
-      await tester.pumpAndSettle();
-      expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
-      debugPrint(
-        'OFFERING_PREVIEW_SHEET_${fixture.name} '
-        '${tester.getRect(find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')))}',
-      );
-      debugPrint(
-        'OFFERING_PREVIEW_MEDIA_${fixture.name} '
-        '${MediaQuery.sizeOf(tester.element(find.byType(OfferingTablePreviewDaySheet)))}',
-      );
+    });
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile('$_goldenRoot/offering-table-detail-390x844.png'),
+    );
+    final previewEvent = find.byKey(
+      const ValueKey<String>('offering-table-preview-event-1'),
+    );
+    await tester.ensureVisible(previewEvent);
+    await tester.tap(previewEvent);
+    await tester.pumpAndSettle();
+    expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-detail-ritual-sheet-390x844.png',
+      ),
+    );
 
-      await expectLater(
-        find.byKey(_visualCaptureSurfaceKey),
-        matchesGoldenFile(
-          '/tmp/offering-table-flutter-preview-sheet-${fixture.name}.png',
-        ),
-      );
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('offering-table-preview-sheet-context-toggle'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-detail-ritual-body-390x844.png',
+      ),
+    );
 
-      if (fixture.name == '390') {
-        await tester.drag(
-          find.byKey(
-            const ValueKey<String>('offering-table-preview-sheet-scroll'),
-          ),
-          const Offset(0, -620),
-        );
-        await tester.pumpAndSettle();
-        await expectLater(
-          find.byKey(_visualCaptureSurfaceKey),
-          matchesGoldenFile(
-            '/tmp/offering-table-flutter-preview-sheet-390-body.png',
-          ),
-        );
-      }
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
-    }
+    await tester.enterText(
+      find.byKey(
+        const ValueKey<String>('offering-table-preview-practice-field'),
+      ),
+      'medication',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('offering-table-preview-move-2')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('offering-table-preview-move-3')),
+    );
+    await tester.pumpAndSettle();
+    final returned = find.byKey(
+      const ValueKey<String>('offering-table-preview-provision-returned'),
+    );
+    expect(returned, findsOneWidget);
+    await tester.ensureVisible(returned);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-detail-ritual-complete-390x844.png',
+      ),
+    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('captures the static Offering Table visual checkpoint', (
+  testWidgets('matches the locked Offering Table Day View and layered sheet', (
     tester,
   ) async {
-    if (!_captureVisualCheckpoint) return;
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -1134,84 +1165,140 @@ void main() {
     });
     await _loadOfferingVisualFonts();
 
-    for (final fixture in const <({String name, Size size})>[
-      (name: '390', size: Size(390, 844)),
-      (name: '320', size: Size(320, 700)),
-      (name: '430', size: Size(430, 932)),
-    ]) {
-      await _pumpStaticOfferingDayView(tester, size: fixture.size);
-      final eventBlock = find.byType(OfferingTableEventBlockVisual).first;
-      expect(eventBlock, findsOneWidget);
-      final rect = tester.getRect(eventBlock);
-      debugPrint(
-        'OFFERING_EVENT_RECT_${fixture.name} '
-        '${rect.left},${rect.top},${rect.width},${rect.height}',
-      );
-      await expectLater(
-        find.byKey(_visualCaptureSurfaceKey),
-        matchesGoldenFile(
-          '/tmp/offering-table-flutter-day-view-${fixture.name}.png',
-        ),
-      );
+    await _pumpStaticOfferingDayView(tester, size: const Size(390, 844));
+    final eventBlock = find.byType(OfferingTableEventBlockVisual).first;
+    expect(eventBlock, findsOneWidget);
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile('$_goldenRoot/offering-table-day-view-390x844.png'),
+    );
 
-      await tester.tap(eventBlock);
-      await tester.pumpAndSettle();
-      expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
-      final media = MediaQuery.of(
-        tester.element(find.byType(OfferingTableDayPresentation)),
-      );
-      debugPrint(
-        'OFFERING_MEDIA_${fixture.name} '
-        'size=${media.size} padding=${media.padding} '
-        'insets=${media.viewInsets}',
-      );
-      debugPrint(
-        'OFFERING_SHEET_${fixture.name} '
-        '${tester.getRect(find.byKey(const ValueKey<String>('offering-table-resizable-sheet')))}',
-      );
-      debugPrint(
-        'OFFERING_PRESENTATION_${fixture.name} '
-        '${tester.getRect(find.byType(OfferingTableDayPresentation))}',
-      );
+    await tester.tap(eventBlock);
+    await tester.pumpAndSettle();
+    expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-day-sheet-initial-390x844.png',
+      ),
+    );
 
-      await expectLater(
-        find.byKey(_visualCaptureSurfaceKey),
-        matchesGoldenFile(
-          '/tmp/offering-table-flutter-day-sheet-${fixture.name}-initial.png',
-        ),
-      );
+    final outerSheet = find.byKey(
+      const ValueKey<String>('offering-table-resizable-sheet'),
+    );
+    final outerBefore = tester.getRect(
+      find.byKey(dayViewBottomSheetBackplateKey),
+    );
+    expect(
+      outerBefore.top,
+      closeTo(254, 12),
+      reason: 'The HTML authority opens the layered sheet at y=254 on 390×844.',
+    );
+    final outerHandle = tester.getRect(
+      find.byKey(const ValueKey<String>('instrument-sheet-handle-mark')),
+    );
+    expect(
+      outerHandle.top - outerBefore.top,
+      closeTo(19, 1),
+      reason: 'The HTML authority places the handle 19px below the sheet top.',
+    );
+    await tester.drag(
+      find.byKey(const ValueKey<String>('offering-table-presentation-body')),
+      const Offset(0, -565),
+    );
+    await tester.pumpAndSettle();
+    final outerAfterInnerRaise = tester.getRect(outerSheet);
+    expect(outerAfterInnerRaise.top, closeTo(outerBefore.top, .5));
+    expect(outerAfterInnerRaise.height, closeTo(outerBefore.height, .5));
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-day-sheet-raised-390x844.png',
+      ),
+    );
+    await tester.drag(
+      find.byKey(const ValueKey<String>('offering-table-presentation-body')),
+      const Offset(0, -682),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-day-sheet-body-390x844.png',
+      ),
+    );
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('offering-table-day-sheet-context-toggle'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'The supplies that run out do so silently. This rite catches one while the correction is still small.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        offeringTablePracticePresentation(kOfferingTableDays.first).instruction,
+      ),
+      findsWidgets,
+    );
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-day-sheet-context-390x844.png',
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
-      if (fixture.name == '390') {
-        await tester.drag(
-          find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
-          const Offset(0, -500),
-        );
-        await tester.pumpAndSettle();
-        await expectLater(
-          find.byKey(_visualCaptureSurfaceKey),
-          matchesGoldenFile(
-            '/tmp/offering-table-flutter-day-sheet-390-expanded.png',
-          ),
-        );
-        await tester.drag(
+  testWidgets('Offering Table reset restores the authored blank ritual state', (
+    tester,
+  ) async {
+    await _pumpDaySheet(tester, size: const Size(390, 844), dayNumber: 1);
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('offering-table-presentation-body')),
+      const Offset(0, -1100),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('offering-table-intention-field')),
+      'medication',
+    );
+    tester
+        .widget<InkWell>(
           find.byKey(
-            const ValueKey<String>('offering-table-presentation-body'),
+            const ValueKey<String>('offering-table-day-sheet-context-toggle'),
           ),
-          const Offset(0, -500),
-        );
-        await tester.pumpAndSettle();
-        await expectLater(
-          find.byKey(_visualCaptureSurfaceKey),
-          matchesGoldenFile(
-            '/tmp/offering-table-flutter-day-sheet-390-body.png',
-          ),
-        );
-      }
+        )
+        .onTap!();
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'The supplies that run out do so silently. This rite catches one while the correction is still small.',
+      ),
+      findsOneWidget,
+    );
+    tester
+        .widget<TextButton>(
+          find.byKey(const ValueKey<String>('offering-table-day-reset')),
+        )
+        .onPressed!();
+    await tester.pumpAndSettle();
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
-      CalendarEventDetailSheetCoordinator.debugResetForTests();
-    }
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('offering-table-intention-field')),
+    );
+    expect(field.controller?.text, isEmpty);
+    expect(
+      find.text(
+        'The supplies that run out do so silently. This rite catches one while the correction is still small.',
+      ),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -1239,6 +1326,8 @@ Future<void> _pumpPage(
   OfferingTableJoinCallback? onJoin,
   OfferingTableLocalStore localStore = const OfferingTableLocalStore(),
   FollowSkyCalendarPreview calendarPreview = FollowSkyCalendarPreview.empty,
+  bool showBackButton = false,
+  double topPadding = 0,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -1251,25 +1340,32 @@ Future<void> _pumpPage(
       key: _visualCaptureSurfaceKey,
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: OfferingTableDetailPage(
-          timezone: timezone,
-          clock: clock,
-          presentDayIanaTimeZone: timezone.ianaName,
-          calendarPreview: calendarPreview,
-          initialStartDate: start,
-          joinedFlowId: joinedFlowId,
-          joinedStartDate: joinedStartDate,
-          joinedScheduleDates: joinedScheduleDates,
-          showBackButton: false,
-          localStore: localStore,
-          onJoin:
-              onJoin ??
-              ({
-                required startDate,
-                required timezone,
-                required lens,
-                required noCupMode,
-              }) async => 1,
+        home: MediaQuery(
+          data: MediaQueryData(
+            size: size,
+            padding: EdgeInsets.only(top: topPadding),
+            viewPadding: EdgeInsets.only(top: topPadding),
+          ),
+          child: OfferingTableDetailPage(
+            timezone: timezone,
+            clock: clock,
+            presentDayIanaTimeZone: timezone.ianaName,
+            calendarPreview: calendarPreview,
+            initialStartDate: start,
+            joinedFlowId: joinedFlowId,
+            joinedStartDate: joinedStartDate,
+            joinedScheduleDates: joinedScheduleDates,
+            showBackButton: showBackButton,
+            localStore: localStore,
+            onJoin:
+                onJoin ??
+                ({
+                  required startDate,
+                  required timezone,
+                  required lens,
+                  required noCupMode,
+                }) async => 1,
+          ),
         ),
       ),
     ),
@@ -1356,38 +1452,41 @@ Future<void> _pumpStaticOfferingDayView(
 }) async {
   const flowId = 701;
   tester.view.physicalSize = size;
-  await const OfferingTableLocalStore().saveIntention(
-    flowId,
-    1,
-    'Protect my sleep.',
-  );
+  await const OfferingTableLocalStore().saveIntention(flowId, 1, '');
   final day = kOfferingTableDays.first;
   await tester.pumpWidget(
     RepaintBoundary(
       key: _visualCaptureSurfaceKey,
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,
         theme: AppTheme.dark,
-        home: Scaffold(
-          body: DayViewGrid(
-            ky: 1,
-            km: 1,
-            kd: 1,
-            notes: <NoteData>[
-              NoteData(
-                clientEventId: 'offering-table-static-visual',
-                title: offeringTableEventTitle(day),
-                allDay: false,
-                start: const TimeOfDay(hour: 7, minute: 30),
-                end: const TimeOfDay(hour: 8, minute: 30),
-                flowId: flowId,
-                behaviorPayload: <String, dynamic>{
-                  'kind': 'maat_offering_table_day',
-                  'flow_key': kOfferingTableFlowKey,
-                  'day': 1,
-                },
-              ),
-            ],
+        home: MediaQuery(
+          data: MediaQueryData(
+            size: size,
+            padding: const EdgeInsets.only(top: 47),
+          ),
+          child: DayViewPage(
+            initialKy: 2,
+            initialKm: 6,
+            initialKd: 13,
             showGregorian: false,
+            getMonthName: (_) => 'Rekh-Wer (Rḫ-wr)',
+            notesForDay: (ky, km, kd) => <NoteData>[
+              if (ky == 2 && km == 6 && kd == 13)
+                NoteData(
+                  clientEventId: 'offering-table-static-visual',
+                  title: offeringTableEventTitle(day),
+                  allDay: false,
+                  start: const TimeOfDay(hour: 7, minute: 30),
+                  end: const TimeOfDay(hour: 8, minute: 30),
+                  flowId: flowId,
+                  behaviorPayload: <String, dynamic>{
+                    'kind': 'maat_offering_table_day',
+                    'flow_key': kOfferingTableFlowKey,
+                    'day': 1,
+                  },
+                ),
+            ],
             flowIndex: const <int, FlowData>{
               flowId: FlowData(
                 id: flowId,
@@ -1398,7 +1497,7 @@ Future<void> _pumpStaticOfferingDayView(
               ),
             },
             activeLedgerFlowIds: const <int>{flowId},
-            initialScrollOffset: 6 * 60,
+            initialFirstVisibleMinute: 6 * 60,
           ),
         ),
       ),

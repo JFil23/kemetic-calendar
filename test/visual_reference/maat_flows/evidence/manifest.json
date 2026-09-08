@@ -1,0 +1,796 @@
+{
+  "method": {
+    "reference": "rendered from supplied HTML plus deterministic state driver",
+    "app": "actual production Flutter screen/widget rendered by widget test; Day View states use DayViewPage rather than an isolated grid",
+    "normalization": "Only mock phone/status chrome is excluded: Discovery reserves the app's 32 px OS safe area, while Reading House and Offering Table Day View comparisons mask the shared 47 px status-bar area on both sides. No authored app surface is resized, recolored, blurred, or masked.",
+    "overlay": "50/50 HTML and Flutter blend",
+    "difference": "absolute RGB difference, contrast-amplified for inspection",
+    "acceptance": "human inspection of every contact sheet; metrics are diagnostic only"
+  },
+  "explained_context_differences": [
+    {
+      "states": [
+        "djed-day-view",
+        "reading-house-day-view",
+        "offering-day-view"
+      ],
+      "difference": "The raw app captures include the real shared Day View header, mini-calendar behavior, and floating shortcuts. The HTML files use illustrative phone/status glyphs and simplified shared chrome.",
+      "reason": "The user explicitly froze shared Day View; acceptance for these authorities governs the authored event block and opened sheet. Raw full-screen captures remain available so the context difference is visible."
+    },
+    {
+      "states": [
+        "djed-day-view",
+        "djed-day-sheet",
+        "djed-day-sheet-docked"
+      ],
+      "difference": "The three ordinary context events use production scheduled-event cards in Flutter and simplified unlabeled bars in the HTML fixture.",
+      "reason": "Those events are surrounding calendar context, not Djed-authored surfaces. Their titles, times, and colors are retained in the raw app fixture."
+    },
+    {
+      "states": [
+        "offering-day-view",
+        "offering-day-sheet",
+        "offering-day-sheet-docked",
+        "offering-day-sheet-bottom",
+        "offering-day-sheet-context"
+      ],
+      "difference": "The HTML labels the event 7:30 AM but positions it near the 9:30 row, and pairs Rekh-Wer 13 with FRI SEP 4. Flutter places the event on the real 7:30 row and maps Rekh-Wer 13 through canonical Kemetic date math to SAT AUG 29.",
+      "reason": "The reference is internally inconsistent. The event-block and sheet visuals follow the HTML; schedule placement and Gregorian metadata retain the functioning canonical calendar behavior the user said not to change."
+    },
+    {
+      "states": [
+        "reading-house-day-view",
+        "reading-house-day-sheet",
+        "reading-house-day-sheet-docked",
+        "reading-house-day-sheet-bottom"
+      ],
+      "difference": "The HTML clips a late-day timeline after 9 PM; production Day View keeps midnight reachable and therefore clamps the late-day scroll, leaving the 7 PM block about 24 px lower in the raw viewport.",
+      "reason": "The Reading House block remains at 7 PM in both and has matching authored geometry. The difference belongs to frozen shared timeline behavior."
+    },
+    {
+      "states": [
+        "all"
+      ],
+      "difference": "Browser CSS and Flutter/Skia have small anti-aliasing and platform-glyph rasterization differences.",
+      "reason": "These are reviewed only as renderer artifacts; they do not excuse changed bounds, line breaks, artwork geometry, palette values, copy, or interaction state."
+    }
+  ],
+  "authorities": {
+    "djed-detail": {
+      "file": "djed-detail-page-v12-ember-eventblocks.html",
+      "sha256": "4c2d20bffbf6ce62341bde5feaa6c6edadfdeaf7c72bff89a5f369fdedc5316d"
+    },
+    "djed-day": {
+      "file": "djed-day-view-amber-v8-exact-eventblock.html",
+      "sha256": "fa203d52bedadb5c261485df6e9a77ad8294fe7531781ac7473bfafbcb380308"
+    },
+    "reading-house-detail": {
+      "file": "reading-house-detail-featured-scroll-icon.html",
+      "sha256": "d279691c7443453fb1509562767d3c94337f02e6a431af3262f61de87d345cc3"
+    },
+    "reading-house-inbox": {
+      "file": "reading-house-inbox-invites-mockup-v4.html",
+      "sha256": "be8bad3e14fb18e83bbc185619242867d2f835c719874d3bbdf1f1d3f69358aa"
+    },
+    "reading-house-day": {
+      "file": "reading-house-day-view-v16.html",
+      "sha256": "ba77134ddcd137d9fd79d450dd04b2cef8650e579dabb8d1df9baad8e14cdb0c"
+    },
+    "offering-day": {
+      "file": "offering-table-day-view-bottom-detail-sheet-layered-v8.html",
+      "sha256": "20e3619a6905c2e1d124da7a14def6f911107c79a89bf8da055ab361815a7bdb"
+    },
+    "offering-detail": {
+      "file": "offering-table-bottom-sheet-ritual-first-mockup (7).html",
+      "sha256": "6dd08f89eee3128a37df26cf2ec76d3b2789a57e13f12e422556e0d8d42975af"
+    },
+    "discovery": {
+      "file": "maat-flow-discovery-copy-v3.html",
+      "sha256": "1d0559d15ff0d60b842739d22c125330590d19ce6aa09d253ba48f89f6e51ade"
+    }
+  },
+  "pairs": [
+    {
+      "state": "djed-detail-hero",
+      "authority": {
+        "file": "djed-detail-page-v12-ember-eventblocks.html",
+        "sha256": "4c2d20bffbf6ce62341bde5feaa6c6edadfdeaf7c72bff89a5f369fdedc5316d"
+      },
+      "golden": "djed-detail-390x844.png",
+      "scope": "full detail viewport",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 10.2934,
+        "changed_pixels_over_8": 112369,
+        "changed_pixel_percent_over_8": 34.1381
+      }
+    },
+    {
+      "state": "djed-detail-supports",
+      "authority": {
+        "file": "djed-detail-page-v12-ember-eventblocks.html",
+        "sha256": "4c2d20bffbf6ce62341bde5feaa6c6edadfdeaf7c72bff89a5f369fdedc5316d"
+      },
+      "golden": "djed-detail-supports-390x844.png",
+      "scope": "support editor scroll checkpoint",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 6.9997,
+        "changed_pixels_over_8": 47974,
+        "changed_pixel_percent_over_8": 14.5747
+      }
+    },
+    {
+      "state": "djed-detail-support-2-selected",
+      "authority": {
+        "file": "djed-detail-page-v12-ember-eventblocks.html",
+        "sha256": "4c2d20bffbf6ce62341bde5feaa6c6edadfdeaf7c72bff89a5f369fdedc5316d"
+      },
+      "golden": "djed-detail-support-2-selected-390x844.png",
+      "scope": "support 2 selected in row and spine",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 7.0995,
+        "changed_pixels_over_8": 47062,
+        "changed_pixel_percent_over_8": 14.2976
+      }
+    },
+    {
+      "state": "djed-day-view",
+      "authority": {
+        "file": "djed-day-view-amber-v8-exact-eventblock.html",
+        "sha256": "fa203d52bedadb5c261485df6e9a77ad8294fe7531781ac7473bfafbcb380308"
+      },
+      "golden": "djed-day-view-390x844.png",
+      "scope": "authored event block in Day View",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 11.622,
+        "changed_pixels_over_8": 85432,
+        "changed_pixel_percent_over_8": 25.9546
+      }
+    },
+    {
+      "state": "djed-day-sheet",
+      "authority": {
+        "file": "djed-day-view-amber-v8-exact-eventblock.html",
+        "sha256": "fa203d52bedadb5c261485df6e9a77ad8294fe7531781ac7473bfafbcb380308"
+      },
+      "golden": "djed-day-sheet-390x844.png",
+      "scope": "initial layered detail sheet",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 7.676,
+        "changed_pixels_over_8": 98975,
+        "changed_pixel_percent_over_8": 30.069
+      }
+    },
+    {
+      "state": "djed-day-sheet-docked",
+      "authority": {
+        "file": "djed-day-view-amber-v8-exact-eventblock.html",
+        "sha256": "fa203d52bedadb5c261485df6e9a77ad8294fe7531781ac7473bfafbcb380308"
+      },
+      "golden": "djed-day-sheet-practice-raised-production-390x844.png",
+      "scope": "inner practice card docked",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 10.013,
+        "changed_pixels_over_8": 69602,
+        "changed_pixel_percent_over_8": 21.1453
+      }
+    },
+    {
+      "state": "djed-day-result",
+      "authority": {
+        "file": "djed-day-view-amber-v8-exact-eventblock.html",
+        "sha256": "fa203d52bedadb5c261485df6e9a77ad8294fe7531781ac7473bfafbcb380308"
+      },
+      "golden": "djed-day-result-390x720.png",
+      "scope": "result state",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        720
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 10.5163,
+        "changed_pixels_over_8": 112826,
+        "changed_pixel_percent_over_8": 40.1802
+      }
+    },
+    {
+      "state": "djed-day-retry",
+      "authority": {
+        "file": "djed-day-view-amber-v8-exact-eventblock.html",
+        "sha256": "fa203d52bedadb5c261485df6e9a77ad8294fe7531781ac7473bfafbcb380308"
+      },
+      "golden": "djed-day-retry-390x720.png",
+      "scope": "smaller retry state",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        720
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 10.2045,
+        "changed_pixels_over_8": 112983,
+        "changed_pixel_percent_over_8": 40.2361
+      }
+    },
+    {
+      "state": "djed-day-raising",
+      "authority": {
+        "file": "djed-day-view-amber-v8-exact-eventblock.html",
+        "sha256": "fa203d52bedadb5c261485df6e9a77ad8294fe7531781ac7473bfafbcb380308"
+      },
+      "golden": "djed-day-raising-390x720.png",
+      "scope": "final raising state",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        720
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 11.4015,
+        "changed_pixels_over_8": 128042,
+        "changed_pixel_percent_over_8": 45.599
+      }
+    },
+    {
+      "state": "reading-house-detail-hero",
+      "authority": {
+        "file": "reading-house-detail-featured-scroll-icon.html",
+        "sha256": "d279691c7443453fb1509562767d3c94337f02e6a431af3262f61de87d345cc3"
+      },
+      "golden": "reading-house-detail-390x844.png",
+      "scope": "full detail hero viewport",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 10.2709,
+        "changed_pixels_over_8": 85926,
+        "changed_pixel_percent_over_8": 26.1046
+      }
+    },
+    {
+      "state": "reading-house-detail-setup",
+      "authority": {
+        "file": "reading-house-detail-featured-scroll-icon.html",
+        "sha256": "d279691c7443453fb1509562767d3c94337f02e6a431af3262f61de87d345cc3"
+      },
+      "golden": "reading-house-detail-setup-390x844.png",
+      "scope": "setup scroll checkpoint",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 8.2949,
+        "changed_pixels_over_8": 44021,
+        "changed_pixel_percent_over_8": 13.3737
+      }
+    },
+    {
+      "state": "reading-house-detail-calendar",
+      "authority": {
+        "file": "reading-house-detail-featured-scroll-icon.html",
+        "sha256": "d279691c7443453fb1509562767d3c94337f02e6a431af3262f61de87d345cc3"
+      },
+      "golden": "reading-house-detail-calendar-390x844.png",
+      "scope": "calendar scroll checkpoint",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 7.4752,
+        "changed_pixels_over_8": 36869,
+        "changed_pixel_percent_over_8": 11.2009
+      }
+    },
+    {
+      "state": "reading-house-detail-sittings",
+      "authority": {
+        "file": "reading-house-detail-featured-scroll-icon.html",
+        "sha256": "d279691c7443453fb1509562767d3c94337f02e6a431af3262f61de87d345cc3"
+      },
+      "golden": "reading-house-detail-sittings-390x844.png",
+      "scope": "sittings scroll checkpoint",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 7.4798,
+        "changed_pixels_over_8": 37188,
+        "changed_pixel_percent_over_8": 11.2978
+      }
+    },
+    {
+      "state": "reading-house-inbox",
+      "authority": {
+        "file": "reading-house-inbox-invites-mockup-v4.html",
+        "sha256": "be8bad3e14fb18e83bbc185619242867d2f835c719874d3bbdf1f1d3f69358aa"
+      },
+      "golden": "reading-house-inbox-390x844.png",
+      "scope": "accepted House Inbox cell",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 14.8503,
+        "changed_pixels_over_8": 86022,
+        "changed_pixel_percent_over_8": 26.1338
+      }
+    },
+    {
+      "state": "reading-house-inbox-pending",
+      "authority": {
+        "file": "reading-house-inbox-invites-mockup-v4.html",
+        "sha256": "be8bad3e14fb18e83bbc185619242867d2f835c719874d3bbdf1f1d3f69358aa"
+      },
+      "golden": "reading-house-inbox-pending-invite-390x844.png",
+      "scope": "pending invitation sub-sheet",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 4.0365,
+        "changed_pixels_over_8": 37208,
+        "changed_pixel_percent_over_8": 11.3039
+      }
+    },
+    {
+      "state": "reading-house-inbox-chat",
+      "authority": {
+        "file": "reading-house-inbox-invites-mockup-v4.html",
+        "sha256": "be8bad3e14fb18e83bbc185619242867d2f835c719874d3bbdf1f1d3f69358aa"
+      },
+      "golden": "reading-house-inbox-chat-390x844.png",
+      "scope": "House Chat sub-sheet",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 6.9693,
+        "changed_pixels_over_8": 59108,
+        "changed_pixel_percent_over_8": 17.9572
+      }
+    },
+    {
+      "state": "reading-house-day-view",
+      "authority": {
+        "file": "reading-house-day-view-v16.html",
+        "sha256": "ba77134ddcd137d9fd79d450dd04b2cef8650e579dabb8d1df9baad8e14cdb0c"
+      },
+      "golden": "reading-house-day-view-390x844.png",
+      "scope": "authored event block in Day View",
+      "html_content_top_inset": 0,
+      "mask_top": 47,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 7.8018,
+        "changed_pixels_over_8": 45245,
+        "changed_pixel_percent_over_8": 13.7456
+      }
+    },
+    {
+      "state": "reading-house-day-sheet",
+      "authority": {
+        "file": "reading-house-day-view-v16.html",
+        "sha256": "ba77134ddcd137d9fd79d450dd04b2cef8650e579dabb8d1df9baad8e14cdb0c"
+      },
+      "golden": "reading-house-day-sheet-390x844.png",
+      "scope": "initial layered House sheet",
+      "html_content_top_inset": 0,
+      "mask_top": 47,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 9.5292,
+        "changed_pixels_over_8": 82507,
+        "changed_pixel_percent_over_8": 25.0659
+      }
+    },
+    {
+      "state": "reading-house-day-sheet-docked",
+      "authority": {
+        "file": "reading-house-day-view-v16.html",
+        "sha256": "ba77134ddcd137d9fd79d450dd04b2cef8650e579dabb8d1df9baad8e14cdb0c"
+      },
+      "golden": "reading-house-day-sheet-body-390x844.png",
+      "scope": "inner House card docked",
+      "html_content_top_inset": 0,
+      "mask_top": 47,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 8.6815,
+        "changed_pixels_over_8": 41068,
+        "changed_pixel_percent_over_8": 12.4766
+      }
+    },
+    {
+      "state": "reading-house-day-sheet-bottom",
+      "authority": {
+        "file": "reading-house-day-view-v16.html",
+        "sha256": "ba77134ddcd137d9fd79d450dd04b2cef8650e579dabb8d1df9baad8e14cdb0c"
+      },
+      "golden": "reading-house-day-sheet-bottom-390x844.png",
+      "scope": "House practice scrolled to bottom",
+      "html_content_top_inset": 0,
+      "mask_top": 47,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 6.421,
+        "changed_pixels_over_8": 34114,
+        "changed_pixel_percent_over_8": 10.364
+      }
+    },
+    {
+      "state": "reading-house-day-incoming",
+      "authority": {
+        "file": "reading-house-day-view-v16.html",
+        "sha256": "ba77134ddcd137d9fd79d450dd04b2cef8650e579dabb8d1df9baad8e14cdb0c"
+      },
+      "golden": "reading-house-day-sheet-incoming-390x720.png",
+      "scope": "incoming-message state",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        720
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 10.3248,
+        "changed_pixels_over_8": 75936,
+        "changed_pixel_percent_over_8": 27.0427
+      }
+    },
+    {
+      "state": "reading-house-day-complete",
+      "authority": {
+        "file": "reading-house-day-view-v16.html",
+        "sha256": "ba77134ddcd137d9fd79d450dd04b2cef8650e579dabb8d1df9baad8e14cdb0c"
+      },
+      "golden": "reading-house-day-sheet-complete-390x720.png",
+      "scope": "Observed completion selected",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        720
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 7.8032,
+        "changed_pixels_over_8": 72859,
+        "changed_pixel_percent_over_8": 25.9469
+      }
+    },
+    {
+      "state": "offering-day-view",
+      "authority": {
+        "file": "offering-table-day-view-bottom-detail-sheet-layered-v8.html",
+        "sha256": "20e3619a6905c2e1d124da7a14def6f911107c79a89bf8da055ab361815a7bdb"
+      },
+      "golden": "offering-table-day-view-390x844.png",
+      "scope": "authored event block in Day View",
+      "html_content_top_inset": 0,
+      "mask_top": 47,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 12.3358,
+        "changed_pixels_over_8": 78907,
+        "changed_pixel_percent_over_8": 23.9722
+      }
+    },
+    {
+      "state": "offering-day-sheet",
+      "authority": {
+        "file": "offering-table-day-view-bottom-detail-sheet-layered-v8.html",
+        "sha256": "20e3619a6905c2e1d124da7a14def6f911107c79a89bf8da055ab361815a7bdb"
+      },
+      "golden": "offering-table-day-sheet-initial-390x844.png",
+      "scope": "initial layered detail sheet",
+      "html_content_top_inset": 0,
+      "mask_top": 47,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 8.2953,
+        "changed_pixels_over_8": 92799,
+        "changed_pixel_percent_over_8": 28.1927
+      }
+    },
+    {
+      "state": "offering-day-sheet-docked",
+      "authority": {
+        "file": "offering-table-day-view-bottom-detail-sheet-layered-v8.html",
+        "sha256": "20e3619a6905c2e1d124da7a14def6f911107c79a89bf8da055ab361815a7bdb"
+      },
+      "golden": "offering-table-day-sheet-raised-390x844.png",
+      "scope": "inner ritual card docked",
+      "html_content_top_inset": 0,
+      "mask_top": 47,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 5.4489,
+        "changed_pixels_over_8": 31288,
+        "changed_pixel_percent_over_8": 9.5054
+      }
+    },
+    {
+      "state": "offering-day-sheet-bottom",
+      "authority": {
+        "file": "offering-table-day-view-bottom-detail-sheet-layered-v8.html",
+        "sha256": "20e3619a6905c2e1d124da7a14def6f911107c79a89bf8da055ab361815a7bdb"
+      },
+      "golden": "offering-table-day-sheet-body-390x844.png",
+      "scope": "ritual card scrolled to lower controls",
+      "html_content_top_inset": 0,
+      "mask_top": 47,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 4.4703,
+        "changed_pixels_over_8": 28154,
+        "changed_pixel_percent_over_8": 8.5533
+      }
+    },
+    {
+      "state": "offering-day-sheet-context",
+      "authority": {
+        "file": "offering-table-day-view-bottom-detail-sheet-layered-v8.html",
+        "sha256": "20e3619a6905c2e1d124da7a14def6f911107c79a89bf8da055ab361815a7bdb"
+      },
+      "golden": "offering-table-day-sheet-context-390x844.png",
+      "scope": "expanded context disclosure",
+      "html_content_top_inset": 0,
+      "mask_top": 47,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 5.8489,
+        "changed_pixels_over_8": 33652,
+        "changed_pixel_percent_over_8": 10.2236
+      }
+    },
+    {
+      "state": "offering-detail",
+      "authority": {
+        "file": "offering-table-bottom-sheet-ritual-first-mockup (7).html",
+        "sha256": "6dd08f89eee3128a37df26cf2ec76d3b2789a57e13f12e422556e0d8d42975af"
+      },
+      "golden": "offering-table-detail-390x844.png",
+      "scope": "full detail viewport",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 12.2842,
+        "changed_pixels_over_8": 78812,
+        "changed_pixel_percent_over_8": 23.9434
+      }
+    },
+    {
+      "state": "offering-detail-sheet",
+      "authority": {
+        "file": "offering-table-bottom-sheet-ritual-first-mockup (7).html",
+        "sha256": "6dd08f89eee3128a37df26cf2ec76d3b2789a57e13f12e422556e0d8d42975af"
+      },
+      "golden": "offering-table-detail-ritual-sheet-390x844.png",
+      "scope": "preview ritual sheet",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 7.8012,
+        "changed_pixels_over_8": 54512,
+        "changed_pixel_percent_over_8": 16.5609
+      }
+    },
+    {
+      "state": "offering-detail-context",
+      "authority": {
+        "file": "offering-table-bottom-sheet-ritual-first-mockup (7).html",
+        "sha256": "6dd08f89eee3128a37df26cf2ec76d3b2789a57e13f12e422556e0d8d42975af"
+      },
+      "golden": "offering-table-detail-ritual-body-390x844.png",
+      "scope": "preview context disclosure",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 10.0637,
+        "changed_pixels_over_8": 65656,
+        "changed_pixel_percent_over_8": 19.9465
+      }
+    },
+    {
+      "state": "offering-detail-complete",
+      "authority": {
+        "file": "offering-table-bottom-sheet-ritual-first-mockup (7).html",
+        "sha256": "6dd08f89eee3128a37df26cf2ec76d3b2789a57e13f12e422556e0d8d42975af"
+      },
+      "golden": "offering-table-detail-ritual-complete-390x844.png",
+      "scope": "preview completion state",
+      "html_content_top_inset": 0,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 13.109,
+        "changed_pixels_over_8": 88350,
+        "changed_pixel_percent_over_8": 26.841
+      }
+    },
+    {
+      "state": "discovery",
+      "authority": {
+        "file": "maat-flow-discovery-copy-v3.html",
+        "sha256": "1d0559d15ff0d60b842739d22c125330590d19ce6aa09d253ba48f89f6e51ade"
+      },
+      "golden": "maat-flow-discovery-390x844.png",
+      "scope": "Follow the Sky and list opening",
+      "html_content_top_inset": 0,
+      "mask_top": 32,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 8.3874,
+        "changed_pixels_over_8": 70040,
+        "changed_pixel_percent_over_8": 21.2784
+      }
+    },
+    {
+      "state": "discovery-offering",
+      "authority": {
+        "file": "maat-flow-discovery-copy-v3.html",
+        "sha256": "1d0559d15ff0d60b842739d22c125330590d19ce6aa09d253ba48f89f6e51ade"
+      },
+      "golden": "maat-flow-discovery-offering-390x844.png",
+      "scope": "Offering Table discovery card",
+      "html_content_top_inset": 32,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 13.1667,
+        "changed_pixels_over_8": 107355,
+        "changed_pixel_percent_over_8": 32.6148
+      }
+    },
+    {
+      "state": "discovery-reading-house",
+      "authority": {
+        "file": "maat-flow-discovery-copy-v3.html",
+        "sha256": "1d0559d15ff0d60b842739d22c125330590d19ce6aa09d253ba48f89f6e51ade"
+      },
+      "golden": "maat-flow-discovery-reading-house-390x844.png",
+      "scope": "Reading House discovery card",
+      "html_content_top_inset": 32,
+      "mask_top": 0,
+      "size": [
+        390,
+        844
+      ],
+      "metrics": {
+        "mean_absolute_channel_error": 21.7439,
+        "changed_pixels_over_8": 153224,
+        "changed_pixel_percent_over_8": 46.55
+      }
+    }
+  ],
+  "supplemental_product_states": [
+    {
+      "golden": "djed-day-sheet-practice-raised-390x844.png",
+      "reason": "Presentation-frame coverage of the same authored raised state; the direct production-screen comparison uses djed-day-sheet-practice-raised-production-390x844.png."
+    },
+    {
+      "golden": "reading-house-day-sheet-locked-390x720.png",
+      "reason": "Ended/locked write-authority safety state; the supplied HTML does not define it."
+    },
+    {
+      "golden": "reading-house-day-sheet-ended-390x720.png",
+      "reason": "Ended/locked write-authority safety state; the supplied HTML does not define it."
+    },
+    {
+      "golden": "reading-house-inbox-multiple-390x844.png",
+      "reason": "Per-House room multiplicity and isolation; the supplied Inbox HTML contains one House fixture."
+    },
+    {
+      "golden": "maat-flow-discovery-djed-390x844.png",
+      "reason": "The approved four-flow product adds Djed, but the supplied Discovery HTML contains only the other three cards."
+    }
+  ]
+}

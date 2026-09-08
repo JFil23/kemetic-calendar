@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
@@ -8,6 +12,13 @@ import 'package:mobile/features/calendar/the_reading_house/presentation/reading_
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../support/maat_flow_visual_test_fonts.dart';
+
+const _visualCaptureKey = ValueKey<String>(
+  'authored-event-block-day-view-capture',
+);
+const _goldenRoot = '../../visual_reference/maat_flows/goldens';
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -24,8 +35,21 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    const appLinksMessages = MethodChannel('com.llfbandit.app_links/messages');
+    const appLinksEvents = MethodChannel('com.llfbandit.app_links/events');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(appLinksMessages, (_) async => null);
+    messenger.setMockMethodCallHandler(appLinksEvents, (_) async {
+      scheduleMicrotask(
+        () =>
+            messenger.handlePlatformMessage(appLinksEvents.name, null, (_) {}),
+      );
+      return null;
+    });
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await _ensureSupabaseInitialized();
+    await loadMaatFlowVisualTestFonts();
   });
 
   setUp(() {
@@ -51,7 +75,10 @@ void main() {
 
       expect(find.byType(DjedEventBlockVisual), findsOneWidget);
       expect(find.text(kDjedSittingFixtures.first.title), findsOneWidget);
-      expect(find.text('name the four parts that need strengthening'), findsOneWidget);
+      expect(
+        find.text('name the four parts that need strengthening'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     },
   );
@@ -65,6 +92,8 @@ void main() {
         flowName: kReadingHouseTitle,
         flowKey: kReadingHouseFlowKey,
         title: 'Open the Text',
+        start: const TimeOfDay(hour: 19, minute: 0),
+        firstVisibleMinute: 14 * 60,
         payload: const <String, dynamic>{
           'kind': 'maat_reading_house_sitting',
           'flow_key': kReadingHouseFlowKey,
@@ -73,9 +102,10 @@ void main() {
 
       expect(find.byType(ReadingHouseEventBlockVisual), findsOneWidget);
       expect(find.text(kReadingHouseSittings.first.title), findsOneWidget);
-      expect(
-        find.text('THE READING HOUSE · SITTING 01'),
-        findsOneWidget,
+      expect(find.text('THE READING HOUSE · SITTING 01'), findsOneWidget);
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('$_goldenRoot/reading-house-day-view-390x844.png'),
       );
       expect(tester.takeException(), isNull);
     },
@@ -89,6 +119,8 @@ Future<void> _pumpDayView(
   required String flowKey,
   required String title,
   required Map<String, dynamic> payload,
+  TimeOfDay start = const TimeOfDay(hour: 7, minute: 30),
+  int firstVisibleMinute = 6 * 60,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -96,35 +128,46 @@ Future<void> _pumpDayView(
   addTearDown(tester.view.resetDevicePixelRatio);
 
   await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: DayViewGrid(
-          ky: 1,
-          km: 1,
-          kd: 1,
-          notes: <NoteData>[
-            NoteData(
-              clientEventId: 'authored-event-$flowId',
-              title: title,
-              allDay: false,
-              start: const TimeOfDay(hour: 7, minute: 30),
-              end: const TimeOfDay(hour: 8, minute: 30),
-              flowId: flowId,
-              behaviorPayload: payload,
-            ),
-          ],
-          showGregorian: false,
-          flowIndex: <int, FlowData>{
-            flowId: FlowData(
-              id: flowId,
-              name: flowName,
-              color: const Color(0xFFC99A3D),
-              active: true,
-              notes: 'mode=gregorian;maat=$flowKey',
-            ),
-          },
-          activeLedgerFlowIds: <int>{flowId},
-          initialScrollOffset: 6 * 60,
+    RepaintBoundary(
+      key: _visualCaptureKey,
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark,
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            padding: EdgeInsets.only(top: 47),
+          ),
+          child: DayViewPage(
+            initialKy: 2,
+            initialKm: 6,
+            initialKd: 18,
+            showGregorian: false,
+            getMonthName: (_) => 'Rekh-Wer (Rḫ-wr)',
+            notesForDay: (ky, km, kd) => <NoteData>[
+              if (ky == 2 && km == 6 && kd == 18)
+                NoteData(
+                  clientEventId: 'authored-event-$flowId',
+                  title: title,
+                  allDay: false,
+                  start: start,
+                  end: TimeOfDay(hour: start.hour + 1, minute: start.minute),
+                  flowId: flowId,
+                  behaviorPayload: payload,
+                ),
+            ],
+            flowIndex: <int, FlowData>{
+              flowId: FlowData(
+                id: flowId,
+                name: flowName,
+                color: const Color(0xFFC99A3D),
+                active: true,
+                notes: 'mode=gregorian;maat=$flowKey',
+              ),
+            },
+            activeLedgerFlowIds: <int>{flowId},
+            initialFirstVisibleMinute: firstVisibleMinute,
+          ),
         ),
       ),
     ),
