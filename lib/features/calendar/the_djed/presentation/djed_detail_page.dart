@@ -5,6 +5,8 @@ import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
@@ -304,6 +306,52 @@ class _DjedDetailPageState extends State<DjedDetailPage> {
     }
   }
 
+  Future<void> _openSitting(DjedSittingFixture sitting) async {
+    final event = djedV2EventByNumber(sitting.number);
+    if (event == null) return;
+    final supportSlot = event.supportSlot ?? 1;
+    final supportName = supportSlot <= _supports.length
+        ? _supports[supportSlot - 1].name
+        : null;
+    final fixture = djedDayVisualFixtureForEvent(
+      event,
+      supportName: supportName,
+    );
+    FocusManager.instance.primaryFocus?.unfocus();
+    await showCalendarEventDetailSheetModal<void>(
+      context: context,
+      builder: (sheetContext) => InstrumentEventSheetHost(
+        key: ValueKey<String>('djed-detail-sitting-sheet-${sitting.number}'),
+        semanticLabel: 'Resize Djed sitting sheet',
+        handleColor: const Color(0xFF72571E),
+        initialExtent: .71,
+        geometry: InstrumentEventSheetGeometry.layered,
+        trailing: IconButton(
+          key: ValueKey<String>('djed-detail-sitting-close-${sitting.number}'),
+          tooltip: 'Close',
+          onPressed: () => Navigator.of(sheetContext).maybePop(),
+          icon: const Text(
+            '×',
+            style: TextStyle(
+              color: Color(0xFFB9A883),
+              fontFamily: 'GentiumPlus',
+              fontSize: 22,
+              height: 1,
+            ),
+          ),
+        ),
+        body: DjedDayPresentation(
+          fixture: fixture,
+          supports: _supports,
+          onStageAction: () {},
+          onResultSelected: (_) {},
+          onCompletionSelected: (_) {},
+        ),
+        footer: DjedDayFooterActions(onMakeTodo: () {}, onCalendar: () {}),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -327,6 +375,7 @@ class _DjedDetailPageState extends State<DjedDetailPage> {
               onSupportSelected: _selectSupport,
               onNameChanged: _updateName,
               onConditionChanged: _updateCondition,
+              onSittingPressed: _openSitting,
             ),
             bottomDock: MaatFlowDetailDock(
               theme: DjedDetailTokens.theme,
@@ -466,6 +515,7 @@ class _DjedSheet extends StatelessWidget {
     required this.onSupportSelected,
     required this.onNameChanged,
     required this.onConditionChanged,
+    required this.onSittingPressed,
   });
 
   final DateTime startDate;
@@ -477,6 +527,7 @@ class _DjedSheet extends StatelessWidget {
   final void Function(int index, String value) onNameChanged;
   final void Function(int index, DjedSupportCondition condition)
   onConditionChanged;
+  final ValueChanged<DjedSittingFixture> onSittingPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -494,7 +545,11 @@ class _DjedSheet extends StatelessWidget {
           onConditionChanged: onConditionChanged,
         ),
         _DjedThirtyDayCalendar(startDate: startDate, sittings: sittings),
-        _DjedSittings(sittings: sittings, startDate: startDate),
+        _DjedSittings(
+          sittings: sittings,
+          startDate: startDate,
+          onSittingPressed: onSittingPressed,
+        ),
         const _DjedHistory(),
       ],
     );
@@ -1257,10 +1312,15 @@ class _DjedSpineBeam extends StatelessWidget {
 }
 
 class _DjedSittings extends StatefulWidget {
-  const _DjedSittings({required this.sittings, required this.startDate});
+  const _DjedSittings({
+    required this.sittings,
+    required this.startDate,
+    required this.onSittingPressed,
+  });
 
   final List<DjedSittingFixture> sittings;
   final DateTime startDate;
+  final ValueChanged<DjedSittingFixture> onSittingPressed;
 
   @override
   State<_DjedSittings> createState() => _DjedSittingsState();
@@ -1287,6 +1347,7 @@ class _DjedSittingsState extends State<_DjedSittings> {
             _DjedScheduleCard(
               sitting: sitting,
               date: widget.startDate.add(Duration(days: sitting.flowDay - 1)),
+              onTap: () => widget.onSittingPressed(sitting),
             ),
             const SizedBox(height: 14),
           ],
@@ -1338,7 +1399,10 @@ class _DjedSittingsState extends State<_DjedSittings> {
                 ),
               ),
               for (final sitting in remaining)
-                _CompactSittingRow(sitting: sitting),
+                _CompactSittingRow(
+                  sitting: sitting,
+                  onTap: () => widget.onSittingPressed(sitting),
+                ),
             ],
           ],
         ],
@@ -1348,10 +1412,15 @@ class _DjedSittingsState extends State<_DjedSittings> {
 }
 
 class _DjedScheduleCard extends StatelessWidget {
-  const _DjedScheduleCard({required this.sitting, required this.date});
+  const _DjedScheduleCard({
+    required this.sitting,
+    required this.date,
+    required this.onTap,
+  });
 
   final DjedSittingFixture sitting;
   final DateTime date;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1384,6 +1453,7 @@ class _DjedScheduleCard extends StatelessWidget {
             phase: sitting.phase,
             timeLabel: sitting.timeLabel,
             durationLabel: sitting.durationLabel,
+            onTap: onTap,
           ),
           _DjedCalendarContextRows(sittingNumber: sitting.number),
         ],
@@ -1447,54 +1517,59 @@ class _ScheduleDate extends StatelessWidget {
 }
 
 class _CompactSittingRow extends StatelessWidget {
-  const _CompactSittingRow({required this.sitting});
+  const _CompactSittingRow({required this.sitting, required this.onTap});
   final DjedSittingFixture sitting;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: DjedDetailTokens.separator)),
-      ),
-      child: Row(
-        children: <Widget>[
-          SizedBox(
-            width: 25,
-            child: Text(
-              sitting.number.toString().padLeft(2, '0'),
-              style: _uiStyle(fontSize: 9, letterSpacing: 1),
+    return InkWell(
+      key: ValueKey<String>('djed-compact-sitting-${sitting.number}'),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: DjedDetailTokens.separator)),
+        ),
+        child: Row(
+          children: <Widget>[
+            SizedBox(
+              width: 25,
+              child: Text(
+                sitting.number.toString().padLeft(2, '0'),
+                style: _uiStyle(fontSize: 9, letterSpacing: 1),
+              ),
             ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  sitting.title,
-                  style: _displayStyle(
-                    fontSize: 18,
-                    color: const Color(0xFFD7D0C5),
-                    height: 1.08,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    sitting.title,
+                    style: _displayStyle(
+                      fontSize: 18,
+                      color: const Color(0xFFD7D0C5),
+                      height: 1.08,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Day ${sitting.flowDay} · ${sitting.timeLabel} · ${sitting.durationLabel}',
-                  style: _uiStyle(
-                    fontSize: 10.5,
-                    color: const Color(0xFF656962),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Day ${sitting.flowDay} · ${sitting.timeLabel} · ${sitting.durationLabel}',
+                    style: _uiStyle(
+                      fontSize: 10.5,
+                      color: const Color(0xFF656962),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Icon(
-            Icons.chevron_right,
-            size: 17,
-            color: DjedDetailTokens.goldDim,
-          ),
-        ],
+            const Icon(
+              Icons.chevron_right,
+              size: 17,
+              color: DjedDetailTokens.goldDim,
+            ),
+          ],
+        ),
       ),
     );
   }

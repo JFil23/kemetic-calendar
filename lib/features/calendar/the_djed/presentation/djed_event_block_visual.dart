@@ -35,6 +35,7 @@ class DjedEventBlockVisual extends StatelessWidget {
   final String? supportName;
   final String? progressCopy;
   final String? ordinalLabel;
+
   /// `-1` paints empty pips (Day View orientation). Null uses sitting defaults.
   final int? supportPipIndex;
   final DjedEventBlockSize size;
@@ -49,7 +50,7 @@ class DjedEventBlockVisual extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = size == DjedEventBlockSize.compact;
     final blockHeight = height ?? (compact ? 86.0 : 106.0);
-    final radius = BorderRadius.circular(10);
+    final radius = BorderRadius.circular(MaatEventBlockBorderTokens.radius);
     final content = Container(
       key: ValueKey<String>(
         'djed-event-block-${compact ? 'compact' : 'detail'}-$sittingNumber',
@@ -58,7 +59,10 @@ class DjedEventBlockVisual extends StatelessWidget {
       height: blockHeight,
       decoration: BoxDecoration(
         borderRadius: radius,
-        border: Border.all(color: const Color(0x70E0873C), width: 1),
+        border: Border.all(
+          color: MaatEventBlockBorderTokens.color,
+          width: MaatEventBlockBorderTokens.width,
+        ),
         gradient: const LinearGradient(
           begin: Alignment(-0.45, -1),
           end: Alignment(0.72, 1),
@@ -240,7 +244,8 @@ class _SittingPips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final supportIndex = supportPipIndex ?? _supportIndexForSitting(sittingNumber);
+    final supportIndex =
+        supportPipIndex ?? _supportIndexForSitting(sittingNumber);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[

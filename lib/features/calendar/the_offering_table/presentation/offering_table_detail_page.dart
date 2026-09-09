@@ -908,7 +908,6 @@ class _OfferingFlowEventCard extends StatelessWidget {
             height: 100,
             width: double.infinity,
             isPreview: !carried,
-            dashedBorder: !carried,
             overlay: Stack(
               children: [
                 Positioned(

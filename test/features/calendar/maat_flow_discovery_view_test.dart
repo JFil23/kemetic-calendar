@@ -87,11 +87,17 @@ void main() {
     expect(find.text('JOINED'), findsNothing);
     expect(find.text('NOT YET JOINED'), findsNothing);
 
-    final followSkyButton = find.byKey(
-      const ValueKey<String>('maat-flow-discovery-open-track-the-sky'),
+    expect(
+      find.byKey(
+        const ValueKey<String>('maat-flow-discovery-open-track-the-sky'),
+      ),
+      findsNothing,
     );
-    await tester.ensureVisible(followSkyButton);
-    await tester.tap(followSkyButton);
+    final followSkyCard = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-card-track-the-sky'),
+    );
+    await tester.ensureVisible(followSkyCard);
+    await tester.tap(followSkyCard);
     await tester.pumpAndSettle();
     expect(opened, 'track-the-sky');
     expect(

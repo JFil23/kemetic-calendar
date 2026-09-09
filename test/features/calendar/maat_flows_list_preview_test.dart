@@ -516,7 +516,7 @@ void main() {
     );
 
     final button = find.byKey(
-      const ValueKey<String>('maat-flow-discovery-open-track-the-sky'),
+      const ValueKey<String>('maat-flow-discovery-card-track-the-sky'),
     );
     await tester.tap(button);
     await tester.pumpAndSettle();

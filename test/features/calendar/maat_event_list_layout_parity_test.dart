@@ -240,7 +240,7 @@ void main() {
       await tester.pump();
 
       final followButton = find.byKey(
-        const ValueKey<String>('maat-flow-discovery-open-track-the-sky'),
+        const ValueKey<String>('maat-flow-discovery-card-track-the-sky'),
       );
       await tester.ensureVisible(followButton);
       await tester.tap(followButton);

@@ -39,6 +39,30 @@
     },
     {
       "states": [
+        "offering-day-view",
+        "offering-day-sheet",
+        "offering-day-sheet-docked",
+        "offering-day-sheet-bottom",
+        "offering-day-sheet-context",
+        "offering-detail",
+        "offering-detail-sheet",
+        "offering-detail-context",
+        "offering-detail-complete"
+      ],
+      "difference": "Offering Table event blocks use the same solid amber edge rule as Djed instead of the HTML's dotted preview outline.",
+      "reason": "The user's September 9 instruction explicitly supersedes the supplied Offering Table border treatment."
+    },
+    {
+      "states": [
+        "discovery",
+        "discovery-offering",
+        "discovery-reading-house"
+      ],
+      "difference": "Discovery cards have no separate Open button or reserved button row; the complete card is the accessible tap target.",
+      "reason": "The user's September 9 instruction explicitly supersedes the supplied Discovery call-to-action layout and requires its space to collapse."
+    },
+    {
+      "states": [
         "reading-house-day-view",
         "reading-house-day-sheet",
         "reading-house-day-sheet-docked",
@@ -545,9 +569,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 12.3358,
-        "changed_pixels_over_8": 78907,
-        "changed_pixel_percent_over_8": 23.9722
+        "mean_absolute_channel_error": 12.3168,
+        "changed_pixels_over_8": 78878,
+        "changed_pixel_percent_over_8": 23.9634
       }
     },
     {
@@ -565,7 +589,7 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 8.2953,
+        "mean_absolute_channel_error": 8.2952,
         "changed_pixels_over_8": 92799,
         "changed_pixel_percent_over_8": 28.1927
       }
@@ -645,9 +669,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 12.2842,
-        "changed_pixels_over_8": 78812,
-        "changed_pixel_percent_over_8": 23.9434
+        "mean_absolute_channel_error": 12.2105,
+        "changed_pixels_over_8": 78748,
+        "changed_pixel_percent_over_8": 23.9239
       }
     },
     {
@@ -665,9 +689,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 7.8012,
-        "changed_pixels_over_8": 54512,
-        "changed_pixel_percent_over_8": 16.5609
+        "mean_absolute_channel_error": 7.7864,
+        "changed_pixels_over_8": 54555,
+        "changed_pixel_percent_over_8": 16.574
       }
     },
     {
@@ -685,9 +709,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 10.0637,
-        "changed_pixels_over_8": 65656,
-        "changed_pixel_percent_over_8": 19.9465
+        "mean_absolute_channel_error": 10.0489,
+        "changed_pixels_over_8": 65699,
+        "changed_pixel_percent_over_8": 19.9596
       }
     },
     {
@@ -705,9 +729,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 13.109,
-        "changed_pixels_over_8": 88350,
-        "changed_pixel_percent_over_8": 26.841
+        "mean_absolute_channel_error": 13.0942,
+        "changed_pixels_over_8": 88393,
+        "changed_pixel_percent_over_8": 26.8541
       }
     },
     {
@@ -725,9 +749,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 8.3874,
-        "changed_pixels_over_8": 70040,
-        "changed_pixel_percent_over_8": 21.2784
+        "mean_absolute_channel_error": 12.1239,
+        "changed_pixels_over_8": 97248,
+        "changed_pixel_percent_over_8": 29.5443
       }
     },
     {
@@ -745,9 +769,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 13.1667,
-        "changed_pixels_over_8": 107355,
-        "changed_pixel_percent_over_8": 32.6148
+        "mean_absolute_channel_error": 17.0483,
+        "changed_pixels_over_8": 133147,
+        "changed_pixel_percent_over_8": 40.4505
       }
     },
     {
@@ -765,9 +789,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 21.7439,
-        "changed_pixels_over_8": 153224,
-        "changed_pixel_percent_over_8": 46.55
+        "mean_absolute_channel_error": 22.309,
+        "changed_pixels_over_8": 177489,
+        "changed_pixel_percent_over_8": 53.9218
       }
     }
   ],

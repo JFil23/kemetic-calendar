@@ -11,9 +11,8 @@ Future<void> showOfferingTablePreviewDaySheet({
   required BuildContext context,
   required OfferingTablePreviewOccurrence occurrence,
 }) {
-  return showModalBottomSheet<void>(
+  return showEditableModalBottomSheet<void>(
     context: context,
-    isScrollControlled: true,
     isDismissible: true,
     enableDrag: true,
     useRootNavigator: true,
@@ -111,157 +110,157 @@ class _OfferingTablePreviewDaySheetState
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      key: const ValueKey<String>('offering-table-preview-sheet-host'),
-      height: MediaQuery.sizeOf(context).height * 0.88,
-      child: SafeArea(
-        top: false,
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              stops: <double>[0, .34, 1],
-              colors: <Color>[
-                Color(0xFF100B06),
-                OfferingTablePreviewDaySheet.background,
-                Color(0xFF090603),
-              ],
+    return KeyboardAwareEditableSurface(
+      child: SizedBox(
+        key: const ValueKey<String>('offering-table-preview-sheet-host'),
+        height: MediaQuery.sizeOf(context).height * 0.88,
+        child: SafeArea(
+          top: false,
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: <double>[0, .34, 1],
+                colors: <Color>[
+                  Color(0xFF100B06),
+                  OfferingTablePreviewDaySheet.background,
+                  Color(0xFF090603),
+                ],
+              ),
             ),
-          ),
-          child: SingleChildScrollView(
-            key: const ValueKey<String>('offering-table-preview-sheet-scroll'),
-            padding: EdgeInsets.fromLTRB(
-              22,
-              12,
-              22,
-              24 + keyboardInsetOf(context),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const _PracticeHandle(),
-                _buildTop(),
-                const SizedBox(height: 5),
-                Text(
-                  _day.title,
-                  style: const TextStyle(
-                    color: OfferingTablePreviewDaySheet.bone,
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                    fontSize: 31,
-                    fontWeight: FontWeight.w500,
-                    height: 1.06,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '${_sheetDate(widget.occurrence.date)} · ${_formatTime(widget.occurrence.startLocal)}',
-                  style: const TextStyle(
-                    color: OfferingTablePreviewDaySheet.silver,
-                    fontFamily: 'GentiumPlus',
-                    fontSize: 11.5,
-                    letterSpacing: .25,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Text(
-                  _presentation.previewSummary,
-                  style: const TextStyle(
-                    color: Color(0xFFC9BCA6),
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                    fontSize: 18.5,
-                    fontStyle: FontStyle.italic,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 19),
-                _PracticeStage(
-                  day: _day,
-                  word: _wordController.text,
-                  steps: _presentation.steps,
-                  moveDone: _moveDone,
-                  onMovePressed: _toggleMove,
-                ),
-                if (_isNameMove)
-                  _PracticeWordField(
-                    controller: _wordController,
-                    focusNode: _wordFocusNode,
-                  ),
-                const SizedBox(height: 24),
-                OfferingTableCourseTrack(
-                  dayNumber: _day.dayNumber,
-                  stageLabel: _stage.name
-                      .replaceFirst(' Table', '')
-                      .toUpperCase(),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                    opacity: _complete ? 1 : 0,
-                    child: IgnorePointer(
-                      ignoring: !_complete,
-                      child: _ProvisionReturned(dayNumber: _day.dayNumber),
+            child: SingleChildScrollView(
+              key: const ValueKey<String>(
+                'offering-table-preview-sheet-scroll',
+              ),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const _PracticeHandle(),
+                  _buildTop(),
+                  const SizedBox(height: 5),
+                  Text(
+                    _day.title,
+                    style: const TextStyle(
+                      color: OfferingTablePreviewDaySheet.bone,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 31,
+                      fontWeight: FontWeight.w500,
+                      height: 1.06,
                     ),
                   ),
-                ),
-                _buildContext(),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerLeft,
+                  const SizedBox(height: 5),
+                  Text(
+                    '${_sheetDate(widget.occurrence.date)} · ${_formatTime(widget.occurrence.startLocal)}',
+                    style: const TextStyle(
+                      color: OfferingTablePreviewDaySheet.silver,
+                      fontFamily: 'GentiumPlus',
+                      fontSize: 11.5,
+                      letterSpacing: .25,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  Text(
+                    _presentation.previewSummary,
+                    style: const TextStyle(
+                      color: Color(0xFFC9BCA6),
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 18.5,
+                      fontStyle: FontStyle.italic,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 19),
+                  _PracticeStage(
+                    day: _day,
+                    word: _wordController.text,
+                    steps: _presentation.steps,
+                    moveDone: _moveDone,
+                    onMovePressed: _toggleMove,
+                  ),
+                  if (_isNameMove)
+                    _PracticeWordField(
+                      controller: _wordController,
+                      focusNode: _wordFocusNode,
+                    ),
+                  const SizedBox(height: 24),
+                  OfferingTableCourseTrack(
+                    dayNumber: _day.dayNumber,
+                    stageLabel: _stage.name
+                        .replaceFirst(' Table', '')
+                        .toUpperCase(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                      opacity: _complete ? 1 : 0,
+                      child: IgnorePointer(
+                        ignoring: !_complete,
+                        child: _ProvisionReturned(dayNumber: _day.dayNumber),
+                      ),
+                    ),
+                  ),
+                  _buildContext(),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            key: const ValueKey<String>(
+                              'offering-table-preview-sheet-back',
+                            ),
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: TextButton.styleFrom(
+                              foregroundColor:
+                                  OfferingTablePreviewDaySheet.silver,
+                              padding: const EdgeInsets.fromLTRB(2, 6, 2, 6),
+                              textStyle: const TextStyle(
+                                fontFamily: MaatFlowListTokens.fontFamily,
+                                fontFamilyFallback:
+                                    MaatFlowListTokens.fontFallback,
+                                fontSize: 17,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Color(0x59A59D91),
+                              ),
+                            ),
+                            child: const Text('Back to the table'),
+                          ),
+                        ),
+                      ),
+                      Flexible(
                         child: TextButton(
                           key: const ValueKey<String>(
-                            'offering-table-preview-sheet-back',
+                            'offering-table-preview-sheet-reset',
                           ),
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: _reset,
                           style: TextButton.styleFrom(
-                            foregroundColor:
-                                OfferingTablePreviewDaySheet.silver,
-                            padding: const EdgeInsets.fromLTRB(2, 6, 2, 6),
+                            foregroundColor: const Color(0xFF5F5648),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 6,
+                            ),
                             textStyle: const TextStyle(
-                              fontFamily: MaatFlowListTokens.fontFamily,
-                              fontFamilyFallback:
-                                  MaatFlowListTokens.fontFallback,
-                              fontSize: 17,
-                              decoration: TextDecoration.underline,
-                              decorationColor: Color(0x59A59D91),
+                              fontFamily: 'GentiumPlus',
+                              fontSize: 12,
                             ),
                           ),
-                          child: const Text('Back to the table'),
+                          child: const Text('reset this day'),
                         ),
                       ),
-                    ),
-                    Flexible(
-                      child: TextButton(
-                        key: const ValueKey<String>(
-                          'offering-table-preview-sheet-reset',
-                        ),
-                        onPressed: _reset,
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF5F5648),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 6,
-                          ),
-                          textStyle: const TextStyle(
-                            fontFamily: 'GentiumPlus',
-                            fontSize: 12,
-                          ),
-                        ),
-                        child: const Text('reset this day'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

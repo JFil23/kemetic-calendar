@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 
 const Duration kOfferingTableRippleCycle = Duration(milliseconds: 5400);
 const Duration kOfferingTableRipplePhaseSeparation = Duration(
@@ -34,7 +35,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
     this.isPreview = false,
     this.overlay,
     this.opacity = 1,
-    this.dashedBorder = false,
+    this.dayViewFace = false,
     this.visualState,
     this.animateRipple = false,
     this.timeLabel,
@@ -48,7 +49,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
   final bool isPreview;
   final Widget? overlay;
   final double opacity;
-  final bool dashedBorder;
+  final bool dayViewFace;
   final bool animateRipple;
   final String? timeLabel;
 
@@ -67,9 +68,8 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = resolvedVisualState;
-    final dayViewFace = dashedBorder && height >= 88 && height <= 94;
     final isTall = height >= 70;
-    final radius = BorderRadius.circular(8);
+    final radius = BorderRadius.circular(MaatEventBlockBorderTokens.radius);
     final face = Container(
       width: width,
       height: height,
@@ -182,12 +182,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
-                  painter: _OfferingTableBorderPainter(
-                    dashed: dashedBorder,
-                    preview: isPreview,
-                    received: state == OfferingTableBlockVisualState.received,
-                    dayViewFace: dayViewFace,
-                  ),
+                  painter: const _OfferingTableBorderPainter(),
                 ),
               ),
             ),
@@ -882,17 +877,7 @@ class _OfferingTableSpecklePainter extends CustomPainter {
 }
 
 class _OfferingTableBorderPainter extends CustomPainter {
-  const _OfferingTableBorderPainter({
-    required this.dashed,
-    required this.preview,
-    required this.received,
-    this.dayViewFace = false,
-  });
-
-  final bool dashed;
-  final bool preview;
-  final bool received;
-  final bool dayViewFace;
+  const _OfferingTableBorderPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -901,40 +886,17 @@ class _OfferingTableBorderPainter extends CustomPainter {
       ..addRRect(
         RRect.fromRectAndRadius(
           rect.deflate(0.55),
-          const Radius.circular(7.45),
+          const Radius.circular(MaatEventBlockBorderTokens.radius - 0.55),
         ),
       );
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = dayViewFace
-          ? 1
-          : dashed
-          ? 1.2
-          : 0.9
-      ..color = dayViewFace
-          ? const Color(0x87FFE0A0)
-          : const Color(
-              0xFFF6E4C9,
-            ).withValues(alpha: received ? 0.36 : (preview ? 0.58 : 0.78));
-    if (!dashed) {
-      canvas.drawPath(path, paint);
-      return;
-    }
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final end = math.min(distance + 4, metric.length);
-        canvas.drawPath(metric.extractPath(distance, end), paint);
-        distance += 7;
-      }
-    }
+      ..strokeWidth = MaatEventBlockBorderTokens.width
+      ..color = MaatEventBlockBorderTokens.color;
+    canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _OfferingTableBorderPainter oldDelegate) {
-    return oldDelegate.dashed != dashed ||
-        oldDelegate.preview != preview ||
-        oldDelegate.received != received ||
-        oldDelegate.dayViewFace != dayViewFace;
-  }
+  bool shouldRepaint(covariant _OfferingTableBorderPainter oldDelegate) =>
+      false;
 }

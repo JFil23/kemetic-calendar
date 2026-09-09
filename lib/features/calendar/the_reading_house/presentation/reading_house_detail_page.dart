@@ -2341,32 +2341,12 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  const Spacer(),
-                  const SizedBox(
-                    width: 42,
-                    height: 4,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Color(0xFF33463E),
-                        borderRadius: BorderRadius.all(Radius.circular(99)),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
-                        onPressed: _dismiss,
-                        icon: const Icon(
-                          Icons.close,
-                          color: ReadingHouseDetailTokens.silver,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              ReadingHouseSheetChrome(
+                collapseKey: const ValueKey<String>(
+                  'reading-house-invite-sheet-collapse',
+                ),
+                onCollapse: _dismiss,
+                iconColor: ReadingHouseDetailTokens.silver,
               ),
               const _SheetKicker('READERS'),
               const SizedBox(height: 8),

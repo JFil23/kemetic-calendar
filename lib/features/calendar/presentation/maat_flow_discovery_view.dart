@@ -257,191 +257,175 @@ class MaatFlowDiscoveryCard extends StatelessWidget {
         (featured ? 216.0 : 190.0) + ((textScale - 1).clamp(0, 1) * 10);
     return Semantics(
       container: true,
-      label: data.title,
-      child: DecoratedBox(
-        key: ValueKey<String>('maat-flow-discovery-card-${data.flowKey}'),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0D0B07),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF261E0D)),
-          boxShadow: const <BoxShadow>[
-            BoxShadow(
-              color: Color(0x4D000000),
-              blurRadius: 42,
-              offset: Offset(0, 18),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(17),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              SizedBox(
-                height: imageHeight,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    Image.asset(
-                      data.heroAsset,
-                      key: ValueKey<String>(
-                        'maat-flow-discovery-image-${data.flowKey}',
-                      ),
-                      fit: BoxFit.cover,
-                      alignment: data.heroAlignment,
-                      filterQuality: FilterQuality.medium,
-                    ),
-                    const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          stops: <double>[0.25, 0.58, 1],
-                          colors: <Color>[
-                            Color(0x0A000000),
-                            Color(0x29050504),
-                            Color(0xFF0D0B07),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 16,
-                      right: 16,
-                      top: 14,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            data.glyph,
-                            style: TextStyle(
-                              color: data.accent,
-                              fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-                              fontSize: 21,
-                              height: 1,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              data.worldLine.toUpperCase(),
-                              style: TextStyle(
-                                color: data.accent,
-                                fontFamily: MaatFlowListTokens.fontFamily,
-                                fontSize: 11,
-                                letterSpacing: 1.8,
-                                height: 1.25,
-                                shadows: const <Shadow>[
-                                  Shadow(color: Colors.black, blurRadius: 10),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const _HawStewardshipMark(),
-                    const SizedBox(height: 5),
-                    Text(
-                      data.title,
-                      style: const TextStyle(
-                        color: Color(0xFFD4AE43),
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: -0.3,
-                        height: 0.98,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      data.possibility,
-                      style: const TextStyle(
-                        color: Color(0xFFD5D1C8),
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 19,
-                        height: 1.28,
-                      ),
-                    ),
-                    const SizedBox(height: 17),
-                    const Divider(height: 1, color: Color(0xFF2A2415)),
-                    const SizedBox(height: 13),
-                    Text(
-                      data.arrivalLabel.toUpperCase(),
-                      style: const TextStyle(
-                        color: Color(0xFF8A7030),
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 10,
-                        letterSpacing: 2,
-                        height: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      data.arrivalTitle,
-                      style: const TextStyle(
-                        color: Color(0xFFC8C4BC),
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        height: 1.08,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      data.arrivalPrompt,
-                      style: const TextStyle(
-                        color: Color(0xFFC8C4BC),
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 16,
-                        letterSpacing: -0.1,
-                        height: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 17),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: SizedBox(
-                        height: 42,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minWidth: 105),
-                          child: OutlinedButton(
-                            key: ValueKey<String>(
-                              'maat-flow-discovery-open-${data.flowKey}',
-                            ),
-                            onPressed: onOpen,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFD8B64E),
-                              disabledForegroundColor: const Color(0xFFD8B64E),
-                              backgroundColor: const Color(0xFF070604),
-                              side: const BorderSide(color: Color(0xFF9D8238)),
-                              shape: const StadiumBorder(),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 25,
-                              ),
-                              textStyle: const TextStyle(
-                                fontFamily: MaatFlowListTokens.fontFamily,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            child: const Text('Open'),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+      button: true,
+      enabled: onOpen != null,
+      label:
+          '${data.title}. ${data.possibility}. '
+          '${data.arrivalLabel}: ${data.arrivalTitle}. ${data.arrivalPrompt}',
+      onTap: onOpen,
+      child: ExcludeSemantics(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D0B07),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF261E0D)),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(
+                color: Color(0x4D000000),
+                blurRadius: 42,
+                offset: Offset(0, 18),
               ),
             ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(17),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              key: ValueKey<String>('maat-flow-discovery-card-${data.flowKey}'),
+              onTap: onOpen,
+              excludeFromSemantics: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  SizedBox(
+                    height: imageHeight,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        Image.asset(
+                          data.heroAsset,
+                          key: ValueKey<String>(
+                            'maat-flow-discovery-image-${data.flowKey}',
+                          ),
+                          fit: BoxFit.cover,
+                          alignment: data.heroAlignment,
+                          filterQuality: FilterQuality.medium,
+                        ),
+                        const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              stops: <double>[0.25, 0.58, 1],
+                              colors: <Color>[
+                                Color(0x0A000000),
+                                Color(0x29050504),
+                                Color(0xFF0D0B07),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          left: 16,
+                          right: 16,
+                          top: 14,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                data.glyph,
+                                style: TextStyle(
+                                  color: data.accent,
+                                  fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                                  fontSize: 21,
+                                  height: 1,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  data.worldLine.toUpperCase(),
+                                  style: TextStyle(
+                                    color: data.accent,
+                                    fontFamily: MaatFlowListTokens.fontFamily,
+                                    fontSize: 11,
+                                    letterSpacing: 1.8,
+                                    height: 1.25,
+                                    shadows: const <Shadow>[
+                                      Shadow(
+                                        color: Colors.black,
+                                        blurRadius: 10,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const _HawStewardshipMark(),
+                        const SizedBox(height: 5),
+                        Text(
+                          data.title,
+                          style: const TextStyle(
+                            color: Color(0xFFD4AE43),
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontSize: 34,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -0.3,
+                            height: 0.98,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          data.possibility,
+                          style: const TextStyle(
+                            color: Color(0xFFD5D1C8),
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontSize: 19,
+                            height: 1.28,
+                          ),
+                        ),
+                        const SizedBox(height: 17),
+                        const Divider(height: 1, color: Color(0xFF2A2415)),
+                        const SizedBox(height: 13),
+                        Text(
+                          data.arrivalLabel.toUpperCase(),
+                          style: const TextStyle(
+                            color: Color(0xFF8A7030),
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontSize: 10,
+                            letterSpacing: 2,
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          data.arrivalTitle,
+                          style: const TextStyle(
+                            color: Color(0xFFC8C4BC),
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            height: 1.08,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          data.arrivalPrompt,
+                          style: const TextStyle(
+                            color: Color(0xFFC8C4BC),
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontSize: 16,
+                            letterSpacing: -0.1,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

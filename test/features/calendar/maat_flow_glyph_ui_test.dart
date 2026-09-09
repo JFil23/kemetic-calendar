@@ -8,6 +8,7 @@ import 'package:mobile/features/calendar/maat_flow_catalog.dart';
 import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/maat_flow_palette.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
+import 'package:mobile/features/calendar/presentation/maat_flow_discovery_view.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 
 void main() {
@@ -107,19 +108,27 @@ void main() {
     }
   });
 
-  test('four-flow discovery renders canonical glyphs without dot fallback', () {
-    final source = File(
-      'lib/features/calendar/presentation/maat_flow_discovery_view.dart',
-    ).readAsStringSync();
+  testWidgets(
+    'four-flow discovery renders canonical glyphs without dot fallback',
+    (tester) async {
+      for (final data in kFourMaatFlowDiscoveryFixtures) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 390,
+                child: MaatFlowDiscoveryCard(data: data, featured: false),
+              ),
+            ),
+          ),
+        );
 
-    expect(source, contains('Text(\n                            data.glyph'));
-    expect(source, contains("fontFamily: 'Noto Sans Egyptian Hieroglyphs'"));
-    expect(source, contains("glyph: '𓇯'"));
-    expect(source, contains("glyph: '𓊵'"));
-    expect(source, contains("glyph: '𓉐'"));
-    expect(source, contains("glyph: '𓊽'"));
-    expect(source, isNot(contains('Icons.circle')));
-  });
+        final glyph = tester.widget<Text>(find.text(data.glyph));
+        expect(glyph.style?.fontFamily, 'Noto Sans Egyptian Hieroglyphs');
+        expect(find.byIcon(Icons.circle), findsNothing);
+      }
+    },
+  );
 
   test('Ma’at Flow list visual tokens match the target card spec', () {
     expect(MaatFlowListTokens.pageBg, const Color(0xFF050504));

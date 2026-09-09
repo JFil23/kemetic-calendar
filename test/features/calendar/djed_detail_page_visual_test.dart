@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 
@@ -86,6 +87,67 @@ void main() {
     expect(find.text('Set your footing'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'all nine Djed detail sittings open the canonical sitting sheet',
+    (tester) async {
+      await pumpDjed(tester, size: const Size(390, 844));
+
+      Future<void> openAndClose(Finder target, int sittingNumber) async {
+        await Scrollable.ensureVisible(
+          tester.element(target),
+          alignment: .5,
+          duration: Duration.zero,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(
+            ValueKey<String>('djed-detail-sitting-sheet-$sittingNumber'),
+          ),
+          findsOneWidget,
+        );
+        final presentation = tester.widget<DjedDayPresentation>(
+          find.byType(DjedDayPresentation),
+        );
+        expect(presentation.fixture.sittingNumber, sittingNumber);
+        await tester.tap(
+          find.byKey(
+            ValueKey<String>('djed-detail-sitting-close-$sittingNumber'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(DjedDayPresentation), findsNothing);
+      }
+
+      for (var sitting = 1; sitting <= 5; sitting++) {
+        await openAndClose(
+          find.byKey(ValueKey<String>('djed-event-block-detail-$sitting')),
+          sitting,
+        );
+      }
+
+      final remaining = find.byKey(
+        const ValueKey<String>('djed-see-remaining-sittings'),
+      );
+      await Scrollable.ensureVisible(
+        tester.element(remaining),
+        alignment: .5,
+        duration: Duration.zero,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(remaining);
+      await tester.pumpAndSettle();
+      for (var sitting = 6; sitting <= 9; sitting++) {
+        await openAndClose(
+          find.byKey(ValueKey<String>('djed-compact-sitting-$sitting')),
+          sitting,
+        );
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('beam and row selection follow the authored support focus', (
     tester,

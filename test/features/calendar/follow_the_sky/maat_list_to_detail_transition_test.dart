@@ -49,7 +49,7 @@ void main() {
     expect(listRoute!.isCurrent, isTrue);
 
     final openButton = find.byKey(
-      const ValueKey<String>('maat-flow-discovery-open-track-the-sky'),
+      const ValueKey<String>('maat-flow-discovery-card-track-the-sky'),
     );
     await tester.ensureVisible(openButton);
     await tester.tap(openButton);

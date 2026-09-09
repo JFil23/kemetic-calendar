@@ -282,6 +282,48 @@ void main() {
     },
   );
 
+  testWidgets('nested Reading House sheets collapse back to detail', (
+    tester,
+  ) async {
+    await pumpHouse(tester);
+    final firstSitting = find.byKey(
+      const ValueKey<String>('reading-house-sitting-1'),
+    );
+    await bringHouseControlIntoView(tester, firstSitting);
+    final position = tester.state<ScrollableState>(houseScrollable()).position;
+    final beforeOffset = position.pixels;
+    await tester.tap(firstSitting);
+    await tester.pumpAndSettle();
+
+    final sittingCollapse = find.byKey(
+      const ValueKey<String>('reading-house-sitting-sheet-collapse'),
+    );
+    expect(sittingCollapse, findsOneWidget);
+    await tester.tap(sittingCollapse);
+    await tester.pumpAndSettle();
+    expect(find.byType(ReadingHouseSittingEditorSheet), findsNothing);
+    expect(position.pixels, closeTo(beforeOffset, .01));
+
+    final invite = find.byKey(
+      const ValueKey<String>('reading-house-invite-reader'),
+    );
+    await bringHouseControlIntoView(tester, invite);
+    await tester.tap(invite);
+    await tester.pumpAndSettle();
+    final inviteCollapse = find.byKey(
+      const ValueKey<String>('reading-house-invite-sheet-collapse'),
+    );
+    expect(inviteCollapse, findsOneWidget);
+    await tester.tap(inviteCollapse);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-invite-sheet')),
+      findsNothing,
+    );
+    expect(find.byType(ReadingHouseDetailPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('hold is idempotent and placement is the event boundary', (
     tester,
   ) async {

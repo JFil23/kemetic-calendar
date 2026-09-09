@@ -164,7 +164,7 @@ void main() {
         find.byType(OfferingTableEventBlockVisual),
       );
       expect(preview.isPreview, isTrue);
-      expect(preview.dashedBorder, isTrue);
+      expect(preview.dayViewFace, isFalse);
       expect(preview.stage, OfferingTableBlockStage.flowing);
       expect(tester.takeException(), isNull);
 
@@ -452,7 +452,7 @@ Future<void> _pumpStaticBlock(
               width: width,
               height: height,
               isPreview: isPreview,
-              dashedBorder: isPreview,
+              dayViewFace: height >= 88 && height <= 94,
               visualState: visualState,
               animateRipple: animateRipple,
             ),

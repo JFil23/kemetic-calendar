@@ -21,6 +21,7 @@ import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -883,6 +884,47 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(OfferingTablePreviewDaySheet), findsNothing);
       expect(find.byType(OfferingTableDetailPage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'detail ritual field stays above the system keyboard with one inset owner',
+    (tester) async {
+      await _pumpPage(
+        tester,
+        size: const Size(390, 844),
+        start: DateTime(2026, 9, 3),
+      );
+      final firstEvent = find.byKey(
+        const ValueKey<String>('offering-table-preview-event-1'),
+      );
+      await tester.ensureVisible(firstEvent);
+      await tester.tap(firstEvent);
+      await tester.pumpAndSettle();
+
+      final field = find.byKey(
+        const ValueKey<String>('offering-table-preview-practice-field'),
+      );
+      await tester.ensureVisible(field);
+      await tester.tap(field);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(field);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(editableModalSystemInsetOwnerKey), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: field,
+          matching: find.byType(KeyboardAwareEditableSurface),
+        ),
+        findsOneWidget,
+      );
+      expect(MediaQuery.viewInsetsOf(tester.element(field)).bottom, 0);
+      expect(tester.getRect(field).bottom, lessThanOrEqualTo(844 - 300));
+      expect(tester.testTextInput.isVisible, isTrue);
+      expect(tester.takeException(), isNull);
     },
   );
 

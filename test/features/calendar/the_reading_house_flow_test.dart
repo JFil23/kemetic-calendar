@@ -1590,9 +1590,12 @@ void main() {
       contains('Optional note, passage to watch, or context...'),
     );
     expect(draftSheet, isNot(contains('onChanged:')));
+    final editorStateStart = draftSheet.indexOf(
+      'class _ReadingHouseSittingEditorSheetState',
+    );
     expect(
       draftSheet.indexOf('TextEditingController(text: sitting.title)'),
-      lessThan(draftSheet.indexOf('Widget build')),
+      lessThan(draftSheet.indexOf('Widget build', editorStateStart)),
     );
   });
 }

@@ -65,3 +65,10 @@ class MaatFlowListTokens {
     14,
   );
 }
+
+/// The shared solid edge used by authored Djed-style Maat event blocks.
+abstract final class MaatEventBlockBorderTokens {
+  static const double radius = 10;
+  static const double width = 1;
+  static const Color color = Color(0x70E0873C);
+}

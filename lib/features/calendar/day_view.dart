@@ -879,22 +879,8 @@ DjedDayVisualFixture _djedV2DayVisualFixture(
   DjedV2Event event, {
   Map<String, dynamic>? behaviorPayload,
 }) {
-  final supportSlot = event.supportSlot ?? 1;
   final supportName = behaviorPayload?['support_name']?.toString().trim();
-  return DjedDayVisualFixture(
-    sittingNumber: event.eventNumber,
-    stage: switch (event.stepKind) {
-      DjedV2StepKind.orientation => DjedPracticeStageVisual.orientation,
-      DjedV2StepKind.makeMove => DjedPracticeStageVisual.makeMove,
-      DjedV2StepKind.readResult when event.finalRaising =>
-        DjedPracticeStageVisual.finalRaising,
-      DjedV2StepKind.readResult => DjedPracticeStageVisual.readResult,
-    },
-    supportSlot: supportSlot,
-    supportName: supportName?.isNotEmpty == true
-        ? supportName!
-        : 'support ${supportSlot.toString().padLeft(2, '0')}',
-  );
+  return djedDayVisualFixtureForEvent(event, supportName: supportName);
 }
 
 List<DjedSupportFixture> _djedV2SupportFixtures(
@@ -8146,7 +8132,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         width: block.width,
         height: height,
         isPreview: isPreview,
-        dashedBorder: true,
+        dayViewFace: true,
         timeLabel: _compactEventTimeLabel(event.startMin),
         animateRipple:
             !isPreview &&

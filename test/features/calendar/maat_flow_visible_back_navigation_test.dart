@@ -61,7 +61,7 @@ void main() {
         expect(listRoute!.isCurrent, isTrue);
 
         final openButton = find.byKey(
-          ValueKey<String>('maat-flow-discovery-open-${scenario.templateKey}'),
+          ValueKey<String>('maat-flow-discovery-card-${scenario.templateKey}'),
         );
         await _scrollDiscoveryControlIntoViewport(tester, openButton);
         await tester.tap(openButton);
@@ -259,7 +259,7 @@ void main() {
     );
 
     final openButton = find.byKey(
-      const ValueKey<String>('maat-flow-discovery-open-track-the-sky'),
+      const ValueKey<String>('maat-flow-discovery-card-track-the-sky'),
     );
     await _scrollDiscoveryControlIntoViewport(tester, openButton);
     await tester.tap(openButton);
@@ -337,7 +337,7 @@ Future<void> _scrollDiscoveryControlIntoViewport(
   for (var attempt = 0; attempt < 12; attempt++) {
     final rect = tester.getRect(control);
     if (rect.top >= 64 && rect.bottom <= 820) return;
-    await tester.drag(scroll, const Offset(0, -260));
+    await tester.drag(scroll, Offset(0, rect.top < 64 ? 260 : -260));
     await tester.pump();
   }
   expect(tester.getRect(control).bottom, lessThanOrEqualTo(820));

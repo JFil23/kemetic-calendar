@@ -21,13 +21,25 @@ Future<T?> showEditableModalBottomSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   Color? backgroundColor,
+  Color? barrierColor,
+  ShapeBorder? shape,
+  Clip? clipBehavior,
+  bool isDismissible = true,
+  bool enableDrag = true,
+  bool useRootNavigator = false,
 }) {
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
+    isDismissible: isDismissible,
+    enableDrag: enableDrag,
     useSafeArea: true,
+    useRootNavigator: useRootNavigator,
     requestFocus: true,
     backgroundColor: backgroundColor,
+    barrierColor: barrierColor,
+    shape: shape,
+    clipBehavior: clipBehavior,
     builder: (modalContext) =>
         _EditableModalSystemInsetOwner(child: builder(modalContext)),
   );

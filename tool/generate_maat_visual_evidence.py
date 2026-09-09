@@ -243,6 +243,16 @@ def main() -> None:
                 "reason": "The reference is internally inconsistent. The event-block and sheet visuals follow the HTML; schedule placement and Gregorian metadata retain the functioning canonical calendar behavior the user said not to change.",
             },
             {
+                "states": ["offering-day-view", "offering-day-sheet", "offering-day-sheet-docked", "offering-day-sheet-bottom", "offering-day-sheet-context", "offering-detail", "offering-detail-sheet", "offering-detail-context", "offering-detail-complete"],
+                "difference": "Offering Table event blocks use the same solid amber edge rule as Djed instead of the HTML's dotted preview outline.",
+                "reason": "The user's September 9 instruction explicitly supersedes the supplied Offering Table border treatment.",
+            },
+            {
+                "states": ["discovery", "discovery-offering", "discovery-reading-house"],
+                "difference": "Discovery cards have no separate Open button or reserved button row; the complete card is the accessible tap target.",
+                "reason": "The user's September 9 instruction explicitly supersedes the supplied Discovery call-to-action layout and requires its space to collapse.",
+            },
+            {
                 "states": ["reading-house-day-view", "reading-house-day-sheet", "reading-house-day-sheet-docked", "reading-house-day-sheet-bottom"],
                 "difference": "The HTML clips a late-day timeline after 9 PM; production Day View keeps midnight reachable and therefore clamps the late-day scroll, leaving the 7 PM block about 24 px lower in the raw viewport.",
                 "reason": "The Reading House block remains at 7 PM in both and has matching authored geometry. The difference belongs to frozen shared timeline behavior.",
@@ -296,6 +306,7 @@ def main() -> None:
         "- The Day View raw app captures now use the real production `DayViewPage`, including its shared header, mini-calendar behavior, and floating shortcuts. The HTML uses illustrative phone/status glyphs and simplified shared chrome. Per the user's frozen-Day-View instruction, direct fidelity authority applies to each authored event block and opened sheet; the full raw context remains visible.",
         "- Djed's three surrounding ordinary events use production scheduled-event cards in Flutter and simplified unlabeled bars in the HTML. Their titles, times, and colors are retained; they are not Djed-authored surfaces.",
         "- Offering Table's HTML labels the event `7:30 AM` but visually places it near the 9:30 row, and pairs `Rekh-Wer 13` with `FRI SEP 4`. Flutter correctly places it at 7:30 and maps that Kemetic date to `SAT AUG 29` through the canonical calendar. Event-block/sheet visuals follow the HTML; the functioning shared calendar math remains unchanged.",
+        "- The September 9 product instruction supersedes two older mockup details: Offering Table event blocks now share Djed's solid amber border rule, and Discovery cards are complete accessible tap targets with no separate `Open` button or reserved button row.",
         "- Reading House's HTML clips the late-day grid after 9 PM. Production Day View keeps midnight reachable, so its clamped late-day viewport places the same 7 PM block about 24 px lower. The block itself retains matching geometry.",
         "- Chromium CSS and Flutter/Skia produce minor anti-aliasing and platform-glyph differences. These do not excuse changed bounds, line breaks, artwork geometry, palette values, copy, or state.",
         "",

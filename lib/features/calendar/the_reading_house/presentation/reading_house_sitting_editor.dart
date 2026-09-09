@@ -5,6 +5,75 @@ import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/maat_flow_date_picker.dart';
 
+/// Shared Reading House sheet chrome from the authored detail-page modals.
+///
+/// Both the handle and the visible control collapse the active nested sheet so
+/// editors never trap the reader away from the underlying detail page.
+class ReadingHouseSheetChrome extends StatelessWidget {
+  const ReadingHouseSheetChrome({
+    super.key,
+    required this.onCollapse,
+    this.collapseKey,
+    this.handleColor = const Color(0xFF33463E),
+    this.iconColor = const Color(0xFF9E9A94),
+  });
+
+  final VoidCallback onCollapse;
+  final Key? collapseKey;
+  final Color handleColor;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: Row(
+        children: <Widget>[
+          const Spacer(),
+          Semantics(
+            button: true,
+            label: 'Collapse sheet',
+            onTap: onCollapse,
+            child: ExcludeSemantics(
+              child: InkWell(
+                key: const ValueKey<String>('reading-house-sheet-handle'),
+                onTap: onCollapse,
+                borderRadius: BorderRadius.circular(22),
+                excludeFromSemantics: true,
+                child: SizedBox(
+                  width: 54,
+                  height: 44,
+                  child: Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: handleColor,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                key: collapseKey,
+                tooltip: 'Collapse sheet',
+                onPressed: onCollapse,
+                icon: Icon(Icons.keyboard_arrow_down, color: iconColor),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ReadingHouseSittingEditorSheet extends StatefulWidget {
   const ReadingHouseSittingEditorSheet({
     super.key,
@@ -275,6 +344,13 @@ class _ReadingHouseSittingEditorSheetState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  ReadingHouseSheetChrome(
+                    collapseKey: const ValueKey<String>(
+                      'reading-house-sitting-sheet-collapse',
+                    ),
+                    onCollapse: () => Navigator.of(context).pop(),
+                    handleColor: widget.accentColor.withValues(alpha: 0.48),
+                  ),
                   Text(
                     'Edit sitting',
                     style: TextStyle(

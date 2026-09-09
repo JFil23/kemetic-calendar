@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
+import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
 
 enum DjedPracticeStageVisual {
   orientation,
@@ -56,6 +57,28 @@ const DjedDayVisualFixture kDjedDayVisualFixture = DjedDayVisualFixture(
   supportSlot: 2,
   supportName: 'the weekly call with my sister',
 );
+
+DjedDayVisualFixture djedDayVisualFixtureForEvent(
+  DjedV2Event event, {
+  String? supportName,
+}) {
+  final supportSlot = event.supportSlot ?? 1;
+  final resolvedSupportName = supportName?.trim();
+  return DjedDayVisualFixture(
+    sittingNumber: event.eventNumber,
+    stage: switch (event.stepKind) {
+      DjedV2StepKind.orientation => DjedPracticeStageVisual.orientation,
+      DjedV2StepKind.makeMove => DjedPracticeStageVisual.makeMove,
+      DjedV2StepKind.readResult when event.finalRaising =>
+        DjedPracticeStageVisual.finalRaising,
+      DjedV2StepKind.readResult => DjedPracticeStageVisual.readResult,
+    },
+    supportSlot: supportSlot,
+    supportName: resolvedSupportName?.isNotEmpty == true
+        ? resolvedSupportName!
+        : 'support ${supportSlot.toString().padLeft(2, '0')}',
+  );
+}
 
 abstract final class DjedDayTokens {
   static const Color page = Color(0xFF050403);
