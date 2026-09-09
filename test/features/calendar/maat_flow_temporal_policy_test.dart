@@ -264,7 +264,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: FollowSkyDetailPage(
+          home: FollowSkyDetailSurface(
             initialCatalog: catalog,
             now: DateTime.utc(2026, 9, 2, 18),
             onJoin: (draft) async => carriedDraft = draft,
@@ -294,7 +294,7 @@ void main() {
       );
 
       await tester
-          .state<FollowSkyDetailPageState>(find.byType(FollowSkyDetailPage))
+          .state<FollowSkyDetailSurfaceState>(find.byType(FollowSkyDetailSurface))
           .joinFromDock();
       await tester.pumpAndSettle();
 

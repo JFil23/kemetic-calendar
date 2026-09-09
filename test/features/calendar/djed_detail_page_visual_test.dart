@@ -34,7 +34,7 @@ void main() {
           ),
           child: RepaintBoundary(
             key: const ValueKey<String>('djed-visual-capture'),
-            child: DjedDetailPage(onCarry: () {}, onBack: () {}),
+            child: DjedDetailSurface(onCarry: () {}, onBack: () {}),
           ),
         ),
       ),
@@ -44,7 +44,7 @@ void main() {
     await tester.runAsync(
       () => precacheImage(
         const AssetImage(DjedDetailTokens.heroAsset),
-        tester.element(find.byType(DjedDetailPage)),
+        tester.element(find.byType(DjedDetailSurface)),
         onError: (exception, stackTrace) => heroLoadError = exception,
       ),
     );

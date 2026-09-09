@@ -34,10 +34,8 @@ void main() {
   ];
 
   for (final scenario in scenarios) {
-    // Keep this identity stable for the release comparison gate; the
-    // assertions below now prove the replacement is a non-opaque sheet.
     testWidgets(
-      '${scenario.templateKey} discovery Back dismisses its inline detail but keeps Ma’at Flows open',
+      '${scenario.templateKey} discovery Back swaps the shared sheet back to Ma’at Flows',
       (tester) async {
         _setPhoneViewport(tester);
         await _pumpFlowStudio(
@@ -74,30 +72,25 @@ void main() {
               'maat-flow-discovery-detail-${scenario.templateKey}',
             ),
           ),
-          findsNothing,
+          findsOneWidget,
         );
         expect(find.text('Carry this flow'), findsNothing);
         final detailRoute = ModalRoute.of(tester.element(back));
         expect(detailRoute, isNotNull);
-        expect(detailRoute, isNot(same(listRoute)));
-        expect(detailRoute, isA<PopupRoute<int?>>());
-        expect(detailRoute!.opaque, isFalse);
-        expect(detailRoute.isCurrent, isTrue);
-        expect(listRoute.isCurrent, isFalse);
+        expect(detailRoute, same(listRoute));
+        expect(detailRoute!.isCurrent, isTrue);
+        expect(listRoute.isCurrent, isTrue);
         expect(
           find.byKey(
             const ValueKey<String>('maat-flow-discovery-view'),
             skipOffstage: false,
           ),
-          findsOneWidget,
+          findsNothing,
         );
-        final sheetHost = find.byKey(kMaatFlowDetailSheetHostKey);
-        expect(sheetHost, findsOneWidget);
-        expect(tester.getTopLeft(sheetHost).dy, greaterThan(0));
-        expect(
-          tester.getSize(sheetHost).height,
-          closeTo(844 * kMaatFlowDetailSheetHeightFactor, 1),
-        );
+        final surfaceHost = find.byKey(kMaatFlowDetailSurfaceHostKey);
+        expect(surfaceHost, findsOneWidget);
+        expect(tester.getTopLeft(surfaceHost), Offset.zero);
+        expect(tester.getSize(surfaceHost), const Size(390, 844));
 
         await tester.tap(back);
         await tester.pumpAndSettle();
@@ -111,7 +104,8 @@ void main() {
           ),
           findsNothing,
         );
-        expect(listRoute.isCurrent, isTrue);
+        expect(surfaceHost, findsNothing);
+        expect(detailRoute.isCurrent, isTrue);
         expect(
           find.byKey(const ValueKey<String>('maat-flow-discovery-view')),
           findsOneWidget,
@@ -166,49 +160,45 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('restored detail reconstructs list and detail routes', (
-    tester,
-  ) async {
-    _setPhoneViewport(tester);
-    await _pumpFlowStudio(
-      tester,
-      Uri(
-        path: '/flows',
-        queryParameters: const <String, String>{
-          'mode': 'maatTemplate',
-          'templateKey': 'the-reading-house',
-        },
-      ),
-    );
+  testWidgets(
+    'restored detail reconstructs one list route with selected content',
+    (tester) async {
+      _setPhoneViewport(tester);
+      await _pumpFlowStudio(
+        tester,
+        Uri(
+          path: '/flows',
+          queryParameters: const <String, String>{
+            'mode': 'maatTemplate',
+            'templateKey': 'the-reading-house',
+          },
+        ),
+      );
 
-    final listSurface = find.byKey(
-      const ValueKey<String>('maat-flow-discovery-view'),
-      skipOffstage: false,
-    );
-    final back = find.byKey(const ValueKey<String>('reading-house-back'));
-    expect(listSurface, findsOneWidget);
-    expect(back, findsOneWidget);
+      final discoverySurface = find.byKey(
+        const ValueKey<String>('maat-flow-discovery-view'),
+        skipOffstage: false,
+      );
+      final back = find.byKey(const ValueKey<String>('reading-house-back'));
+      expect(discoverySurface, findsNothing);
+      expect(back, findsOneWidget);
+      expect(find.byKey(kMaatFlowDetailSurfaceHostKey), findsOneWidget);
 
-    final listRoute = ModalRoute.of(tester.element(listSurface));
-    final detailRoute = ModalRoute.of(tester.element(back));
-    expect(listRoute, isNotNull);
-    expect(detailRoute, isNotNull);
-    expect(detailRoute, isNot(same(listRoute)));
-    expect(detailRoute, isA<PopupRoute<int?>>());
-    expect(detailRoute!.opaque, isFalse);
-    expect(listRoute!.isCurrent, isFalse);
-    expect(detailRoute.isCurrent, isTrue);
+      final detailRoute = ModalRoute.of(tester.element(back));
+      expect(detailRoute, isNotNull);
+      expect(detailRoute!.isCurrent, isTrue);
 
-    await tester.tap(back);
-    await tester.pumpAndSettle();
+      await tester.tap(back);
+      await tester.pumpAndSettle();
 
-    expect(listRoute.isCurrent, isTrue);
-    expect(detailRoute.isCurrent, isFalse);
-    expect(find.text('Flows'), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
-  });
+      expect(detailRoute.isCurrent, isTrue);
+      expect(find.byKey(kMaatFlowDetailSurfaceHostKey), findsNothing);
+      expect(find.text('Flows'), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
+    },
+  );
 
-  testWidgets('system Back pops the detail route and leaves Flow Studio open', (
+  testWidgets('system Back swaps selected content back to Discovery', (
     tester,
   ) async {
     _setPhoneViewport(tester);
@@ -223,21 +213,15 @@ void main() {
       ),
     );
 
-    final listSurface = find.byKey(
-      const ValueKey<String>('maat-flow-discovery-view'),
-      skipOffstage: false,
-    );
-    final listRoute = ModalRoute.of(tester.element(listSurface));
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-back')),
-      findsOneWidget,
-    );
+    final back = find.byKey(const ValueKey<String>('offering-table-back'));
+    expect(back, findsOneWidget);
+    final sharedRoute = ModalRoute.of(tester.element(back));
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(listRoute, isNotNull);
-    expect(listRoute!.isCurrent, isTrue);
+    expect(sharedRoute, isNotNull);
+    expect(sharedRoute!.isCurrent, isTrue);
     expect(
       find.byKey(const ValueKey<String>('offering-table-back')),
       findsNothing,
@@ -246,7 +230,7 @@ void main() {
     expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
   });
 
-  testWidgets('detail sheet dismisses without dismissing Discovery', (
+  testWidgets('flow detail cannot create or dismiss a second sheet', (
     tester,
   ) async {
     _setPhoneViewport(tester);
@@ -266,32 +250,24 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    final sheetHost = find.byKey(kMaatFlowDetailSheetHostKey);
-    expect(sheetHost, findsOneWidget);
-    expect(tester.getTopLeft(sheetHost).dy, greaterThan(0));
+    final surfaceHost = find.byKey(kMaatFlowDetailSurfaceHostKey);
+    expect(surfaceHost, findsOneWidget);
+    expect(tester.getTopLeft(surfaceHost), Offset.zero);
 
-    await tester.tapAt(const Offset(8, 8));
+    await tester.drag(surfaceHost, const Offset(0, 420));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(sheetHost, findsNothing);
+    expect(surfaceHost, findsOneWidget);
     expect(
-      find.byKey(const ValueKey<String>('maat-flow-discovery-view')),
+      find.byKey(const ValueKey<String>('follow-sky-back')),
       findsOneWidget,
     );
 
-    await _scrollDiscoveryControlIntoViewport(tester, openButton);
-    await tester.tap(openButton);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(sheetHost, findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey<String>('follow-sky-back')));
+    await tester.pumpAndSettle();
 
-    final sheetTop = tester.getTopLeft(sheetHost).dy;
-    await tester.dragFrom(Offset(195, sheetTop + 12), const Offset(0, 420));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-
-    expect(sheetHost, findsNothing);
+    expect(surfaceHost, findsNothing);
     expect(
       find.byKey(const ValueKey<String>('maat-flow-discovery-view')),
       findsOneWidget,

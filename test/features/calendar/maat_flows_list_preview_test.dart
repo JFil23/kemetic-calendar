@@ -506,12 +506,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: buildMaatFlowsListPreviewForTesting(
-          onPickTemplate: (key) async {
-            opened.add(key);
-            return null;
-          },
-        ),
+        home: buildMaatFlowsListPreviewForTesting(onSelectTemplate: opened.add),
       ),
     );
 
@@ -521,6 +516,7 @@ void main() {
     await tester.tap(button);
     await tester.pumpAndSettle();
     expect(opened, <String>['track-the-sky']);
+    expect(find.byKey(kMaatFlowDetailSurfaceHostKey), findsOneWidget);
     expect(find.text('Carry this flow'), findsNothing);
   });
 

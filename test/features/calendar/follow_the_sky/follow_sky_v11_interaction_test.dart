@@ -112,7 +112,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: FollowSkyDetailPage(
+          home: FollowSkyDetailSurface(
             initialCatalog: catalog,
             calendarPreview: preview,
             now: now,
@@ -384,7 +384,7 @@ void main() {
         .firstWhere((night) => night.companion != null);
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(initialCatalog: catalog, now: now),
+        home: FollowSkyDetailSurface(initialCatalog: catalog, now: now),
       ),
     );
     await tester.pumpAndSettle();
@@ -454,7 +454,7 @@ void main() {
     TrackSkyEnrollmentDraft? capturedDraft;
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(
+        home: FollowSkyDetailSurface(
           initialCatalog: catalog,
           now: now,
           onJoin: (draft) async => capturedDraft = draft,
@@ -721,11 +721,10 @@ class _FollowSkyEditingSheetHarnessState
                         builder: (_) => const ColoredBox(color: Colors.black),
                       ),
                       MaterialPageRoute<void>(
-                        builder: (_) => FollowSkyDetailPage(
+                        builder: (_) => FollowSkyDetailSurface(
                           initialCatalog: widget.catalog,
                           now: DateTime.utc(2026, 8, 24, 12),
                           isJoined: true,
-                          standalone: false,
                         ),
                       ),
                     ],
@@ -773,7 +772,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
         child: child ?? const SizedBox.shrink(),
       ),
       home: standalone
-          ? FollowSkyDetailPage(
+          ? FollowSkyDetailSurface(
               initialCatalog: catalog,
               now: DateTime.utc(2026, 8, 24, 12),
             )

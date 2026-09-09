@@ -63,7 +63,7 @@ void main() {
     await _pumpAndCapture(
       tester,
       outPath: '${outDir.path}/01_unjoined_first_course.png',
-      child: FollowSkyDetailPage(
+      child: FollowSkyDetailSurface(
         isJoined: false,
         initialCatalog: catalog,
         now: DateTime.utc(2026, 9, 1, 12),
@@ -76,7 +76,7 @@ void main() {
     await _pumpAndCapture(
       tester,
       outPath: '${outDir.path}/02_joined_set_course.png',
-      child: FollowSkyDetailPage(
+      child: FollowSkyDetailSurface(
         isJoined: true,
         initialCatalog: catalog,
         now: DateTime.utc(2026, 9, 1, 12),
@@ -97,7 +97,7 @@ void main() {
     await _pumpAndCapture(
       tester,
       outPath: '${outDir.path}/03_joined_course_active.png',
-      child: FollowSkyDetailPage(
+      child: FollowSkyDetailSurface(
         isJoined: true,
         existingFlowNotes: codec.encode(course),
         initialCatalog: catalog,

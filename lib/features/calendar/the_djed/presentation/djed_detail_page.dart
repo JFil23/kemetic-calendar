@@ -151,8 +151,8 @@ abstract final class DjedDetailTokens {
   );
 }
 
-class DjedDetailPage extends StatefulWidget {
-  const DjedDetailPage({
+class DjedDetailSurface extends StatefulWidget {
+  const DjedDetailSurface({
     super.key,
     this.startDate,
     this.supports = kDjedSupportFixtures,
@@ -178,10 +178,10 @@ class DjedDetailPage extends StatefulWidget {
   DateTime get _windowStart => startDate ?? DateTime(2026, 9, 6);
 
   @override
-  State<DjedDetailPage> createState() => _DjedDetailPageState();
+  State<DjedDetailSurface> createState() => _DjedDetailSurfaceState();
 }
 
-class _DjedDetailPageState extends State<DjedDetailPage> {
+class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
   late List<DjedSupportFixture> _supports;
   late final List<FocusNode> _supportFocusNodes;
   int _activeSupport = 0;
@@ -218,7 +218,7 @@ class _DjedDetailPageState extends State<DjedDetailPage> {
   }
 
   @override
-  void didUpdateWidget(covariant DjedDetailPage oldWidget) {
+  void didUpdateWidget(covariant DjedDetailSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.supports != widget.supports) {
       _supports = List<DjedSupportFixture>.from(widget.supports.take(4));
@@ -354,9 +354,10 @@ class _DjedDetailPageState extends State<DjedDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: DjedDetailTokens.page,
-      body: Stack(
+    return Material(
+      key: const ValueKey<String>('djed-detail-surface'),
+      color: DjedDetailTokens.page,
+      child: Stack(
         children: <Widget>[
           MaatFlowDetailShell(
             theme: DjedDetailTokens.theme,
@@ -392,16 +393,17 @@ class _DjedDetailPageState extends State<DjedDetailPage> {
               showNote: false,
             ),
           ),
-          Positioned(
-            left: 18,
-            top: MediaQuery.paddingOf(context).top + 6,
-            child: MaatFlowDetailBackButton(
-              key: const ValueKey<String>('djed-back'),
-              color: DjedDetailTokens.gold,
-              backgroundColor: const Color(0xA60D0905),
-              onPressed: widget.onBack ?? () => popMaatFlowDetailOrGo(context),
+          if (widget.onBack != null)
+            Positioned(
+              left: 18,
+              top: MediaQuery.paddingOf(context).top + 6,
+              child: MaatFlowDetailBackButton(
+                key: const ValueKey<String>('djed-back'),
+                color: DjedDetailTokens.gold,
+                backgroundColor: const Color(0xA60D0905),
+                onPressed: widget.onBack!,
+              ),
             ),
-          ),
         ],
       ),
     );

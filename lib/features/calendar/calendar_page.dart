@@ -5051,10 +5051,15 @@ class CalendarPage extends StatefulWidget {
 
     for (final template in _kCoreMaatFlowTemplates) {
       if (template.key != templateKey) continue;
-      return _MaatFlowTemplateDetailPage(
-        template: template,
-        addInstance: _addMaatFlowInstanceHeadless,
-        backFallbackLocation: backFallbackLocation,
+      return Builder(
+        builder: (context) => _ActiveMaatFlowDetailSurface(
+          template: template,
+          addInstance: _addMaatFlowInstanceHeadless,
+          onBack: () => popMaatFlowDetailOrGo(
+            context,
+            fallbackLocation: backFallbackLocation,
+          ),
+        ),
       );
     }
     return null;
@@ -7976,7 +7981,7 @@ class CalendarPage extends StatefulWidget {
       return _pushDetachedFlowStudioRoute<_FlowStudioResult>(
         navigator,
         MaterialPageRoute<_FlowStudioResult>(
-          builder: (_) => _ReadingHouseAuthoringPage(
+          builder: (_) => _ReadingHouseAuthoringSurface(
             flow: readingHouseFlow!,
             onPersisted: (_) async {
               await flowsRepo.clearMyFiledFlowsCache();
@@ -7989,7 +7994,6 @@ class CalendarPage extends StatefulWidget {
                 );
               }
             },
-            resizeToAvoidBottomInset: false,
           ),
         ),
         parentRoute: parentRoute,
@@ -8031,10 +8035,11 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
-  static Widget _buildDetachedMaatFlowTemplateDetailPage({
+  static Widget _buildDetachedMaatFlowDetailSurface({
     required NavigatorState navigator,
     required _MaatFlowTemplate template,
     required FlowsRepo flowsRepo,
+    required VoidCallback onBack,
     _Flow? joinedFlow,
     VoidCallback? onClose,
   }) {
@@ -8048,11 +8053,11 @@ class CalendarPage extends StatefulWidget {
             template.key,
           );
         }();
-    return _MaatFlowTemplateDetailPage(
+    return _ActiveMaatFlowDetailSurface(
       template: template,
       joinedFlow: activeInstance,
       addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
-      resizeToAvoidBottomInset: false,
+      onBack: onBack,
       onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
         navigator: navigator,
         template: template,
@@ -8061,35 +8066,6 @@ class CalendarPage extends StatefulWidget {
         onClose: onClose,
       ),
       onEndFlow: _endFlowHeadless,
-    );
-  }
-
-  static Future<int?> _pushDetachedMaatFlowTemplateDetail(
-    NavigatorState navigator,
-    _MaatFlowTemplate template, {
-    _Flow? joinedFlow,
-    required String parentRoute,
-    required Map<String, dynamic> returnState,
-    required FlowsRepo flowsRepo,
-    VoidCallback? onClose,
-  }) {
-    return _pushDetachedFlowStudioRoute<int?>(
-      navigator,
-      _maatFlowDetailSheetRoute<int?>(
-        builder: (_) => _buildDetachedMaatFlowTemplateDetailPage(
-          navigator: navigator,
-          template: template,
-          flowsRepo: flowsRepo,
-          joinedFlow: joinedFlow,
-          onClose: onClose,
-        ),
-      ),
-      parentRoute: parentRoute,
-      visibleState: <String, dynamic>{
-        'mode': _kFlowStudioModeMaatTemplate,
-        'templateKey': template.key,
-      },
-      returnState: returnState,
     );
   }
 
@@ -8211,37 +8187,10 @@ class CalendarPage extends StatefulWidget {
     required NavigatorState navigator,
     required String parentRoute,
     required FlowsRepo flowsRepo,
+    String? initialTemplateKey,
     VoidCallback? onClose,
   }) {
     final cachedSnapshot = _cachedDetachedMyFlowsFilingSnapshot(flowsRepo);
-    Future<int?> handleDetailResult(
-      _MaatFlowTemplate template,
-      int? importedFlowId,
-    ) async {
-      if (importedFlowId != null && importedFlowId > 0 && navigator.mounted) {
-        _rememberJoinedMaatFlowTemplate(
-          templateKey: template.key,
-          flowId: importedFlowId,
-        );
-        await flowsRepo.clearMyFiledFlowsCache();
-        if (!navigator.mounted) return importedFlowId;
-        // Day View completion is mounted-host only; detached keeps filing refresh.
-        unawaited(
-          flowsRepo.refreshMyFiledFlows().then((rows) {
-            _reconcileRememberedMaatJoinsFromLiveSnapshot(
-              _myFlowsFilingSnapshotFromRowsDetached(rows),
-            );
-          }),
-        );
-        if (navigator.canPop()) {
-          navigator.pop(importedFlowId);
-        } else {
-          Navigator.of(navigator.context, rootNavigator: true).pop();
-        }
-      }
-      return importedFlowId;
-    }
-
     return _MaatFlowsListPageWithSnapshot(
       title: _kMaatFlowsDisplayTitle,
       templates: _kCoreMaatFlowTemplates,
@@ -8252,19 +8201,29 @@ class CalendarPage extends StatefulWidget {
         _reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
         return snapshot;
       },
-      onPickTemplate: (template, activeInstance) async {
-        final importedFlowId = await _pushDetachedMaatFlowTemplateDetail(
-          navigator,
-          template,
-          joinedFlow: activeInstance,
-          parentRoute: parentRoute,
-          flowsRepo: flowsRepo,
-          onClose: onClose,
-          returnState: const <String, dynamic>{
-            'mode': _kFlowStudioModeMaatFlows,
-          },
+      initialTemplateKey: initialTemplateKey,
+      detailBuilder: (template, activeInstance, onBack) =>
+          _buildDetachedMaatFlowDetailSurface(
+            navigator: navigator,
+            template: template,
+            flowsRepo: flowsRepo,
+            onBack: onBack,
+            joinedFlow: activeInstance,
+            onClose: onClose,
+          ),
+      onSelectedTemplateChanged: (templateKey) {
+        unawaited(
+          _saveDetachedCalendarOverlayState(
+            parentRoute: parentRoute,
+            kind: _kCalendarOverlayKindFlowStudio,
+            state: <String, dynamic>{
+              'mode': templateKey == null
+                  ? _kFlowStudioModeMaatFlows
+                  : _kFlowStudioModeMaatTemplate,
+              if (templateKey != null) 'templateKey': templateKey,
+            },
+          ),
         );
-        return handleDetailResult(template, importedFlowId);
       },
       onCreateNew: () async {
         final edited = await _pushDetachedFlowStudioEditor(
@@ -8376,6 +8335,9 @@ class CalendarPage extends StatefulWidget {
         navigator: navigator,
         parentRoute: parentRoute,
         flowsRepo: flowsRepo,
+        initialTemplateKey: mode == _kFlowStudioModeMaatTemplate
+            ? (restorationState['templateKey'] as String?)
+            : null,
         onClose: onClose,
       );
     }
@@ -8452,7 +8414,6 @@ class CalendarPage extends StatefulWidget {
   }) {
     final mode = (restorationState['mode'] as String?)?.trim();
     final templateKey = (restorationState['templateKey'] as String?)?.trim();
-    BuildContext? maatListContext;
     Route<dynamic> hubRoute() => MaterialPageRoute<dynamic>(
       builder: (innerCtx) => _buildDetachedFlowStudioRoot(
         innerCtx: innerCtx,
@@ -8479,43 +8440,18 @@ class CalendarPage extends StatefulWidget {
       );
     }
 
-    void recordReturnToMaatList() {
-      if (RestorationCoordinator
-          .instance
-          .shouldPreserveOverlayForLifecycleClose) {
-        return;
-      }
-      const state = <String, dynamic>{'mode': _kFlowStudioModeMaatFlows};
-      final context = maatListContext;
-      if (context != null && context.mounted) {
-        unawaited(
-          _recordDetachedFlowStudioRouteState(
-            context: context,
-            parentRoute: parentRoute,
-            state: state,
-          ),
-        );
-      }
-      unawaited(
-        _saveDetachedCalendarOverlayState(
-          parentRoute: parentRoute,
-          kind: _kCalendarOverlayKindFlowStudio,
-          state: state,
-        ),
-      );
-    }
-
-    if (mode == _kFlowStudioModeMaatFlows) {
+    if (mode == _kFlowStudioModeMaatFlows ||
+        mode == _kFlowStudioModeMaatTemplate) {
       final listRoute = MaterialPageRoute<int?>(
-        builder: (innerCtx) {
-          maatListContext = innerCtx;
-          return _buildDetachedMaatFlowsListPage(
-            navigator: Navigator.of(innerCtx),
-            parentRoute: parentRoute,
-            flowsRepo: flowsRepo,
-            onClose: onClose,
-          );
-        },
+        builder: (innerCtx) => _buildDetachedMaatFlowsListPage(
+          navigator: Navigator.of(innerCtx),
+          parentRoute: parentRoute,
+          flowsRepo: flowsRepo,
+          initialTemplateKey: mode == _kFlowStudioModeMaatTemplate
+              ? templateKey
+              : null,
+          onClose: onClose,
+        ),
       );
       unawaited(listRoute.popped.then((_) => recordReturnToHub()));
       return <Route<dynamic>>[hubRoute(), listRoute];
@@ -8535,62 +8471,17 @@ class CalendarPage extends StatefulWidget {
       return <Route<dynamic>>[hubRoute(), listRoute];
     }
 
-    if (mode != _kFlowStudioModeMaatTemplate ||
-        templateKey == null ||
-        templateKey.isEmpty) {
-      return <Route<dynamic>>[
-        MaterialPageRoute<dynamic>(
-          builder: (innerCtx) => _buildDetachedFlowStudioRoot(
-            innerCtx: innerCtx,
-            parentRoute: parentRoute,
-            flowsRepo: flowsRepo,
-            restorationState: restorationState,
-            onClose: onClose,
-          ),
-        ),
-      ];
-    }
-
-    _MaatFlowTemplate? template;
-    for (final candidate in _kCoreMaatFlowTemplates) {
-      if (candidate.key == templateKey) {
-        template = candidate;
-        break;
-      }
-    }
-
-    final listRoute = MaterialPageRoute<int?>(
-      builder: (innerCtx) {
-        maatListContext = innerCtx;
-        return _buildDetachedMaatFlowsListPage(
-          navigator: Navigator.of(innerCtx),
+    return <Route<dynamic>>[
+      MaterialPageRoute<dynamic>(
+        builder: (innerCtx) => _buildDetachedFlowStudioRoot(
+          innerCtx: innerCtx,
           parentRoute: parentRoute,
           flowsRepo: flowsRepo,
+          restorationState: restorationState,
           onClose: onClose,
-        );
-      },
-    );
-    unawaited(listRoute.popped.then((_) => recordReturnToHub()));
-    if (template == null) return <Route<dynamic>>[hubRoute(), listRoute];
-
-    final selectedTemplate = template;
-    final cachedSnapshot = _cachedDetachedMyFlowsFilingSnapshot(flowsRepo);
-    final detailRoute = _maatFlowDetailSheetRoute<int?>(
-      builder: (innerCtx) => _buildDetachedMaatFlowTemplateDetailPage(
-        navigator: Navigator.of(innerCtx),
-        template: selectedTemplate,
-        flowsRepo: flowsRepo,
-        joinedFlow: cachedSnapshot == null
-            ? null
-            : _visibleSnapshotActiveMaatInstanceFor(
-                _applyEndFlowVisibilityOverlay(cachedSnapshot),
-                selectedTemplate.key,
-              ),
-        onClose: onClose,
+        ),
       ),
-    );
-    unawaited(detailRoute.popped.then((_) => recordReturnToMaatList()));
-    return <Route<dynamic>>[hubRoute(), listRoute, detailRoute];
+    ];
   }
 
   static Future<void> _openDetachedFlowStudioSheet(
@@ -9856,8 +9747,8 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
     );
   }
 
-  Widget _buildReadingHouseAuthoringPage(_Flow flow) {
-    return _ReadingHouseAuthoringPage(
+  Widget _buildReadingHouseAuthoringSurface(_Flow flow) {
+    return _ReadingHouseAuthoringSurface(
       flow: flow,
       onPersisted: (_) async {
         final mountedHost = CalendarPage._mountedState;
@@ -9901,7 +9792,7 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
             }
             final readingHouseFlow = snapshot.data;
             if (readingHouseFlow != null) {
-              return _buildReadingHouseAuthoringPage(readingHouseFlow);
+              return _buildReadingHouseAuthoringSurface(readingHouseFlow);
             }
             return _buildGenericFlowEditor();
           },
@@ -12933,14 +12824,13 @@ class CalendarPageState extends State<CalendarPage>
           final hubRoute = MaterialPageRoute<dynamic>(
             builder: (ctx) => _buildFlowStudioHubPage(ctx),
           );
-          final restoredTemplate =
-              mode == _kFlowStudioModeMaatTemplate &&
-                  templateKey != null &&
-                  templateKey.isNotEmpty
-              ? _maatTemplateForKey(templateKey)
-              : null;
           final listRoute = MaterialPageRoute<dynamic>(
-            builder: (ctx) => _buildMaatFlowsListPage(ctx),
+            builder: (ctx) => _buildMaatFlowsListPage(
+              ctx,
+              initialTemplateKey: mode == _kFlowStudioModeMaatTemplate
+                  ? templateKey
+                  : null,
+            ),
           );
           unawaited(
             listRoute.popped.then((importedFlowId) async {
@@ -12977,31 +12867,7 @@ class CalendarPageState extends State<CalendarPage>
               );
             }),
           );
-          if (restoredTemplate == null) {
-            return <Route<dynamic>>[hubRoute, listRoute];
-          }
-          final detailRoute = _maatFlowDetailSheetRoute<int?>(
-            builder: (_) => _buildMaatFlowTemplateDetailPage(
-              template: restoredTemplate,
-              persistOverlay: true,
-              joinedFlow: _activeFlowForMaatTemplate(restoredTemplate.key),
-            ),
-          );
-          unawaited(
-            detailRoute.popped.then((_) async {
-              if (!mounted ||
-                  RestorationCoordinator
-                      .instance
-                      .shouldPreserveOverlayForLifecycleClose) {
-                return;
-              }
-              await _saveCalendarOverlayState(
-                _kCalendarOverlayKindFlowStudio,
-                const <String, dynamic>{'mode': _kFlowStudioModeMaatFlows},
-              );
-            }),
-          );
-          return <Route<dynamic>>[hubRoute, listRoute, detailRoute];
+          return <Route<dynamic>>[hubRoute, listRoute];
         },
       );
       return;
@@ -13065,7 +12931,7 @@ class CalendarPageState extends State<CalendarPage>
       return _pushFlowStudioRoute<_FlowStudioResult>(
         navigator,
         MaterialPageRoute<_FlowStudioResult>(
-          builder: (_) => _ReadingHouseAuthoringPage(
+          builder: (_) => _ReadingHouseAuthoringSurface(
             flow: readingHouseFlow,
             onPersisted: (_) async {
               if (!mounted) return;
@@ -13075,7 +12941,6 @@ class CalendarPageState extends State<CalendarPage>
                 ),
               );
             },
-            resizeToAvoidBottomInset: persistOverlay,
           ),
         ),
         visibleState: <String, dynamic>{
@@ -13160,9 +13025,9 @@ class CalendarPageState extends State<CalendarPage>
     return null;
   }
 
-  Widget _buildMaatFlowTemplateDetailPage({
+  Widget _buildMaatFlowDetailSurface({
     required _MaatFlowTemplate template,
-    required bool persistOverlay,
+    required VoidCallback onBack,
     _Flow? joinedFlow,
   }) {
     final activeInstance =
@@ -13171,10 +13036,10 @@ class CalendarPageState extends State<CalendarPage>
     final calendarPreview = template.key == kOfferingTableFlowKey
         ? _offeringTableCalendarPreview()
         : sky?.preview;
-    return _MaatFlowTemplateDetailPage(
+    return _ActiveMaatFlowDetailSurface(
       template: template,
       joinedFlow: activeInstance,
-      resizeToAvoidBottomInset: persistOverlay,
+      onBack: onBack,
       followSkyCandidates: sky?.candidates ?? const [],
       followSkyMeasurementIntervals: sky?.intervals ?? const [],
       followSkyCalendarPreview:
@@ -13233,31 +13098,6 @@ class CalendarPageState extends State<CalendarPage>
         templateKey: template.key,
       ),
       onEndFlow: (flowId) => _endFlow(flowId),
-    );
-  }
-
-  Future<int?> _pushMaatFlowTemplateDetail(
-    NavigatorState navigator,
-    _MaatFlowTemplate template, {
-    _Flow? joinedFlow,
-    required Map<String, dynamic> returnState,
-    bool persistOverlay = true,
-  }) {
-    return _pushFlowStudioRoute<int?>(
-      navigator,
-      _maatFlowDetailSheetRoute<int?>(
-        builder: (_) => _buildMaatFlowTemplateDetailPage(
-          template: template,
-          persistOverlay: persistOverlay,
-          joinedFlow: joinedFlow,
-        ),
-      ),
-      visibleState: <String, dynamic>{
-        'mode': _kFlowStudioModeMaatTemplate,
-        'templateKey': template.key,
-      },
-      returnState: returnState,
-      persistOverlay: persistOverlay,
     );
   }
 
@@ -16608,11 +16448,8 @@ class CalendarPageState extends State<CalendarPage>
         ),
       );
     }
-    return _MaatFlowTemplateDetailPage(
+    return _ActiveMaatFlowDetailSurface(
       template: template,
-      showBackButton: false,
-      embeddedInOnboarding: true,
-      resizeToAvoidBottomInset: false,
       addInstance:
           ({
             required _MaatFlowTemplate template,
@@ -27195,56 +27032,34 @@ class CalendarPageState extends State<CalendarPage>
   Widget _buildMaatFlowsListPage(
     BuildContext listCtx, {
     bool persistOverlay = true,
+    String? initialTemplateKey,
   }) {
     final navigator = Navigator.of(listCtx);
-    Future<int?> handleDetailResult(
-      _MaatFlowTemplate template,
-      int? importedFlowId,
-    ) async {
-      if (importedFlowId != null && importedFlowId > 0 && listCtx.mounted) {
-        CalendarPage._rememberJoinedMaatFlowTemplate(
-          templateKey: template.key,
-          flowId: importedFlowId,
-        );
-        _myFlowsFilingSnapshotCache = null;
-        await _flowsRepo.clearMyFiledFlowsCache();
-        if (!listCtx.mounted) return importedFlowId;
-        // Notes already in _notes from join; hub completion opens Day View.
-        if (_firstChronologicalNoteForFlow(importedFlowId) == null &&
-            listCtx.mounted) {
-          ScaffoldMessenger.of(listCtx).showSnackBar(
-            const SnackBar(
-              content: Text('Could not open the first day of this flow.'),
-            ),
-          );
-        }
-        if (!listCtx.mounted) return importedFlowId;
-        final listNavigator = Navigator.of(listCtx);
-        if (listNavigator.canPop()) {
-          listNavigator.pop(importedFlowId);
-        } else {
-          Navigator.of(listCtx, rootNavigator: true).pop();
-        }
-      }
-      return importedFlowId;
-    }
-
     return _MaatFlowsListPage(
       title: _kMaatFlowsDisplayTitle,
       templates: _kCoreMaatFlowTemplates,
       activeInstanceForKey: _activeFlowForMaatTemplate,
       progressForKey: _maatCompletionStatusForActiveInstance,
-      onPickTemplate: (tpl, activeInstance) async {
-        final importedFlowId = await _pushMaatFlowTemplateDetail(
-          navigator,
-          tpl,
-          joinedFlow: activeInstance,
-          returnState: const <String, dynamic>{
-            'mode': _kFlowStudioModeMaatFlows,
-          },
-          persistOverlay: persistOverlay,
+      initialTemplateKey: initialTemplateKey,
+      detailBuilder: (template, activeInstance, onBack) =>
+          _buildMaatFlowDetailSurface(
+            template: template,
+            onBack: onBack,
+            joinedFlow: activeInstance,
+          ),
+      onSelectedTemplateChanged: (templateKey) {
+        if (!persistOverlay) return;
+        unawaited(
+          _saveCalendarOverlayState(
+            _kCalendarOverlayKindFlowStudio,
+            <String, dynamic>{
+              'mode': templateKey == null
+                  ? _kFlowStudioModeMaatFlows
+                  : _kFlowStudioModeMaatTemplate,
+              if (templateKey != null) 'templateKey': templateKey,
+            },
+          ),
         );
-        return handleDetailResult(tpl, importedFlowId);
       },
       onCreateNew: () async {
         final edited = await _pushFlowStudioEditor(
@@ -27463,7 +27278,7 @@ class CalendarPageState extends State<CalendarPage>
           'templateKey': kReadingHouseFlowKey,
         },
         rootBuilder: (innerCtx) {
-          return _ReadingHouseAuthoringPage(
+          return _ReadingHouseAuthoringSurface(
             flow: readingHouseFlow,
             onPersisted: (_) async {
               if (!mounted) return;

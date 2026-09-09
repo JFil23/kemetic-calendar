@@ -68,8 +68,8 @@ abstract final class OfferingTableDetailTokens {
 
 /// Dedicated Offering Table presentation. The preview is derived locally from
 /// existing domain schedules; join generation and persistence remain unchanged.
-class OfferingTableDetailPage extends StatefulWidget {
-  const OfferingTableDetailPage({
+class OfferingTableDetailSurface extends StatefulWidget {
+  const OfferingTableDetailSurface({
     super.key,
     required this.timezone,
     required this.onJoin,
@@ -80,9 +80,7 @@ class OfferingTableDetailPage extends StatefulWidget {
     this.joinedScheduleDates = const <DateTime>[],
     this.lens = OfferingTableLens.neutral,
     this.noCupMode = false,
-    this.showBackButton = true,
-    this.backFallbackLocation = kMaatFlowsListRoute,
-    this.resizeToAvoidBottomInset = true,
+    this.onBack,
     this.localStore = const OfferingTableLocalStore(),
     this.clock,
     this.presentDayIanaTimeZone,
@@ -99,9 +97,7 @@ class OfferingTableDetailPage extends StatefulWidget {
   final List<DateTime> joinedScheduleDates;
   final OfferingTableLens lens;
   final bool noCupMode;
-  final bool showBackButton;
-  final String backFallbackLocation;
-  final bool resizeToAvoidBottomInset;
+  final VoidCallback? onBack;
   final OfferingTableLocalStore localStore;
   final MaatFlowClock? clock;
   final String? presentDayIanaTimeZone;
@@ -109,11 +105,12 @@ class OfferingTableDetailPage extends StatefulWidget {
   final MaatFlowTemporalScheduler? temporalScheduler;
 
   @override
-  State<OfferingTableDetailPage> createState() =>
-      _OfferingTableDetailPageState();
+  State<OfferingTableDetailSurface> createState() =>
+      _OfferingTableDetailSurfaceState();
 }
 
-class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
+class _OfferingTableDetailSurfaceState
+    extends State<OfferingTableDetailSurface> {
   late MaatFlowTemporalController _temporalController;
   int? _carriedFlowId;
   final TextEditingController _initialEntryController = TextEditingController();
@@ -130,7 +127,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   }
 
   @override
-  void didUpdateWidget(covariant OfferingTableDetailPage oldWidget) {
+  void didUpdateWidget(covariant OfferingTableDetailSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.joinedFlowId != oldWidget.joinedFlowId) {
       _carriedFlowId = widget.joinedFlowId;
@@ -360,14 +357,14 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
       sheet: _buildSheet(),
     );
 
-    return Scaffold(
-      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
-      backgroundColor: OfferingTableDetailTokens.pageBackground,
-      body: KeyboardAwareEditableSurface(
+    return Material(
+      key: const ValueKey<String>('offering-table-detail-surface'),
+      color: OfferingTableDetailTokens.pageBackground,
+      child: KeyboardAwareEditableSurface(
         child: Stack(
           children: [
             body,
-            if (widget.showBackButton)
+            if (widget.onBack != null)
               Positioned(
                 top: MediaQuery.paddingOf(context).top + 6,
                 left: 16,
@@ -379,10 +376,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
                   size: 40,
                   iconSize: 27,
                   icon: Icons.chevron_left,
-                  onPressed: () => popMaatFlowDetailOrGo(
-                    context,
-                    fallbackLocation: widget.backFallbackLocation,
-                  ),
+                  onPressed: widget.onBack!,
                 ),
               ),
           ],

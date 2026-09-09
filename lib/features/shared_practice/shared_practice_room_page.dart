@@ -7,6 +7,7 @@ import '../../core/completion_status.dart';
 import '../../data/shared_calendars_repo.dart';
 import '../../data/shared_practice_models.dart';
 import '../../data/shared_practice_repo.dart';
+import '../calendar/presentation/maat_flow_detail_shell.dart';
 import '../calendar/the_reading_house/presentation/reading_house_detail_page.dart';
 import '../calendar/the_reading_house/reading_house_authority.dart';
 import '../calendar/the_reading_house_flow.dart';
@@ -133,7 +134,8 @@ class _SharedPracticeRoomRoutePageState
         final timezone = readingHouseTimeZoneFromFlowNotes(
           source['notes']?.toString(),
         );
-        return ReadingHouseDetailPage(
+        return ReadingHouseDetailSurface(
+          onBack: () => popMaatFlowDetailOrGo(context),
           timezone: timezone,
           initialStartDate:
               DateTime.tryParse(source['start_date']?.toString() ?? '') ??

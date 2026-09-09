@@ -59,7 +59,7 @@ void main() {
     _setPhoneViewport(tester);
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(
+        home: FollowSkyDetailSurface(
           initialCatalog: followSkyCatalog,
           now: DateTime.utc(2026, 9, 1, 12),
         ),
@@ -67,7 +67,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(FollowSkyDetailPage), findsOneWidget);
+    expect(find.byType(FollowSkyDetailSurface), findsOneWidget);
     expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
     expect(find.text('Begin reflection'), findsNothing);
     expect(find.text('What change are you watching above?'), findsNothing);
@@ -349,13 +349,13 @@ void main() {
     (tester) async {
       _setPhoneViewport(tester);
       await _pumpTemplateDetail(tester, 'the-offering-table');
-      expect(find.byType(OfferingTableDetailPage), findsOneWidget);
+      expect(find.byType(OfferingTableDetailSurface), findsOneWidget);
       expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
 
       tester.view.physicalSize = const Size(430, 932);
 
       await _pumpTemplateDetail(tester, 'the-offering-table');
-      expect(find.byType(OfferingTableDetailPage), findsOneWidget);
+      expect(find.byType(OfferingTableDetailSurface), findsOneWidget);
       expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
       expect(tester.takeException(), isNull);
     },
@@ -436,10 +436,10 @@ void _setPhoneViewport(WidgetTester tester) {
 
 Finder _activeDetailSurface(String templateKey) {
   return switch (templateKey) {
-    'track-the-sky' => find.byType(FollowSkyDetailPage),
-    'the-offering-table' => find.byType(OfferingTableDetailPage),
-    'the-reading-house' => find.byType(ReadingHouseDetailPage),
-    'the-djed' => find.byType(DjedDetailPage),
+    'track-the-sky' => find.byType(FollowSkyDetailSurface),
+    'the-offering-table' => find.byType(OfferingTableDetailSurface),
+    'the-reading-house' => find.byType(ReadingHouseDetailSurface),
+    'the-djed' => find.byType(DjedDetailSurface),
     _ => find.byKey(const ValueKey<String>('unsupported-active-detail')),
   };
 }

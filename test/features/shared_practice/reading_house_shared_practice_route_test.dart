@@ -44,7 +44,7 @@ void main() {
 
     expect(sharedPracticeSnapshotIsReadingHouse(snapshot), isFalse);
     expect(find.byType(SharedPracticeRoomPage), findsOneWidget);
-    expect(find.byType(ReadingHouseDetailPage), findsNothing);
+    expect(find.byType(ReadingHouseDetailSurface), findsNothing);
   });
 
   testWidgets('Reading House creator gets the canonical editable detail', (
@@ -62,7 +62,7 @@ void main() {
     await pumpRoute(tester, snapshot);
 
     expect(sharedPracticeSnapshotIsReadingHouse(snapshot), isTrue);
-    expect(find.byType(ReadingHouseDetailPage), findsOneWidget);
+    expect(find.byType(ReadingHouseDetailSurface), findsOneWidget);
     expect(find.byType(SharedPracticeRoomPage), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('reading-house-book')),
@@ -101,7 +101,7 @@ void main() {
         );
         await pumpRoute(tester, snapshot);
 
-        expect(find.byType(ReadingHouseDetailPage), findsOneWidget);
+        expect(find.byType(ReadingHouseDetailSurface), findsOneWidget);
         expect(
           find.descendant(
             of: find.byKey(const ValueKey<String>('reading-house-setup')),
@@ -135,13 +135,13 @@ void main() {
     ).readAsStringSync();
 
     expect(mainSource, contains('SharedPracticeRoomRoutePage(roomId: roomId)'));
-    expect(routeSource, contains('return ReadingHouseDetailPage('));
+    expect(routeSource, contains('return ReadingHouseDetailSurface('));
     expect(routeSource, isNot(contains('CommonsReadingHousePage')));
     expect(
       sharedFlowSource,
       contains('CalendarPage.buildCanonicalMaatFlowDetail('),
     );
-    expect(calendarSource, contains('return ReadingHouseDetailPage('));
+    expect(calendarSource, contains('return ReadingHouseDetailSurface('));
     expect(calendarSource, contains('LiveReadingHouseAuthority('));
   });
 }

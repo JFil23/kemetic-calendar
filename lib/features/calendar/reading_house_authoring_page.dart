@@ -6,21 +6,17 @@ part of 'calendar_page.dart';
 /// [LiveReadingHouseAuthority] used by the Ma'at detail route. This keeps one
 /// persistence, invitation, publication, and materialization authority while
 /// the surrounding Calendar navigation is migrated independently.
-class _ReadingHouseAuthoringPage extends StatelessWidget {
-  const _ReadingHouseAuthoringPage({
-    required this.flow,
-    this.onPersisted,
-    this.resizeToAvoidBottomInset = true,
-  });
+class _ReadingHouseAuthoringSurface extends StatelessWidget {
+  const _ReadingHouseAuthoringSurface({required this.flow, this.onPersisted});
 
   final _Flow flow;
   final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
-  final bool resizeToAvoidBottomInset;
 
   @override
   Widget build(BuildContext context) {
     final timezone = readingHouseTimeZoneFromFlowNotes(flow.notes);
-    return ReadingHouseDetailPage(
+    return ReadingHouseDetailSurface(
+      onBack: () => popMaatFlowDetailOrGo(context),
       timezone: timezone,
       initialStartDate: flow.start,
       initialPlan: readingHousePlanFromFlowNotes(flow.notes),
@@ -30,7 +26,6 @@ class _ReadingHouseAuthoringPage extends StatelessWidget {
       authority: LiveReadingHouseAuthority(Supabase.instance.client),
       resolvePersonalCalendarId: CalendarPage._loadHeadlessPersonalCalendarId,
       onPersisted: onPersisted,
-      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
     );
   }
 }

@@ -79,7 +79,7 @@ void main() {
       OfferingTableDetailTokens.heroAsset,
     );
 
-    expect(find.byType(OfferingTableDetailPage), findsOneWidget);
+    expect(find.byType(OfferingTableDetailSurface), findsOneWidget);
     expect(find.byType(MaatFlowDetailShell), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('offering-table-hero')),
@@ -122,8 +122,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final detail = tester.widget<OfferingTableDetailPage>(
-      find.byType(OfferingTableDetailPage),
+    final detail = tester.widget<OfferingTableDetailSurface>(
+      find.byType(OfferingTableDetailSurface),
     );
     expect(detail.joinedFlowId, 957);
     expect(detail.joinedStartDate, start);
@@ -870,7 +870,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(OfferingTablePreviewDaySheet), findsNothing);
-      expect(find.byType(OfferingTableDetailPage), findsOneWidget);
+      expect(find.byType(OfferingTableDetailSurface), findsOneWidget);
       expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
 
       await tester.tap(firstBadge);
@@ -883,7 +883,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(OfferingTablePreviewDaySheet), findsNothing);
-      expect(find.byType(OfferingTableDetailPage), findsOneWidget);
+      expect(find.byType(OfferingTableDetailSurface), findsOneWidget);
     },
   );
 
@@ -1136,7 +1136,7 @@ void main() {
     await tester.runAsync(() async {
       await precacheImage(
         const AssetImage(OfferingTableDetailTokens.heroAsset),
-        tester.element(find.byType(OfferingTableDetailPage)),
+        tester.element(find.byType(OfferingTableDetailSurface)),
       );
     });
     await tester.pumpAndSettle();
@@ -1390,7 +1390,7 @@ Future<void> _pumpPage(
             padding: EdgeInsets.only(top: topPadding),
             viewPadding: EdgeInsets.only(top: topPadding),
           ),
-          child: OfferingTableDetailPage(
+          child: OfferingTableDetailSurface(
             timezone: timezone,
             clock: clock,
             presentDayIanaTimeZone: timezone.ianaName,
@@ -1399,7 +1399,7 @@ Future<void> _pumpPage(
             joinedFlowId: joinedFlowId,
             joinedStartDate: joinedStartDate,
             joinedScheduleDates: joinedScheduleDates,
-            showBackButton: showBackButton,
+            onBack: showBackButton ? () {} : null,
             localStore: localStore,
             onJoin:
                 onJoin ??

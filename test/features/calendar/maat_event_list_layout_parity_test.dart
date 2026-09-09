@@ -32,13 +32,15 @@ void main() {
       'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
 
-    expect(source, contains('class _MaatFlowTemplateDetailPageState'));
+    expect(source, contains('class _ActiveMaatFlowDetailSurfaceState'));
     expect(source, contains('Widget _buildFollowSky()'));
     expect(source, contains('Widget _buildOfferingTable()'));
     expect(source, contains('Widget _buildReadingHouse()'));
     expect(source, contains('Widget _buildDjed()'));
     expect(source, isNot(contains('Widget _buildTheWeighingScaffold')));
     expect(source, isNot(contains('Widget _buildWagScaffold')));
+    expect(source, isNot(contains('_MaatFlowTemplateDetailPage')));
+    expect(source, isNot(contains('_maatFlowDetailSheetRoute')));
   });
 
   test('all identities resolve while only four own active details', () {
@@ -87,7 +89,7 @@ void main() {
 
     await _pumpFlow(tester, 'track-the-sky');
 
-    expect(find.byType(FollowSkyDetailPage), findsOneWidget);
+    expect(find.byType(FollowSkyDetailSurface), findsOneWidget);
     expect(_eventRows(), findsNothing);
     expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
     expect(find.text('Here they are.'), findsOneWidget);
@@ -230,10 +232,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: buildMaatFlowsListPreviewForTesting(
-            onPickTemplate: (key) async {
-              selected = key;
-              return null;
-            },
+            onSelectTemplate: (key) => selected = key,
           ),
         ),
       );
@@ -251,8 +250,10 @@ void main() {
         find.byKey(
           const ValueKey<String>('maat-flow-discovery-detail-track-the-sky'),
         ),
-        findsNothing,
+        findsOneWidget,
       );
+      expect(find.byKey(kMaatFlowDetailSurfaceHostKey), findsOneWidget);
+      expect(find.byType(ModalBottomSheetRoute), findsNothing);
       expect(find.text('Carry this flow'), findsNothing);
       expect(isMaatFlowNewJoinAllowed(selected!), isTrue);
     },
@@ -379,14 +380,14 @@ void main() {
   ) async {
     _setPhoneViewport(tester);
     await _pumpFlow(tester, 'the-reading-house');
-    expect(find.byType(ReadingHouseDetailPage), findsOneWidget);
-    expect(find.byType(DjedDetailPage), findsNothing);
+    expect(find.byType(ReadingHouseDetailSurface), findsOneWidget);
+    expect(find.byType(DjedDetailSurface), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     await _pumpFlow(tester, 'the-djed');
-    expect(find.byType(DjedDetailPage), findsOneWidget);
-    expect(find.byType(ReadingHouseDetailPage), findsNothing);
+    expect(find.byType(DjedDetailSurface), findsOneWidget);
+    expect(find.byType(ReadingHouseDetailSurface), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -427,10 +428,10 @@ Finder _eventRows() => find.byWidgetPredicate(
 
 Finder _activeDetailSurface(String templateKey) {
   return switch (templateKey) {
-    'track-the-sky' => find.byType(FollowSkyDetailPage),
-    'the-offering-table' => find.byType(OfferingTableDetailPage),
-    'the-reading-house' => find.byType(ReadingHouseDetailPage),
-    'the-djed' => find.byType(DjedDetailPage),
+    'track-the-sky' => find.byType(FollowSkyDetailSurface),
+    'the-offering-table' => find.byType(OfferingTableDetailSurface),
+    'the-reading-house' => find.byType(ReadingHouseDetailSurface),
+    'the-djed' => find.byType(DjedDetailSurface),
     _ => find.byKey(const ValueKey<String>('unsupported-active-detail')),
   };
 }

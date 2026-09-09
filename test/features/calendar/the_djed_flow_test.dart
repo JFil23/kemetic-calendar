@@ -254,7 +254,7 @@ void main() {
     ).readAsStringSync();
 
     expect(activeCoordinator, contains('Widget _buildDjed()'));
-    expect(activeCoordinator, contains('return DjedDetailPage('));
+    expect(activeCoordinator, contains('return DjedDetailSurface('));
     expect(activeCoordinator, contains('djedConfiguration: configuration'));
     expect(joinService, contains('required DjedV2Configuration configuration'));
     expect(joinService, contains('configuration.isComplete'));

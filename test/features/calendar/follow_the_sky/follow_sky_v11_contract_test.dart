@@ -83,13 +83,13 @@ void main() {
     expect(detail, isNot(contains('MEASURE')));
   });
 
-  testWidgets('FollowSkyDetailPage renders V11 headings', (tester) async {
+  testWidgets('FollowSkyDetailSurface renders V11 headings', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(
+        home: FollowSkyDetailSurface(
           initialCatalog: catalog,
           now: DateTime.utc(2026, 9, 1, 12),
         ),
@@ -117,7 +117,7 @@ void main() {
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(390, 844));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      final pageKey = GlobalKey<FollowSkyDetailPageState>();
+      final pageKey = GlobalKey<FollowSkyDetailSurfaceState>();
       final equinox = catalog.byId('autumn-equinox-2026')!;
       final legacyPayload = TrackSkyEventOwnership.behaviorPayload(
         skyEventId: equinox.id,
@@ -137,7 +137,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: FollowSkyDetailPage(
+          home: FollowSkyDetailSurface(
             key: pageKey,
             initialCatalog: catalog,
             now: DateTime.utc(2026, 9, 1, 12),

@@ -11,12 +11,9 @@ const Key kMaatFlowPracticeDisclaimerFooterKey = ValueKey<String>(
 );
 
 @visibleForTesting
-const Key kMaatFlowDetailSheetHostKey = ValueKey<String>(
-  'maat-flow-detail-sheet-host',
+const Key kMaatFlowDetailSurfaceHostKey = ValueKey<String>(
+  'maat-flow-detail-surface-host',
 );
-
-@visibleForTesting
-const double kMaatFlowDetailSheetHeightFactor = 0.92;
 
 // Kept as negative-contract keys so tests can prove the retired catalog tabs
 // never return to the active discovery surface.
@@ -282,23 +279,34 @@ class _MaatFlowIconPainter extends CustomPainter {
   }
 }
 
+typedef _MaatFlowDetailSurfaceBuilder =
+    Widget Function(
+      _MaatFlowTemplate template,
+      _Flow? activeInstance,
+      VoidCallback onBack,
+    );
+
 class _MaatFlowsListPageWithSnapshot extends StatefulWidget {
   const _MaatFlowsListPageWithSnapshot({
     required this.initialSnapshot,
     required this.loadSnapshot,
-    required this.onPickTemplate,
+    required this.detailBuilder,
     required this.onCreateNew,
     required this.title,
     required this.templates,
+    this.initialTemplateKey,
+    this.onSelectedTemplateChanged,
     this.onClose,
   });
 
   final _MyFlowsFilingSnapshot? initialSnapshot;
   final Future<_MyFlowsFilingSnapshot> Function() loadSnapshot;
-  final Future<int?> Function(_MaatFlowTemplate, _Flow?) onPickTemplate;
+  final _MaatFlowDetailSurfaceBuilder detailBuilder;
   final VoidCallback onCreateNew;
   final String title;
   final List<_MaatFlowTemplate> templates;
+  final String? initialTemplateKey;
+  final ValueChanged<String?>? onSelectedTemplateChanged;
   final VoidCallback? onClose;
 
   @override
@@ -359,8 +367,10 @@ class _MaatFlowsListPageWithSnapshotState
       progressForKey: (key) => snapshot == null
           ? null
           : CalendarPage._visibleSnapshotMaatCompletionStatusFor(snapshot, key),
-      onPickTemplate: widget.onPickTemplate,
+      detailBuilder: widget.detailBuilder,
       onCreateNew: widget.onCreateNew,
+      initialTemplateKey: widget.initialTemplateKey,
+      onSelectedTemplateChanged: widget.onSelectedTemplateChanged,
       onClose: widget.onClose,
     );
   }
@@ -371,19 +381,23 @@ class _MaatFlowsListPage extends StatefulWidget {
     super.key,
     required this.activeInstanceForKey,
     this.progressForKey,
-    required this.onPickTemplate,
+    required this.detailBuilder,
     required this.onCreateNew,
     required this.title,
     required this.templates,
+    this.initialTemplateKey,
+    this.onSelectedTemplateChanged,
     this.onClose,
   });
 
   final _Flow? Function(String) activeInstanceForKey;
   final _MaatFlowCompletionStatus? Function(String)? progressForKey;
-  final Future<int?> Function(_MaatFlowTemplate, _Flow?) onPickTemplate;
+  final _MaatFlowDetailSurfaceBuilder detailBuilder;
   final VoidCallback onCreateNew;
   final String title;
   final List<_MaatFlowTemplate> templates;
+  final String? initialTemplateKey;
+  final ValueChanged<String?>? onSelectedTemplateChanged;
   final VoidCallback? onClose;
 
   @override
@@ -395,12 +409,40 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
     debugLabel: 'flow_studio_maat_add_flow_helper',
   );
   bool _helperPrompted = false;
+  String? _selectedTemplateKey;
 
   @override
   void initState() {
     super.initState();
+    _selectedTemplateKey = _canonicalTemplateKey(widget.initialTemplateKey);
     EndFlowVisibilityStore.instance.addListener(_handleVisibilityChanged);
     unawaited(_maybeShowFlowStudioAddFlowHelper());
+  }
+
+  @override
+  void didUpdateWidget(covariant _MaatFlowsListPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTemplateKey != widget.initialTemplateKey) {
+      _selectedTemplateKey = _canonicalTemplateKey(widget.initialTemplateKey);
+    }
+  }
+
+  String? _canonicalTemplateKey(String? candidate) {
+    final key = candidate?.trim();
+    if (key == null || key.isEmpty) return null;
+    for (final template in widget.templates) {
+      if (template.key == key) return key;
+    }
+    return null;
+  }
+
+  _MaatFlowTemplate? get _selectedTemplate {
+    final key = _selectedTemplateKey;
+    if (key == null) return null;
+    for (final template in widget.templates) {
+      if (template.key == key) return template;
+    }
+    return null;
   }
 
   void _handleVisibilityChanged() {
@@ -502,25 +544,47 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
     if (rootNavigator.canPop()) rootNavigator.pop();
   }
 
-  Future<void> _handlePickTemplate(
-    _MaatFlowTemplate template,
-    _Flow? activeInstance,
-  ) async {
+  void _handleOpenTemplate(_MaatFlowTemplate template) {
     unawaited(
       _markFlowStudioHelperCompleted(
         OnboardingHelperRegistry.flowStudioMaatFlows.id,
       ),
     );
-    final joinedFlowId = await widget.onPickTemplate(template, activeInstance);
-    if (!mounted || joinedFlowId == null || joinedFlowId <= 0) return;
-    CalendarPage._rememberJoinedMaatFlowTemplate(
-      templateKey: template.key,
-      flowId: joinedFlowId,
-    );
+    setState(() => _selectedTemplateKey = template.key);
+    widget.onSelectedTemplateChanged?.call(template.key);
+  }
+
+  void _handleDetailBack() {
+    if (_selectedTemplateKey == null) return;
+    setState(() => _selectedTemplateKey = null);
+    widget.onSelectedTemplateChanged?.call(null);
   }
 
   @override
   Widget build(BuildContext context) {
+    final selectedTemplate = _selectedTemplate;
+    if (selectedTemplate != null) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _handleDetailBack();
+        },
+        child: SizedBox.expand(
+          key: kMaatFlowDetailSurfaceHostKey,
+          child: KeyedSubtree(
+            key: ValueKey<String>(
+              'maat-flow-discovery-detail-${selectedTemplate.key}',
+            ),
+            child: widget.detailBuilder(
+              selectedTemplate,
+              widget.activeInstanceForKey(selectedTemplate.key),
+              _handleDetailBack,
+            ),
+          ),
+        ),
+      );
+    }
+
     final templatesByKey = <String, _MaatFlowTemplate>{
       for (final template in widget.templates) template.key: template,
     };
@@ -536,12 +600,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
       onOpen: (flowKey) {
         final template = templatesByKey[flowKey];
         if (template == null) return;
-        unawaited(
-          _handlePickTemplate(
-            template,
-            widget.activeInstanceForKey(template.key),
-          ),
-        );
+        _handleOpenTemplate(template);
       },
       onCreate: _handleCreateNew,
       onClose: _handleClose,
@@ -555,7 +614,7 @@ Widget buildMaatFlowsListPreviewForTesting({
   Set<String> joinedKeys = const <String>{},
   Map<String, (int total, int remaining)> completionCounts =
       const <String, (int total, int remaining)>{},
-  Future<int?> Function(String templateKey)? onPickTemplate,
+  ValueChanged<String>? onSelectTemplate,
   VoidCallback? onCreateNew,
   VoidCallback? onClose,
 }) {
@@ -586,7 +645,16 @@ Widget buildMaatFlowsListPreviewForTesting({
         remainingEventCount: counts.$2,
       );
     },
-    onPickTemplate: (template, _) async => onPickTemplate?.call(template.key),
+    detailBuilder: (template, activeInstance, onBack) =>
+        buildMaatFlowTemplateDetailPreviewForTesting(
+          templateKey: template.key,
+          joinedStartDate: activeInstance?.start,
+          joinedFlowId: activeInstance?.id ?? 957,
+          onBack: onBack,
+        ),
+    onSelectedTemplateChanged: (templateKey) {
+      if (templateKey != null) onSelectTemplate?.call(templateKey);
+    },
     onCreateNew: onCreateNew ?? () {},
     onClose: onClose,
   );
@@ -613,12 +681,14 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
   DateTime? joinedStartDate,
   int joinedFlowId = 957,
   Future<int> Function()? onJoin,
+  VoidCallback? onBack,
 }) {
   final template = _kCoreMaatFlowTemplates.firstWhere(
     (candidate) => candidate.key == templateKey,
   );
-  return _MaatFlowTemplateDetailPage(
+  return _ActiveMaatFlowDetailSurface(
     template: template,
+    onBack: onBack,
     joinedFlow: joinedStartDate == null
         ? null
         : _Flow(
@@ -1162,16 +1232,13 @@ class _FirstMaatFlowOnboardingSheetState
   }
 }
 
-class _MaatFlowTemplateDetailPage extends StatefulWidget {
-  const _MaatFlowTemplateDetailPage({
+class _ActiveMaatFlowDetailSurface extends StatefulWidget {
+  const _ActiveMaatFlowDetailSurface({
     required this.template,
     required this.addInstance,
     this.onJoined,
     this.joinedFlow,
-    this.showBackButton = true,
-    this.backFallbackLocation = kMaatFlowsListRoute,
-    this.embeddedInOnboarding = false,
-    this.resizeToAvoidBottomInset = true,
+    this.onBack,
     this.followSkyCandidates = const <CourseActivitySignal>[],
     this.followSkyMeasurementIntervals = const <CourseMeasurementInterval>[],
     this.followSkyCalendarPreview = FollowSkyCalendarPreview.empty,
@@ -1184,10 +1251,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final _ActiveMaatFlowAddInstance addInstance;
   final Future<void> Function(int flowId)? onJoined;
   final _Flow? joinedFlow;
-  final bool showBackButton;
-  final String backFallbackLocation;
-  final bool embeddedInOnboarding;
-  final bool resizeToAvoidBottomInset;
+  final VoidCallback? onBack;
   final List<CourseActivitySignal> followSkyCandidates;
   final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
   final FollowSkyCalendarPreview followSkyCalendarPreview;
@@ -1204,35 +1268,15 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   bool get alreadyJoined => joinedFlow != null;
 
   @override
-  State<_MaatFlowTemplateDetailPage> createState() =>
-      _MaatFlowTemplateDetailPageState();
+  State<_ActiveMaatFlowDetailSurface> createState() =>
+      _ActiveMaatFlowDetailSurfaceState();
 }
 
-Route<T> _maatFlowDetailSheetRoute<T>({required WidgetBuilder builder}) {
-  return ModalBottomSheetRoute<T>(
-    builder: (context) => FractionallySizedBox(
-      key: kMaatFlowDetailSheetHostKey,
-      heightFactor: kMaatFlowDetailSheetHeightFactor,
-      child: builder(context),
-    ),
-    isScrollControlled: true,
-    isDismissible: true,
-    enableDrag: true,
-    useSafeArea: true,
-    backgroundColor: const Color(0xFF050504),
-    modalBarrierColor: Colors.black.withValues(alpha: 0.62),
-    clipBehavior: Clip.antiAlias,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-    ),
-  );
-}
-
-class _MaatFlowTemplateDetailPageState
-    extends State<_MaatFlowTemplateDetailPage> {
+class _ActiveMaatFlowDetailSurfaceState
+    extends State<_ActiveMaatFlowDetailSurface> {
   late final TrackSkyTimeZone _timezone;
-  final GlobalKey<FollowSkyDetailPageState> _followSkyDetailKey =
-      GlobalKey<FollowSkyDetailPageState>();
+  final GlobalKey<FollowSkyDetailSurfaceState> _followSkyDetailKey =
+      GlobalKey<FollowSkyDetailSurfaceState>();
   ReadingHouseAuthority? _readingHouseAuthority;
   bool _djedJoinInFlight = false;
 
@@ -1264,10 +1308,9 @@ class _MaatFlowTemplateDetailPageState
   }
 
   Widget _buildFollowSky() {
-    final page = FollowSkyDetailPage(
+    final surface = FollowSkyDetailSurface(
       key: _followSkyDetailKey,
-      standalone: false,
-      backFallbackLocation: widget.backFallbackLocation,
+      onBack: widget.onBack,
       isJoined: widget.alreadyJoined,
       existingFlowNotes: widget.joinedFlow?.notes,
       existingFlowId: widget.joinedFlow?.id,
@@ -1303,12 +1346,12 @@ class _MaatFlowTemplateDetailPageState
         unawaited(FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache());
       },
     );
-    return KeyboardAwareEditableSurface(child: page);
+    return KeyboardAwareEditableSurface(child: surface);
   }
 
   Widget _buildOfferingTable() {
     final joinedFlow = widget.joinedFlow;
-    return OfferingTableDetailPage(
+    return OfferingTableDetailSurface(
       timezone: offeringTableTimeZoneFromNotes(
         joinedFlow?.notes,
         fallback: _timezone,
@@ -1319,9 +1362,7 @@ class _MaatFlowTemplateDetailPageState
       joinedScheduleDates: _joinedDateRuleDates(joinedFlow),
       lens: offeringTableLensFromNotes(joinedFlow?.notes),
       noCupMode: offeringTableNoCupModeFromNotes(joinedFlow?.notes),
-      showBackButton: widget.showBackButton,
-      backFallbackLocation: widget.backFallbackLocation,
-      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
+      onBack: widget.onBack,
       onJoin:
           ({
             required startDate,
@@ -1400,7 +1441,7 @@ class _MaatFlowTemplateDetailPageState
                 },
               ),
           ];
-    return DjedDetailPage(
+    return DjedDetailSurface(
       startDate: DateUtils.dateOnly(startDate),
       supports: supports,
       joined: widget.alreadyJoined,
@@ -1408,12 +1449,7 @@ class _MaatFlowTemplateDetailPageState
       onCarryConfiguration: widget.alreadyJoined
           ? null
           : (value) => unawaited(_joinDjed(startDate, value)),
-      onBack: widget.showBackButton
-          ? () => popMaatFlowDetailOrGo(
-              context,
-              fallbackLocation: widget.backFallbackLocation,
-            )
-          : null,
+      onBack: widget.onBack,
     );
   }
 
@@ -1425,7 +1461,7 @@ class _MaatFlowTemplateDetailPageState
       widget.joinedFlow?.notes,
       fallback: draftPlan,
     );
-    return ReadingHouseDetailPage(
+    return ReadingHouseDetailSurface(
       timezone: _timezone,
       initialStartDate: widget.joinedFlow?.start,
       initialPlan: initialPlan,
@@ -1442,9 +1478,7 @@ class _MaatFlowTemplateDetailPageState
         if (onJoined != null) unawaited(onJoined(flowId));
       },
       onEndFlow: widget.onEndFlow,
-      showBackButton: widget.showBackButton,
-      backFallbackLocation: widget.backFallbackLocation,
-      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
+      onBack: widget.onBack,
     );
   }
 
@@ -1465,12 +1499,7 @@ class _MaatFlowTemplateDetailPageState
           responses: const <ArchivedMaatFlowResponseFixture>[],
           ended: widget.joinedFlow?.active == false,
         ),
-        onBack: widget.showBackButton
-            ? () => popMaatFlowDetailOrGo(
-                context,
-                fallbackLocation: widget.backFallbackLocation,
-              )
-            : null,
+        onBack: widget.onBack,
       ),
     };
   }

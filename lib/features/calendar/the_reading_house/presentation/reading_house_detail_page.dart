@@ -63,8 +63,8 @@ abstract final class ReadingHouseDetailTokens {
       );
 }
 
-class ReadingHouseDetailPage extends StatefulWidget {
-  const ReadingHouseDetailPage({
+class ReadingHouseDetailSurface extends StatefulWidget {
+  const ReadingHouseDetailSurface({
     super.key,
     required this.timezone,
     this.initialStartDate,
@@ -80,9 +80,7 @@ class ReadingHouseDetailPage extends StatefulWidget {
     this.onHeld,
     this.onPersisted,
     this.onEndFlow,
-    this.showBackButton = true,
-    this.backFallbackLocation = kMaatFlowsListRoute,
-    this.resizeToAvoidBottomInset = true,
+    this.onBack,
     this.clock,
     this.presentDayIanaTimeZone,
     this.ianaTimeZoneProvider,
@@ -103,19 +101,18 @@ class ReadingHouseDetailPage extends StatefulWidget {
   final ValueChanged<int>? onHeld;
   final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
   final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
-  final bool showBackButton;
-  final String backFallbackLocation;
-  final bool resizeToAvoidBottomInset;
+  final VoidCallback? onBack;
   final MaatFlowClock? clock;
   final String? presentDayIanaTimeZone;
   final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
   final MaatFlowTemporalScheduler? temporalScheduler;
 
   @override
-  State<ReadingHouseDetailPage> createState() => _ReadingHouseDetailPageState();
+  State<ReadingHouseDetailSurface> createState() =>
+      _ReadingHouseDetailSurfaceState();
 }
 
-class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
+class _ReadingHouseDetailSurfaceState extends State<ReadingHouseDetailSurface> {
   late final TextEditingController _bookController;
   late final TextEditingController _editionController;
   late final TextEditingController _questionController;
@@ -183,7 +180,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   }
 
   @override
-  void didUpdateWidget(covariant ReadingHouseDetailPage oldWidget) {
+  void didUpdateWidget(covariant ReadingHouseDetailSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.clock != oldWidget.clock ||
         widget.presentDayIanaTimeZone != oldWidget.presentDayIanaTimeZone ||
@@ -822,14 +819,14 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
       sheet: _buildSheet(context),
     );
 
-    return Scaffold(
-      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
-      backgroundColor: ReadingHouseDetailTokens.pageBackground,
-      body: KeyboardAwareEditableSurface(
+    return Material(
+      key: const ValueKey<String>('reading-house-detail-surface'),
+      color: ReadingHouseDetailTokens.pageBackground,
+      child: KeyboardAwareEditableSurface(
         child: Stack(
           children: [
             body,
-            if (widget.showBackButton)
+            if (widget.onBack != null)
               Positioned(
                 top: MediaQuery.paddingOf(context).top + 6,
                 left: 18,
@@ -837,10 +834,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                   key: const ValueKey<String>('reading-house-back'),
                   color: ReadingHouseDetailTokens.gold,
                   backgroundColor: const Color(0xA60A0806),
-                  onPressed: () => popMaatFlowDetailOrGo(
-                    context,
-                    fallbackLocation: widget.backFallbackLocation,
-                  ),
+                  onPressed: widget.onBack!,
                 ),
               ),
           ],

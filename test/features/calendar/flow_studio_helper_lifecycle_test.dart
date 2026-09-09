@@ -111,27 +111,24 @@ void main() {
     await _pumpRouteBackedMaatDetail(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
-    final listSurface = find.byKey(
-      const ValueKey<String>('maat-flow-discovery-view'),
-      skipOffstage: false,
-    );
     final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
-    expect(listSurface, findsOneWidget);
     expect(detailBack, findsOneWidget);
-    final listRoute = ModalRoute.of(tester.element(listSurface));
     final detailRoute = ModalRoute.of(tester.element(detailBack));
-    expect(listRoute, isNotNull);
     expect(detailRoute, isNotNull);
-    expect(detailRoute, isNot(same(listRoute)));
-    expect(listRoute!.isCurrent, isFalse);
+    expect(
+      find.byKey(
+        const ValueKey<String>('maat-flow-discovery-view'),
+        skipOffstage: false,
+      ),
+      findsNothing,
+    );
     expect(detailRoute!.isCurrent, isTrue);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey<String>('follow-sky-back')), findsNothing);
-    expect(listRoute.isCurrent, isTrue);
-    expect(detailRoute.isCurrent, isFalse);
+    expect(detailRoute.isCurrent, isTrue);
     expect(find.text('Flows'), findsOneWidget);
 
     await tester.binding.handlePopRoute();

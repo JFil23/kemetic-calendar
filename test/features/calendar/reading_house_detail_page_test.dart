@@ -45,8 +45,9 @@ void main() {
           ),
           child: RepaintBoundary(
             key: _captureSurfaceKey,
-            child: ReadingHouseDetailPage(
+            child: ReadingHouseDetailSurface(
               key: ValueKey<Size>(size),
+              onBack: () {},
               timezone: TrackSkyTimeZone.pacific,
               initialStartDate: computedStart ? null : DateTime(2026, 9, 14),
               initialFlowId: initialFlowId,
@@ -65,7 +66,7 @@ void main() {
     await tester.runAsync(
       () => precacheImage(
         const AssetImage(ReadingHouseDetailTokens.heroAsset),
-        tester.element(find.byType(ReadingHouseDetailPage)),
+        tester.element(find.byType(ReadingHouseDetailSurface)),
         onError: (exception, stackTrace) => heroLoadError = exception,
       ),
     );
@@ -95,15 +96,17 @@ void main() {
           '/': (_) => const Scaffold(
             body: SizedBox(key: ValueKey<String>('maat-flows-list-after-end')),
           ),
-          '/reading-house': (_) => ReadingHouseDetailPage(
-            timezone: TrackSkyTimeZone.pacific,
-            initialStartDate: DateTime(2026, 9, 14),
-            initialFlowId: authority.flowId,
-            initiallyHeld: true,
-            authority: authority,
-            resolvePersonalCalendarId: () async => 'personal-calendar',
-            presentDayIanaTimeZone: TrackSkyTimeZone.pacific.ianaName,
-            onEndFlow: onEndFlow,
+          '/reading-house': (_) => Scaffold(
+            body: ReadingHouseDetailSurface(
+              timezone: TrackSkyTimeZone.pacific,
+              initialStartDate: DateTime(2026, 9, 14),
+              initialFlowId: authority.flowId,
+              initiallyHeld: true,
+              authority: authority,
+              resolvePersonalCalendarId: () async => 'personal-calendar',
+              presentDayIanaTimeZone: TrackSkyTimeZone.pacific.ianaName,
+              onEndFlow: onEndFlow,
+            ),
           ),
         },
       ),
@@ -320,7 +323,7 @@ void main() {
       find.byKey(const ValueKey<String>('reading-house-invite-sheet')),
       findsNothing,
     );
-    expect(find.byType(ReadingHouseDetailPage), findsOneWidget);
+    expect(find.byType(ReadingHouseDetailSurface), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -392,7 +395,7 @@ void main() {
         find.byKey(const ValueKey<String>('maat-flows-list-after-end')),
         findsOneWidget,
       );
-      expect(find.byType(ReadingHouseDetailPage), findsNothing);
+      expect(find.byType(ReadingHouseDetailSurface), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -411,7 +414,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('reading-house-held')));
     await tester.pumpAndSettle();
 
-    expect(find.byType(ReadingHouseDetailPage), findsOneWidget);
+    expect(find.byType(ReadingHouseDetailSurface), findsOneWidget);
     expect(
       find.textContaining('The server couldn’t end this flow.'),
       findsOneWidget,
@@ -627,7 +630,9 @@ void main() {
       await tester.ensureVisible(hostNote);
       await tester.tap(hostNote);
       await tester.pumpAndSettle();
-      final surfaceHeight = tester.getSize(find.byType(Scaffold).first).height;
+      final surfaceHeight = tester
+          .getSize(find.byType(ReadingHouseDetailSurface))
+          .height;
       expect(tester.getRect(hostNote).bottom, lessThan(surfaceHeight - 300));
 
       final dateButton = find.byKey(

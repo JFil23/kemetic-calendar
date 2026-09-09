@@ -749,7 +749,7 @@ void main() {
         'Widget _buildReadingHouse()',
         '  @override\n  Widget build(BuildContext context)',
       );
-      expect(readingHouseDetail, contains('ReadingHouseDetailPage('));
+      expect(readingHouseDetail, contains('ReadingHouseDetailSurface('));
       expect(readingHouseDetail, contains('LiveReadingHouseAuthority('));
       expect(
         readingHouseDetail,
@@ -1320,7 +1320,7 @@ void main() {
     expect(detailSource, contains("'+ Invite'"));
     expect(detailSource, contains('Everyone who accepts sees this same house'));
 
-    expect(adapterSource, contains('ReadingHouseDetailPage('));
+    expect(adapterSource, contains('ReadingHouseDetailSurface('));
     expect(adapterSource, contains('LiveReadingHouseAuthority('));
     expect(adapterSource, isNot(contains('inviteUser(')));
     expect(adapterSource, isNot(contains('upsertFlow(')));
@@ -1399,15 +1399,15 @@ void main() {
       contains('resolveMaatFlowKind(flowNotes: flow.notes)'),
     );
     expect(detachedRoute, contains('isReadingHouseFlowReference('));
-    expect(detachedRoute, contains('_buildReadingHouseAuthoringPage'));
-    expect(detachedRoute, contains('_ReadingHouseAuthoringPage('));
+    expect(detachedRoute, contains('_buildReadingHouseAuthoringSurface'));
+    expect(detachedRoute, contains('_ReadingHouseAuthoringSurface('));
     expect(detachedRoute, contains('onPersisted:'));
     expect(detachedRoute, contains('_buildGenericFlowEditor'));
 
     final detachedGeneric = _sourceBetween(
       detachedRoute,
       'Widget _buildGenericFlowEditor()',
-      '  Widget _buildReadingHouseAuthoringPage',
+      '  Widget _buildReadingHouseAuthoringSurface',
     );
     expect(detachedGeneric, contains('_FlowStudioPage('));
     expect(detachedGeneric, contains('editFlowId: widget.flowId'));
@@ -1417,7 +1417,7 @@ void main() {
       'Future<_FlowStudioResult?> _pushFlowStudioEditor',
       '  _Flow? _readingHouseFlowForEditor',
     );
-    expect(myFlowsEdit, contains('_ReadingHouseAuthoringPage('));
+    expect(myFlowsEdit, contains('_ReadingHouseAuthoringSurface('));
     expect(myFlowsEdit, contains('reading_house_editor_persisted'));
     expect(myFlowsEdit, contains('_FlowStudioPage('));
 
@@ -1426,7 +1426,7 @@ void main() {
       'static Future<_FlowStudioResult?> _pushDetachedFlowStudioEditor',
       '        builder: (_) => _FlowStudioPage(',
     );
-    expect(detachedMyFlowsEdit, contains('_ReadingHouseAuthoringPage('));
+    expect(detachedMyFlowsEdit, contains('_ReadingHouseAuthoringSurface('));
     expect(detachedMyFlowsEdit, contains('reading_house_detached_persisted'));
     expect(detachedMyFlowsEdit, isNot(contains('inviteUser(')));
 
@@ -1435,7 +1435,7 @@ void main() {
       'void _openFlowEditorDirectly',
       '  void _openFlowsViewer',
     );
-    expect(directEdit, contains('_ReadingHouseAuthoringPage('));
+    expect(directEdit, contains('_ReadingHouseAuthoringSurface('));
     expect(directEdit, contains('reading_house_direct_persisted'));
     expect(directEdit, contains('_FlowStudioPage('));
   });

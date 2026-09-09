@@ -25,7 +25,7 @@ void main() {
   });
 
   // Keep this identity stable for the release comparison gate; the route
-  // assertions below now enforce the authored content's layered sheet.
+  // assertions below now enforce authored content inside the shared sheet.
   testWidgets('discovery opens its authored inline detail on the same route', (
     tester,
   ) async {
@@ -60,22 +60,22 @@ void main() {
       find.byKey(
         const ValueKey<String>('maat-flow-discovery-detail-track-the-sky'),
       ),
-      findsNothing,
+      findsOneWidget,
     );
     expect(find.text('Carry this flow'), findsNothing);
 
     final detailRoute = ModalRoute.of(tester.element(detailBack));
-    expect(detailRoute, isA<PopupRoute<int?>>());
-    expect(detailRoute, isNot(same(listRoute)));
-    expect(detailRoute!.opaque, isFalse);
-    expect(detailRoute.isCurrent, isTrue);
-    expect(listRoute.isCurrent, isFalse);
+    expect(detailRoute, isNotNull);
+    expect(detailRoute, same(listRoute));
+    expect(detailRoute, isA<MaterialPageRoute<dynamic>>());
+    expect(detailRoute!.isCurrent, isTrue);
+    expect(listRoute.isCurrent, isTrue);
     expect(
       find.byKey(
         const ValueKey<String>('maat-flow-discovery-view'),
         skipOffstage: false,
       ),
-      findsOneWidget,
+      findsNothing,
     );
   });
 
@@ -94,28 +94,25 @@ void main() {
         ),
       );
 
-      final listSurface = find.byKey(
-        const ValueKey<String>('maat-flow-discovery-view'),
-        skipOffstage: false,
-      );
       final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
-      expect(listSurface, findsOneWidget);
       expect(detailBack, findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey<String>('maat-flow-discovery-view'),
+          skipOffstage: false,
+        ),
+        findsNothing,
+      );
 
-      final listRoute = ModalRoute.of(tester.element(listSurface));
       final detailRoute = ModalRoute.of(tester.element(detailBack));
-      expect(listRoute, isA<MaterialPageRoute<dynamic>>());
-      expect(detailRoute, isA<PopupRoute<int?>>());
-      expect(detailRoute, isNot(same(listRoute)));
-      expect(detailRoute!.opaque, isFalse);
-      expect(listRoute!.isCurrent, isFalse);
-      expect(detailRoute.isCurrent, isTrue);
+      expect(detailRoute, isNotNull);
+      expect(detailRoute, isA<MaterialPageRoute<dynamic>>());
+      expect(detailRoute!.isCurrent, isTrue);
 
       await tester.tap(detailBack);
       await tester.pumpAndSettle();
 
-      expect(listRoute.isCurrent, isTrue);
-      expect(detailRoute.isCurrent, isFalse);
+      expect(detailRoute.isCurrent, isTrue);
       expect(find.text('Flows'), findsOneWidget);
       expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
     },

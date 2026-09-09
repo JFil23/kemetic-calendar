@@ -79,15 +79,16 @@ void main() {
       expect(initialRoutesSection, contains('VoidCallback? onReturnToHub'));
       expect(
         initialRoutesSection,
-        contains('hubRoute(), listRoute, detailRoute'),
+        contains('return <Route<dynamic>>[hubRoute(), listRoute];'),
       );
       expect(initialRoutesSection, contains('MaterialPageRoute<int?>'));
-      expect(initialRoutesSection, isNot(contains('initialTemplate:')));
+      expect(initialRoutesSection, contains('initialTemplateKey:'));
+      expect(initialRoutesSection, isNot(contains('detailRoute')));
     },
   );
 
   test(
-    'successful Ma at join cannot persist stale list state after owner closes',
+    'successful Ma at join keeps detail inline and closes only the owner sheet',
     () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
@@ -97,10 +98,10 @@ void main() {
         'Future<T?> _pushFlowStudioRoute<T>(',
         'Future<_FlowStudioResult?> _pushFlowStudioEditor(',
       );
-      final detailPush = _sourceBetween(
+      final inlineDetail = _sourceBetween(
         source,
-        'Future<int?> _pushMaatFlowTemplateDetail(',
-        'Map<String, Object?> _calendarSheetTraceState(',
+        'Widget _buildMaatFlowsListPage(',
+        'Widget _buildFlowStudioHubPage(',
       );
       final completion = _sourceBetween(
         source,
@@ -114,11 +115,12 @@ void main() {
         routePush.indexOf('navigator.mounted'),
         lessThan(routePush.lastIndexOf('returnState,')),
       );
-      expect(
-        detailPush,
-        contains('_pushFlowStudioRoute<int?>(\n      navigator,'),
-      );
-      expect(detailPush, contains('_maatFlowDetailSheetRoute<int?>'));
+      expect(inlineDetail, contains('initialTemplateKey: initialTemplateKey'));
+      expect(inlineDetail, contains('detailBuilder:'));
+      expect(inlineDetail, contains('_buildMaatFlowDetailSurface('));
+      expect(inlineDetail, contains('onSelectedTemplateChanged:'));
+      expect(source, isNot(contains('_pushMaatFlowTemplateDetail')));
+      expect(source, isNot(contains('_maatFlowDetailSheetRoute')));
       expect(completion, contains('rootNavigator.pop();'));
       expect(completion, contains('_schedulePendingStagedFlowDayViewIfAny();'));
       expect(

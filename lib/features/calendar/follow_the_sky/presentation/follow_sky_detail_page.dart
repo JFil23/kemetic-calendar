@@ -38,8 +38,8 @@ class FollowSkyIntentionEditingNotification extends Notification {
 }
 
 /// Follow the Sky V11 detail orchestrator.
-class FollowSkyDetailPage extends StatefulWidget {
-  const FollowSkyDetailPage({
+class FollowSkyDetailSurface extends StatefulWidget {
+  const FollowSkyDetailSurface({
     super.key,
     this.existingFlowNotes,
     this.existingFlowId,
@@ -58,8 +58,7 @@ class FollowSkyDetailPage extends StatefulWidget {
     this.presentDayIanaTimeZone,
     this.ianaTimeZoneProvider,
     this.temporalScheduler,
-    this.standalone = true,
-    this.backFallbackLocation = kMaatFlowsListRoute,
+    this.onBack,
     this.title = 'Follow the Sky',
     this.subtitle = FollowSkyV11Tokens.heroSubtitle,
     this.onHierarchyChanged,
@@ -88,17 +87,16 @@ class FollowSkyDetailPage extends StatefulWidget {
   final String? presentDayIanaTimeZone;
   final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
   final MaatFlowTemporalScheduler? temporalScheduler;
-  final bool standalone;
-  final String backFallbackLocation;
+  final VoidCallback? onBack;
   final String title;
   final String subtitle;
   final VoidCallback? onHierarchyChanged;
 
   @override
-  State<FollowSkyDetailPage> createState() => FollowSkyDetailPageState();
+  State<FollowSkyDetailSurface> createState() => FollowSkyDetailSurfaceState();
 }
 
-class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
+class FollowSkyDetailSurfaceState extends State<FollowSkyDetailSurface> {
   static const int _expandedTurningCount = 5;
 
   late final SkyCatalogRepository _catalogRepo;
@@ -190,7 +188,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   }
 
   @override
-  void didUpdateWidget(covariant FollowSkyDetailPage oldWidget) {
+  void didUpdateWidget(covariant FollowSkyDetailSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isJoined != oldWidget.isJoined && widget.isJoined != _carried) {
       _carried = widget.isJoined;
@@ -415,30 +413,25 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
           )
         : _buildV11Body();
 
-    if (!widget.standalone) {
-      return Material(
-        color: FollowSkyV11Tokens.pageBg,
-        child: Stack(
-          children: [
-            body,
+    return Material(
+      key: const ValueKey<String>('follow-sky-detail-surface'),
+      color: FollowSkyV11Tokens.pageBg,
+      child: Stack(
+        children: [
+          body,
+          if (widget.onBack != null)
             Positioned(
               top: MediaQuery.paddingOf(context).top + 4,
               left: 4,
               child: BackButton(
                 key: const ValueKey<String>('follow-sky-back'),
                 color: FollowSkyV11Tokens.gold,
-                onPressed: () => popMaatFlowDetailOrGo(
-                  context,
-                  fallbackLocation: widget.backFallbackLocation,
-                ),
+                onPressed: widget.onBack,
               ),
             ),
-          ],
-        ),
-      );
-    }
-
-    return Scaffold(backgroundColor: FollowSkyV11Tokens.pageBg, body: body);
+        ],
+      ),
+    );
   }
 
   Widget _buildV11Body() {

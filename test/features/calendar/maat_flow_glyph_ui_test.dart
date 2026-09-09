@@ -244,7 +244,7 @@ void main() {
       'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
     final state = source.substring(
-      source.indexOf('class _MaatFlowTemplateDetailPageState'),
+      source.indexOf('class _ActiveMaatFlowDetailSurfaceState'),
     );
 
     expect(state, contains('Widget _buildFollowSky()'));
@@ -371,10 +371,10 @@ void main() {
     expect(archived, contains('MaatFlowDetailShell('));
     expect(archived, isNot(contains('Join Flow')));
 
-    expect(active, contains('FollowSkyDetailPage('));
-    expect(active, contains('OfferingTableDetailPage('));
-    expect(active, contains('ReadingHouseDetailPage('));
-    expect(active, contains('DjedDetailPage('));
+    expect(active, contains('FollowSkyDetailSurface('));
+    expect(active, contains('OfferingTableDetailSurface('));
+    expect(active, contains('ReadingHouseDetailSurface('));
+    expect(active, contains('DjedDetailSurface('));
     expect(active, contains('ArchivedMaatFlowDetailView('));
   });
 }
