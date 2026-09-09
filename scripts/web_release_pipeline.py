@@ -413,6 +413,28 @@ def require_clean_paired_repositories(repo_root: Path) -> dict[str, Any]:
                 f"{label.capitalize()} repository must have exactly one linked "
                 f"worktree before release build; found {worktree_count}."
             )
+        active_branch = git(root, "branch", "--show-current")
+        if active_branch != AUTHORIZED_GIT_SOURCE_BRANCH:
+            raise ReleaseInputError(
+                f"{label.capitalize()} release source must be checked out on the "
+                f"sole active {AUTHORIZED_GIT_SOURCE_BRANCH!r} branch."
+            )
+        local_branches = [
+            branch
+            for branch in git(
+                root,
+                "for-each-ref",
+                "--format=%(refname:short)",
+                "refs/heads",
+            ).splitlines()
+            if branch
+        ]
+        if local_branches != [AUTHORIZED_GIT_SOURCE_BRANCH]:
+            raise ReleaseInputError(
+                f"{label.capitalize()} repository must retain exactly one local "
+                f"branch named {AUTHORIZED_GIT_SOURCE_BRANCH!r} before release "
+                f"build; found {local_branches}."
+            )
 
     mobile_status = git(repo_root, "status", "--porcelain=v1", "--untracked-files=all")
     parent_status = git(parent_root, "status", "--porcelain=v1", "--untracked-files=all")

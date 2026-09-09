@@ -494,6 +494,10 @@ class PairedRepositoryAuthorityTest(unittest.TestCase):
         self.mobile_status = ""
         self.parent_status = ""
         self.parent_gitlink = self.mobile_commit
+        self.mobile_branch = "production"
+        self.parent_branch = "production"
+        self.mobile_local_branches = ["production"]
+        self.parent_local_branches = ["production"]
 
     def git_result(self, repo: Path, *arguments: str) -> str:
         is_mobile = repo == REPO_ROOT
@@ -509,6 +513,19 @@ class PairedRepositoryAuthorityTest(unittest.TestCase):
                 f"worktree /authority/{'mobile' if is_mobile else 'parent'}-{index}"
                 for index in range(count)
             )
+        if arguments == ("branch", "--show-current"):
+            return self.mobile_branch if is_mobile else self.parent_branch
+        if arguments == (
+            "for-each-ref",
+            "--format=%(refname:short)",
+            "refs/heads",
+        ):
+            branches = (
+                self.mobile_local_branches
+                if is_mobile
+                else self.parent_local_branches
+            )
+            return "\n".join(branches)
         if arguments == ("status", "--porcelain=v1", "--untracked-files=all"):
             return self.mobile_status if is_mobile else self.parent_status
         if arguments == ("rev-parse", "HEAD^{commit}"):
@@ -543,6 +560,22 @@ class PairedRepositoryAuthorityTest(unittest.TestCase):
         with self.assertRaisesRegex(
             pipeline.ReleaseInputError,
             "Mobile repository must have exactly one linked worktree",
+        ):
+            self.require_source()
+
+    def test_non_production_branch_fails(self) -> None:
+        self.mobile_branch = "main"
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "sole active 'production' branch",
+        ):
+            self.require_source()
+
+    def test_extra_local_branch_fails(self) -> None:
+        self.parent_local_branches.append("old-candidate")
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "retain exactly one local branch named 'production'",
         ):
             self.require_source()
 
