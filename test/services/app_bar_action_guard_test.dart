@@ -939,7 +939,9 @@ void main() {
         expect(routeSource, contains("semanticLabel: 'Flow Studio'"));
         expect(routeSource, contains('onClose: _closeRoute'));
         expect(routeSource, contains('onBackPressed: _handleSystemBack'));
-        expect(routeSource, contains('topRadius: 0'));
+        expect(routeSource, isNot(contains('showRouteChrome: false')));
+        expect(routeSource, isNot(contains('heightFactor: 1')));
+        expect(routeSource, isNot(contains('topRadius: 0')));
         expect(routeSource, contains('child: Navigator('));
         expect(routeSource, contains('onGenerateInitialRoutes:'));
         expect(

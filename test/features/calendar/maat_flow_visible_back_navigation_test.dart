@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/inbox/shared_flow_details_page.dart';
+import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -89,8 +90,12 @@ void main() {
         );
         final surfaceHost = find.byKey(kMaatFlowDetailSurfaceHostKey);
         expect(surfaceHost, findsOneWidget);
-        expect(tester.getTopLeft(surfaceHost), Offset.zero);
-        expect(tester.getSize(surfaceHost), const Size(390, 844));
+        expect(find.byKey(utilitySheetRouteBackdropKey), findsOneWidget);
+        expect(find.byKey(utilitySheetRouteDragHandleKey), findsOneWidget);
+        expect(find.byKey(utilitySheetRouteCloseButtonKey), findsOneWidget);
+        expect(tester.getTopLeft(surfaceHost).dy, greaterThan(100));
+        expect(tester.getSize(surfaceHost).width, 390);
+        expect(tester.getSize(surfaceHost).height, lessThan(744));
 
         await tester.tap(back);
         await tester.pumpAndSettle();
@@ -252,7 +257,8 @@ void main() {
 
     final surfaceHost = find.byKey(kMaatFlowDetailSurfaceHostKey);
     expect(surfaceHost, findsOneWidget);
-    expect(tester.getTopLeft(surfaceHost), Offset.zero);
+    expect(tester.getTopLeft(surfaceHost).dy, greaterThan(100));
+    expect(find.byKey(utilitySheetRouteDragHandleKey), findsOneWidget);
 
     await tester.drag(surfaceHost, const Offset(0, 420));
     await tester.pump();

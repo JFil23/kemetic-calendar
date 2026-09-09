@@ -9588,9 +9588,6 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
       semanticLabel: 'Flow Studio',
       onClose: _closeRoute,
       onBackPressed: _handleSystemBack,
-      showRouteChrome: false,
-      heightFactor: 1,
-      topRadius: 0,
       child: Navigator(
         key: _flowStudioNavigatorKey,
         onGenerateInitialRoutes: (navigator, initial) =>
