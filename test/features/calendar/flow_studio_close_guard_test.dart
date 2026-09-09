@@ -118,7 +118,7 @@ void main() {
         detailPush,
         contains('_pushFlowStudioRoute<int?>(\n      navigator,'),
       );
-      expect(detailPush, contains('MaterialPageRoute<int?>'));
+      expect(detailPush, contains('_maatFlowDetailSheetRoute<int?>'));
       expect(completion, contains('rootNavigator.pop();'));
       expect(completion, contains('_schedulePendingStagedFlowDayViewIfAny();'));
       expect(

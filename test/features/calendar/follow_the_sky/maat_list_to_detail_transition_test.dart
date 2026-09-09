@@ -24,6 +24,8 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
+  // Keep this identity stable for the release comparison gate; the route
+  // assertions below now enforce the authored content's layered sheet.
   testWidgets('discovery opens its authored inline detail on the same route', (
     tester,
   ) async {
@@ -63,10 +65,18 @@ void main() {
     expect(find.text('Carry this flow'), findsNothing);
 
     final detailRoute = ModalRoute.of(tester.element(detailBack));
-    expect(detailRoute, isA<MaterialPageRoute<dynamic>>());
+    expect(detailRoute, isA<PopupRoute<int?>>());
     expect(detailRoute, isNot(same(listRoute)));
-    expect(detailRoute!.isCurrent, isTrue);
+    expect(detailRoute!.opaque, isFalse);
+    expect(detailRoute.isCurrent, isTrue);
     expect(listRoute.isCurrent, isFalse);
+    expect(
+      find.byKey(
+        const ValueKey<String>('maat-flow-discovery-view'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -95,10 +105,11 @@ void main() {
       final listRoute = ModalRoute.of(tester.element(listSurface));
       final detailRoute = ModalRoute.of(tester.element(detailBack));
       expect(listRoute, isA<MaterialPageRoute<dynamic>>());
-      expect(detailRoute, isA<MaterialPageRoute<dynamic>>());
+      expect(detailRoute, isA<PopupRoute<int?>>());
       expect(detailRoute, isNot(same(listRoute)));
+      expect(detailRoute!.opaque, isFalse);
       expect(listRoute!.isCurrent, isFalse);
-      expect(detailRoute!.isCurrent, isTrue);
+      expect(detailRoute.isCurrent, isTrue);
 
       await tester.tap(detailBack);
       await tester.pumpAndSettle();

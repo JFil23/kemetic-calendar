@@ -34,6 +34,8 @@ void main() {
   ];
 
   for (final scenario in scenarios) {
+    // Keep this identity stable for the release comparison gate; the
+    // assertions below now prove the replacement is a non-opaque sheet.
     testWidgets(
       '${scenario.templateKey} discovery Back dismisses its inline detail but keeps Ma’at Flows open',
       (tester) async {
@@ -78,8 +80,24 @@ void main() {
         final detailRoute = ModalRoute.of(tester.element(back));
         expect(detailRoute, isNotNull);
         expect(detailRoute, isNot(same(listRoute)));
-        expect(detailRoute!.isCurrent, isTrue);
+        expect(detailRoute, isA<PopupRoute<int?>>());
+        expect(detailRoute!.opaque, isFalse);
+        expect(detailRoute.isCurrent, isTrue);
         expect(listRoute.isCurrent, isFalse);
+        expect(
+          find.byKey(
+            const ValueKey<String>('maat-flow-discovery-view'),
+            skipOffstage: false,
+          ),
+          findsOneWidget,
+        );
+        final sheetHost = find.byKey(kMaatFlowDetailSheetHostKey);
+        expect(sheetHost, findsOneWidget);
+        expect(tester.getTopLeft(sheetHost).dy, greaterThan(0));
+        expect(
+          tester.getSize(sheetHost).height,
+          closeTo(844 * kMaatFlowDetailSheetHeightFactor, 1),
+        );
 
         await tester.tap(back);
         await tester.pumpAndSettle();
@@ -176,8 +194,10 @@ void main() {
     expect(listRoute, isNotNull);
     expect(detailRoute, isNotNull);
     expect(detailRoute, isNot(same(listRoute)));
+    expect(detailRoute, isA<PopupRoute<int?>>());
+    expect(detailRoute!.opaque, isFalse);
     expect(listRoute!.isCurrent, isFalse);
-    expect(detailRoute!.isCurrent, isTrue);
+    expect(detailRoute.isCurrent, isTrue);
 
     await tester.tap(back);
     await tester.pumpAndSettle();
@@ -223,6 +243,59 @@ void main() {
       findsNothing,
     );
     expect(find.text('Flows'), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
+  });
+
+  testWidgets('detail sheet dismisses without dismissing Discovery', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+    await _pumpFlowStudio(
+      tester,
+      Uri(
+        path: '/flows',
+        queryParameters: const <String, String>{'mode': 'maatFlows'},
+      ),
+    );
+
+    final openButton = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-open-track-the-sky'),
+    );
+    await _scrollDiscoveryControlIntoViewport(tester, openButton);
+    await tester.tap(openButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final sheetHost = find.byKey(kMaatFlowDetailSheetHostKey);
+    expect(sheetHost, findsOneWidget);
+    expect(tester.getTopLeft(sheetHost).dy, greaterThan(0));
+
+    await tester.tapAt(const Offset(8, 8));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(sheetHost, findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('maat-flow-discovery-view')),
+      findsOneWidget,
+    );
+
+    await _scrollDiscoveryControlIntoViewport(tester, openButton);
+    await tester.tap(openButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(sheetHost, findsOneWidget);
+
+    final sheetTop = tester.getTopLeft(sheetHost).dy;
+    await tester.dragFrom(Offset(195, sheetTop + 12), const Offset(0, 420));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(sheetHost, findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('maat-flow-discovery-view')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
   });
 }

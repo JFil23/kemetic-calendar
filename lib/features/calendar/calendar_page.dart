@@ -8075,7 +8075,7 @@ class CalendarPage extends StatefulWidget {
   }) {
     return _pushDetachedFlowStudioRoute<int?>(
       navigator,
-      MaterialPageRoute<int?>(
+      _maatFlowDetailSheetRoute<int?>(
         builder: (_) => _buildDetachedMaatFlowTemplateDetailPage(
           navigator: navigator,
           template: template,
@@ -8575,7 +8575,7 @@ class CalendarPage extends StatefulWidget {
 
     final selectedTemplate = template;
     final cachedSnapshot = _cachedDetachedMyFlowsFilingSnapshot(flowsRepo);
-    final detailRoute = MaterialPageRoute<int?>(
+    final detailRoute = _maatFlowDetailSheetRoute<int?>(
       builder: (innerCtx) => _buildDetachedMaatFlowTemplateDetailPage(
         navigator: Navigator.of(innerCtx),
         template: selectedTemplate,
@@ -12980,7 +12980,7 @@ class CalendarPageState extends State<CalendarPage>
           if (restoredTemplate == null) {
             return <Route<dynamic>>[hubRoute, listRoute];
           }
-          final detailRoute = MaterialPageRoute<int?>(
+          final detailRoute = _maatFlowDetailSheetRoute<int?>(
             builder: (_) => _buildMaatFlowTemplateDetailPage(
               template: restoredTemplate,
               persistOverlay: true,
@@ -13245,7 +13245,7 @@ class CalendarPageState extends State<CalendarPage>
   }) {
     return _pushFlowStudioRoute<int?>(
       navigator,
-      MaterialPageRoute<int?>(
+      _maatFlowDetailSheetRoute<int?>(
         builder: (_) => _buildMaatFlowTemplateDetailPage(
           template: template,
           persistOverlay: persistOverlay,

@@ -1067,7 +1067,7 @@ void main() {
 
       expect(rootRestore, contains('initialRoutesBuilder'));
       expect(rootRestore, contains('hubRoute, listRoute, detailRoute'));
-      expect(rootRestore, contains('MaterialPageRoute<int?>'));
+      expect(rootRestore, contains('_maatFlowDetailSheetRoute<int?>'));
       expect(rootRestore, contains('template: restoredTemplate'));
       expect(rootRestore, isNot(contains('initialTemplate:')));
       expect(rootRestore, isNot(contains('FollowSkyDetailPageRoute')));
@@ -1078,7 +1078,7 @@ void main() {
       );
       expect(detachedRestore, contains('onReturnToHub'));
       expect(detachedRestore, contains('hubRoute(), listRoute, detailRoute'));
-      expect(detachedRestore, contains('MaterialPageRoute<int?>'));
+      expect(detachedRestore, contains('_maatFlowDetailSheetRoute<int?>'));
       expect(detachedRestore, contains('template: selectedTemplate'));
       expect(detachedRestore, isNot(contains('initialTemplate:')));
       expect(detachedRestore, isNot(contains('addPostFrameCallback')));

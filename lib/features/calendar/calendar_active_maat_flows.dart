@@ -10,6 +10,14 @@ const Key kMaatFlowPracticeDisclaimerFooterKey = ValueKey<String>(
   'maat_flow_practice_disclaimer_footer',
 );
 
+@visibleForTesting
+const Key kMaatFlowDetailSheetHostKey = ValueKey<String>(
+  'maat-flow-detail-sheet-host',
+);
+
+@visibleForTesting
+const double kMaatFlowDetailSheetHeightFactor = 0.92;
+
 // Kept as negative-contract keys so tests can prove the retired catalog tabs
 // never return to the active discovery surface.
 @visibleForTesting
@@ -1198,6 +1206,26 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   @override
   State<_MaatFlowTemplateDetailPage> createState() =>
       _MaatFlowTemplateDetailPageState();
+}
+
+Route<T> _maatFlowDetailSheetRoute<T>({required WidgetBuilder builder}) {
+  return ModalBottomSheetRoute<T>(
+    builder: (context) => FractionallySizedBox(
+      key: kMaatFlowDetailSheetHostKey,
+      heightFactor: kMaatFlowDetailSheetHeightFactor,
+      child: builder(context),
+    ),
+    isScrollControlled: true,
+    isDismissible: true,
+    enableDrag: true,
+    useSafeArea: true,
+    backgroundColor: const Color(0xFF050504),
+    modalBarrierColor: Colors.black.withValues(alpha: 0.62),
+    clipBehavior: Clip.antiAlias,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+    ),
+  );
 }
 
 class _MaatFlowTemplateDetailPageState
