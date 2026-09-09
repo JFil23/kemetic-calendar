@@ -26,15 +26,16 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  const scenarios = <String>[
-    'track-the-sky',
-    'the-offering-table',
-    'the-reading-house',
+  const scenarios = <({String templateKey, String backKey})>[
+    (templateKey: 'track-the-sky', backKey: 'follow-sky-back'),
+    (templateKey: 'the-offering-table', backKey: 'offering-table-back'),
+    (templateKey: 'the-reading-house', backKey: 'reading-house-back'),
+    (templateKey: 'the-djed', backKey: 'djed-back'),
   ];
 
-  for (final templateKey in scenarios) {
+  for (final scenario in scenarios) {
     testWidgets(
-      '$templateKey discovery Back dismisses its inline detail but keeps Ma’at Flows open',
+      '${scenario.templateKey} discovery Back dismisses its inline detail but keeps Ma’at Flows open',
       (tester) async {
         _setPhoneViewport(tester);
         await _pumpFlowStudio(
@@ -45,7 +46,9 @@ void main() {
           ),
         );
 
-        final card = find.byKey(maatFlowCatalogCardKeyForTesting(templateKey));
+        final card = find.byKey(
+          maatFlowCatalogCardKeyForTesting(scenario.templateKey),
+        );
         await tester.scrollUntilVisible(
           card,
           280,
@@ -56,26 +59,27 @@ void main() {
         expect(listRoute!.isCurrent, isTrue);
 
         final openButton = find.byKey(
-          ValueKey<String>('maat-flow-discovery-open-$templateKey'),
+          ValueKey<String>('maat-flow-discovery-open-${scenario.templateKey}'),
         );
         await _scrollDiscoveryControlIntoViewport(tester, openButton);
         await tester.tap(openButton);
         await tester.pumpAndSettle();
-        final back = find.byKey(
-          const ValueKey<String>('maat-flow-discovery-back'),
-        );
+        final back = find.byKey(ValueKey<String>(scenario.backKey));
         expect(back, findsOneWidget);
         expect(
           find.byKey(
-            ValueKey<String>('maat-flow-discovery-detail-$templateKey'),
+            ValueKey<String>(
+              'maat-flow-discovery-detail-${scenario.templateKey}',
+            ),
           ),
-          findsOneWidget,
+          findsNothing,
         );
+        expect(find.text('Carry this flow'), findsNothing);
         final detailRoute = ModalRoute.of(tester.element(back));
         expect(detailRoute, isNotNull);
-        expect(detailRoute, same(listRoute));
+        expect(detailRoute, isNot(same(listRoute)));
         expect(detailRoute!.isCurrent, isTrue);
-        expect(listRoute.isCurrent, isTrue);
+        expect(listRoute.isCurrent, isFalse);
 
         await tester.tap(back);
         await tester.pumpAndSettle();
@@ -83,12 +87,17 @@ void main() {
         expect(back, findsNothing);
         expect(
           find.byKey(
-            ValueKey<String>('maat-flow-discovery-detail-$templateKey'),
+            ValueKey<String>(
+              'maat-flow-discovery-detail-${scenario.templateKey}',
+            ),
           ),
           findsNothing,
         );
         expect(listRoute.isCurrent, isTrue);
-        expect(find.text('Flows'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey<String>('maat-flow-discovery-view')),
+          findsOneWidget,
+        );
         expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
       },
     );

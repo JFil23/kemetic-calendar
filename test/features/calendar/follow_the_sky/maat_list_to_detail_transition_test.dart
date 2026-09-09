@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -54,30 +52,21 @@ void main() {
     await tester.ensureVisible(openButton);
     await tester.tap(openButton);
     await tester.pumpAndSettle();
-    final detailBack = find.byKey(
-      const ValueKey<String>('maat-flow-discovery-back'),
-    );
+    final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
     expect(detailBack, findsOneWidget);
     expect(
       find.byKey(
         const ValueKey<String>('maat-flow-discovery-detail-track-the-sky'),
       ),
-      findsOneWidget,
+      findsNothing,
     );
+    expect(find.text('Carry this flow'), findsNothing);
 
     final detailRoute = ModalRoute.of(tester.element(detailBack));
     expect(detailRoute, isA<MaterialPageRoute<dynamic>>());
-    expect(detailRoute, same(listRoute));
+    expect(detailRoute, isNot(same(listRoute)));
     expect(detailRoute!.isCurrent, isTrue);
-    expect(listRoute.isCurrent, isTrue);
-
-    expect(
-      File(
-        'lib/features/calendar/follow_the_sky/presentation/'
-        'maat_list_to_detail_route.dart',
-      ).existsSync(),
-      isFalse,
-    );
+    expect(listRoute.isCurrent, isFalse);
   });
 
   testWidgets(

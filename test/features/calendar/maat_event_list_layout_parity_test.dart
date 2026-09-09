@@ -246,23 +246,14 @@ void main() {
       await tester.tap(followButton);
       await tester.pump();
 
-      expect(selected, isNull);
+      expect(selected, 'track-the-sky');
       expect(
         find.byKey(
           const ValueKey<String>('maat-flow-discovery-detail-track-the-sky'),
         ),
-        findsOneWidget,
+        findsNothing,
       );
-      expect(find.text('Carry this flow'), findsOneWidget);
-
-      final carry = find.byKey(
-        const ValueKey<String>('maat-flow-discovery-carry'),
-      );
-      await tester.ensureVisible(carry);
-      await tester.pumpAndSettle();
-      await tester.tap(carry);
-      await tester.pump();
-      expect(selected, 'track-the-sky');
+      expect(find.text('Carry this flow'), findsNothing);
       expect(isMaatFlowNewJoinAllowed(selected!), isTrue);
     },
   );

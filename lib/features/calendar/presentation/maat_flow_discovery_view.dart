@@ -94,142 +94,11 @@ kFourMaatFlowDiscoveryFixtures = <MaatFlowDiscoveryCardData>[
 
 typedef MaatFlowDiscoveryOpen = void Function(String flowKey);
 
-@immutable
-class _DiscoveryOverlayCopy {
-  const _DiscoveryOverlayCopy({
-    required this.arrivalLabel,
-    required this.calendarLabel,
-    required this.inputLabel,
-    required this.when,
-    required this.entry,
-    required this.observation,
-    required this.prompt,
-    required this.placeholder,
-    required this.help,
-    required this.emptyMessage,
-    required this.filledMessage,
-    required this.requiresInput,
-    required this.marks,
-  });
-
-  final String arrivalLabel;
-  final String calendarLabel;
-  final String inputLabel;
-  final String when;
-  final String entry;
-  final String observation;
-  final String prompt;
-  final String placeholder;
-  final String help;
-  final String emptyMessage;
-  final String filledMessage;
-  final bool requiresInput;
-  final List<int> marks;
-}
-
-const Map<String, _DiscoveryOverlayCopy>
-_kDiscoveryOverlayCopy = <String, _DiscoveryOverlayCopy>{
-  'track-the-sky': _DiscoveryOverlayCopy(
-    arrivalLabel: 'The next turning',
-    calendarLabel: 'The next thirty days in Kemetic time',
-    inputLabel: 'Your intention for this turning',
-    when: 'Balance',
-    entry: 'Autumn Equinox',
-    observation: 'Day and night come nearly even.',
-    prompt: 'What do you want to make more room for so it can grow?',
-    placeholder: 'Make room for…',
-    help: 'Choose now or leave this open until the equinox returns to you.',
-    emptyMessage: 'Flow carried. The intention is still open.',
-    filledMessage: 'Flow carried with this intention.',
-    requiresInput: false,
-    marks: <int>[4, 13, 22, 29],
-  ),
-  'the-offering-table': _DiscoveryOverlayCopy(
-    arrivalLabel: 'First morning',
-    calendarLabel: 'Thirty mornings in Kemetic time',
-    inputLabel: 'What was fed?',
-    when: 'Personal Table · Day 1',
-    entry: 'The First Water',
-    observation: 'Before food, phone, or work, fill the cup.',
-    prompt: 'Name one basic need that has been unmet for three days or more.',
-    placeholder: 'What did you provide today?',
-    help:
-        'Required: place water and speak the line. Everything else is optional. Two minutes is enough.',
-    emptyMessage: 'Flow carried. The First Water is ready for your morning.',
-    filledMessage: 'Flow carried. Your first provision stays private.',
-    requiresInput: false,
-    marks: <int>[
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11,
-      12,
-      13,
-      14,
-      15,
-      16,
-      17,
-      18,
-      19,
-      20,
-      21,
-      22,
-      23,
-      24,
-      25,
-      26,
-      27,
-      28,
-      29,
-      30,
-    ],
-  ),
-  'the-reading-house': _DiscoveryOverlayCopy(
-    arrivalLabel: 'A starter sitting',
-    calendarLabel: 'Sittings in Kemetic time',
-    inputLabel: 'First book',
-    when: 'Private first',
-    entry: 'Open the Text',
-    observation: '',
-    prompt: 'What is this opening asking you to hold privately?',
-    placeholder: 'Book title',
-    help:
-        'Choose a book, decide who may enter, and give invited readers time to answer before anyone has to place a sitting.',
-    emptyMessage: 'Name the book before opening the house.',
-    filledMessage: 'The house is open. It is not scheduled yet.',
-    requiresInput: true,
-    marks: <int>[],
-  ),
-  'the-djed': _DiscoveryOverlayCopy(
-    arrivalLabel: 'First sitting',
-    calendarLabel: 'Nine sittings across thirty days',
-    inputLabel: 'Your first reset',
-    when: 'Personal pillar · Sitting 1',
-    entry: 'Set your footing',
-    observation: '',
-    prompt: 'Pick one ten-minute reset.',
-    placeholder: 'Name the first reset',
-    help:
-        'Name the first move, or carry the pillar and decide at the first sitting.',
-    emptyMessage: 'Flow carried. The first sitting is ready.',
-    filledMessage: 'Flow carried. Your first reset stays private.',
-    requiresInput: false,
-    marks: <int>[1, 4, 8, 12, 16, 20, 24, 27, 30],
-  ),
-};
-
 /// Fixture-first visual authority for the four-flow discovery surface.
 ///
 /// Routing and joined-state behavior are deliberately injected. The widget
 /// owns only the approved hierarchy and responsive presentation.
-class MaatFlowDiscoveryView extends StatefulWidget {
+class MaatFlowDiscoveryView extends StatelessWidget {
   const MaatFlowDiscoveryView({
     super.key,
     this.cards = kFourMaatFlowDiscoveryFixtures,
@@ -245,55 +114,7 @@ class MaatFlowDiscoveryView extends StatefulWidget {
   final VoidCallback? onClose;
   final Key? createKey;
 
-  @override
-  State<MaatFlowDiscoveryView> createState() => _MaatFlowDiscoveryViewState();
-}
-
-class _MaatFlowDiscoveryViewState extends State<MaatFlowDiscoveryView> {
-  MaatFlowDiscoveryCardData? _openCard;
-  final TextEditingController _intentionController = TextEditingController();
-  String _carryMessage = '';
-
-  @override
-  void dispose() {
-    _intentionController.dispose();
-    super.dispose();
-  }
-
-  void _openOverlay(MaatFlowDiscoveryCardData card) {
-    _intentionController.clear();
-    setState(() {
-      _openCard = card;
-      _carryMessage = '';
-    });
-  }
-
-  void _closeOverlay() {
-    _intentionController.clear();
-    setState(() {
-      _openCard = null;
-      _carryMessage = '';
-    });
-  }
-
-  void _carryOpenCard() {
-    final card = _openCard;
-    if (card == null) return;
-    final copy =
-        _kDiscoveryOverlayCopy[card.flowKey] ??
-        _kDiscoveryOverlayCopy['track-the-sky']!;
-    final value = _intentionController.text.trim();
-    final blocked = copy.requiresInput && value.isEmpty;
-    setState(() {
-      _carryMessage = blocked
-          ? copy.emptyMessage
-          : (value.isEmpty ? copy.emptyMessage : copy.filledMessage);
-    });
-    if (blocked) return;
-    widget.onOpen?.call(card.flowKey);
-  }
-
-  PreferredSizeWidget _buildHeader(MaatFlowDiscoveryCardData? openCard) {
+  PreferredSizeWidget _buildHeader() {
     return AppBar(
       primary: false,
       backgroundColor: MaatFlowListTokens.pageBg,
@@ -304,23 +125,7 @@ class _MaatFlowDiscoveryViewState extends State<MaatFlowDiscoveryView> {
       centerTitle: true,
       toolbarHeight: 64,
       leadingWidth: 70,
-      leading: openCard != null
-          ? IconButton(
-              key: const ValueKey<String>('maat-flow-discovery-back'),
-              tooltip: 'Back to Flows',
-              padding: const EdgeInsets.only(left: 15),
-              alignment: Alignment.centerLeft,
-              onPressed: _closeOverlay,
-              icon: const Text(
-                '←',
-                style: TextStyle(
-                  color: Color(0xFFD4AE43),
-                  fontSize: 28,
-                  height: 1,
-                ),
-              ),
-            )
-          : widget.onClose == null
+      leading: onClose == null
           ? const Align(
               alignment: Alignment.centerLeft,
               child: Padding(
@@ -339,12 +144,12 @@ class _MaatFlowDiscoveryViewState extends State<MaatFlowDiscoveryView> {
               tooltip: 'Back',
               padding: const EdgeInsets.only(left: 15),
               alignment: Alignment.centerLeft,
-              onPressed: widget.onClose,
+              onPressed: onClose,
               icon: const Icon(Icons.arrow_back, size: 22),
             ),
-      title: Text(
-        openCard?.title ?? 'Flows',
-        style: const TextStyle(
+      title: const Text(
+        'Flows',
+        style: TextStyle(
           color: Color(0xFFD4AE43),
           fontFamily: MaatFlowListTokens.fontFamily,
           fontSize: 25,
@@ -357,10 +162,10 @@ class _MaatFlowDiscoveryViewState extends State<MaatFlowDiscoveryView> {
           padding: const EdgeInsets.only(right: 7),
           child: IconButton(
             key:
-                widget.createKey ??
+                createKey ??
                 const ValueKey<String>('maat-flow-discovery-create'),
             tooltip: 'Create a flow',
-            onPressed: widget.onCreate,
+            onPressed: onCreate,
             icon: const Icon(Icons.add, size: 24),
           ),
         ),
@@ -374,76 +179,60 @@ class _MaatFlowDiscoveryViewState extends State<MaatFlowDiscoveryView> {
 
   @override
   Widget build(BuildContext context) {
-    final openCard = _openCard;
-    return PopScope(
-      canPop: openCard == null,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop || openCard == null) return;
-        _closeOverlay();
-      },
-      child: Scaffold(
-        key: const ValueKey<String>('maat-flow-discovery-view'),
-        backgroundColor: MaatFlowListTokens.pageBg,
-        body: SafeArea(
-          bottom: false,
-          child: openCard != null
-              ? _MaatFlowDiscoveryOverlay(
-                  header: _buildHeader(openCard),
-                  card: openCard,
-                  copy:
-                      _kDiscoveryOverlayCopy[openCard.flowKey] ??
-                      _kDiscoveryOverlayCopy['track-the-sky']!,
-                  intentionController: _intentionController,
-                  message: _carryMessage,
-                  onCarry: _carryOpenCard,
-                )
-              : widget.cards.isEmpty
-              ? ListView(
-                  children: <Widget>[
-                    SizedBox(height: 65, child: _buildHeader(null)),
-                    const SizedBox(height: 360, child: _DiscoveryEmptyState()),
-                  ],
-                )
-              : ListView.builder(
-                  key: const ValueKey<String>('maat-flow-discovery-scroll'),
-                  padding: EdgeInsets.only(
-                    bottom: math.max(
-                      30,
-                      AppBottomInsets.contentBottomPadding(context) + 14,
-                    ),
+    return Scaffold(
+      key: const ValueKey<String>('maat-flow-discovery-view'),
+      backgroundColor: MaatFlowListTokens.pageBg,
+      body: SafeArea(
+        bottom: false,
+        child: cards.isEmpty
+            ? ListView(
+                children: <Widget>[
+                  SizedBox(height: 65, child: _buildHeader()),
+                  const SizedBox(height: 360, child: _DiscoveryEmptyState()),
+                ],
+              )
+            : ListView.builder(
+                key: const ValueKey<String>('maat-flow-discovery-scroll'),
+                padding: EdgeInsets.only(
+                  bottom: math.max(
+                    30,
+                    AppBottomInsets.contentBottomPadding(context) + 14,
                   ),
-                  itemCount: widget.cards.length + 2,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return SizedBox(height: 65, child: _buildHeader(null));
-                    }
-                    final cardIndex = index - 1;
-                    if (cardIndex == widget.cards.length) {
-                      return const Padding(
-                        padding: EdgeInsets.fromLTRB(0, 8, 0, 14),
-                        child: Center(
-                          child: Text(
-                            '𓂀',
-                            style: TextStyle(
-                              color: Color(0xFF45381A),
-                              fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-                              fontSize: 24,
-                            ),
+                ),
+                itemCount: cards.length + 2,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return SizedBox(height: 65, child: _buildHeader());
+                  }
+                  final cardIndex = index - 1;
+                  if (cardIndex == cards.length) {
+                    return const Padding(
+                      padding: EdgeInsets.fromLTRB(0, 8, 0, 14),
+                      child: Center(
+                        child: Text(
+                          '𓂀',
+                          style: TextStyle(
+                            color: Color(0xFF45381A),
+                            fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                            fontSize: 24,
                           ),
                         ),
-                      );
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
-                      child: MaatFlowDiscoveryCard(
-                        data: widget.cards[cardIndex],
-                        featured: cardIndex == 0,
-                        onOpen: () => _openOverlay(widget.cards[cardIndex]),
                       ),
                     );
-                  },
-                ),
-        ),
+                  }
+                  final card = cards[cardIndex];
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
+                    child: MaatFlowDiscoveryCard(
+                      data: card,
+                      featured: cardIndex == 0,
+                      onOpen: onOpen == null
+                          ? null
+                          : () => onOpen!(card.flowKey),
+                    ),
+                  );
+                },
+              ),
       ),
     );
   }
@@ -721,389 +510,6 @@ class _DiscoveryEmptyState extends StatelessWidget {
             fontFamily: MaatFlowListTokens.fontFamily,
             fontSize: 18,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MaatFlowDiscoveryOverlay extends StatelessWidget {
-  const _MaatFlowDiscoveryOverlay({
-    required this.header,
-    required this.card,
-    required this.copy,
-    required this.intentionController,
-    required this.message,
-    required this.onCarry,
-  });
-
-  final PreferredSizeWidget header;
-  final MaatFlowDiscoveryCardData card;
-  final _DiscoveryOverlayCopy copy;
-  final TextEditingController intentionController;
-  final String message;
-  final VoidCallback onCarry;
-
-  static const List<String> _decanNumerals = <String>['I', 'II', 'III'];
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      key: ValueKey<String>('maat-flow-discovery-detail-${card.flowKey}'),
-      padding: EdgeInsets.only(
-        bottom: math.max(
-          25,
-          AppBottomInsets.contentBottomPadding(context) + 14,
-        ),
-      ),
-      children: <Widget>[
-        SizedBox(height: 65, child: header),
-        SizedBox(
-          height: 258,
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              Image.asset(
-                card.heroAsset,
-                fit: BoxFit.cover,
-                alignment: card.heroAlignment,
-                filterQuality: FilterQuality.medium,
-              ),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: <Color>[Color(0x14000000), Color(0xFF050504)],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 22,
-                right: 22,
-                bottom: 25,
-                child: Text(
-                  '${card.glyph}  ${card.worldLine}'.toUpperCase(),
-                  style: TextStyle(
-                    color: card.accent,
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontSize: 11,
-                    letterSpacing: 1.9,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Text(
-                card.title,
-                style: const TextStyle(
-                  color: Color(0xFFD4AE43),
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontSize: 40,
-                  fontWeight: FontWeight.w500,
-                  height: 0.98,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                card.possibility,
-                style: const TextStyle(
-                  color: Color(0xFFD5D1C8),
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontSize: 19,
-                  height: 1.3,
-                ),
-              ),
-              const SizedBox(height: 9),
-              const Text(
-                'Kept by ḥꜣw',
-                style: TextStyle(
-                  color: Color(0xFF6A6660),
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 23),
-              _overlaySectionLabel(copy.arrivalLabel),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border(
-                    left: BorderSide(color: card.accent, width: 2),
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(14, 3, 0, 3),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      copy.when.toUpperCase(),
-                      style: TextStyle(
-                        color: card.accent,
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 10,
-                        letterSpacing: 1.5,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      copy.entry,
-                      style: const TextStyle(
-                        color: Color(0xFFC8C4BC),
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 23,
-                        fontWeight: FontWeight.w500,
-                        height: 1.05,
-                      ),
-                    ),
-                    if (copy.observation.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        copy.observation,
-                        style: const TextStyle(
-                          color: Color(0xFF918D87),
-                          fontFamily: MaatFlowListTokens.fontFamily,
-                          fontSize: 15,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 7),
-                    Text(
-                      copy.prompt,
-                      style: const TextStyle(
-                        color: Color(0xFFC8C4BC),
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 17,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _overlaySectionLabel(copy.calendarLabel),
-              DecoratedBox(
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Color(0xFF2A2415))),
-                ),
-                child: Column(
-                  children: <Widget>[
-                    for (var band = 0; band < 3; band++)
-                      _overlayDecanBand(
-                        numeral: _decanNumerals[band],
-                        firstDay: band * 10 + 1,
-                        accent: card.accent,
-                        marks: copy.marks,
-                      ),
-                  ],
-                ),
-              ),
-              _overlaySectionLabel(copy.inputLabel),
-              SizedBox(
-                height: 51,
-                child: TextField(
-                  key: const ValueKey<String>('maat-flow-discovery-intention'),
-                  controller: intentionController,
-                  cursorColor: const Color(0xFFD4AE43),
-                  style: const TextStyle(
-                    color: Color(0xFFC8C4BC),
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontSize: 18,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: copy.placeholder,
-                    hintStyle: const TextStyle(
-                      color: Color(0xFF5D5751),
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontSize: 18,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFF0A0908),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-                    enabledBorder: const OutlineInputBorder(
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(9),
-                        topRight: Radius.circular(9),
-                      ),
-                      borderSide: BorderSide(color: Color(0xFF2A2314)),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(9),
-                        topRight: Radius.circular(9),
-                      ),
-                      borderSide: BorderSide(color: Color(0xFF8A7030)),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                copy.help,
-                style: const TextStyle(
-                  color: Color(0xFF6A6660),
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontSize: 12,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 52,
-                child: OutlinedButton(
-                  key: const ValueKey<String>('maat-flow-discovery-carry'),
-                  onPressed: onCarry,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFD8B64E),
-                    backgroundColor: const Color(0xFF070604),
-                    side: const BorderSide(
-                      color: Color(0xFFD4AE43),
-                      width: 1.5,
-                    ),
-                    shape: const StadiumBorder(),
-                    textStyle: const TextStyle(
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  child: const Text('Carry this flow'),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 20,
-                child: Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFFA8A094),
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  static Widget _overlaySectionLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 11),
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFF2A2415))),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(top: 17),
-          child: Text(
-            text.toUpperCase(),
-            style: const TextStyle(
-              color: Color(0xFF8A7030),
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontSize: 10,
-              letterSpacing: 2.2,
-              height: 1,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  static Widget _overlayDecanBand({
-    required String numeral,
-    required int firstDay,
-    required Color accent,
-    required List<int> marks,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 13, 0, 17),
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFF2A2415))),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(2, 0, 0, 10),
-              child: Text(
-                '$numeral · days $firstDay–${firstDay + 9}'.toUpperCase(),
-                style: const TextStyle(
-                  color: Color(0xFF8A7030),
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontSize: 11,
-                  letterSpacing: 1.7,
-                ),
-              ),
-            ),
-            Row(
-              children: <Widget>[
-                for (var n = firstDay; n < firstDay + 10; n++)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2.5),
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.center,
-                          children: <Widget>[
-                            DecoratedBox(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: marks.contains(n)
-                                      ? accent
-                                      : const Color(0xFF30250F),
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '$n',
-                                  style: TextStyle(
-                                    color: marks.contains(n)
-                                        ? const Color(0xFFC8C4BC)
-                                        : const Color(0xFF9D8654),
-                                    fontFamily: MaatFlowListTokens.fontFamily,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (marks.contains(n))
-                              Positioned(
-                                bottom: -5,
-                                child: Container(
-                                  width: 3,
-                                  height: 3,
-                                  decoration: BoxDecoration(
-                                    color: accent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
         ),
       ),
     );
