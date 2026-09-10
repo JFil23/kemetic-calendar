@@ -389,7 +389,10 @@ class _OfferingTableDetailSurfaceState
     final occurrences = _previewOccurrences();
     final today = _temporalContext.presentLocalDate;
     final remaining = occurrences.skip(5).toList(growable: false);
-    final firstFive = occurrences.take(5).toList(growable: false);
+    final defaultAdditional = occurrences
+        .skip(1)
+        .take(4)
+        .toList(growable: false);
     final ordinaryRowsByDay = _ordinaryRowsByDay(occurrences);
 
     return Column(
@@ -436,8 +439,8 @@ class _OfferingTableDetailSurfaceState
           introSecondLine: 'then giving it a simple place.',
           keyPrefix: 'offering-table-calendar',
         ),
-        _OfferingAllDaysList(
-          firstFive: firstFive,
+        _OfferingScheduleList(
+          defaultAdditional: defaultAdditional,
           remaining: remaining,
           ordinaryRowsByDay: ordinaryRowsByDay,
           carried: _joined,
@@ -963,9 +966,9 @@ class _OfferingFlowEventCard extends StatelessWidget {
   }
 }
 
-class _OfferingAllDaysList extends StatelessWidget {
-  const _OfferingAllDaysList({
-    required this.firstFive,
+class _OfferingScheduleList extends StatelessWidget {
+  const _OfferingScheduleList({
+    required this.defaultAdditional,
     required this.remaining,
     required this.ordinaryRowsByDay,
     required this.carried,
@@ -974,7 +977,7 @@ class _OfferingAllDaysList extends StatelessWidget {
     required this.onOpenOfferingDay,
   });
 
-  final List<OfferingTablePreviewOccurrence> firstFive;
+  final List<OfferingTablePreviewOccurrence> defaultAdditional;
   final List<OfferingTablePreviewOccurrence> remaining;
   final Map<DateTime, List<FollowSkyCalendarPreviewRow>> ordinaryRowsByDay;
   final bool carried;
@@ -989,6 +992,24 @@ class _OfferingAllDaysList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+            child: Column(
+              key: const ValueKey<String>('offering-table-default-offerings'),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final occurrence in defaultAdditional)
+                  _OfferingScheduleDay(
+                    occurrence: occurrence,
+                    carried: carried,
+                    ordinaryRows:
+                        ordinaryRowsByDay[occurrence.date] ??
+                        const <FollowSkyCalendarPreviewRow>[],
+                    onOpenOfferingDay: onOpenOfferingDay,
+                  ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: InkWell(
@@ -1013,7 +1034,9 @@ class _OfferingAllDaysList extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        expanded ? 'Show first 5 days' : 'See all 30 offerings',
+                        expanded
+                            ? 'Show first 5 offerings'
+                            : 'See all 30 offerings',
                         style: const TextStyle(
                           color: OfferingTableDetailTokens.mutedIvory,
                           fontFamily: MaatFlowListTokens.fontFamily,
@@ -1045,19 +1068,13 @@ class _OfferingAllDaysList extends StatelessWidget {
               curve: Curves.ease,
               child: expanded
                   ? Padding(
+                      key: const ValueKey<String>(
+                        'offering-table-remaining-offerings',
+                      ),
                       padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          for (final occurrence in firstFive)
-                            _OfferingScheduleDay(
-                              occurrence: occurrence,
-                              carried: carried,
-                              ordinaryRows:
-                                  ordinaryRowsByDay[occurrence.date] ??
-                                  const <FollowSkyCalendarPreviewRow>[],
-                              onOpenOfferingDay: onOpenOfferingDay,
-                            ),
                           const Padding(
                             padding: EdgeInsets.only(top: 6, bottom: 5),
                             child: Text(

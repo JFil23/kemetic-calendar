@@ -731,6 +731,108 @@ void main() {
     },
   );
 
+  testWidgets(
+    'shows five offering blocks before expanding only offerings 6 through 30',
+    (tester) async {
+      await _pumpPage(
+        tester,
+        size: const Size(390, 844),
+        start: DateTime(2026, 9, 3),
+        calendarPreview: _calendarPreview(DateTime(2026, 9, 3)),
+      );
+
+      for (var day = 1; day <= 5; day += 1) {
+        final event = find.byKey(
+          ValueKey<String>('offering-table-preview-event-$day'),
+        );
+        expect(event, findsOneWidget);
+        expect(tester.widget<GestureDetector>(event).onTap, isNotNull);
+      }
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-default-offerings')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey<String>('offering-table-remaining-offerings'),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-all-day-6')),
+        findsNothing,
+      );
+
+      final showAll = find.byKey(
+        const ValueKey<String>('offering-table-show-all'),
+      );
+      expect(
+        tester
+            .getBottomRight(
+              find.byKey(
+                const ValueKey<String>('offering-table-preview-event-5'),
+              ),
+            )
+            .dy,
+        lessThan(tester.getTopLeft(showAll).dy),
+      );
+      await Scrollable.ensureVisible(
+        tester.element(showAll),
+        alignment: 0.5,
+        duration: Duration.zero,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(showAll);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('offering-table-remaining-offerings'),
+        ),
+        findsOneWidget,
+      );
+      for (var day = 6; day <= 30; day += 1) {
+        expect(
+          find.byKey(ValueKey<String>('offering-table-all-day-$day')),
+          findsOneWidget,
+        );
+      }
+      expect(find.text('Show first 5 offerings'), findsOneWidget);
+      expect(
+        tester
+            .getBottomRight(
+              find.byKey(const ValueKey<String>('offering-table-show-fewer')),
+            )
+            .dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.byKey(const ValueKey<String>('offering-table-all-day-6')),
+              )
+              .dy,
+        ),
+      );
+
+      final fifthOffering = find.byKey(
+        const ValueKey<String>('offering-table-preview-event-5'),
+      );
+      await Scrollable.ensureVisible(
+        tester.element(fifthOffering),
+        alignment: 0.5,
+        duration: Duration.zero,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(fifthOffering);
+      await tester.pumpAndSettle();
+      expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('ritual-first detail follows the supplied v7 order', (
     tester,
   ) async {
