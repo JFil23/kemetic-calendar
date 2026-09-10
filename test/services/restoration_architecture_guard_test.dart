@@ -340,6 +340,7 @@ void main() {
         'lib/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart',
         'lib/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart',
         'lib/features/calendar/the_reading_house/presentation/reading_house_day_presentation.dart',
+        'lib/features/calendar/the_reading_house/presentation/reading_house_detail_page.dart',
         'lib/features/calendar/landscape_month_view.dart',
         'lib/features/calendars/shared_calendars_sheet.dart',
         'lib/features/inbox/inbox_conversation_page.dart',
