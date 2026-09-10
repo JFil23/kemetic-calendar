@@ -1851,6 +1851,113 @@ class FlowJoinService {
     );
   }
 
+  Future<FlowJoinResult> joinKarHeadless({
+    required String templateKey,
+    required String templateTitle,
+    required String templateOverview,
+    required Color templateColor,
+    required String? personalCalendarId,
+    required TrackSkyTimeZone timezone,
+    required DateTime startDate,
+    required KarNetjer netjer,
+    required String cycleId,
+    required int cycleSequence,
+    int? existingFlowId,
+  }) async {
+    if (_registeredKindForKey(templateKey) != MaatFlowKind.theKar) {
+      throw StateError('Kꜣr join received the wrong catalog identity.');
+    }
+    final firstGregorian = DateUtils.dateOnly(startDate);
+    final occurrences = karSchedule(
+      anchorDate: firstGregorian,
+      netjer: netjer,
+      cycleId: cycleId,
+    );
+    final dates = <DateTime>{
+      for (final occurrence in occurrences)
+        DateUtils.dateOnly(occurrence.startLocal),
+    };
+    final flowId = await _upsertFlowRow(
+      id: existingFlowId,
+      name: templateTitle,
+      color: templateColor.toARGB32(),
+      active: true,
+      calendarId: personalCalendarId,
+      startDate: firstGregorian,
+      endDate: occurrences.last.startLocal,
+      notes: karFlowNotes(
+        netjer: netjer,
+        cycleId: cycleId,
+        cycleSequence: cycleSequence,
+        anchorDate: firstGregorian,
+        timezone: timezone,
+      ),
+      rules: jsonEncode(
+        <FlowRule>[
+          _RuleDates(dates: dates),
+        ].map(CalendarPageState.ruleToJson).toList(),
+      ),
+      originType: 'template',
+    );
+
+    final location = tz.getLocation(timezone.ianaName);
+    final clientEventIds = <String>[];
+    for (final occurrence in occurrences) {
+      final local = tz.TZDateTime(
+        location,
+        occurrence.startLocal.year,
+        occurrence.startLocal.month,
+        occurrence.startLocal.day,
+        occurrence.startLocal.hour,
+        occurrence.startLocal.minute,
+      );
+      final endLocal = local.add(const Duration(hours: 1));
+      final k = KemeticMath.fromGregorian(DateUtils.dateOnly(local));
+      final clientEventId = EventCidUtil.buildClientEventId(
+        ky: k.kYear,
+        km: k.kMonth,
+        kd: k.kDay,
+        title: occurrence.title,
+        startHour: local.hour,
+        startMinute: local.minute,
+        allDay: false,
+        flowId: flowId,
+      );
+      await _upsertEventRow(
+        clientEventId: clientEventId,
+        title: occurrence.title,
+        startsAtUtc: local.toUtc(),
+        startsAtLocal: local,
+        endsAtUtc: endLocal.toUtc(),
+        endsAtLocal: endLocal,
+        detail: occurrence.isWalk
+            ? 'Enter at the threshold. Find the five places in order.'
+            : netjer.prompts[occurrence.stageIndex],
+        allDay: false,
+        calendarId: personalCalendarId,
+        flowLocalId: flowId,
+        category: 'Reflection',
+        actionId:
+            'the-kar-$cycleId-${occurrence.isWalk ? 'walk' : 'scene-${occurrence.stageIndex + 1}'}',
+        behaviorPayload: occurrence.behaviorPayload(
+          cycleSequence: cycleSequence,
+        ),
+        caller: 'kar_join_headless',
+      );
+      clientEventIds.add(clientEventId);
+    }
+
+    final staged = _takeDeferredJoinContext(
+      flowId: flowId,
+      clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
+    );
+  }
+
   Future<FlowJoinResult> joinTheCourseHeadless({
     required String templateKey,
     required String templateTitle,

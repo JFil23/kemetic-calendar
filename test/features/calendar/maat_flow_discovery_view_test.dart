@@ -20,6 +20,7 @@ void main() {
     required Size size,
     double textScale = 1,
     ValueChanged<String>? onOpen,
+    List<MaatFlowDiscoveryCardData> cards = kCoreMaatFlowDiscoveryFixtures,
   }) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -35,7 +36,11 @@ void main() {
           ),
           child: RepaintBoundary(
             key: const ValueKey<String>('discovery-visual-capture'),
-            child: MaatFlowDiscoveryView(onCreate: () {}, onOpen: onOpen),
+            child: MaatFlowDiscoveryView(
+              cards: cards,
+              onCreate: () {},
+              onOpen: onOpen,
+            ),
           ),
         ),
       ),
@@ -43,7 +48,7 @@ void main() {
     await tester.pump();
     final discoveryContext = tester.element(find.byType(MaatFlowDiscoveryView));
     Object? heroLoadError;
-    for (final card in kFourMaatFlowDiscoveryFixtures) {
+    for (final card in cards) {
       await tester.runAsync(
         () => precacheImage(
           AssetImage(card.heroAsset),
@@ -56,7 +61,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('renders the approved four-flow hierarchy in canonical order', (
+  testWidgets('renders the approved five-flow hierarchy in canonical order', (
     tester,
   ) async {
     String? opened;
@@ -71,9 +76,10 @@ void main() {
       'the-offering-table',
       'the-reading-house',
       'the-djed',
+      'the-kar',
     ];
     expect(
-      kFourMaatFlowDiscoveryFixtures.map((card) => card.flowKey),
+      kCoreMaatFlowDiscoveryFixtures.map((card) => card.flowKey),
       orderedEquals(keys),
     );
     expect(
@@ -126,10 +132,15 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('tracks the complete four-card discovery scroll inventory', (
+  testWidgets('preserves the four-card HTML reference scroll inventory', (
     tester,
   ) async {
-    await pumpDiscovery(tester, size: const Size(390, 844), onOpen: (_) {});
+    await pumpDiscovery(
+      tester,
+      size: const Size(390, 844),
+      onOpen: (_) {},
+      cards: kCoreMaatFlowDiscoveryFixtures.take(4).toList(growable: false),
+    );
     for (final state in const <({String flowKey, String golden})>[
       (
         flowKey: 'the-offering-table',

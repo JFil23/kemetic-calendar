@@ -34,7 +34,7 @@ class MaatFlowDiscoveryCardData {
 }
 
 const List<MaatFlowDiscoveryCardData>
-kFourMaatFlowDiscoveryFixtures = <MaatFlowDiscoveryCardData>[
+kCoreMaatFlowDiscoveryFixtures = <MaatFlowDiscoveryCardData>[
   MaatFlowDiscoveryCardData(
     flowKey: 'track-the-sky',
     title: 'Follow the Sky',
@@ -90,18 +90,32 @@ kFourMaatFlowDiscoveryFixtures = <MaatFlowDiscoveryCardData>[
     arrivalPrompt: '“Pick one ten-minute reset.”',
     accent: Color(0xFFE7C66C),
   ),
+  MaatFlowDiscoveryCardData(
+    flowKey: 'the-kar',
+    title: 'The Kꜣr',
+    heroAsset: 'assets/the_kar/hero.png',
+    heroAlignment: Alignment(0, -0.04),
+    glyph: '𓉐',
+    worldLine: 'Imagination · five scenes across thirty days',
+    possibility:
+        'Give five impossible images a place, then return through them in order.',
+    arrivalLabel: 'First image',
+    arrivalTitle: 'The Threshold',
+    arrivalPrompt: '“Choose the presence this kꜣr will hold.”',
+    accent: Color(0xFF91B7C7),
+  ),
 ];
 
 typedef MaatFlowDiscoveryOpen = void Function(String flowKey);
 
-/// Fixture-first visual authority for the four-flow discovery surface.
+/// Fixture-first visual authority for the core-flow discovery surface.
 ///
 /// Routing and joined-state behavior are deliberately injected. The widget
 /// owns only the approved hierarchy and responsive presentation.
 class MaatFlowDiscoveryView extends StatelessWidget {
   const MaatFlowDiscoveryView({
     super.key,
-    this.cards = kFourMaatFlowDiscoveryFixtures,
+    this.cards = kCoreMaatFlowDiscoveryFixtures,
     this.onOpen,
     this.onCreate,
     this.onClose,

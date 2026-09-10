@@ -336,6 +336,7 @@ void main() {
         'lib/features/calendar/follow_the_sky/presentation/widgets/follow_sky_preview_calendar.dart',
         'lib/features/calendar/presentation/instrument_event_presentation_frame.dart',
         'lib/features/calendar/presentation/maat_flow_thirty_day_calendar.dart',
+        'lib/features/calendar/the_kar/presentation/kar_capture_editor.dart',
         'lib/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart',
         'lib/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart',
         'lib/features/calendar/the_reading_house/presentation/reading_house_day_presentation.dart',

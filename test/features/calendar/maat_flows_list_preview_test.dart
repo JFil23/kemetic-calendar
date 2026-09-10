@@ -102,7 +102,7 @@ void main() {
     );
   });
 
-  testWidgets('Ma’at product catalog renders exactly the four active flows', (
+  testWidgets('Ma’at product catalog renders exactly the five active flows', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 16000);
@@ -115,6 +115,7 @@ void main() {
       'the-offering-table': 'The Offering Table',
       'the-djed': 'The Djed',
       'the-reading-house': 'The Reading House',
+      'the-kar': 'The Kꜣr',
     };
 
     expect(
@@ -167,7 +168,7 @@ void main() {
   });
 
   testWidgets(
-    'discovery remains a four-flow catalog regardless of joined rows',
+    'discovery remains a five-flow catalog regardless of joined rows',
     (tester) async {
       tester.view.physicalSize = const Size(786, 1566);
       tester.view.devicePixelRatio = 2;
@@ -536,6 +537,6 @@ void main() {
     expect(find.text('Dawn House Rite'), findsNothing);
     expect(find.text('The Weighing'), findsNothing);
     expect(find.text('Follow the Sky'), findsOneWidget);
-    expect(coreMaatFlowTemplateKeysForTesting(), hasLength(4));
+    expect(coreMaatFlowTemplateKeysForTesting(), hasLength(5));
   });
 }

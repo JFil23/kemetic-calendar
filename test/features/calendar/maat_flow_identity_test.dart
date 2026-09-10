@@ -11,8 +11,8 @@ import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 
 void main() {
   group('resolveMaatFlowKind', () {
-    test('keeps all 33 historical identities recognized', () {
-      expect(MaatFlowKind.values, hasLength(33));
+    test('keeps all 34 historical identities recognized', () {
+      expect(MaatFlowKind.values, hasLength(34));
       expect(
         resolveMaatFlowKind(flowNotes: 'maat=the-moon-return'),
         MaatFlowKind.moonReturn,

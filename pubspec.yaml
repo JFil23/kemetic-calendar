@@ -117,6 +117,7 @@ flutter:
     - assets/the_offering_table/
     - assets/the_reading_house/
     - assets/the_djed/
+    - assets/the_kar/
     - assets/profile/day_cycle_alt_2/
 
   # Using GoogleFonts package for all typography

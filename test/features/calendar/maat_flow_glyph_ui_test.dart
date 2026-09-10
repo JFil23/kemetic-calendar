@@ -85,7 +85,7 @@ void main() {
     expect(activeDetails, isNot(contains('void _drawOfferingTable(')));
   });
 
-  test('four-flow discovery bundles and uses Cormorant Garamond', () {
+  test('core-flow discovery bundles and uses Cormorant Garamond', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
     final source = File(
       'lib/features/calendar/presentation/maat_flow_discovery_view.dart',
@@ -109,9 +109,9 @@ void main() {
   });
 
   testWidgets(
-    'four-flow discovery renders canonical glyphs without dot fallback',
+    'core-flow discovery renders canonical glyphs without dot fallback',
     (tester) async {
-      for (final data in kFourMaatFlowDiscoveryFixtures) {
+      for (final data in kCoreMaatFlowDiscoveryFixtures) {
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -183,7 +183,7 @@ void main() {
   });
 
   test(
-    'four-flow discovery intentionally omits joined and progress state chrome',
+    'core-flow discovery intentionally omits joined and progress state chrome',
     () {
       final source = File(
         'lib/features/calendar/presentation/maat_flow_discovery_view.dart',
@@ -198,7 +198,7 @@ void main() {
     },
   );
 
-  test('four retained detail bodies omit disclaimer framing', () {
+  test('five active detail bodies omit disclaimer framing', () {
     final primaryBody = <String>[
       'lib/features/calendar/follow_the_sky/presentation/'
           'follow_sky_detail_page.dart',
@@ -207,6 +207,7 @@ void main() {
       'lib/features/calendar/the_reading_house/presentation/'
           'reading_house_detail_page.dart',
       'lib/features/calendar/the_djed/presentation/djed_detail_page.dart',
+      'lib/features/calendar/the_kar/presentation/kar_detail_surface.dart',
     ].map((path) => File(path).readAsStringSync()).join('\n');
     final banned = RegExp(
       r'(directly attested|historically attested|modern reconstruction|'
@@ -239,7 +240,7 @@ void main() {
     },
   );
 
-  test('all four active branches route to dedicated detail authorities', () {
+  test('all five active branches route to dedicated detail authorities', () {
     final source = File(
       'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
@@ -251,10 +252,12 @@ void main() {
     expect(state, contains('Widget _buildOfferingTable()'));
     expect(state, contains('Widget _buildReadingHouse()'));
     expect(state, contains('Widget _buildDjed()'));
+    expect(state, contains('Widget _buildKar()'));
     expect(state, contains("'track-the-sky' => _buildFollowSky()"));
     expect(state, contains('kOfferingTableFlowKey => _buildOfferingTable()'));
     expect(state, contains('kReadingHouseFlowKey => _buildReadingHouse()'));
     expect(state, contains('kTheDjedFlowKey => _buildDjed()'));
+    expect(state, contains('kKarFlowKey => _buildKar()'));
     expect(state, isNot(contains('_buildTheWeighingScaffold')));
     expect(state, isNot(contains('_buildWagScaffold')));
   });
@@ -279,7 +282,7 @@ void main() {
     expect(archived, isNot(contains('Join Flow')));
   });
 
-  test('four retained details use shared palette and surface contracts', () {
+  test('five active details use shared palette and surface contracts', () {
     final active = File(
       'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();

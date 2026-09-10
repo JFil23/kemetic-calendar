@@ -12,6 +12,7 @@ import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
+import 'package:mobile/features/calendar/the_kar/the_kar_flow.dart';
 
 const String _trackSkyFlowKey = 'track-the-sky';
 const String _trackSkyTitle = 'Follow the Sky';
@@ -83,6 +84,12 @@ const List<_InventoryFlow> _responseEnabledCoreFlows = <_InventoryFlow>[
     title: kReadingHouseTitle,
     category: 'response-enabled core',
     phase: 'Reading House Phase 4A',
+  ),
+  _InventoryFlow(
+    key: kKarFlowKey,
+    title: kKarTitle,
+    category: 'response-enabled core',
+    phase: 'Kꜣr Phase 1',
   ),
 ];
 
@@ -198,16 +205,16 @@ void main() {
 
       final inventoryKeys = _allInventoryFlows.map((flow) => flow.key).toSet();
 
-      expect(registeredTemplateKeys, hasLength(23));
+      expect(registeredTemplateKeys, hasLength(24));
       expect(inventoryKeys, registeredTemplateKeys);
-      expect(_allInventoryFlows, hasLength(23));
-      expect(_responseEnabledCoreFlows, hasLength(8));
+      expect(_allInventoryFlows, hasLength(24));
+      expect(_responseEnabledCoreFlows, hasLength(9));
       expect(_responseEnabledDecanFlows, hasLength(15));
       expect(_remainingDecanFlows, isEmpty);
       expect(_remainingPrivacySensitiveDecanFlows, isEmpty);
       expect(_remainingLowerRiskDecanFlows, isEmpty);
       expect(_categoryCounts, <String, int>{
-        'response-enabled core': 8,
+        'response-enabled core': 9,
         'response-enabled decan': 15,
       });
       expect(registeredTemplateKeys, isNot(contains(kEveningThresholdFlowKey)));
@@ -222,7 +229,7 @@ void main() {
           .toSet();
 
       expect(resolverEnabledKeys, enabledInventoryKeys);
-      expect(resolverEnabledKeys, hasLength(23));
+      expect(resolverEnabledKeys, hasLength(24));
 
       for (final flow in _remainingDecanFlows) {
         expect(

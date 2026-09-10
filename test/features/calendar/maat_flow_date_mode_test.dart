@@ -53,7 +53,7 @@ void main() {
     expect(offeringTable, isNot(contains('showDatePicker(')));
   });
 
-  test('active product details delegate to four dedicated surfaces', () {
+  test('active product details delegate to five dedicated surfaces', () {
     final source = File(
       'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
@@ -291,7 +291,7 @@ void main() {
     expect(flush, contains('_onInvalidation(invalidation)'));
   });
 
-  test('four-flow joins cross the universal staging authority', () {
+  test('core-flow joins cross the universal staging authority', () {
     final page = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();

@@ -70,6 +70,7 @@ import 'the_reading_house/presentation/reading_house_day_presentation.dart';
 import 'the_reading_house/presentation/reading_house_event_block_visual.dart';
 import 'reading_house_private_margin_store.dart';
 import 'reading_house_shared_fragments_repo.dart';
+import 'the_kar/the_kar.dart';
 import 'maat_decan_flow.dart';
 import 'living_text_day_one_node_store.dart';
 import 'decan_id.dart';
@@ -1198,6 +1199,22 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
       kArchivedCompatibilityMaatFlowKinds.contains(flowKind)) {
     return null;
   }
+  if (flowKind == MaatFlowKind.theKar) {
+    final stageIndex = karStageIndexFromPayload(event.behaviorPayload);
+    return _MaatFlowCompletionContext(
+      flowKey: kKarFlowKey,
+      flowTitle: kKarTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: stageIndex + 1,
+      flowDay: kKarStages[stageIndex].day,
+      sharePromptOnComplete: false,
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kKarFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
   final followSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
     event.behaviorPayload,
   )?.trim();
@@ -1985,6 +2002,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
     this.followSkyCatalog,
     this.followSkyInstrumentProvider,
     this.followSkyNow,
+    this.karRepository,
     this.initialPresentation = eventWorkspacePresentationDetail,
   });
 
@@ -2052,6 +2070,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
   final SkyCatalog? followSkyCatalog;
   final SkyInstrumentDataProvider? followSkyInstrumentProvider;
   final DateTime Function()? followSkyNow;
+  final KarRepository? karRepository;
   final String initialPresentation;
 
   @override
@@ -3252,6 +3271,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final bool isOpenHand = _isOpenHandFlowName(flow?.name);
     final bool isDjed = _isDjedFlowName(flow?.name);
     final bool isReadingHouse = _isReadingHouseFlowName(flow?.name);
+    final bool isKar =
+        resolveMaatFlowKind(
+          flowName: flow?.name,
+          flowNotes: flow?.notes,
+          behaviorPayload: currentEvent.behaviorPayload,
+        ) ==
+        MaatFlowKind.theKar;
     final flowKind = resolveMaatFlowKind(
       flowName: flow?.name,
       flowNotes: flow?.notes,
@@ -3384,6 +3410,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         currentEvent.calendarId?.trim().isNotEmpty == true &&
         currentEvent.clientEventId?.trim().isNotEmpty == true &&
         readingHouseSitting != null;
+    final hasKarInstrument =
+        enableFollowSkyEngagement &&
+        _detailSheetTargetKey(target) ==
+            _detailSheetTargetKey(_currentTarget) &&
+        completionContext != null &&
+        currentEvent.flowId != null &&
+        isKar;
 
     if (hasFollowSkyInstrument) {
       final localDate = DateUtils.dateOnly(
@@ -3606,6 +3639,31 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                     },
                   );
                 },
+          ),
+        ),
+      );
+    }
+
+    if (hasKarInstrument) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: KarDayBehaviorSurface(
+            key: ValueKey<String>(
+              'kar-presentation:${currentEvent.flowId}:${karStageIndexFromPayload(currentEvent.behaviorPayload)}',
+            ),
+            repository:
+                widget.karRepository ??
+                SupabaseKarRepository(Supabase.instance.client),
+            netjer: karNetjerFromPayload(currentEvent.behaviorPayload),
+            flowId: currentEvent.flowId!,
+            stageIndex: karStageIndexFromPayload(currentEvent.behaviorPayload),
+            onCompletionCommit: () => _commitMaatFlowCompletion(
+              target: target,
+              completion: completionContext,
+              status: CompletionStatus.observed,
+            ),
           ),
         ),
       );
@@ -4926,7 +4984,8 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) {
   final kind = resolveMaatFlowKind(behaviorPayload: event.behaviorPayload);
   return kind == MaatFlowKind.theDjed ||
       kind == MaatFlowKind.readingHouse ||
-      kind == MaatFlowKind.offeringTable;
+      kind == MaatFlowKind.offeringTable ||
+      kind == MaatFlowKind.theKar;
 }
 
 ({double leading, double trailing})? _authoredEventBlockHorizontalExpansion(
@@ -4937,6 +4996,7 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) {
     // The supplied Day View places this authored block at x=38 and x=376.
     // The shared production timeline lane starts at x=60 and ends at x=374.
     MaatFlowKind.theDjed => (leading: 22, trailing: 2),
+    MaatFlowKind.theKar => (leading: 22, trailing: 2),
     // Reading House and Offering Table both begin at x=50 in their supplied
     // Day Views while preserving the production lane's x=374 trailing edge.
     MaatFlowKind.readingHouse ||
@@ -4950,6 +5010,7 @@ double _authoredEventBlockMinHeight(MaatFlowKind? kind) {
     MaatFlowKind.theDjed => 106,
     MaatFlowKind.readingHouse => 61,
     MaatFlowKind.offeringTable => 92,
+    MaatFlowKind.theKar => 61,
     _ => 0,
   };
 }
@@ -5324,6 +5385,7 @@ class DayViewPage extends StatefulWidget {
   final VoidCallback? onDayCardRevealCoachmarkCompleted;
   final DayViewRestorationCallback? onRestorationStateChanged;
   final bool Function()? shouldPreserveEventDetailRestorationOnClose;
+  final KarRepository? karRepository;
 
   const DayViewPage({
     super.key,
@@ -5386,6 +5448,7 @@ class DayViewPage extends StatefulWidget {
     this.onDayCardRevealCoachmarkCompleted,
     this.onRestorationStateChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
+    this.karRepository,
   });
 
   @override
@@ -6363,6 +6426,7 @@ class _DayViewPageState extends State<DayViewPage> {
                                   widget.onOnboardingObservedJournalNext,
                               onboardingClosingBannerBuilder:
                                   widget.onboardingClosingBannerBuilder,
+                              karRepository: widget.karRepository,
                               initialEventDetailRestorationState:
                                   _activeEventDetailRestoration,
                               onEventDetailRestorationChanged:
@@ -6500,6 +6564,7 @@ class DayViewGrid extends StatefulWidget {
   })?
   resolveAdjacentEvent;
   final Future<void> Function(int ky, int km, int kd)? onNavigateToDay;
+  final KarRepository? karRepository;
 
   const DayViewGrid({
     super.key,
@@ -6552,6 +6617,7 @@ class DayViewGrid extends StatefulWidget {
     this.resolveCurrentEventTarget,
     this.resolveAdjacentEvent,
     this.onNavigateToDay,
+    this.karRepository,
   });
 
   @override
@@ -8179,6 +8245,19 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
+    if (graphic?.kind == CalendarEventGraphicKind.kar) {
+      final stageIndex = karStageIndexFromPayload(event.behaviorPayload);
+      final netjer = karNetjerFromPayload(event.behaviorPayload);
+      return KarEventBlockVisual(
+        netjer: netjer,
+        stageIndex: stageIndex,
+        title: stageIndex == 5 ? 'Walk the kꜣr' : netjer.labels[stageIndex],
+        width: block.width,
+        height: height,
+        placedCount: stageIndex,
+      );
+    }
+
     return Container(
       width: block.width,
       height: height,
@@ -8619,6 +8698,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           onOnboardingObservedJournalNext:
               widget.onOnboardingObservedJournalNext,
           onboardingClosingBannerBuilder: widget.onboardingClosingBannerBuilder,
+          karRepository: widget.karRepository,
         ),
       ).whenComplete(releaseSheet);
       if (kDebugMode) {

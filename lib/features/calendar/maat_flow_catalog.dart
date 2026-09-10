@@ -33,6 +33,7 @@ const Set<MaatFlowKind> kDiscoverableMaatFlowKinds = <MaatFlowKind>{
   MaatFlowKind.offeringTable,
   MaatFlowKind.readingHouse,
   MaatFlowKind.theDjed,
+  MaatFlowKind.theKar,
 };
 
 const Set<MaatFlowKind> kNewJoinAllowedMaatFlowKinds = <MaatFlowKind>{
@@ -40,6 +41,7 @@ const Set<MaatFlowKind> kNewJoinAllowedMaatFlowKinds = <MaatFlowKind>{
   MaatFlowKind.offeringTable,
   MaatFlowKind.readingHouse,
   MaatFlowKind.theDjed,
+  MaatFlowKind.theKar,
 };
 
 const Set<MaatFlowKind> kArchivedCompatibilityMaatFlowKinds = <MaatFlowKind>{
@@ -158,6 +160,12 @@ const Map<MaatFlowKind, MaatFlowCatalogEntry> kMaatFlowCatalog =
         status: MaatFlowCatalogStatus.core,
         temporalPolicy: MaatFlowTemporalPolicy.relativeCalendarDays(3),
         verb: 'STUDY',
+      ),
+      MaatFlowKind.theKar: MaatFlowCatalogEntry(
+        kind: MaatFlowKind.theKar,
+        status: MaatFlowCatalogStatus.core,
+        temporalPolicy: MaatFlowTemporalPolicy.relativeCalendarDays(1),
+        verb: 'IMAGINE',
       ),
       MaatFlowKind.fairHearing: MaatFlowCatalogEntry(
         kind: MaatFlowKind.fairHearing,

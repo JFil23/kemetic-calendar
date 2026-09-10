@@ -8,6 +8,7 @@ import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
+import 'package:mobile/features/calendar/the_kar/the_kar.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,6 +20,7 @@ import '../../support/maat_flow_visual_goldens.dart';
 const _visualCaptureKey = ValueKey<String>(
   'authored-event-block-day-view-capture',
 );
+const _captureKarVisuals = bool.fromEnvironment('CAPTURE_KAR_VISUALS');
 final _goldenRoot = maatFlowVisualGoldenRoot;
 
 Future<void> _ensureSupabaseInitialized() async {
@@ -111,6 +113,70 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('Day View opens Kꜣr behavior in the existing shared sheet', (
+    tester,
+  ) async {
+    final repository = MemoryKarRepository(
+      initial: <KarNetjer, KarShrine>{
+        KarNetjer.djehuty:
+            KarShrine(
+              id: 'kar-user-djehuty',
+              netjer: KarNetjer.djehuty,
+              revision: 0,
+              cycles: const <KarCycle>[],
+            ).beginCycle(
+              cycleId: 'cycle-1',
+              anchorDate: DateTime(2026, 9, 10),
+              flowId: 83,
+            ),
+      },
+    );
+    await _pumpDayView(
+      tester,
+      flowId: 83,
+      flowName: kKarTitle,
+      flowKey: kKarFlowKey,
+      title: KarNetjer.djehuty.labels.first,
+      start: const TimeOfDay(hour: 9, minute: 0),
+      payload: const <String, dynamic>{
+        'kind': 'maat_kar_scene',
+        'flow_key': kKarFlowKey,
+        'kar_cycle_id': 'cycle-1',
+        'kar_cycle_sequence': 1,
+        'kar_netjer': 'djehuty',
+        'kar_stage_index': 0,
+        'kar_day': 1,
+        'kar_place': 'Threshold',
+      },
+      karRepository: repository,
+    );
+
+    final eventBlock = find.byType(KarEventBlockVisual);
+    expect(eventBlock, findsOneWidget);
+    await tester.tap(eventBlock);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(KarDayBehaviorSurface), findsOneWidget);
+    expect(find.byKey(dayViewBottomSheetBackplateKey), findsOneWidget);
+    expect(find.byType(ModalBottomSheetRoute), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(KarDayBehaviorSurface),
+        matching: find.text('Wisdom, dressed'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Draw'), findsOneWidget);
+    expect(find.text('Describe'), findsOneWidget);
+    if (_captureKarVisuals) {
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('/tmp/kar-day-flutter.png'),
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Future<void> _pumpDayView(
@@ -122,6 +188,7 @@ Future<void> _pumpDayView(
   required Map<String, dynamic> payload,
   TimeOfDay start = const TimeOfDay(hour: 7, minute: 30),
   int firstVisibleMinute = 6 * 60,
+  KarRepository? karRepository,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -168,6 +235,7 @@ Future<void> _pumpDayView(
             },
             activeLedgerFlowIds: <int>{flowId},
             initialFirstVisibleMinute: firstVisibleMinute,
+            karRepository: karRepository,
           ),
         ),
       ),

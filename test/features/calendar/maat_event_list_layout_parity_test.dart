@@ -9,6 +9,7 @@ import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_detail_page.dart';
+import 'package:mobile/features/calendar/the_kar/the_kar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -27,24 +28,28 @@ void main() {
     }
   });
 
-  test('active detail coordinator has no 33-flow visual dispatcher', () {
-    final source = File(
-      'lib/features/calendar/calendar_active_maat_flows.dart',
-    ).readAsStringSync();
+  test(
+    'active detail coordinator has no historical-flow visual dispatcher',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_active_maat_flows.dart',
+      ).readAsStringSync();
 
-    expect(source, contains('class _ActiveMaatFlowDetailSurfaceState'));
-    expect(source, contains('Widget _buildFollowSky()'));
-    expect(source, contains('Widget _buildOfferingTable()'));
-    expect(source, contains('Widget _buildReadingHouse()'));
-    expect(source, contains('Widget _buildDjed()'));
-    expect(source, isNot(contains('Widget _buildTheWeighingScaffold')));
-    expect(source, isNot(contains('Widget _buildWagScaffold')));
-    expect(source, isNot(contains('_MaatFlowTemplateDetailPage')));
-    expect(source, isNot(contains('_maatFlowDetailSheetRoute')));
-  });
+      expect(source, contains('class _ActiveMaatFlowDetailSurfaceState'));
+      expect(source, contains('Widget _buildFollowSky()'));
+      expect(source, contains('Widget _buildOfferingTable()'));
+      expect(source, contains('Widget _buildReadingHouse()'));
+      expect(source, contains('Widget _buildDjed()'));
+      expect(source, contains('Widget _buildKar()'));
+      expect(source, isNot(contains('Widget _buildTheWeighingScaffold')));
+      expect(source, isNot(contains('Widget _buildWagScaffold')));
+      expect(source, isNot(contains('_MaatFlowTemplateDetailPage')));
+      expect(source, isNot(contains('_maatFlowDetailSheetRoute')));
+    },
+  );
 
-  test('all identities resolve while only four own active details', () {
-    expect(MaatFlowKind.values, hasLength(33));
+  test('all identities resolve while only five own active details', () {
+    expect(MaatFlowKind.values, hasLength(34));
     expect(
       knownMaatFlowTemplateKeysForTesting(),
       hasLength(
@@ -56,6 +61,7 @@ void main() {
       'the-offering-table',
       'the-reading-house',
       'the-djed',
+      'the-kar',
     });
     for (final kind in MaatFlowKind.values) {
       final key = kind.flowKey;
@@ -123,7 +129,7 @@ void main() {
     }
   });
 
-  testWidgets('the four-flow discovery uses the approved card geometry', (
+  testWidgets('the five-flow discovery preserves the approved card geometry', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -181,12 +187,12 @@ void main() {
     },
   );
 
-  test('catalog preserves the explicit four-plus-nine boundary', () {
+  test('catalog preserves the explicit five-plus-nine boundary', () {
     expect(
       kMaatFlowCatalog.values.where(
         (entry) => entry.status == MaatFlowCatalogStatus.core,
       ),
-      hasLength(4),
+      hasLength(5),
     );
     expect(
       kMaatFlowCatalog.values.where(
@@ -281,7 +287,7 @@ void main() {
     expect(find.text('The Weighing'), findsNothing);
   });
 
-  testWidgets('leaving and reopening preserves the four-flow catalog', (
+  testWidgets('leaving and reopening preserves the five-flow catalog', (
     tester,
   ) async {
     Future<void> pumpCatalog() async {
@@ -432,6 +438,7 @@ Finder _activeDetailSurface(String templateKey) {
     'the-offering-table' => find.byType(OfferingTableDetailSurface),
     'the-reading-house' => find.byType(ReadingHouseDetailSurface),
     'the-djed' => find.byType(DjedDetailSurface),
+    'the-kar' => find.byType(KarDetailSurface),
     _ => find.byKey(const ValueKey<String>('unsupported-active-detail')),
   };
 }

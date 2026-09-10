@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'maat_flow_identity.dart';
 
-enum CalendarEventGraphicKind { trackSky, offeringTable, djed, readingHouse }
+enum CalendarEventGraphicKind {
+  trackSky,
+  offeringTable,
+  djed,
+  readingHouse,
+  kar,
+}
 
 enum CalendarTrackSkyCardKind {
   moon,
@@ -408,6 +414,7 @@ CalendarEventGraphicStyle? _graphicStyleForEvent({
     MaatFlowKind.offeringTable => _offeringTableGraphicStyle,
     MaatFlowKind.theDjed => _djedGraphicStyle,
     MaatFlowKind.readingHouse => _readingHouseGraphicStyle,
+    MaatFlowKind.theKar => _karGraphicStyle,
     _ => null,
   };
 }
@@ -420,12 +427,14 @@ CalendarEventVisualStyle _graphicVisualStyle(
     CalendarEventGraphicKind.offeringTable => const Color(0xFF0A0603),
     CalendarEventGraphicKind.djed => const Color(0xFF150B04),
     CalendarEventGraphicKind.readingHouse => const Color(0xFF0A1911),
+    CalendarEventGraphicKind.kar => const Color(0xFF070706),
   };
   final lowWash = switch (graphic.kind) {
     CalendarEventGraphicKind.trackSky => _mix(graphic.accentColor, base, 0.42),
     CalendarEventGraphicKind.offeringTable => const Color(0xFF6B4027),
     CalendarEventGraphicKind.djed => const Color(0xFF3A1F0E),
     CalendarEventGraphicKind.readingHouse => const Color(0xFF1E4436),
+    CalendarEventGraphicKind.kar => const Color(0xFF16252B),
   };
   final body = _mix(graphic.detailColor, _dayViewWarmStone, 0.28);
   final support = _mix(graphic.detailColor, graphic.accentColor, 0.34);
@@ -535,6 +544,23 @@ const CalendarEventGraphicStyle _readingHouseGraphicStyle =
       detailColor: Color(0xFFD8D2C8),
       glowColor: Color(0xFFF0D296),
     );
+
+const CalendarEventGraphicStyle _karGraphicStyle = CalendarEventGraphicStyle(
+  kind: CalendarEventGraphicKind.kar,
+  background: LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: <Color>[Color(0xFF17150D), Color(0xFF0C0B08), Color(0xFF070706)],
+  ),
+  flowLabelGradient: _trackSkyFlowGoldGloss,
+  borderColor: Color(0xFF725D2B),
+  accentColor: Color(0xFF91B7C7),
+  accentSecondaryColor: Color(0xFFC9E3EB),
+  titleColor: Color(0xFFF2EEE5),
+  labelColor: Color(0xFFD4AE43),
+  detailColor: Color(0xFFC9C2B7),
+  glowColor: Color(0xFF91B7C7),
+);
 
 CalendarTrackSkyCardKind _trackSkyCardKindForTitle(String title) {
   if (title.contains('solar eclipse') || title.contains('ring of fire')) {

@@ -10,6 +10,7 @@ import 'package:mobile/features/calendar/presentation/archived_maat_flow_detail_
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_detail_page.dart';
+import 'package:mobile/features/calendar/the_kar/the_kar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -251,7 +252,7 @@ void main() {
     expect(find.textContaining('Join'), findsNothing);
   });
 
-  testWidgets('the four product details use dedicated visual authorities', (
+  testWidgets('the five product details use dedicated visual authorities', (
     tester,
   ) async {
     _setPhoneViewport(tester);
@@ -383,7 +384,7 @@ void main() {
     },
   );
 
-  testWidgets('joined state does not change the four-flow discovery catalog', (
+  testWidgets('joined state does not change the five-flow discovery catalog', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -440,6 +441,7 @@ Finder _activeDetailSurface(String templateKey) {
     'the-offering-table' => find.byType(OfferingTableDetailSurface),
     'the-reading-house' => find.byType(ReadingHouseDetailSurface),
     'the-djed' => find.byType(DjedDetailSurface),
+    'the-kar' => find.byType(KarDetailSurface),
     _ => find.byKey(const ValueKey<String>('unsupported-active-detail')),
   };
 }

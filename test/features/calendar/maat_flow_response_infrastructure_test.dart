@@ -219,7 +219,7 @@ void main() {
   });
 
   test('default resolver exposes the retained response sheet specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(49));
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(50));
 
     expect(
       resolveMaatFlowResponseSpecs(

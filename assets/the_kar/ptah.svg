@@ -1,0 +1,65 @@
+<svg viewBox="0 0 306 408">
+  <defs>
+    <linearGradient id="ptCalcite4" x1="7%" y1="2%" x2="92%" y2="98%">
+      <stop offset="0" stop-color="#F0E2CA"/><stop offset=".26" stop-color="#C9B395"/>
+      <stop offset=".54" stop-color="#9A8266"/><stop offset=".78" stop-color="#6C543F"/><stop offset="1" stop-color="#34251B"/>
+    </linearGradient>
+    <linearGradient id="ptDark4" x1="12%" y1="0%" x2="88%" y2="100%">
+      <stop offset="0" stop-color="#7C6954"/><stop offset=".55" stop-color="#514232"/><stop offset="1" stop-color="#2D241C"/>
+    </linearGradient>
+    <radialGradient id="ptAura4" cx="50%" cy="42%" r="58%">
+      <stop offset="0" stop-color="#D5C6E8" stop-opacity=".13"/><stop offset="1" stop-color="#D5C6E8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="ptShadow4" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <ellipse class="art-aura" cx="154" cy="181" rx="130" ry="154" fill="url(#ptAura4)"/>
+  <ellipse cx="154" cy="328" rx="94" ry="14" fill="#000" fill-opacity=".61" filter="url(#ptShadow4)"/>
+
+  <!-- Early-Dynastic Ptah re-composed from the Tarkhan bowl evidence:
+       compact wrapped figure inside an open kiosk/naos, rather than an enlarged stick-like incision. -->
+  <g class="art-stroke">
+    <!-- open calcite shrine -->
+    <path d="M75 80 H231 V320 H75" fill="none" stroke="#B7A184" stroke-opacity=".78" stroke-width="13" stroke-linecap="square"/>
+    <path d="M70 75 H236" stroke="#EEDFC7" stroke-opacity=".46" stroke-width="4"/>
+    <path d="M74 319 H236" stroke="#8E7458" stroke-opacity=".55" stroke-width="5"/>
+    <!-- top lintel / projecting cornice -->
+    <path d="M61 70 H245 L236 90 H70 Z" fill="#8E795F" stroke="#F2E5D0" stroke-opacity=".20"/>
+    <!-- plinth -->
+    <path d="M83 306 H223 L232 326 H74 Z" fill="url(#ptDark4)" stroke="#D2BFA2" stroke-opacity=".18"/>
+
+    <!-- Ptah: clear head, neck, shoulders, one broad wrapped body mass -->
+    <ellipse cx="145" cy="125" rx="24" ry="27" fill="url(#ptCalcite4)" stroke="#F3E7D2" stroke-opacity=".22"/>
+    <!-- smooth close cap / head contour -->
+    <path d="M123 122 C125 101 136 94 146 94 C160 95 170 105 169 123"
+          fill="none" stroke="#6A5744" stroke-opacity=".52" stroke-width="3"/>
+    <!-- visible neck -->
+    <path d="M136 149 V159 H155 V149" fill="url(#ptCalcite4)" stroke="#F3E7D2" stroke-opacity=".18"/>
+    <!-- shoulders wider than torso -->
+    <path d="M116 169 C127 158 138 155 146 155 C155 155 168 159 178 169
+             L174 284 C167 296 125 296 118 284 Z"
+          fill="url(#ptCalcite4)" stroke="#F4E7D0" stroke-opacity=".22"/>
+    <!-- high collar: kept distinct from the smooth enclosing sheath -->
+    <path d="M121 168 C133 176 161 176 174 168" fill="none" stroke="#5E4B39" stroke-opacity=".78" stroke-width="4"/>
+    <path d="M126 173 C136 178 159 178 169 173" fill="none" stroke="#E4D2B7" stroke-opacity=".24" stroke-width="1.6"/>
+    <!-- small collar tassel / counterweight cue, more source-appropriate than mummy-like bands -->
+    <path d="M146 176 C147 184 149 190 151 195" fill="none" stroke="#7A624A" stroke-width="2.6" stroke-linecap="round"/>
+<!-- forearms/hands emerge at chest level and visibly grip the sceptre -->
+    <path d="M120 184 C126 197 134 207 145 216" fill="none" stroke="#BFA88A" stroke-width="8" stroke-linecap="round"/>
+    <path d="M173 183 C166 196 159 206 149 216" fill="none" stroke="#BFA88A" stroke-width="8" stroke-linecap="round"/>
+    <ellipse cx="146" cy="216" rx="7" ry="6" fill="#D5C1A4"/>
+    <ellipse cx="154" cy="216" rx="7" ry="6" fill="#C5AE8E"/>
+
+    <!-- simple early sceptre, offset from the body and crossing the hands -->
+    <path d="M157 170 L180 294" fill="none" stroke="#7A6047" stroke-width="6" stroke-linecap="round"/>
+    <path d="M156 170 l9 -8" fill="none" stroke="#7A6047" stroke-width="5" stroke-linecap="round"/>
+</g>
+
+  <!-- clean enclosed lower edge; no differentiated feet -->
+    <path d="M121 286 C134 292 160 292 174 286" fill="none"
+          stroke="#705843" stroke-opacity=".52" stroke-width="3.2" stroke-linecap="round"/>
+
+  <!-- calcite veining is a graphic homage to the Tarkhan source artifact, not a claim about shrine material -->
+  <path d="M84 105 C103 111 113 108 129 104 M180 102 C194 107 207 105 222 100
+           M85 267 C105 261 118 264 131 269 M183 278 C200 273 214 276 224 280"
+        fill="none" stroke="#F6EAD7" stroke-opacity=".09" stroke-width="3"/>
+</svg>

@@ -175,6 +175,7 @@ import 'presentation/archived_maat_flow_detail_view.dart';
 import 'the_reading_house_flow.dart';
 import 'the_reading_house/reading_house_authority.dart';
 import 'the_reading_house/presentation/reading_house_detail_page.dart';
+import 'the_kar/the_kar.dart';
 import 'maat_decan_flow.dart';
 import '../settings/settings_prefs.dart';
 import '../calendars/shared_calendars_sheet.dart';
@@ -3602,6 +3603,7 @@ enum _MaatFlowTemplateKind {
   theOpenHand,
   theDjed,
   readingHouse,
+  theKar,
   maatDecan,
 }
 
@@ -3830,6 +3832,20 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphType: 'ideogram',
     color: const Color(0xFF4FA58D),
     kind: _MaatFlowTemplateKind.readingHouse,
+  ),
+  _MaatFlowTemplate(
+    key: kKarFlowKey,
+    title: kKarTitle,
+    overview: kKarOverview,
+    subtitle: 'Imagination · Five scenes, thirty days, one returning walk',
+    historicalBadgeText: kKarHistoricalBadgeText,
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
+    glyph: kKarGlyph,
+    glyphMeaning: 'Shrine',
+    glyphSourceWord: 'kꜣr',
+    glyphType: 'ideogram',
+    color: const Color(0xFF91B7C7),
+    kind: _MaatFlowTemplateKind.theKar,
   ),
   _MaatFlowTemplate(
     key: kFairHearingFlowKey,

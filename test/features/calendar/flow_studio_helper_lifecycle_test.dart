@@ -94,7 +94,7 @@ void main() {
     expect(GuidedOnboardingController.instance.target, isNull);
   });
 
-  testWidgets('route-backed detail returns to four-flow discovery before hub', (
+  testWidgets('route-backed detail returns to five-flow discovery before hub', (
     tester,
   ) async {
     await _seedCompletedOnboarding(

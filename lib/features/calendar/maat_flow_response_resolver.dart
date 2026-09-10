@@ -9,12 +9,27 @@ import 'the_djed_flow.dart';
 import 'the_open_hand_flow.dart';
 import 'the_offering_table_flow.dart';
 import 'the_reading_house_flow.dart';
+import 'the_kar/the_kar_flow.dart';
 
 const String _trackSkyFlowKey = 'track-the-sky';
 const String _trackSkyTitle = 'Follow the Sky';
 
 const List<MaatFlowResponseSpec>
 kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
+  MaatFlowResponseSpec(
+    id: 'kar-return-outcome',
+    flowKey: kKarFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.choice,
+    label: 'Did the place return?',
+    options: <MaatFlowResponseOption>[
+      MaatFlowResponseOption(id: 'recalled', label: 'It’s here'),
+      MaatFlowResponseOption(id: 'partial', label: 'I have a piece'),
+      MaatFlowResponseOption(id: 'revealed', label: 'Not yet'),
+    ],
+    journalPolicy: MaatFlowJournalPolicy.localOnly,
+    privacyClass: 'app_record_private',
+  ),
   MaatFlowResponseSpec(
     id: 'moon-return-set-down',
     flowKey: 'the-moon-return',

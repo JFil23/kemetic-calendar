@@ -8,6 +8,7 @@ void main() {
     'the-offering-table',
     'the-djed',
     'the-reading-house',
+    'the-kar',
   };
   const archivedKinds = <MaatFlowKind>{
     MaatFlowKind.dawnHouseRite,
@@ -21,9 +22,9 @@ void main() {
     MaatFlowKind.daysOutsideTheYear,
   };
 
-  test('all 33 historical identities have exactly one disposition', () {
-    expect(MaatFlowKind.values, hasLength(33));
-    expect(kMaatFlowCatalog, hasLength(33));
+  test('all 34 historical identities have exactly one disposition', () {
+    expect(MaatFlowKind.values, hasLength(34));
+    expect(kMaatFlowCatalog, hasLength(34));
     expect(kMaatFlowCatalog.keys.toSet(), MaatFlowKind.values.toSet());
 
     for (final kind in MaatFlowKind.values) {
@@ -32,24 +33,24 @@ void main() {
     }
   });
 
-  test('catalog exposes exactly the four active products', () {
-    expect(discoverableMaatFlowKinds, hasLength(4));
+  test('catalog exposes exactly the five active products', () {
+    expect(discoverableMaatFlowKinds, hasLength(5));
     expect(discoverableMaatFlowKeys, approvedProductKeys);
-    expect(coreMaatFlowKinds, hasLength(4));
+    expect(coreMaatFlowKinds, hasLength(5));
     expect(coreMaatFlowKeys, approvedProductKeys);
     expect(coreMaatFlowKinds.every(isCoreMaatFlowKind), isTrue);
     expect(coreMaatFlowKeys.every(isCoreMaatFlowKey), isTrue);
     expect(approvedProductKeys.every(isMaatFlowNewJoinAllowed), isTrue);
   });
 
-  test('catalog separates four core products from nine archived products', () {
+  test('catalog separates five core products from nine archived products', () {
     final counts = <MaatFlowCatalogStatus, int>{};
     for (final entry in kMaatFlowCatalog.values) {
       counts.update(entry.status, (count) => count + 1, ifAbsent: () => 1);
     }
 
     expect(counts, <MaatFlowCatalogStatus, int>{
-      MaatFlowCatalogStatus.core: 4,
+      MaatFlowCatalogStatus.core: 5,
       MaatFlowCatalogStatus.archived: 9,
       MaatFlowCatalogStatus.absorbed: 14,
       MaatFlowCatalogStatus.retired: 5,
@@ -92,8 +93,14 @@ void main() {
         .toList(growable: false);
 
     expect(verbs, everyElement(isNotNull));
-    expect(verbs.toSet(), hasLength(4));
-    expect(verbs.toSet(), <String?>{'ORIENT', 'NOURISH', 'STABILIZE', 'STUDY'});
+    expect(verbs.toSet(), hasLength(5));
+    expect(verbs.toSet(), <String?>{
+      'ORIENT',
+      'NOURISH',
+      'STABILIZE',
+      'STUDY',
+      'IMAGINE',
+    });
   });
 
   test('recognized import evidence uses catalog disposition', () {

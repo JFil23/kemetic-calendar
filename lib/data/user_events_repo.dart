@@ -2629,7 +2629,8 @@ class UserEventsRepo {
         flowKey == 'the-decan-watch' ||
         flowKey == 'the-days-outside-the-year' ||
         flowKey == 'the-open-hand' ||
-        flowKey == 'the-djed') {
+        flowKey == 'the-djed' ||
+        flowKey == 'the-kar') {
       return true;
     }
     final graph = metadata['knowledge_graph'];

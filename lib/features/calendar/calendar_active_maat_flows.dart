@@ -588,7 +588,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
     final templatesByKey = <String, _MaatFlowTemplate>{
       for (final template in widget.templates) template.key: template,
     };
-    final cards = kFourMaatFlowDiscoveryFixtures
+    final cards = kCoreMaatFlowDiscoveryFixtures
         .where(
           (card) =>
               isMaatFlowDiscoverable(card.flowKey) &&
@@ -617,6 +617,7 @@ Widget buildMaatFlowsListPreviewForTesting({
   ValueChanged<String>? onSelectTemplate,
   VoidCallback? onCreateNew,
   VoidCallback? onClose,
+  KarRepository? karRepository,
 }) {
   return _MaatFlowsListPage(
     title: _kMaatFlowsDisplayTitle,
@@ -651,6 +652,7 @@ Widget buildMaatFlowsListPreviewForTesting({
           joinedStartDate: activeInstance?.start,
           joinedFlowId: activeInstance?.id ?? 957,
           onBack: onBack,
+          karRepository: karRepository,
         ),
     onSelectedTemplateChanged: (templateKey) {
       if (templateKey != null) onSelectTemplate?.call(templateKey);
@@ -682,6 +684,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
   int joinedFlowId = 957,
   Future<int> Function()? onJoin,
   VoidCallback? onBack,
+  KarRepository? karRepository,
 }) {
   final template = _kCoreMaatFlowTemplates.firstWhere(
     (candidate) => candidate.key == templateKey,
@@ -689,6 +692,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
   return _ActiveMaatFlowDetailSurface(
     template: template,
     onBack: onBack,
+    karRepository: karRepository,
     joinedFlow: joinedStartDate == null
         ? null
         : _Flow(
@@ -1245,6 +1249,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
     this.onFollowSkyCourseSaved,
     this.onFollowSkyProtectTime,
     this.onEndFlow,
+    this.karRepository,
   });
 
   final _MaatFlowTemplate template;
@@ -1264,6 +1269,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
   })?
   onFollowSkyProtectTime;
   final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
+  final KarRepository? karRepository;
 
   bool get alreadyJoined => joinedFlow != null;
 
@@ -1278,6 +1284,7 @@ class _ActiveMaatFlowDetailSurfaceState
   final GlobalKey<FollowSkyDetailSurfaceState> _followSkyDetailKey =
       GlobalKey<FollowSkyDetailSurfaceState>();
   ReadingHouseAuthority? _readingHouseAuthority;
+  KarRepository? _karRepository;
   bool _djedJoinInFlight = false;
 
   @override
@@ -1482,6 +1489,71 @@ class _ActiveMaatFlowDetailSurfaceState
     );
   }
 
+  Future<int> _scheduleKar({
+    required KarNetjer netjer,
+    required String cycleId,
+    required int cycleSequence,
+    required DateTime startDate,
+    int? existingFlowId,
+  }) async {
+    final result = await FlowJoinService().joinKarHeadless(
+      templateKey: widget.template.key,
+      templateTitle: widget.template.title,
+      templateOverview: widget.template.overview,
+      templateColor: widget.template.color,
+      personalCalendarId: await CalendarPage._loadHeadlessPersonalCalendarId(),
+      timezone: _timezone,
+      startDate: startDate,
+      netjer: netjer,
+      cycleId: cycleId,
+      cycleSequence: cycleSequence,
+      existingFlowId: existingFlowId,
+    );
+    final id = CalendarPage._stageHeadlessMaatFlowJoinResult(
+      result: result,
+      template: widget.template,
+      completionRequired: false,
+    );
+    if (id > 0) {
+      CalendarPage._rememberJoinedMaatFlowTemplate(
+        templateKey: widget.template.key,
+        flowId: id,
+      );
+      unawaited(FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache());
+    }
+    return id;
+  }
+
+  Widget _buildKar() {
+    final joined = widget.joinedFlow;
+    return KarDetailSurface(
+      repository: _karRepository ??=
+          widget.karRepository ??
+          (Supabase.instance.client.auth.currentUser == null
+              ? MemoryKarRepository()
+              : SupabaseKarRepository(Supabase.instance.client)),
+      initialNetjer: karNetjerFromFlowNotes(joined?.notes),
+      joinedFlowId: joined?.id,
+      joinedStartDate: joined?.start,
+      onBack: widget.onBack,
+      onJoin: _scheduleKar,
+      onReschedule:
+          ({
+            required oldFlowId,
+            required netjer,
+            required cycleId,
+            required cycleSequence,
+            required startDate,
+          }) => _scheduleKar(
+            netjer: netjer,
+            cycleId: cycleId,
+            cycleSequence: cycleSequence,
+            startDate: startDate,
+            existingFlowId: oldFlowId,
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return switch (widget.template.key) {
@@ -1489,6 +1561,7 @@ class _ActiveMaatFlowDetailSurfaceState
       kOfferingTableFlowKey => _buildOfferingTable(),
       kReadingHouseFlowKey => _buildReadingHouse(),
       kTheDjedFlowKey => _buildDjed(),
+      kKarFlowKey => _buildKar(),
       _ => ArchivedMaatFlowDetailView(
         fixture: ArchivedMaatFlowFixture(
           flowKey: widget.template.key,
