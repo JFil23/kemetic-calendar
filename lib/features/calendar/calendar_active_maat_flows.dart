@@ -618,6 +618,7 @@ Widget buildMaatFlowsListPreviewForTesting({
   VoidCallback? onCreateNew,
   VoidCallback? onClose,
   KarRepository? karRepository,
+  FollowSkyCalendarPreview calendarPreview = FollowSkyCalendarPreview.empty,
 }) {
   return _MaatFlowsListPage(
     title: _kMaatFlowsDisplayTitle,
@@ -653,6 +654,7 @@ Widget buildMaatFlowsListPreviewForTesting({
           joinedFlowId: activeInstance?.id ?? 957,
           onBack: onBack,
           karRepository: karRepository,
+          calendarPreview: calendarPreview,
         ),
     onSelectedTemplateChanged: (templateKey) {
       if (templateKey != null) onSelectTemplate?.call(templateKey);
@@ -685,6 +687,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
   Future<int> Function()? onJoin,
   VoidCallback? onBack,
   KarRepository? karRepository,
+  FollowSkyCalendarPreview calendarPreview = FollowSkyCalendarPreview.empty,
 }) {
   final template = _kCoreMaatFlowTemplates.firstWhere(
     (candidate) => candidate.key == templateKey,
@@ -693,6 +696,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
     template: template,
     onBack: onBack,
     karRepository: karRepository,
+    calendarPreview: calendarPreview,
     joinedFlow: joinedStartDate == null
         ? null
         : _Flow(
@@ -1245,7 +1249,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
     this.onBack,
     this.followSkyCandidates = const <CourseActivitySignal>[],
     this.followSkyMeasurementIntervals = const <CourseMeasurementInterval>[],
-    this.followSkyCalendarPreview = FollowSkyCalendarPreview.empty,
+    this.calendarPreview = FollowSkyCalendarPreview.empty,
     this.onFollowSkyCourseSaved,
     this.onFollowSkyProtectTime,
     this.onEndFlow,
@@ -1259,7 +1263,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
   final VoidCallback? onBack;
   final List<CourseActivitySignal> followSkyCandidates;
   final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
-  final FollowSkyCalendarPreview followSkyCalendarPreview;
+  final FollowSkyCalendarPreview calendarPreview;
   final Future<void> Function(TrackSkyCourse? course, String notes)?
   onFollowSkyCourseSaved;
   final Future<void> Function({
@@ -1321,7 +1325,7 @@ class _ActiveMaatFlowDetailSurfaceState
       isJoined: widget.alreadyJoined,
       existingFlowNotes: widget.joinedFlow?.notes,
       existingFlowId: widget.joinedFlow?.id,
-      calendarPreview: widget.followSkyCalendarPreview,
+      calendarPreview: widget.calendarPreview,
       title: widget.template.title,
       timezone:
           FollowSkyTimeZoneX.tryParse(_timezone.key) ??
@@ -1363,7 +1367,7 @@ class _ActiveMaatFlowDetailSurfaceState
         joinedFlow?.notes,
         fallback: _timezone,
       ),
-      calendarPreview: widget.followSkyCalendarPreview,
+      calendarPreview: widget.calendarPreview,
       joinedFlowId: joinedFlow?.id,
       joinedStartDate: joinedFlow?.start,
       joinedScheduleDates: _joinedDateRuleDates(joinedFlow),
@@ -1535,7 +1539,7 @@ class _ActiveMaatFlowDetailSurfaceState
       initialNetjer: karNetjerFromFlowNotes(joined?.notes),
       joinedFlowId: joined?.id,
       joinedStartDate: joined?.start,
-      calendarPreview: widget.followSkyCalendarPreview,
+      calendarPreview: widget.calendarPreview,
       onBack: widget.onBack,
       onJoin: _scheduleKar,
       onReschedule:

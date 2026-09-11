@@ -5,6 +5,30 @@ import 'package:mobile/widgets/keyboard_aware.dart';
 
 const double instrumentEventSheetMinExtent = 0.58;
 
+double instrumentEventSheetExtentForViewport({
+  required BuildContext context,
+  required double viewportFraction,
+  double? maximumHeight,
+}) {
+  final media = MediaQuery.of(context);
+  final availableSheetHeight = math.max(
+    0.0,
+    media.size.height -
+        keyboardInsetOf(context) -
+        media.padding.top -
+        media.padding.bottom -
+        12,
+  );
+  if (availableSheetHeight <= 0) return instrumentEventSheetMinExtent;
+  final fractionHeight = media.size.height * viewportFraction;
+  final targetHeight = maximumHeight == null
+      ? fractionHeight
+      : math.min(maximumHeight, fractionHeight);
+  return (targetHeight / availableSheetHeight)
+      .clamp(instrumentEventSheetMinExtent, 1.0)
+      .toDouble();
+}
+
 Future<T?> showCalendarEventDetailSheetModal<T>({
   required BuildContext context,
   required WidgetBuilder builder,

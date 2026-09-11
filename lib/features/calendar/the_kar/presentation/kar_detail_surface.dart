@@ -4,17 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../../widgets/keyboard_aware.dart';
 import '../../../../widgets/kemetic_date_picker.dart';
 import '../../../../widgets/maat_flow_date_picker.dart';
 import '../../follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import '../../kemetic_month_metadata.dart';
 import '../../maat_flow_visual_tokens.dart';
+import '../../presentation/instrument_event_presentation_frame.dart';
 import '../../presentation/maat_flow_detail_shell.dart';
 import '../kar_repository.dart';
 import '../the_kar_flow.dart';
 import '../the_kar_models.dart';
-import 'kar_capture_editor.dart';
+import 'kar_day_behavior_surface.dart';
 import 'kar_event_block_visual.dart';
 
 typedef KarJoinCallback =
@@ -89,11 +89,9 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
   late DateTime _startDate;
   KarShrine? _shrine;
   int _loadSerial = 0;
-  int? _expandedStage;
   String? _selectedCycleId;
   bool _joining = false;
   bool _rescheduling = false;
-  bool _saving = false;
 
   DateTime get _now => widget.clock?.call() ?? DateTime.now();
   KarCycle? get _cycle => _shrine?.activeCycle;
@@ -134,7 +132,13 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
       if (!mounted || serial != _loadSerial || selected != _netjer) return;
       setState(() {
         _shrine = shrine;
-        final cycle = shrine.activeCycle;
+        final requestedCycleId = _selectedCycleId;
+        final cycle = requestedCycleId == null
+            ? shrine.activeCycle
+            : shrine.cycles.cast<KarCycle?>().firstWhere(
+                (candidate) => candidate?.id == requestedCycleId,
+                orElse: () => shrine.activeCycle,
+              );
         if (cycle != null) {
           _selectedCycleId = cycle.id;
           _startDate = cycle.anchorDate;
@@ -151,7 +155,6 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
     setState(() {
       _netjer = value;
       _shrine = null;
-      _expandedStage = null;
       _selectedCycleId = null;
     });
     await _loadShrine();
@@ -241,24 +244,53 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
     }
   }
 
-  Future<void> _mutate(KarShrine Function(KarShrine value) mutation) async {
-    if (_saving) return;
-    final current = _shrine;
-    if (current == null) return;
-    setState(() => _saving = true);
-    try {
-      final saved = await widget.repository.save(mutation(current));
-      if (mounted) setState(() => _shrine = saved);
-    } catch (error) {
-      if (mounted) _showError(error);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
   void _showError(Object error) => ScaffoldMessenger.of(
     context,
   ).showSnackBar(SnackBar(content: Text(error.toString())));
+
+  Future<void> _openStageSheet(KarCycle cycle, int stageIndex) async {
+    final flowId = cycle.flowId;
+    if (flowId == null) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    await showCalendarEventDetailSheetModal<void>(
+      context: context,
+      builder: (sheetContext) {
+        final initialExtent = instrumentEventSheetExtentForViewport(
+          context: sheetContext,
+          viewportFraction: .79,
+          maximumHeight: 668,
+        );
+        return InstrumentEventSheetHost(
+          key: ValueKey<String>('kar-detail-event-sheet-$stageIndex'),
+          semanticLabel: 'Resize Kꜣr event sheet',
+          handleColor: const Color(0xFF33444A),
+          initialExtent: initialExtent,
+          geometry: InstrumentEventSheetGeometry.layered,
+          trailing: IconButton(
+            key: ValueKey<String>('kar-detail-event-sheet-close-$stageIndex'),
+            tooltip: 'Close',
+            onPressed: () => Navigator.of(sheetContext).maybePop(),
+            icon: const Text(
+              '×',
+              style: TextStyle(
+                color: Color(0xFF8CA0A6),
+                fontFamily: 'GentiumPlus',
+                fontSize: 22,
+                height: 1,
+              ),
+            ),
+          ),
+          body: KarDayBehaviorSurface(
+            repository: widget.repository,
+            netjer: _netjer,
+            flowId: flowId,
+            stageIndex: stageIndex,
+          ),
+        );
+      },
+    );
+    if (mounted) await _loadShrine();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -290,7 +322,9 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
         joined: _hasActiveCycle,
         busy: _joining,
         onPressed: _join,
-        onJoinedPressed: () => setState(() => _expandedStage ??= 0),
+        onJoinedPressed: _cycle == null
+            ? null
+            : () => unawaited(_openStageSheet(_cycle!, 0)),
         actionLabel: hasHistory ? 'Begin another cycle' : 'Carry this flow',
         actionNote: hasHistory
             ? '${_netjer.name} · ${_shrine!.cycles.where((cycle) => cycle.status == KarCycleStatus.completed).length} completed cycle${_shrine!.cycles.where((cycle) => cycle.status == KarCycleStatus.completed).length == 1 ? '' : 's'}'
@@ -305,27 +339,25 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
     return Material(
       key: const ValueKey<String>('kar-detail-surface'),
       color: KarDetailTokens.page,
-      child: KeyboardAwareEditableSurface(
-        child: Stack(
-          children: <Widget>[
-            body,
-            if (widget.onBack != null)
-              Positioned(
-                top: MediaQuery.paddingOf(context).top + 6,
-                left: 16,
-                child: MaatFlowDetailBackButton(
-                  key: const ValueKey<String>('kar-back'),
-                  color: KarDetailTokens.gold,
-                  backgroundColor: Colors.transparent,
-                  borderColor: Colors.transparent,
-                  size: 40,
-                  iconSize: 27,
-                  icon: Icons.chevron_left,
-                  onPressed: widget.onBack!,
-                ),
+      child: Stack(
+        children: <Widget>[
+          body,
+          if (widget.onBack != null)
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 6,
+              left: 16,
+              child: MaatFlowDetailBackButton(
+                key: const ValueKey<String>('kar-back'),
+                color: KarDetailTokens.gold,
+                backgroundColor: Colors.transparent,
+                borderColor: Colors.transparent,
+                size: 40,
+                iconSize: 27,
+                icon: Icons.chevron_left,
+                onPressed: widget.onBack!,
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -523,7 +555,7 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
             placed: placed,
             onTap: cycle == null
                 ? null
-                : () => setState(() => _expandedStage = (_expandedStage ?? 0)),
+                : () => unawaited(_openStageSheet(cycle, 0)),
           ),
           const SizedBox(height: 24),
           const _Contract(),
@@ -532,12 +564,8 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
             netjer: _netjer,
             onTap: cycle == null
                 ? null
-                : () => setState(() => _expandedStage = 0),
+                : () => unawaited(_openStageSheet(cycle, 0)),
           ),
-          if (_expandedStage != null && cycle != null) ...[
-            const SizedBox(height: 14),
-            _buildCapture(cycle, _expandedStage!),
-          ],
           const SizedBox(height: 30),
           Text(
             'Thirty days',
@@ -598,9 +626,10 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
                   ? _KarScheduleState.current
                   : _KarScheduleState.future,
               ordinaryRows: _calendarRowsForStage(cycle, index),
+              calendarCoverageComplete: widget.calendarPreview.coverageComplete,
               onTap: cycle == null
                   ? null
-                  : () => setState(() => _expandedStage = index),
+                  : () => unawaited(_openStageSheet(cycle, index)),
             ),
             if (index < 4) const SizedBox(height: 14),
           ],
@@ -615,7 +644,12 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
             ),
           ),
           const SizedBox(height: 4),
-          _KarWalkRow(completed: cycle?.status == KarCycleStatus.completed),
+          _KarWalkRow(
+            completed: cycle?.status == KarCycleStatus.completed,
+            onTap: cycle == null
+                ? null
+                : () => unawaited(_openStageSheet(cycle, 5)),
+          ),
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.fromLTRB(1, 12, 1, 2),
@@ -690,11 +724,13 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
                   Icons.chevron_right,
                   color: KarDetailTokens.goldDim,
                 ),
-                onTap: () => setState(() {
-                  _selectedCycleId = history.id;
-                  _startDate = history.anchorDate;
-                  _expandedStage = 0;
-                }),
+                onTap: () {
+                  setState(() {
+                    _selectedCycleId = history.id;
+                    _startDate = history.anchorDate;
+                  });
+                  unawaited(_openStageSheet(history, 0));
+                },
               ),
           ],
           const SizedBox(height: 28),
@@ -733,67 +769,6 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
       return flowName != kKarTitle.toLowerCase() && flowName != kKarFlowKey;
     }).toList()..sort((a, b) => a.start.compareTo(b.start));
     return List<FollowSkyCalendarPreviewRow>.unmodifiable(rows);
-  }
-
-  Widget _buildCapture(KarCycle cycle, int stageIndex) {
-    final key = '${cycle.id}:$stageIndex';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Align(
-          alignment: Alignment.centerRight,
-          child: IconButton(
-            tooltip: 'Collapse scene editor',
-            onPressed: () => setState(() => _expandedStage = null),
-            icon: const Icon(
-              Icons.keyboard_arrow_up,
-              color: KarDetailTokens.gold,
-            ),
-          ),
-        ),
-        Text(
-          '${_netjer.name.toUpperCase()} · SITTING ${(stageIndex + 1).toString().padLeft(2, '0')} · ${kKarStages[stageIndex].place.toUpperCase()}',
-          style: _style(KarDetailTokens.goldDim, 10, spacing: 1.25),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          _netjer.labels[stageIndex],
-          style: _style(KarDetailTokens.bone, 28, weight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _netjer.prompts[stageIndex],
-          style: _style(
-            KarDetailTokens.bone,
-            17,
-            style: FontStyle.italic,
-            height: 1.35,
-          ),
-        ),
-        const SizedBox(height: 14),
-        KarCaptureEditor(
-          netjer: _netjer,
-          stageIndex: stageIndex,
-          initialDraft: _shrine?.drafts[key],
-          placed: cycle.placements[stageIndex].activeVersion != null,
-          onSaveDraft: (kind, content) => _mutate(
-            (value) => value.saveDraft(
-              stageIndex: stageIndex,
-              cycleId: cycle.id,
-              draft: KarDraft(kind: kind, content: content, savedAt: _now),
-            ),
-          ),
-          onPlace: () => _mutate(
-            (value) => value.placeDraft(
-              stageIndex: stageIndex,
-              cycleId: cycle.id,
-              versionId: const Uuid().v4(),
-              now: _now,
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }
 
@@ -1284,6 +1259,7 @@ class _KarScheduleDay extends StatelessWidget {
     required this.placedStages,
     required this.state,
     required this.ordinaryRows,
+    required this.calendarCoverageComplete,
     this.onTap,
   });
 
@@ -1295,6 +1271,7 @@ class _KarScheduleDay extends StatelessWidget {
   final Set<int> placedStages;
   final _KarScheduleState state;
   final List<FollowSkyCalendarPreviewRow> ordinaryRows;
+  final bool calendarCoverageComplete;
   final VoidCallback? onTap;
 
   @override
@@ -1373,11 +1350,19 @@ class _KarScheduleDay extends StatelessWidget {
               },
               child: event,
             ),
-            if (ordinaryRows.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 11),
-              const Divider(color: Color(0x21D4AE43), height: 1),
-              for (final row in ordinaryRows) _KarScheduleContextRow(row: row),
-            ],
+            const SizedBox(height: 11),
+            const Divider(color: Color(0x21D4AE43), height: 1),
+            if (ordinaryRows.isNotEmpty)
+              for (var index = 0; index < ordinaryRows.length; index++)
+                _KarScheduleContextRow(
+                  row: ordinaryRows[index],
+                  showDivider: index < ordinaryRows.length - 1,
+                )
+            else
+              _KarScheduleContextStatus(
+                stageIndex: stageIndex,
+                loading: !calendarCoverageComplete,
+              ),
           ],
         ),
       ),
@@ -1385,17 +1370,47 @@ class _KarScheduleDay extends StatelessWidget {
   }
 }
 
+class _KarScheduleContextStatus extends StatelessWidget {
+  const _KarScheduleContextStatus({
+    required this.stageIndex,
+    required this.loading,
+  });
+
+  final int stageIndex;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    key: ValueKey<String>(
+      loading
+          ? 'kar-schedule-calendar-loading-$stageIndex'
+          : 'kar-schedule-calendar-empty-$stageIndex',
+    ),
+    height: 47,
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        loading ? 'Loading calendar…' : 'No other calendar entries',
+        style: _style(const Color(0xFF777169), 11, style: FontStyle.italic),
+      ),
+    ),
+  );
+}
+
 class _KarScheduleContextRow extends StatelessWidget {
-  const _KarScheduleContextRow({required this.row});
+  const _KarScheduleContextRow({required this.row, required this.showDivider});
 
   final FollowSkyCalendarPreviewRow row;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) => Container(
     constraints: const BoxConstraints(minHeight: 47),
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: Color(0x1AD4AE43))),
-    ),
+    decoration: showDivider
+        ? const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0x1AD4AE43))),
+          )
+        : null,
     child: Row(
       children: <Widget>[
         SizedBox(
@@ -1435,49 +1450,53 @@ class _KarScheduleContextRow extends StatelessWidget {
 }
 
 class _KarWalkRow extends StatelessWidget {
-  const _KarWalkRow({required this.completed});
+  const _KarWalkRow({required this.completed, this.onTap});
 
   final bool completed;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Opacity(
     opacity: completed ? .84 : .58,
-    child: Container(
+    child: InkWell(
       key: const ValueKey<String>('kar-closing-walk-row'),
-      padding: const EdgeInsets.symmetric(vertical: 13.5, horizontal: 1),
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: Color(0x172E2B25)),
-          bottom: BorderSide(color: Color(0x172E2B25)),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 13.5, horizontal: 1),
+        decoration: const BoxDecoration(
+          border: Border(
+            top: BorderSide(color: Color(0x172E2B25)),
+            bottom: BorderSide(color: Color(0x172E2B25)),
+          ),
         ),
-      ),
-      child: Row(
-        children: <Widget>[
-          SizedBox(
-            width: 29,
-            child: Text(
-              '06',
-              style: _style(KarDetailTokens.goldDim, 10, spacing: 1.1),
+        child: Row(
+          children: <Widget>[
+            SizedBox(
+              width: 29,
+              child: Text(
+                '06',
+                style: _style(KarDetailTokens.goldDim, 10, spacing: 1.1),
+              ),
             ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Walk the kꜣr',
-                  style: _style(const Color(0xFF918B80), 20, height: 1.08),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Day 30 · Inner chamber',
-                  style: _style(const Color(0xFF5F5B55), 11, height: 1.25),
-                ),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Walk the kꜣr',
+                    style: _style(const Color(0xFF918B80), 20, height: 1.08),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Day 30 · Inner chamber',
+                    style: _style(const Color(0xFF5F5B55), 11, height: 1.25),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right, color: Color(0xFF4F4A40), size: 18),
-        ],
+            const Icon(Icons.chevron_right, color: Color(0xFF4F4A40), size: 18),
+          ],
+        ),
       ),
     ),
   );

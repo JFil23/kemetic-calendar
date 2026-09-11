@@ -7,7 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
+import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_kar/the_kar.dart';
+import 'package:mobile/features/calendar/the_offering_table_flow.dart';
+import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -73,6 +76,13 @@ void main() {
     }
   });
 
+  test('Kꜣr and Offering Table receive the shared calendar preview', () {
+    expect(maatFlowDetailUsesCalendarPreview(kKarFlowKey), isTrue);
+    expect(maatFlowDetailUsesCalendarPreview(kOfferingTableFlowKey), isTrue);
+    expect(maatFlowDetailUsesCalendarPreview(kTheDjedFlowKey), isFalse);
+    expect(maatFlowDetailUsesCalendarPreview(kReadingHouseFlowKey), isFalse);
+  });
+
   testWidgets('Discovery taps Kꜣr into the existing shared detail host', (
     tester,
   ) async {
@@ -117,46 +127,55 @@ void main() {
     expect(source, isNot(contains('showModalBottomSheet')));
     expect(source, isNot(contains('Navigator.push')));
     expect(source, contains('MaatFlowDetailShell('));
+    expect(source, contains('showCalendarEventDetailSheetModal'));
+    expect(source, contains('InstrumentEventSheetHost('));
   });
 
-  testWidgets('Save keeps a draft and Place commits it from the detail sheet', (
-    tester,
-  ) async {
-    _setPhoneViewport(tester);
-    final repository = MemoryKarRepository(
-      initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: _activeShrine()},
-    );
-    await _pumpDetail(tester, repository);
+  testWidgets(
+    'detail event sheet saves a draft and places it through shared behavior',
+    (tester) async {
+      _setPhoneViewport(tester);
+      final repository = MemoryKarRepository(
+        initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: _activeShrine()},
+      );
+      await _pumpDetail(tester, repository);
 
-    final arrival = find.byKey(const ValueKey<String>('kar-arrival-card'));
-    await _reveal(tester, arrival);
-    await tester.tap(arrival);
-    await tester.pumpAndSettle();
-    final field = find.byKey(const ValueKey<String>('kar-describe-field'));
-    await _reveal(tester, field);
-    await tester.enterText(field, 'A dark robe covered in handwritten notes.');
-    final save = find.byKey(const ValueKey<String>('kar-save-draft'));
-    await _reveal(tester, save);
-    await tester.tap(save);
-    await tester.pumpAndSettle();
+      await _openDetailEventSheet(
+        tester,
+        find.byKey(const ValueKey<String>('kar-arrival-card')),
+        stageIndex: 0,
+      );
+      await _raiseKarEventContent(tester);
+      await tester.tap(find.text('Describe'));
+      await tester.pumpAndSettle();
+      final field = find.byKey(const ValueKey<String>('kar-describe-field'));
+      await tester.enterText(
+        field,
+        'A dark robe covered in handwritten notes.',
+      );
+      final save = find.byKey(const ValueKey<String>('kar-save-draft'));
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
 
-    var stored = await repository.loadOrCreate(KarNetjer.djehuty);
-    expect(stored.activeCycle!.placements.first.activeVersion, isNull);
-    expect(stored.drafts, hasLength(1));
+      var stored = await repository.loadOrCreate(KarNetjer.djehuty);
+      expect(stored.activeCycle!.placements.first.activeVersion, isNull);
+      expect(stored.drafts, hasLength(1));
 
-    final place = find.byKey(const ValueKey<String>('kar-place-draft'));
-    await _reveal(tester, place);
-    await tester.tap(place);
-    await tester.pumpAndSettle();
+      final place = find.byKey(const ValueKey<String>('kar-place-draft'));
+      await tester.ensureVisible(place);
+      await tester.tap(place);
+      await tester.pumpAndSettle();
 
-    stored = await repository.loadOrCreate(KarNetjer.djehuty);
-    expect(stored.drafts, isEmpty);
-    expect(
-      stored.activeCycle!.placements.first.activeVersion!.content,
-      'A dark robe covered in handwritten notes.',
-    );
-    expect(find.byType(KeyboardAwareEditableSurface), findsOneWidget);
-  });
+      stored = await repository.loadOrCreate(KarNetjer.djehuty);
+      expect(stored.drafts, isEmpty);
+      expect(
+        stored.activeCycle!.placements.first.activeVersion!.content,
+        'A dark robe covered in handwritten notes.',
+      );
+      expect(find.byType(KeyboardAwareEditableSurface), findsOneWidget);
+    },
+  );
 
   testWidgets('capture offers authored Describe and Draw modes', (
     tester,
@@ -166,13 +185,14 @@ void main() {
       initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: _activeShrine()},
     );
     await _pumpDetail(tester, repository);
-    final arrival = find.byKey(const ValueKey<String>('kar-arrival-card'));
-    await _reveal(tester, arrival);
-    await tester.tap(arrival);
-    await tester.pumpAndSettle();
+    await _openDetailEventSheet(
+      tester,
+      find.byKey(const ValueKey<String>('kar-arrival-card')),
+      stageIndex: 0,
+    );
 
     final draw = find.text('Draw');
-    await _reveal(tester, draw);
+    await _raiseKarEventContent(tester);
     expect(find.text('Describe'), findsOneWidget);
     await tester.tap(draw);
     await tester.pump();
@@ -180,7 +200,7 @@ void main() {
       find.byKey(const ValueKey<String>('kar-drawing-pad')),
       findsOneWidget,
     );
-    expect(find.text('Bad drawings welcome.'), findsOneWidget);
+    expect(find.text('Bad drawings welcome.'), findsNWidgets(2));
   });
 
   testWidgets(
@@ -279,6 +299,10 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Bits and Operations'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('kar-schedule-calendar-empty-1')),
+        findsOneWidget,
+      );
       if (_captureKarVisuals) {
         await _reveal(
           tester,
@@ -297,6 +321,114 @@ void main() {
           matchesGoldenFile('/tmp/kar-detail-events-flutter.png'),
         );
       }
+    },
+  );
+
+  testWidgets('dated cards distinguish loading from a genuinely empty day', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+    final repository = MemoryKarRepository(
+      initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: _activeShrine()},
+    );
+    await _pumpDetail(
+      tester,
+      repository,
+      calendarPreview: const FollowSkyCalendarPreview(coverageComplete: false),
+    );
+
+    final firstDay = find.byKey(const ValueKey<String>('kar-schedule-day-0'));
+    await _reveal(tester, firstDay);
+    expect(
+      find.byKey(const ValueKey<String>('kar-schedule-calendar-loading-0')),
+      findsOneWidget,
+    );
+    expect(find.text('Loading calendar…'), findsWidgets);
+    expect(find.text('No other calendar entries'), findsNothing);
+  });
+
+  testWidgets(
+    'Discovery calendar event uses the shared resizable sheet and restores list position',
+    (tester) async {
+      _setPhoneViewport(tester);
+      final repository = MemoryKarRepository(
+        initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: _activeShrine()},
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: buildMaatFlowsListPreviewForTesting(
+            joinedKeys: const <String>{kKarFlowKey},
+            karRepository: repository,
+            calendarPreview: FollowSkyCalendarPreview(
+              rows: <FollowSkyCalendarPreviewRow>[
+                FollowSkyCalendarPreviewRow(
+                  localDay: DateTime(2026, 9, 9),
+                  start: DateTime(2026, 9, 9, 12),
+                  end: DateTime(2026, 9, 9, 13),
+                  title: 'Bits and Operations',
+                  flowName: 'Work',
+                  eventColor: const Color(0xFF4EA8DE),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final discoveryCard = find.byKey(
+        const ValueKey<String>('maat-flow-discovery-card-the-kar'),
+      );
+      await tester.scrollUntilVisible(
+        discoveryCard,
+        460,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tapAt(
+        tester.getTopLeft(discoveryCard) + const Offset(20, 20),
+      );
+      await tester.pumpAndSettle();
+
+      final schedule = find.byKey(const ValueKey<String>('kar-schedule-day-0'));
+      await _reveal(tester, schedule);
+      expect(find.text('Bits and Operations'), findsOneWidget);
+      final detailScroll = find.byKey(
+        const ValueKey<String>('kar-detail-scroll'),
+      );
+      final before = tester
+          .widget<CustomScrollView>(detailScroll)
+          .controller!
+          .offset;
+      final eventBlock = find.descendant(
+        of: schedule,
+        matching: find.byKey(const ValueKey<String>('kar-event-block-0')),
+      );
+      await tester.tap(eventBlock);
+      await tester.pumpAndSettle();
+
+      final sheet = find.byKey(
+        const ValueKey<String>('kar-detail-event-sheet-0'),
+      );
+      expect(sheet, findsOneWidget);
+      expect(find.byType(KarDayBehaviorSurface), findsOneWidget);
+      final expandedHeight = tester.getSize(sheet).height;
+      expect(expandedHeight, closeTo(844 * .79, 1.5));
+      await tester.drag(
+        find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
+        const Offset(0, 180),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getSize(sheet).height, lessThan(expandedHeight));
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('kar-detail-event-sheet-close-0')),
+      );
+      await tester.pumpAndSettle();
+      expect(sheet, findsNothing);
+      final after = tester
+          .widget<CustomScrollView>(detailScroll)
+          .controller!
+          .offset;
+      expect(after, closeTo(before, .01));
     },
   );
 
@@ -521,17 +653,32 @@ void main() {
       await _reveal(tester, history);
       await tester.tap(history);
       await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('kar-detail-event-sheet-0')),
+        findsOneWidget,
+      );
+      await _raiseKarEventContent(tester, distance: 150);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('kar-return-not-yet')),
+      );
+      await tester.pumpAndSettle();
+      await _raiseKarEventContent(tester, distance: 240);
+      final replace = find.text('Make this place again');
+      await tester.ensureVisible(replace);
+      await tester.tap(replace);
+      await tester.pumpAndSettle();
+      final describe = find.text('Describe');
+      await tester.ensureVisible(describe);
+      await tester.tap(describe);
+      await tester.pumpAndSettle();
       final field = find.byKey(const ValueKey<String>('kar-describe-field'));
-      await _reveal(tester, field);
       await tester.enterText(field, 'Replacement after completion.');
-      await _reveal(
-        tester,
+      await tester.ensureVisible(
         find.byKey(const ValueKey<String>('kar-save-draft')),
       );
       await tester.tap(find.byKey(const ValueKey<String>('kar-save-draft')));
       await tester.pumpAndSettle();
-      await _reveal(
-        tester,
+      await tester.ensureVisible(
         find.byKey(const ValueKey<String>('kar-place-draft')),
       );
       await tester.tap(find.byKey(const ValueKey<String>('kar-place-draft')));
@@ -736,6 +883,32 @@ Future<void> _reveal(WidgetTester tester, Finder finder) async {
     finder,
     360,
     scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _openDetailEventSheet(
+  WidgetTester tester,
+  Finder target, {
+  required int stageIndex,
+}) async {
+  await _reveal(tester, target);
+  await tester.tap(target);
+  await tester.pumpAndSettle();
+  expect(
+    find.byKey(ValueKey<String>('kar-detail-event-sheet-$stageIndex')),
+    findsOneWidget,
+  );
+  expect(find.byType(KarDayBehaviorSurface), findsOneWidget);
+}
+
+Future<void> _raiseKarEventContent(
+  WidgetTester tester, {
+  double distance = 380,
+}) async {
+  await tester.drag(
+    find.byKey(const ValueKey<String>('kar-day-sheet-scroll')),
+    Offset(0, -distance),
   );
   await tester.pumpAndSettle();
 }

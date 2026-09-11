@@ -4483,11 +4483,11 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     // itself inside a viewport with a 12px release-safe reserve, so derive the
     // fraction from the full viewport contract instead of treating 79vh as a
     // percentage of the already reduced host height.
-    final karInitialSheetExtent = availableSheetHeight <= 0
-        ? instrumentEventSheetMinExtent
-        : (math.min(668.0, media.size.height * .79) / availableSheetHeight)
-              .clamp(instrumentEventSheetMinExtent, 1.0)
-              .toDouble();
+    final karInitialSheetExtent = instrumentEventSheetExtentForViewport(
+      context: context,
+      viewportFraction: .79,
+      maximumHeight: 668,
+    );
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
         : keyboardInset > 0

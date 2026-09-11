@@ -284,7 +284,7 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
         Positioned(
           left: 146,
           right: 18,
-          top: 174,
+          top: 112,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[

@@ -225,6 +225,10 @@ part 'snapshot/calendar_snapshot_page_adapter.dart';
 part 'snapshot/calendar_presentation_page_adapter.dart';
 part 'quick_add_parser.dart';
 
+@visibleForTesting
+bool maatFlowDetailUsesCalendarPreview(String templateKey) =>
+    templateKey == kOfferingTableFlowKey || templateKey == kKarFlowKey;
+
 class _MountedFlowEndPatch {
   const _MountedFlowEndPatch({
     required this.flow,
@@ -13046,8 +13050,11 @@ class CalendarPageState extends State<CalendarPage>
     final activeInstance =
         joinedFlow ?? _activeFlowForMaatTemplate(template.key);
     final sky = template.key == 'track-the-sky' ? _followSkyLiveInputs() : null;
-    final calendarPreview = template.key == kOfferingTableFlowKey
-        ? _offeringTableCalendarPreview()
+    final usesSharedCalendarPreview = maatFlowDetailUsesCalendarPreview(
+      template.key,
+    );
+    final calendarPreview = usesSharedCalendarPreview
+        ? _maatFlowCalendarPreview()
         : sky?.preview;
     return _ActiveMaatFlowDetailSurface(
       template: template,
@@ -13055,8 +13062,7 @@ class CalendarPageState extends State<CalendarPage>
       onBack: onBack,
       followSkyCandidates: sky?.candidates ?? const [],
       followSkyMeasurementIntervals: sky?.intervals ?? const [],
-      followSkyCalendarPreview:
-          calendarPreview ?? FollowSkyCalendarPreview.empty,
+      calendarPreview: calendarPreview ?? FollowSkyCalendarPreview.empty,
       onFollowSkyCourseSaved: activeInstance?.id == null
           ? null
           : (course, notes) => _saveFollowSkyCourseNotes(
@@ -27733,7 +27739,7 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  FollowSkyCalendarPreview _offeringTableCalendarPreview() {
+  FollowSkyCalendarPreview _maatFlowCalendarPreview() {
     final windowStart = DateUtils.dateOnly(DateTime.now());
     final windowEnd = windowStart.add(const Duration(days: 119));
     final source = _calendarPreviewSource(
