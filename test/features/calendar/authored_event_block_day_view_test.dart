@@ -11,6 +11,7 @@ import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_kar/the_kar.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -154,16 +155,51 @@ void main() {
 
     final eventBlock = find.byType(KarEventBlockVisual);
     expect(eventBlock, findsOneWidget);
+    expect(find.text('01 · Threshold'), findsOneWidget);
+    expect(find.text('THE KꜣR · DJEHUTY · CYCLE 01'), findsOneWidget);
+    expect(find.text('SITTING 1 OF 5'), findsOneWidget);
+    expect(tester.getSize(eventBlock).height, 61);
+    if (_captureKarVisuals) {
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('/tmp/kar-day-block-flutter.png'),
+      );
+    }
     await tester.tap(eventBlock);
     await tester.pumpAndSettle();
 
     expect(find.byType(KarDayBehaviorSurface), findsOneWidget);
     expect(find.byKey(dayViewBottomSheetBackplateKey), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('kar-resizable-sheet')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('kar-day-presentation')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('kar-practice-sheet')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('kar-day-shrine-stage')),
+      findsOneWidget,
+    );
+    final karSheetRect = tester.getRect(
+      find.byKey(const ValueKey<String>('kar-resizable-sheet')),
+    );
+    expect(karSheetRect.height, closeTo(844 * .79, 1.5));
+    expect(karSheetRect.bottom, closeTo(844, .01));
+    final collapsedPracticeRect = tester.getRect(
+      find.byKey(const ValueKey<String>('kar-practice-sheet')),
+    );
+    expect(collapsedPracticeRect.top, closeTo(528.25, 2));
     expect(find.byType(ModalBottomSheetRoute), findsNothing);
     expect(
       find.descendant(
         of: find.byType(KarDayBehaviorSurface),
-        matching: find.text('Wisdom, dressed'),
+        matching: find.text('Wisdom'),
       ),
       findsOneWidget,
     );
@@ -174,8 +210,281 @@ void main() {
         find.byKey(_visualCaptureKey),
         matchesGoldenFile('/tmp/kar-day-flutter.png'),
       );
+      await tester.drag(
+        find.byKey(const ValueKey<String>('kar-day-sheet-scroll')),
+        const Offset(0, -430),
+      );
+      await tester.pumpAndSettle();
+      final raisedPracticeRect = tester.getRect(
+        find.byKey(const ValueKey<String>('kar-practice-sheet')),
+      );
+      expect(raisedPracticeRect.top, closeTo(226.25, 2));
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('/tmp/kar-day-fresh-raised-flutter.png'),
+      );
     }
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Day View return state keeps the authored layered presentation', (
+    tester,
+  ) async {
+    var shrine = _activeKarShrine(flowId: 84);
+    shrine = _placeKar(
+      shrine,
+      stageIndex: 0,
+      content: 'A blue robe, circular room, and silver pipe.',
+    );
+    await _pumpDayView(
+      tester,
+      flowId: 84,
+      flowName: kKarTitle,
+      flowKey: kKarFlowKey,
+      title: KarNetjer.djehuty.labels.first,
+      start: const TimeOfDay(hour: 9, minute: 0),
+      payload: const <String, dynamic>{
+        'kind': 'maat_kar_scene',
+        'flow_key': kKarFlowKey,
+        'kar_cycle_id': 'cycle-1',
+        'kar_cycle_sequence': 1,
+        'kar_netjer': 'djehuty',
+        'kar_stage_index': 0,
+        'kar_day': 1,
+        'kar_place': 'Threshold',
+      },
+      karRepository: MemoryKarRepository(
+        initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: shrine},
+      ),
+    );
+
+    await tester.tap(find.byType(KarEventBlockVisual));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(KarDayBehaviorSurface),
+        matching: find.text('Is it here?'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('It’s here'), findsOneWidget);
+    expect(find.text('I have a piece'), findsOneWidget);
+    expect(find.text('Not yet'), findsOneWidget);
+    if (_captureKarVisuals) {
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('/tmp/kar-day-return-flutter.png'),
+      );
+      await tester.drag(
+        find.byKey(const ValueKey<String>('kar-day-sheet-scroll')),
+        const Offset(0, -360),
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('/tmp/kar-day-return-raised-flutter.png'),
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Day View closing walk stays in the authored shared sheet', (
+    tester,
+  ) async {
+    var shrine = _activeKarShrine(flowId: 85);
+    for (var stageIndex = 0; stageIndex < 5; stageIndex++) {
+      shrine = _placeKar(
+        shrine,
+        stageIndex: stageIndex,
+        content: 'Placed scene ${stageIndex + 1}.',
+      );
+    }
+    await _pumpDayView(
+      tester,
+      flowId: 85,
+      flowName: kKarTitle,
+      flowKey: kKarFlowKey,
+      title: 'Walk the kꜣr',
+      start: const TimeOfDay(hour: 9, minute: 0),
+      payload: const <String, dynamic>{
+        'kind': 'maat_kar_walk',
+        'flow_key': kKarFlowKey,
+        'kar_cycle_id': 'cycle-1',
+        'kar_cycle_sequence': 1,
+        'kar_netjer': 'djehuty',
+        'kar_stage_index': 5,
+        'kar_day': 30,
+        'kar_place': 'Inner chamber',
+      },
+      karRepository: MemoryKarRepository(
+        initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: shrine},
+      ),
+    );
+
+    await tester.tap(find.byType(KarEventBlockVisual));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(KarDayBehaviorSurface),
+        matching: find.text('Walk the kꜣr'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('kar-begin-walk')),
+      findsOneWidget,
+    );
+    if (_captureKarVisuals) {
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('/tmp/kar-day-walk-flutter.png'),
+      );
+    }
+
+    await tester.tap(find.byKey(const ValueKey<String>('kar-begin-walk')));
+    await tester.pumpAndSettle();
+    expect(find.text('Threshold'), findsOneWidget);
+    expect(
+      find.text('Find this place before asking for what was saved.'),
+      findsOneWidget,
+    );
+    if (_captureKarVisuals) {
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('/tmp/kar-day-walk-active-flutter.png'),
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Kꜣr description stays above one system-keyboard inset', (
+    tester,
+  ) async {
+    await _pumpDayView(
+      tester,
+      flowId: 86,
+      flowName: kKarTitle,
+      flowKey: kKarFlowKey,
+      title: KarNetjer.djehuty.labels.first,
+      start: const TimeOfDay(hour: 9, minute: 0),
+      payload: const <String, dynamic>{
+        'kind': 'maat_kar_scene',
+        'flow_key': kKarFlowKey,
+        'kar_cycle_id': 'cycle-1',
+        'kar_cycle_sequence': 1,
+        'kar_netjer': 'djehuty',
+        'kar_stage_index': 0,
+        'kar_day': 1,
+        'kar_place': 'Threshold',
+      },
+      karRepository: MemoryKarRepository(
+        initial: <KarNetjer, KarShrine>{
+          KarNetjer.djehuty: _activeKarShrine(flowId: 86),
+        },
+      ),
+    );
+    await tester.tap(find.byType(KarEventBlockVisual));
+    await tester.pumpAndSettle();
+    final scroll = find.byKey(const ValueKey<String>('kar-day-sheet-scroll'));
+    await tester.drag(scroll, const Offset(0, -430));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Describe'));
+    await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey<String>('kar-describe-field'));
+    await tester.ensureVisible(field);
+    await tester.tap(field);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
+    await tester.pumpAndSettle();
+
+    const keyboardTop = 844.0 - 300.0;
+    expect(tester.getRect(field).bottom, lessThanOrEqualTo(keyboardTop));
+    expect(
+      tester.getRect(find.byKey(dayViewBottomSheetBackplateKey)).bottom,
+      lessThanOrEqualTo(keyboardTop),
+    );
+    expect(find.byKey(editableModalSystemInsetOwnerKey), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(KarDayBehaviorSurface),
+        matching: find.byType(KeyboardAwareEditableSurface),
+      ),
+      findsOneWidget,
+    );
+    if (_captureKarVisuals) {
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('/tmp/kar-day-keyboard-flutter.png'),
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Kꜣr event progress comes from the cycle, not sitting number', (
+    tester,
+  ) async {
+    var shrine =
+        KarShrine(
+          id: 'kar-user-djehuty',
+          netjer: KarNetjer.djehuty,
+          revision: 0,
+          cycles: const <KarCycle>[],
+        ).beginCycle(
+          cycleId: 'cycle-1',
+          anchorDate: DateTime(2026, 9, 10),
+          flowId: 83,
+        );
+    shrine = shrine
+        .saveDraft(
+          cycleId: 'cycle-1',
+          stageIndex: 0,
+          draft: KarDraft(
+            kind: 'description',
+            content: 'Only the threshold is placed.',
+            savedAt: DateTime.utc(2026, 9, 10),
+          ),
+        )
+        .placeDraft(
+          cycleId: 'cycle-1',
+          stageIndex: 0,
+          versionId: 'threshold-entry',
+          now: DateTime.utc(2026, 9, 10, 12),
+        );
+    final repository = MemoryKarRepository(
+      initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: shrine},
+    );
+
+    await _pumpDayView(
+      tester,
+      flowId: 83,
+      flowName: kKarTitle,
+      flowKey: kKarFlowKey,
+      title: KarNetjer.djehuty.labels[3],
+      start: const TimeOfDay(hour: 9, minute: 0),
+      payload: const <String, dynamic>{
+        'kind': 'maat_kar_scene',
+        'flow_key': kKarFlowKey,
+        'kar_cycle_id': 'cycle-1',
+        'kar_cycle_sequence': 1,
+        'kar_netjer': 'djehuty',
+        'kar_stage_index': 3,
+        'kar_day': 15,
+        'kar_place': 'Lintel',
+      },
+      karRepository: repository,
+    );
+    await tester.pumpAndSettle();
+
+    final visual = tester.widget<KarEventBlockVisual>(
+      find.byType(KarEventBlockVisual),
+    );
+    expect(visual.placedCount, 1);
+    expect(visual.placedStages, <int>{0});
+    expect(visual.returning, isFalse);
+    expect(find.text('04 · Lintel'), findsOneWidget);
   });
 }
 
@@ -243,4 +552,40 @@ Future<void> _pumpDayView(
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
+}
+
+KarShrine _activeKarShrine({required int flowId}) =>
+    KarShrine(
+      id: 'kar-user-djehuty',
+      netjer: KarNetjer.djehuty,
+      revision: 0,
+      cycles: const <KarCycle>[],
+    ).beginCycle(
+      cycleId: 'cycle-1',
+      anchorDate: DateTime(2026, 9, 10),
+      flowId: flowId,
+    );
+
+KarShrine _placeKar(
+  KarShrine shrine, {
+  required int stageIndex,
+  required String content,
+}) {
+  final cycle = shrine.activeCycle!;
+  return shrine
+      .saveDraft(
+        cycleId: cycle.id,
+        stageIndex: stageIndex,
+        draft: KarDraft(
+          kind: 'description',
+          content: content,
+          savedAt: DateTime.utc(2026, 9, 10),
+        ),
+      )
+      .placeDraft(
+        cycleId: cycle.id,
+        stageIndex: stageIndex,
+        versionId: 'entry-${cycle.id}-$stageIndex',
+        now: DateTime.utc(2026, 9, 10, 12),
+      );
 }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/the_kar/the_kar.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -46,17 +47,17 @@ void main() {
   test('the six authored netjer images are exact mockup extractions', () {
     const expectedHashes = <String, String>{
       'djehuty.png':
-          'e7ef97ad04a16d3efbe470d843107a8a645f77d1ee855259efd276d095bfc546',
+          '98b651be5dd8517c700c070f4b32d3205a45d2ad4631be21f95392be59a5e474',
       'maat.png':
-          'cb210a2540706fbc3a6883e97f93755863ef3216aafa8d58fbe896ee717a4420',
+          '282c5af4ebd68ec045105ccfbf3b1472679b7b788d09774057f8831b5071db98',
       'sekhmet.png':
-          '26d9eafed2e7a8285d8b1840df4e02d56f30a7b2be17d508660d522160795891',
+          'c23030237f90e5a0a0dc7b0c6e6e56d33bdef60a6a29c65a509d24916553bcb1',
       'hetheru.png':
-          '8d9696b60845ba66c349a6547c9c4374438b2337715d7543cdbbb219182e7907',
+          '6a6e3b6d7f428720d0a682f6cc1013435a8ecfb7e527c39643ed10c2385d770b',
       'khepri.png':
-          '61e86934ce5f6aeae5e1c4e70398287a221964ac1fbc7789b90a6a2f9c835658',
+          'bde2ade18c8ac40fb7c825ffdba545e11613b930b8b14c7edc02bc3c59755086',
       'ptah.png':
-          '461b59ead49cd28babebf3f8ecef5ea8c884e76be16c6a9064bb847803cb46db',
+          '009beb5c9525dcdc03e3e4ebd439229f19e4368249d3124115689bc833f0fdf1',
     };
     expect(KarNetjer.values.map((value) => value.name), <String>[
       'Djehuty',
@@ -182,6 +183,235 @@ void main() {
     expect(find.text('Bad drawings welcome.'), findsOneWidget);
   });
 
+  testWidgets(
+    'detail uses three aligned decans and dated calendar cards before behavior',
+    (tester) async {
+      _setPhoneViewport(tester);
+      final repository = MemoryKarRepository(
+        initial: <KarNetjer, KarShrine>{
+          KarNetjer.djehuty: _place(
+            _activeShrine(),
+            stageIndex: 0,
+            content: 'A blue robe, circular room, and silver pipe.',
+          ),
+        },
+      );
+      await _pumpDetail(
+        tester,
+        repository,
+        calendarPreview: FollowSkyCalendarPreview(
+          rows: <FollowSkyCalendarPreviewRow>[
+            FollowSkyCalendarPreviewRow(
+              localDay: DateTime(2026, 9, 9),
+              start: DateTime(2026, 9, 9, 8),
+              end: DateTime(2026, 9, 9, 8, 30),
+              title: 'journal every day',
+              flowName: 'Journal',
+              eventColor: const Color(0xFF72C766),
+            ),
+            FollowSkyCalendarPreviewRow(
+              localDay: DateTime(2026, 9, 9),
+              start: DateTime(2026, 9, 9, 12),
+              end: DateTime(2026, 9, 9, 13),
+              title: 'Bits and Operations',
+              flowName: 'Work',
+              eventColor: const Color(0xFF4EA8DE),
+            ),
+            FollowSkyCalendarPreviewRow(
+              localDay: DateTime(2026, 9, 9),
+              start: DateTime(2026, 9, 9, 21, 30),
+              end: DateTime(2026, 9, 9, 22),
+              title: 'journal every night',
+              flowName: 'Journal',
+              eventColor: const Color(0xFF72C766),
+            ),
+          ],
+        ),
+      );
+
+      final calendar = find.byKey(
+        const ValueKey<String>('kar-thirty-day-calendar'),
+      );
+      await _reveal(tester, calendar);
+      expect(find.text('Decan I'), findsOneWidget);
+      expect(find.text('Decan II'), findsOneWidget);
+      expect(find.text('Decan III'), findsOneWidget);
+      expect(find.text('days 1–10'), findsOneWidget);
+      expect(find.text('days 21–30'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('kar-calendar-day-30')),
+        findsOneWidget,
+      );
+      if (_captureKarVisuals) {
+        await expectLater(
+          find.byKey(const ValueKey<String>('kar-detail-surface')),
+          matchesGoldenFile('/tmp/kar-detail-calendar-flutter.png'),
+        );
+        await expectLater(
+          calendar,
+          matchesGoldenFile('/tmp/kar-detail-calendar-element-flutter.png'),
+        );
+      }
+
+      final firstRowY = tester
+          .getCenter(find.byKey(const ValueKey<String>('kar-calendar-day-1')))
+          .dy;
+      for (var day = 2; day <= 10; day++) {
+        final center = tester.getCenter(
+          find.byKey(ValueKey<String>('kar-calendar-day-$day')),
+        );
+        expect(center.dy, closeTo(firstRowY, .01));
+      }
+
+      for (var stage = 0; stage < 5; stage++) {
+        final schedule = find.byKey(
+          ValueKey<String>('kar-schedule-day-$stage'),
+        );
+        expect(schedule, findsOneWidget);
+        final eventBlock = find.descendant(
+          of: schedule,
+          matching: find.byKey(ValueKey<String>('kar-event-block-$stage')),
+        );
+        expect(tester.getSize(eventBlock).height, 106);
+      }
+      expect(
+        find.byKey(const ValueKey<String>('kar-closing-walk-row')),
+        findsOneWidget,
+      );
+      expect(find.text('Bits and Operations'), findsOneWidget);
+      if (_captureKarVisuals) {
+        await _reveal(
+          tester,
+          find.byKey(const ValueKey<String>('kar-schedule-day-0')),
+        );
+        await expectLater(
+          find.byKey(const ValueKey<String>('kar-schedule-day-0')),
+          matchesGoldenFile('/tmp/kar-detail-schedule-day-1-flutter.png'),
+        );
+        await expectLater(
+          find.byKey(const ValueKey<String>('kar-closing-walk-row')),
+          matchesGoldenFile('/tmp/kar-detail-day-30-flutter.png'),
+        );
+        await expectLater(
+          find.byKey(const ValueKey<String>('kar-detail-surface')),
+          matchesGoldenFile('/tmp/kar-detail-events-flutter.png'),
+        );
+      }
+    },
+  );
+
+  testWidgets(
+    'netjer source and cycle labels share a non-overlapping top row',
+    (tester) async {
+      _setPhoneViewport(tester);
+      final repository = MemoryKarRepository(
+        initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: _activeShrine()},
+      );
+      await _pumpDetail(tester, repository);
+
+      final source = find.byKey(
+        const ValueKey<String>('kar-netjer-source-djehuty'),
+      );
+      final cycle = find.byKey(
+        const ValueKey<String>('kar-netjer-cycle-djehuty'),
+      );
+      expect(source, findsOneWidget);
+      expect(cycle, findsOneWidget);
+      final sourceRect = tester.getRect(source);
+      final cycleRect = tester.getRect(cycle);
+      expect(sourceRect.top, closeTo(cycleRect.top, .01));
+      expect(sourceRect.right, lessThanOrEqualTo(cycleRect.left - 7));
+    },
+  );
+
+  testWidgets(
+    'Discovery path preserves all six authored netjer cards and label bands',
+    (tester) async {
+      _setPhoneViewport(tester);
+      final repository = MemoryKarRepository(
+        initial: <KarNetjer, KarShrine>{
+          for (final netjer in KarNetjer.values)
+            netjer: _activeShrineFor(netjer, flowId: 100 + netjer.index),
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: buildMaatFlowsListPreviewForTesting(
+            joinedKeys: const <String>{kKarFlowKey},
+            karRepository: repository,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final discoveryCard = find.byKey(
+        const ValueKey<String>('maat-flow-discovery-card-the-kar'),
+      );
+      await tester.scrollUntilVisible(
+        discoveryCard,
+        460,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tapAt(
+        tester.getTopLeft(discoveryCard) + const Offset(20, 20),
+      );
+      await tester.pumpAndSettle();
+
+      final detailContext = tester.element(find.byType(KarDetailSurface));
+      await tester.runAsync(() async {
+        await precacheImage(
+          const AssetImage('assets/the_kar/hero.png'),
+          detailContext,
+        );
+        for (final netjer in KarNetjer.values) {
+          await precacheImage(AssetImage(netjer.asset), detailContext);
+        }
+      });
+      await tester.pumpAndSettle();
+
+      final carousel = find.byKey(
+        const ValueKey<String>('kar-netjer-carousel'),
+      );
+      final scrollable = find.descendant(
+        of: carousel,
+        matching: find.byType(Scrollable),
+      );
+      final position = tester.state<ScrollableState>(scrollable).position;
+      for (final netjer in KarNetjer.values) {
+        position.jumpTo(
+          (netjer.index * 318.0)
+              .clamp(position.minScrollExtent, position.maxScrollExtent)
+              .toDouble(),
+        );
+        await tester.pumpAndSettle();
+        final card = find.byKey(ValueKey<String>('kar-netjer-${netjer.key}'));
+        expect(card, findsOneWidget);
+        await tester.tap(card);
+        await tester.pumpAndSettle();
+
+        final source = find.byKey(
+          ValueKey<String>('kar-netjer-source-${netjer.key}'),
+        );
+        final cycle = find.byKey(
+          ValueKey<String>('kar-netjer-cycle-${netjer.key}'),
+        );
+        expect(source, findsOneWidget);
+        expect(cycle, findsOneWidget);
+        final sourceRect = tester.getRect(source);
+        final cycleRect = tester.getRect(cycle);
+        expect(sourceRect.top, closeTo(cycleRect.top, .01));
+        expect(sourceRect.right, lessThanOrEqualTo(cycleRect.left - 7));
+        expect(tester.getSize(card), const Size(306, 408));
+        if (_captureKarVisuals) {
+          await expectLater(
+            card,
+            matchesGoldenFile('/tmp/kar-netjer-${netjer.key}-flutter.png'),
+          );
+        }
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('recall hides the cue and artifact until the reader asks', (
     tester,
   ) async {
@@ -214,8 +444,13 @@ void main() {
       findsNothing,
     );
 
+    final dayScroll = find.byKey(
+      const ValueKey<String>('kar-day-sheet-scroll'),
+    );
+    await tester.drag(dayScroll, const Offset(0, -360));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Show me'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(
       find.text('A blue robe, circular room, and silver pipe.'),
       findsOneWidget,
@@ -402,7 +637,19 @@ KarShrine _activeShrine() => KarShrine(
   netjer: KarNetjer.djehuty,
   revision: 0,
   cycles: const <KarCycle>[],
-).beginCycle(cycleId: 'cycle-1', anchorDate: DateTime(2026, 9, 10), flowId: 91);
+).beginCycle(cycleId: 'cycle-1', anchorDate: DateTime(2026, 9, 9), flowId: 91);
+
+KarShrine _activeShrineFor(KarNetjer netjer, {required int flowId}) =>
+    KarShrine(
+      id: 'kar-user-${netjer.key}',
+      netjer: netjer,
+      revision: 0,
+      cycles: const <KarCycle>[],
+    ).beginCycle(
+      cycleId: 'cycle-${netjer.key}',
+      anchorDate: DateTime(2026, 9, 10),
+      flowId: flowId,
+    );
 
 KarShrine _place(
   KarShrine shrine, {
@@ -430,13 +677,15 @@ KarShrine _place(
 
 Future<void> _pumpDetail(
   WidgetTester tester,
-  MemoryKarRepository repository,
-) async {
+  MemoryKarRepository repository, {
+  FollowSkyCalendarPreview calendarPreview = FollowSkyCalendarPreview.empty,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: KarDetailSurface(
           repository: repository,
+          calendarPreview: calendarPreview,
           onJoin:
               ({
                 required netjer,
@@ -444,7 +693,7 @@ Future<void> _pumpDetail(
                 required cycleSequence,
                 required startDate,
               }) async => 91,
-          clock: () => DateTime(2026, 9, 10),
+          clock: () => DateTime(2026, 9, 9),
         ),
       ),
     ),

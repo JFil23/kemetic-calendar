@@ -2216,6 +2216,21 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     return _isReadingHouseFlowName(flow?.name);
   }
 
+  bool _isKarInstrumentEvent(EventItem event) {
+    if (resolveMaatFlowKind(behaviorPayload: event.behaviorPayload) ==
+        MaatFlowKind.theKar) {
+      return true;
+    }
+    final flow = _chromeFlowForId(event.flowId);
+    return event.flowId != null &&
+        resolveMaatFlowKind(
+              flowName: flow?.name,
+              flowNotes: flow?.notes,
+              behaviorPayload: event.behaviorPayload,
+            ) ==
+            MaatFlowKind.theKar;
+  }
+
   bool _isRepeatingNoteFlowId(int? flowId) {
     final flow = _chromeFlowForId(flowId);
     return flow != null &&
@@ -3999,6 +4014,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required BuildContext rootContext,
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
+    Color? actionColor,
   }) {
     return TextButton.icon(
       onPressed: () async {
@@ -4010,11 +4026,21 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           ).showSnackBar(const SnackBar(content: Text('Could not add to-do.')));
         }
       },
-      icon: KemeticGold.icon(Icons.playlist_add_check),
-      label: KemeticGold.text(
-        'Make to-do',
-        style: _goldHeaderStyle.copyWith(fontSize: 15),
-      ),
+      icon: actionColor == null
+          ? KemeticGold.icon(Icons.playlist_add_check)
+          : Icon(Icons.playlist_add_check, color: actionColor),
+      label: actionColor == null
+          ? KemeticGold.text(
+              'Make to-do',
+              style: _goldHeaderStyle.copyWith(fontSize: 15),
+            )
+          : Text(
+              'Make to-do',
+              style: _goldHeaderStyle.copyWith(
+                color: actionColor,
+                fontSize: 15,
+              ),
+            ),
     );
   }
 
@@ -4304,6 +4330,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required BuildContext rootContext,
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
+    Color? actionColor,
   }) {
     final calendarLabel = CalendarPage.detailSheetCalendarButtonLabel(
       target.event,
@@ -4320,6 +4347,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             rootContext: rootContext,
             sheetContext: sheetContext,
             target: target,
+            actionColor: actionColor,
           ),
         ),
         Flexible(
@@ -4344,10 +4372,18 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                       _moveToTarget(updatedTarget);
                     }
                   : null,
-              child: KemeticGold.text(
-                calendarLabel,
-                style: _goldHeaderStyle.copyWith(fontSize: 15),
-              ),
+              child: actionColor == null
+                  ? KemeticGold.text(
+                      calendarLabel,
+                      style: _goldHeaderStyle.copyWith(fontSize: 15),
+                    )
+                  : Text(
+                      calendarLabel,
+                      style: _goldHeaderStyle.copyWith(
+                        color: actionColor,
+                        fontSize: 15,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -4435,12 +4471,23 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final activeReadingHouseInstrument = _isReadingHouseInstrumentEvent(
       target.event,
     );
+    final activeKarInstrument = _isKarInstrumentEvent(target.event);
     final activeLayeredInstrument =
         activeOfferingTableInstrument ||
         activeDjedInstrument ||
-        activeReadingHouseInstrument;
+        activeReadingHouseInstrument ||
+        activeKarInstrument;
     final activeInstrumentPresentation =
         activeFollowSkyInstrument || activeLayeredInstrument;
+    // The Kꜣr reference sheet is `min(668px, 79dvh)`. The shared host sizes
+    // itself inside a viewport with a 12px release-safe reserve, so derive the
+    // fraction from the full viewport contract instead of treating 79vh as a
+    // percentage of the already reduced host height.
+    final karInitialSheetExtent = availableSheetHeight <= 0
+        ? instrumentEventSheetMinExtent
+        : (math.min(668.0, media.size.height * .79) / availableSheetHeight)
+              .clamp(instrumentEventSheetMinExtent, 1.0)
+              .toDouble();
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
         : keyboardInset > 0
@@ -4504,6 +4551,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               ? 'offering-table-resizable-sheet'
               : activeReadingHouseInstrument
               ? 'reading-house-resizable-sheet'
+              : activeKarInstrument
+              ? 'kar-resizable-sheet'
               : 'djed-resizable-sheet',
         ),
         semanticLabel: activeFollowSkyInstrument
@@ -4512,28 +4561,36 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             ? 'Resize Offering Table sheet'
             : activeReadingHouseInstrument
             ? 'Resize Reading House sheet'
+            : activeKarInstrument
+            ? 'Resize Kꜣr sheet'
             : 'Resize Djed sheet',
-        handleColor: activeReadingHouseInstrument
+        handleColor: activeKarInstrument
+            ? const Color(0xFF33444A)
+            : activeReadingHouseInstrument
             ? const Color(0xFF33463E)
             : activeLayeredInstrument
             ? const Color(0xFF72571E)
             : _dayGold.withValues(alpha: 0.48),
         initialExtent: activeFollowSkyInstrument
             ? instrumentEventSheetMinExtent
+            : activeKarInstrument
+            ? karInitialSheetExtent
             : activeLayeredInstrument
             ? .71
             : .70,
         geometry: activeLayeredInstrument
             ? InstrumentEventSheetGeometry.layered
             : null,
-        trailing: activeDjedInstrument
+        trailing: activeDjedInstrument || activeKarInstrument
             ? IconButton(
                 tooltip: 'Close',
                 onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Text(
+                icon: Text(
                   '×',
                   style: TextStyle(
-                    color: Color(0xFFB9A883),
+                    color: activeKarInstrument
+                        ? Color(0xFF8CA0A6)
+                        : Color(0xFFB9A883),
                     fontFamily: 'GentiumPlus',
                     fontSize: 22,
                     height: 1,
@@ -4558,6 +4615,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                 rootContext: widget.hostContext,
                 sheetContext: context,
                 target: target,
+                actionColor: activeKarInstrument
+                    ? const Color(0xFFA9CFDA)
+                    : null,
               ),
       );
     }
@@ -6627,6 +6687,24 @@ class DayViewGrid extends StatefulWidget {
 class _DayViewGridState extends State<DayViewGrid> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _timelineKey = GlobalKey();
+  KarRepository? _defaultKarRepository;
+  bool _resolvedDefaultKarRepository = false;
+
+  KarRepository? get _karEventBlockRepository {
+    final supplied = widget.karRepository;
+    if (supplied != null) return supplied;
+    if (_resolvedDefaultKarRepository) return _defaultKarRepository;
+    _resolvedDefaultKarRepository = true;
+    try {
+      _defaultKarRepository = SupabaseKarRepository(Supabase.instance.client);
+    } on Object {
+      // Widget-only tests do not initialize Supabase. They still receive the
+      // correct fixed visual rather than a fabricated placement count.
+      _defaultKarRepository = null;
+    }
+    return _defaultKarRepository;
+  }
+
   BuildContext? _timelineCtx;
   int _manualScrollRevision = 0;
 
@@ -8248,13 +8326,17 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (graphic?.kind == CalendarEventGraphicKind.kar) {
       final stageIndex = karStageIndexFromPayload(event.behaviorPayload);
       final netjer = karNetjerFromPayload(event.behaviorPayload);
-      return KarEventBlockVisual(
+      return _KarEventBlockWithCycleState(
+        key: ValueKey<String>(
+          'kar-day-event-state:${event.flowId}:$stageIndex:${netjer.key}',
+        ),
+        repository: _karEventBlockRepository,
+        flowId: event.flowId,
         netjer: netjer,
         stageIndex: stageIndex,
         title: stageIndex == 5 ? 'Walk the kꜣr' : netjer.labels[stageIndex],
         width: block.width,
         height: height,
-        placedCount: stageIndex,
       );
     }
 
@@ -8713,6 +8795,102 @@ class _DayViewGridState extends State<DayViewGrid> {
       releaseSheet();
       rethrow;
     }
+  }
+}
+
+/// Connects the already-authored Kꜣr event-block visual to its persisted
+/// cycle without letting loading or repository concerns shape the layout.
+class _KarEventBlockWithCycleState extends StatefulWidget {
+  const _KarEventBlockWithCycleState({
+    super.key,
+    required this.repository,
+    required this.flowId,
+    required this.netjer,
+    required this.stageIndex,
+    required this.title,
+    required this.width,
+    required this.height,
+  });
+
+  final KarRepository? repository;
+  final int? flowId;
+  final KarNetjer netjer;
+  final int stageIndex;
+  final String title;
+  final double width;
+  final double height;
+
+  @override
+  State<_KarEventBlockWithCycleState> createState() =>
+      _KarEventBlockWithCycleStateState();
+}
+
+class _KarEventBlockWithCycleStateState
+    extends State<_KarEventBlockWithCycleState> {
+  KarCycle? _cycle;
+  int _loadSerial = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _KarEventBlockWithCycleState oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.flowId != widget.flowId ||
+        oldWidget.netjer != widget.netjer) {
+      _cycle = null;
+      unawaited(_load());
+    }
+  }
+
+  Future<void> _load() async {
+    final repository = widget.repository;
+    if (repository == null) return;
+    final serial = ++_loadSerial;
+    try {
+      final shrine = await repository.loadOrCreate(widget.netjer);
+      KarCycle? resolved;
+      final flowId = widget.flowId;
+      if (flowId != null) {
+        for (final cycle in shrine.cycles.reversed) {
+          if (cycle.flowId == flowId) {
+            resolved = cycle;
+            break;
+          }
+        }
+      }
+      resolved ??= shrine.activeCycle;
+      if (!mounted || serial != _loadSerial) return;
+      setState(() => _cycle = resolved);
+    } on Object {
+      // The event remains legible if persistence is temporarily unavailable.
+      // Crucially, it does not invent progress from the sitting number.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cycle = _cycle;
+    final placedStages = <int>{
+      for (final placement in cycle?.placements ?? const <KarPlacement>[])
+        if (placement.activeVersion != null) placement.stageIndex,
+    };
+    final stageIndex = widget.stageIndex;
+    return KarEventBlockVisual(
+      netjer: widget.netjer,
+      stageIndex: stageIndex,
+      title: widget.title,
+      width: widget.width,
+      height: widget.height,
+      placedCount: placedStages.length,
+      placedStages: placedStages,
+      cycleSequence: cycle?.sequence ?? 1,
+      returning: stageIndex < 5 && placedStages.contains(stageIndex),
+    );
   }
 }
 

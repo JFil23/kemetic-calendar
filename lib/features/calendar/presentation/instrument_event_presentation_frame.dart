@@ -320,6 +320,7 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
     this.fixedHeroHeight,
     this.instrumentFooterHeight = footerHeight,
     this.initialLowerSheetPeek,
+    this.lowerSheetOverlaysInstrument = false,
   });
 
   static const double footerHeight = 76;
@@ -334,6 +335,7 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
   final double? fixedHeroHeight;
   final double instrumentFooterHeight;
   final double? initialLowerSheetPeek;
+  final bool lowerSheetOverlaysInstrument;
 
   @override
   Widget build(BuildContext context) {
@@ -342,11 +344,14 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
         final boundedHeight = constraints.hasBoundedHeight
             ? constraints.maxHeight
             : 620.0;
-        final instrumentHeight = initialLowerSheetPeek == null
+        final lowerSheetStart = initialLowerSheetPeek == null
             ? (fixedHeroHeight ??
                       math.min(282.0, math.max(238.0, boundedHeight * 0.46))) +
                   instrumentFooterHeight
             : math.max(0.0, boundedHeight - initialLowerSheetPeek!);
+        final instrumentHeight = lowerSheetOverlaysInstrument
+            ? boundedHeight
+            : lowerSheetStart;
         final heroHeight = math.max(
           0.0,
           instrumentHeight - instrumentFooterHeight,
@@ -387,7 +392,7 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                 slivers: <Widget>[
                   SliverToBoxAdapter(
                     child: SizedBox(
-                      height: instrumentHeight,
+                      height: lowerSheetStart,
                       child: inputBuilder(
                         context,
                         heroHeight,
@@ -396,7 +401,14 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                     ),
                   ),
                   SliverToBoxAdapter(
-                    child: RepaintBoundary(key: lowerSheetKey, child: body),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: lowerSheetOverlaysInstrument
+                            ? boundedHeight
+                            : 0,
+                      ),
+                      child: RepaintBoundary(key: lowerSheetKey, child: body),
+                    ),
                   ),
                 ],
               ),

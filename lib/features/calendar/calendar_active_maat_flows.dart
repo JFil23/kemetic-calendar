@@ -1535,6 +1535,7 @@ class _ActiveMaatFlowDetailSurfaceState
       initialNetjer: karNetjerFromFlowNotes(joined?.notes),
       joinedFlowId: joined?.id,
       joinedStartDate: joined?.start,
+      calendarPreview: widget.followSkyCalendarPreview,
       onBack: widget.onBack,
       onJoin: _scheduleKar,
       onReschedule:

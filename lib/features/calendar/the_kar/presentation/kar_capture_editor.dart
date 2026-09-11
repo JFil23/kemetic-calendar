@@ -14,6 +14,11 @@ class KarCaptureEditor extends StatefulWidget {
     required this.onSaveDraft,
     required this.onPlace,
     this.placed = false,
+    this.initialMode,
+    this.showHeading = true,
+    this.showModeSwitcher = true,
+    this.showPlaceAction = true,
+    this.onSaved,
   });
 
   final KarNetjer netjer;
@@ -22,6 +27,11 @@ class KarCaptureEditor extends StatefulWidget {
   final Future<void> Function(String kind, String content) onSaveDraft;
   final Future<void> Function() onPlace;
   final bool placed;
+  final String? initialMode;
+  final bool showHeading;
+  final bool showModeSwitcher;
+  final bool showPlaceAction;
+  final VoidCallback? onSaved;
 
   @override
   State<KarCaptureEditor> createState() => _KarCaptureEditorState();
@@ -38,7 +48,9 @@ class _KarCaptureEditorState extends State<KarCaptureEditor> {
   void initState() {
     super.initState();
     final draft = widget.initialDraft;
-    _draw = draft?.kind == 'drawing';
+    _draw =
+        widget.initialMode == 'drawing' ||
+        (widget.initialMode == null && draft?.kind == 'drawing');
     _controller = TextEditingController(
       text: draft?.kind == 'description' ? draft?.content : '',
     );
@@ -75,7 +87,10 @@ class _KarCaptureEditorState extends State<KarCaptureEditor> {
     setState(() => _saving = true);
     try {
       await widget.onSaveDraft(_draw ? 'drawing' : 'description', content);
-      if (mounted) setState(() => _hasDraft = true);
+      if (mounted) {
+        setState(() => _hasDraft = true);
+        widget.onSaved?.call();
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -101,31 +116,36 @@ class _KarCaptureEditorState extends State<KarCaptureEditor> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'KEEP THE SCENE',
-            style: _text(const Color(0xFF8A7030), 10, spacing: 1.4),
-          ),
-          const SizedBox(height: 10),
-          SegmentedButton<bool>(
-            segments: const <ButtonSegment<bool>>[
-              ButtonSegment<bool>(value: false, label: Text('Describe')),
-              ButtonSegment<bool>(value: true, label: Text('Draw')),
-            ],
-            selected: <bool>{_draw},
-            onSelectionChanged: (value) => setState(() => _draw = value.first),
-            style: ButtonStyle(
-              foregroundColor: WidgetStateProperty.all(
-                Color(widget.netjer.accent2Value),
-              ),
-              side: WidgetStateProperty.all(
-                BorderSide(color: accent.withValues(alpha: .4)),
-              ),
-              textStyle: WidgetStateProperty.all(
-                _text(Color(widget.netjer.accent2Value), 13),
+          if (widget.showHeading) ...<Widget>[
+            Text(
+              'KEEP THE SCENE',
+              style: _text(const Color(0xFF8A7030), 10, spacing: 1.4),
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (widget.showModeSwitcher) ...<Widget>[
+            SegmentedButton<bool>(
+              segments: const <ButtonSegment<bool>>[
+                ButtonSegment<bool>(value: false, label: Text('Describe')),
+                ButtonSegment<bool>(value: true, label: Text('Draw')),
+              ],
+              selected: <bool>{_draw},
+              onSelectionChanged: (value) =>
+                  setState(() => _draw = value.first),
+              style: ButtonStyle(
+                foregroundColor: WidgetStateProperty.all(
+                  Color(widget.netjer.accent2Value),
+                ),
+                side: WidgetStateProperty.all(
+                  BorderSide(color: accent.withValues(alpha: .4)),
+                ),
+                textStyle: WidgetStateProperty.all(
+                  _text(Color(widget.netjer.accent2Value), 13),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
           if (_draw)
             _DrawingPad(
               strokes: _strokes,
@@ -173,41 +193,59 @@ class _KarCaptureEditorState extends State<KarCaptureEditor> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: OutlinedButton(
-                  key: const ValueKey<String>('kar-save-draft'),
-                  onPressed: _saving ? null : _save,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Color(widget.netjer.accent2Value),
-                    side: BorderSide(color: accent.withValues(alpha: .45)),
-                  ),
-                  child: Text(
-                    _saving
-                        ? 'Saving…'
-                        : _draw
-                        ? 'Save drawing'
-                        : 'Save description',
-                  ),
-                ),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: FilledButton(
-                  key: const ValueKey<String>('kar-place-draft'),
-                  onPressed: _hasDraft && !_saving ? widget.onPlace : null,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4AE43),
-                    foregroundColor: const Color(0xFF050504),
-                  ),
-                  child: Text(
-                    widget.placed ? 'Replace in the kꜣr' : 'Place in the kꜣr',
+          if (widget.showPlaceAction)
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey<String>('kar-save-draft'),
+                    onPressed: _saving ? null : _save,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Color(widget.netjer.accent2Value),
+                      side: BorderSide(color: accent.withValues(alpha: .45)),
+                    ),
+                    child: Text(
+                      _saving
+                          ? 'Saving…'
+                          : _draw
+                          ? 'Save drawing'
+                          : 'Save description',
+                    ),
                   ),
                 ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: FilledButton(
+                    key: const ValueKey<String>('kar-place-draft'),
+                    onPressed: _hasDraft && !_saving ? widget.onPlace : null,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFD4AE43),
+                      foregroundColor: const Color(0xFF050504),
+                    ),
+                    child: Text(
+                      widget.placed ? 'Replace in the kꜣr' : 'Place in the kꜣr',
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            OutlinedButton(
+              key: const ValueKey<String>('kar-save-draft'),
+              onPressed: _saving ? null : _save,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Color(widget.netjer.accent2Value),
+                side: BorderSide(color: accent.withValues(alpha: .45)),
+                minimumSize: const Size.fromHeight(44),
               ),
-            ],
-          ),
+              child: Text(
+                _saving
+                    ? 'Saving…'
+                    : _draw
+                    ? 'Save drawing'
+                    : 'Save description',
+              ),
+            ),
           const SizedBox(height: 6),
           Text(
             'One is enough. Saving keeps a draft; Place commits this scene.',
@@ -324,8 +362,8 @@ TextStyle _text(
   FontStyle? style,
 }) => TextStyle(
   color: color,
-  fontFamily: MaatFlowListTokens.fontFamily,
-  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+  fontFamily: KarFlowVisualTokens.fontFamily,
+  fontFamilyFallback: KarFlowVisualTokens.fontFallback,
   fontSize: size,
   letterSpacing: spacing,
   height: height,
