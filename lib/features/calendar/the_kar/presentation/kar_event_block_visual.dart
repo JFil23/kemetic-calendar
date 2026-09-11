@@ -466,30 +466,42 @@ class KarEventBlockVisual extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Row(
-            children: <Widget>[
-              progressPips(compact: false),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  '$ordinal · ${stage.place.toUpperCase()}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _style(
-                    Color.alphaBlend(
-                      accent2.withValues(alpha: .45),
-                      const Color(0xFF7C7467),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final showPlaceLabel = constraints.maxWidth >= 248;
+              return Row(
+                children: <Widget>[
+                  progressPips(compact: !showPlaceLabel),
+                  if (showPlaceLabel) ...<Widget>[
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        '$ordinal · ${stage.place.toUpperCase()}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _style(
+                          Color.alphaBlend(
+                            accent2.withValues(alpha: .45),
+                            const Color(0xFF7C7467),
+                          ),
+                          10.5,
+                        ),
+                      ),
                     ),
-                    10.5,
+                    const SizedBox(width: 5),
+                  ] else
+                    const Spacer(),
+                  Text(
+                    footerLabel,
+                    style: _style(
+                      const Color(0xFF857A64),
+                      10,
+                      letterSpacing: .3,
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 5),
-              Text(
-                footerLabel,
-                style: _style(const Color(0xFF857A64), 10, letterSpacing: .3),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ],
       ),
