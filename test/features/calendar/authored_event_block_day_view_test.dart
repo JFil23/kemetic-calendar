@@ -83,6 +83,9 @@ void main() {
         find.text('name the four parts that need strengthening'),
         findsOneWidget,
       );
+      await tester.tap(find.byType(DjedEventBlockVisual));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Event options'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -118,6 +121,7 @@ void main() {
   testWidgets('Day View opens Kꜣr behavior in the existing shared sheet', (
     tester,
   ) async {
+    Map<String, dynamic>? recordedCompletion;
     final repository = MemoryKarRepository(
       initial: <KarNetjer, KarShrine>{
         KarNetjer.djehuty:
@@ -151,6 +155,15 @@ void main() {
         'kar_place': 'Threshold',
       },
       karRepository: repository,
+      onRecordCompletion:
+          ({
+            required clientEventId,
+            required flowId,
+            required completedOnDate,
+            metadata,
+          }) async {
+            recordedCompletion = metadata;
+          },
     );
 
     final eventBlock = find.byType(KarEventBlockVisual);
@@ -206,10 +219,14 @@ void main() {
     );
     expect(find.text('Draw'), findsOneWidget);
     expect(find.text('Describe'), findsOneWidget);
-    expect(find.byTooltip('Event options'), findsNothing);
-    expect(find.text('Observed'), findsNothing);
-    expect(find.text('Partly'), findsNothing);
-    expect(find.text('Skipped'), findsNothing);
+    expect(find.byTooltip('Event options'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('kar-completion-picker')),
+      findsOneWidget,
+    );
+    expect(find.text('Observed'), findsOneWidget);
+    expect(find.text('Partly'), findsOneWidget);
+    expect(find.text('Skipped'), findsOneWidget);
     if (_captureKarVisuals) {
       await expectLater(
         find.byKey(_visualCaptureKey),
@@ -223,12 +240,19 @@ void main() {
       final raisedPracticeRect = tester.getRect(
         find.byKey(const ValueKey<String>('kar-practice-sheet')),
       );
-      expect(raisedPracticeRect.top, closeTo(267, 2));
+      expect(raisedPracticeRect.top, closeTo(171, 2));
       await expectLater(
         find.byKey(_visualCaptureKey),
         matchesGoldenFile('/tmp/kar-day-fresh-raised-flutter.png'),
       );
     }
+    final partlyButton = find.ancestor(
+      of: find.text('Partly'),
+      matching: find.byType(OutlinedButton),
+    );
+    tester.widget<OutlinedButton>(partlyButton).onPressed!();
+    await tester.pumpAndSettle();
+    expect(recordedCompletion?['status'], 'observed_partly');
     expect(tester.takeException(), isNull);
   });
 
@@ -522,6 +546,13 @@ Future<void> _pumpDayView(
   TimeOfDay start = const TimeOfDay(hour: 7, minute: 30),
   int firstVisibleMinute = 6 * 60,
   KarRepository? karRepository,
+  Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
+  })?
+  onRecordCompletion,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -569,6 +600,7 @@ Future<void> _pumpDayView(
             activeLedgerFlowIds: <int>{flowId},
             initialFirstVisibleMinute: firstVisibleMinute,
             karRepository: karRepository,
+            onRecordCompletion: onRecordCompletion,
           ),
         ),
       ),

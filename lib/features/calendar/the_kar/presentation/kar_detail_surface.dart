@@ -259,9 +259,8 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
     context,
   ).showSnackBar(SnackBar(content: Text(error.toString())));
 
-  Future<void> _openStageSheet(KarCycle cycle, int stageIndex) async {
-    final flowId = cycle.flowId;
-    if (flowId == null) return;
+  Future<void> _openStageSheet(KarCycle? cycle, int stageIndex) async {
+    final flowId = cycle?.flowId;
     FocusManager.instance.primaryFocus?.unfocus();
     await showCalendarEventDetailSheetModal<void>(
       context: context,
@@ -285,12 +284,17 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
             ),
           ),
         ),
-        body: KarDayBehaviorSurface(
-          repository: widget.repository,
-          netjer: _netjer,
-          flowId: flowId,
-          stageIndex: stageIndex,
-        ),
+        body: flowId == null
+            ? KarDayBehaviorSurface.preview(
+                netjer: _netjer,
+                stageIndex: stageIndex,
+              )
+            : KarDayBehaviorSurface(
+                repository: widget.repository,
+                netjer: _netjer,
+                flowId: flowId,
+                stageIndex: stageIndex,
+              ),
       ),
     );
     if (mounted) await _loadShrine();
@@ -573,18 +577,14 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
           _ShrineStage(
             netjer: _netjer,
             placed: placed,
-            onTap: cycle == null
-                ? null
-                : () => unawaited(_openStageSheet(cycle, 0)),
+            onTap: () => unawaited(_openStageSheet(cycle, 0)),
           ),
           const SizedBox(height: 24),
           const _Contract(),
           const SizedBox(height: 24),
           _ArrivalCard(
             netjer: _netjer,
-            onTap: cycle == null
-                ? null
-                : () => unawaited(_openStageSheet(cycle, 0)),
+            onTap: () => unawaited(_openStageSheet(cycle, 0)),
           ),
           const SizedBox(height: 30),
           Text(
@@ -647,9 +647,7 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
                   : _KarScheduleState.future,
               ordinaryRows: _calendarRowsForStage(cycle, index),
               calendarCoverageComplete: widget.calendarPreview.coverageComplete,
-              onTap: cycle == null
-                  ? null
-                  : () => unawaited(_openStageSheet(cycle, index)),
+              onTap: () => unawaited(_openStageSheet(cycle, index)),
             ),
             if (index < 4) const SizedBox(height: 14),
           ],
@@ -666,9 +664,7 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
           const SizedBox(height: 4),
           _KarWalkRow(
             completed: cycle?.status == KarCycleStatus.completed,
-            onTap: cycle == null
-                ? null
-                : () => unawaited(_openStageSheet(cycle, 5)),
+            onTap: () => unawaited(_openStageSheet(cycle, 5)),
           ),
           const SizedBox(height: 14),
           Container(

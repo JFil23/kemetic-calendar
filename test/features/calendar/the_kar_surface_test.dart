@@ -132,6 +132,47 @@ void main() {
   });
 
   testWidgets(
+    'detail event blocks open their existing preview sheet before a cycle exists',
+    (tester) async {
+      _setPhoneViewport(tester);
+      final repository = MemoryKarRepository();
+      await _pumpDetail(tester, repository);
+
+      expect(
+        tester
+            .widgetList<KarEventBlockVisual>(find.byType(KarEventBlockVisual))
+            .every((block) => block.onTap != null),
+        isTrue,
+      );
+
+      final eventBlock = find.byKey(
+        const ValueKey<String>('kar-event-block-0'),
+      );
+      await _openDetailEventSheet(tester, eventBlock, stageIndex: 0);
+
+      expect(
+        find.descendant(
+          of: find.byType(KarDayBehaviorSurface),
+          matching: find.text('Wisdom'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('Event options'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('kar-completion-picker')),
+        findsNothing,
+      );
+      expect(find.text('Draw'), findsNothing);
+      expect(find.text('Describe'), findsNothing);
+      expect(
+        (await repository.loadOrCreate(KarNetjer.djehuty)).cycles,
+        isEmpty,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'detail event sheet saves a draft and places it through shared behavior',
     (tester) async {
       _setPhoneViewport(tester);
@@ -144,6 +185,11 @@ void main() {
         tester,
         find.byKey(const ValueKey<String>('kar-arrival-card')),
         stageIndex: 0,
+      );
+      expect(find.byTooltip('Event options'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('kar-completion-picker')),
+        findsNothing,
       );
       await _raiseKarEventContent(tester);
       await tester.tap(find.text('Describe'));

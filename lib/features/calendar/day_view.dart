@@ -3674,6 +3674,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             netjer: karNetjerFromPayload(currentEvent.behaviorPayload),
             flowId: currentEvent.flowId!,
             stageIndex: karStageIndexFromPayload(currentEvent.behaviorPayload),
+            completionPanel: buildMaatCompletionPanel(
+              responseSpecsOverride: const <MaatFlowResponseSpec>[],
+            ),
             onCompletionCommit: () => _commitMaatFlowCompletion(
               target: target,
               completion: completionContext,
@@ -4570,27 +4573,11 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         geometry: activeLayeredInstrument
             ? InstrumentEventSheetGeometry.layered
             : null,
-        trailing: activeDjedInstrument || activeKarInstrument
-            ? IconButton(
-                tooltip: 'Close',
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: Text(
-                  '×',
-                  style: TextStyle(
-                    color: activeKarInstrument
-                        ? Color(0xFF8CA0A6)
-                        : Color(0xFFB9A883),
-                    fontFamily: 'GentiumPlus',
-                    fontSize: 22,
-                    height: 1,
-                  ),
-                ),
-              )
-            : _buildEventDetailOverflowButton(
-                rootContext: widget.hostContext,
-                sheetContext: context,
-                target: target,
-              ),
+        trailing: _buildEventDetailOverflowButton(
+          rootContext: widget.hostContext,
+          sheetContext: context,
+          target: target,
+        ),
         body: buildDetailSurface(),
         footer: activeDjedInstrument
             ? DjedDayFooterChrome(

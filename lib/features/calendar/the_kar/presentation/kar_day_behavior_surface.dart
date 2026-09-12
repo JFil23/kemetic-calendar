@@ -19,14 +19,26 @@ class KarDayBehaviorSurface extends StatefulWidget {
     required this.netjer,
     required this.flowId,
     required this.stageIndex,
+    this.completionPanel,
     this.onCompletionCommit,
     this.clock,
   });
 
-  final KarRepository repository;
+  const KarDayBehaviorSurface.preview({
+    super.key,
+    required this.netjer,
+    required this.stageIndex,
+  }) : repository = null,
+       flowId = null,
+       completionPanel = null,
+       onCompletionCommit = null,
+       clock = null;
+
+  final KarRepository? repository;
   final KarNetjer netjer;
-  final int flowId;
+  final int? flowId;
   final int stageIndex;
+  final Widget? completionPanel;
   final Future<void> Function()? onCompletionCommit;
   final DateTime Function()? clock;
 
@@ -59,12 +71,18 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    if (widget.repository == null) {
+      _loading = false;
+    } else {
+      unawaited(_load());
+    }
   }
 
   Future<void> _load() async {
+    final repository = widget.repository;
+    if (repository == null) return;
     try {
-      final value = await widget.repository.loadOrCreate(widget.netjer);
+      final value = await repository.loadOrCreate(widget.netjer);
       if (mounted) setState(() => _shrine = value);
     } catch (error) {
       if (mounted) _showError(error);
@@ -74,10 +92,11 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
   }
 
   Future<void> _mutate(KarShrine Function(KarShrine value) mutation) async {
-    if (_saving || _shrine == null) return;
+    final repository = widget.repository;
+    if (_saving || _shrine == null || repository == null) return;
     setState(() => _saving = true);
     try {
-      final saved = await widget.repository.save(mutation(_shrine!));
+      final saved = await repository.save(mutation(_shrine!));
       if (mounted) setState(() => _shrine = saved);
     } catch (error) {
       if (mounted) _showError(error);
@@ -141,7 +160,7 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
       );
     }
     final cycle = _cycle;
-    if (cycle == null) {
+    if (cycle == null && widget.repository != null) {
       return SizedBox(
         key: const ValueKey<String>('kar-day-missing-cycle'),
         height: 340,
@@ -211,11 +230,11 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
     ),
   );
 
-  Widget _buildHeroLayer(KarCycle cycle) {
+  Widget _buildHeroLayer(KarCycle? cycle) {
     if (widget.stageIndex == 5) return _buildWalkHero(cycle);
     final stageIndex = widget.stageIndex.clamp(0, 4);
     final stage = kKarStages[stageIndex];
-    final returning = _isReturn(cycle);
+    final returning = cycle != null && _isReturn(cycle);
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 22),
       decoration: _heroDecoration(),
@@ -251,7 +270,11 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
     );
   }
 
-  Widget _buildHeroControls(KarCycle cycle, {required double availableHeight}) {
+  Widget _buildHeroControls(
+    KarCycle? cycle, {
+    required double availableHeight,
+  }) {
+    if (cycle == null) return const SizedBox.shrink();
     if (widget.stageIndex == 5) {
       if (_walking) return const SizedBox.shrink();
       return Stack(
@@ -318,12 +341,12 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
     );
   }
 
-  Widget _buildPracticeLayer(KarCycle cycle) {
+  Widget _buildPracticeLayer(KarCycle? cycle) {
     if (widget.stageIndex == 5) {
       return _practiceShell(_buildWalkPractice(cycle));
     }
     final stageIndex = widget.stageIndex.clamp(0, 4);
-    final active = cycle.placements[stageIndex].activeVersion;
+    final active = cycle?.placements[stageIndex].activeVersion;
     if (active != null && !_replace) {
       return _practiceShell(_buildReturnPractice(stageIndex, active.content));
     }
@@ -356,19 +379,33 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
         const Positioned(left: 0, right: 0, top: 7, child: _SheetHandle()),
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 22, 18, 32),
-          child: child,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              child,
+              if (widget.completionPanel != null) ...<Widget>[
+                const SizedBox(height: 18),
+                KeyedSubtree(
+                  key: const ValueKey<String>('kar-completion-picker'),
+                  child: widget.completionPanel!,
+                ),
+              ],
+            ],
+          ),
         ),
       ],
     ),
   );
 
   Widget _buildFreshPractice(
-    KarCycle cycle,
+    KarCycle? cycle,
     int stageIndex,
     KarEntryVersion? active,
   ) {
     final stage = kKarStages[stageIndex];
-    final draft = _shrine?.drafts['${cycle.id}:$stageIndex'];
+    final draft = cycle == null
+        ? null
+        : _shrine?.drafts['${cycle.id}:$stageIndex'];
     final promptParagraphs = _dayPromptParagraphs(
       widget.netjer.prompts[stageIndex],
     );
@@ -376,7 +413,7 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Text(
-          '${widget.netjer.name.toUpperCase()} · CYCLE ${cycle.sequence.toString().padLeft(2, '0')} · SITTING ${(stageIndex + 1).toString().padLeft(2, '0')} · ${stage.place.toUpperCase()}',
+          '${widget.netjer.name.toUpperCase()} · CYCLE ${(cycle?.sequence ?? 1).toString().padLeft(2, '0')} · SITTING ${(stageIndex + 1).toString().padLeft(2, '0')} · ${stage.place.toUpperCase()}',
           style: _style(const Color(0xFF7198A4), 8, spacing: 1.7),
         ),
         const SizedBox(height: 7),
@@ -407,19 +444,22 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
           ),
         ),
         const SizedBox(height: 15),
-        _KarCaptureChoice(
-          netjer: widget.netjer,
-          draft: draft,
-          onDraw: () =>
-              unawaited(_openCaptureWindow(cycle, stageIndex, mode: 'drawing')),
-          onDescribe: () => unawaited(
-            _openCaptureWindow(cycle, stageIndex, mode: 'description'),
+        if (cycle != null) ...<Widget>[
+          _KarCaptureChoice(
+            netjer: widget.netjer,
+            draft: draft,
+            onDraw: () => unawaited(
+              _openCaptureWindow(cycle, stageIndex, mode: 'drawing'),
+            ),
+            onDescribe: () => unawaited(
+              _openCaptureWindow(cycle, stageIndex, mode: 'description'),
+            ),
+            onPlace: draft == null
+                ? null
+                : () => _placeDraft(cycle, stageIndex, active),
           ),
-          onPlace: draft == null
-              ? null
-              : () => _placeDraft(cycle, stageIndex, active),
-        ),
-        const SizedBox(height: 18),
+          const SizedBox(height: 18),
+        ],
         _KarCourseBand(current: stageIndex, placedStages: _placedStages(cycle)),
       ],
     );
@@ -658,7 +698,7 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
     );
   }
 
-  Widget _buildWalkHero(KarCycle cycle) {
+  Widget _buildWalkHero(KarCycle? cycle) {
     final stage = _walking ? kKarStages[_walkIndex] : kKarStages[5];
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 22),
@@ -728,7 +768,7 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
     );
   }
 
-  Widget _buildWalkPractice(KarCycle cycle) {
+  Widget _buildWalkPractice(KarCycle? cycle) {
     if (!_walking) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -750,6 +790,8 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
         ],
       );
     }
+
+    if (cycle == null) return const SizedBox.shrink();
 
     final placement = cycle.placements[_walkIndex].activeVersion;
     final stage = kKarStages[_walkIndex];
@@ -845,8 +887,8 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
     );
   }
 
-  Set<int> _placedStages(KarCycle cycle) => <int>{
-    for (final placement in cycle.placements)
+  Set<int> _placedStages(KarCycle? cycle) => <int>{
+    for (final placement in cycle?.placements ?? const <KarPlacement>[])
       if (placement.activeVersion != null) placement.stageIndex,
   };
 }
@@ -931,7 +973,7 @@ class _KarDayShrineStage extends StatelessWidget {
   });
 
   final KarNetjer netjer;
-  final KarCycle cycle;
+  final KarCycle? cycle;
   final int stageIndex;
 
   @override
@@ -939,7 +981,7 @@ class _KarDayShrineStage extends StatelessWidget {
     final accent = Color(netjer.accentValue);
     final accent2 = Color(netjer.accent2Value);
     final placedStages = <int>{
-      for (final placement in cycle.placements)
+      for (final placement in cycle?.placements ?? const <KarPlacement>[])
         if (placement.activeVersion != null) placement.stageIndex,
     };
     final stage = kKarStages[stageIndex];
@@ -989,7 +1031,7 @@ class _KarDayShrineStage extends StatelessWidget {
                   height: 225,
                   child: KarShrineVisual(
                     color: accent,
-                    placed: cycle.placedCount,
+                    placed: cycle?.placedCount ?? 0,
                   ),
                 ),
               ),
@@ -1010,7 +1052,7 @@ class _KarDayShrineStage extends StatelessWidget {
                           ),
                           TextSpan(
                             text:
-                                ' · Cycle ${cycle.sequence} · ${placedStages.length} / 5',
+                                ' · Cycle ${cycle?.sequence ?? 1} · ${placedStages.length} / 5',
                           ),
                         ],
                       ),
