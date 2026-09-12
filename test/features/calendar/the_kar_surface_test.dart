@@ -195,7 +195,20 @@ void main() {
     await _raiseKarEventContent(tester);
     expect(find.text('Describe'), findsOneWidget);
     await tester.tap(draw);
-    await tester.pump();
+    await tester.pumpAndSettle();
+    final captureWindow = find.byKey(
+      const ValueKey<String>('kar-capture-window'),
+    );
+    final captureRect = tester.getRect(captureWindow);
+    expect(captureRect.size, const Size(354, 690));
+    expect(captureRect.center, const Offset(195, 422));
+    expect(
+      find.ancestor(
+        of: captureWindow,
+        matching: find.byType(KarDayBehaviorSurface),
+      ),
+      findsNothing,
+    );
     expect(
       find.byKey(const ValueKey<String>('kar-drawing-pad')),
       findsOneWidget,
@@ -411,7 +424,7 @@ void main() {
       expect(sheet, findsOneWidget);
       expect(find.byType(KarDayBehaviorSurface), findsOneWidget);
       final expandedHeight = tester.getSize(sheet).height;
-      expect(expandedHeight, closeTo(844 * .79, 1.5));
+      expect(expandedHeight, closeTo((844 - 12) * .71, 1.5));
       await tester.drag(
         find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
         const Offset(0, 180),
@@ -433,7 +446,7 @@ void main() {
   );
 
   testWidgets(
-    'netjer source and cycle labels share a non-overlapping top row',
+    'netjer cards omit source pills and keep cycle status at top right',
     (tester) async {
       _setPhoneViewport(tester);
       final repository = MemoryKarRepository(
@@ -447,17 +460,18 @@ void main() {
       final cycle = find.byKey(
         const ValueKey<String>('kar-netjer-cycle-djehuty'),
       );
-      expect(source, findsOneWidget);
+      final card = find.byKey(const ValueKey<String>('kar-netjer-djehuty'));
+      expect(source, findsNothing);
       expect(cycle, findsOneWidget);
-      final sourceRect = tester.getRect(source);
       final cycleRect = tester.getRect(cycle);
-      expect(sourceRect.top, closeTo(cycleRect.top, .01));
-      expect(sourceRect.right, lessThanOrEqualTo(cycleRect.left - 7));
+      final cardRect = tester.getRect(card);
+      expect(cycleRect.top, closeTo(cardRect.top + 13, 2));
+      expect(cycleRect.right, closeTo(cardRect.right - 13, 2));
     },
   );
 
   testWidgets(
-    'Discovery path preserves all six authored netjer cards and label bands',
+    'Discovery path centers all six authored netjer cards and omits source pills',
     (tester) async {
       _setPhoneViewport(tester);
       final repository = MemoryKarRepository(
@@ -510,7 +524,7 @@ void main() {
       final position = tester.state<ScrollableState>(scrollable).position;
       for (final netjer in KarNetjer.values) {
         position.jumpTo(
-          (netjer.index * 318.0)
+          (netjer.index * position.viewportDimension * .92)
               .clamp(position.minScrollExtent, position.maxScrollExtent)
               .toDouble(),
         );
@@ -520,19 +534,20 @@ void main() {
         await tester.tap(card);
         await tester.pumpAndSettle();
 
-        final source = find.byKey(
-          ValueKey<String>('kar-netjer-source-${netjer.key}'),
-        );
         final cycle = find.byKey(
           ValueKey<String>('kar-netjer-cycle-${netjer.key}'),
         );
-        expect(source, findsOneWidget);
+        expect(
+          find.byKey(ValueKey<String>('kar-netjer-source-${netjer.key}')),
+          findsNothing,
+        );
         expect(cycle, findsOneWidget);
-        final sourceRect = tester.getRect(source);
-        final cycleRect = tester.getRect(cycle);
-        expect(sourceRect.top, closeTo(cycleRect.top, .01));
-        expect(sourceRect.right, lessThanOrEqualTo(cycleRect.left - 7));
         expect(tester.getSize(card), const Size(306, 408));
+        expect(
+          tester.getCenter(card).dx,
+          closeTo(tester.getCenter(carousel).dx, .75),
+        );
+        expect(find.text('${netjer.index + 1} of 6'), findsOneWidget);
         if (_captureKarVisuals) {
           await expectLater(
             card,
@@ -657,7 +672,6 @@ void main() {
         find.byKey(const ValueKey<String>('kar-detail-event-sheet-0')),
         findsOneWidget,
       );
-      await _raiseKarEventContent(tester, distance: 150);
       await tester.tap(
         find.byKey(const ValueKey<String>('kar-return-not-yet')),
       );

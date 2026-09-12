@@ -87,6 +87,7 @@ class KarDetailSurface extends StatefulWidget {
 class _KarDetailSurfaceState extends State<KarDetailSurface> {
   late KarNetjer _netjer;
   late DateTime _startDate;
+  late final PageController _netjerPageController;
   KarShrine? _shrine;
   int _loadSerial = 0;
   String? _selectedCycleId;
@@ -118,10 +119,20 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
   void initState() {
     super.initState();
     _netjer = widget.initialNetjer;
+    _netjerPageController = PageController(
+      initialPage: _netjer.index,
+      viewportFraction: .92,
+    );
     _startDate = DateUtils.dateOnly(
       widget.joinedStartDate ?? _now.add(const Duration(days: 1)),
     );
     unawaited(_loadShrine());
+  }
+
+  @override
+  void dispose() {
+    _netjerPageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadShrine() async {
@@ -254,40 +265,33 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
     FocusManager.instance.primaryFocus?.unfocus();
     await showCalendarEventDetailSheetModal<void>(
       context: context,
-      builder: (sheetContext) {
-        final initialExtent = instrumentEventSheetExtentForViewport(
-          context: sheetContext,
-          viewportFraction: .79,
-          maximumHeight: 668,
-        );
-        return InstrumentEventSheetHost(
-          key: ValueKey<String>('kar-detail-event-sheet-$stageIndex'),
-          semanticLabel: 'Resize Kꜣr event sheet',
-          handleColor: const Color(0xFF33444A),
-          initialExtent: initialExtent,
-          geometry: InstrumentEventSheetGeometry.layered,
-          trailing: IconButton(
-            key: ValueKey<String>('kar-detail-event-sheet-close-$stageIndex'),
-            tooltip: 'Close',
-            onPressed: () => Navigator.of(sheetContext).maybePop(),
-            icon: const Text(
-              '×',
-              style: TextStyle(
-                color: Color(0xFF8CA0A6),
-                fontFamily: 'GentiumPlus',
-                fontSize: 22,
-                height: 1,
-              ),
+      builder: (sheetContext) => InstrumentEventSheetHost(
+        key: ValueKey<String>('kar-detail-event-sheet-$stageIndex'),
+        semanticLabel: 'Resize Kꜣr event sheet',
+        handleColor: const Color(0xFF33444A),
+        initialExtent: .71,
+        geometry: InstrumentEventSheetGeometry.layered,
+        trailing: IconButton(
+          key: ValueKey<String>('kar-detail-event-sheet-close-$stageIndex'),
+          tooltip: 'Close',
+          onPressed: () => Navigator.of(sheetContext).maybePop(),
+          icon: const Text(
+            '×',
+            style: TextStyle(
+              color: Color(0xFF8CA0A6),
+              fontFamily: 'GentiumPlus',
+              fontSize: 22,
+              height: 1,
             ),
           ),
-          body: KarDayBehaviorSurface(
-            repository: widget.repository,
-            netjer: _netjer,
-            flowId: flowId,
-            stageIndex: stageIndex,
-          ),
-        );
-      },
+        ),
+        body: KarDayBehaviorSurface(
+          repository: widget.repository,
+          netjer: _netjer,
+          flowId: flowId,
+          stageIndex: stageIndex,
+        ),
+      ),
     );
     if (mounted) await _loadShrine();
   }
@@ -418,21 +422,37 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
           const SizedBox(height: 12),
           SizedBox(
             height: 408,
-            child: ListView.separated(
+            child: PageView.builder(
               key: const ValueKey<String>('kar-netjer-carousel'),
-              scrollDirection: Axis.horizontal,
-              physics: const PageScrollPhysics(),
+              controller: _netjerPageController,
+              padEnds: true,
+              physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
               itemCount: KarNetjer.values.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              onPageChanged: (index) =>
+                  unawaited(_selectNetjer(KarNetjer.values[index])),
               itemBuilder: (context, index) {
                 final value = KarNetjer.values[index];
-                return _NetjerCard(
-                  netjer: value,
-                  selected: value == _netjer,
-                  objectStatus: value == _netjer && cycle != null
-                      ? 'Cycle ${cycle.sequence} · ${cycle.placedCount}/5'
-                      : null,
-                  onTap: () => _selectNetjer(value),
+                return Center(
+                  child: _NetjerCard(
+                    netjer: value,
+                    selected: value == _netjer,
+                    objectStatus: value == _netjer && cycle != null
+                        ? 'Cycle ${cycle.sequence} · ${cycle.placedCount}/5'
+                        : null,
+                    onTap: () {
+                      if (!_netjerPageController.hasClients) {
+                        unawaited(_selectNetjer(value));
+                        return;
+                      }
+                      unawaited(
+                        _netjerPageController.animateToPage(
+                          index,
+                          duration: const Duration(milliseconds: 280),
+                          curve: Curves.easeOutCubic,
+                        ),
+                      );
+                    },
+                  ),
                 );
               },
             ),
@@ -876,76 +896,36 @@ class _NetjerCard extends StatelessWidget {
                 ),
               ),
             ),
-            Positioned(
-              top: 13,
-              left: 13,
-              right: 13,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Flexible(
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: Container(
-                        key: ValueKey<String>(
-                          'kar-netjer-source-${netjer.key}',
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0x9E050504),
-                          borderRadius: BorderRadius.circular(99),
-                          border: Border.all(color: const Color(0x24E8E2D6)),
-                        ),
-                        child: Text(
-                          netjer.historicalSource,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: _style(
-                            const Color(0xFFBDB5A6),
-                            9.5,
-                            spacing: .28,
-                            height: 1.08,
-                          ),
-                        ),
-                      ),
+            if (objectStatus != null)
+              Positioned(
+                top: 13,
+                right: 13,
+                child: Container(
+                  key: ValueKey<String>('kar-netjer-cycle-${netjer.key}'),
+                  constraints: const BoxConstraints(maxWidth: 118),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xAD050504),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(
+                      color: Color(netjer.accent2Value).withValues(alpha: .24),
                     ),
                   ),
-                  if (objectStatus != null) ...<Widget>[
-                    const SizedBox(width: 7),
-                    Container(
-                      key: ValueKey<String>('kar-netjer-cycle-${netjer.key}'),
-                      constraints: const BoxConstraints(maxWidth: 118),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xAD050504),
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(
-                          color: Color(
-                            netjer.accent2Value,
-                          ).withValues(alpha: .24),
-                        ),
-                      ),
-                      child: Text(
-                        objectStatus!.toUpperCase(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: _style(
-                          Color(netjer.accent2Value).withValues(alpha: .72),
-                          8.5,
-                          spacing: .55,
-                        ),
-                      ),
+                  child: Text(
+                    objectStatus!.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _style(
+                      Color(netjer.accent2Value).withValues(alpha: .72),
+                      8.5,
+                      spacing: .55,
                     ),
-                  ],
-                ],
+                  ),
+                ),
               ),
-            ),
             Positioned(
               left: 17,
               right: 17,

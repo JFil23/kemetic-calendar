@@ -4479,15 +4479,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         activeKarInstrument;
     final activeInstrumentPresentation =
         activeFollowSkyInstrument || activeLayeredInstrument;
-    // The Kꜣr reference sheet is `min(668px, 79dvh)`. The shared host sizes
-    // itself inside a viewport with a 12px release-safe reserve, so derive the
-    // fraction from the full viewport contract instead of treating 79vh as a
-    // percentage of the already reduced host height.
-    final karInitialSheetExtent = instrumentEventSheetExtentForViewport(
-      context: context,
-      viewportFraction: .79,
-      maximumHeight: 668,
-    );
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
         : keyboardInset > 0
@@ -4573,8 +4564,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             : _dayGold.withValues(alpha: 0.48),
         initialExtent: activeFollowSkyInstrument
             ? instrumentEventSheetMinExtent
-            : activeKarInstrument
-            ? karInitialSheetExtent
             : activeLayeredInstrument
             ? .71
             : .70,
@@ -5044,8 +5033,7 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) {
   final kind = resolveMaatFlowKind(behaviorPayload: event.behaviorPayload);
   return kind == MaatFlowKind.theDjed ||
       kind == MaatFlowKind.readingHouse ||
-      kind == MaatFlowKind.offeringTable ||
-      kind == MaatFlowKind.theKar;
+      kind == MaatFlowKind.offeringTable;
 }
 
 ({double leading, double trailing})? _authoredEventBlockHorizontalExpansion(
@@ -5056,7 +5044,6 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) {
     // The supplied Day View places this authored block at x=38 and x=376.
     // The shared production timeline lane starts at x=60 and ends at x=374.
     MaatFlowKind.theDjed => (leading: 22, trailing: 2),
-    MaatFlowKind.theKar => (leading: 22, trailing: 2),
     // Reading House and Offering Table both begin at x=50 in their supplied
     // Day Views while preserving the production lane's x=374 trailing edge.
     MaatFlowKind.readingHouse ||
@@ -5070,7 +5057,6 @@ double _authoredEventBlockMinHeight(MaatFlowKind? kind) {
     MaatFlowKind.theDjed => 106,
     MaatFlowKind.readingHouse => 61,
     MaatFlowKind.offeringTable => 92,
-    MaatFlowKind.theKar => 61,
     _ => 0,
   };
 }

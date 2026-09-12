@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -41,7 +42,6 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
   bool _showArtifact = false;
   bool _replace = false;
   bool _walking = false;
-  String? _captureMode;
   int _walkIndex = 0;
   final List<String> _outcomes = <String>[];
 
@@ -155,35 +155,31 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
       );
     }
     return KeyboardAwareEditableSurface(
-      child: Stack(
-        children: <Widget>[
-          InstrumentEventPresentationFrame(
-            key: const ValueKey<String>('kar-day-presentation'),
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(0, -.72),
-                radius: 1.35,
-                colors: <Color>[
-                  Color(widget.netjer.deepValue),
-                  const Color(0xFF0A0F11),
-                  const Color(0xFF050504),
-                ],
-              ),
-            ),
-            initialLowerSheetPeek: 241.75,
-            lowerSheetOverlaysInstrument: true,
-            instrumentFooterHeight: 0,
-            instrument: _buildHeroLayer(cycle),
-            instrumentFooter: const SizedBox.shrink(),
-            inputBuilder: (context, heroHeight, instrumentHeight) =>
-                _buildHeroControls(cycle),
-            body: _buildPracticeLayer(cycle),
-            bodyScrollKey: const ValueKey<String>('kar-day-sheet-scroll'),
-            lowerSheetKey: const ValueKey<String>('kar-practice-sheet'),
+      child: InstrumentEventPresentationFrame(
+        key: const ValueKey<String>('kar-day-presentation'),
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(0, -.72),
+            radius: 1.35,
+            colors: <Color>[
+              Color(widget.netjer.deepValue),
+              const Color(0xFF0A0F11),
+              const Color(0xFF050504),
+            ],
           ),
-          if (_captureMode != null && widget.stageIndex != 5)
-            _buildCaptureWindow(cycle, widget.stageIndex.clamp(0, 4)),
-        ],
+        ),
+        initialLowerSheetPeek: 241.75,
+        lowerSheetOverlaysInstrument: true,
+        instrumentFooterHeight: 0,
+        instrument: _buildHeroLayer(cycle),
+        instrumentFooter: const SizedBox.shrink(),
+        inputBuilder: (_, _, instrumentHeight) => _buildHeroControls(
+          cycle,
+          availableHeight: math.max(0, instrumentHeight - 241.75),
+        ),
+        body: _buildPracticeLayer(cycle),
+        bodyScrollKey: const ValueKey<String>('kar-day-sheet-scroll'),
+        lowerSheetKey: const ValueKey<String>('kar-practice-sheet'),
       ),
     );
   }
@@ -255,7 +251,7 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
     );
   }
 
-  Widget _buildHeroControls(KarCycle cycle) {
+  Widget _buildHeroControls(KarCycle cycle, {required double availableHeight}) {
     if (widget.stageIndex == 5) {
       if (_walking) return const SizedBox.shrink();
       return Stack(
@@ -279,12 +275,13 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
       );
     }
     if (!_isReturn(cycle)) return const SizedBox.shrink();
+    final compact = availableHeight < 440;
     return Stack(
       children: <Widget>[
         Positioned(
-          left: 146,
+          left: compact ? 132 : 146,
           right: 18,
-          top: 112,
+          top: compact ? 8 : 112,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -292,11 +289,11 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
                 'Is it here?',
                 style: _style(
                   const Color(0xFFEEE7DB),
-                  35,
+                  compact ? 26 : 35,
                   weight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 19),
+              SizedBox(height: compact ? 4 : 19),
               _ReturnButton(
                 key: const ValueKey<String>('kar-return-here'),
                 label: 'It’s here',
@@ -413,8 +410,11 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
         _KarCaptureChoice(
           netjer: widget.netjer,
           draft: draft,
-          onDraw: () => setState(() => _captureMode = 'drawing'),
-          onDescribe: () => setState(() => _captureMode = 'description'),
+          onDraw: () =>
+              unawaited(_openCaptureWindow(cycle, stageIndex, mode: 'drawing')),
+          onDescribe: () => unawaited(
+            _openCaptureWindow(cycle, stageIndex, mode: 'description'),
+          ),
           onPlace: draft == null
               ? null
               : () => _placeDraft(cycle, stageIndex, active),
@@ -443,143 +443,173 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
     if (mounted) setState(() => _replace = false);
   }
 
-  Widget _buildCaptureWindow(KarCycle cycle, int stageIndex) {
-    final mode = _captureMode!;
+  Future<void> _openCaptureWindow(
+    KarCycle cycle,
+    int stageIndex, {
+    required String mode,
+  }) async {
     final stage = kKarStages[stageIndex];
     final draft = _shrine?.drafts['${cycle.id}:$stageIndex'];
-    return Positioned.fill(
-      key: const ValueKey<String>('kar-capture-window'),
-      child: ColoredBox(
-        color: const Color(0xB8000000),
-        child: LayoutBuilder(
-          builder: (context, constraints) => Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    FocusScope.of(context).unfocus();
-                    setState(() => _captureMode = null);
-                  },
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: constraints.maxHeight - 12,
+    FocusManager.instance.primaryFocus?.unfocus();
+    await showGeneralDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: true,
+      barrierLabel: 'Close Kꜣr capture',
+      barrierColor: const Color(0xD9000000),
+      transitionDuration: const Duration(milliseconds: 180),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final eased = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: eased,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: .97, end: 1).animate(eased),
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        final media = MediaQuery.of(dialogContext);
+        return KeyboardAwareEditableSurface(
+          manageSystemKeyboardInset: true,
+          child: MediaQuery(
+            data: media.removeViewInsets(removeBottom: true),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final availableHeight = math.max(
+                  0.0,
+                  constraints.maxHeight - 40,
+                );
+                final height = math.min(
+                  mode == 'drawing' ? 690.0 : 610.0,
+                  availableHeight,
+                );
+                return Dialog(
+                  backgroundColor: Colors.transparent,
+                  insetPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 20,
                   ),
-                  child: Material(
-                    color: const Color(0xFF090907),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                      side: BorderSide(
-                        color: Color(
-                          widget.netjer.accentValue,
-                        ).withValues(alpha: .32),
-                      ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: <Widget>[
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: SizedBox(
+                      key: const ValueKey<String>('kar-capture-window'),
+                      height: height,
+                      child: Material(
+                        color: const Color(0xFF090907),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                          side: BorderSide(
+                            color: Color(
+                              widget.netjer.accentValue,
+                            ).withValues(alpha: .42),
+                          ),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    '${widget.netjer.name.toUpperCase()} · ${stage.place.toUpperCase()}',
-                                    style: _style(
-                                      const Color(0xFF8A7030),
-                                      8,
-                                      spacing: 1.5,
-                                      weight: FontWeight.w700,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 12),
+                                      child: Text(
+                                        '${widget.netjer.name.toUpperCase()} · ${stage.place.toUpperCase()}',
+                                        style: _style(
+                                          const Color(0xFF8A7030),
+                                          8,
+                                          spacing: 1.5,
+                                          weight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Close capture',
+                                    onPressed: () {
+                                      FocusScope.of(dialogContext).unfocus();
+                                      Navigator.of(dialogContext).pop();
+                                    },
+                                    icon: const Text(
+                                      '×',
+                                      style: TextStyle(
+                                        color: Color(0xFF8D877E),
+                                        fontSize: 22,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                mode == 'drawing'
+                                    ? 'Draw what you picture'
+                                    : 'Describe what you picture',
+                                style: _style(
+                                  const Color(0xFFECE5DA),
+                                  28,
+                                  weight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                mode == 'drawing'
+                                    ? 'Bad drawings welcome.'
+                                    : 'A few words or a full scene. Both count.',
+                                style: _style(
+                                  const Color(0xFF777169),
+                                  12,
+                                  style: FontStyle.italic,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              KarCaptureEditor(
+                                key: ValueKey<String>(
+                                  'kar-capture-editor-$stageIndex-$mode',
+                                ),
+                                netjer: widget.netjer,
+                                stageIndex: stageIndex,
+                                initialDraft: draft,
+                                initialMode: mode,
+                                showHeading: false,
+                                showModeSwitcher: false,
+                                showPlaceAction: false,
+                                onSaveDraft: (kind, content) => _mutate(
+                                  (value) => value.saveDraft(
+                                    stageIndex: stageIndex,
+                                    cycleId: cycle.id,
+                                    draft: KarDraft(
+                                      kind: kind,
+                                      content: content,
+                                      savedAt: _now,
                                     ),
                                   ),
                                 ),
-                              ),
-                              IconButton(
-                                tooltip: 'Close capture',
-                                onPressed: () {
-                                  FocusScope.of(context).unfocus();
-                                  setState(() => _captureMode = null);
+                                onPlace: () async {},
+                                onSaved: () {
+                                  FocusScope.of(dialogContext).unfocus();
+                                  Navigator.of(dialogContext).pop();
                                 },
-                                icon: const Text(
-                                  '×',
-                                  style: TextStyle(
-                                    color: Color(0xFF8D877E),
-                                    fontSize: 22,
-                                  ),
-                                ),
                               ),
                             ],
                           ),
-                          Text(
-                            mode == 'drawing'
-                                ? 'Draw what you picture'
-                                : 'Describe what you picture',
-                            style: _style(
-                              const Color(0xFFECE5DA),
-                              28,
-                              weight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            mode == 'drawing'
-                                ? 'Bad drawings welcome.'
-                                : 'A few words or a full scene. Both count.',
-                            style: _style(
-                              const Color(0xFF777169),
-                              12,
-                              style: FontStyle.italic,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          KarCaptureEditor(
-                            key: ValueKey<String>(
-                              'kar-capture-editor-$stageIndex-$mode',
-                            ),
-                            netjer: widget.netjer,
-                            stageIndex: stageIndex,
-                            initialDraft: draft,
-                            initialMode: mode,
-                            showHeading: false,
-                            showModeSwitcher: false,
-                            showPlaceAction: false,
-                            onSaveDraft: (kind, content) => _mutate(
-                              (value) => value.saveDraft(
-                                stageIndex: stageIndex,
-                                cycleId: cycle.id,
-                                draft: KarDraft(
-                                  kind: kind,
-                                  content: content,
-                                  savedAt: _now,
-                                ),
-                              ),
-                            ),
-                            onPlace: () async {},
-                            onSaved: () {
-                              FocusScope.of(context).unfocus();
-                              setState(() => _captureMode = null);
-                            },
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

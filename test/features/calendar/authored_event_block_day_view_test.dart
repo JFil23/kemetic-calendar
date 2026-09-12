@@ -158,7 +158,8 @@ void main() {
     expect(find.text('01 · Threshold'), findsOneWidget);
     expect(find.text('THE KꜣR · DJEHUTY · CYCLE 01'), findsOneWidget);
     expect(find.text('SITTING 1 OF 5'), findsOneWidget);
-    expect(tester.getSize(eventBlock).height, 61);
+    expect(tester.getSize(eventBlock).height, 60);
+    expect(tester.getSize(eventBlock).width, closeTo(251.2, .1));
     if (_captureKarVisuals) {
       await expectLater(
         find.byKey(_visualCaptureKey),
@@ -189,7 +190,7 @@ void main() {
     final karSheetRect = tester.getRect(
       find.byKey(const ValueKey<String>('kar-resizable-sheet')),
     );
-    expect(karSheetRect.height, closeTo(844 * .79, 1.5));
+    expect(karSheetRect.height, closeTo((844 - 12) * .71, 1.5));
     expect(karSheetRect.bottom, closeTo(844, .01));
     final collapsedPracticeRect = tester.getRect(
       find.byKey(const ValueKey<String>('kar-practice-sheet')),
@@ -205,6 +206,10 @@ void main() {
     );
     expect(find.text('Draw'), findsOneWidget);
     expect(find.text('Describe'), findsOneWidget);
+    expect(find.byTooltip('Event options'), findsNothing);
+    expect(find.text('Observed'), findsNothing);
+    expect(find.text('Partly'), findsNothing);
+    expect(find.text('Skipped'), findsNothing);
     if (_captureKarVisuals) {
       await expectLater(
         find.byKey(_visualCaptureKey),
@@ -218,7 +223,7 @@ void main() {
       final raisedPracticeRect = tester.getRect(
         find.byKey(const ValueKey<String>('kar-practice-sheet')),
       );
-      expect(raisedPracticeRect.top, closeTo(226.25, 2));
+      expect(raisedPracticeRect.top, closeTo(267, 2));
       await expectLater(
         find.byKey(_visualCaptureKey),
         matchesGoldenFile('/tmp/kar-day-fresh-raised-flutter.png'),
@@ -393,6 +398,12 @@ void main() {
 
     await tester.tap(find.text('Describe'));
     await tester.pumpAndSettle();
+    final captureWindow = find.byKey(
+      const ValueKey<String>('kar-capture-window'),
+    );
+    final unobscuredCaptureRect = tester.getRect(captureWindow);
+    expect(unobscuredCaptureRect.size, const Size(354, 610));
+    expect(unobscuredCaptureRect.center, const Offset(195, 422));
     final field = find.byKey(const ValueKey<String>('kar-describe-field'));
     await tester.ensureVisible(field);
     await tester.tap(field);
@@ -402,17 +413,30 @@ void main() {
 
     const keyboardTop = 844.0 - 300.0;
     expect(tester.getRect(field).bottom, lessThanOrEqualTo(keyboardTop));
+    expect(find.byKey(editableModalSystemInsetOwnerKey), findsNothing);
+    expect(captureWindow, findsOneWidget);
     expect(
-      tester.getRect(find.byKey(dayViewBottomSheetBackplateKey)).bottom,
+      tester.getCenter(captureWindow).dx,
+      closeTo(tester.view.physicalSize.width / 2, .01),
+    );
+    expect(
+      tester.getRect(captureWindow).bottom,
       lessThanOrEqualTo(keyboardTop),
     );
-    expect(find.byKey(editableModalSystemInsetOwnerKey), findsNothing);
     expect(
-      find.descendant(
-        of: find.byType(KarDayBehaviorSurface),
-        matching: find.byType(KeyboardAwareEditableSurface),
+      tester
+          .widgetList<KeyboardAwareEditableSurface>(
+            find.byType(KeyboardAwareEditableSurface),
+          )
+          .where((surface) => surface.manageSystemKeyboardInset),
+      hasLength(1),
+    );
+    expect(
+      find.ancestor(
+        of: captureWindow,
+        matching: find.byType(KarDayBehaviorSurface),
       ),
-      findsOneWidget,
+      findsNothing,
     );
     if (_captureKarVisuals) {
       await expectLater(
