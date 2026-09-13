@@ -511,6 +511,7 @@ class _DayTile extends StatelessWidget {
               height: MaatFlowThirtyDayCalendarGeometry.topLabelHeight,
               child: ExcludeSemantics(
                 child: OverflowBox(
+                  minWidth: 0,
                   maxWidth: MaatFlowThirtyDayCalendarGeometry.topLabelWidth,
                   alignment: Alignment.topCenter,
                   child: Text(
