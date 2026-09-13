@@ -96,9 +96,10 @@ void main() {
   }
 
   Future<void> closeSitting(WidgetTester tester, int number) async {
-    await tester.tap(
-      find.byKey(ValueKey<String>('djed-detail-sitting-close-$number')),
+    final sheet = find.byKey(
+      ValueKey<String>('djed-detail-sitting-sheet-$number'),
     );
+    Navigator.of(tester.element(sheet)).pop();
     await tester.pumpAndSettle();
   }
 
@@ -141,9 +142,7 @@ void main() {
       );
       expect(find.byType(DjedDayBehaviorSurface), findsOneWidget);
       expect(
-        find.byKey(
-          const ValueKey<String>('djed-detail-make-todo-unavailable'),
-        ),
+        find.byKey(const ValueKey<String>('djed-detail-make-todo-unavailable')),
         findsOneWidget,
       );
       expect(
@@ -271,60 +270,55 @@ void main() {
       );
       expect(makeTodo.onPressed, isNotNull);
       expect(
-        find.byKey(
-          const ValueKey<String>('djed-detail-make-todo-unavailable'),
-        ),
+        find.byKey(const ValueKey<String>('djed-detail-make-todo-unavailable')),
         findsNothing,
       );
     },
   );
 
-  testWidgets(
-    'invited Djed sittings keep restricted capabilities',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      await tester.pumpWidget(
-        MaterialApp(
-          home: CalendarPage.buildCanonicalMaatFlowDetail(
-            name: 'The Djed',
-            notes: 'maat=the-djed',
-            relation: MaatFlowDetailRelation.invited,
-          ),
+  testWidgets('invited Djed sittings keep restricted capabilities', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CalendarPage.buildCanonicalMaatFlowDetail(
+          name: 'The Djed',
+          notes: 'maat=the-djed',
+          relation: MaatFlowDetailRelation.invited,
         ),
-      );
-      await tester.pump();
-      Object? heroLoadError;
-      await tester.runAsync(
-        () => precacheImage(
-          const AssetImage(DjedDetailTokens.heroAsset),
-          tester.element(find.byType(DjedDetailSurface)),
-          onError: (exception, stackTrace) => heroLoadError = exception,
-        ),
-      );
-      expect(heroLoadError, isNull);
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pump();
+    Object? heroLoadError;
+    await tester.runAsync(
+      () => precacheImage(
+        const AssetImage(DjedDetailTokens.heroAsset),
+        tester.element(find.byType(DjedDetailSurface)),
+        onError: (exception, stackTrace) => heroLoadError = exception,
+      ),
+    );
+    expect(heroLoadError, isNull);
+    await tester.pumpAndSettle();
 
-      final carry = tester.widget<ElevatedButton>(
-        find.byKey(const ValueKey<String>('djed-carry')),
-      );
-      expect(carry.onPressed, isNull);
+    final carry = tester.widget<ElevatedButton>(
+      find.byKey(const ValueKey<String>('djed-carry')),
+    );
+    expect(carry.onPressed, isNull);
 
-      await openSitting(tester, 3);
-      expect(find.byType(DjedDayPresentation), findsOneWidget);
-      expect(find.byType(DjedDayBehaviorSurface), findsNothing);
-      final makeTodo = tester.widget<TextButton>(
-        find.byKey(const ValueKey<String>('djed-detail-make-todo')),
-      );
-      expect(makeTodo.onPressed, isNull);
-      expect(
-        find.byKey(
-          const ValueKey<String>('djed-detail-make-todo-unavailable'),
-        ),
-        findsNothing,
-      );
-    },
-  );
+    await openSitting(tester, 3);
+    expect(find.byType(DjedDayPresentation), findsOneWidget);
+    expect(find.byType(DjedDayBehaviorSurface), findsNothing);
+    final makeTodo = tester.widget<TextButton>(
+      find.byKey(const ValueKey<String>('djed-detail-make-todo')),
+    );
+    expect(makeTodo.onPressed, isNull);
+    expect(
+      find.byKey(const ValueKey<String>('djed-detail-make-todo-unavailable')),
+      findsNothing,
+    );
+  });
 
   testWidgets(
     'Djed sitting cards use live calendar rows instead of fixture appointments',

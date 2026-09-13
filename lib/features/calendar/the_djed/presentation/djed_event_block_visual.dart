@@ -192,13 +192,16 @@ class DjedEventBlockVisual extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      ordinalLabel ?? _ordinal(sittingNumber),
-                      maxLines: 1,
-                      style: _ui(
-                        color: const Color(0xFF9A8365),
-                        size: compact ? 8 : 10,
-                        spacing: .3,
+                    Flexible(
+                      child: Text(
+                        ordinalLabel ?? _ordinal(sittingNumber),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _ui(
+                          color: const Color(0xFF9A8365),
+                          size: compact ? 8 : 10,
+                          spacing: .3,
+                        ),
                       ),
                     ),
                   ],

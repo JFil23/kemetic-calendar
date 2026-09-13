@@ -376,20 +376,6 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
         handleColor: const Color(0xFF72571E),
         initialExtent: .71,
         geometry: InstrumentEventSheetGeometry.layered,
-        trailing: IconButton(
-          key: ValueKey<String>('djed-detail-sitting-close-${sitting.number}'),
-          tooltip: 'Close',
-          onPressed: () => Navigator.of(sheetContext).maybePop(),
-          icon: const Text(
-            '×',
-            style: TextStyle(
-              color: Color(0xFFB9A883),
-              fontFamily: 'GentiumPlus',
-              fontSize: 22,
-              height: 1,
-            ),
-          ),
-        ),
         body: canAct
             ? DjedDayBehaviorSurface(
                 flowId: flowId!,

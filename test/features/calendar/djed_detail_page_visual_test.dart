@@ -114,11 +114,10 @@ void main() {
           find.byType(DjedDayPresentation),
         );
         expect(presentation.fixture.sittingNumber, sittingNumber);
-        await tester.tap(
-          find.byKey(
-            ValueKey<String>('djed-detail-sitting-close-$sittingNumber'),
-          ),
+        final sheet = find.byKey(
+          ValueKey<String>('djed-detail-sitting-sheet-$sittingNumber'),
         );
+        Navigator.of(tester.element(sheet)).pop();
         await tester.pumpAndSettle();
         expect(find.byType(DjedDayPresentation), findsNothing);
       }

@@ -94,19 +94,6 @@ void main() {
                       handleColor: const Color(0xFF72571E),
                       initialExtent: .71,
                       geometry: InstrumentEventSheetGeometry.layered,
-                      trailing: const SizedBox(
-                        width: 48,
-                        child: Center(
-                          child: Text(
-                            '×',
-                            style: TextStyle(
-                              color: Color(0xFFB9A883),
-                              fontFamily: 'GentiumPlus',
-                              fontSize: 22,
-                            ),
-                          ),
-                        ),
-                      ),
                       body: DjedDayPresentation(
                         fixture: fixture,
                         onStageAction: () {},
@@ -267,11 +254,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(InstrumentEventSheetHost), findsOneWidget);
     expect(find.byType(InstrumentEventPresentationFrame), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('djed-day-sheet-close')),
-      findsOneWidget,
-    );
-    expect(find.byTooltip('Event options'), findsNothing);
+    expect(find.byTooltip('Event options'), findsOneWidget);
+    expect(find.text('×'), findsNothing);
     expect(find.textContaining('SITTING 04'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('djed-detail-make-todo')),
@@ -351,11 +335,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(InstrumentEventSheetHost), findsOneWidget);
       expect(find.byType(InstrumentEventPresentationFrame), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('djed-day-sheet-close')),
-        findsOneWidget,
-      );
-      expect(find.byTooltip('Event options'), findsNothing);
+      expect(find.byTooltip('Event options'), findsOneWidget);
+      expect(find.text('×'), findsNothing);
       expect(find.textContaining('SITTING 04'), findsOneWidget);
       expect(find.text('Make one move'), findsWidgets);
       expect(find.text('the weekly call with my sister'), findsWidgets);
@@ -422,6 +403,7 @@ void main() {
     tester,
   ) async {
     await pumpPresentation(tester, size: const Size(390, 844));
+    final sheet = find.byType(InstrumentEventSheetHost);
     final frameRect = tester.getRect(
       find.byType(InstrumentEventPresentationFrame),
     );
@@ -430,11 +412,13 @@ void main() {
     );
     expect(frameRect.bottom - practiceRect.top, closeTo(30, 1));
 
+    final initialHeight = tester.getSize(sheet).height;
     await tester.drag(
       find.byKey(const ValueKey<String>('djed-presentation-body')),
       const Offset(0, -440),
     );
     await tester.pumpAndSettle();
+    expect(tester.getSize(sheet).height, closeTo(initialHeight, 0.1));
     final dockedPracticeRect = tester.getRect(
       find.byKey(const ValueKey<String>('djed-practice-sheet')),
     );
