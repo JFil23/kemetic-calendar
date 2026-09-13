@@ -403,13 +403,16 @@ double _sittingAngle(int sitting) => switch (sitting.clamp(1, 9)) {
   _ => 0,
 };
 
-String _supportFallback(int sitting) => switch (sitting) {
+String authoredDjedSupportNameForSitting(int sitting) => switch (sitting) {
   1 => 'four supports · one at a time',
   2 || 3 => 'support 01',
   4 || 5 => 'the weekly call with my sister',
   6 || 7 => 'support 03',
   _ => 'support 04',
 };
+
+String _supportFallback(int sitting) =>
+    authoredDjedSupportNameForSitting(sitting);
 
 String _ordinal(int sitting) {
   if (sitting == 1) return 'Start here';

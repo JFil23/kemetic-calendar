@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
 
 enum DjedPracticeStageVisual {
@@ -76,7 +77,7 @@ DjedDayVisualFixture djedDayVisualFixtureForEvent(
     supportSlot: supportSlot,
     supportName: resolvedSupportName?.isNotEmpty == true
         ? resolvedSupportName!
-        : 'support ${supportSlot.toString().padLeft(2, '0')}',
+        : authoredDjedSupportNameForSitting(event.eventNumber),
   );
 }
 

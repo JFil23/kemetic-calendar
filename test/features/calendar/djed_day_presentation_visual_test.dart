@@ -144,6 +144,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('missing support_name keeps the authored sitting-four name', () {
+    final event = djedV2EventByNumber(4)!;
+    expect(
+      djedDayVisualFixtureForEvent(event).supportName,
+      'the weekly call with my sister',
+    );
+  });
+
   testWidgets('Djed Day View uses the exact angled ember event block', (
     tester,
   ) async {
@@ -242,6 +250,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(InstrumentEventSheetHost), findsOneWidget);
     expect(find.byType(InstrumentEventPresentationFrame), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('djed-day-sheet-close')),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('Event options'), findsNothing);
+    expect(find.textContaining('SITTING 04'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('djed-detail-make-todo')),
+      findsOneWidget,
+    );
     await expectLater(
       find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
       matchesGoldenFile('$_goldenRoot/djed-day-sheet-390x844.png'),
@@ -310,6 +328,24 @@ void main() {
       expect(find.text('One small thing today'), findsOneWidget);
       expect(find.text('Second of four'), findsOneWidget);
       expect(tester.getSize(find.byType(DjedEventBlockVisual)).height, 106);
+      expect(find.byType(InstrumentEventSheetHost), findsNothing);
+
+      await tester.tap(find.byType(DjedEventBlockVisual));
+      await tester.pumpAndSettle();
+      expect(find.byType(InstrumentEventSheetHost), findsOneWidget);
+      expect(find.byType(InstrumentEventPresentationFrame), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('djed-day-sheet-close')),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('Event options'), findsNothing);
+      expect(find.textContaining('SITTING 04'), findsOneWidget);
+      expect(find.text('Make one move'), findsWidgets);
+      expect(find.text('the weekly call with my sister'), findsWidgets);
+      expect(
+        find.byKey(const ValueKey<String>('djed-detail-make-todo')),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     },
   );
