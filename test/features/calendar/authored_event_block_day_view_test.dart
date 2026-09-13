@@ -85,7 +85,11 @@ void main() {
       );
       await tester.tap(find.byType(DjedEventBlockVisual));
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Event options'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('djed-day-sheet-close')),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('Event options'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

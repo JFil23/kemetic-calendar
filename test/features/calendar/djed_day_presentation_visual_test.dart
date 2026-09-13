@@ -255,7 +255,7 @@ void main() {
     expect(find.text('the weekly call with my sister'), findsOneWidget);
     expect(find.text('One small thing today'), findsOneWidget);
     expect(find.text('Second of four'), findsOneWidget);
-    expect(tester.getSize(find.byType(DjedEventBlockVisual)).height, 106);
+    expect(tester.getSize(find.byType(DjedEventBlockVisual)).height, 60);
     expect(find.byType(InstrumentEventSheetHost), findsNothing);
 
     await expectLater(
@@ -344,7 +344,7 @@ void main() {
       expect(find.text('the weekly call with my sister'), findsOneWidget);
       expect(find.text('One small thing today'), findsOneWidget);
       expect(find.text('Second of four'), findsOneWidget);
-      expect(tester.getSize(find.byType(DjedEventBlockVisual)).height, 106);
+      expect(tester.getSize(find.byType(DjedEventBlockVisual)).height, 60);
       expect(find.byType(InstrumentEventSheetHost), findsNothing);
 
       await tester.tap(find.byType(DjedEventBlockVisual));

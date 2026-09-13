@@ -5078,7 +5078,7 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) {
 
 double _authoredEventBlockMinHeight(MaatFlowKind? kind) {
   return switch (kind) {
-    MaatFlowKind.theDjed => 106,
+    MaatFlowKind.theDjed => _kDayViewHourHeight,
     MaatFlowKind.readingHouse => 61,
     MaatFlowKind.offeringTable => 92,
     _ => 0,

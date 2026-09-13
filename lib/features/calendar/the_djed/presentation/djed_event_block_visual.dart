@@ -48,8 +48,10 @@ class DjedEventBlockVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = size == DjedEventBlockSize.compact;
-    final blockHeight = height ?? (compact ? 86.0 : 106.0);
+    final requestedHeight =
+        height ?? (size == DjedEventBlockSize.compact ? 60.0 : 106.0);
+    final compact = size == DjedEventBlockSize.compact || requestedHeight < 90;
+    final blockHeight = requestedHeight;
     final radius = BorderRadius.circular(MaatEventBlockBorderTokens.radius);
     final content = Container(
       key: ValueKey<String>(
@@ -127,9 +129,9 @@ class DjedEventBlockVisual extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: compact ? 12 : 14,
-            top: compact ? 9 : 11,
-            right: compact ? 70 : 82,
+            left: compact ? 10 : 14,
+            top: compact ? 6 : 11,
+            right: compact ? 62 : 82,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,7 +147,7 @@ class DjedEventBlockVisual extends StatelessWidget {
                     spacing: compact ? 1.25 : 1.5,
                   ),
                 ),
-                SizedBox(height: compact ? 3 : 5),
+                SizedBox(height: compact ? 2 : 5),
                 Text(
                   title,
                   maxLines: 1,
@@ -157,7 +159,7 @@ class DjedEventBlockVisual extends StatelessWidget {
                     height: 1,
                   ),
                 ),
-                SizedBox(height: compact ? 3 : 4),
+                SizedBox(height: compact ? 2 : 4),
                 Text(
                   supportName ?? _supportFallback(sittingNumber),
                   maxLines: 1,
@@ -169,7 +171,7 @@ class DjedEventBlockVisual extends StatelessWidget {
                     height: compact ? 1 : 1.2,
                   ),
                 ),
-                SizedBox(height: compact ? 5 : 9),
+                SizedBox(height: compact ? 3 : 9),
                 Row(
                   children: <Widget>[
                     _SittingPips(
@@ -205,14 +207,14 @@ class DjedEventBlockVisual extends StatelessWidget {
             ),
           ),
           Positioned(
-            right: compact ? 8 : 10,
+            right: compact ? 6 : 10,
             top: 0,
             bottom: 0,
-            width: compact ? 64 : 70,
+            width: compact ? 56 : 70,
             child: Center(
               child: SizedBox(
-                width: compact ? 64 : 70,
-                height: compact ? 68 : 74,
+                width: compact ? 56 : 70,
+                height: compact ? math.min(54.0, blockHeight - 6) : 74,
                 child: CustomPaint(
                   painter: _EmberDjedPainter(
                     angleDegrees: _sittingAngle(sittingNumber),
