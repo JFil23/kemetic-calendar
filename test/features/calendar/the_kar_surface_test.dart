@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
+import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_kar/the_kar.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
@@ -79,7 +80,7 @@ void main() {
   test('Kꜣr and Offering Table receive the shared calendar preview', () {
     expect(maatFlowDetailUsesCalendarPreview(kKarFlowKey), isTrue);
     expect(maatFlowDetailUsesCalendarPreview(kOfferingTableFlowKey), isTrue);
-    expect(maatFlowDetailUsesCalendarPreview(kTheDjedFlowKey), isFalse);
+    expect(maatFlowDetailUsesCalendarPreview(kTheDjedFlowKey), isTrue);
     expect(maatFlowDetailUsesCalendarPreview(kReadingHouseFlowKey), isFalse);
   });
 
@@ -312,14 +313,18 @@ void main() {
         const ValueKey<String>('kar-thirty-day-calendar'),
       );
       await _reveal(tester, calendar);
-      expect(find.text('Decan I'), findsOneWidget);
-      expect(find.text('Decan II'), findsOneWidget);
-      expect(find.text('Decan III'), findsOneWidget);
-      expect(find.text('days 1–10'), findsOneWidget);
-      expect(find.text('days 21–30'), findsOneWidget);
+      expect(find.byType(MaatFlowThirtyDayCalendar), findsOneWidget);
       expect(
-        find.byKey(const ValueKey<String>('kar-calendar-day-30')),
-        findsOneWidget,
+        find.byWidgetPredicate((widget) {
+          final key = widget.key;
+          return key is ValueKey<String> &&
+              key.value.startsWith('kar-calendar-day-');
+        }),
+        findsNWidgets(30),
+      );
+      expect(
+        find.textContaining('Historically informed reconstructions'),
+        findsNothing,
       );
       if (_captureKarVisuals) {
         await expectLater(
@@ -330,16 +335,6 @@ void main() {
           calendar,
           matchesGoldenFile('/tmp/kar-detail-calendar-element-flutter.png'),
         );
-      }
-
-      final firstRowY = tester
-          .getCenter(find.byKey(const ValueKey<String>('kar-calendar-day-1')))
-          .dy;
-      for (var day = 2; day <= 10; day++) {
-        final center = tester.getCenter(
-          find.byKey(ValueKey<String>('kar-calendar-day-$day')),
-        );
-        expect(center.dy, closeTo(firstRowY, .01));
       }
 
       for (var stage = 0; stage < 5; stage++) {

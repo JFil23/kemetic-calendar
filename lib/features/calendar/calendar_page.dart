@@ -227,7 +227,9 @@ part 'quick_add_parser.dart';
 
 @visibleForTesting
 bool maatFlowDetailUsesCalendarPreview(String templateKey) =>
-    templateKey == kOfferingTableFlowKey || templateKey == kKarFlowKey;
+    templateKey == kOfferingTableFlowKey ||
+    templateKey == kTheDjedFlowKey ||
+    templateKey == kKarFlowKey;
 
 class _MountedFlowEndPatch {
   const _MountedFlowEndPatch({

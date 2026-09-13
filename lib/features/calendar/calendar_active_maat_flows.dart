@@ -1455,6 +1455,7 @@ class _ActiveMaatFlowDetailSurfaceState
     return DjedDetailSurface(
       startDate: DateUtils.dateOnly(startDate),
       supports: supports,
+      calendarPreview: widget.calendarPreview,
       joined: widget.alreadyJoined,
       busy: _djedJoinInFlight,
       onCarryConfiguration: widget.alreadyJoined

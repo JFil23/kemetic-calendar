@@ -11,6 +11,7 @@ import '../../kemetic_month_metadata.dart';
 import '../../maat_flow_visual_tokens.dart';
 import '../../presentation/instrument_event_presentation_frame.dart';
 import '../../presentation/maat_flow_detail_shell.dart';
+import '../../presentation/maat_flow_thirty_day_calendar.dart';
 import '../kar_repository.dart';
 import '../the_kar_flow.dart';
 import '../the_kar_models.dart';
@@ -53,6 +54,18 @@ abstract final class KarDetailTokens {
     mutedText: low,
     separator: sep,
     glow: Color(0xFFC9E3EB),
+  );
+
+  static const thirtyDayCalendarTheme = MaatFlowThirtyDayCalendarTheme(
+    introText: bone,
+    introEmphasis: silver,
+    border: Color(0x2ED4AE43),
+    month: gold,
+    monthTransliteration: goldDim,
+    decan: Color(0xFFA9853D),
+    day: Color(0xFFB59150),
+    today: Color(0xFFE2C862),
+    highlight: Color(0xFF91B7C7),
   );
 }
 
@@ -393,24 +406,9 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'CHOOSE A NETJER',
-                      style: _style(KarDetailTokens.goldDim, 10, spacing: 1.75),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Historically informed reconstructions anchored in Early Dynastic and Old Kingdom evidence.',
-                      style: _style(
-                        const Color(0xFF625E56),
-                        11,
-                        style: FontStyle.italic,
-                        height: 1.28,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  'CHOOSE A NETJER',
+                  style: _style(KarDetailTokens.goldDim, 10, spacing: 1.75),
                 ),
               ),
               Text(
@@ -623,7 +621,13 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
             ),
           ],
           const SizedBox(height: 18),
-          _ThirtyDayStrip(accent: accent),
+          _KarThirtyDayCalendar(
+            windowStart: _startDate,
+            today: DateUtils.dateOnly(_now),
+            accent: accent,
+            placedStages: placedStages,
+            calendarRows: widget.calendarPreview.rows,
+          ),
           const SizedBox(height: 24),
           Text(
             'The month',
@@ -1478,193 +1482,106 @@ class _KarWalkRow extends StatelessWidget {
   );
 }
 
-class _ThirtyDayStrip extends StatelessWidget {
-  const _ThirtyDayStrip({required this.accent});
+class _KarThirtyDayCalendar extends StatelessWidget {
+  const _KarThirtyDayCalendar({
+    required this.windowStart,
+    required this.today,
+    required this.accent,
+    required this.placedStages,
+    required this.calendarRows,
+  });
 
+  final DateTime windowStart;
+  final DateTime today;
   final Color accent;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      RepaintBoundary(
-        key: const ValueKey<String>('kar-thirty-day-calendar'),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0x1FD4AE43)),
-            borderRadius: BorderRadius.circular(16),
-            color: const Color(0xFF070706),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: <Widget>[
-              for (var decan = 0; decan < 3; decan++)
-                _KarDecanRow(decan: decan, accent: accent),
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(height: 12),
-      Wrap(
-        spacing: 10,
-        runSpacing: 6,
-        children: <Widget>[
-          _KarCalendarLegend(
-            color: Color.lerp(accent, Colors.white, .35)!,
-            size: 6,
-            label: 'first image / first walk',
-          ),
-          _KarCalendarLegend(
-            color: accent,
-            size: 5,
-            label: 'imagination sittings',
-          ),
-        ],
-      ),
-    ],
-  );
-}
-
-class _KarDecanRow extends StatelessWidget {
-  const _KarDecanRow({required this.decan, required this.accent});
-
-  final int decan;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 80,
-    padding: const EdgeInsets.fromLTRB(10, 7, 10, 4),
-    decoration: BoxDecoration(
-      border: decan == 0
-          ? null
-          : const Border(top: BorderSide(color: Color(0x14D4AE43))),
-    ),
-    child: Column(
-      children: <Widget>[
-        SizedBox(
-          height: 19,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: <Widget>[
-              Text(
-                'Decan ${const <String>['I', 'II', 'III'][decan]}',
-                style: _style(
-                  const Color(0xFFA79B7A),
-                  14,
-                  weight: FontWeight.w500,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                'days ${decan * 10 + 1}–${decan * 10 + 10}',
-                style: _style(
-                  const Color(0xFF625F58),
-                  10.5,
-                  style: FontStyle.italic,
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 49,
-          child: Row(
-            children: <Widget>[
-              for (var offset = 1; offset <= 10; offset++)
-                Expanded(
-                  child: _KarCalendarDay(
-                    day: decan * 10 + offset,
-                    accent: accent,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _KarCalendarDay extends StatelessWidget {
-  const _KarCalendarDay({required this.day, required this.accent});
-
-  final int day;
-  final Color accent;
+  final Set<int> placedStages;
+  final List<FollowSkyCalendarPreviewRow> calendarRows;
 
   @override
   Widget build(BuildContext context) {
-    final milestone = kKarStages.any((stage) => stage.day == day);
-    final major = day == 1 || day == 30;
-    return Stack(
-      key: ValueKey<String>('kar-calendar-day-$day'),
-      alignment: Alignment.center,
-      children: <Widget>[
-        if (day == 1)
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0x6BD4AE43)),
-            ),
-          ),
-        Text(
-          '$day',
-          style: _style(
-            day == 1 ? KarDetailTokens.bone : const Color(0xFF5A5852),
-            20,
-            weight: FontWeight.w500,
-          ),
-        ),
-        if (milestone)
-          Positioned(
-            bottom: 2,
-            child: Container(
-              width: major ? 6 : 4,
-              height: major ? 6 : 4,
-              decoration: BoxDecoration(
-                color: major ? Color.lerp(accent, Colors.white, .35) : accent,
-                shape: BoxShape.circle,
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: accent.withValues(alpha: .38),
-                    blurRadius: 8,
-                  ),
+    final colorsByDay = <DateTime, List<Color>>{};
+    for (final row in calendarRows) {
+      final day = DateUtils.dateOnly(row.localDay);
+      colorsByDay.putIfAbsent(day, () => <Color>[]).add(row.eventColor);
+    }
+    final stageByDay = <int, int>{
+      for (final (index, stage) in kKarStages.indexed) stage.day: index,
+    };
+    final calendarHeight = _sharedCalendarHeight(windowStart);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The surrounding Kꜣr prose is inset by 22px. The shared calendar is
+        // deliberately full-bleed, matching Follow the Sky and Offering Table.
+        final fullWidth = constraints.maxWidth + 44;
+        return SizedBox(
+          height: calendarHeight,
+          child: OverflowBox(
+            alignment: Alignment.topCenter,
+            minWidth: fullWidth,
+            maxWidth: fullWidth,
+            minHeight: calendarHeight,
+            maxHeight: calendarHeight,
+            child: RepaintBoundary(
+              key: const ValueKey<String>('kar-thirty-day-calendar'),
+              child: MaatFlowThirtyDayCalendar(
+                windowStart: windowStart,
+                markers: <MaatFlowThirtyDayMarker>[
+                  for (var offset = 0; offset < 30; offset++)
+                    () {
+                      final date = DateUtils.dateOnly(
+                        windowStart.add(Duration(days: offset)),
+                      );
+                      final stageIndex = stageByDay[offset + 1];
+                      return MaatFlowThirtyDayMarker(
+                        date: date,
+                        isToday: DateUtils.isSameDay(date, today),
+                        highlighted: stageIndex != null,
+                        filled:
+                            stageIndex != null &&
+                            placedStages.contains(stageIndex),
+                        accent: accent,
+                        secondaryColors: colorsByDay[date] ?? const <Color>[],
+                      );
+                    }(),
                 ],
+                theme: KarDetailTokens.thirtyDayCalendarTheme,
+                introFirstLine: '',
+                introSecondLine: '',
+                keyPrefix: 'kar-calendar',
               ),
             ),
           ),
-      ],
+        );
+      },
     );
   }
-}
 
-class _KarCalendarLegend extends StatelessWidget {
-  const _KarCalendarLegend({
-    required this.color,
-    required this.size,
-    required this.label,
-  });
-
-  final Color color;
-  final double size;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: <Widget>[
-      Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-      const SizedBox(width: 5),
-      Text(label, style: _style(const Color(0xFF625E56), 10, height: 1.2)),
-    ],
-  );
+  double _sharedCalendarHeight(DateTime start) {
+    var monthBands = 0;
+    var decanRows = 0;
+    int? previousMonth;
+    int? previousDecan;
+    for (var offset = 0; offset < 30; offset++) {
+      final date = start.add(Duration(days: offset));
+      final kemetic = KemeticMath.fromGregorian(date);
+      final decan = (kemetic.kDay - 1) ~/ 10;
+      if (kemetic.kMonth != previousMonth) {
+        monthBands += 1;
+        previousMonth = kemetic.kMonth;
+        previousDecan = null;
+      }
+      if (decan != previousDecan) {
+        decanRows += 1;
+        previousDecan = decan;
+      }
+    }
+    const calendarVerticalSpacing = 10.0;
+    const monthBandHeight = 34.0;
+    return calendarVerticalSpacing +
+        (monthBands * monthBandHeight) +
+        (decanRows * MaatFlowThirtyDayCalendarGeometry.decanRowHeight);
+  }
 }
 
 TextStyle _style(
