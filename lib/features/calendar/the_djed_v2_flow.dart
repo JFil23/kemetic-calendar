@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'the_djed_flow.dart';
 import 'track_sky_flow.dart';
 
@@ -335,6 +337,38 @@ DjedV2Event? djedV2EventByNumber(int? eventNumber) {
     if (event.eventNumber == eventNumber) return event;
   }
   return null;
+}
+
+/// True when a calendar event is the scheduled sitting for this owned Djed.
+@visibleForTesting
+bool calendarEventMatchesOwnedDjedSitting({
+  required int flowId,
+  required int sittingNumber,
+  required int? eventFlowId,
+  String? title,
+  String? actionId,
+  Map<String, dynamic>? behaviorPayload,
+}) {
+  if (eventFlowId != flowId) return false;
+  final v2 = djedV2EventForEvent(
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
+  if (v2 != null) return v2.eventNumber == sittingNumber;
+  final semanticId = behaviorPayload?['semantic_step_id']?.toString().trim();
+  if (semanticId != null && semanticId.isNotEmpty) {
+    for (final event in kDjedV2Events) {
+      if (event.semanticStepId == semanticId) {
+        return event.eventNumber == sittingNumber;
+      }
+    }
+  }
+  return djedEventForEvent(
+        title: title,
+        actionId: actionId,
+        behaviorPayload: behaviorPayload,
+      )?.eventNumber ==
+      sittingNumber;
 }
 
 DjedV2Event? djedV2EventForEvent({

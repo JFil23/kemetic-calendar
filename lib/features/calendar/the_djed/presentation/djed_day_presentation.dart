@@ -1305,23 +1305,37 @@ class DjedDayFooterChrome extends StatelessWidget {
 }
 
 class DjedDayFooterActions extends StatelessWidget {
-  const DjedDayFooterActions({super.key, this.onMakeTodo, this.onCalendar});
+  const DjedDayFooterActions({
+    super.key,
+    this.onMakeTodo,
+    this.onCalendar,
+    this.makeTodoUnavailable = false,
+  });
 
   final VoidCallback? onMakeTodo;
   final VoidCallback? onCalendar;
+  final bool makeTodoUnavailable;
 
   @override
   Widget build(BuildContext context) {
+    final makeTodoLabel = makeTodoUnavailable
+        ? 'Make to-do unavailable'
+        : '≡✓  Make to-do';
     return DjedDayFooterChrome(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
           Flexible(
             child: TextButton(
+              key: ValueKey<String>(
+                makeTodoUnavailable
+                    ? 'djed-detail-make-todo-unavailable'
+                    : 'djed-detail-make-todo',
+              ),
               onPressed: onMakeTodo,
               style: _djedFooterButtonStyle,
-              child: const Text(
-                '≡✓  Make to-do',
+              child: Text(
+                makeTodoLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

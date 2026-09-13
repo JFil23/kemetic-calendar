@@ -15,6 +15,70 @@ const Key kMaatFlowDetailSurfaceHostKey = ValueKey<String>(
   'maat-flow-detail-surface-host',
 );
 
+/// How the current user relates to the flow being shown.
+enum MaatFlowDetailRelation {
+  /// Catalog template. No scheduled instance.
+  catalogPreview,
+
+  /// The user's own scheduled instance.
+  owned,
+
+  /// Someone else's shared/invited flow. Never a personal lookup.
+  invited,
+}
+
+@immutable
+class MaatFlowDetailComposition {
+  const MaatFlowDetailComposition({
+    required this.template,
+    required this.relation,
+    this.intendedInstance,
+    this.calendar = FollowSkyCalendarPreview.unavailable,
+    this.followSkyCandidates = const <CourseActivitySignal>[],
+    this.followSkyMeasurementIntervals = const <CourseMeasurementInterval>[],
+  });
+
+  final _MaatFlowTemplate template;
+  final MaatFlowDetailRelation relation;
+  final _Flow? intendedInstance;
+  final FollowSkyCalendarPreview calendar;
+  final List<CourseActivitySignal> followSkyCandidates;
+  final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
+
+  bool get canJoin =>
+      relation != MaatFlowDetailRelation.invited && intendedInstance == null;
+
+  bool get canEditConfiguration => relation != MaatFlowDetailRelation.invited;
+
+  bool get canActOnEvents =>
+      relation == MaatFlowDetailRelation.owned && intendedInstance != null;
+}
+
+/// Shared resolution for calendar, `/flows`, and inbox adapters.
+///
+/// Adapters keep their own navigation. They must pass the intended instance
+/// explicitly. This function never looks up a personal flow by template key.
+@visibleForTesting
+MaatFlowDetailComposition resolveMaatFlowDetailComposition({
+  required _MaatFlowTemplate template,
+  required MaatFlowDetailRelation relation,
+  _Flow? intendedInstance,
+  FollowSkyCalendarPreview? calendar,
+  List<CourseActivitySignal> followSkyCandidates =
+      const <CourseActivitySignal>[],
+  List<CourseMeasurementInterval> followSkyMeasurementIntervals =
+      const <CourseMeasurementInterval>[],
+}) {
+  return MaatFlowDetailComposition(
+    template: template,
+    relation: relation,
+    intendedInstance: intendedInstance,
+    calendar: calendar ?? FollowSkyCalendarPreview.unavailable,
+    followSkyCandidates: followSkyCandidates,
+    followSkyMeasurementIntervals: followSkyMeasurementIntervals,
+  );
+}
+
 // Kept as negative-contract keys so tests can prove the retired catalog tabs
 // never return to the active discovery surface.
 @visibleForTesting
@@ -408,6 +472,8 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
   final GlobalKey _addFlowHelperKey = GlobalKey(
     debugLabel: 'flow_studio_maat_add_flow_helper',
   );
+  final ScrollController _discoveryScrollController = ScrollController();
+  double? _discoveryReturnOffset;
   bool _helperPrompted = false;
   String? _selectedTemplateKey;
 
@@ -451,6 +517,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
 
   @override
   void dispose() {
+    _discoveryScrollController.dispose();
     EndFlowVisibilityStore.instance.removeListener(_handleVisibilityChanged);
     super.dispose();
   }
@@ -550,6 +617,9 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
         OnboardingHelperRegistry.flowStudioMaatFlows.id,
       ),
     );
+    if (_discoveryScrollController.hasClients) {
+      _discoveryReturnOffset = _discoveryScrollController.offset;
+    }
     setState(() => _selectedTemplateKey = template.key);
     widget.onSelectedTemplateChanged?.call(template.key);
   }
@@ -558,6 +628,20 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
     if (_selectedTemplateKey == null) return;
     setState(() => _selectedTemplateKey = null);
     widget.onSelectedTemplateChanged?.call(null);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreDiscoveryOffset();
+    });
+  }
+
+  void _restoreDiscoveryOffset() {
+    final offset = _discoveryReturnOffset;
+    if (!mounted || offset == null || !_discoveryScrollController.hasClients) {
+      return;
+    }
+    final position = _discoveryScrollController.position;
+    position.jumpTo(
+      offset.clamp(position.minScrollExtent, position.maxScrollExtent),
+    );
   }
 
   @override
@@ -597,6 +681,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
         .toList(growable: false);
     return MaatFlowDiscoveryView(
       cards: cards,
+      scrollController: _discoveryScrollController,
       onOpen: (flowKey) {
         final template = templatesByKey[flowKey];
         if (template == null) return;
@@ -692,35 +777,40 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
   final template = _kCoreMaatFlowTemplates.firstWhere(
     (candidate) => candidate.key == templateKey,
   );
-  return _ActiveMaatFlowDetailSurface(
-    template: template,
+  return _ActiveMaatFlowDetailSurface.fromComposition(
+    composition: resolveMaatFlowDetailComposition(
+      template: template,
+      relation: joinedStartDate == null
+          ? MaatFlowDetailRelation.catalogPreview
+          : MaatFlowDetailRelation.owned,
+      intendedInstance: joinedStartDate == null
+          ? null
+          : _Flow(
+              id: joinedFlowId,
+              name: template.title,
+              color: template.color,
+              active: true,
+              rules: <FlowRule>[
+                _RuleDates(
+                  dates: <DateTime>{
+                    for (var offset = 0; offset < 30; offset++)
+                      DateUtils.dateOnly(
+                        joinedStartDate.add(Duration(days: offset)),
+                      ),
+                  },
+                ),
+              ],
+              start: DateUtils.dateOnly(joinedStartDate),
+              end: DateUtils.dateOnly(
+                joinedStartDate.add(const Duration(days: 29)),
+              ),
+              notes:
+                  'maat=${template.key};offering_tz=pacific;offering_lens=neutral;no_cup_mode=0',
+            ),
+      calendar: calendarPreview,
+    ),
     onBack: onBack,
     karRepository: karRepository,
-    calendarPreview: calendarPreview,
-    joinedFlow: joinedStartDate == null
-        ? null
-        : _Flow(
-            id: joinedFlowId,
-            name: template.title,
-            color: template.color,
-            active: true,
-            rules: <FlowRule>[
-              _RuleDates(
-                dates: <DateTime>{
-                  for (var offset = 0; offset < 30; offset++)
-                    DateUtils.dateOnly(
-                      joinedStartDate.add(Duration(days: offset)),
-                    ),
-                },
-              ),
-            ],
-            start: DateUtils.dateOnly(joinedStartDate),
-            end: DateUtils.dateOnly(
-              joinedStartDate.add(const Duration(days: 29)),
-            ),
-            notes:
-                'maat=${template.key};offering_tz=pacific;offering_lens=neutral;no_cup_mode=0',
-          ),
     addInstance:
         ({
           required _MaatFlowTemplate template,
@@ -1246,20 +1336,55 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
     required this.addInstance,
     this.onJoined,
     this.joinedFlow,
+    this.relation = MaatFlowDetailRelation.catalogPreview,
     this.onBack,
     this.followSkyCandidates = const <CourseActivitySignal>[],
     this.followSkyMeasurementIntervals = const <CourseMeasurementInterval>[],
-    this.calendarPreview = FollowSkyCalendarPreview.empty,
+    this.calendarPreview = FollowSkyCalendarPreview.unavailable,
     this.onFollowSkyCourseSaved,
     this.onFollowSkyProtectTime,
     this.onEndFlow,
     this.karRepository,
   });
 
+  factory _ActiveMaatFlowDetailSurface.fromComposition({
+    required MaatFlowDetailComposition composition,
+    required _ActiveMaatFlowAddInstance addInstance,
+    Future<void> Function(int flowId)? onJoined,
+    VoidCallback? onBack,
+    Future<void> Function(TrackSkyCourse? course, String notes)?
+    onFollowSkyCourseSaved,
+    Future<void> Function({
+      required TrackSkyCourse course,
+      required DateTime startLocal,
+      required DateTime endLocal,
+    })?
+    onFollowSkyProtectTime,
+    Future<EndFlowOutcome> Function(int flowId)? onEndFlow,
+    KarRepository? karRepository,
+  }) {
+    return _ActiveMaatFlowDetailSurface(
+      template: composition.template,
+      addInstance: addInstance,
+      onJoined: onJoined,
+      joinedFlow: composition.intendedInstance,
+      relation: composition.relation,
+      onBack: onBack,
+      followSkyCandidates: composition.followSkyCandidates,
+      followSkyMeasurementIntervals: composition.followSkyMeasurementIntervals,
+      calendarPreview: composition.calendar,
+      onFollowSkyCourseSaved: onFollowSkyCourseSaved,
+      onFollowSkyProtectTime: onFollowSkyProtectTime,
+      onEndFlow: onEndFlow,
+      karRepository: karRepository,
+    );
+  }
+
   final _MaatFlowTemplate template;
   final _ActiveMaatFlowAddInstance addInstance;
   final Future<void> Function(int flowId)? onJoined;
   final _Flow? joinedFlow;
+  final MaatFlowDetailRelation relation;
   final VoidCallback? onBack;
   final List<CourseActivitySignal> followSkyCandidates;
   final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
@@ -1275,7 +1400,17 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
   final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final KarRepository? karRepository;
 
-  bool get alreadyJoined => joinedFlow != null;
+  bool get alreadyJoined =>
+      joinedFlow != null && relation == MaatFlowDetailRelation.owned;
+
+  MaatFlowDetailComposition get composition => MaatFlowDetailComposition(
+    template: template,
+    relation: relation,
+    intendedInstance: joinedFlow,
+    calendar: calendarPreview,
+    followSkyCandidates: followSkyCandidates,
+    followSkyMeasurementIntervals: followSkyMeasurementIntervals,
+  );
 
   @override
   State<_ActiveMaatFlowDetailSurface> createState() =>
@@ -1452,15 +1587,18 @@ class _ActiveMaatFlowDetailSurfaceState
                 },
               ),
           ];
+    final composition = widget.composition;
     return DjedDetailSurface(
       startDate: DateUtils.dateOnly(startDate),
       supports: supports,
       calendarPreview: widget.calendarPreview,
       joined: widget.alreadyJoined,
       busy: _djedJoinInFlight,
-      onCarryConfiguration: widget.alreadyJoined
-          ? null
-          : (value) => unawaited(_joinDjed(startDate, value)),
+      flowId: composition.intendedInstance?.id,
+      canActOnEvents: composition.canActOnEvents,
+      onCarryConfiguration: composition.canJoin
+          ? (value) => unawaited(_joinDjed(startDate, value))
+          : null,
       onBack: widget.onBack,
     );
   }

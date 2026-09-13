@@ -539,4 +539,48 @@ void main() {
     expect(find.text('Follow the Sky'), findsOneWidget);
     expect(coreMaatFlowTemplateKeysForTesting(), hasLength(5));
   });
+
+  testWidgets(
+    'discovery returns to the previous offset after closing detail',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: buildMaatFlowsListPreviewForTesting(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final list = find.byKey(
+        const PageStorageKey<String>('maat-flow-discovery-scroll'),
+      );
+      final djed = find.byKey(
+        const ValueKey<String>('maat-flow-discovery-card-the-djed'),
+      );
+      await tester.scrollUntilVisible(
+        djed,
+        180,
+        scrollable: find.descendant(
+          of: list,
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final offsetBefore = tester.widget<ListView>(list).controller!.offset;
+      expect(offsetBefore, greaterThan(0));
+
+      await tester.tap(djed);
+      await tester.pumpAndSettle();
+      expect(find.byKey(kMaatFlowDetailSurfaceHostKey), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey<String>('djed-back')));
+      await tester.pumpAndSettle();
+
+      expect(list, findsOneWidget);
+      final offsetAfter = tester.widget<ListView>(list).controller!.offset;
+      expect(offsetAfter, closeTo(offsetBefore, 1));
+    },
+  );
 }

@@ -5044,6 +5044,11 @@ class CalendarPage extends StatefulWidget {
     String? notes,
     List<dynamic> eventsJson = const <dynamic>[],
     String backFallbackLocation = kMaatFlowsListRoute,
+    MaatFlowDetailRelation relation = MaatFlowDetailRelation.catalogPreview,
+    int? intendedFlowId,
+    DateTime? intendedStart,
+    DateTime? intendedEnd,
+    FollowSkyCalendarPreview? calendarPreview,
   }) {
     final templateKey = _canonicalMaatTemplateKeyForSnapshot(
       name: name,
@@ -5073,9 +5078,42 @@ class CalendarPage extends StatefulWidget {
 
     for (final template in _kCoreMaatFlowTemplates) {
       if (template.key != templateKey) continue;
+      final intended = intendedFlowId == null
+          ? null
+          : _Flow(
+              id: intendedFlowId,
+              name: name,
+              color: template.color,
+              active: true,
+              rules: const <FlowRule>[],
+              start: intendedStart,
+              end: intendedEnd,
+              notes: notes,
+            );
+      FollowSkyCalendarPreview? resolvedCalendar = calendarPreview;
+      final sky =
+          template.key == 'track-the-sky' &&
+              relation != MaatFlowDetailRelation.invited
+          ? _mountedState?._followSkyLiveInputs()
+          : null;
+      if (resolvedCalendar == null &&
+          relation != MaatFlowDetailRelation.invited) {
+        resolvedCalendar = template.key == 'track-the-sky'
+            ? sky?.preview
+            : maatFlowDetailUsesCalendarPreview(template.key)
+            ? _mountedState?._maatFlowCalendarPreview()
+            : null;
+      }
       return Builder(
-        builder: (context) => _ActiveMaatFlowDetailSurface(
-          template: template,
+        builder: (context) => _ActiveMaatFlowDetailSurface.fromComposition(
+          composition: resolveMaatFlowDetailComposition(
+            template: template,
+            relation: relation,
+            intendedInstance: intended,
+            calendar: resolvedCalendar,
+            followSkyCandidates: sky?.candidates ?? const [],
+            followSkyMeasurementIntervals: sky?.intervals ?? const [],
+          ),
           addInstance: _addMaatFlowInstanceHeadless,
           onBack: () => popMaatFlowDetailOrGo(
             context,
@@ -8075,9 +8113,22 @@ class CalendarPage extends StatefulWidget {
             template.key,
           );
         }();
-    return _ActiveMaatFlowDetailSurface(
-      template: template,
-      joinedFlow: activeInstance,
+    final mountedState = _mountedState;
+    final sky = template.key == 'track-the-sky'
+        ? mountedState?._followSkyLiveInputs()
+        : null;
+    final calendar = maatFlowDetailUsesCalendarPreview(template.key)
+        ? mountedState?._maatFlowCalendarPreview()
+        : sky?.preview;
+    return _ActiveMaatFlowDetailSurface.fromComposition(
+      composition: resolveMaatFlowDetailComposition(
+        template: template,
+        relation: MaatFlowDetailRelation.owned,
+        intendedInstance: activeInstance,
+        calendar: calendar,
+        followSkyCandidates: sky?.candidates ?? const [],
+        followSkyMeasurementIntervals: sky?.intervals ?? const [],
+      ),
       addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
       onBack: onBack,
       onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
@@ -8752,6 +8803,49 @@ class CalendarPage extends StatefulWidget {
     final state = _mountedState;
     if (state == null) return false;
     return state._makeTodoFromEventTarget(target);
+  }
+
+  @visibleForTesting
+  static DayViewSheetEventTarget? Function({
+    required int flowId,
+    required int sittingNumber,
+  })?
+  debugOwnedDjedSittingEventTargetForTesting;
+
+  static DayViewSheetEventTarget? eventTargetForOwnedDjedSitting({
+    required int flowId,
+    required int sittingNumber,
+  }) {
+    final override = debugOwnedDjedSittingEventTargetForTesting;
+    if (override != null) {
+      return override(flowId: flowId, sittingNumber: sittingNumber);
+    }
+    return _mountedState?._eventTargetForOwnedDjedSitting(
+      flowId: flowId,
+      sittingNumber: sittingNumber,
+    );
+  }
+
+  static bool hasOwnedDjedSittingEventIdentity({
+    required int flowId,
+    required int sittingNumber,
+  }) =>
+      eventTargetForOwnedDjedSitting(
+        flowId: flowId,
+        sittingNumber: sittingNumber,
+      ) !=
+      null;
+
+  static Future<bool> makeTodoFromOwnedDjedSitting({
+    required int flowId,
+    required int sittingNumber,
+  }) async {
+    final target = eventTargetForOwnedDjedSitting(
+      flowId: flowId,
+      sittingNumber: sittingNumber,
+    );
+    if (target == null) return false;
+    return makeTodoFromEventTarget(target);
   }
 
   static String detailSheetCalendarButtonLabel(EventItem event) {
@@ -13058,13 +13152,16 @@ class CalendarPageState extends State<CalendarPage>
     final calendarPreview = usesSharedCalendarPreview
         ? _maatFlowCalendarPreview()
         : sky?.preview;
-    return _ActiveMaatFlowDetailSurface(
-      template: template,
-      joinedFlow: activeInstance,
+    return _ActiveMaatFlowDetailSurface.fromComposition(
+      composition: resolveMaatFlowDetailComposition(
+        template: template,
+        relation: MaatFlowDetailRelation.owned,
+        intendedInstance: activeInstance,
+        calendar: calendarPreview,
+        followSkyCandidates: sky?.candidates ?? const [],
+        followSkyMeasurementIntervals: sky?.intervals ?? const [],
+      ),
       onBack: onBack,
-      followSkyCandidates: sky?.candidates ?? const [],
-      followSkyMeasurementIntervals: sky?.intervals ?? const [],
-      calendarPreview: calendarPreview ?? FollowSkyCalendarPreview.empty,
       onFollowSkyCourseSaved: activeInstance?.id == null
           ? null
           : (course, notes) => _saveFollowSkyCourseNotes(
@@ -16469,8 +16566,12 @@ class CalendarPageState extends State<CalendarPage>
         ),
       );
     }
-    return _ActiveMaatFlowDetailSurface(
-      template: template,
+    return _ActiveMaatFlowDetailSurface.fromComposition(
+      composition: resolveMaatFlowDetailComposition(
+        template: template,
+        relation: MaatFlowDetailRelation.catalogPreview,
+        calendar: _maatFlowCalendarPreview(),
+      ),
       addInstance:
           ({
             required _MaatFlowTemplate template,
@@ -27753,6 +27854,7 @@ class CalendarPageState extends State<CalendarPage>
       windowStart: windowStart,
       windowEnd: windowEnd,
       coverageComplete: true,
+      supply: CalendarPreviewSupply.loaded,
     );
   }
 
@@ -27805,6 +27907,7 @@ class CalendarPageState extends State<CalendarPage>
         candidates: candidates,
         intervals: intervals,
         coverageComplete: true,
+        supply: CalendarPreviewSupply.loaded,
       ),
     );
   }
@@ -34622,6 +34725,44 @@ class CalendarPageState extends State<CalendarPage>
     return _calendarSheetEventIdentityKey(
       a,
     ).compareTo(_calendarSheetEventIdentityKey(b));
+  }
+
+  DayViewSheetEventTarget? _eventTargetForOwnedDjedSitting({
+    required int flowId,
+    required int sittingNumber,
+  }) {
+    DayViewSheetEventTarget? from(Map<String, List<_Note>> notes) {
+      for (final entry in notes.entries) {
+        final parts = entry.key.split('-');
+        if (parts.length != 3) continue;
+        final ky = int.tryParse(parts[0]);
+        final km = int.tryParse(parts[1]);
+        final kd = int.tryParse(parts[2]);
+        if (ky == null || km == null || kd == null) continue;
+        for (final note in entry.value) {
+          if (!calendarEventMatchesOwnedDjedSitting(
+            flowId: flowId,
+            sittingNumber: sittingNumber,
+            eventFlowId: note.flowId,
+            title: note.title,
+            actionId: note.actionId,
+            behaviorPayload: note.behaviorPayload,
+          )) {
+            continue;
+          }
+          return DayViewSheetEventTarget(
+            ky: ky,
+            km: km,
+            kd: kd,
+            event: _calendarSheetEventItemFromNote(note),
+          );
+        }
+      }
+      return null;
+    }
+
+    return from(_notes) ??
+        from(_calendarAuthoritativeNotesByDay ?? const <String, List<_Note>>{});
   }
 
   List<EventItem> _calendarSheetEventsForDay(int ky, int km, int kd) {

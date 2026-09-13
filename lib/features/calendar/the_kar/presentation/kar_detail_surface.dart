@@ -650,7 +650,10 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
                   ? _KarScheduleState.current
                   : _KarScheduleState.future,
               ordinaryRows: _calendarRowsForStage(cycle, index),
-              calendarCoverageComplete: widget.calendarPreview.coverageComplete,
+              calendarDateState: widget.calendarPreview.dateState(
+                cycle?.dateForStage(index) ??
+                    _startDate.add(Duration(days: kKarStages[index].day - 1)),
+              ),
               onTap: () => unawaited(_openStageSheet(cycle, index)),
             ),
             if (index < 4) const SizedBox(height: 14),
@@ -1239,7 +1242,7 @@ class _KarScheduleDay extends StatelessWidget {
     required this.placedStages,
     required this.state,
     required this.ordinaryRows,
-    required this.calendarCoverageComplete,
+    required this.calendarDateState,
     this.onTap,
   });
 
@@ -1251,7 +1254,7 @@ class _KarScheduleDay extends StatelessWidget {
   final Set<int> placedStages;
   final _KarScheduleState state;
   final List<FollowSkyCalendarPreviewRow> ordinaryRows;
-  final bool calendarCoverageComplete;
+  final MaatFlowDateCalendarState calendarDateState;
   final VoidCallback? onTap;
 
   @override
@@ -1341,7 +1344,9 @@ class _KarScheduleDay extends StatelessWidget {
             else
               _KarScheduleContextStatus(
                 stageIndex: stageIndex,
-                loading: !calendarCoverageComplete,
+                state: calendarDateState == MaatFlowDateCalendarState.loaded
+                    ? MaatFlowDateCalendarState.loadedEmpty
+                    : calendarDateState,
               ),
           ],
         ),
@@ -1353,24 +1358,22 @@ class _KarScheduleDay extends StatelessWidget {
 class _KarScheduleContextStatus extends StatelessWidget {
   const _KarScheduleContextStatus({
     required this.stageIndex,
-    required this.loading,
+    required this.state,
   });
 
   final int stageIndex;
-  final bool loading;
+  final MaatFlowDateCalendarState state;
 
   @override
   Widget build(BuildContext context) => SizedBox(
     key: ValueKey<String>(
-      loading
-          ? 'kar-schedule-calendar-loading-$stageIndex'
-          : 'kar-schedule-calendar-empty-$stageIndex',
+      'kar-schedule-calendar-${maatFlowDateCalendarKeySuffix(state)}-$stageIndex',
     ),
     height: 47,
     child: Align(
       alignment: Alignment.centerLeft,
       child: Text(
-        loading ? 'Loading calendar…' : 'No other calendar entries',
+        maatFlowDateCalendarLabel(state),
         style: _style(const Color(0xFF777169), 11, style: FontStyle.italic),
       ),
     ),
@@ -1557,6 +1560,9 @@ class _KarThirtyDayCalendar extends StatelessWidget {
     );
   }
 
+  // Unresolved: this local height can disagree with the shared thirty-day
+  // calendar renderer. Pending reproduction; leave the shared renderer in
+  // place rather than hiding days or reverting that path.
   double _sharedCalendarHeight(DateTime start) {
     var monthBands = 0;
     var decanRows = 0;

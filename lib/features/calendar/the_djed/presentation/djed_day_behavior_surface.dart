@@ -16,7 +16,7 @@ class DjedDayBehaviorSurface extends StatefulWidget {
     required this.baseFixture,
     required this.supports,
     required this.onCompletionCommit,
-    required this.onPutOnCalendar,
+    this.onPutOnCalendar,
   });
 
   final int flowId;
@@ -32,7 +32,7 @@ class DjedDayBehaviorSurface extends StatefulWidget {
     bool raised,
   )
   onCompletionCommit;
-  final Future<void> Function() onPutOnCalendar;
+  final Future<void> Function()? onPutOnCalendar;
 
   @override
   State<DjedDayBehaviorSurface> createState() => _DjedDayBehaviorSurfaceState();
@@ -208,7 +208,9 @@ class _DjedDayBehaviorSurfaceState extends State<DjedDayBehaviorSurface> {
       supports: widget.supports,
       onMoveChanged: _saveMove,
       onDoToday: () => _saveMove(_move),
-      onPutOnCalendar: () => unawaited(widget.onPutOnCalendar()),
+      onPutOnCalendar: widget.onPutOnCalendar == null
+          ? null
+          : () => unawaited(widget.onPutOnCalendar!()),
       onResultSelected: _selectResult,
       onResultNoteChanged: (value) =>
           _saveText(_resultNoteSpecId, value, (next) => _resultNote = next),

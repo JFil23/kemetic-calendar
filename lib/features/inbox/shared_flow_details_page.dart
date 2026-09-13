@@ -20,7 +20,8 @@ import '../../features/calendar/calendar_page.dart'
         FlowDetailActionKind,
         FlowDetailActionPolicy,
         FlowDetailSource,
-        ImportFlowData;
+        ImportFlowData,
+        MaatFlowDetailRelation;
 import '../../features/calendar/calendar_invalidation.dart';
 import '../../widgets/flow_start_date_picker.dart';
 
@@ -567,6 +568,12 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           notes: data.notes,
           eventsJson: eventsJson,
           backFallbackLocation: widget.fallbackLocation,
+          relation: data.isImported && data.flowId != null
+              ? MaatFlowDetailRelation.owned
+              : MaatFlowDetailRelation.invited,
+          intendedFlowId: data.flowId,
+          intendedStart: data.startDate,
+          intendedEnd: data.endDate,
         );
         if (maatDetail != null) return maatDetail;
 

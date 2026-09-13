@@ -120,6 +120,7 @@ class MaatFlowDiscoveryView extends StatelessWidget {
     this.onCreate,
     this.onClose,
     this.createKey,
+    this.scrollController,
   });
 
   final List<MaatFlowDiscoveryCardData> cards;
@@ -127,6 +128,7 @@ class MaatFlowDiscoveryView extends StatelessWidget {
   final VoidCallback? onCreate;
   final VoidCallback? onClose;
   final Key? createKey;
+  final ScrollController? scrollController;
 
   PreferredSizeWidget _buildHeader() {
     return AppBar(
@@ -206,7 +208,8 @@ class MaatFlowDiscoveryView extends StatelessWidget {
                 ],
               )
             : ListView.builder(
-                key: const ValueKey<String>('maat-flow-discovery-scroll'),
+                key: const PageStorageKey<String>('maat-flow-discovery-scroll'),
+                controller: scrollController,
                 padding: EdgeInsets.only(
                   bottom: math.max(
                     30,

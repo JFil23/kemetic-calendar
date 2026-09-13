@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:mobile/features/calendar/calendar_page.dart' hide KemeticMath;
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_day_behavior_surface.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
@@ -173,11 +176,14 @@ class DjedDetailSurface extends StatefulWidget {
     this.sittings = kDjedSittingFixtures,
     this.joined = false,
     this.busy = false,
+    this.flowId,
+    this.canActOnEvents = false,
     this.onCarry,
     this.onCarryConfiguration,
     this.onJoinedPressed,
     this.onBack,
     this.calendarPreview = FollowSkyCalendarPreview.empty,
+    this.onSittingCompletionCommit,
   });
 
   final DateTime? startDate;
@@ -185,11 +191,22 @@ class DjedDetailSurface extends StatefulWidget {
   final List<DjedSittingFixture> sittings;
   final bool joined;
   final bool busy;
+  final int? flowId;
+  final bool canActOnEvents;
   final VoidCallback? onCarry;
   final ValueChanged<DjedV2Configuration>? onCarryConfiguration;
   final VoidCallback? onJoinedPressed;
   final VoidCallback? onBack;
   final FollowSkyCalendarPreview calendarPreview;
+  final Future<void> Function(
+    DjedCompletionVisualState state,
+    String move,
+    DjedResultVisualState result,
+    String resultNote,
+    String smallerMove,
+    bool raised,
+  )?
+  onSittingCompletionCommit;
 
   DateTime get _windowStart => startDate ?? DateTime(2026, 9, 6);
 
@@ -334,6 +351,23 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
       supportName: supportName,
     );
     FocusManager.instance.primaryFocus?.unfocus();
+    final flowId = widget.flowId;
+    final canAct = widget.canActOnEvents && flowId != null;
+    final sittingIdentityAvailable =
+        flowId != null &&
+        widget.canActOnEvents &&
+        CalendarPage.hasOwnedDjedSittingEventIdentity(
+          flowId: flowId,
+          sittingNumber: sitting.number,
+        );
+    Future<void> makeTodoFromSitting() async {
+      if (flowId == null) return;
+      await CalendarPage.makeTodoFromOwnedDjedSitting(
+        flowId: flowId,
+        sittingNumber: sitting.number,
+      );
+    }
+
     await showCalendarEventDetailSheetModal<void>(
       context: context,
       builder: (sheetContext) => InstrumentEventSheetHost(
@@ -356,14 +390,34 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
             ),
           ),
         ),
-        body: DjedDayPresentation(
-          fixture: fixture,
-          supports: _supports,
-          onStageAction: () {},
-          onResultSelected: (_) {},
-          onCompletionSelected: (_) {},
+        body: canAct
+            ? DjedDayBehaviorSurface(
+                flowId: flowId!,
+                event: event,
+                baseFixture: fixture,
+                supports: _supports,
+                onCompletionCommit:
+                    widget.onSittingCompletionCommit ??
+                    (
+                      selected,
+                      move,
+                      result,
+                      resultNote,
+                      smallerMove,
+                      raised,
+                    ) async {},
+                onPutOnCalendar: sittingIdentityAvailable
+                    ? makeTodoFromSitting
+                    : null,
+              )
+            : DjedDayPresentation(fixture: fixture, supports: _supports),
+        footer: DjedDayFooterActions(
+          makeTodoUnavailable: canAct && !sittingIdentityAvailable,
+          onMakeTodo: sittingIdentityAvailable
+              ? () => unawaited(makeTodoFromSitting())
+              : null,
+          onCalendar: () => Navigator.of(sheetContext).maybePop(),
         ),
-        footer: DjedDayFooterActions(onMakeTodo: () {}, onCalendar: () {}),
       ),
     );
   }
@@ -388,7 +442,7 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
               supports: _supports,
               sittings: widget.sittings,
               activeSupport: _activeSupport,
-              calendarRows: widget.calendarPreview.rows,
+              calendarPreview: widget.calendarPreview,
               supportFocusNodes: _supportFocusNodes,
               onSupportSelected: _selectSupport,
               onNameChanged: _updateName,
@@ -399,7 +453,12 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
               theme: DjedDetailTokens.theme,
               joined: widget.joined,
               busy: widget.busy,
-              onPressed: widget.busy ? null : _carry,
+              onPressed: widget.busy
+                  ? null
+                  : (widget.onCarryConfiguration != null ||
+                        widget.onCarry != null)
+                  ? _carry
+                  : null,
               onJoinedPressed: widget.onJoinedPressed,
               actionLabel: 'Carry this djed',
               actionNote: 'Nothing is scheduled until you carry it.',
@@ -530,7 +589,7 @@ class _DjedSheet extends StatelessWidget {
     required this.supports,
     required this.sittings,
     required this.activeSupport,
-    required this.calendarRows,
+    required this.calendarPreview,
     required this.supportFocusNodes,
     required this.onSupportSelected,
     required this.onNameChanged,
@@ -542,7 +601,7 @@ class _DjedSheet extends StatelessWidget {
   final List<DjedSupportFixture> supports;
   final List<DjedSittingFixture> sittings;
   final int activeSupport;
-  final List<FollowSkyCalendarPreviewRow> calendarRows;
+  final FollowSkyCalendarPreview calendarPreview;
   final List<FocusNode> supportFocusNodes;
   final void Function(int index, {bool focusName}) onSupportSelected;
   final void Function(int index, String value) onNameChanged;
@@ -568,11 +627,12 @@ class _DjedSheet extends StatelessWidget {
         _DjedThirtyDayCalendar(
           startDate: startDate,
           sittings: sittings,
-          calendarRows: calendarRows,
+          calendarRows: calendarPreview.rows,
         ),
         _DjedSittings(
           sittings: sittings,
           startDate: startDate,
+          calendarPreview: calendarPreview,
           onSittingPressed: onSittingPressed,
         ),
         const _DjedHistory(),
@@ -1105,11 +1165,13 @@ class _DjedSittings extends StatefulWidget {
   const _DjedSittings({
     required this.sittings,
     required this.startDate,
+    required this.calendarPreview,
     required this.onSittingPressed,
   });
 
   final List<DjedSittingFixture> sittings;
   final DateTime startDate;
+  final FollowSkyCalendarPreview calendarPreview;
   final ValueChanged<DjedSittingFixture> onSittingPressed;
 
   @override
@@ -1137,6 +1199,7 @@ class _DjedSittingsState extends State<_DjedSittings> {
             _DjedScheduleCard(
               sitting: sitting,
               date: widget.startDate.add(Duration(days: sitting.flowDay - 1)),
+              calendarPreview: widget.calendarPreview,
               onTap: () => widget.onSittingPressed(sitting),
             ),
             const SizedBox(height: 14),
@@ -1205,11 +1268,13 @@ class _DjedScheduleCard extends StatelessWidget {
   const _DjedScheduleCard({
     required this.sitting,
     required this.date,
+    required this.calendarPreview,
     required this.onTap,
   });
 
   final DjedSittingFixture sitting;
   final DateTime date;
+  final FollowSkyCalendarPreview calendarPreview;
   final VoidCallback onTap;
 
   @override
@@ -1245,7 +1310,11 @@ class _DjedScheduleCard extends StatelessWidget {
             durationLabel: sitting.durationLabel,
             onTap: onTap,
           ),
-          _DjedCalendarContextRows(sittingNumber: sitting.number),
+          _DjedCalendarContextRows(
+            sittingNumber: sitting.number,
+            date: date,
+            calendarPreview: calendarPreview,
+          ),
         ],
       ),
     );
@@ -1366,106 +1435,121 @@ class _CompactSittingRow extends StatelessWidget {
 }
 
 class _DjedCalendarContextRows extends StatelessWidget {
-  const _DjedCalendarContextRows({required this.sittingNumber});
+  const _DjedCalendarContextRows({
+    required this.sittingNumber,
+    required this.date,
+    required this.calendarPreview,
+  });
 
   final int sittingNumber;
-
-  static const Map<int, List<(Color, String, String)>> _rows =
-      <int, List<(Color, String, String)>>{
-        1: <(Color, String, String)>[
-          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
-          (Color(0xFF399BEA), '12:00 PM', 'Bits and Operations'),
-          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
-        ],
-        2: <(Color, String, String)>[
-          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
-          (Color(0xFFF5696B), '12:00 PM', "The Spider's Shortcut"),
-          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
-        ],
-        3: <(Color, String, String)>[
-          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
-          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
-        ],
-        4: <(Color, String, String)>[
-          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
-          (Color(0xFF399BEA), '12:00 PM', 'Bits and Operations'),
-          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
-        ],
-        5: <(Color, String, String)>[
-          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
-          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
-        ],
-      };
+  final DateTime date;
+  final FollowSkyCalendarPreview calendarPreview;
 
   @override
   Widget build(BuildContext context) {
-    final rows = _rows[sittingNumber];
-    if (rows == null || rows.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 11),
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0x24E0873C))),
-        ),
-        child: Column(
-          children: <Widget>[
-            for (var index = 0; index < rows.length; index++)
-              Container(
-                constraints: const BoxConstraints(minHeight: 47),
-                decoration: BoxDecoration(
-                  border: index == rows.length - 1
-                      ? null
-                      : const Border(
-                          bottom: BorderSide(color: Color(0x1FE0873C)),
-                        ),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    SizedBox(
-                      width: 7,
-                      child: Center(
-                        child: Container(
-                          width: 4,
-                          height: 15,
-                          decoration: BoxDecoration(
-                            color: rows[index].$1,
-                            borderRadius: BorderRadius.circular(99),
+    final state = calendarPreview.dateState(date);
+    final rows = calendarPreview
+        .rowsFor(date)
+        .where((row) {
+          final flowName = row.flowName?.trim().toLowerCase();
+          return flowName != 'the djed' && flowName != 'the-djed';
+        })
+        .toList(growable: false);
+    if (rows.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 11),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: Color(0x24E0873C))),
+          ),
+          child: Column(
+            children: <Widget>[
+              for (var index = 0; index < rows.length; index++)
+                Container(
+                  constraints: const BoxConstraints(minHeight: 47),
+                  decoration: BoxDecoration(
+                    border: index == rows.length - 1
+                        ? null
+                        : const Border(
+                            bottom: BorderSide(color: Color(0x1FE0873C)),
+                          ),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      SizedBox(
+                        width: 7,
+                        child: Center(
+                          child: Container(
+                            width: 4,
+                            height: 15,
+                            decoration: BoxDecoration(
+                              color: rows[index].eventColor,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 9),
-                    SizedBox(
-                      width: 67,
-                      child: Text(
-                        rows[index].$2,
-                        style: _uiStyle(
-                          fontSize: 10.5,
-                          color: const Color(0xFF8F8B83),
+                      const SizedBox(width: 9),
+                      SizedBox(
+                        width: 67,
+                        child: Text(
+                          _previewTimeLabel(rows[index]),
+                          style: _uiStyle(
+                            fontSize: 10.5,
+                            color: const Color(0xFF8F8B83),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        rows[index].$3,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: _displayStyle(
-                          fontSize: 16,
-                          color: const Color(0xFFCBC5BA),
-                          height: 1.15,
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          rows[index].title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _displayStyle(
+                            fontSize: 16,
+                            color: const Color(0xFFCBC5BA),
+                            height: 1.15,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
+        ),
+      );
+    }
+    final status = state == MaatFlowDateCalendarState.loaded
+        ? MaatFlowDateCalendarState.loadedEmpty
+        : state;
+    return Padding(
+      padding: const EdgeInsets.only(top: 11),
+      child: SizedBox(
+        key: ValueKey<String>(
+          'djed-schedule-calendar-${maatFlowDateCalendarKeySuffix(status)}-$sittingNumber',
+        ),
+        height: 47,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            maatFlowDateCalendarLabel(status),
+            style: _uiStyle(fontSize: 11, color: const Color(0xFF777169)),
+          ),
         ),
       ),
     );
   }
+}
+
+String _previewTimeLabel(FollowSkyCalendarPreviewRow row) {
+  if (row.allDay) return 'All day';
+  final hour = row.start.hour;
+  final minute = row.start.minute.toString().padLeft(2, '0');
+  final period = hour >= 12 ? 'PM' : 'AM';
+  final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+  return '$hour12:$minute $period';
 }
 
 class _DjedHistory extends StatefulWidget {
