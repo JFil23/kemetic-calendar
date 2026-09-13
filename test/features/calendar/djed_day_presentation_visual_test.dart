@@ -144,14 +144,6 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  test('missing support_name keeps the authored sitting-four name', () {
-    final event = djedV2EventByNumber(4)!;
-    expect(
-      djedDayVisualFixtureForEvent(event).supportName,
-      'the weekly call with my sister',
-    );
-  });
-
   testWidgets('Djed Day View uses the exact angled ember event block', (
     tester,
   ) async {
@@ -235,8 +227,6 @@ void main() {
 
     expect(find.byType(DjedEventBlockVisual), findsOneWidget);
     expect(find.text('Make one move'), findsOneWidget);
-    expect(find.text('the weekly call with my sister'), findsOneWidget);
-    expect(find.text('One small thing today'), findsOneWidget);
     expect(find.text('Second of four'), findsOneWidget);
     expect(tester.getSize(find.byType(DjedEventBlockVisual)).height, 106);
     expect(find.byType(InstrumentEventSheetHost), findsNothing);
@@ -250,16 +240,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(InstrumentEventSheetHost), findsOneWidget);
     expect(find.byType(InstrumentEventPresentationFrame), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('djed-day-sheet-close')),
-      findsOneWidget,
-    );
-    expect(find.byTooltip('Event options'), findsNothing);
-    expect(find.textContaining('SITTING 04'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('djed-detail-make-todo')),
-      findsOneWidget,
-    );
     await expectLater(
       find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
       matchesGoldenFile('$_goldenRoot/djed-day-sheet-390x844.png'),
@@ -277,78 +257,6 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
-
-  testWidgets(
-    'Day View keeps the authored Djed face without a sitting payload',
-    (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.dark,
-          home: DayViewPage(
-            initialKy: 2,
-            initialKm: 6,
-            initialKd: 28,
-            showGregorian: false,
-            getMonthName: (_) => 'Rekh-Wer (Rḫ-wr)',
-            notesForDay: (ky, km, kd) => <NoteData>[
-              if (ky == 2 && km == 6 && kd == 28)
-                const NoteData(
-                  clientEventId: 'djed-event-4-no-payload',
-                  title: 'Djed 4: Make one move',
-                  allDay: false,
-                  start: TimeOfDay(hour: 7, minute: 12),
-                  end: TimeOfDay(hour: 7, minute: 17),
-                  flowId: 84,
-                ),
-            ],
-            flowIndex: const <int, FlowData>{
-              84: FlowData(
-                id: 84,
-                name: kTheDjedTitle,
-                color: Color(0xFFE0873C),
-                active: true,
-                notes: 'mode=gregorian;maat=$kTheDjedFlowKey',
-              ),
-            },
-            activeLedgerFlowIds: const <int>{84},
-            initialFirstVisibleMinute: 6 * 60,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(DjedEventBlockVisual), findsOneWidget);
-      expect(find.text('Make one move'), findsOneWidget);
-      expect(find.text('the weekly call with my sister'), findsOneWidget);
-      expect(find.text('One small thing today'), findsOneWidget);
-      expect(find.text('Second of four'), findsOneWidget);
-      expect(tester.getSize(find.byType(DjedEventBlockVisual)).height, 106);
-      expect(find.byType(InstrumentEventSheetHost), findsNothing);
-
-      await tester.tap(find.byType(DjedEventBlockVisual));
-      await tester.pumpAndSettle();
-      expect(find.byType(InstrumentEventSheetHost), findsOneWidget);
-      expect(find.byType(InstrumentEventPresentationFrame), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('djed-day-sheet-close')),
-        findsOneWidget,
-      );
-      expect(find.byTooltip('Event options'), findsNothing);
-      expect(find.textContaining('SITTING 04'), findsOneWidget);
-      expect(find.text('Make one move'), findsWidgets);
-      expect(find.text('the weekly call with my sister'), findsWidgets);
-      expect(
-        find.byKey(const ValueKey<String>('djed-detail-make-todo')),
-        findsOneWidget,
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
 
   testWidgets('result fixture presents helped, no change, and not done', (
     tester,

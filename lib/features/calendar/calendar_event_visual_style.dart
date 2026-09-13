@@ -407,7 +407,6 @@ CalendarEventGraphicStyle? _graphicStyleForEvent({
   final kind = resolveMaatFlowKind(
     flowName: flowName,
     flowNotes: flowNotes,
-    eventTitle: eventTitle,
     behaviorPayload: behaviorPayload,
   );
   return switch (kind) {

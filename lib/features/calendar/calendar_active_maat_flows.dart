@@ -1587,18 +1587,14 @@ class _ActiveMaatFlowDetailSurfaceState
                 },
               ),
           ];
-    final composition = widget.composition;
     return DjedDetailSurface(
       startDate: DateUtils.dateOnly(startDate),
       supports: supports,
-      calendarPreview: widget.calendarPreview,
       joined: widget.alreadyJoined,
       busy: _djedJoinInFlight,
-      flowId: composition.intendedInstance?.id,
-      canActOnEvents: composition.canActOnEvents,
-      onCarryConfiguration: composition.canJoin
-          ? (value) => unawaited(_joinDjed(startDate, value))
-          : null,
+      onCarryConfiguration: widget.alreadyJoined
+          ? null
+          : (value) => unawaited(_joinDjed(startDate, value)),
       onBack: widget.onBack,
     );
   }

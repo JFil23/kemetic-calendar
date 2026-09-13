@@ -1,15 +1,11 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:mobile/features/calendar/calendar_page.dart' hide KemeticMath;
-import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
+import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
-import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
-import 'package:mobile/features/calendar/the_djed/presentation/djed_day_behavior_surface.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
@@ -153,19 +149,6 @@ abstract final class DjedDetailTokens {
     separator: separator,
     glow: goldBright,
   );
-
-  static const MaatFlowThirtyDayCalendarTheme thirtyDayCalendarTheme =
-      MaatFlowThirtyDayCalendarTheme(
-        introText: bone,
-        introEmphasis: silver,
-        border: Color(0x33E0873C),
-        month: gold,
-        monthTransliteration: goldDim,
-        decan: Color(0xFFAA9A70),
-        day: Color(0xFFB88A54),
-        today: goldBright,
-        highlight: goldBright,
-      );
 }
 
 class DjedDetailSurface extends StatefulWidget {
@@ -176,14 +159,10 @@ class DjedDetailSurface extends StatefulWidget {
     this.sittings = kDjedSittingFixtures,
     this.joined = false,
     this.busy = false,
-    this.flowId,
-    this.canActOnEvents = false,
     this.onCarry,
     this.onCarryConfiguration,
     this.onJoinedPressed,
     this.onBack,
-    this.calendarPreview = FollowSkyCalendarPreview.empty,
-    this.onSittingCompletionCommit,
   });
 
   final DateTime? startDate;
@@ -191,22 +170,10 @@ class DjedDetailSurface extends StatefulWidget {
   final List<DjedSittingFixture> sittings;
   final bool joined;
   final bool busy;
-  final int? flowId;
-  final bool canActOnEvents;
   final VoidCallback? onCarry;
   final ValueChanged<DjedV2Configuration>? onCarryConfiguration;
   final VoidCallback? onJoinedPressed;
   final VoidCallback? onBack;
-  final FollowSkyCalendarPreview calendarPreview;
-  final Future<void> Function(
-    DjedCompletionVisualState state,
-    String move,
-    DjedResultVisualState result,
-    String resultNote,
-    String smallerMove,
-    bool raised,
-  )?
-  onSittingCompletionCommit;
 
   DateTime get _windowStart => startDate ?? DateTime(2026, 9, 6);
 
@@ -351,23 +318,6 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
       supportName: supportName,
     );
     FocusManager.instance.primaryFocus?.unfocus();
-    final flowId = widget.flowId;
-    final canAct = widget.canActOnEvents && flowId != null;
-    final sittingIdentityAvailable =
-        flowId != null &&
-        widget.canActOnEvents &&
-        CalendarPage.hasOwnedDjedSittingEventIdentity(
-          flowId: flowId,
-          sittingNumber: sitting.number,
-        );
-    Future<void> makeTodoFromSitting() async {
-      if (flowId == null) return;
-      await CalendarPage.makeTodoFromOwnedDjedSitting(
-        flowId: flowId,
-        sittingNumber: sitting.number,
-      );
-    }
-
     await showCalendarEventDetailSheetModal<void>(
       context: context,
       builder: (sheetContext) => InstrumentEventSheetHost(
@@ -390,34 +340,14 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
             ),
           ),
         ),
-        body: canAct
-            ? DjedDayBehaviorSurface(
-                flowId: flowId!,
-                event: event,
-                baseFixture: fixture,
-                supports: _supports,
-                onCompletionCommit:
-                    widget.onSittingCompletionCommit ??
-                    (
-                      selected,
-                      move,
-                      result,
-                      resultNote,
-                      smallerMove,
-                      raised,
-                    ) async {},
-                onPutOnCalendar: sittingIdentityAvailable
-                    ? makeTodoFromSitting
-                    : null,
-              )
-            : DjedDayPresentation(fixture: fixture, supports: _supports),
-        footer: DjedDayFooterActions(
-          makeTodoUnavailable: canAct && !sittingIdentityAvailable,
-          onMakeTodo: sittingIdentityAvailable
-              ? () => unawaited(makeTodoFromSitting())
-              : null,
-          onCalendar: () => Navigator.of(sheetContext).maybePop(),
+        body: DjedDayPresentation(
+          fixture: fixture,
+          supports: _supports,
+          onStageAction: () {},
+          onResultSelected: (_) {},
+          onCompletionSelected: (_) {},
         ),
+        footer: DjedDayFooterActions(onMakeTodo: () {}, onCalendar: () {}),
       ),
     );
   }
@@ -442,7 +372,6 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
               supports: _supports,
               sittings: widget.sittings,
               activeSupport: _activeSupport,
-              calendarPreview: widget.calendarPreview,
               supportFocusNodes: _supportFocusNodes,
               onSupportSelected: _selectSupport,
               onNameChanged: _updateName,
@@ -453,12 +382,7 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
               theme: DjedDetailTokens.theme,
               joined: widget.joined,
               busy: widget.busy,
-              onPressed: widget.busy
-                  ? null
-                  : (widget.onCarryConfiguration != null ||
-                        widget.onCarry != null)
-                  ? _carry
-                  : null,
+              onPressed: widget.busy ? null : _carry,
               onJoinedPressed: widget.onJoinedPressed,
               actionLabel: 'Carry this djed',
               actionNote: 'Nothing is scheduled until you carry it.',
@@ -589,7 +513,6 @@ class _DjedSheet extends StatelessWidget {
     required this.supports,
     required this.sittings,
     required this.activeSupport,
-    required this.calendarPreview,
     required this.supportFocusNodes,
     required this.onSupportSelected,
     required this.onNameChanged,
@@ -601,7 +524,6 @@ class _DjedSheet extends StatelessWidget {
   final List<DjedSupportFixture> supports;
   final List<DjedSittingFixture> sittings;
   final int activeSupport;
-  final FollowSkyCalendarPreview calendarPreview;
   final List<FocusNode> supportFocusNodes;
   final void Function(int index, {bool focusName}) onSupportSelected;
   final void Function(int index, String value) onNameChanged;
@@ -624,15 +546,10 @@ class _DjedSheet extends StatelessWidget {
           onNameChanged: onNameChanged,
           onConditionChanged: onConditionChanged,
         ),
-        _DjedThirtyDayCalendar(
-          startDate: startDate,
-          sittings: sittings,
-          calendarRows: calendarPreview.rows,
-        ),
+        _DjedThirtyDayCalendar(startDate: startDate, sittings: sittings),
         _DjedSittings(
           sittings: sittings,
           startDate: startDate,
-          calendarPreview: calendarPreview,
           onSittingPressed: onSittingPressed,
         ),
         const _DjedHistory(),
@@ -645,53 +562,255 @@ class _DjedThirtyDayCalendar extends StatelessWidget {
   const _DjedThirtyDayCalendar({
     required this.startDate,
     required this.sittings,
-    required this.calendarRows,
   });
 
   final DateTime startDate;
   final List<DjedSittingFixture> sittings;
-  final List<FollowSkyCalendarPreviewRow> calendarRows;
 
   @override
   Widget build(BuildContext context) {
-    final sittingsByDate = <DateTime, DjedSittingFixture>{
-      for (final sitting in sittings)
-        DateUtils.dateOnly(_djedFlowDate(startDate, sitting.flowDay)): sitting,
-    };
-    final colorsByDay = <DateTime, List<Color>>{};
-    for (final row in calendarRows) {
-      final day = DateUtils.dateOnly(row.localDay);
-      colorsByDay.putIfAbsent(day, () => <Color>[]).add(row.eventColor);
-    }
+    final sittingDays = <int>{for (final sitting in sittings) sitting.flowDay};
     return Container(
+      key: const ValueKey<String>('djed-thirty-day-calendar'),
+      padding: const EdgeInsets.fromLTRB(22, 27, 22, 29),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: DjedDetailTokens.separator)),
       ),
-      child: MaatFlowThirtyDayCalendar(
-        key: const ValueKey<String>('djed-thirty-day-calendar'),
-        windowStart: startDate,
-        markers: <MaatFlowThirtyDayMarker>[
-          for (var offset = 0; offset < 30; offset++)
-            () {
-              final date = DateUtils.dateOnly(
-                startDate.add(Duration(days: offset)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text('The thirty days', style: _displayStyle(fontSize: 29)),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final copy = Text(
+                'Find your footing. Work each beam twice. Then raise the Djed.',
+                style: _uiStyle(
+                  fontSize: 13,
+                  color: DjedDetailTokens.low,
+                  height: 1.45,
+                ),
               );
-              final sitting = sittingsByDate[date];
-              return MaatFlowThirtyDayMarker(
-                date: date,
-                highlighted: sitting != null,
-                accent: DjedDetailTokens.goldBright,
-                topLabel: sitting?.flowDay == 1 ? 'START DATE' : null,
-                secondaryColors: colorsByDay[date] ?? const <Color>[],
+              final rangeLabel = _calendarRange(startDate);
+              final rangeStyle = _uiStyle(
+                fontSize: 11,
+                color: const Color(0xFF676963),
+                fontStyle: FontStyle.italic,
               );
-            }(),
+              final range = Text(rangeLabel, style: rangeStyle);
+              final textScale = MediaQuery.textScalerOf(context).scale(1);
+              final rangePainter = TextPainter(
+                text: TextSpan(text: rangeLabel, style: rangeStyle),
+                textDirection: Directionality.of(context),
+                textScaler: MediaQuery.textScalerOf(context),
+                maxLines: 1,
+              )..layout();
+              final rangeWidth = rangePainter.width;
+              rangePainter.dispose();
+              final shouldStack =
+                  constraints.maxWidth < 310 ||
+                  textScale > 1.15 ||
+                  rangeWidth + 8 + 96 > constraints.maxWidth;
+              if (shouldStack) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[copy, const SizedBox(height: 6), range],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(child: copy),
+                  const SizedBox(width: 8),
+                  range,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF070605),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: const Color(0x1FE0873C)),
+              ),
+              child: Column(
+                children: <Widget>[
+                  for (var phase = 0; phase < 3; phase++)
+                    Container(
+                      constraints: const BoxConstraints(minHeight: 82),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+                      decoration: BoxDecoration(
+                        border: phase == 0
+                            ? null
+                            : const Border(
+                                top: BorderSide(color: Color(0x1AE0873C)),
+                              ),
+                      ),
+                      child: Column(
+                        children: <Widget>[
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final decan = Text(
+                                _phaseDecanName(startDate, phase),
+                                style: _displayStyle(
+                                  fontSize: 13.5,
+                                  color: const Color(0xFFAA9A70),
+                                ),
+                              );
+                              final phaseName = Text(
+                                const <String>[
+                                  'FIND YOUR FOOTING',
+                                  'WORK THE BEAMS',
+                                  'RAISE THE DJED',
+                                ][phase],
+                                maxLines: 1,
+                                overflow: TextOverflow.fade,
+                                style: _uiStyle(
+                                  fontSize: 8,
+                                  color: DjedDetailTokens.goldDim,
+                                  letterSpacing: .9,
+                                ),
+                              );
+                              final dates = Text(
+                                _decanRange(startDate, phase),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                                style: _uiStyle(
+                                  fontSize: 9.5,
+                                  color: const Color(0xFF5F5B54),
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              );
+                              final textScale = MediaQuery.textScalerOf(
+                                context,
+                              ).scale(1);
+                              if (constraints.maxWidth < 280 ||
+                                  textScale > 1.15) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Row(
+                                      children: <Widget>[
+                                        decan,
+                                        const SizedBox(width: 6),
+                                        Expanded(child: phaseName),
+                                      ],
+                                    ),
+                                    dates,
+                                  ],
+                                );
+                              }
+                              return SizedBox(
+                                height: 22,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Flexible(child: decan),
+                                    const SizedBox(width: 6),
+                                    Expanded(child: phaseName),
+                                    Flexible(child: dates),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          SizedBox(
+                            height: 50,
+                            child: Row(
+                              children: <Widget>[
+                                for (var offset = 1; offset <= 10; offset++)
+                                  Expanded(
+                                    child: _DjedCalendarDay(
+                                      day: _kemeticDayNumber(
+                                        startDate,
+                                        phase * 10 + offset,
+                                      ),
+                                      sitting: sittingDays.contains(
+                                        phase * 10 + offset,
+                                      ),
+                                      start: phase == 0 && offset == 1,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ],
-        theme: DjedDetailTokens.thirtyDayCalendarTheme,
-        introFirstLine: 'The thirty days',
-        introSecondLine:
-            'Find your footing. Work each beam twice. Then raise the Djed.',
-        keyPrefix: 'djed-calendar',
       ),
+    );
+  }
+}
+
+class _DjedCalendarDay extends StatelessWidget {
+  const _DjedCalendarDay({
+    required this.day,
+    required this.sitting,
+    required this.start,
+  });
+
+  final int day;
+  final bool sitting;
+  final bool start;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: <Widget>[
+        if (start)
+          Positioned(
+            top: 0,
+            child: Text(
+              'START',
+              style: _uiStyle(
+                fontSize: 6,
+                color: DjedDetailTokens.gold,
+                letterSpacing: .6,
+              ),
+            ),
+          ),
+        if (sitting)
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0x09F5B963),
+              border: Border.all(color: const Color(0x6BF5B963)),
+            ),
+          ),
+        Text(
+          '$day',
+          style: _displayStyle(
+            fontSize: 18,
+            color: sitting ? const Color(0xFFC8C0A9) : const Color(0xFF686860),
+          ),
+        ),
+        if (sitting)
+          const Positioned(
+            bottom: 2,
+            child: SizedBox(
+              width: 3,
+              height: 3,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: DjedDetailTokens.goldBright,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -701,6 +820,39 @@ DateTime _djedFlowDate(DateTime startDate, int flowDay) => DateTime(
   startDate.month,
   startDate.day,
 ).add(Duration(days: flowDay - 1));
+
+int _kemeticDayNumber(DateTime startDate, int flowDay) =>
+    KemeticMath.fromGregorian(_djedFlowDate(startDate, flowDay)).kDay;
+
+String _kemeticMonthDay(DateTime date) {
+  final kemetic = KemeticMath.fromGregorian(date);
+  return '${getMonthById(kemetic.kMonth).displayShort} ${kemetic.kDay}';
+}
+
+String _calendarRange(DateTime startDate) {
+  final last = _djedFlowDate(startDate, 30);
+  return '${_kemeticMonthDay(startDate)} → ${_kemeticMonthDay(last)}';
+}
+
+String _phaseDecanName(DateTime startDate, int phase) {
+  final kemetic = KemeticMath.fromGregorian(
+    startDate.add(Duration(days: phase * 10)),
+  );
+  return DecanMetadata.decanNameFor(kMonth: kemetic.kMonth, kDay: kemetic.kDay);
+}
+
+String _decanRange(DateTime startDate, int phase) {
+  final first = startDate.add(Duration(days: phase * 10));
+  final last = first.add(const Duration(days: 9));
+  final firstK = KemeticMath.fromGregorian(first);
+  final lastK = KemeticMath.fromGregorian(last);
+  final firstMonth = getMonthById(firstK.kMonth).displayShort;
+  final lastMonth = getMonthById(lastK.kMonth).displayShort;
+  if (firstK.kMonth == lastK.kMonth) {
+    return '$firstMonth ${firstK.kDay}–${lastK.kDay}';
+  }
+  return '$firstMonth ${firstK.kDay}–$lastMonth ${lastK.kDay}';
+}
 
 class _DjedHandle extends StatelessWidget {
   const _DjedHandle();
@@ -1165,13 +1317,11 @@ class _DjedSittings extends StatefulWidget {
   const _DjedSittings({
     required this.sittings,
     required this.startDate,
-    required this.calendarPreview,
     required this.onSittingPressed,
   });
 
   final List<DjedSittingFixture> sittings;
   final DateTime startDate;
-  final FollowSkyCalendarPreview calendarPreview;
   final ValueChanged<DjedSittingFixture> onSittingPressed;
 
   @override
@@ -1199,7 +1349,6 @@ class _DjedSittingsState extends State<_DjedSittings> {
             _DjedScheduleCard(
               sitting: sitting,
               date: widget.startDate.add(Duration(days: sitting.flowDay - 1)),
-              calendarPreview: widget.calendarPreview,
               onTap: () => widget.onSittingPressed(sitting),
             ),
             const SizedBox(height: 14),
@@ -1268,13 +1417,11 @@ class _DjedScheduleCard extends StatelessWidget {
   const _DjedScheduleCard({
     required this.sitting,
     required this.date,
-    required this.calendarPreview,
     required this.onTap,
   });
 
   final DjedSittingFixture sitting;
   final DateTime date;
-  final FollowSkyCalendarPreview calendarPreview;
   final VoidCallback onTap;
 
   @override
@@ -1310,11 +1457,7 @@ class _DjedScheduleCard extends StatelessWidget {
             durationLabel: sitting.durationLabel,
             onTap: onTap,
           ),
-          _DjedCalendarContextRows(
-            sittingNumber: sitting.number,
-            date: date,
-            calendarPreview: calendarPreview,
-          ),
+          _DjedCalendarContextRows(sittingNumber: sitting.number),
         ],
       ),
     );
@@ -1435,121 +1578,106 @@ class _CompactSittingRow extends StatelessWidget {
 }
 
 class _DjedCalendarContextRows extends StatelessWidget {
-  const _DjedCalendarContextRows({
-    required this.sittingNumber,
-    required this.date,
-    required this.calendarPreview,
-  });
+  const _DjedCalendarContextRows({required this.sittingNumber});
 
   final int sittingNumber;
-  final DateTime date;
-  final FollowSkyCalendarPreview calendarPreview;
+
+  static const Map<int, List<(Color, String, String)>> _rows =
+      <int, List<(Color, String, String)>>{
+        1: <(Color, String, String)>[
+          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
+          (Color(0xFF399BEA), '12:00 PM', 'Bits and Operations'),
+          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
+        ],
+        2: <(Color, String, String)>[
+          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
+          (Color(0xFFF5696B), '12:00 PM', "The Spider's Shortcut"),
+          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
+        ],
+        3: <(Color, String, String)>[
+          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
+          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
+        ],
+        4: <(Color, String, String)>[
+          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
+          (Color(0xFF399BEA), '12:00 PM', 'Bits and Operations'),
+          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
+        ],
+        5: <(Color, String, String)>[
+          (Color(0xFF72C766), '8:00 AM', 'journal every day'),
+          (Color(0xFF72C766), '9:30 PM', 'journal every night'),
+        ],
+      };
 
   @override
   Widget build(BuildContext context) {
-    final state = calendarPreview.dateState(date);
-    final rows = calendarPreview
-        .rowsFor(date)
-        .where((row) {
-          final flowName = row.flowName?.trim().toLowerCase();
-          return flowName != 'the djed' && flowName != 'the-djed';
-        })
-        .toList(growable: false);
-    if (rows.isNotEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 11),
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: Color(0x24E0873C))),
-          ),
-          child: Column(
-            children: <Widget>[
-              for (var index = 0; index < rows.length; index++)
-                Container(
-                  constraints: const BoxConstraints(minHeight: 47),
-                  decoration: BoxDecoration(
-                    border: index == rows.length - 1
-                        ? null
-                        : const Border(
-                            bottom: BorderSide(color: Color(0x1FE0873C)),
-                          ),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      SizedBox(
-                        width: 7,
-                        child: Center(
-                          child: Container(
-                            width: 4,
-                            height: 15,
-                            decoration: BoxDecoration(
-                              color: rows[index].eventColor,
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      SizedBox(
-                        width: 67,
-                        child: Text(
-                          _previewTimeLabel(rows[index]),
-                          style: _uiStyle(
-                            fontSize: 10.5,
-                            color: const Color(0xFF8F8B83),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          rows[index].title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _displayStyle(
-                            fontSize: 16,
-                            color: const Color(0xFFCBC5BA),
-                            height: 1.15,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-      );
-    }
-    final status = state == MaatFlowDateCalendarState.loaded
-        ? MaatFlowDateCalendarState.loadedEmpty
-        : state;
+    final rows = _rows[sittingNumber];
+    if (rows == null || rows.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 11),
-      child: SizedBox(
-        key: ValueKey<String>(
-          'djed-schedule-calendar-${maatFlowDateCalendarKeySuffix(status)}-$sittingNumber',
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Color(0x24E0873C))),
         ),
-        height: 47,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            maatFlowDateCalendarLabel(status),
-            style: _uiStyle(fontSize: 11, color: const Color(0xFF777169)),
-          ),
+        child: Column(
+          children: <Widget>[
+            for (var index = 0; index < rows.length; index++)
+              Container(
+                constraints: const BoxConstraints(minHeight: 47),
+                decoration: BoxDecoration(
+                  border: index == rows.length - 1
+                      ? null
+                      : const Border(
+                          bottom: BorderSide(color: Color(0x1FE0873C)),
+                        ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    SizedBox(
+                      width: 7,
+                      child: Center(
+                        child: Container(
+                          width: 4,
+                          height: 15,
+                          decoration: BoxDecoration(
+                            color: rows[index].$1,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    SizedBox(
+                      width: 67,
+                      child: Text(
+                        rows[index].$2,
+                        style: _uiStyle(
+                          fontSize: 10.5,
+                          color: const Color(0xFF8F8B83),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        rows[index].$3,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _displayStyle(
+                          fontSize: 16,
+                          color: const Color(0xFFCBC5BA),
+                          height: 1.15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
-}
-
-String _previewTimeLabel(FollowSkyCalendarPreviewRow row) {
-  if (row.allDay) return 'All day';
-  final hour = row.start.hour;
-  final minute = row.start.minute.toString().padLeft(2, '0');
-  final period = hour >= 12 ? 'PM' : 'AM';
-  final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-  return '$hour12:$minute $period';
 }
 
 class _DjedHistory extends StatefulWidget {
