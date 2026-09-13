@@ -59,20 +59,6 @@ class DjedEventBlockVisual extends StatelessWidget {
       height: blockHeight,
       decoration: BoxDecoration(
         borderRadius: radius,
-        border: Border.all(
-          color: MaatEventBlockBorderTokens.color,
-          width: MaatEventBlockBorderTokens.width,
-        ),
-        gradient: const LinearGradient(
-          begin: Alignment(-0.45, -1),
-          end: Alignment(0.72, 1),
-          colors: <Color>[
-            Color(0xFF1E120A),
-            Color(0xFF3A1F0E),
-            Color(0xFF150B04),
-          ],
-          stops: <double>[0, .56, 1],
-        ),
         boxShadow: const <BoxShadow>[
           BoxShadow(
             color: Color(0x94000000),
@@ -88,9 +74,23 @@ class DjedEventBlockVisual extends StatelessWidget {
         children: <Widget>[
           const DecoratedBox(
             decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment(-0.438, -0.899),
+                end: Alignment(0.438, 0.899),
+                colors: <Color>[
+                  Color(0xFF1E120A),
+                  Color(0xFF3A1F0E),
+                  Color(0xFF150B04),
+                ],
+                stops: <double>[0, .56, 1],
+              ),
+            ),
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment(.66, 0),
-                radius: .72,
+                radius: 1.35,
                 colors: <Color>[Color(0x42E0873C), Color(0x00E0873C)],
               ),
             ),
@@ -107,17 +107,21 @@ class DjedEventBlockVisual extends StatelessWidget {
               ),
             ),
           ),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 3,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: <Color>[Color(0xFFF5B963), Color(0xFFB4552A)],
-                  ),
+          const Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 3,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(3),
+                  bottomLeft: Radius.circular(3),
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[Color(0xFFF5B963), Color(0xFFB4552A)],
                 ),
               ),
             ),
@@ -185,21 +189,14 @@ class DjedEventBlockVisual extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 3),
-                    SizedBox(
-                      width: compact ? 48 : 60,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          ordinalLabel ?? _ordinal(sittingNumber),
-                          maxLines: 1,
-                          style: _ui(
-                            color: const Color(0xFF9A8365),
-                            size: compact ? 8 : 10,
-                            spacing: .3,
-                          ),
-                        ),
+                    const SizedBox(width: 8),
+                    Text(
+                      ordinalLabel ?? _ordinal(sittingNumber),
+                      maxLines: 1,
+                      style: _ui(
+                        color: const Color(0xFF9A8365),
+                        size: compact ? 8 : 10,
+                        spacing: .3,
                       ),
                     ),
                   ],
@@ -219,6 +216,19 @@ class DjedEventBlockVisual extends StatelessWidget {
                 child: CustomPaint(
                   painter: _EmberDjedPainter(
                     angleDegrees: _sittingAngle(sittingNumber),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: radius,
+                  border: Border.all(
+                    color: const Color(0x70E0873C),
+                    width: MaatEventBlockBorderTokens.width,
                   ),
                 ),
               ),
@@ -378,7 +388,7 @@ String _kickerPhase(int sittingNumber, String phase) {
 String _eventProgressCopy(int sittingNumber, String title) {
   if (sittingNumber == 1) return 'Start here';
   if (title == 'Make one move') return 'One small thing today';
-  return 'Return and read what happened';
+  return 'Return and read it';
 }
 
 double _sittingAngle(int sitting) => switch (sitting.clamp(1, 9)) {
@@ -393,13 +403,16 @@ double _sittingAngle(int sitting) => switch (sitting.clamp(1, 9)) {
   _ => 0,
 };
 
-String _supportFallback(int sitting) => switch (sitting) {
+String authoredDjedSupportNameForSitting(int sitting) => switch (sitting) {
   1 => 'four supports · one at a time',
   2 || 3 => 'support 01',
   4 || 5 => 'the weekly call with my sister',
   6 || 7 => 'support 03',
   _ => 'support 04',
 };
+
+String _supportFallback(int sitting) =>
+    authoredDjedSupportNameForSitting(sitting);
 
 String _ordinal(int sitting) {
   if (sitting == 1) return 'Start here';

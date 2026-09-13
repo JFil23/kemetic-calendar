@@ -83,6 +83,9 @@ void main() {
         find.text('name the four parts that need strengthening'),
         findsOneWidget,
       );
+      await tester.tap(find.byType(DjedEventBlockVisual));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Event options'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

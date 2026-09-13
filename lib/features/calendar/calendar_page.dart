@@ -227,7 +227,9 @@ part 'quick_add_parser.dart';
 
 @visibleForTesting
 bool maatFlowDetailUsesCalendarPreview(String templateKey) =>
-    templateKey == kOfferingTableFlowKey || templateKey == kKarFlowKey;
+    templateKey == kOfferingTableFlowKey ||
+    templateKey == kTheDjedFlowKey ||
+    templateKey == kKarFlowKey;
 
 class _MountedFlowEndPatch {
   const _MountedFlowEndPatch({
@@ -8801,6 +8803,49 @@ class CalendarPage extends StatefulWidget {
     final state = _mountedState;
     if (state == null) return false;
     return state._makeTodoFromEventTarget(target);
+  }
+
+  @visibleForTesting
+  static DayViewSheetEventTarget? Function({
+    required int flowId,
+    required int sittingNumber,
+  })?
+  debugOwnedDjedSittingEventTargetForTesting;
+
+  static DayViewSheetEventTarget? eventTargetForOwnedDjedSitting({
+    required int flowId,
+    required int sittingNumber,
+  }) {
+    final override = debugOwnedDjedSittingEventTargetForTesting;
+    if (override != null) {
+      return override(flowId: flowId, sittingNumber: sittingNumber);
+    }
+    return _mountedState?._eventTargetForOwnedDjedSitting(
+      flowId: flowId,
+      sittingNumber: sittingNumber,
+    );
+  }
+
+  static bool hasOwnedDjedSittingEventIdentity({
+    required int flowId,
+    required int sittingNumber,
+  }) =>
+      eventTargetForOwnedDjedSitting(
+        flowId: flowId,
+        sittingNumber: sittingNumber,
+      ) !=
+      null;
+
+  static Future<bool> makeTodoFromOwnedDjedSitting({
+    required int flowId,
+    required int sittingNumber,
+  }) async {
+    final target = eventTargetForOwnedDjedSitting(
+      flowId: flowId,
+      sittingNumber: sittingNumber,
+    );
+    if (target == null) return false;
+    return makeTodoFromEventTarget(target);
   }
 
   static String detailSheetCalendarButtonLabel(EventItem event) {
@@ -34680,6 +34725,44 @@ class CalendarPageState extends State<CalendarPage>
     return _calendarSheetEventIdentityKey(
       a,
     ).compareTo(_calendarSheetEventIdentityKey(b));
+  }
+
+  DayViewSheetEventTarget? _eventTargetForOwnedDjedSitting({
+    required int flowId,
+    required int sittingNumber,
+  }) {
+    DayViewSheetEventTarget? from(Map<String, List<_Note>> notes) {
+      for (final entry in notes.entries) {
+        final parts = entry.key.split('-');
+        if (parts.length != 3) continue;
+        final ky = int.tryParse(parts[0]);
+        final km = int.tryParse(parts[1]);
+        final kd = int.tryParse(parts[2]);
+        if (ky == null || km == null || kd == null) continue;
+        for (final note in entry.value) {
+          if (!calendarEventMatchesOwnedDjedSitting(
+            flowId: flowId,
+            sittingNumber: sittingNumber,
+            eventFlowId: note.flowId,
+            title: note.title,
+            actionId: note.actionId,
+            behaviorPayload: note.behaviorPayload,
+          )) {
+            continue;
+          }
+          return DayViewSheetEventTarget(
+            ky: ky,
+            km: km,
+            kd: kd,
+            event: _calendarSheetEventItemFromNote(note),
+          );
+        }
+      }
+      return null;
+    }
+
+    return from(_notes) ??
+        from(_calendarAuthoritativeNotesByDay ?? const <String, List<_Note>>{});
   }
 
   List<EventItem> _calendarSheetEventsForDay(int ky, int km, int kd) {

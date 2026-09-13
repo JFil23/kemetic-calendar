@@ -72,6 +72,12 @@ void main() {
         canonicalBody,
         isNot(contains('_activeFlowForMaatTemplate(')),
       );
+      expect(
+        File(
+          'lib/features/calendar/the_djed/presentation/djed_detail_page.dart',
+        ).readAsStringSync(),
+        contains('CalendarPage.makeTodoFromOwnedDjedSitting('),
+      );
     },
   );
 
@@ -85,7 +91,7 @@ void main() {
     expect(source, isNot(contains('_activeFlowForMaatTemplate')));
   });
 
-  testWidgets('invited Djed still offers carry', (tester) async {
+  testWidgets('invited Djed does not offer personal carry', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
@@ -102,7 +108,7 @@ void main() {
     final carry = tester.widget<ElevatedButton>(
       find.byKey(const ValueKey<String>('djed-carry')),
     );
-    expect(carry.onPressed, isNotNull);
+    expect(carry.onPressed, isNull);
   });
 
   testWidgets('owned canonical Djed uses the intended instance, not a lookup', (

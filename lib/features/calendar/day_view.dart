@@ -1327,10 +1327,8 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
     );
   }
 
-  if (_isDjedFlowName(flowName)) {
-    final djedV2Event = djedV2EventForEvent(
-      behaviorPayload: event.behaviorPayload,
-    );
+  if (_eventMaatFlowKind(event) == MaatFlowKind.theDjed) {
+    final djedV2Event = _djedV2EventForItem(event);
     if (djedV2Event != null) {
       return _MaatFlowCompletionContext(
         flowKey: kTheDjedFlowKey,
@@ -1347,28 +1345,6 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
         ),
       );
     }
-    final djedV1Event = djedEventForEvent(
-      title: event.title,
-      behaviorPayload: event.behaviorPayload,
-    );
-    if (djedV1Event == null) return null;
-    return _MaatFlowCompletionContext(
-      flowKey: kTheDjedFlowKey,
-      flowTitle: kTheDjedTitle,
-      eventTitle: event.title,
-      eventCategory: event.category,
-      eventNumber: djedV1Event.eventNumber,
-      flowDay: djedV1Event.flowDay,
-      sharePromptOnComplete: djedV1Event.sharePromptOnComplete,
-      shareButtonLabel: 'Share what holds',
-      extraStatusLabels: djedV1Event.physicalRaising
-          ? const <String, String>{'raised': 'Raised'}
-          : const <String, String>{},
-      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
-        flowKey: kTheDjedFlowKey,
-        eventCategory: event.category,
-      ),
-    );
   }
 
   if (_isReadingHouseFlowName(flowName)) {
@@ -2197,18 +2173,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   }
 
   bool _isDjedInstrumentEvent(EventItem event) {
-    if (resolveMaatFlowKind(behaviorPayload: event.behaviorPayload) ==
-        MaatFlowKind.theDjed) {
-      return true;
-    }
-    final flow = _chromeFlowForId(event.flowId);
-    return event.flowId != null &&
-        isDjedFlowReference(
-          flowName: flow?.name,
-          flowNotes: flow?.notes,
-          behaviorPayload: event.behaviorPayload,
-        ) &&
-        djedV2EventForEvent(behaviorPayload: event.behaviorPayload) != null;
+    return _djedV2EventForItem(event) != null;
   }
 
   bool _isReadingHouseInstrumentEvent(EventItem event) {
@@ -3288,7 +3253,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final bool isTheCourse = _isTheCourseFlowName(flow?.name);
     final bool isDecanWatch = _isDecanWatchFlowName(flow?.name);
     final bool isOpenHand = _isOpenHandFlowName(flow?.name);
-    final bool isDjed = _isDjedFlowName(flow?.name);
+    final bool isDjed = _djedV2EventForItem(currentEvent) != null;
     final bool isReadingHouse = _isReadingHouseFlowName(flow?.name);
     final bool isKar =
         resolveMaatFlowKind(
@@ -3311,9 +3276,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final openHandEvent = isOpenHand
         ? openHandEventForEvent(title: currentEvent.title)
         : null;
-    final djedV2Event = isDjed
-        ? djedV2EventForEvent(behaviorPayload: currentEvent.behaviorPayload)
-        : null;
+    final djedV2Event = _djedV2EventForItem(currentEvent);
     final djedV1Event = isDjed && djedV2Event == null
         ? djedEventForEvent(
             title: currentEvent.title,
@@ -3417,8 +3380,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         enableFollowSkyEngagement &&
         _detailSheetTargetKey(target) ==
             _detailSheetTargetKey(_currentTarget) &&
-        completionContext != null &&
-        currentEvent.flowId != null &&
         djedV2Event != null;
     final hasReadingHouseInstrument =
         enableFollowSkyEngagement &&
@@ -3599,66 +3560,89 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     }
 
     if (hasDjedInstrument) {
-      final activeDjedEvent = djedV2Event;
+      final activeDjedEvent = djedV2Event!;
       final fixture = _djedV2DayVisualFixture(
         activeDjedEvent,
         behaviorPayload: currentEvent.behaviorPayload,
       );
+      final flowId = currentEvent.flowId;
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          child: DjedDayBehaviorSurface(
-            key: ValueKey<String>(
-              'djed-v2-presentation:${currentEvent.flowId}:${activeDjedEvent.semanticStepId}',
-            ),
-            flowId: currentEvent.flowId!,
-            event: activeDjedEvent,
-            baseFixture: fixture,
-            supports: _djedV2SupportFixtures(
-              flow?.notes,
-              currentEvent.behaviorPayload,
-            ),
-            onPutOnCalendar: () async {
-              await CalendarPage.makeTodoFromEventTarget(target);
-            },
-            onCompletionCommit:
-                (selected, move, result, resultNote, smallerMove, raised) {
-                  final status = switch (selected) {
-                    DjedCompletionVisualState.observed =>
-                      CompletionStatus.observed,
-                    DjedCompletionVisualState.partly =>
-                      CompletionStatus.partial,
-                    DjedCompletionVisualState.skipped =>
-                      CompletionStatus.skipped,
-                    DjedCompletionVisualState.none => CompletionStatus.none,
-                  };
-                  return _commitMaatFlowCompletion(
-                    target: target,
-                    completion: completionContext,
-                    status: status,
-                    additionalMetadata: <String, dynamic>{
-                      'djed_schema_version': kDjedV2SchemaVersion,
-                      'semantic_step_id': activeDjedEvent.semanticStepId,
-                      if (activeDjedEvent.supportSlot != null)
-                        'support_slot': activeDjedEvent.supportSlot,
-                      if (move.isNotEmpty) 'move': move,
-                      if (result != DjedResultVisualState.none)
-                        'result': switch (result) {
-                          DjedResultVisualState.helped => 'helped',
-                          DjedResultVisualState.noChange => 'no_change',
-                          DjedResultVisualState.notDone => 'not_done',
-                          DjedResultVisualState.none => null,
-                        },
-                      if (resultNote.isNotEmpty) 'result_note': resultNote,
-                      if (smallerMove.isNotEmpty) 'smaller_move': smallerMove,
-                      if (activeDjedEvent.finalRaising)
-                        'raising_completed': raised,
-                      if (raised) 'raising_seconds': kDjedRaisingSeconds,
-                    },
-                  );
-                },
-          ),
+          child: flowId == null
+              ? DjedDayPresentation(
+                  fixture: fixture,
+                  supports: _djedV2SupportFixtures(
+                    flow?.notes,
+                    currentEvent.behaviorPayload,
+                  ),
+                )
+              : DjedDayBehaviorSurface(
+                  key: ValueKey<String>(
+                    'djed-v2-presentation:$flowId:${activeDjedEvent.semanticStepId}',
+                  ),
+                  flowId: flowId,
+                  event: activeDjedEvent,
+                  baseFixture: fixture,
+                  supports: _djedV2SupportFixtures(
+                    flow?.notes,
+                    currentEvent.behaviorPayload,
+                  ),
+                  onPutOnCalendar: () async {
+                    await CalendarPage.makeTodoFromEventTarget(target);
+                  },
+                  onCompletionCommit:
+                      (
+                        selected,
+                        move,
+                        result,
+                        resultNote,
+                        smallerMove,
+                        raised,
+                      ) {
+                        final completion = completionContext;
+                        if (completion == null) {
+                          return Future<void>.value();
+                        }
+                        final status = switch (selected) {
+                          DjedCompletionVisualState.observed =>
+                            CompletionStatus.observed,
+                          DjedCompletionVisualState.partly =>
+                            CompletionStatus.partial,
+                          DjedCompletionVisualState.skipped =>
+                            CompletionStatus.skipped,
+                          DjedCompletionVisualState.none =>
+                            CompletionStatus.none,
+                        };
+                        return _commitMaatFlowCompletion(
+                          target: target,
+                          completion: completion,
+                          status: status,
+                          additionalMetadata: <String, dynamic>{
+                            'djed_schema_version': kDjedV2SchemaVersion,
+                            'semantic_step_id': activeDjedEvent.semanticStepId,
+                            if (activeDjedEvent.supportSlot != null)
+                              'support_slot': activeDjedEvent.supportSlot,
+                            if (move.isNotEmpty) 'move': move,
+                            if (result != DjedResultVisualState.none)
+                              'result': switch (result) {
+                                DjedResultVisualState.helped => 'helped',
+                                DjedResultVisualState.noChange => 'no_change',
+                                DjedResultVisualState.notDone => 'not_done',
+                                DjedResultVisualState.none => null,
+                              },
+                            if (resultNote.isNotEmpty)
+                              'result_note': resultNote,
+                            if (smallerMove.isNotEmpty)
+                              'smaller_move': smallerMove,
+                            if (activeDjedEvent.finalRaising)
+                              'raising_completed': raised,
+                            if (raised) 'raising_seconds': kDjedRaisingSeconds,
+                          },
+                        );
+                      },
+                ),
         ),
       );
     }
@@ -4579,6 +4563,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             : null,
         trailing: activeDjedInstrument
             ? IconButton(
+                key: const ValueKey<String>('djed-day-sheet-close'),
                 tooltip: 'Close',
                 onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Text(
@@ -4598,12 +4583,37 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               ),
         body: buildDetailSurface(),
         footer: activeDjedInstrument
-            ? DjedDayFooterChrome(
-                child: _buildEventDetailBottomActionRow(
-                  rootContext: widget.hostContext,
-                  sheetContext: context,
-                  target: target,
-                ),
+            ? DjedDayFooterActions(
+                onMakeTodo: () async {
+                  Navigator.pop(context);
+                  final handled = await CalendarPage.makeTodoFromEventTarget(
+                    target,
+                  );
+                  if (!handled && widget.hostContext.mounted) {
+                    ScaffoldMessenger.of(widget.hostContext).showSnackBar(
+                      const SnackBar(content: Text('Could not add to-do.')),
+                    );
+                  }
+                },
+                onCalendar:
+                    CalendarPage.canChangeDetailSheetCalendar(target.event)
+                    ? () async {
+                        final updatedTarget =
+                            await CalendarPage.showDetailSheetCalendarPicker(
+                              context: context,
+                              target: target,
+                              onOptimisticTargetChanged: (optimisticTarget) {
+                                if (context.mounted) {
+                                  _moveToTarget(optimisticTarget);
+                                }
+                              },
+                            );
+                        if (!context.mounted || updatedTarget == null) {
+                          return;
+                        }
+                        _moveToTarget(updatedTarget);
+                      }
+                    : null,
               )
             : _buildEventDetailBottomActionRow(
                 rootContext: widget.hostContext,
@@ -5034,8 +5044,17 @@ bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
 
 double _eventVisualTop(EventItem event) => event.startMin.toDouble();
 
+MaatFlowKind? _eventMaatFlowKind(EventItem event) {
+  return resolveMaatFlowKind(
+    flowName: event.flowName,
+    flowNotes: event.flowNotes,
+    eventTitle: event.title,
+    behaviorPayload: event.behaviorPayload,
+  );
+}
+
 bool _usesFullWidthAuthoredEventBlock(EventItem event) {
-  final kind = resolveMaatFlowKind(behaviorPayload: event.behaviorPayload);
+  final kind = _eventMaatFlowKind(event);
   return kind == MaatFlowKind.theDjed ||
       kind == MaatFlowKind.readingHouse ||
       kind == MaatFlowKind.offeringTable;
@@ -5044,13 +5063,13 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) {
 ({double leading, double trailing})? _authoredEventBlockHorizontalExpansion(
   EventItem event,
 ) {
-  final kind = resolveMaatFlowKind(behaviorPayload: event.behaviorPayload);
+  final kind = _eventMaatFlowKind(event);
   return switch (kind) {
     // The supplied Day View places this authored block at x=38 and x=376.
     // The shared production timeline lane starts at x=60 and ends at x=374.
     MaatFlowKind.theDjed => (leading: 22, trailing: 2),
     // Reading House and Offering Table both begin at x=50 in their supplied
-    // Day Views while preserving the production lane's trailing edge.
+    // Day Views while preserving the production lane's x=374 trailing edge.
     MaatFlowKind.readingHouse ||
     MaatFlowKind.offeringTable => (leading: 10, trailing: 0),
     _ => null,
@@ -5066,15 +5085,29 @@ double _authoredEventBlockMinHeight(MaatFlowKind? kind) {
   };
 }
 
+DjedV2Event? _djedV2EventForItem(EventItem event) {
+  final fromPayload = djedV2EventForEvent(
+    behaviorPayload: event.behaviorPayload,
+  );
+  if (fromPayload != null) return fromPayload;
+  if (_eventMaatFlowKind(event) != MaatFlowKind.theDjed) return null;
+  return djedV2EventByNumber(_djedSittingFaceForEvent(event).number);
+}
+
 DjedSittingFixture _djedSittingFaceForEvent(EventItem event) {
   final resolved = djedV2EventForEvent(behaviorPayload: event.behaviorPayload);
+  final fromTitle = djedEventForEvent(
+    title: event.title,
+    behaviorPayload: event.behaviorPayload,
+  );
   final rawNumber =
       resolved?.eventNumber ??
       (event.behaviorPayload?['event_number'] is num
           ? (event.behaviorPayload!['event_number'] as num).toInt()
           : int.tryParse(
               event.behaviorPayload?['event_number']?.toString() ?? '',
-            ));
+            )) ??
+      fromTitle?.eventNumber;
   final index = ((rawNumber ?? 1) - 1).clamp(
     0,
     kDjedSittingFixtures.length - 1,
@@ -5108,7 +5141,7 @@ double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
   }
 
   final authoredHeight = _authoredEventBlockMinHeight(
-    resolveMaatFlowKind(behaviorPayload: event.behaviorPayload),
+    _eventMaatFlowKind(event),
   );
   if (authoredHeight > 0) {
     return authoredHeight;

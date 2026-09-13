@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
+import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
@@ -62,6 +63,7 @@ void main() {
         find.byKey(const ValueKey<String>('djed-thirty-day-calendar')),
         findsOneWidget,
       );
+      expect(find.byType(MaatFlowThirtyDayCalendar), findsOneWidget);
       expect(find.byType(DjedSpineVisual), findsOneWidget);
       expect(find.text('The Djed'), findsOneWidget);
       expect(find.text('30 DAYS'), findsOneWidget);

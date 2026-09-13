@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
 
 enum DjedPracticeStageVisual {
@@ -76,7 +77,7 @@ DjedDayVisualFixture djedDayVisualFixtureForEvent(
     supportSlot: supportSlot,
     supportName: resolvedSupportName?.isNotEmpty == true
         ? resolvedSupportName!
-        : 'support ${supportSlot.toString().padLeft(2, '0')}',
+        : authoredDjedSupportNameForSitting(event.eventNumber),
   );
 }
 
@@ -1305,23 +1306,37 @@ class DjedDayFooterChrome extends StatelessWidget {
 }
 
 class DjedDayFooterActions extends StatelessWidget {
-  const DjedDayFooterActions({super.key, this.onMakeTodo, this.onCalendar});
+  const DjedDayFooterActions({
+    super.key,
+    this.onMakeTodo,
+    this.onCalendar,
+    this.makeTodoUnavailable = false,
+  });
 
   final VoidCallback? onMakeTodo;
   final VoidCallback? onCalendar;
+  final bool makeTodoUnavailable;
 
   @override
   Widget build(BuildContext context) {
+    final makeTodoLabel = makeTodoUnavailable
+        ? 'Make to-do unavailable'
+        : '≡✓  Make to-do';
     return DjedDayFooterChrome(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
           Flexible(
             child: TextButton(
+              key: ValueKey<String>(
+                makeTodoUnavailable
+                    ? 'djed-detail-make-todo-unavailable'
+                    : 'djed-detail-make-todo',
+              ),
               onPressed: onMakeTodo,
               style: _djedFooterButtonStyle,
-              child: const Text(
-                '≡✓  Make to-do',
+              child: Text(
+                makeTodoLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
