@@ -438,5 +438,17 @@ void main() {
       );
       expect(isCourseFlowReference(actionId: 'the-course-event-01'), isTrue);
     });
+
+    test('resolves Djed sittings from authored calendar titles', () {
+      expect(
+        resolveMaatFlowKind(eventTitle: 'Djed 4: Make one move'),
+        MaatFlowKind.theDjed,
+      );
+      expect(
+        resolveMaatFlowKind(eventTitle: 'djed 1: Set your footing'),
+        MaatFlowKind.theDjed,
+      );
+      expect(resolveMaatFlowKind(eventTitle: 'Make one move'), isNull);
+    });
   });
 }

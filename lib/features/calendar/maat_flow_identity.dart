@@ -114,6 +114,7 @@ MaatFlowKind? resolveMaatFlowKind({
   String? flowName,
   String? flowNotes,
   String? actionId,
+  String? eventTitle,
   Map<String, dynamic>? behaviorPayload,
 }) {
   final flowKey =
@@ -140,7 +141,11 @@ MaatFlowKind? resolveMaatFlowKind({
   }
 
   final normalizedName = _normalizeName(flowName);
-  return _flowNameKinds[normalizedName];
+  final nameMatch = _flowNameKinds[normalizedName];
+  if (nameMatch != null) return nameMatch;
+
+  if (_isDjedEventTitle(eventTitle)) return MaatFlowKind.theDjed;
+  return null;
 }
 
 bool isMaatFlowReference(
@@ -148,12 +153,14 @@ bool isMaatFlowReference(
   String? flowName,
   String? flowNotes,
   String? actionId,
+  String? eventTitle,
   Map<String, dynamic>? behaviorPayload,
 }) {
   return resolveMaatFlowKind(
         flowName: flowName,
         flowNotes: flowNotes,
         actionId: actionId,
+        eventTitle: eventTitle,
         behaviorPayload: behaviorPayload,
       ) ==
       kind;
@@ -317,6 +324,17 @@ const Map<String, MaatFlowKind> _flowNameKinds = <String, MaatFlowKind>{
   'the khat': MaatFlowKind.khat,
   'the oracle': MaatFlowKind.oracle,
 };
+
+final RegExp _djedEventTitlePattern = RegExp(
+  r'^\s*Djed\s+\d{1,2}\s*:',
+  caseSensitive: false,
+);
+
+bool _isDjedEventTitle(String? eventTitle) {
+  final title = eventTitle?.trim();
+  if (title == null || title.isEmpty) return false;
+  return _djedEventTitlePattern.hasMatch(title);
+}
 
 String? _maatKeyFromNotes(String? flowNotes) {
   if (flowNotes == null || flowNotes.isEmpty) return null;

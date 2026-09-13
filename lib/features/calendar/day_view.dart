@@ -239,8 +239,8 @@ CalendarEventVisualStyle _dayViewVisualForEvent(
 }) {
   return resolveCalendarEventVisualStyle(
     eventColor: event.color,
-    flowName: flow?.name,
-    flowNotes: flow?.notes,
+    flowName: flow?.name ?? event.flowName,
+    flowNotes: flow?.notes ?? event.flowNotes,
     eventTitle: event.title,
     behaviorPayload: event.behaviorPayload,
     isReminder: isReminder,
@@ -1872,6 +1872,8 @@ class EventItem {
   final int endMin;
   final DateTime? canonicalEnd;
   final int? flowId;
+  final String? flowName;
+  final String? flowNotes;
   final Color color;
   final Color? manualColor;
   final bool allDay;
@@ -1893,6 +1895,8 @@ class EventItem {
     required this.endMin,
     this.canonicalEnd,
     this.flowId,
+    this.flowName,
+    this.flowNotes,
     required this.color,
     this.manualColor,
     required this.allDay,
@@ -4908,17 +4912,15 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
   final endMin = note.allDay
       ? 17 * 60
       : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
+  final flow = note.flowId == null ? null : flowIndex[note.flowId];
 
   Color eventColor = Colors.blue;
   // Product rule: explicit per-event colors win; otherwise we fall back to the
   // owning flow's chrome color so historical/saved flow notes stay unified.
   if (note.manualColor != null) {
     eventColor = note.manualColor!;
-  } else if (note.flowId != null) {
-    final flow = flowIndex[note.flowId];
-    if (flow != null) {
-      eventColor = flow.color;
-    }
+  } else if (flow != null) {
+    eventColor = flow.color;
   }
 
   return EventItem(
@@ -4933,6 +4935,8 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
     endMin: endMin,
     canonicalEnd: note.canonicalEnd,
     flowId: note.flowId,
+    flowName: flow?.name,
+    flowNotes: flow?.notes,
     color: eventColor,
     manualColor: note.manualColor,
     allDay: note.allDay,
@@ -5016,8 +5020,17 @@ bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
 
 double _eventVisualTop(EventItem event) => event.startMin.toDouble();
 
+MaatFlowKind? _eventMaatFlowKind(EventItem event) {
+  return resolveMaatFlowKind(
+    flowName: event.flowName,
+    flowNotes: event.flowNotes,
+    eventTitle: event.title,
+    behaviorPayload: event.behaviorPayload,
+  );
+}
+
 bool _usesFullWidthAuthoredEventBlock(EventItem event) {
-  final kind = resolveMaatFlowKind(behaviorPayload: event.behaviorPayload);
+  final kind = _eventMaatFlowKind(event);
   return kind == MaatFlowKind.theDjed ||
       kind == MaatFlowKind.readingHouse ||
       kind == MaatFlowKind.offeringTable;
@@ -5026,7 +5039,7 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) {
 ({double leading, double trailing})? _authoredEventBlockHorizontalExpansion(
   EventItem event,
 ) {
-  final kind = resolveMaatFlowKind(behaviorPayload: event.behaviorPayload);
+  final kind = _eventMaatFlowKind(event);
   return switch (kind) {
     // The supplied Day View places this authored block at x=38 and x=376.
     // The shared production timeline lane starts at x=60 and ends at x=374.
@@ -5050,13 +5063,18 @@ double _authoredEventBlockMinHeight(MaatFlowKind? kind) {
 
 DjedSittingFixture _djedSittingFaceForEvent(EventItem event) {
   final resolved = djedV2EventForEvent(behaviorPayload: event.behaviorPayload);
+  final fromTitle = djedEventForEvent(
+    title: event.title,
+    behaviorPayload: event.behaviorPayload,
+  );
   final rawNumber =
       resolved?.eventNumber ??
       (event.behaviorPayload?['event_number'] is num
           ? (event.behaviorPayload!['event_number'] as num).toInt()
           : int.tryParse(
               event.behaviorPayload?['event_number']?.toString() ?? '',
-            ));
+            )) ??
+      fromTitle?.eventNumber;
   final index = ((rawNumber ?? 1) - 1).clamp(
     0,
     kDjedSittingFixtures.length - 1,
@@ -5090,7 +5108,7 @@ double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
   }
 
   final authoredHeight = _authoredEventBlockMinHeight(
-    resolveMaatFlowKind(behaviorPayload: event.behaviorPayload),
+    _eventMaatFlowKind(event),
   );
   if (authoredHeight > 0) {
     return authoredHeight;
@@ -7170,6 +7188,8 @@ class _DayViewGridState extends State<DayViewGrid> {
           startMin: startMin,
           endMin: endMin,
           flowId: dragPreview.flowId,
+          flowName: dragPreview.flowName,
+          flowNotes: dragPreview.flowNotes,
           color: dragPreview.color,
           manualColor: dragPreview.manualColor,
           allDay: dragPreview.allDay,
@@ -7297,6 +7317,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     return Object.hashAll(
       notes.map(
         (n) => Object.hash(
+          n.id,
+          n.clientEventId,
           n.title,
           n.detail,
           n.location,
@@ -7310,6 +7332,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           n.category,
           n.isReminder,
           n.reminderId,
+          n.behaviorPayload?.toString(),
         ),
       ),
     );
