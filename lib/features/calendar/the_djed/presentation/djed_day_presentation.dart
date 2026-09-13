@@ -81,6 +81,19 @@ DjedDayVisualFixture djedDayVisualFixtureForEvent(
   );
 }
 
+String djedSheetSupportBarLabel({
+  required int slotNumber,
+  required String name,
+}) {
+  final number = slotNumber.toString().padLeft(2, '0');
+  final trimmed = name.trim();
+  if (trimmed.isEmpty) return number;
+  final clipped = trimmed.length > 20
+      ? '${trimmed.substring(0, 19)}…'
+      : trimmed;
+  return '$number · $clipped';
+}
+
 abstract final class DjedDayTokens {
   static const Color page = Color(0xFF050403);
   static const Color lower = Color(0xFF090705);
@@ -435,13 +448,13 @@ class _DjedSheetStagePainter extends CustomPainter {
       final name =
           supportIndex == active && fixture.supportName.trim().isNotEmpty
           ? fixture.supportName.trim()
-          : rawName.isEmpty
-          ? 'support ${(supportIndex + 1).toString().padLeft(2, '0')}'
           : rawName;
-      final clipped = name.length > 20 ? '${name.substring(0, 19)}…' : name;
       final textPainter = TextPainter(
         text: TextSpan(
-          text: '${(supportIndex + 1).toString().padLeft(2, '0')} · $clipped',
+          text: djedSheetSupportBarLabel(
+            slotNumber: supportIndex + 1,
+            name: name,
+          ),
           style: const TextStyle(
             color: Color(0xFF25190B),
             fontFamily: MaatFlowListTokens.fontFamily,
@@ -786,9 +799,6 @@ class _DjedDecisionSurface extends StatelessWidget {
           ),
           decoration: const InputDecoration(
             isDense: true,
-            hintText:
-                'send one message · make one call · take one step · practice for 10 minutes',
-            hintStyle: TextStyle(color: Color(0xFF544A38)),
             contentPadding: EdgeInsets.fromLTRB(0, 8, 0, 9),
             enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: Color(0x47D4AE43)),

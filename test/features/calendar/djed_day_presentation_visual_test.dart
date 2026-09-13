@@ -152,6 +152,23 @@ void main() {
     );
   });
 
+  test('unnamed later sittings do not invent support 0N copy', () {
+    expect(authoredDjedSupportNameForSitting(8), isEmpty);
+    expect(authoredDjedSupportNameForSitting(9), isEmpty);
+    expect(
+      djedDayVisualFixtureForEvent(djedV2EventByNumber(8)!).supportName,
+      isEmpty,
+    );
+    expect(djedSheetSupportBarLabel(slotNumber: 4, name: ''), '04');
+    expect(
+      djedSheetSupportBarLabel(
+        slotNumber: 2,
+        name: 'the weekly call with my sister',
+      ),
+      '02 · the weekly call wit…',
+    );
+  });
+
   testWidgets('Djed Day View uses the exact angled ember event block', (
     tester,
   ) async {
