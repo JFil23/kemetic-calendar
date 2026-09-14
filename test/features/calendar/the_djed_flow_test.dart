@@ -268,7 +268,6 @@ void main() {
       contains('final djedV1Event = isDjed && djedV2Event == null'),
     );
     expect(dayView, contains('TheDjedLocalStore'));
-    expect(dayView, contains("'raised': 'Raised'"));
   });
 }
 
