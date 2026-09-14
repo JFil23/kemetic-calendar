@@ -538,6 +538,91 @@ void main() {
       },
     );
 
+    test('Djed uses the standard single-event geometry', () {
+      const ordinaryEvent = EventItem(
+        clientEventId: 'ordinary-event',
+        title: 'Ordinary Event',
+        startMin: 10 * 60,
+        endMin: 11 * 60,
+        color: Colors.green,
+        allDay: false,
+      );
+      const djedEvent = EventItem(
+        clientEventId: 'djed-event',
+        title: 'Djed 4: Make one move',
+        startMin: 10 * 60,
+        endMin: 11 * 60,
+        flowId: 84,
+        flowName: 'The Djed',
+        flowNotes: 'maat=the-djed',
+        color: Colors.orange,
+        allDay: false,
+      );
+
+      PositionedEventBlock layout(
+        EventItem event, {
+        double singleEventWidthFactor = 0.8,
+      }) => EventLayoutEngine.layoutEventItems(
+        events: <EventItem>[event],
+        availableWidth: 314,
+        columnGap: 4,
+        textScale: 1,
+        day: 1,
+        singleEventWidthFactor: singleEventWidthFactor,
+      ).single;
+
+      final ordinaryPhone = layout(ordinaryEvent);
+      final djedPhone = layout(djedEvent);
+      expect(djedPhone.leftOffset, ordinaryPhone.leftOffset);
+      expect(djedPhone.width, closeTo(ordinaryPhone.width, 0.001));
+      expect(djedPhone.width, closeTo(251.2, 0.001));
+
+      final djedTablet = layout(djedEvent, singleEventWidthFactor: 1);
+      expect(djedTablet.leftOffset, 0);
+      expect(djedTablet.width, closeTo(314, 0.001));
+    });
+
+    test('Djed uses shared columns when it overlaps an ordinary event', () {
+      final blocks = EventLayoutEngine.layoutEventItems(
+        events: const <EventItem>[
+          EventItem(
+            clientEventId: 'a-djed-event',
+            title: 'Djed 4: Make one move',
+            startMin: 10 * 60,
+            endMin: 11 * 60,
+            flowId: 84,
+            flowName: 'The Djed',
+            flowNotes: 'maat=the-djed',
+            color: Colors.orange,
+            allDay: false,
+          ),
+          EventItem(
+            clientEventId: 'b-ordinary-event',
+            title: 'Ordinary Event',
+            startMin: 10 * 60,
+            endMin: 11 * 60,
+            color: Colors.green,
+            allDay: false,
+          ),
+        ],
+        availableWidth: 314,
+        columnGap: 4,
+        textScale: 1,
+        day: 1,
+      );
+
+      expect(blocks, hasLength(2));
+      expect(
+        blocks.map((block) => block.width),
+        everyElement(closeTo(155, 0.001)),
+      );
+      expect(blocks.map((block) => block.leftOffset), <double>[0, 159]);
+      expect(
+        blocks.map((block) => block.leftOffset + block.width),
+        everyElement(lessThanOrEqualTo(314)),
+      );
+    });
+
     test('tablet landscape single events can use the full timeline lane', () {
       final blocks = EventLayoutEngine.layoutEventItems(
         events: const [

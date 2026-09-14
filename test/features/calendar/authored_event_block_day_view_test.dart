@@ -22,6 +22,9 @@ const _visualCaptureKey = ValueKey<String>(
   'authored-event-block-day-view-capture',
 );
 const _captureKarVisuals = bool.fromEnvironment('CAPTURE_KAR_VISUALS');
+const _captureDjedEventBlockLayouts = bool.fromEnvironment(
+  'CAPTURE_DJED_EVENT_BLOCK_LAYOUTS',
+);
 final _goldenRoot = maatFlowVisualGoldenRoot;
 
 Future<void> _ensureSupabaseInitialized() async {
@@ -83,6 +86,16 @@ void main() {
         find.text('name the four parts that need strengthening'),
         findsOneWidget,
       );
+      final djedRect = tester.getRect(find.byType(DjedEventBlockVisual));
+      expect(djedRect.left, closeTo(60, .1));
+      expect(djedRect.width, closeTo(251.2, .1));
+      expect(tester.takeException(), isNull);
+      if (_captureDjedEventBlockLayouts) {
+        await expectLater(
+          find.byKey(_visualCaptureKey),
+          matchesGoldenFile('/tmp/djed-event-standard-390x844.png'),
+        );
+      }
       await tester.tap(find.byType(DjedEventBlockVisual));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Event options'), findsOneWidget);
@@ -90,6 +103,46 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('Djed fits the shared lane in an overlapping event pair', (
+    tester,
+  ) async {
+    await _pumpDayView(
+      tester,
+      flowId: 81,
+      flowName: kTheDjedTitle,
+      flowKey: kTheDjedFlowKey,
+      title: 'Set your footing',
+      payload: const <String, dynamic>{
+        'kind': 'maat_djed_v2_event',
+        'flow_key': kTheDjedFlowKey,
+      },
+      additionalNotes: const <NoteData>[
+        NoteData(
+          clientEventId: 'zz-ordinary-overlap',
+          title: 'Ordinary overlap',
+          allDay: false,
+          start: TimeOfDay(hour: 7, minute: 30),
+          end: TimeOfDay(hour: 8, minute: 30),
+          manualColor: Color(0xFF62C18C),
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    final djedRect = tester.getRect(find.byType(DjedEventBlockVisual));
+    expect(djedRect.left, closeTo(60, .1));
+    expect(djedRect.width, closeTo(155, .1));
+    expect(djedRect.right, lessThanOrEqualTo(374));
+    expect(find.text('Ordinary overlap'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    if (_captureDjedEventBlockLayouts) {
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('/tmp/djed-event-overlap-390x844.png'),
+      );
+    }
+  });
 
   testWidgets(
     'Day View paints the Reading House compact card from flow identity, not sitting payload',
@@ -546,6 +599,7 @@ Future<void> _pumpDayView(
   required Map<String, dynamic> payload,
   TimeOfDay start = const TimeOfDay(hour: 7, minute: 30),
   int firstVisibleMinute = 6 * 60,
+  List<NoteData> additionalNotes = const <NoteData>[],
   KarRepository? karRepository,
   Future<void> Function({
     required String clientEventId,
@@ -588,6 +642,7 @@ Future<void> _pumpDayView(
                   flowId: flowId,
                   behaviorPayload: payload,
                 ),
+              ...additionalNotes,
             ],
             flowIndex: <int, FlowData>{
               flowId: FlowData(

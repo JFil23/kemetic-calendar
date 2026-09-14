@@ -864,10 +864,6 @@ bool _isOpenHandFlowName(String? name) {
   return name?.trim().toLowerCase() == kTheOpenHandTitle.toLowerCase();
 }
 
-bool _isDjedFlowName(String? name) {
-  return name?.trim().toLowerCase() == kTheDjedTitle.toLowerCase();
-}
-
 String _compactEventTimeLabel(int minuteOfDay) {
   final hour24 = (minuteOfDay ~/ 60).clamp(0, 23);
   final minute = minuteOfDay.remainder(60).clamp(0, 59);
@@ -5044,8 +5040,7 @@ MaatFlowKind? _eventMaatFlowKind(EventItem event) {
 
 bool _usesFullWidthAuthoredEventBlock(EventItem event) {
   final kind = _eventMaatFlowKind(event);
-  return kind == MaatFlowKind.theDjed ||
-      kind == MaatFlowKind.readingHouse ||
+  return kind == MaatFlowKind.readingHouse ||
       kind == MaatFlowKind.offeringTable;
 }
 
@@ -5054,9 +5049,6 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) {
 ) {
   final kind = _eventMaatFlowKind(event);
   return switch (kind) {
-    // The supplied Day View places this authored block at x=38 and x=376.
-    // The shared production timeline lane starts at x=60 and ends at x=374.
-    MaatFlowKind.theDjed => (leading: 22, trailing: 2),
     // Reading House and Offering Table both begin at x=50 in their supplied
     // Day Views while preserving the production lane's x=374 trailing edge.
     MaatFlowKind.readingHouse ||

@@ -51,6 +51,7 @@ class DjedEventBlockVisual extends StatelessWidget {
     final requestedHeight =
         height ?? (size == DjedEventBlockSize.compact ? 60.0 : 106.0);
     final compact = size == DjedEventBlockSize.compact || requestedHeight < 90;
+    final narrow = compact && width != null && width! < 190;
     final blockHeight = requestedHeight;
     final radius = BorderRadius.circular(MaatEventBlockBorderTokens.radius);
     final content = Container(
@@ -129,7 +130,7 @@ class DjedEventBlockVisual extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: compact ? 10 : 14,
+            left: narrow ? 8 : (compact ? 10 : 14),
             top: compact ? 6 : 11,
             right: compact ? 62 : 82,
             child: Column(
@@ -177,6 +178,7 @@ class DjedEventBlockVisual extends StatelessWidget {
                     _SittingPips(
                       sittingNumber: sittingNumber,
                       supportPipIndex: supportPipIndex,
+                      dense: narrow,
                     ),
                     SizedBox(width: compact ? 4 : 9),
                     Expanded(
@@ -191,19 +193,21 @@ class DjedEventBlockVisual extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        ordinalLabel ?? _ordinal(sittingNumber),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: _ui(
-                          color: const Color(0xFF9A8365),
-                          size: compact ? 8 : 10,
-                          spacing: .3,
+                    if (!narrow) ...<Widget>[
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          ordinalLabel ?? _ordinal(sittingNumber),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _ui(
+                            color: const Color(0xFF9A8365),
+                            size: compact ? 8 : 10,
+                            spacing: .3,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ],
@@ -252,10 +256,15 @@ class DjedEventBlockVisual extends StatelessWidget {
 }
 
 class _SittingPips extends StatelessWidget {
-  const _SittingPips({required this.sittingNumber, this.supportPipIndex});
+  const _SittingPips({
+    required this.sittingNumber,
+    this.supportPipIndex,
+    this.dense = false,
+  });
 
   final int sittingNumber;
   final int? supportPipIndex;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -266,7 +275,7 @@ class _SittingPips extends StatelessWidget {
       children: <Widget>[
         for (var index = 1; index <= 4; index++) ...<Widget>[
           Container(
-            width: 15,
+            width: dense ? 10 : 15,
             height: 3,
             decoration: BoxDecoration(
               color: supportIndex < 0
@@ -290,7 +299,7 @@ class _SittingPips extends StatelessWidget {
                   : const <BoxShadow>[],
             ),
           ),
-          if (index < 4) const SizedBox(width: 4),
+          if (index < 4) SizedBox(width: dense ? 3 : 4),
         ],
       ],
     );

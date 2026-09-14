@@ -458,7 +458,13 @@ void main() {
     expect(find.text('the weekly call with my sister'), findsOneWidget);
     expect(find.text('One small thing today'), findsOneWidget);
     expect(find.text('Second of four'), findsOneWidget);
-    expect(tester.getSize(find.byType(DjedEventBlockVisual)).height, 60);
+    final djedEventRect = tester.getRect(find.byType(DjedEventBlockVisual));
+    final ordinaryEventTitleRect = tester.getRect(
+      find.text('journal every day'),
+    );
+    expect(djedEventRect.height, 60);
+    expect(djedEventRect.width, closeTo(251.2, .1));
+    expect(djedEventRect.left, closeTo(ordinaryEventTitleRect.left - 10, .1));
     expect(find.byType(InstrumentEventSheetHost), findsNothing);
 
     await expectLater(
