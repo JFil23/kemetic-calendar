@@ -92,9 +92,8 @@ void main() {
                     child: InstrumentEventSheetHost(
                       semanticLabel: 'Djed sitting details',
                       handleColor: const Color(0xFF72571E),
-                      initialExtent: .71,
-                      geometry: InstrumentEventSheetGeometry.layered,
                       body: DjedDayPresentation(
+                        configuration: DjedDayPresentationConfiguration.dayView,
                         fixture: fixture,
                         onStageAction: () {},
                         onResultSelected: (_) {},
@@ -172,11 +171,11 @@ void main() {
           home: DayViewPage(
             initialKy: 2,
             initialKm: 6,
-            initialKd: 28,
+            initialKd: 27,
             showGregorian: false,
             getMonthName: (_) => 'Rekh-Wer (Rḫ-wr)',
             notesForDay: (ky, km, kd) => <NoteData>[
-              if (ky == 2 && km == 6 && kd == 28) ...<NoteData>[
+              if (ky == 2 && km == 6 && kd == 27) ...<NoteData>[
                 NoteData(
                   clientEventId: 'djed-event-4',
                   title: 'Djed 4: Make one move',
@@ -254,6 +253,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(InstrumentEventSheetHost), findsOneWidget);
     expect(find.byType(InstrumentEventPresentationFrame), findsOneWidget);
+    final host = tester.widget<InstrumentEventSheetHost>(
+      find.byType(InstrumentEventSheetHost),
+    );
+    expect(host.initialExtent, instrumentEventSheetMinExtent);
+    expect(host.geometry, isNull);
+    final presentation = tester.widget<DjedDayPresentation>(
+      find.byType(DjedDayPresentation),
+    );
+    expect(
+      presentation.configuration,
+      same(DjedDayPresentationConfiguration.dayView),
+    );
+    final frame = tester.widget<InstrumentEventPresentationFrame>(
+      find.byType(InstrumentEventPresentationFrame),
+    );
+    expect(frame.initialLowerSheetPeek, isNull);
+    expect(
+      find.descendant(
+        of: find.byType(InstrumentEventPresentationFrame),
+        matching: find.byType(CustomScrollView),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('instrument-sheet-handle-mark')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('djed-practice-sheet-handle')),
+      findsNothing,
+    );
     expect(find.byTooltip('Event options'), findsOneWidget);
     expect(find.text('×'), findsNothing);
     expect(find.textContaining('SITTING 04'), findsOneWidget);
@@ -261,6 +291,30 @@ void main() {
       find.byKey(const ValueKey<String>('djed-detail-make-todo')),
       findsOneWidget,
     );
+    final practiceSheet = find.byKey(
+      const ValueKey<String>('djed-practice-sheet'),
+    );
+    final initialPracticeTop = tester.getTopLeft(practiceSheet).dy;
+    final djedStage = find.byKey(const ValueKey<String>('djed-day-live-stage'));
+    final initialStageTop = tester.getTopLeft(djedStage).dy;
+    await tester.drag(
+      find.byKey(const ValueKey<String>('djed-presentation-body')),
+      const Offset(0, -120),
+    );
+    await tester.pumpAndSettle();
+    final raisedPracticeTop = tester.getTopLeft(practiceSheet).dy;
+    expect(raisedPracticeTop, lessThan(initialPracticeTop));
+    expect(tester.getTopLeft(djedStage).dy, closeTo(initialStageTop, .1));
+    expect(
+      tester.getSize(find.byType(InstrumentEventSheetHost)).height,
+      closeTo((844 - 12) * instrumentEventSheetMinExtent + 8, .1),
+    );
+    await tester.drag(
+      find.byKey(const ValueKey<String>('djed-presentation-body')),
+      const Offset(0, 120),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(practiceSheet).dy, closeTo(initialPracticeTop, 1));
     await expectLater(
       find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
       matchesGoldenFile('$_goldenRoot/djed-day-sheet-390x844.png'),
@@ -293,11 +347,11 @@ void main() {
           home: DayViewPage(
             initialKy: 2,
             initialKm: 6,
-            initialKd: 28,
+            initialKd: 27,
             showGregorian: false,
             getMonthName: (_) => 'Rekh-Wer (Rḫ-wr)',
             notesForDay: (ky, km, kd) => <NoteData>[
-              if (ky == 2 && km == 6 && kd == 28)
+              if (ky == 2 && km == 6 && kd == 27)
                 const NoteData(
                   clientEventId: 'djed-event-4-no-payload',
                   title: 'Djed 4: Make one move',
@@ -387,7 +441,9 @@ void main() {
               child: InstrumentEventSheetHost(
                 semanticLabel: 'Djed sitting details',
                 handleColor: DjedDayTokens.gold,
-                body: DjedDayPresentation(),
+                body: DjedDayPresentation(
+                  configuration: DjedDayPresentationConfiguration.dayView,
+                ),
                 footer: DjedDayFooterActions(),
               ),
             ),
@@ -399,7 +455,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Djed sheet opens with the mockup thirty-pixel practice peek', (
+  testWidgets('Day View uses the shared foreground start and one handle', (
     tester,
   ) async {
     await pumpPresentation(tester, size: const Size(390, 844));
@@ -410,7 +466,19 @@ void main() {
     final practiceRect = tester.getRect(
       find.byKey(const ValueKey<String>('djed-practice-sheet')),
     );
-    expect(frameRect.bottom - practiceRect.top, closeTo(30, 1));
+    expect(frameRect.bottom - practiceRect.top, greaterThan(30));
+    final frame = tester.widget<InstrumentEventPresentationFrame>(
+      find.byType(InstrumentEventPresentationFrame),
+    );
+    expect(frame.initialLowerSheetPeek, isNull);
+    expect(
+      find.byKey(const ValueKey<String>('instrument-sheet-handle-mark')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('djed-practice-sheet-handle')),
+      findsNothing,
+    );
 
     final initialHeight = tester.getSize(sheet).height;
     await tester.drag(

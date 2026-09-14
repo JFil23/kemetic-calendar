@@ -48,7 +48,7 @@ fails closed.
 | Authority | Direct HTML pairs | Supplemental Flutter contracts |
 | --- | --- | --- |
 | Djed detail | hero; supports scroll; support 2 selected | none |
-| Djed Day View | event block; initial sheet; docked practice; result; smaller retry; final raising | duplicate presentation-frame capture of the authored docked state |
+| Djed Day View | event block; initial sheet; raised practice foreground; result; smaller retry; final raising | duplicate presentation-frame capture of the raised state |
 | Reading House detail | hero; setup; calendar; sittings | none |
 | Reading House Inbox | accepted House; pending invitation; House Chat | multiple-House isolation fixture |
 | Reading House Day View | event block; initial sheet; docked House card; sheet bottom; incoming message; Observed completion | locked room; ended room |
@@ -67,8 +67,10 @@ isolated grid. The evidence index records the remaining visible context
 differences explicitly: simplified mockup-only shared chrome, Djed's ordinary
 calendar fixture cards, Offering Table's internally inconsistent 7:30/9:30 and
 Kemetic/Gregorian placement, Reading House's late-day scroll clamp, and
-cross-renderer anti-aliasing. None of those exceptions applies to authored
-event-block or sheet geometry, artwork, palette, copy, or interaction state.
+cross-renderer anti-aliasing. The user's September 13 Djed correction
+supersedes the older HTML sheet composition only: Djed Day View now uses Follow
+the Sky's standard outer host and frame-controlled foreground while retaining
+the authored Djed artwork, palette, copy, actions, and footer.
 
 ## Acceptance conditions
 
@@ -78,9 +80,9 @@ event-block or sheet geometry, artwork, palette, copy, or interaction state.
 - Production fonts are loaded explicitly before each golden comparison.
 - Goldens exercise the widgets opened by the product; no parallel demo screen
   may satisfy the contract.
-- Detail pages include top and scrolled checkpoints. Layered sheets include
-  docked/initial, raised, and inner-content-scrolled checkpoints where the
-  mockup defines those states.
+- Detail pages include top and scrolled checkpoints. Instrument sheets include
+  initial, raised, and inner-content-scrolled checkpoints where the interaction
+  defines those states.
 - Djed's ember detail palette and amber Day View palette remain distinct.
 - A golden update is acceptable only after overlaying the new app capture with
   the matching locked HTML state. Tolerance is zero in the automated test;

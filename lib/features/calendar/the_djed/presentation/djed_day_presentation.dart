@@ -22,6 +22,27 @@ enum DjedResultVisualState { none, helped, noChange, notDone }
 enum DjedCompletionVisualState { none, observed, partly, skipped }
 
 @immutable
+class DjedDayPresentationConfiguration {
+  const DjedDayPresentationConfiguration._({
+    required this.initialLowerSheetPeek,
+    required this.showPracticeSheetHandle,
+  });
+
+  static const dayView = DjedDayPresentationConfiguration._(
+    initialLowerSheetPeek: null,
+    showPracticeSheetHandle: false,
+  );
+
+  static const detail = DjedDayPresentationConfiguration._(
+    initialLowerSheetPeek: 30,
+    showPracticeSheetHandle: true,
+  );
+
+  final double? initialLowerSheetPeek;
+  final bool showPracticeSheetHandle;
+}
+
+@immutable
 class DjedDayVisualFixture {
   const DjedDayVisualFixture({
     required this.sittingNumber,
@@ -109,6 +130,7 @@ abstract final class DjedDayTokens {
 class DjedDayPresentation extends StatelessWidget {
   const DjedDayPresentation({
     super.key,
+    required this.configuration,
     this.fixture = kDjedDayVisualFixture,
     this.supports = kDjedSupportFixtures,
     this.onStageAction,
@@ -123,6 +145,7 @@ class DjedDayPresentation extends StatelessWidget {
     this.onCompletionSelected,
   });
 
+  final DjedDayPresentationConfiguration configuration;
   final DjedDayVisualFixture fixture;
   final List<DjedSupportFixture> supports;
   final VoidCallback? onStageAction;
@@ -151,12 +174,13 @@ class DjedDayPresentation extends StatelessWidget {
           ],
         ),
       ),
-      initialLowerSheetPeek: 30,
+      initialLowerSheetPeek: configuration.initialLowerSheetPeek,
       instrumentFooterHeight: 0,
       instrument: _DjedInstrument(fixture: fixture, supports: supports),
       instrumentFooter: const SizedBox.shrink(),
       inputBuilder: (_, _, _) => const SizedBox.shrink(),
       body: _DjedPracticeSheet(
+        showHandle: configuration.showPracticeSheetHandle,
         fixture: fixture,
         onStageAction: onStageAction,
         onMoveChanged: onMoveChanged,
@@ -528,6 +552,7 @@ class _DjedSheetStagePainter extends CustomPainter {
 
 class _DjedPracticeSheet extends StatelessWidget {
   const _DjedPracticeSheet({
+    required this.showHandle,
     required this.fixture,
     this.onStageAction,
     this.onMoveChanged,
@@ -541,6 +566,7 @@ class _DjedPracticeSheet extends StatelessWidget {
     this.onCompletionSelected,
   });
 
+  final bool showHandle;
   final DjedDayVisualFixture fixture;
   final VoidCallback? onStageAction;
   final ValueChanged<String>? onMoveChanged;
@@ -574,23 +600,25 @@ class _DjedPracticeSheet extends StatelessWidget {
       ),
       child: Stack(
         children: <Widget>[
-          const Positioned(
-            left: 0,
-            right: 0,
-            top: 7,
-            child: Center(
-              child: SizedBox(
-                width: 38,
-                height: 3,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Color(0xFF4E3B1B),
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
+          if (showHandle)
+            const Positioned(
+              left: 0,
+              right: 0,
+              top: 7,
+              child: Center(
+                child: SizedBox(
+                  key: ValueKey<String>('djed-practice-sheet-handle'),
+                  width: 38,
+                  height: 3,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color(0xFF4E3B1B),
+                      borderRadius: BorderRadius.all(Radius.circular(4)),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 34),
             child: Column(

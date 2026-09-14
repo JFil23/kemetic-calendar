@@ -28,6 +28,17 @@
     },
     {
       "states": [
+        "djed-day-sheet",
+        "djed-day-sheet-docked",
+        "djed-day-result",
+        "djed-day-retry",
+        "djed-day-raising"
+      ],
+      "difference": "The HTML capture uses Djed's older 0.71 layered host, forced 30 px practice peek, and decorative inner handle. Production now uses Follow the Sky's 0.58 standard host, the shared frame's computed foreground start, and only the outer host handle.",
+      "reason": "The user's September 13 correction explicitly supersedes the older Djed sheet composition while retaining its artwork, palette, copy, actions, footer, and single shared content scroll."
+    },
+    {
+      "states": [
         "offering-day-view",
         "offering-day-sheet",
         "offering-day-sheet-docked",
@@ -189,9 +200,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 11.622,
-        "changed_pixels_over_8": 85432,
-        "changed_pixel_percent_over_8": 25.9546
+        "mean_absolute_channel_error": 12.1109,
+        "changed_pixels_over_8": 90705,
+        "changed_pixel_percent_over_8": 27.5565
       }
     },
     {
@@ -201,7 +212,7 @@
         "sha256": "fa203d52bedadb5c261485df6e9a77ad8294fe7531781ac7473bfafbcb380308"
       },
       "golden": "djed-day-sheet-390x844.png",
-      "scope": "initial layered detail sheet",
+      "scope": "initial shared instrument sheet",
       "html_content_top_inset": 0,
       "mask_top": 0,
       "size": [
@@ -209,9 +220,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 7.676,
-        "changed_pixels_over_8": 98975,
-        "changed_pixel_percent_over_8": 30.069
+        "mean_absolute_channel_error": 12.5892,
+        "changed_pixels_over_8": 135622,
+        "changed_pixel_percent_over_8": 41.2025
       }
     },
     {
@@ -221,7 +232,7 @@
         "sha256": "fa203d52bedadb5c261485df6e9a77ad8294fe7531781ac7473bfafbcb380308"
       },
       "golden": "djed-day-sheet-practice-raised-production-390x844.png",
-      "scope": "inner practice card docked",
+      "scope": "foreground practice content raised",
       "html_content_top_inset": 0,
       "mask_top": 0,
       "size": [
@@ -229,9 +240,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 10.013,
-        "changed_pixels_over_8": 69602,
-        "changed_pixel_percent_over_8": 21.1453
+        "mean_absolute_channel_error": 9.1512,
+        "changed_pixels_over_8": 82125,
+        "changed_pixel_percent_over_8": 24.9499
       }
     },
     {
@@ -249,9 +260,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 10.5163,
-        "changed_pixels_over_8": 112826,
-        "changed_pixel_percent_over_8": 40.1802
+        "mean_absolute_channel_error": 12.0643,
+        "changed_pixels_over_8": 129344,
+        "changed_pixel_percent_over_8": 46.0627
       }
     },
     {
@@ -269,9 +280,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 10.2045,
-        "changed_pixels_over_8": 112983,
-        "changed_pixel_percent_over_8": 40.2361
+        "mean_absolute_channel_error": 11.9023,
+        "changed_pixels_over_8": 130064,
+        "changed_pixel_percent_over_8": 46.3191
       }
     },
     {
@@ -289,9 +300,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 11.4015,
-        "changed_pixels_over_8": 128042,
-        "changed_pixel_percent_over_8": 45.599
+        "mean_absolute_channel_error": 14.285,
+        "changed_pixels_over_8": 145113,
+        "changed_pixel_percent_over_8": 51.6784
       }
     },
     {

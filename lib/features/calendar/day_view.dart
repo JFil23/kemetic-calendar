@@ -3560,7 +3560,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     }
 
     if (hasDjedInstrument) {
-      final activeDjedEvent = djedV2Event!;
+      final activeDjedEvent = djedV2Event;
       final fixture = _djedV2DayVisualFixture(
         activeDjedEvent,
         behaviorPayload: currentEvent.behaviorPayload,
@@ -3572,6 +3572,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           child: flowId == null
               ? DjedDayPresentation(
+                  configuration: DjedDayPresentationConfiguration.dayView,
                   fixture: fixture,
                   supports: _djedV2SupportFixtures(
                     flow?.notes,
@@ -3585,6 +3586,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                   flowId: flowId,
                   event: activeDjedEvent,
                   baseFixture: fixture,
+                  presentationConfiguration:
+                      DjedDayPresentationConfiguration.dayView,
                   supports: _djedV2SupportFixtures(
                     flow?.notes,
                     currentEvent.behaviorPayload,
@@ -4465,11 +4468,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final activeKarInstrument = _isKarInstrumentEvent(target.event);
     final activeLayeredInstrument =
         activeOfferingTableInstrument ||
-        activeDjedInstrument ||
         activeReadingHouseInstrument ||
         activeKarInstrument;
     final activeInstrumentPresentation =
-        activeFollowSkyInstrument || activeLayeredInstrument;
+        activeFollowSkyInstrument ||
+        activeDjedInstrument ||
+        activeLayeredInstrument;
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
         : keyboardInset > 0
@@ -4550,10 +4554,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             ? const Color(0xFF33444A)
             : activeReadingHouseInstrument
             ? const Color(0xFF33463E)
-            : activeLayeredInstrument
+            : activeDjedInstrument || activeLayeredInstrument
             ? const Color(0xFF72571E)
             : _dayGold.withValues(alpha: 0.48),
-        initialExtent: activeFollowSkyInstrument
+        initialExtent: activeFollowSkyInstrument || activeDjedInstrument
             ? instrumentEventSheetMinExtent
             : activeLayeredInstrument
             ? .71

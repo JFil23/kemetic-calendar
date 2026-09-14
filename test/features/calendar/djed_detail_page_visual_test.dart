@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
@@ -114,8 +115,23 @@ void main() {
           find.byType(DjedDayPresentation),
         );
         expect(presentation.fixture.sittingNumber, sittingNumber);
+        expect(
+          presentation.configuration,
+          same(DjedDayPresentationConfiguration.detail),
+        );
         final sheet = find.byKey(
           ValueKey<String>('djed-detail-sitting-sheet-$sittingNumber'),
+        );
+        final host = tester.widget<InstrumentEventSheetHost>(sheet);
+        expect(host.initialExtent, .71);
+        expect(host.geometry, same(InstrumentEventSheetGeometry.layered));
+        final frame = tester.widget<InstrumentEventPresentationFrame>(
+          find.byType(InstrumentEventPresentationFrame),
+        );
+        expect(frame.initialLowerSheetPeek, 30);
+        expect(
+          find.byKey(const ValueKey<String>('djed-practice-sheet-handle')),
+          findsOneWidget,
         );
         Navigator.of(tester.element(sheet)).pop();
         await tester.pumpAndSettle();

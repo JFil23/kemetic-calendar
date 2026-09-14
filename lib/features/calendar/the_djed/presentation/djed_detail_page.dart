@@ -378,10 +378,12 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
         geometry: InstrumentEventSheetGeometry.layered,
         body: canAct
             ? DjedDayBehaviorSurface(
-                flowId: flowId!,
+                flowId: flowId,
                 event: event,
                 baseFixture: fixture,
                 supports: _supports,
+                presentationConfiguration:
+                    DjedDayPresentationConfiguration.detail,
                 onCompletionCommit:
                     widget.onSittingCompletionCommit ??
                     (
@@ -396,7 +398,11 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
                     ? makeTodoFromSitting
                     : null,
               )
-            : DjedDayPresentation(fixture: fixture, supports: _supports),
+            : DjedDayPresentation(
+                configuration: DjedDayPresentationConfiguration.detail,
+                fixture: fixture,
+                supports: _supports,
+              ),
         footer: DjedDayFooterActions(
           makeTodoUnavailable: canAct && !sittingIdentityAvailable,
           onMakeTodo: sittingIdentityAvailable

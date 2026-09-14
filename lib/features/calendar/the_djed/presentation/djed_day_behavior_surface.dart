@@ -15,6 +15,7 @@ class DjedDayBehaviorSurface extends StatefulWidget {
     required this.event,
     required this.baseFixture,
     required this.supports,
+    required this.presentationConfiguration,
     required this.onCompletionCommit,
     this.onPutOnCalendar,
   });
@@ -23,6 +24,7 @@ class DjedDayBehaviorSurface extends StatefulWidget {
   final DjedV2Event event;
   final DjedDayVisualFixture baseFixture;
   final List<DjedSupportFixture> supports;
+  final DjedDayPresentationConfiguration presentationConfiguration;
   final Future<void> Function(
     DjedCompletionVisualState state,
     String move,
@@ -204,6 +206,7 @@ class _DjedDayBehaviorSurfaceState extends State<DjedDayBehaviorSurface> {
       raisingSecondsRemaining: _raisingSecondsRemaining,
     );
     return DjedDayPresentation(
+      configuration: widget.presentationConfiguration,
       fixture: fixture,
       supports: widget.supports,
       onMoveChanged: _saveMove,
