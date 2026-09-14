@@ -19,10 +19,15 @@ enum DjedSupportCondition { unassessed, holding, underPressure, wobbling }
 
 @immutable
 class DjedSupportFixture {
-  const DjedSupportFixture({required this.name, required this.condition});
+  const DjedSupportFixture({
+    required this.name,
+    required this.condition,
+    this.released = false,
+  });
 
   final String name;
   final DjedSupportCondition condition;
+  final bool released;
 }
 
 @immutable
@@ -272,6 +277,7 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
       _supports[index] = DjedSupportFixture(
         name: value,
         condition: _supports[index].condition,
+        released: _supports[index].released,
       );
     });
   }
@@ -282,6 +288,7 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
       _supports[index] = DjedSupportFixture(
         name: _supports[index].name,
         condition: condition,
+        released: _supports[index].released,
       );
       _activeSupport = advance ? index + 1 : index;
     });

@@ -144,6 +144,19 @@ def state_script(source: str) -> str:
 
 
 def normalize_fragment(source_key: str, html: str) -> str:
+    if source_key == "djed-day":
+        # Headless Chrome on macOS enforces a 500 px minimum CSS viewport even
+        # when the screenshot is 390 px wide. Repeat the authority's <=430 px
+        # frame rules explicitly so the deterministic capture is the authored
+        # 390 px phone surface rather than a clipped desktop demonstrator.
+        normalization = """<style>
+html,body{margin:0!important;padding:0!important;width:390px!important;overflow:hidden!important}
+body{display:block!important}
+.fixture-bar{display:none!important}
+.phone{width:390px!important;height:100vh!important;max-width:390px!important;border-radius:0!important}
+</style>
+"""
+        return html.replace("</head>", normalization + "</head>", 1)
     if source_key == "offering-detail":
         normalization = """<style>
 html,body{margin:0!important;padding:0!important;background:#000!important}

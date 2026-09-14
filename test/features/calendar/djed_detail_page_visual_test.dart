@@ -13,6 +13,18 @@ import '../../support/maat_flow_visual_goldens.dart';
 const _captureDjedVisuals = bool.fromEnvironment('CAPTURE_DJED_VISUALS');
 final _goldenRoot = maatFlowVisualGoldenRoot;
 
+const _removedDjedInstrumentContexts = <String>[
+  'You do not have to fix everything at once. For each support: make one small move, then return and see what happened.',
+  'You do not have to solve this. Find one useful part that is fully in your hands.',
+  'Come back to the move you chose. Read what actually happened before deciding anything else.',
+  'Same method, new beam. One useful move. Small enough to complete before you return.',
+  'The work already happened outside the app. This sitting only asks what the move taught you.',
+  'You know the pattern now: find the part you can move, keep it small, put it in time.',
+  'Look at the result, not the intention. What happened is enough to tell you what comes next.',
+  'Last beam. Do not make the move bigger because it is last. Small and doable still wins.',
+  'Read the last result. Then stand and raise the whole structure.',
+];
+
 void main() {
   setUpAll(loadMaatFlowVisualTestFonts);
 
@@ -131,11 +143,32 @@ void main() {
           find.byType(InstrumentEventPresentationFrame),
         );
         expect(frame.initialLowerSheetPeek, 30);
+        final sitting = kDjedSittingFixtures[sittingNumber - 1];
+        final title = find.byKey(
+          const ValueKey<String>('djed-instrument-title'),
+        );
+        final stage = find.byKey(const ValueKey<String>('djed-day-live-stage'));
+        expect(tester.widget<Text>(title).data, sitting.title);
+        expect(tester.getRect(stage).top - tester.getRect(title).bottom, 12);
+        expect(find.textContaining('SITTING 0'), findsNothing);
         expect(
-          tester.getSize(
-            find.byKey(const ValueKey<String>('djed-day-live-stage')),
-          ),
-          const Size(340, 230),
+          find.text('${sitting.timeLabel} · ${sitting.durationLabel}'),
+          findsNothing,
+        );
+        expect(find.text('TODAY'), findsNothing);
+        expect(
+          find.text(_removedDjedInstrumentContexts[sittingNumber - 1]),
+          findsNothing,
+        );
+        expect(tester.getSize(stage), const Size(340, 230));
+        expect(
+          tester
+              .getRect(
+                find.byKey(const ValueKey<String>('djed-practice-sheet')),
+              )
+              .top,
+          greaterThanOrEqualTo(tester.getRect(stage).bottom - 1),
+          reason: 'sitting $sittingNumber must reveal the entire Djed stage',
         );
         expect(
           find.byKey(const ValueKey<String>('djed-practice-sheet-handle')),

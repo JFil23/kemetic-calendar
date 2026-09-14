@@ -34,8 +34,8 @@
         "djed-day-retry",
         "djed-day-raising"
       ],
-      "difference": "The HTML capture uses Djed's older 0.71 layered host, forced 30 px practice peek, and decorative inner handle. Production now uses Follow the Sky's 0.58 standard host, the shared frame's computed foreground start, and only the outer host handle. Only the visible crop changes: the Djed stage remains 230 px, or 205 px when the full viewport is at most 720 px, with the 390 x 214 SVG uniformly scaled.",
-      "reason": "The user's September 13 corrections explicitly supersede the older Djed sheet composition while retaining the authored graphic size, artwork, palette, copy, actions, footer, and single shared content scroll."
+      "difference": "The HTML capture uses Djed's older 0.71 layered host, forced 30 px practice peek, decorative inner handle, and three instrument-header sections. Production uses Follow the Sky's 0.58 standard host, the shared frame's authored foreground stop, and only the outer host handle. The sitting/day/phase label, time/duration row, and TODAY/context block are removed entirely, leaving the sitting title, a 12 px gap, and the fixed-size graphic. The Djed stage remains 230 px, or 205 px when the full viewport is at most 720 px, with the 390 x 214 SVG uniformly scaled. The fully lowered stop includes the instrument's top padding, title line, gap, complete stage, and existing 24 px bottom padding, leaving the angle label 32 px clear of the foreground edge and its upward shadow. Unselected supports use the HTML's 34% opacity (78% during orientation); the selected support stays at full opacity with its outline/glow, and each support condition uses its authored gradient. The existing diagonal rise guides render behind the pillar in sittings 3\u20138 and remain absent in sittings 1, 2, and 9. Raising may cover the stage, and lowering reveals it again.",
+      "reason": "The user's corrections explicitly supersede the older Djed sheet and instrument-header composition while retaining the authored title, complete graphic size, support hierarchy and palette, actions, footer, and single shared content scroll."
     },
     {
       "states": [
@@ -200,9 +200,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 12.1109,
-        "changed_pixels_over_8": 90705,
-        "changed_pixel_percent_over_8": 27.5565
+        "mean_absolute_channel_error": 12.1097,
+        "changed_pixels_over_8": 90702,
+        "changed_pixel_percent_over_8": 27.5556
       }
     },
     {
@@ -220,9 +220,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 12.3635,
-        "changed_pixels_over_8": 130171,
-        "changed_pixel_percent_over_8": 39.5464
+        "mean_absolute_channel_error": 9.6017,
+        "changed_pixels_over_8": 115058,
+        "changed_pixel_percent_over_8": 34.955
       }
     },
     {
@@ -240,9 +240,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 9.1512,
-        "changed_pixels_over_8": 82125,
-        "changed_pixel_percent_over_8": 24.9499
+        "mean_absolute_channel_error": 11.0064,
+        "changed_pixels_over_8": 92179,
+        "changed_pixel_percent_over_8": 28.0043
       }
     },
     {
@@ -260,9 +260,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 11.8515,
-        "changed_pixels_over_8": 126236,
-        "changed_pixel_percent_over_8": 44.9558
+        "mean_absolute_channel_error": 10.1283,
+        "changed_pixels_over_8": 125129,
+        "changed_pixel_percent_over_8": 44.5616
       }
     },
     {
@@ -280,9 +280,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 12.0217,
-        "changed_pixels_over_8": 127172,
-        "changed_pixel_percent_over_8": 45.2892
+        "mean_absolute_channel_error": 10.4399,
+        "changed_pixels_over_8": 126267,
+        "changed_pixel_percent_over_8": 44.9669
       }
     },
     {
@@ -300,9 +300,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 14.5254,
-        "changed_pixels_over_8": 142754,
-        "changed_pixel_percent_over_8": 50.8383
+        "mean_absolute_channel_error": 11.0702,
+        "changed_pixels_over_8": 138476,
+        "changed_pixel_percent_over_8": 49.3148
       }
     },
     {
@@ -812,6 +812,10 @@
       "reason": "Presentation-frame coverage of the same authored raised state; the direct production-screen comparison uses djed-day-sheet-practice-raised-production-390x844.png."
     },
     {
+      "golden": "djed-day-support-states-390x844.png",
+      "reason": "One regression fixture combines the four support-condition gradients authored separately in the Djed HTML CSS; the supplied HTML does not present them together in one captured state."
+    },
+    {
       "golden": "reading-house-day-sheet-locked-390x720.png",
       "reason": "Ended/locked write-authority safety state; the supplied HTML does not define it."
     },
@@ -826,6 +830,10 @@
     {
       "golden": "maat-flow-discovery-djed-390x844.png",
       "reason": "The approved four-flow product adds Djed, but the supplied Discovery HTML contains only the other three cards."
+    },
+    {
+      "golden": "djed-day-released-filled-390x720.png",
+      "reason": "The latest explicit user instruction supersedes the older HTML: release remains stored history but every support stays a filled beam, and every sitting renders exactly one pillar with no ghost."
     }
   ]
 }

@@ -25,20 +25,24 @@ enum DjedCompletionVisualState { none, observed, partly, skipped }
 class DjedDayPresentationConfiguration {
   const DjedDayPresentationConfiguration._({
     required this.initialLowerSheetPeek,
+    required this.revealCompleteInstrumentWhenLowered,
     required this.showPracticeSheetHandle,
   });
 
   static const dayView = DjedDayPresentationConfiguration._(
     initialLowerSheetPeek: null,
+    revealCompleteInstrumentWhenLowered: true,
     showPracticeSheetHandle: false,
   );
 
   static const detail = DjedDayPresentationConfiguration._(
     initialLowerSheetPeek: 30,
+    revealCompleteInstrumentWhenLowered: false,
     showPracticeSheetHandle: true,
   );
 
   final double? initialLowerSheetPeek;
+  final bool revealCompleteInstrumentWhenLowered;
   final bool showPracticeSheetHandle;
 }
 
@@ -124,6 +128,42 @@ abstract final class DjedDayTokens {
   static const Color gold = Color(0xFFE0873C);
   static const Color goldBright = Color(0xFFF5B963);
   static const Color separator = Color(0xFF2C2016);
+  static const double unselectedSupportOpacity = .34;
+  static const double orientationSupportOpacity = .78;
+  static const Color raisingGlow = Color(0xFFF0C96A);
+  static const List<double> supportGradientStops = <double>[0, .54, 1];
+  static const List<double> wobblingSupportGradientStops = <double>[0, .5, 1];
+  static const List<Color> unassessedSupportGradient = <Color>[
+    Color(0xFFD9C99D),
+    Color(0xFFAC8C50),
+    Color(0xFF705129),
+  ];
+  static const List<Color> holdingSupportGradient = <Color>[
+    Color(0xFFF4E4B2),
+    Color(0xFFD2AE63),
+    Color(0xFF8D662B),
+  ];
+  static const List<Color> underPressureSupportGradient = <Color>[
+    Color(0xFFEBCBAD),
+    Color(0xFFC58D61),
+    Color(0xFF7D4D32),
+  ];
+  static const List<Color> wobblingSupportGradient = <Color>[
+    Color(0xFFE4C782),
+    Color(0xFFB28A42),
+    Color(0xFF695021),
+  ];
+}
+
+const double _djedInstrumentTopPadding = 18;
+const double _djedInstrumentTitleSize = 29;
+const double _djedInstrumentTitleToStageGap = 12;
+const double _djedInstrumentBottomPadding = 24;
+
+double _djedInstrumentStageHeight(BuildContext context) {
+  final view = View.of(context);
+  final viewportHeight = view.physicalSize.height / view.devicePixelRatio;
+  return viewportHeight <= 720 ? 205 : 230;
 }
 
 /// Djed v2 fixture presentation on the existing layered Day View frame.
@@ -161,6 +201,13 @@ class DjedDayPresentation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final stageHeight = _djedInstrumentStageHeight(context);
+    final completeInstrumentHeight =
+        _djedInstrumentTopPadding +
+        MediaQuery.textScalerOf(context).scale(_djedInstrumentTitleSize) +
+        _djedInstrumentTitleToStageGap +
+        stageHeight +
+        _djedInstrumentBottomPadding;
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('djed-day-presentation'),
       decoration: const BoxDecoration(
@@ -175,8 +222,15 @@ class DjedDayPresentation extends StatelessWidget {
         ),
       ),
       initialLowerSheetPeek: configuration.initialLowerSheetPeek,
+      fixedHeroHeight: configuration.revealCompleteInstrumentWhenLowered
+          ? completeInstrumentHeight
+          : null,
       instrumentFooterHeight: 0,
-      instrument: _DjedInstrument(fixture: fixture, supports: supports),
+      instrument: _DjedInstrument(
+        fixture: fixture,
+        supports: supports,
+        stageHeight: stageHeight,
+      ),
       instrumentFooter: const SizedBox.shrink(),
       inputBuilder: (_, _, _) => const SizedBox.shrink(),
       body: _DjedPracticeSheet(
@@ -200,10 +254,15 @@ class DjedDayPresentation extends StatelessWidget {
 }
 
 class _DjedInstrument extends StatelessWidget {
-  const _DjedInstrument({required this.fixture, required this.supports});
+  const _DjedInstrument({
+    required this.fixture,
+    required this.supports,
+    required this.stageHeight,
+  });
 
   final DjedDayVisualFixture fixture;
   final List<DjedSupportFixture> supports;
+  final double stageHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -212,9 +271,6 @@ class _DjedInstrument extends StatelessWidget {
           0,
           kDjedSittingFixtures.length - 1,
         )];
-    final view = View.of(context);
-    final viewportHeight = view.physicalSize.height / view.devicePixelRatio;
-    final stageHeight = viewportHeight <= 720 ? 205.0 : 230.0;
     return ClipRect(
       child: OverflowBox(
         alignment: Alignment.topCenter,
@@ -228,95 +284,31 @@ class _DjedInstrument extends StatelessWidget {
               colors: <Color>[Color(0xFF120C07), Color(0xFF0C0906)],
             ),
           ),
-          padding: const EdgeInsets.fromLTRB(15, 18, 15, 24),
+          padding: const EdgeInsets.fromLTRB(
+            15,
+            _djedInstrumentTopPadding,
+            15,
+            _djedInstrumentBottomPadding,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 5),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'SITTING ${fixture.sittingNumber.toString().padLeft(2, '0')} · DAY ${sitting.flowDay} · ${_sheetPhase(fixture.sittingNumber, sitting.phase)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF8A7030),
-                        fontFamily: 'GentiumPlus',
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                        height: 1,
-                        letterSpacing: 1.55,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      sitting.title,
-                      style: const TextStyle(
-                        color: Color(0xFFE7C66C),
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 29,
-                        fontWeight: FontWeight.w500,
-                        height: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${sitting.timeLabel} · ${sitting.durationLabel}',
-                      style: TextStyle(
-                        color: Color(0xFF77736D),
-                        fontFamily: 'GentiumPlus',
-                        fontSize: 11,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 74),
-                      padding: const EdgeInsets.fromLTRB(13, 10, 0, 10),
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          left: BorderSide(color: Color(0x7AD4AE43), width: 2),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          const Text(
-                            'TODAY',
-                            style: TextStyle(
-                              color: Color(0xFF9A8039),
-                              fontFamily: 'GentiumPlus',
-                              fontSize: 8,
-                              fontWeight: FontWeight.w700,
-                              height: 1,
-                              letterSpacing: 1.35,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Flexible(
-                            child: Text(
-                              _sheetContext(fixture.sittingNumber),
-                              maxLines: 3,
-                              overflow: TextOverflow.clip,
-                              style: const TextStyle(
-                                color: Color(0xFFBEB7AB),
-                                fontFamily: MaatFlowListTokens.fontFamily,
-                                fontSize: 14.5,
-                                fontStyle: FontStyle.italic,
-                                height: 1.35,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  sitting.title,
+                  key: const ValueKey<String>('djed-instrument-title'),
+                  style: const TextStyle(
+                    color: Color(0xFFE7C66C),
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontSize: _djedInstrumentTitleSize,
+                    fontWeight: FontWeight.w500,
+                    height: 1,
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: _djedInstrumentTitleToStageGap),
               SizedBox(
                 height: stageHeight,
                 width: double.infinity,
@@ -361,14 +353,16 @@ class _DjedSheetStagePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final stageRect = Offset.zero & size;
-    canvas.drawRect(
-      stageRect,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(0, .72),
-          radius: .78,
-          colors: <Color>[Color(0x16D4AE43), Color(0x00D4AE43)],
-        ).createShader(stageRect),
+    final raising = fixture.sittingNumber == 9;
+    _drawEllipticalRadialGradient(
+      canvas,
+      clip: stageRect,
+      center: Offset(size.width * .5, size.height * (raising ? .54 : .86)),
+      radiusX: size.width * (raising ? .58 : .78),
+      radiusY: size.height * (raising ? .78 : .72),
+      color: (raising ? DjedDayTokens.raisingGlow : const Color(0xFFD4AE43))
+          .withValues(alpha: raising ? .18 : .085),
+      fadeStop: raising ? .68 : .64,
     );
 
     // SVG viewBox defaults to preserveAspectRatio="xMidYMid meet". Using
@@ -393,7 +387,19 @@ class _DjedSheetStagePainter extends CustomPainter {
     canvas.translate(drawingOffset.dx, drawingOffset.dy);
     canvas.scale(scale);
 
-    if (fixture.sittingNumber == 4 || fixture.sittingNumber == 5) {
+    if (fixture.sittingNumber == 9) {
+      const raisingGlowBounds = Rect.fromLTWH(82, 10, 236, 204);
+      _drawEllipticalRadialGradient(
+        canvas,
+        clip: raisingGlowBounds,
+        center: const Offset(200, 112),
+        radiusX: 118,
+        radiusY: 102,
+        color: DjedDayTokens.raisingGlow.withValues(alpha: .34),
+      );
+    }
+
+    if (fixture.sittingNumber >= 3 && fixture.sittingNumber <= 8) {
       final rope = Paint()
         ..color = const Color(0xFF7A6A46)
         ..strokeWidth = 1.5
@@ -412,9 +418,67 @@ class _DjedSheetStagePainter extends CustomPainter {
       );
     }
 
+    final active = fixture.sittingNumber == 1
+        ? -1
+        : (fixture.supportSlot - 1).clamp(0, 3);
+    _drawPillar(
+      canvas,
+      angle: _sheetAngle(fixture.sittingNumber),
+      activeSupport: active,
+    );
+    canvas.restore();
+
+    if (fixture.raised) {
+      final progressText = TextPainter(
+        text: const TextSpan(
+          text: 'RAISED',
+          style: TextStyle(
+            color: Color(0xFFE7C66C),
+            fontFamily: 'GentiumPlus',
+            fontSize: 8,
+            fontWeight: FontWeight.w700,
+            height: 1,
+            letterSpacing: 1.1,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      progressText.paint(
+        canvas,
+        Offset(11, size.height - 8 - progressText.height),
+      );
+    }
+
+    final angleText = TextPainter(
+      text: TextSpan(
+        text: _sheetAngleLabel(fixture.sittingNumber),
+        style: const TextStyle(
+          color: Color(0xFF6C6049),
+          fontFamily: 'GentiumPlus',
+          fontSize: 9,
+          height: 1,
+          letterSpacing: 1.05,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    angleText.paint(
+      canvas,
+      Offset(
+        size.width - 10 - angleText.width,
+        size.height - 8 - angleText.height,
+      ),
+    );
+  }
+
+  void _drawPillar(
+    Canvas canvas, {
+    required double angle,
+    required int activeSupport,
+  }) {
     canvas.save();
     canvas.translate(200, 186);
-    canvas.rotate(_sheetAngle(fixture.sittingNumber) * math.pi / 180);
+    canvas.rotate(angle * math.pi / 180);
     canvas.translate(-200, -186);
 
     final shaftPaint = Paint()
@@ -442,7 +506,6 @@ class _DjedSheetStagePainter extends CustomPainter {
 
     const ys = <double>[28, 46, 64, 82];
     const widths = <double>[142, 136, 130, 122];
-    final active = (fixture.supportSlot - 1).clamp(0, 3);
     for (var supportIndex = 0; supportIndex < 4; supportIndex++) {
       final slot = 3 - supportIndex;
       final rect = Rect.fromLTWH(
@@ -451,21 +514,40 @@ class _DjedSheetStagePainter extends CustomPainter {
         widths[slot],
         13,
       );
+      final condition = supportIndex < supports.length
+          ? supports[supportIndex].condition
+          : DjedSupportCondition.unassessed;
+      final supportOpacity = fixture.sittingNumber == 1
+          ? DjedDayTokens.orientationSupportOpacity
+          : supportIndex == activeSupport
+          ? 1.0
+          : DjedDayTokens.unselectedSupportOpacity;
       final barPaint = Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: <Color>[
-            Color(0xFFD9C99D),
-            Color(0xFFAC8C50),
-            Color(0xFF705129),
+            for (final color in _supportGradient(condition))
+              color.withValues(alpha: supportOpacity),
           ],
-          stops: <double>[0, .54, 1],
+          stops: _supportGradientStops(condition),
         ).createShader(rect);
       _drawRoundedRect(canvas, rect, 6.5, barPaint);
-      if (supportIndex == active) {
+      if (supportIndex == activeSupport) {
+        final selectedBar = RRect.fromRectAndRadius(
+          rect,
+          const Radius.circular(6.5),
+        );
         canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, const Radius.circular(6.5)),
+          selectedBar,
+          Paint()
+            ..color = const Color(0xFFF0C96A).withValues(alpha: .28)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.35
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        );
+        canvas.drawRRect(
+          selectedBar,
           Paint()
             ..color = const Color(0xFFF0C96A)
             ..style = PaintingStyle.stroke
@@ -476,17 +558,18 @@ class _DjedSheetStagePainter extends CustomPainter {
           ? supports[supportIndex].name.trim()
           : '';
       final name =
-          supportIndex == active && fixture.supportName.trim().isNotEmpty
+          supportIndex == activeSupport && fixture.supportName.trim().isNotEmpty
           ? fixture.supportName.trim()
           : rawName;
+      final label = djedSheetSupportBarLabel(
+        slotNumber: supportIndex + 1,
+        name: name,
+      );
       final textPainter = TextPainter(
         text: TextSpan(
-          text: djedSheetSupportBarLabel(
-            slotNumber: supportIndex + 1,
-            name: name,
-          ),
-          style: const TextStyle(
-            color: Color(0xFF25190B),
+          text: label,
+          style: TextStyle(
+            color: const Color(0xFF25190B).withValues(alpha: supportOpacity),
             fontFamily: MaatFlowListTokens.fontFamily,
             fontSize: 10.5,
             height: 1,
@@ -507,28 +590,6 @@ class _DjedSheetStagePainter extends CustomPainter {
       shaftPaint,
     );
     canvas.restore();
-    canvas.restore();
-
-    final angleText = TextPainter(
-      text: TextSpan(
-        text: _sheetAngleLabel(fixture.sittingNumber),
-        style: const TextStyle(
-          color: Color(0xFF6C6049),
-          fontFamily: 'GentiumPlus',
-          fontSize: 9,
-          height: 1,
-          letterSpacing: 1.05,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    angleText.paint(
-      canvas,
-      Offset(
-        size.width - 10 - angleText.width,
-        size.height - 8 - angleText.height,
-      ),
-    );
   }
 
   void _drawRoundedRect(Canvas canvas, Rect rect, double radius, Paint paint) {
@@ -536,6 +597,35 @@ class _DjedSheetStagePainter extends CustomPainter {
       RRect.fromRectAndRadius(rect, Radius.circular(radius)),
       paint,
     );
+  }
+
+  void _drawEllipticalRadialGradient(
+    Canvas canvas, {
+    required Rect clip,
+    required Offset center,
+    required double radiusX,
+    required double radiusY,
+    required Color color,
+    double fadeStop = 1,
+  }) {
+    final unitCircle = Rect.fromCircle(center: Offset.zero, radius: 1);
+    canvas.save();
+    canvas.clipRect(clip);
+    canvas.translate(center.dx, center.dy);
+    canvas.scale(radiusX, radiusY);
+    canvas.drawCircle(
+      Offset.zero,
+      1,
+      Paint()
+        ..shader = RadialGradient(
+          // Flutter measures this against the shader box's full short side;
+          // .5 therefore reaches the unit circle's radius exactly.
+          radius: .5,
+          colors: <Color>[color, color.withValues(alpha: 0)],
+          stops: <double>[0, fadeStop],
+        ).createShader(unitCircle),
+    );
+    canvas.restore();
   }
 
   void _drawDashedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
@@ -555,6 +645,21 @@ class _DjedSheetStagePainter extends CustomPainter {
   bool shouldRepaint(covariant _DjedSheetStagePainter oldDelegate) =>
       oldDelegate.fixture != fixture || oldDelegate.supports != supports;
 }
+
+List<Color> _supportGradient(DjedSupportCondition condition) =>
+    switch (condition) {
+      DjedSupportCondition.unassessed =>
+        DjedDayTokens.unassessedSupportGradient,
+      DjedSupportCondition.holding => DjedDayTokens.holdingSupportGradient,
+      DjedSupportCondition.underPressure =>
+        DjedDayTokens.underPressureSupportGradient,
+      DjedSupportCondition.wobbling => DjedDayTokens.wobblingSupportGradient,
+    };
+
+List<double> _supportGradientStops(DjedSupportCondition condition) =>
+    condition == DjedSupportCondition.wobbling
+    ? DjedDayTokens.wobblingSupportGradientStops
+    : DjedDayTokens.supportGradientStops;
 
 class _DjedPracticeSheet extends StatelessWidget {
   const _DjedPracticeSheet({
@@ -1415,29 +1520,6 @@ ButtonStyle get _djedFooterButtonStyle => TextButton.styleFrom(
     fontWeight: FontWeight.w700,
   ),
 );
-
-String _sheetPhase(int sittingNumber, String fallback) =>
-    sittingNumber == 1 ? 'ORIENTATION' : fallback;
-
-String _sheetContext(int sittingNumber) => switch (sittingNumber) {
-  1 =>
-    'You do not have to fix everything at once. For each support: make one small move, then return and see what happened.',
-  2 =>
-    'You do not have to solve this. Find one useful part that is fully in your hands.',
-  3 =>
-    'Come back to the move you chose. Read what actually happened before deciding anything else.',
-  4 =>
-    'Same method, new beam. One useful move. Small enough to complete before you return.',
-  5 =>
-    'The work already happened outside the app. This sitting only asks what the move taught you.',
-  6 =>
-    'You know the pattern now: find the part you can move, keep it small, put it in time.',
-  7 =>
-    'Look at the result, not the intention. What happened is enough to tell you what comes next.',
-  8 =>
-    'Last beam. Do not make the move bigger because it is last. Small and doable still wins.',
-  _ => 'Read the last result. Then stand and raise the whole structure.',
-};
 
 double _sheetAngle(int sittingNumber) => switch (sittingNumber.clamp(1, 9)) {
   1 => -74,

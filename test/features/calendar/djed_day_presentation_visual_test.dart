@@ -7,6 +7,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
@@ -17,7 +18,29 @@ import '../../support/maat_flow_visual_test_fonts.dart';
 import '../../support/maat_flow_visual_goldens.dart';
 
 const _captureDjedDayVisuals = bool.fromEnvironment('CAPTURE_DJED_DAY_VISUALS');
+const _captureDjedSittingStages = bool.fromEnvironment(
+  'CAPTURE_DJED_SITTING_STAGES',
+);
 final _goldenRoot = maatFlowVisualGoldenRoot;
+const _releasedSupportVisualFixtures = <DjedSupportFixture>[
+  DjedSupportFixture(
+    name: 'support 01',
+    condition: DjedSupportCondition.unassessed,
+  ),
+  DjedSupportFixture(
+    name: 'the weekly call with my sister',
+    condition: DjedSupportCondition.unassessed,
+  ),
+  DjedSupportFixture(
+    name: 'support 03',
+    condition: DjedSupportCondition.unassessed,
+    released: true,
+  ),
+  DjedSupportFixture(
+    name: 'support 04',
+    condition: DjedSupportCondition.unassessed,
+  ),
+];
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -62,6 +85,7 @@ void main() {
     required Size size,
     double textScale = 1,
     DjedDayVisualFixture fixture = kDjedDayVisualFixture,
+    List<DjedSupportFixture> supports = kDjedSupportFixtures,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -97,6 +121,7 @@ void main() {
                       body: DjedDayPresentation(
                         configuration: DjedDayPresentationConfiguration.dayView,
                         fixture: fixture,
+                        supports: supports,
                         onStageAction: () {},
                         onResultSelected: (_) {},
                         onCompletionSelected: (_) {},
@@ -130,11 +155,197 @@ void main() {
       tester.getSize(find.byKey(const ValueKey<String>('djed-day-live-stage'))),
       const Size(340, 205),
     );
+    final title = find.byKey(const ValueKey<String>('djed-instrument-title'));
+    final stage = find.byKey(const ValueKey<String>('djed-day-live-stage'));
+    final practiceSheet = find.byKey(
+      const ValueKey<String>('djed-practice-sheet'),
+    );
+    expect(tester.widget<Text>(title).data, 'Make one move');
+    expect(tester.getRect(stage).top - tester.getRect(title).bottom, 12);
+    expect(
+      tester.getRect(practiceSheet).top - tester.getRect(stage).bottom,
+      closeTo(24, 1),
+    );
+    expect(find.textContaining('SITTING 04'), findsNothing);
+    expect(find.text('Dawn + 30 min · 5 min'), findsNothing);
+    expect(find.text('TODAY'), findsNothing);
+    expect(
+      find.text(
+        'Same method, new beam. One useful move. Small enough to complete before you return.',
+      ),
+      findsNothing,
+    );
     expect(find.text('Make one move'), findsWidgets);
     expect(find.text('the weekly call with my sister'), findsOneWidget);
     expect(find.text('Do today'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  test('Djed beams retain the authored support hierarchy and palettes', () {
+    expect(DjedDayTokens.unselectedSupportOpacity, .34);
+    expect(DjedDayTokens.orientationSupportOpacity, .78);
+    expect(DjedDayTokens.raisingGlow, const Color(0xFFF0C96A));
+    expect(DjedDayTokens.supportGradientStops, const <double>[0, .54, 1]);
+    expect(DjedDayTokens.wobblingSupportGradientStops, const <double>[
+      0,
+      .5,
+      1,
+    ]);
+    expect(DjedDayTokens.unassessedSupportGradient, const <Color>[
+      Color(0xFFD9C99D),
+      Color(0xFFAC8C50),
+      Color(0xFF705129),
+    ]);
+    expect(DjedDayTokens.holdingSupportGradient, const <Color>[
+      Color(0xFFF4E4B2),
+      Color(0xFFD2AE63),
+      Color(0xFF8D662B),
+    ]);
+    expect(DjedDayTokens.underPressureSupportGradient, const <Color>[
+      Color(0xFFEBCBAD),
+      Color(0xFFC58D61),
+      Color(0xFF7D4D32),
+    ]);
+    expect(DjedDayTokens.wobblingSupportGradient, const <Color>[
+      Color(0xFFE4C782),
+      Color(0xFFB28A42),
+      Color(0xFF695021),
+    ]);
+  });
+
+  testWidgets('Djed paints all authored support conditions in one stage', (
+    tester,
+  ) async {
+    await pumpPresentation(
+      tester,
+      size: const Size(390, 844),
+      supports: const <DjedSupportFixture>[
+        DjedSupportFixture(
+          name: 'holding support',
+          condition: DjedSupportCondition.holding,
+        ),
+        DjedSupportFixture(
+          name: 'pressure support',
+          condition: DjedSupportCondition.underPressure,
+        ),
+        DjedSupportFixture(
+          name: 'wobbling support',
+          condition: DjedSupportCondition.wobbling,
+        ),
+        DjedSupportFixture(
+          name: 'unassessed support',
+          condition: DjedSupportCondition.unassessed,
+        ),
+      ],
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey<String>('djed-day-live-stage'))),
+      const Size(340, 230),
+    );
+    await expectLater(
+      find.byKey(const ValueKey<String>('djed-day-visual-capture')),
+      matchesGoldenFile('$_goldenRoot/djed-day-support-states-390x844.png'),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'Djed renders released history as a filled beam without a ghost',
+    (tester) async {
+      expect(_releasedSupportVisualFixtures[2].released, isTrue);
+      await pumpPresentation(
+        tester,
+        size: const Size(390, 720),
+        fixture: const DjedDayVisualFixture(
+          sittingNumber: 7,
+          stage: DjedPracticeStageVisual.readResult,
+          supportSlot: 3,
+          supportName: 'support 03',
+        ),
+        supports: _releasedSupportVisualFixtures,
+      );
+      expect(
+        tester.getSize(
+          find.byKey(const ValueKey<String>('djed-day-live-stage')),
+        ),
+        const Size(340, 205),
+      );
+      await expectLater(
+        find.byKey(const ValueKey<String>('djed-day-visual-capture')),
+        matchesGoldenFile('$_goldenRoot/djed-day-released-filled-390x720.png'),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'all sittings show one pillar, four filled beams, and guides only 3–8',
+    (tester) async {
+      for (var sittingNumber = 1; sittingNumber <= 9; sittingNumber++) {
+        await pumpPresentation(
+          tester,
+          size: const Size(390, 844),
+          fixture: djedDayVisualFixtureForEvent(
+            djedV2EventByNumber(sittingNumber)!,
+            supportName: 'support $sittingNumber',
+          ),
+          supports: _releasedSupportVisualFixtures,
+        );
+        final title = find.byKey(
+          const ValueKey<String>('djed-instrument-title'),
+        );
+        final stage = find.byKey(const ValueKey<String>('djed-day-live-stage'));
+        final practiceSheet = find.byKey(
+          const ValueKey<String>('djed-practice-sheet'),
+        );
+        expect(
+          tester.widget<Text>(title).data,
+          kDjedSittingFixtures[sittingNumber - 1].title,
+        );
+        expect(tester.getRect(stage).top - tester.getRect(title).bottom, 12);
+        expect(tester.getSize(stage), const Size(340, 230));
+        final initialStageTop = tester.getRect(stage).top;
+        final initialPracticeTop = tester.getRect(practiceSheet).top;
+        expect(
+          tester.getRect(practiceSheet).top - tester.getRect(stage).bottom,
+          closeTo(24, 1),
+          reason: 'sitting $sittingNumber must reveal the entire Djed stage',
+        );
+        if (_captureDjedSittingStages) {
+          await expectLater(
+            find.byKey(const ValueKey<String>('djed-day-visual-capture')),
+            matchesGoldenFile(
+              '/tmp/djed-day-sitting-$sittingNumber-released-filled-390x844.png',
+            ),
+          );
+        }
+        await tester.drag(
+          find.byKey(const ValueKey<String>('djed-presentation-body')),
+          const Offset(0, -120),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.getRect(practiceSheet).top, lessThan(initialPracticeTop));
+        expect(tester.getRect(stage).top, closeTo(initialStageTop, .1));
+        expect(tester.getSize(stage), const Size(340, 230));
+        await tester.drag(
+          find.byKey(const ValueKey<String>('djed-presentation-body')),
+          const Offset(0, 440),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          tester.getRect(practiceSheet).top,
+          closeTo(initialPracticeTop, 1),
+        );
+        expect(tester.getRect(stage).top, closeTo(initialStageTop, .1));
+        expect(tester.getSize(stage), const Size(340, 230));
+        expect(
+          tester.getRect(practiceSheet).top - tester.getRect(stage).bottom,
+          closeTo(24, 1),
+        );
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 
   test('missing support_name keeps the authored sitting-four name', () {
     final event = djedV2EventByNumber(4)!;
@@ -292,7 +503,7 @@ void main() {
     );
     expect(find.byTooltip('Event options'), findsOneWidget);
     expect(find.text('×'), findsNothing);
-    expect(find.textContaining('SITTING 04'), findsOneWidget);
+    expect(find.textContaining('SITTING 04'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('djed-detail-make-todo')),
       findsOneWidget,
@@ -300,11 +511,22 @@ void main() {
     final practiceSheet = find.byKey(
       const ValueKey<String>('djed-practice-sheet'),
     );
+    final frameRect = tester.getRect(
+      find.byType(InstrumentEventPresentationFrame),
+    );
     final initialPracticeTop = tester.getTopLeft(practiceSheet).dy;
     final djedStage = find.byKey(const ValueKey<String>('djed-day-live-stage'));
     final initialStageTop = tester.getTopLeft(djedStage).dy;
     final initialStageSize = tester.getSize(djedStage);
     expect(initialStageSize, const Size(340, 230));
+    final instrumentTitle = find.byKey(
+      const ValueKey<String>('djed-instrument-title'),
+    );
+    expect(tester.widget<Text>(instrumentTitle).data, 'Make one move');
+    expect(
+      tester.getRect(djedStage).top - tester.getRect(instrumentTitle).bottom,
+      12,
+    );
     await tester.drag(
       find.byKey(const ValueKey<String>('djed-presentation-body')),
       const Offset(0, -120),
@@ -320,25 +542,81 @@ void main() {
     );
     await tester.drag(
       find.byKey(const ValueKey<String>('djed-presentation-body')),
-      const Offset(0, 120),
+      const Offset(0, 440),
     );
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(practiceSheet).dy, closeTo(initialPracticeTop, 1));
     expect(tester.getSize(djedStage), initialStageSize);
+    expect(
+      tester.getRect(practiceSheet).top - tester.getRect(djedStage).bottom,
+      closeTo(24, 1),
+    );
     await expectLater(
       find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
       matchesGoldenFile('$_goldenRoot/djed-day-sheet-390x844.png'),
     );
+    final dockDistance = initialPracticeTop - frameRect.top;
     await tester.drag(
       find.byKey(const ValueKey<String>('djed-presentation-body')),
-      const Offset(0, -440),
+      Offset(0, -(dockDistance + 20)),
     );
     await tester.pumpAndSettle();
+    expect(tester.getTopLeft(practiceSheet).dy, closeTo(frameRect.top, 1));
+    final footerTop = tester.getRect(find.byType(DjedDayFooterChrome)).top;
+    final requiredAtDock = <Finder>[
+      find.descendant(
+        of: practiceSheet,
+        matching: find.text('the weekly call with my sister'),
+      ),
+      find.descendant(
+        of: practiceSheet,
+        matching: find.text(
+          'What is one useful thing you can do that is fully in your hands?',
+        ),
+      ),
+      find.byKey(const ValueKey<String>('djed-move-field')),
+      find.descendant(of: practiceSheet, matching: find.text('Do today')),
+      find.descendant(
+        of: practiceSheet,
+        matching: find.text('Put on calendar'),
+      ),
+    ];
+    for (final target in requiredAtDock) {
+      final rect = tester.getRect(target);
+      expect(rect.top, greaterThanOrEqualTo(frameRect.top));
+      expect(rect.bottom, lessThanOrEqualTo(footerTop));
+    }
     await expectLater(
       find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
       matchesGoldenFile(
         '$_goldenRoot/djed-day-sheet-practice-raised-production-390x844.png',
       ),
+    );
+    final remainingControls = <Finder>[
+      find.descendant(
+        of: practiceSheet,
+        matching: find.text('Why this belongs at the Djed'),
+      ),
+      find.descendant(of: practiceSheet, matching: find.text('Observed')),
+      find.descendant(of: practiceSheet, matching: find.text('Partly')),
+      find.descendant(of: practiceSheet, matching: find.text('Skipped')),
+      find.descendant(
+        of: practiceSheet,
+        matching: find.text('Back to Day View'),
+      ),
+    ];
+    for (final target in remainingControls) {
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      final rect = tester.getRect(target);
+      expect(rect.top, greaterThanOrEqualTo(frameRect.top));
+      expect(rect.bottom, lessThanOrEqualTo(footerTop));
+    }
+    expect(
+      tester
+          .getRect(find.byKey(const ValueKey<String>('djed-detail-make-todo')))
+          .bottom,
+      lessThanOrEqualTo(tester.view.physicalSize.height),
     );
     expect(tester.takeException(), isNull);
   });
@@ -401,7 +679,7 @@ void main() {
       expect(find.byType(InstrumentEventPresentationFrame), findsOneWidget);
       expect(find.byTooltip('Event options'), findsOneWidget);
       expect(find.text('×'), findsNothing);
-      expect(find.textContaining('SITTING 04'), findsOneWidget);
+      expect(find.textContaining('SITTING 04'), findsNothing);
       expect(find.text('Make one move'), findsWidgets);
       expect(find.text('the weekly call with my sister'), findsWidgets);
       expect(
@@ -506,9 +784,10 @@ void main() {
     );
 
     final initialHeight = tester.getSize(sheet).height;
+    final dockDistance = practiceRect.top - frameRect.top;
     await tester.drag(
       find.byKey(const ValueKey<String>('djed-presentation-body')),
-      const Offset(0, -440),
+      Offset(0, -(dockDistance + 20)),
     );
     await tester.pumpAndSettle();
     expect(tester.getSize(sheet).height, closeTo(initialHeight, 0.1));

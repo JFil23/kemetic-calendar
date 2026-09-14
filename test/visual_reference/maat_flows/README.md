@@ -1,21 +1,22 @@
 # Ma'at flow visual acceptance authority
 
-The tracked PNGs in `goldens/` are rendered from the real production widgets,
-at the stated reference size, after direct comparison with the HTML authorities
-listed below. They are normal test expectations: a visible drift fails
-`flutter test` unless a reviewer deliberately regenerates and approves the
-affected image.
+The tracked PNGs in `goldens/` are rendered from the real production widgets
+at the stated reference size. Direct-pair states are compared with the HTML
+authorities listed below; supplemental states are governed by their documented
+product or explicit user instruction. They are normal test expectations: a
+visible drift fails `flutter test` unless a reviewer deliberately regenerates
+and approves the affected image.
 
 The HTML files are design authorities, not implementation instructions. Their
 CSS, embedded artwork, SVG geometry, typography, copy, and observable
 interaction states govern the visual result. Their JavaScript is not copied
 into the app.
 
-This package contains **39** visual states, each with exact macOS, Linux ARM64,
+This package contains **41** visual states, each with exact macOS, Linux ARM64,
 and Linux x86_64 goldens. **34** have an independent HTML-to-Flutter evidence
-set in `evidence/`; the other **5** are explicitly supplemental product/safety
-contracts for states the supplied HTML does not author. A prior report of 18
-goldens was a stale partial count.
+set in `evidence/`; the other **7** are explicitly supplemental product/safety
+contracts or user-authored overrides that the supplied HTML does not govern. A
+prior report of 18 goldens was a stale partial count.
 
 The macOS captures in `goldens/` remain the reviewed visual acceptance
 authority. The captures in `goldens/linux/` are exact ARM64 Linux
@@ -48,7 +49,7 @@ fails closed.
 | Authority | Direct HTML pairs | Supplemental Flutter contracts |
 | --- | --- | --- |
 | Djed detail | hero; supports scroll; support 2 selected | none |
-| Djed Day View | event block; initial sheet; raised practice foreground; result; smaller retry; final raising | duplicate presentation-frame capture of the raised state |
+| Djed Day View | event block; initial sheet; raised practice foreground; result; smaller retry; final raising | duplicate presentation-frame capture of the raised state; mixed support-condition palette; released-history state with four filled beams, one pillar, and no ghost |
 | Reading House detail | hero; setup; calendar; sittings | none |
 | Reading House Inbox | accepted House; pending invitation; House Chat | multiple-House isolation fixture |
 | Reading House Day View | event block; initial sheet; docked House card; sheet bottom; incoming message; Observed completion | locked room; ended room |
@@ -56,11 +57,11 @@ fails closed.
 | Offering Table detail | detail; ritual sheet; context expanded; completion | none |
 | Flow discovery | initial Follow the Sky; Offering Table card; Reading House card | Djed card, because the approved product has four flows while the supplied HTML has only three |
 
-Every direct pair preserves the full 390×844 reference and app capture, plus
-normalized inputs, a 50/50 overlay, and a contrast-amplified absolute
-difference. Read [the evidence index](evidence/README.md) for the individual
-contact sheets. Phone status icons are treated as device chrome; no app
-surface is hidden by normalization.
+Every direct pair preserves its independently rendered reference and app
+capture, plus normalized inputs, a 50/50 overlay, and a contrast-amplified
+absolute difference. Read [the evidence index](evidence/README.md) for the
+individual contact sheets. Phone status icons are treated as device chrome;
+no app surface is hidden by normalization.
 
 The three Day View captures use the real production `DayViewPage`, not an
 isolated grid. The evidence index records the remaining visible context
@@ -70,9 +71,28 @@ Kemetic/Gregorian placement, Reading House's late-day scroll clamp, and
 cross-renderer anti-aliasing. The user's September 13 Djed correction
 supersedes the older HTML sheet composition only: Djed Day View now uses Follow
 the Sky's standard outer host and frame-controlled foreground while retaining
-the authored Djed artwork, palette, copy, actions, and footer. Its stage keeps
+the authored Djed artwork, palette, title, actions, and footer. Its stage keeps
 the HTML's 230 px height, uses 205 px only when the full viewport is at most
-720 px, and is clipped rather than resized by the shared foreground.
+720 px, and is never resized by the shared foreground. The later
+September 13 correction removes the instrument's sitting/day/phase label,
+time/duration row, and TODAY/context block entirely; each sitting now presents
+its title, a 12 px gap, and the fixed-size graphic. The lowered foreground stop
+is the sum of the instrument's top padding, scaled title line, 12 px gap, and
+stage height plus its existing 24 px bottom padding. That leaves 32 px from the
+angle label's lower edge to the foreground and clears the upward shadow.
+Unselected supports use the HTML's 34% opacity (78% during orientation); the
+selected support stays at full opacity with its outline/glow, and each support
+condition uses its authored gradient. The latest explicit user instruction
+supersedes the older HTML released/ghost treatment: release remains stored
+history but does not change beam painting, so all four beams stay filled and
+every sitting renders exactly one pillar with no ghost. The existing diagonal
+rise guides appear in sittings 3–8, using their authored coordinates, color,
+dash spacing, and behind-pillar drawing order; they remain absent in sittings
+1, 2, and 9 and are not beam outlines. Sitting 9 retains the radial raising
+glow. Raising the foreground may cover
+the stage; lowering it reveals the complete stage again. At the exact dock the
+focus heading and primary controls clear the fixed footer; the same single
+scroll exposes every remaining control above it.
 
 ## Acceptance conditions
 
@@ -86,10 +106,11 @@ the HTML's 230 px height, uses 205 px only when the full viewport is at most
   initial, raised, and inner-content-scrolled checkpoints where the interaction
   defines those states.
 - Djed's ember detail palette and amber Day View palette remain distinct.
-- A golden update is acceptable only after overlaying the new app capture with
-  the matching locked HTML state. Tolerance is zero in the automated test;
-  platform anti-aliasing differences must be reviewed explicitly rather than
-  used to excuse geometry, artwork, typography, color, or copy drift.
+- A direct-pair golden update is acceptable only after overlaying the new app
+  capture with the matching locked HTML state. A supplemental override must be
+  rendered and reviewed against its explicit product/user contract instead;
+  an older HTML state cannot override it. Tolerance is zero in the automated
+  test, and platform anti-aliasing differences must be reviewed explicitly.
 - The surrounding calendar is existing shared Day View chrome and is not
   redesigned by the Djed, Reading House, or Offering Table HTML. The full raw
   viewport is retained, while fidelity decisions for those references apply
