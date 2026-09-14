@@ -34,8 +34,8 @@
         "djed-day-retry",
         "djed-day-raising"
       ],
-      "difference": "The HTML capture uses Djed's older 0.71 layered host, forced 30 px practice peek, and decorative inner handle. Production now uses Follow the Sky's 0.58 standard host, the shared frame's computed foreground start, and only the outer host handle.",
-      "reason": "The user's September 13 correction explicitly supersedes the older Djed sheet composition while retaining its artwork, palette, copy, actions, footer, and single shared content scroll."
+      "difference": "The HTML capture uses Djed's older 0.71 layered host, forced 30 px practice peek, and decorative inner handle. Production now uses Follow the Sky's 0.58 standard host, the shared frame's computed foreground start, and only the outer host handle. Only the visible crop changes: the Djed stage remains 230 px, or 205 px when the full viewport is at most 720 px, with the 390 x 214 SVG uniformly scaled.",
+      "reason": "The user's September 13 corrections explicitly supersede the older Djed sheet composition while retaining the authored graphic size, artwork, palette, copy, actions, footer, and single shared content scroll."
     },
     {
       "states": [
@@ -160,9 +160,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 6.9997,
-        "changed_pixels_over_8": 47974,
-        "changed_pixel_percent_over_8": 14.5747
+        "mean_absolute_channel_error": 7.6736,
+        "changed_pixels_over_8": 45796,
+        "changed_pixel_percent_over_8": 13.913
       }
     },
     {
@@ -180,9 +180,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 7.0995,
-        "changed_pixels_over_8": 47062,
-        "changed_pixel_percent_over_8": 14.2976
+        "mean_absolute_channel_error": 8.1021,
+        "changed_pixels_over_8": 48801,
+        "changed_pixel_percent_over_8": 14.8259
       }
     },
     {
@@ -220,9 +220,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 12.5892,
-        "changed_pixels_over_8": 135622,
-        "changed_pixel_percent_over_8": 41.2025
+        "mean_absolute_channel_error": 12.3635,
+        "changed_pixels_over_8": 130171,
+        "changed_pixel_percent_over_8": 39.5464
       }
     },
     {
@@ -260,9 +260,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 12.0643,
-        "changed_pixels_over_8": 129344,
-        "changed_pixel_percent_over_8": 46.0627
+        "mean_absolute_channel_error": 11.8515,
+        "changed_pixels_over_8": 126236,
+        "changed_pixel_percent_over_8": 44.9558
       }
     },
     {
@@ -280,9 +280,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 11.9023,
-        "changed_pixels_over_8": 130064,
-        "changed_pixel_percent_over_8": 46.3191
+        "mean_absolute_channel_error": 12.0217,
+        "changed_pixels_over_8": 127172,
+        "changed_pixel_percent_over_8": 45.2892
       }
     },
     {
@@ -300,9 +300,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 14.285,
-        "changed_pixels_over_8": 145113,
-        "changed_pixel_percent_over_8": 51.6784
+        "mean_absolute_channel_error": 14.5254,
+        "changed_pixels_over_8": 142754,
+        "changed_pixel_percent_over_8": 50.8383
       }
     },
     {

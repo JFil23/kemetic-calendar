@@ -212,117 +212,123 @@ class _DjedInstrument extends StatelessWidget {
           0,
           kDjedSittingFixtures.length - 1,
         )];
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: <Color>[Color(0xFF120C07), Color(0xFF0C0906)],
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            'SITTING ${fixture.sittingNumber.toString().padLeft(2, '0')} · DAY ${sitting.flowDay} · ${_sheetPhase(fixture.sittingNumber, sitting.phase)}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF8A7030),
-              fontFamily: 'GentiumPlus',
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              height: 1,
-              letterSpacing: 1.55,
+    final view = View.of(context);
+    final viewportHeight = view.physicalSize.height / view.devicePixelRatio;
+    final stageHeight = viewportHeight <= 720 ? 205.0 : 230.0;
+    return ClipRect(
+      child: OverflowBox(
+        alignment: Alignment.topCenter,
+        minHeight: 0,
+        maxHeight: double.infinity,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[Color(0xFF120C07), Color(0xFF0C0906)],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            sitting.title,
-            style: const TextStyle(
-              color: Color(0xFFE7C66C),
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontSize: 29,
-              fontWeight: FontWeight.w500,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${sitting.timeLabel} · ${sitting.durationLabel}',
-            style: TextStyle(
-              color: Color(0xFF77736D),
-              fontFamily: 'GentiumPlus',
-              fontSize: 11,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            constraints: const BoxConstraints(maxHeight: 74),
-            padding: const EdgeInsets.fromLTRB(13, 10, 0, 10),
-            decoration: const BoxDecoration(
-              border: Border(
-                left: BorderSide(color: Color(0x7AD4AE43), width: 2),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'TODAY',
-                  style: TextStyle(
-                    color: Color(0xFF9A8039),
-                    fontFamily: 'GentiumPlus',
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700,
-                    height: 1,
-                    letterSpacing: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Flexible(
-                  child: Text(
-                    _sheetContext(fixture.sittingNumber),
-                    maxLines: 3,
-                    overflow: TextOverflow.clip,
-                    style: const TextStyle(
-                      color: Color(0xFFBEB7AB),
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontSize: 14.5,
-                      fontStyle: FontStyle.italic,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final stageHeight = math.min(230.0, constraints.maxHeight);
-                return Align(
-                  alignment: Alignment.topCenter,
-                  child: SizedBox(
-                    height: stageHeight,
-                    width: double.infinity,
-                    child: Transform.translate(
-                      offset: const Offset(-5, 0),
-                      child: _DjedSheetStage(
-                        key: const ValueKey<String>('djed-day-live-stage'),
-                        fixture: fixture,
-                        supports: supports,
+          padding: const EdgeInsets.fromLTRB(15, 18, 15, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'SITTING ${fixture.sittingNumber.toString().padLeft(2, '0')} · DAY ${sitting.flowDay} · ${_sheetPhase(fixture.sittingNumber, sitting.phase)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF8A7030),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        height: 1,
+                        letterSpacing: 1.55,
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
+                    const SizedBox(height: 8),
+                    Text(
+                      sitting.title,
+                      style: const TextStyle(
+                        color: Color(0xFFE7C66C),
+                        fontFamily: MaatFlowListTokens.fontFamily,
+                        fontSize: 29,
+                        fontWeight: FontWeight.w500,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${sitting.timeLabel} · ${sitting.durationLabel}',
+                      style: TextStyle(
+                        color: Color(0xFF77736D),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 11,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 74),
+                      padding: const EdgeInsets.fromLTRB(13, 10, 0, 10),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          left: BorderSide(color: Color(0x7AD4AE43), width: 2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Text(
+                            'TODAY',
+                            style: TextStyle(
+                              color: Color(0xFF9A8039),
+                              fontFamily: 'GentiumPlus',
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                              height: 1,
+                              letterSpacing: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Flexible(
+                            child: Text(
+                              _sheetContext(fixture.sittingNumber),
+                              maxLines: 3,
+                              overflow: TextOverflow.clip,
+                              style: const TextStyle(
+                                color: Color(0xFFBEB7AB),
+                                fontFamily: MaatFlowListTokens.fontFamily,
+                                fontSize: 14.5,
+                                fontStyle: FontStyle.italic,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: stageHeight,
+                width: double.infinity,
+                child: _DjedSheetStage(
+                  key: const ValueKey<String>('djed-day-live-stage'),
+                  fixture: fixture,
+                  supports: supports,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

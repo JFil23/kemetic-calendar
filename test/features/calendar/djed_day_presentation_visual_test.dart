@@ -63,8 +63,10 @@ void main() {
     double textScale = 1,
     DjedDayVisualFixture fixture = kDjedDayVisualFixture,
   }) async {
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       MaterialApp(
         home: MediaQuery(
@@ -123,6 +125,10 @@ void main() {
     expect(
       find.byKey(const ValueKey<String>('djed-day-live-stage')),
       findsOneWidget,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey<String>('djed-day-live-stage'))),
+      const Size(340, 205),
     );
     expect(find.text('Make one move'), findsWidgets);
     expect(find.text('the weekly call with my sister'), findsOneWidget);
@@ -297,6 +303,8 @@ void main() {
     final initialPracticeTop = tester.getTopLeft(practiceSheet).dy;
     final djedStage = find.byKey(const ValueKey<String>('djed-day-live-stage'));
     final initialStageTop = tester.getTopLeft(djedStage).dy;
+    final initialStageSize = tester.getSize(djedStage);
+    expect(initialStageSize, const Size(340, 230));
     await tester.drag(
       find.byKey(const ValueKey<String>('djed-presentation-body')),
       const Offset(0, -120),
@@ -305,6 +313,7 @@ void main() {
     final raisedPracticeTop = tester.getTopLeft(practiceSheet).dy;
     expect(raisedPracticeTop, lessThan(initialPracticeTop));
     expect(tester.getTopLeft(djedStage).dy, closeTo(initialStageTop, .1));
+    expect(tester.getSize(djedStage), initialStageSize);
     expect(
       tester.getSize(find.byType(InstrumentEventSheetHost)).height,
       closeTo((844 - 12) * instrumentEventSheetMinExtent + 8, .1),
@@ -315,6 +324,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(practiceSheet).dy, closeTo(initialPracticeTop, 1));
+    expect(tester.getSize(djedStage), initialStageSize);
     await expectLater(
       find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
       matchesGoldenFile('$_goldenRoot/djed-day-sheet-390x844.png'),
@@ -426,8 +436,10 @@ void main() {
     tester,
   ) async {
     const size = Size(390, 844);
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       const MaterialApp(
         home: MediaQuery(
@@ -452,6 +464,19 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byKey(const ValueKey<String>('djed-day-live-stage'))),
+      const Size(340, 230),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Djed stage size follows only the full viewport breakpoint', (
+    tester,
+  ) async {
+    await pumpPresentation(tester, size: const Size(390, 844));
+    final stage = find.byKey(const ValueKey<String>('djed-day-live-stage'));
+    expect(tester.getSize(stage), const Size(340, 230));
     expect(tester.takeException(), isNull);
   });
 

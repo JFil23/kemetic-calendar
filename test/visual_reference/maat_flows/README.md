@@ -70,7 +70,9 @@ Kemetic/Gregorian placement, Reading House's late-day scroll clamp, and
 cross-renderer anti-aliasing. The user's September 13 Djed correction
 supersedes the older HTML sheet composition only: Djed Day View now uses Follow
 the Sky's standard outer host and frame-controlled foreground while retaining
-the authored Djed artwork, palette, copy, actions, and footer.
+the authored Djed artwork, palette, copy, actions, and footer. Its stage keeps
+the HTML's 230 px height, uses 205 px only when the full viewport is at most
+720 px, and is clipped rather than resized by the shared foreground.
 
 ## Acceptance conditions
 

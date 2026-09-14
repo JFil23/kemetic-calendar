@@ -22,8 +22,10 @@ void main() {
     double textScale = 1,
     double topPadding = 0,
   }) async {
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -129,6 +131,12 @@ void main() {
           find.byType(InstrumentEventPresentationFrame),
         );
         expect(frame.initialLowerSheetPeek, 30);
+        expect(
+          tester.getSize(
+            find.byKey(const ValueKey<String>('djed-day-live-stage')),
+          ),
+          const Size(340, 230),
+        );
         expect(
           find.byKey(const ValueKey<String>('djed-practice-sheet-handle')),
           findsOneWidget,
