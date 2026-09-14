@@ -12,6 +12,7 @@ import 'package:mobile/features/calendar/presentation/instrument_event_presentat
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_behavior_surface.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 
@@ -1603,7 +1604,7 @@ class _DjedHistoryState extends State<_DjedHistory> {
             const Padding(
               padding: EdgeInsets.fromLTRB(0, 0, 0, 4),
               child: Text(
-                'The djed pillar carried the idea of stability and uprightness. Its raising made that stability physical: the pillar had to stand. This flow keeps that logic intact by asking what actually bears weight, what has been tested, and what can be raised again.',
+                djedInKemetExplanation,
                 style: TextStyle(
                   color: Color(0xFF858B86),
                   fontFamily: MaatFlowListTokens.fontFamily,

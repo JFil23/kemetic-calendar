@@ -83,6 +83,7 @@ void main() {
   Future<void> pumpPresentation(
     WidgetTester tester, {
     required Size size,
+    Key? presentationKey,
     double textScale = 1,
     DjedDayVisualFixture fixture = kDjedDayVisualFixture,
     List<DjedSupportFixture> supports = kDjedSupportFixtures,
@@ -119,6 +120,7 @@ void main() {
                       semanticLabel: 'Djed sitting details',
                       handleColor: const Color(0xFF72571E),
                       body: DjedDayPresentation(
+                        key: presentationKey,
                         configuration: DjedDayPresentationConfiguration.dayView,
                         fixture: fixture,
                         supports: supports,
@@ -285,6 +287,7 @@ void main() {
         await pumpPresentation(
           tester,
           size: const Size(390, 844),
+          presentationKey: ValueKey<String>('djed-sitting-$sittingNumber'),
           fixture: djedDayVisualFixtureForEvent(
             djedV2EventByNumber(sittingNumber)!,
             supportName: 'support $sittingNumber',
@@ -341,6 +344,35 @@ void main() {
         expect(
           tester.getRect(practiceSheet).top - tester.getRect(stage).bottom,
           closeTo(24, 1),
+        );
+        final disclosure = find.byKey(
+          const ValueKey<String>('djed-in-kemet-disclosure'),
+        );
+        expect(disclosure, findsOneWidget);
+        expect(find.text('In Kemet'), findsOneWidget);
+        expect(
+          find.text(
+            'The djed pillar carried the idea of stability and uprightness. Its raising made that stability physical: the pillar had to stand. This flow keeps that logic intact by asking what actually bears weight, what has been tested, and what can be raised again.',
+          ),
+          findsNothing,
+        );
+        expect(find.text('Back to Day View'), findsNothing);
+        await tester.ensureVisible(disclosure);
+        await tester.pumpAndSettle();
+        await tester.tap(disclosure);
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            'The djed pillar carried the idea of stability and uprightness. Its raising made that stability physical: the pillar had to stand. This flow keeps that logic intact by asking what actually bears weight, what has been tested, and what can be raised again.',
+          ),
+          findsOneWidget,
+          reason: 'sitting $sittingNumber must use the exact shared copy',
+        );
+        await tester.tap(disclosure);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey<String>('djed-in-kemet-explanation')),
+          findsNothing,
         );
         expect(tester.takeException(), isNull);
       }
@@ -598,18 +630,14 @@ void main() {
         '$_goldenRoot/djed-day-sheet-practice-raised-production-390x844.png',
       ),
     );
+    final inKemetDisclosure = find.byKey(
+      const ValueKey<String>('djed-in-kemet-disclosure'),
+    );
     final remainingControls = <Finder>[
-      find.descendant(
-        of: practiceSheet,
-        matching: find.text('Why this belongs at the Djed'),
-      ),
+      inKemetDisclosure,
       find.descendant(of: practiceSheet, matching: find.text('Observed')),
       find.descendant(of: practiceSheet, matching: find.text('Partly')),
       find.descendant(of: practiceSheet, matching: find.text('Skipped')),
-      find.descendant(
-        of: practiceSheet,
-        matching: find.text('Back to Day View'),
-      ),
     ];
     for (final target in remainingControls) {
       await tester.ensureVisible(target);
@@ -618,11 +646,142 @@ void main() {
       expect(rect.top, greaterThanOrEqualTo(frameRect.top));
       expect(rect.bottom, lessThanOrEqualTo(footerTop));
     }
+    expect(find.text('Why this belongs at the Djed'), findsNothing);
+    expect(find.text('Back to Day View'), findsNothing);
+    expect(
+      tester
+              .getRect(
+                find.byKey(const ValueKey<String>('djed-completion-picker')),
+              )
+              .top -
+          tester.getRect(inKemetDisclosure).bottom,
+      closeTo(5, .1),
+    );
+    final disclosureButton = tester.widget<TextButton>(inKemetDisclosure);
+    expect(
+      disclosureButton.style?.foregroundColor?.resolve(<WidgetState>{}),
+      const Color(0xFF8A8378),
+    );
+    expect(
+      disclosureButton.style?.padding?.resolve(<WidgetState>{}),
+      const EdgeInsets.symmetric(vertical: 13),
+    );
+    final disclosureTextStyle = disclosureButton.style?.textStyle?.resolve(
+      <WidgetState>{},
+    );
+    expect(disclosureTextStyle?.fontSize, 14);
+    expect(disclosureTextStyle?.fontStyle, FontStyle.italic);
+    await tester.tap(inKemetDisclosure);
+    await tester.pumpAndSettle();
+    final explanation = find.byKey(
+      const ValueKey<String>('djed-in-kemet-explanation'),
+    );
+    expect(explanation, findsOneWidget);
+    final explanationText = tester.widget<Text>(
+      find.descendant(of: explanation, matching: find.byType(Text)),
+    );
+    expect(
+      explanationText.data,
+      'The djed pillar carried the idea of stability and uprightness. Its raising made that stability physical: the pillar had to stand. This flow keeps that logic intact by asking what actually bears weight, what has been tested, and what can be raised again.',
+    );
+    expect(explanationText.style?.fontSize, 14);
+    expect(explanationText.style?.fontStyle, isNull);
+    expect(explanationText.style?.fontWeight, FontWeight.w400);
+    expect(explanationText.style?.height, 1.4);
+    expect(explanationText.style?.color, const Color(0xFFA69A83));
+    await tester.ensureVisible(explanation);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(const ValueKey<String>('djed-production-day-view-capture')),
+      matchesGoldenFile(
+        '$_goldenRoot/djed-day-sheet-in-kemet-expanded-production-390x844.png',
+      ),
+    );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey<String>('djed-completion-picker')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .getRect(find.byKey(const ValueKey<String>('djed-completion-picker')))
+          .bottom,
+      lessThanOrEqualTo(footerTop),
+    );
     expect(
       tester
           .getRect(find.byKey(const ValueKey<String>('djed-detail-make-todo')))
           .bottom,
       lessThanOrEqualTo(tester.view.physicalSize.height),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'Day View keeps In Kemet expansion and scroll position through updates',
+    (tester) async {
+      await pumpPresentation(tester, size: const Size(390, 844));
+      final disclosure = find.byKey(
+        const ValueKey<String>('djed-in-kemet-disclosure'),
+      );
+      await tester.ensureVisible(disclosure);
+      await tester.pumpAndSettle();
+      await tester.tap(disclosure);
+      await tester.pumpAndSettle();
+      final practiceSheet = find.byKey(
+        const ValueKey<String>('djed-practice-sheet'),
+      );
+      final practiceTop = tester.getTopLeft(practiceSheet).dy;
+      final disclosureTop = tester.getTopLeft(disclosure).dy;
+
+      await pumpPresentation(
+        tester,
+        size: const Size(390, 844),
+        fixture: const DjedDayVisualFixture(
+          sittingNumber: 4,
+          stage: DjedPracticeStageVisual.makeMove,
+          supportSlot: 2,
+          supportName: 'the weekly call with my sister',
+          move: 'updated move',
+        ),
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('djed-in-kemet-explanation')),
+        findsOneWidget,
+      );
+      expect(tester.getTopLeft(practiceSheet).dy, closeTo(practiceTop, .1));
+      expect(tester.getTopLeft(disclosure).dy, closeTo(disclosureTop, .1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('detail-entry disclosure and Back action remain unchanged', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: InstrumentEventSheetHost(
+            semanticLabel: 'Djed detail-entry sitting',
+            handleColor: Color(0xFF72571E),
+            body: DjedDayPresentation(
+              configuration: DjedDayPresentationConfiguration.detail,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Why this belongs at the Djed'), findsOneWidget);
+    expect(find.text('In Kemet'), findsNothing);
+    expect(find.text('Back to Day View'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('djed-in-kemet-disclosure')),
+      findsNothing,
     );
     expect(tester.takeException(), isNull);
   });

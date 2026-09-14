@@ -5,6 +5,7 @@ import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
 
 enum DjedPracticeStageVisual {
@@ -27,23 +28,31 @@ class DjedDayPresentationConfiguration {
     required this.initialLowerSheetPeek,
     required this.revealCompleteInstrumentWhenLowered,
     required this.showPracticeSheetHandle,
+    required this.useDayViewInKemetDisclosure,
+    required this.showBackToDayViewAction,
   });
 
   static const dayView = DjedDayPresentationConfiguration._(
     initialLowerSheetPeek: null,
     revealCompleteInstrumentWhenLowered: true,
     showPracticeSheetHandle: false,
+    useDayViewInKemetDisclosure: true,
+    showBackToDayViewAction: false,
   );
 
   static const detail = DjedDayPresentationConfiguration._(
     initialLowerSheetPeek: 30,
     revealCompleteInstrumentWhenLowered: false,
     showPracticeSheetHandle: true,
+    useDayViewInKemetDisclosure: false,
+    showBackToDayViewAction: true,
   );
 
   final double? initialLowerSheetPeek;
   final bool revealCompleteInstrumentWhenLowered;
   final bool showPracticeSheetHandle;
+  final bool useDayViewInKemetDisclosure;
+  final bool showBackToDayViewAction;
 }
 
 @immutable
@@ -234,7 +243,7 @@ class DjedDayPresentation extends StatelessWidget {
       instrumentFooter: const SizedBox.shrink(),
       inputBuilder: (_, _, _) => const SizedBox.shrink(),
       body: _DjedPracticeSheet(
-        showHandle: configuration.showPracticeSheetHandle,
+        configuration: configuration,
         fixture: fixture,
         onStageAction: onStageAction,
         onMoveChanged: onMoveChanged,
@@ -663,7 +672,7 @@ List<double> _supportGradientStops(DjedSupportCondition condition) =>
 
 class _DjedPracticeSheet extends StatelessWidget {
   const _DjedPracticeSheet({
-    required this.showHandle,
+    required this.configuration,
     required this.fixture,
     this.onStageAction,
     this.onMoveChanged,
@@ -677,7 +686,7 @@ class _DjedPracticeSheet extends StatelessWidget {
     this.onCompletionSelected,
   });
 
-  final bool showHandle;
+  final DjedDayPresentationConfiguration configuration;
   final DjedDayVisualFixture fixture;
   final VoidCallback? onStageAction;
   final ValueChanged<String>? onMoveChanged;
@@ -711,7 +720,7 @@ class _DjedPracticeSheet extends StatelessWidget {
       ),
       child: Stack(
         children: <Widget>[
-          if (showHandle)
+          if (configuration.showPracticeSheetHandle)
             const Positioned(
               left: 0,
               right: 0,
@@ -754,61 +763,32 @@ class _DjedPracticeSheet extends StatelessWidget {
                   _DjedRaisingSurface(fixture: fixture, onRaise: onRaise),
                 ],
                 const SizedBox(height: 17),
-                Container(
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: DjedDayTokens.separator),
-                    ),
-                  ),
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF8A8378),
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      alignment: Alignment.centerLeft,
-                      textStyle: const TextStyle(
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
-                        height: 1,
-                      ),
-                    ),
-                    onPressed: () {},
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            'Why this belongs at the Djed',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Text('+'),
-                      ],
-                    ),
-                  ),
-                ),
+                if (configuration.useDayViewInKemetDisclosure)
+                  const _DjedInKemetDisclosure()
+                else
+                  const _DjedDetailEntryDisclosure(),
                 const SizedBox(height: 5),
                 _DjedCompletion(
                   selected: fixture.completion,
                   onSelected: onCompletionSelected,
                 ),
-                const SizedBox(height: 18),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFE7C66C),
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    alignment: Alignment.centerLeft,
-                    textStyle: const TextStyle(
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontSize: 15,
-                      fontStyle: FontStyle.italic,
+                if (configuration.showBackToDayViewAction) ...<Widget>[
+                  const SizedBox(height: 18),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFE7C66C),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      alignment: Alignment.centerLeft,
+                      textStyle: const TextStyle(
+                        fontFamily: MaatFlowListTokens.fontFamily,
+                        fontSize: 15,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    child: const Text('Back to Day View'),
                   ),
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  child: const Text('Back to Day View'),
-                ),
+                ],
               ],
             ),
           ),
@@ -817,6 +797,111 @@ class _DjedPracticeSheet extends StatelessWidget {
     );
   }
 }
+
+class _DjedInKemetDisclosure extends StatefulWidget {
+  const _DjedInKemetDisclosure();
+
+  @override
+  State<_DjedInKemetDisclosure> createState() => _DjedInKemetDisclosureState();
+}
+
+class _DjedInKemetDisclosureState extends State<_DjedInKemetDisclosure> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: DjedDayTokens.separator)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Semantics(
+            expanded: _expanded,
+            child: TextButton(
+              key: const ValueKey<String>('djed-in-kemet-disclosure'),
+              style: _djedDisclosureButtonStyle,
+              onPressed: () => setState(() => _expanded = !_expanded),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  const Expanded(
+                    child: Text(
+                      'In Kemet',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(_expanded ? '\u2212' : '+'),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded)
+            const Padding(
+              key: ValueKey<String>('djed-in-kemet-explanation'),
+              padding: EdgeInsets.only(bottom: 14),
+              child: Text(
+                djedInKemetExplanation,
+                style: TextStyle(
+                  color: Color(0xFFA69A83),
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  height: 1.4,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DjedDetailEntryDisclosure extends StatelessWidget {
+  const _DjedDetailEntryDisclosure();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: DjedDayTokens.separator)),
+      ),
+      child: TextButton(
+        style: _djedDisclosureButtonStyle,
+        onPressed: () {},
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                'Why this belongs at the Djed',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('+'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ButtonStyle get _djedDisclosureButtonStyle => TextButton.styleFrom(
+  foregroundColor: const Color(0xFF8A8378),
+  padding: const EdgeInsets.symmetric(vertical: 13),
+  alignment: Alignment.centerLeft,
+  textStyle: const TextStyle(
+    fontFamily: MaatFlowListTokens.fontFamily,
+    fontSize: 14,
+    fontStyle: FontStyle.italic,
+    height: 1,
+  ),
+);
 
 class _DjedFocusCard extends StatelessWidget {
   const _DjedFocusCard({required this.fixture});
@@ -1362,6 +1447,7 @@ class _DjedCompletion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      key: const ValueKey<String>('djed-completion-picker'),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0x06D4AE43),
