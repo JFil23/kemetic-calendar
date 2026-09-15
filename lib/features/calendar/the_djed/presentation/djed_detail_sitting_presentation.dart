@@ -139,6 +139,7 @@ class DjedDetailSittingPresentation extends StatelessWidget {
             onSmallerMoveChanged: onSmallerMoveChanged,
             onCloseBeam: onCloseBeam,
             onRaise: onRaise,
+            disabledActionColor: const Color(0xFF8A8378),
           ),
           const SizedBox(height: 17),
           _DjedDetailSourceDisclosure(source: event.source),

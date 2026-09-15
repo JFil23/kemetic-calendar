@@ -560,6 +560,7 @@ class DjedSittingActionContent extends StatelessWidget {
     this.onSmallerMoveChanged,
     this.onCloseBeam,
     this.onRaise,
+    this.disabledActionColor,
   });
 
   final DjedDayVisualFixture fixture;
@@ -573,6 +574,7 @@ class DjedSittingActionContent extends StatelessWidget {
   final ValueChanged<String>? onSmallerMoveChanged;
   final VoidCallback? onCloseBeam;
   final VoidCallback? onRaise;
+  final Color? disabledActionColor;
 
   @override
   Widget build(BuildContext context) {
@@ -591,6 +593,7 @@ class DjedSittingActionContent extends StatelessWidget {
           onResultNoteChanged: onResultNoteChanged,
           onSmallerMoveChanged: onSmallerMoveChanged,
           onCloseBeam: onCloseBeam,
+          disabledActionColor: disabledActionColor,
         ),
         if (fixture.sittingNumber == 9 &&
             fixture.result != DjedResultVisualState.none) ...<Widget>[
@@ -813,6 +816,7 @@ class _DjedDecisionSurface extends StatelessWidget {
     this.onResultNoteChanged,
     this.onSmallerMoveChanged,
     this.onCloseBeam,
+    this.disabledActionColor,
   });
 
   final DjedDayVisualFixture fixture;
@@ -824,6 +828,7 @@ class _DjedDecisionSurface extends StatelessWidget {
   final ValueChanged<String>? onResultNoteChanged;
   final ValueChanged<String>? onSmallerMoveChanged;
   final VoidCallback? onCloseBeam;
+  final Color? disabledActionColor;
 
   bool get _isPlan => <int>{2, 4, 6, 8}.contains(fixture.sittingNumber);
   bool get _isReview => <int>{3, 5, 7, 9}.contains(fixture.sittingNumber);
@@ -898,6 +903,7 @@ class _DjedDecisionSurface extends StatelessWidget {
               child: _DecisionTextButton(
                 label: 'Do today',
                 onPressed: onDoToday ?? onStageAction,
+                disabledColor: disabledActionColor,
               ),
             ),
             const SizedBox(width: 18),
@@ -906,6 +912,7 @@ class _DjedDecisionSurface extends StatelessWidget {
                 label: 'Put on calendar',
                 color: Color(0xFFC9912F),
                 onPressed: onPutOnCalendar ?? onStageAction,
+                disabledColor: disabledActionColor,
               ),
             ),
           ],
@@ -1019,6 +1026,7 @@ class _DjedDecisionSurface extends StatelessWidget {
                 ? 'Do smaller today'
                 : 'Close this beam',
             onPressed: onCloseBeam,
+            disabledColor: disabledActionColor,
           ),
         ],
       ],
@@ -1029,15 +1037,21 @@ class _DjedDecisionSurface extends StatelessWidget {
     return _DjedOrientationDecision(
       onDoToday: onDoToday ?? onStageAction,
       onPutOnCalendar: onPutOnCalendar ?? onStageAction,
+      disabledActionColor: disabledActionColor,
     );
   }
 }
 
 class _DjedOrientationDecision extends StatefulWidget {
-  const _DjedOrientationDecision({this.onDoToday, this.onPutOnCalendar});
+  const _DjedOrientationDecision({
+    this.onDoToday,
+    this.onPutOnCalendar,
+    this.disabledActionColor,
+  });
 
   final VoidCallback? onDoToday;
   final VoidCallback? onPutOnCalendar;
+  final Color? disabledActionColor;
 
   @override
   State<_DjedOrientationDecision> createState() =>
@@ -1090,6 +1104,7 @@ class _DjedOrientationDecisionState extends State<_DjedOrientationDecision> {
               child: _DecisionTextButton(
                 label: 'Do today',
                 onPressed: widget.onDoToday,
+                disabledColor: widget.disabledActionColor,
               ),
             ),
             const SizedBox(width: 18),
@@ -1098,6 +1113,7 @@ class _DjedOrientationDecisionState extends State<_DjedOrientationDecision> {
                 label: 'Put on calendar',
                 color: Color(0xFFC9912F),
                 onPressed: widget.onPutOnCalendar,
+                disabledColor: widget.disabledActionColor,
               ),
             ),
           ],
@@ -1131,15 +1147,17 @@ class _DecisionTextButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.color = const Color(0xFFE7C66C),
+    this.disabledColor,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final Color color;
+  final Color? disabledColor;
 
   @override
-  Widget build(BuildContext context) => TextButton(
-    style: TextButton.styleFrom(
+  Widget build(BuildContext context) {
+    final baseStyle = TextButton.styleFrom(
       foregroundColor: color,
       padding: const EdgeInsets.symmetric(vertical: 5),
       minimumSize: Size.zero,
@@ -1150,10 +1168,21 @@ class _DecisionTextButton extends StatelessWidget {
         fontWeight: FontWeight.w500,
         height: 1,
       ),
-    ),
-    onPressed: onPressed,
-    child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-  );
+    );
+    final style = disabledColor == null
+        ? baseStyle
+        : baseStyle.copyWith(
+            foregroundColor: WidgetStateProperty.resolveWith(
+              (states) =>
+                  states.contains(WidgetState.disabled) ? disabledColor : color,
+            ),
+          );
+    return TextButton(
+      style: style,
+      onPressed: onPressed,
+      child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+  }
 }
 
 class _DjedChoiceButton extends StatelessWidget {

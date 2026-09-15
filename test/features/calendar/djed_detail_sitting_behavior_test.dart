@@ -248,6 +248,17 @@ void main() {
   );
 
   testWidgets(
+    'owned plan sitting keeps Do today enabled without calendar identity',
+    (tester) async {
+      await pumpJoinedDjed(tester);
+      await openSitting(tester, 2);
+
+      expect(actionButton(tester, 'Do today').onPressed, isNotNull);
+      expect(actionButton(tester, 'Put on calendar').onPressed, isNull);
+    },
+  );
+
+  testWidgets(
     'Make-to-do reuses the calendar to-do action once sitting identity exists',
     (tester) async {
       CalendarPage.debugOwnedDjedSittingEventTargetForTesting =
@@ -258,9 +269,62 @@ void main() {
           };
       await pumpJoinedDjed(tester);
       await openSitting(tester, 2);
+      expect(actionButton(tester, 'Do today').onPressed, isNotNull);
       expect(actionButton(tester, 'Put on calendar').onPressed, isNotNull);
     },
   );
+
+  testWidgets('final owned detail sitting reveals the raising action', (
+    tester,
+  ) async {
+    await pumpJoinedDjed(tester);
+    final remaining = find.byKey(
+      const ValueKey<String>('djed-see-remaining-sittings'),
+    );
+    final detailScrollable = find
+        .descendant(
+          of: find.byKey(const ValueKey<String>('djed-detail-scroll')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    final detailScrollState = tester.state<ScrollableState>(detailScrollable);
+    detailScrollState.position.jumpTo(
+      detailScrollState.position.maxScrollExtent,
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(remaining);
+    await tester.pumpAndSettle();
+    await tester.tap(remaining);
+    await tester.pumpAndSettle();
+    final sitting = find.byKey(
+      const ValueKey<String>('djed-compact-sitting-9'),
+    );
+    detailScrollState.position.jumpTo(
+      detailScrollState.position.maxScrollExtent,
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(sitting);
+    await tester.pumpAndSettle();
+    await tester.tap(sitting);
+    await tester.pumpAndSettle();
+    await Scrollable.ensureVisible(
+      tester.element(find.text('It helped')),
+      alignment: .7,
+      duration: Duration.zero,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('It helped'));
+    await tester.pumpAndSettle();
+
+    final raising = find.byKey(const ValueKey<String>('djed-raise-button'));
+    await Scrollable.ensureVisible(
+      tester.element(raising),
+      alignment: .7,
+      duration: Duration.zero,
+    );
+    expect(raising, findsOneWidget);
+    expect(tester.widget<OutlinedButton>(raising).onPressed, isNotNull);
+  });
 
   testWidgets('invited Djed sittings keep restricted capabilities', (
     tester,
@@ -297,7 +361,22 @@ void main() {
     expect(find.byType(DjedDetailSittingPresentation), findsOneWidget);
     expect(find.byType(DjedSittingBehaviorSurface), findsNothing);
     expect(find.byType(DjedDayPresentation), findsNothing);
-    expect(actionButton(tester, 'Put on calendar').onPressed, isNull);
+    final doToday = actionButton(tester, 'Do today');
+    final putOnCalendar = actionButton(tester, 'Put on calendar');
+    expect(doToday.onPressed, isNull);
+    expect(putOnCalendar.onPressed, isNull);
+    expect(
+      doToday.style?.foregroundColor?.resolve(const <WidgetState>{
+        WidgetState.disabled,
+      }),
+      const Color(0xFF8A8378),
+    );
+    expect(
+      putOnCalendar.style?.foregroundColor?.resolve(const <WidgetState>{
+        WidgetState.disabled,
+      }),
+      const Color(0xFF8A8378),
+    );
   });
 
   testWidgets(
@@ -535,5 +614,15 @@ void main() {
     expect(find.byType(DjedSittingBehaviorSurface), findsNothing);
     expect(find.byType(DjedDayPresentation), findsNothing);
     expect(find.text('Calendar'), findsNothing);
+    final doToday = actionButton(tester, 'Do today');
+    final putOnCalendar = actionButton(tester, 'Put on calendar');
+    expect(doToday.onPressed, isNull);
+    expect(putOnCalendar.onPressed, isNull);
+    expect(
+      doToday.style?.foregroundColor?.resolve(const <WidgetState>{
+        WidgetState.disabled,
+      }),
+      const Color(0xFF8A8378),
+    );
   });
 }

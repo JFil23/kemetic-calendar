@@ -103,6 +103,11 @@ presentations reuse the same sitting state/actions and the approved Djed stage
 painter. The Flow detail calendar remains `MaatFlowThirtyDayCalendar`, matching
 Follow the Sky’s shared calendar geometry while supplying Djed dates, accents,
 and real event dots; the HTML calendar implementation is not copied.
+The top and bottom sitting-sheet goldens exercise the owned/actionable path, so
+both plan actions are visibly enabled. Catalog and invited previews retain the
+same layout with mutations disabled; their disabled action labels use the
+existing readable Djed muted text color instead of inheriting the near-black
+Material default.
 
 ## Acceptance conditions
 
