@@ -12,8 +12,8 @@ CSS, embedded artwork, SVG geometry, typography, copy, and observable
 interaction states govern the visual result. Their JavaScript is not copied
 into the app.
 
-This package contains **41** visual states, each with exact macOS, Linux ARM64,
-and Linux x86_64 goldens. **34** have an independent HTML-to-Flutter evidence
+This package contains **43** visual states, each with exact macOS, Linux ARM64,
+and Linux x86_64 goldens. **36** have an independent HTML-to-Flutter evidence
 set in `evidence/`; the other **7** are explicitly supplemental product/safety
 contracts or user-authored overrides that the supplied HTML does not govern. A
 prior report of 18 goldens was a stale partial count.
@@ -48,7 +48,7 @@ fails closed.
 
 | Authority | Direct HTML pairs | Supplemental Flutter contracts |
 | --- | --- | --- |
-| Djed detail | hero; supports scroll; support 2 selected | none |
+| Djed detail | hero; supports scroll; support 2 selected; sitting 2 top; sitting 2 bottom | none |
 | Djed Day View | event block; initial sheet; raised practice foreground; result; smaller retry; final raising | duplicate presentation-frame capture of the raised state; mixed support-condition palette; released-history state with four filled beams, one pillar, and no ghost |
 | Reading House detail | hero; setup; calendar; sittings | none |
 | Reading House Inbox | accepted House; pending invitation; House Chat | multiple-House isolation fixture |
@@ -93,6 +93,16 @@ glow. Raising the foreground may cover
 the stage; lowering it reveals the complete stage again. At the exact dock the
 focus heading and primary controls clear the fixed footer; the same single
 scroll exposes every remaining control above it.
+
+Djed Flow detail and Djed Day View intentionally own different sitting-sheet
+presentations. Flow detail uses the authored 86% conventional sheet with
+24px top corners, one scrolling content column, close control, TODAY context,
+214px stage, detail explanation, and “Back to the Djed.” It does not mount the
+Day View layered foreground, completion picker, menu, or fixed footer. Both
+presentations reuse the same sitting state/actions and the approved Djed stage
+painter. The Flow detail calendar remains `MaatFlowThirtyDayCalendar`, matching
+Follow the Sky’s shared calendar geometry while supplying Djed dates, accents,
+and real event dots; the HTML calendar implementation is not copied.
 
 ## Acceptance conditions
 

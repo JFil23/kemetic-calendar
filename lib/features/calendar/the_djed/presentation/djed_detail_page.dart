@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,128 +8,28 @@ import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
-import 'package:mobile/features/calendar/the_djed/presentation/djed_day_behavior_surface.dart';
-import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_sitting_presentation.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_presentation_copy.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_sitting_behavior_surface.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_sitting_models.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 
-enum DjedSupportCondition { unassessed, holding, underPressure, wobbling }
+export 'djed_sitting_models.dart';
 
-@immutable
-class DjedSupportFixture {
-  const DjedSupportFixture({
-    required this.name,
-    required this.condition,
-    this.released = false,
-  });
-
-  final String name;
-  final DjedSupportCondition condition;
-  final bool released;
-}
-
-@immutable
-class DjedSittingFixture {
-  const DjedSittingFixture({
-    required this.number,
-    required this.flowDay,
-    required this.phase,
-    required this.title,
-    required this.timeLabel,
-    required this.durationLabel,
-  });
-
-  final int number;
-  final int flowDay;
-  final String phase;
-  final String title;
-  final String timeLabel;
-  final String durationLabel;
-}
-
-const List<DjedSupportFixture> kDjedSupportFixtures = <DjedSupportFixture>[
-  DjedSupportFixture(name: '', condition: DjedSupportCondition.unassessed),
-  DjedSupportFixture(name: '', condition: DjedSupportCondition.unassessed),
-  DjedSupportFixture(name: '', condition: DjedSupportCondition.unassessed),
-  DjedSupportFixture(name: '', condition: DjedSupportCondition.unassessed),
-];
-
-const List<DjedSittingFixture> kDjedSittingFixtures = <DjedSittingFixture>[
-  DjedSittingFixture(
-    number: 1,
-    flowDay: 1,
-    phase: 'FIND YOUR FOOTING',
-    title: 'Set your footing',
-    timeLabel: 'Dawn + 30 min',
-    durationLabel: '5 min',
-  ),
-  DjedSittingFixture(
-    number: 2,
-    flowDay: 5,
-    phase: 'SUPPORT 01',
-    title: 'Make one move',
-    timeLabel: '11:00 local',
-    durationLabel: '5 min',
-  ),
-  DjedSittingFixture(
-    number: 3,
-    flowDay: 9,
-    phase: 'SUPPORT 01',
-    title: 'Read the result',
-    timeLabel: 'Dawn + 30 min',
-    durationLabel: '5 min',
-  ),
-  DjedSittingFixture(
-    number: 4,
-    flowDay: 11,
-    phase: 'SUPPORT 02',
-    title: 'Make one move',
-    timeLabel: 'Dawn + 30 min',
-    durationLabel: '5 min',
-  ),
-  DjedSittingFixture(
-    number: 5,
-    flowDay: 15,
-    phase: 'SUPPORT 02',
-    title: 'Read the result',
-    timeLabel: '11:00 local',
-    durationLabel: '5 min',
-  ),
-  DjedSittingFixture(
-    number: 6,
-    flowDay: 19,
-    phase: 'SUPPORT 03',
-    title: 'Make one move',
-    timeLabel: 'Sunset + 30 min',
-    durationLabel: '5 min',
-  ),
-  DjedSittingFixture(
-    number: 7,
-    flowDay: 21,
-    phase: 'SUPPORT 03',
-    title: 'Read the result',
-    timeLabel: 'Dawn + 30 min',
-    durationLabel: '5 min',
-  ),
-  DjedSittingFixture(
-    number: 8,
-    flowDay: 25,
-    phase: 'SUPPORT 04',
-    title: 'Make one move',
-    timeLabel: '11:00 local',
-    durationLabel: '5 min',
-  ),
-  DjedSittingFixture(
-    number: 9,
-    flowDay: 29,
-    phase: 'SUPPORT 04',
-    title: 'Read the result',
-    timeLabel: 'Dawn + 30 min',
-    durationLabel: '10–15 min',
-  ),
-];
+const _djedDetailSittingSheetGeometry = InstrumentEventSheetGeometry(
+  outerPadding: EdgeInsets.zero,
+  topBarHeight: 48,
+  bodyTopGap: 0,
+  footerGap: 0,
+  footerHeight: 0,
+  sheetBorderRadius: 24,
+  bodyHorizontalInset: 0,
+  bodyBorderRadius: 0,
+  handleTop: 19,
+  handleWidth: 42,
+);
 
 abstract final class DjedDetailTokens {
   static const Color page = Color(0xFF050403);
@@ -381,17 +280,53 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
       builder: (sheetContext) => InstrumentEventSheetHost(
         key: ValueKey<String>('djed-detail-sitting-sheet-${sitting.number}'),
         semanticLabel: 'Resize Djed sitting sheet',
-        handleColor: const Color(0xFF72571E),
-        initialExtent: .71,
-        geometry: InstrumentEventSheetGeometry.layered,
+        handleColor: const Color(0xFF3A3429),
+        initialExtent: instrumentEventSheetExtentForViewport(
+          context: sheetContext,
+          viewportFraction: .86,
+        ),
+        geometry: _djedDetailSittingSheetGeometry,
+        frameDecoration: const BoxDecoration(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.fromBorderSide(BorderSide(color: Color(0x38E0873C))),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              Color(0xFF0D0B08),
+              Color(0xFF080805),
+              Color(0xFF060604),
+            ],
+            stops: <double>[0, .42, 1],
+          ),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Color(0xCC000000),
+              blurRadius: 28,
+              spreadRadius: 6,
+              offset: Offset(0, -8),
+            ),
+          ],
+        ),
+        trailing: IconButton(
+          key: const ValueKey<String>('djed-detail-sitting-close'),
+          tooltip: 'Close',
+          onPressed: () => Navigator.of(sheetContext).maybePop(),
+          icon: const Text(
+            '×',
+            style: TextStyle(
+              color: DjedDetailTokens.silver,
+              fontFamily: 'GentiumPlus',
+              fontSize: 24,
+              height: 1,
+            ),
+          ),
+        ),
         body: canAct
-            ? DjedDayBehaviorSurface(
+            ? DjedSittingBehaviorSurface(
                 flowId: flowId,
                 event: event,
                 baseFixture: fixture,
-                supports: _supports,
-                presentationConfiguration:
-                    DjedDayPresentationConfiguration.detail,
                 onCompletionCommit:
                     widget.onSittingCompletionCommit ??
                     (
@@ -405,19 +340,30 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
                 onPutOnCalendar: sittingIdentityAvailable
                     ? makeTodoFromSitting
                     : null,
+                builder: (context, liveFixture, actions) =>
+                    DjedDetailSittingPresentation(
+                      event: event,
+                      sitting: sitting,
+                      fixture: liveFixture,
+                      supports: _supports,
+                      onBack: () => Navigator.of(sheetContext).maybePop(),
+                      onMoveChanged: actions.onMoveChanged,
+                      onDoToday: actions.onDoToday,
+                      onPutOnCalendar: actions.onPutOnCalendar,
+                      onResultSelected: actions.onResultSelected,
+                      onResultNoteChanged: actions.onResultNoteChanged,
+                      onSmallerMoveChanged: actions.onSmallerMoveChanged,
+                      onCloseBeam: actions.onCloseBeam,
+                      onRaise: actions.onRaise,
+                    ),
               )
-            : DjedDayPresentation(
-                configuration: DjedDayPresentationConfiguration.detail,
+            : DjedDetailSittingPresentation(
+                event: event,
+                sitting: sitting,
                 fixture: fixture,
                 supports: _supports,
+                onBack: () => Navigator.of(sheetContext).maybePop(),
               ),
-        footer: DjedDayFooterActions(
-          makeTodoUnavailable: canAct && !sittingIdentityAvailable,
-          onMakeTodo: sittingIdentityAvailable
-              ? () => unawaited(makeTodoFromSitting())
-              : null,
-          onCalendar: () => Navigator.of(sheetContext).maybePop(),
-        ),
       ),
     );
   }
@@ -438,6 +384,7 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
             sheetKey: const ValueKey<String>('djed-sheet'),
             hero: const _DjedHero(),
             sheet: _DjedSheet(
+              flowId: widget.flowId,
               startDate: widget._windowStart,
               supports: _supports,
               sittings: widget.sittings,
@@ -585,6 +532,7 @@ class _DjedHero extends StatelessWidget {
 
 class _DjedSheet extends StatelessWidget {
   const _DjedSheet({
+    required this.flowId,
     required this.startDate,
     required this.supports,
     required this.sittings,
@@ -597,6 +545,7 @@ class _DjedSheet extends StatelessWidget {
     required this.onSittingPressed,
   });
 
+  final int? flowId;
   final DateTime startDate;
   final List<DjedSupportFixture> supports;
   final List<DjedSittingFixture> sittings;
@@ -630,6 +579,8 @@ class _DjedSheet extends StatelessWidget {
           calendarRows: calendarPreview.rows,
         ),
         _DjedSittings(
+          flowId: flowId,
+          supports: supports,
           sittings: sittings,
           startDate: startDate,
           calendarPreview: calendarPreview,
@@ -1163,12 +1114,16 @@ class _DjedSpineBeam extends StatelessWidget {
 
 class _DjedSittings extends StatefulWidget {
   const _DjedSittings({
+    required this.flowId,
+    required this.supports,
     required this.sittings,
     required this.startDate,
     required this.calendarPreview,
     required this.onSittingPressed,
   });
 
+  final int? flowId;
+  final List<DjedSupportFixture> supports;
   final List<DjedSittingFixture> sittings;
   final DateTime startDate;
   final FollowSkyCalendarPreview calendarPreview;
@@ -1180,6 +1135,26 @@ class _DjedSittings extends StatefulWidget {
 
 class _DjedSittingsState extends State<_DjedSittings> {
   bool _showRemaining = false;
+
+  Widget _scheduleCard(DjedSittingFixture sitting) {
+    final event = djedV2EventByNumber(sitting.number);
+    final supportSlot = event?.supportSlot;
+    final supportName =
+        supportSlot != null && supportSlot <= widget.supports.length
+        ? widget.supports[supportSlot - 1].name.trim()
+        : '';
+    final representedEventId = widget.flowId != null && event != null
+        ? djedV2ClientEventId(flowId: widget.flowId!, event: event)
+        : null;
+    return _DjedScheduleCard(
+      sitting: sitting,
+      date: widget.startDate.add(Duration(days: sitting.flowDay - 1)),
+      supportName: supportName.isEmpty ? null : supportName,
+      representedEventId: representedEventId,
+      calendarPreview: widget.calendarPreview,
+      onTap: () => widget.onSittingPressed(sitting),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1196,12 +1171,7 @@ class _DjedSittingsState extends State<_DjedSittings> {
           Text('The sittings', style: _displayStyle(fontSize: 29)),
           const SizedBox(height: 18),
           for (final sitting in widget.sittings.take(5)) ...<Widget>[
-            _DjedScheduleCard(
-              sitting: sitting,
-              date: widget.startDate.add(Duration(days: sitting.flowDay - 1)),
-              calendarPreview: widget.calendarPreview,
-              onTap: () => widget.onSittingPressed(sitting),
-            ),
+            _scheduleCard(sitting),
             const SizedBox(height: 14),
           ],
           if (remaining.isNotEmpty) ...<Widget>[
@@ -1268,12 +1238,16 @@ class _DjedScheduleCard extends StatelessWidget {
   const _DjedScheduleCard({
     required this.sitting,
     required this.date,
+    required this.supportName,
+    required this.representedEventId,
     required this.calendarPreview,
     required this.onTap,
   });
 
   final DjedSittingFixture sitting;
   final DateTime date;
+  final String? supportName;
+  final String? representedEventId;
   final FollowSkyCalendarPreview calendarPreview;
   final VoidCallback onTap;
 
@@ -1308,11 +1282,13 @@ class _DjedScheduleCard extends StatelessWidget {
             phase: sitting.phase,
             timeLabel: sitting.timeLabel,
             durationLabel: sitting.durationLabel,
+            supportName: supportName,
             onTap: onTap,
           ),
           _DjedCalendarContextRows(
             sittingNumber: sitting.number,
             date: date,
+            representedEventId: representedEventId,
             calendarPreview: calendarPreview,
           ),
         ],
@@ -1438,11 +1414,13 @@ class _DjedCalendarContextRows extends StatelessWidget {
   const _DjedCalendarContextRows({
     required this.sittingNumber,
     required this.date,
+    required this.representedEventId,
     required this.calendarPreview,
   });
 
   final int sittingNumber;
   final DateTime date;
+  final String? representedEventId;
   final FollowSkyCalendarPreview calendarPreview;
 
   @override
@@ -1450,10 +1428,10 @@ class _DjedCalendarContextRows extends StatelessWidget {
     final state = calendarPreview.dateState(date);
     final rows = calendarPreview
         .rowsFor(date)
-        .where((row) {
-          final flowName = row.flowName?.trim().toLowerCase();
-          return flowName != 'the djed' && flowName != 'the-djed';
-        })
+        .where(
+          (row) =>
+              representedEventId == null || row.eventId != representedEventId,
+        )
         .toList(growable: false);
     if (rows.isNotEmpty) {
       return Padding(

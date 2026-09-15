@@ -5,6 +5,7 @@ import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dar
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_sitting_presentation.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
@@ -13,7 +14,7 @@ import '../../support/maat_flow_visual_goldens.dart';
 const _captureDjedVisuals = bool.fromEnvironment('CAPTURE_DJED_VISUALS');
 final _goldenRoot = maatFlowVisualGoldenRoot;
 
-const _removedDjedInstrumentContexts = <String>[
+const _djedSittingContexts = <String>[
   'You do not have to fix everything at once. For each support: make one small move, then return and see what happened.',
   'You do not have to solve this. Find one useful part that is fully in your hands.',
   'Come back to the move you chose. Read what actually happened before deciding anything else.',
@@ -33,6 +34,8 @@ void main() {
     required Size size,
     double textScale = 1,
     double topPadding = 0,
+    double keyboardInset = 0,
+    List<DjedSupportFixture> supports = kDjedSupportFixtures,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -47,10 +50,15 @@ void main() {
             textScaler: TextScaler.linear(textScale),
             padding: EdgeInsets.only(top: topPadding),
             viewPadding: EdgeInsets.only(top: topPadding),
+            viewInsets: EdgeInsets.only(bottom: keyboardInset),
           ),
           child: RepaintBoundary(
             key: const ValueKey<String>('djed-visual-capture'),
-            child: DjedDetailSurface(onCarry: () {}, onBack: () {}),
+            child: DjedDetailSurface(
+              supports: supports,
+              onCarry: () {},
+              onBack: () {},
+            ),
           ),
         ),
       ),
@@ -102,6 +110,14 @@ void main() {
     );
     expect(find.byType(DjedEventBlockVisual), findsWidgets);
     expect(find.text('Set your footing'), findsOneWidget);
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey<String>('djed-event-block-detail-1')),
+          )
+          .height,
+      106,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -125,58 +141,72 @@ void main() {
           ),
           findsOneWidget,
         );
-        final presentation = tester.widget<DjedDayPresentation>(
-          find.byType(DjedDayPresentation),
+        final presentation = tester.widget<DjedDetailSittingPresentation>(
+          find.byType(DjedDetailSittingPresentation),
         );
         expect(presentation.fixture.sittingNumber, sittingNumber);
-        expect(
-          presentation.configuration,
-          same(DjedDayPresentationConfiguration.detail),
-        );
         final sheet = find.byKey(
           ValueKey<String>('djed-detail-sitting-sheet-$sittingNumber'),
         );
         final host = tester.widget<InstrumentEventSheetHost>(sheet);
-        expect(host.initialExtent, .71);
-        expect(host.geometry, same(InstrumentEventSheetGeometry.layered));
-        final frame = tester.widget<InstrumentEventPresentationFrame>(
-          find.byType(InstrumentEventPresentationFrame),
+        expect(host.initialExtent, closeTo((844 * .86) / (844 - 12), .001));
+        expect(host.geometry, isNotNull);
+        expect(
+          host.geometry,
+          isNot(same(InstrumentEventSheetGeometry.layered)),
         );
-        expect(frame.initialLowerSheetPeek, 30);
+        expect(find.byType(InstrumentEventPresentationFrame), findsNothing);
         final sitting = kDjedSittingFixtures[sittingNumber - 1];
         final title = find.byKey(
-          const ValueKey<String>('djed-instrument-title'),
+          const ValueKey<String>('djed-detail-sitting-title'),
         );
-        final stage = find.byKey(const ValueKey<String>('djed-day-live-stage'));
+        final kicker = find.byKey(
+          const ValueKey<String>('djed-detail-sitting-kicker'),
+        );
+        final stage = find.byKey(
+          const ValueKey<String>('djed-detail-sitting-stage'),
+        );
         expect(tester.widget<Text>(title).data, sitting.title);
-        expect(tester.getRect(stage).top - tester.getRect(title).bottom, 12);
-        expect(find.textContaining('SITTING 0'), findsNothing);
+        expect(
+          tester.widget<Text>(kicker).data,
+          'SITTING ${sittingNumber.toString().padLeft(2, '0')} · '
+          'DAY ${presentation.event.flowDay} · ${presentation.event.phase}',
+        );
         expect(
           find.text('${sitting.timeLabel} · ${sitting.durationLabel}'),
-          findsNothing,
-        );
-        expect(find.text('TODAY'), findsNothing);
-        expect(
-          find.text(_removedDjedInstrumentContexts[sittingNumber - 1]),
-          findsNothing,
-        );
-        expect(tester.getSize(stage), const Size(340, 230));
-        expect(
-          tester
-              .getRect(
-                find.byKey(const ValueKey<String>('djed-practice-sheet')),
-              )
-              .top,
-          greaterThanOrEqualTo(tester.getRect(stage).bottom - 1),
-          reason: 'sitting $sittingNumber must reveal the entire Djed stage',
-        );
-        expect(
-          find.byKey(const ValueKey<String>('djed-practice-sheet-handle')),
           findsOneWidget,
         );
+        expect(find.text('TODAY'), findsOneWidget);
+        expect(
+          find.text(_djedSittingContexts[sittingNumber - 1]),
+          findsOneWidget,
+        );
+        expect(tester.getSize(stage), const Size(360, 214));
+        expect(find.byType(DjedDayPresentation), findsNothing);
+        expect(
+          find.byKey(const ValueKey<String>('djed-practice-sheet-handle')),
+          findsNothing,
+        );
+        expect(find.text('Why this belongs at the Djed'), findsOneWidget);
+        expect(
+          find.descendant(of: sheet, matching: find.text('In Kemet')),
+          findsNothing,
+        );
+        expect(
+          find.descendant(of: sheet, matching: find.text('Calendar')),
+          findsNothing,
+        );
+        await tester.drag(
+          find.byKey(
+            const PageStorageKey<String>('djed-detail-sitting-scroll'),
+          ),
+          const Offset(0, -900),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Back to the Djed'), findsOneWidget);
         Navigator.of(tester.element(sheet)).pop();
         await tester.pumpAndSettle();
-        expect(find.byType(DjedDayPresentation), findsNothing);
+        expect(find.byType(DjedDetailSittingPresentation), findsNothing);
       }
 
       for (var sitting = 1; sitting <= 5; sitting++) {
@@ -206,6 +236,99 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('Djed detail sitting matches the dedicated sheet reference', (
+    tester,
+  ) async {
+    await pumpDjed(
+      tester,
+      size: const Size(390, 844),
+      topPadding: 52,
+      supports: const <DjedSupportFixture>[
+        DjedSupportFixture(
+          name: 'Body',
+          condition: DjedSupportCondition.holding,
+        ),
+        DjedSupportFixture(
+          name: 'Family',
+          condition: DjedSupportCondition.underPressure,
+        ),
+        DjedSupportFixture(
+          name: 'Work',
+          condition: DjedSupportCondition.wobbling,
+        ),
+        DjedSupportFixture(
+          name: 'Practice',
+          condition: DjedSupportCondition.holding,
+        ),
+      ],
+    );
+    final sitting = find.byKey(
+      const ValueKey<String>('djed-event-block-detail-2'),
+    );
+    await Scrollable.ensureVisible(
+      tester.element(sitting),
+      alignment: .5,
+      duration: Duration.zero,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(sitting);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DjedDetailSittingPresentation), findsOneWidget);
+    expect(find.byType(DjedDayPresentation), findsNothing);
+    expect(find.byType(InstrumentEventPresentationFrame), findsNothing);
+    await expectLater(
+      find.byType(Overlay).first,
+      matchesGoldenFile(
+        _captureDjedVisuals
+            ? '/tmp/djed-detail-sitting-2-top.png'
+            : '$_goldenRoot/djed-detail-sitting-2-top-390x844.png',
+      ),
+    );
+
+    await tester.drag(
+      find.byKey(const PageStorageKey<String>('djed-detail-sitting-scroll')),
+      const Offset(0, -900),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Back to the Djed'), findsOneWidget);
+    await expectLater(
+      find.byType(Overlay).first,
+      matchesGoldenFile(
+        _captureDjedVisuals
+            ? '/tmp/djed-detail-sitting-2-bottom.png'
+            : '$_goldenRoot/djed-detail-sitting-2-bottom-390x844.png',
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('detail sitting keeps its 214px stage on a short keyboard view', (
+    tester,
+  ) async {
+    await pumpDjed(tester, size: const Size(320, 700), keyboardInset: 300);
+    final sitting = find.byKey(
+      const ValueKey<String>('djed-event-block-detail-2'),
+    );
+    await Scrollable.ensureVisible(
+      tester.element(sitting),
+      alignment: .5,
+      duration: Duration.zero,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(sitting);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DjedDetailSittingPresentation), findsOneWidget);
+    expect(
+      tester.getSize(
+        find.byKey(const ValueKey<String>('djed-detail-sitting-stage')),
+      ),
+      const Size(290, 214),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('beam and row selection follow the authored support focus', (
     tester,

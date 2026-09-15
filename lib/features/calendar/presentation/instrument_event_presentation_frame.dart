@@ -77,10 +77,12 @@ class DayViewBottomSheetFrame extends StatelessWidget {
     super.key,
     required this.child,
     this.borderRadius = 20,
+    this.decoration,
   });
 
   final Widget child;
   final double borderRadius;
+  final BoxDecoration? decoration;
 
   @override
   Widget build(BuildContext context) {
@@ -93,22 +95,24 @@ class DayViewBottomSheetFrame extends StatelessWidget {
           child: IgnorePointer(
             child: DecoratedBox(
               key: dayViewBottomSheetBackplateKey,
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: <Color>[Color(0xF7070605), Color(0xFA050403)],
-                ),
-                boxShadow: const <BoxShadow>[
-                  BoxShadow(
-                    color: Color(0xCC000000),
-                    blurRadius: 28,
-                    spreadRadius: 6,
-                    offset: Offset(0, -8),
+              decoration:
+                  decoration ??
+                  BoxDecoration(
+                    borderRadius: radius,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: <Color>[Color(0xF7070605), Color(0xFA050403)],
+                    ),
+                    boxShadow: const <BoxShadow>[
+                      BoxShadow(
+                        color: Color(0xCC000000),
+                        blurRadius: 28,
+                        spreadRadius: 6,
+                        offset: Offset(0, -8),
+                      ),
+                    ],
                   ),
-                ],
-              ),
             ),
           ),
         ),
@@ -134,6 +138,7 @@ class InstrumentEventSheetHost extends StatefulWidget {
     this.footer,
     this.initialExtent = instrumentEventSheetMinExtent,
     this.geometry,
+    this.frameDecoration,
   }) : assert(
          initialExtent >= instrumentEventSheetMinExtent && initialExtent <= 1,
        );
@@ -145,6 +150,7 @@ class InstrumentEventSheetHost extends StatefulWidget {
   final Widget? footer;
   final double initialExtent;
   final InstrumentEventSheetGeometry? geometry;
+  final BoxDecoration? frameDecoration;
 
   @override
   State<InstrumentEventSheetHost> createState() =>
@@ -231,6 +237,7 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
             padding: outerPadding,
             child: DayViewBottomSheetFrame(
               borderRadius: geometry?.sheetBorderRadius ?? 20,
+              decoration: widget.frameDecoration,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[

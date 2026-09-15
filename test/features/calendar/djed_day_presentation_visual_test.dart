@@ -7,7 +7,6 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
-import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
@@ -121,7 +120,6 @@ void main() {
                       handleColor: const Color(0xFF72571E),
                       body: DjedDayPresentation(
                         key: presentationKey,
-                        configuration: DjedDayPresentationConfiguration.dayView,
                         fixture: fixture,
                         supports: supports,
                         onStageAction: () {},
@@ -516,10 +514,7 @@ void main() {
     final presentation = tester.widget<DjedDayPresentation>(
       find.byType(DjedDayPresentation),
     );
-    expect(
-      presentation.configuration,
-      same(DjedDayPresentationConfiguration.dayView),
-    );
+    expect(presentation.fixture.sittingNumber, 4);
     final frame = tester.widget<InstrumentEventPresentationFrame>(
       find.byType(InstrumentEventPresentationFrame),
     );
@@ -755,37 +750,6 @@ void main() {
     },
   );
 
-  testWidgets('detail-entry disclosure and Back action remain unchanged', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: InstrumentEventSheetHost(
-            semanticLabel: 'Djed detail-entry sitting',
-            handleColor: Color(0xFF72571E),
-            body: DjedDayPresentation(
-              configuration: DjedDayPresentationConfiguration.detail,
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Why this belongs at the Djed'), findsOneWidget);
-    expect(find.text('In Kemet'), findsNothing);
-    expect(find.text('Back to Day View'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('djed-in-kemet-disclosure')),
-      findsNothing,
-    );
-    expect(tester.takeException(), isNull);
-  });
-
   testWidgets(
     'Day View keeps the authored Djed face without a sitting payload',
     (tester) async {
@@ -896,9 +860,7 @@ void main() {
               child: InstrumentEventSheetHost(
                 semanticLabel: 'Djed sitting details',
                 handleColor: DjedDayTokens.gold,
-                body: DjedDayPresentation(
-                  configuration: DjedDayPresentationConfiguration.dayView,
-                ),
+                body: DjedDayPresentation(),
                 footer: DjedDayFooterActions(),
               ),
             ),

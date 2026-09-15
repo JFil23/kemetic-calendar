@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 
+import 'djed_sitting_models.dart';
+
 enum DjedEventBlockSize { detail, compact }
 
 /// The ember event block authored in the Djed HTML references.
@@ -415,12 +417,6 @@ double _sittingAngle(int sitting) => switch (sitting.clamp(1, 9)) {
   7 => -16,
   8 => -8,
   _ => 0,
-};
-
-String authoredDjedSupportNameForSitting(int sitting) => switch (sitting) {
-  1 => 'four supports · one at a time',
-  4 || 5 => 'the weekly call with my sister',
-  _ => '',
 };
 
 String _supportFallback(int sitting) =>

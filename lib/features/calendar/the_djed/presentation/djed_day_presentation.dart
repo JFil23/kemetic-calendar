@@ -3,130 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
-import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
-import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_presentation_copy.dart';
-import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_sitting_models.dart';
 
-enum DjedPracticeStageVisual {
-  orientation,
-  makeMove,
-  putOnCalendar,
-  readResult,
-  blocker,
-  smallerRetry,
-  finalRaising,
-}
-
-enum DjedResultVisualState { none, helped, noChange, notDone }
-
-enum DjedCompletionVisualState { none, observed, partly, skipped }
-
-@immutable
-class DjedDayPresentationConfiguration {
-  const DjedDayPresentationConfiguration._({
-    required this.initialLowerSheetPeek,
-    required this.revealCompleteInstrumentWhenLowered,
-    required this.showPracticeSheetHandle,
-    required this.useDayViewInKemetDisclosure,
-    required this.showBackToDayViewAction,
-  });
-
-  static const dayView = DjedDayPresentationConfiguration._(
-    initialLowerSheetPeek: null,
-    revealCompleteInstrumentWhenLowered: true,
-    showPracticeSheetHandle: false,
-    useDayViewInKemetDisclosure: true,
-    showBackToDayViewAction: false,
-  );
-
-  static const detail = DjedDayPresentationConfiguration._(
-    initialLowerSheetPeek: 30,
-    revealCompleteInstrumentWhenLowered: false,
-    showPracticeSheetHandle: true,
-    useDayViewInKemetDisclosure: false,
-    showBackToDayViewAction: true,
-  );
-
-  final double? initialLowerSheetPeek;
-  final bool revealCompleteInstrumentWhenLowered;
-  final bool showPracticeSheetHandle;
-  final bool useDayViewInKemetDisclosure;
-  final bool showBackToDayViewAction;
-}
-
-@immutable
-class DjedDayVisualFixture {
-  const DjedDayVisualFixture({
-    required this.sittingNumber,
-    required this.stage,
-    required this.supportSlot,
-    required this.supportName,
-    this.move = '',
-    this.result = DjedResultVisualState.none,
-    this.completion = DjedCompletionVisualState.none,
-    this.resultNote = '',
-    this.smallerMove = '',
-    this.raised = false,
-    this.raisingActive = false,
-    this.raisingSecondsRemaining = 30,
-  });
-
-  final int sittingNumber;
-  final DjedPracticeStageVisual stage;
-  final int supportSlot;
-  final String supportName;
-  final String move;
-  final DjedResultVisualState result;
-  final DjedCompletionVisualState completion;
-  final String resultNote;
-  final String smallerMove;
-  final bool raised;
-  final bool raisingActive;
-  final int raisingSecondsRemaining;
-}
-
-const DjedDayVisualFixture kDjedDayVisualFixture = DjedDayVisualFixture(
-  sittingNumber: 4,
-  stage: DjedPracticeStageVisual.makeMove,
-  supportSlot: 2,
-  supportName: 'the weekly call with my sister',
-);
-
-DjedDayVisualFixture djedDayVisualFixtureForEvent(
-  DjedV2Event event, {
-  String? supportName,
-}) {
-  final supportSlot = event.supportSlot ?? 1;
-  final resolvedSupportName = supportName?.trim();
-  return DjedDayVisualFixture(
-    sittingNumber: event.eventNumber,
-    stage: switch (event.stepKind) {
-      DjedV2StepKind.orientation => DjedPracticeStageVisual.orientation,
-      DjedV2StepKind.makeMove => DjedPracticeStageVisual.makeMove,
-      DjedV2StepKind.readResult when event.finalRaising =>
-        DjedPracticeStageVisual.finalRaising,
-      DjedV2StepKind.readResult => DjedPracticeStageVisual.readResult,
-    },
-    supportSlot: supportSlot,
-    supportName: resolvedSupportName?.isNotEmpty == true
-        ? resolvedSupportName!
-        : authoredDjedSupportNameForSitting(event.eventNumber),
-  );
-}
-
-String djedSheetSupportBarLabel({
-  required int slotNumber,
-  required String name,
-}) {
-  final number = slotNumber.toString().padLeft(2, '0');
-  final trimmed = name.trim();
-  if (trimmed.isEmpty) return number;
-  final clipped = trimmed.length > 20
-      ? '${trimmed.substring(0, 19)}…'
-      : trimmed;
-  return '$number · $clipped';
-}
+export 'djed_sitting_models.dart';
 
 abstract final class DjedDayTokens {
   static const Color page = Color(0xFF050403);
@@ -179,7 +59,6 @@ double _djedInstrumentStageHeight(BuildContext context) {
 class DjedDayPresentation extends StatelessWidget {
   const DjedDayPresentation({
     super.key,
-    required this.configuration,
     this.fixture = kDjedDayVisualFixture,
     this.supports = kDjedSupportFixtures,
     this.onStageAction,
@@ -194,7 +73,6 @@ class DjedDayPresentation extends StatelessWidget {
     this.onCompletionSelected,
   });
 
-  final DjedDayPresentationConfiguration configuration;
   final DjedDayVisualFixture fixture;
   final List<DjedSupportFixture> supports;
   final VoidCallback? onStageAction;
@@ -230,10 +108,7 @@ class DjedDayPresentation extends StatelessWidget {
           ],
         ),
       ),
-      initialLowerSheetPeek: configuration.initialLowerSheetPeek,
-      fixedHeroHeight: configuration.revealCompleteInstrumentWhenLowered
-          ? completeInstrumentHeight
-          : null,
+      fixedHeroHeight: completeInstrumentHeight,
       instrumentFooterHeight: 0,
       instrument: _DjedInstrument(
         fixture: fixture,
@@ -243,7 +118,6 @@ class DjedDayPresentation extends StatelessWidget {
       instrumentFooter: const SizedBox.shrink(),
       inputBuilder: (_, _, _) => const SizedBox.shrink(),
       body: _DjedPracticeSheet(
-        configuration: configuration,
         fixture: fixture,
         onStageAction: onStageAction,
         onMoveChanged: onMoveChanged,
@@ -321,7 +195,7 @@ class _DjedInstrument extends StatelessWidget {
               SizedBox(
                 height: stageHeight,
                 width: double.infinity,
-                child: _DjedSheetStage(
+                child: DjedSittingStage(
                   key: const ValueKey<String>('djed-day-live-stage'),
                   fixture: fixture,
                   supports: supports,
@@ -335,8 +209,8 @@ class _DjedInstrument extends StatelessWidget {
   }
 }
 
-class _DjedSheetStage extends StatelessWidget {
-  const _DjedSheetStage({
+class DjedSittingStage extends StatelessWidget {
+  const DjedSittingStage({
     super.key,
     required this.fixture,
     required this.supports,
@@ -670,9 +544,66 @@ List<double> _supportGradientStops(DjedSupportCondition condition) =>
     ? DjedDayTokens.wobblingSupportGradientStops
     : DjedDayTokens.supportGradientStops;
 
+/// Shared sitting controls. The Day View and detail-entry presentations own
+/// their sheet composition independently and reuse only this action content.
+class DjedSittingActionContent extends StatelessWidget {
+  const DjedSittingActionContent({
+    super.key,
+    required this.fixture,
+    this.focusStateLabel,
+    this.onStageAction,
+    this.onMoveChanged,
+    this.onDoToday,
+    this.onPutOnCalendar,
+    this.onResultSelected,
+    this.onResultNoteChanged,
+    this.onSmallerMoveChanged,
+    this.onCloseBeam,
+    this.onRaise,
+  });
+
+  final DjedDayVisualFixture fixture;
+  final String? focusStateLabel;
+  final VoidCallback? onStageAction;
+  final ValueChanged<String>? onMoveChanged;
+  final VoidCallback? onDoToday;
+  final VoidCallback? onPutOnCalendar;
+  final ValueChanged<DjedResultVisualState>? onResultSelected;
+  final ValueChanged<String>? onResultNoteChanged;
+  final ValueChanged<String>? onSmallerMoveChanged;
+  final VoidCallback? onCloseBeam;
+  final VoidCallback? onRaise;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _DjedFocusCard(fixture: fixture, stateLabel: focusStateLabel),
+        const SizedBox(height: 14),
+        _DjedDecisionSurface(
+          fixture: fixture,
+          onStageAction: onStageAction,
+          onMoveChanged: onMoveChanged,
+          onDoToday: onDoToday,
+          onPutOnCalendar: onPutOnCalendar,
+          onResultSelected: onResultSelected,
+          onResultNoteChanged: onResultNoteChanged,
+          onSmallerMoveChanged: onSmallerMoveChanged,
+          onCloseBeam: onCloseBeam,
+        ),
+        if (fixture.sittingNumber == 9 &&
+            fixture.result != DjedResultVisualState.none) ...<Widget>[
+          const SizedBox(height: 14),
+          _DjedRaisingSurface(fixture: fixture, onRaise: onRaise),
+        ],
+      ],
+    );
+  }
+}
+
 class _DjedPracticeSheet extends StatelessWidget {
   const _DjedPracticeSheet({
-    required this.configuration,
     required this.fixture,
     this.onStageAction,
     this.onMoveChanged,
@@ -686,7 +617,6 @@ class _DjedPracticeSheet extends StatelessWidget {
     this.onCompletionSelected,
   });
 
-  final DjedDayPresentationConfiguration configuration;
   final DjedDayVisualFixture fixture;
   final VoidCallback? onStageAction;
   final ValueChanged<String>? onMoveChanged;
@@ -718,81 +648,32 @@ class _DjedPracticeSheet extends StatelessWidget {
           ),
         ],
       ),
-      child: Stack(
-        children: <Widget>[
-          if (configuration.showPracticeSheetHandle)
-            const Positioned(
-              left: 0,
-              right: 0,
-              top: 7,
-              child: Center(
-                child: SizedBox(
-                  key: ValueKey<String>('djed-practice-sheet-handle'),
-                  width: 38,
-                  height: 3,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Color(0xFF4E3B1B),
-                      borderRadius: BorderRadius.all(Radius.circular(4)),
-                    ),
-                  ),
-                ),
-              ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 34),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            DjedSittingActionContent(
+              fixture: fixture,
+              onStageAction: onStageAction,
+              onMoveChanged: onMoveChanged,
+              onDoToday: onDoToday,
+              onPutOnCalendar: onPutOnCalendar,
+              onResultSelected: onResultSelected,
+              onResultNoteChanged: onResultNoteChanged,
+              onSmallerMoveChanged: onSmallerMoveChanged,
+              onCloseBeam: onCloseBeam,
+              onRaise: onRaise,
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 34),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _DjedFocusCard(fixture: fixture),
-                const SizedBox(height: 14),
-                _DjedDecisionSurface(
-                  fixture: fixture,
-                  onStageAction: onStageAction,
-                  onMoveChanged: onMoveChanged,
-                  onDoToday: onDoToday,
-                  onPutOnCalendar: onPutOnCalendar,
-                  onResultSelected: onResultSelected,
-                  onResultNoteChanged: onResultNoteChanged,
-                  onSmallerMoveChanged: onSmallerMoveChanged,
-                  onCloseBeam: onCloseBeam,
-                ),
-                if (fixture.sittingNumber == 9 &&
-                    fixture.result != DjedResultVisualState.none) ...<Widget>[
-                  const SizedBox(height: 14),
-                  _DjedRaisingSurface(fixture: fixture, onRaise: onRaise),
-                ],
-                const SizedBox(height: 17),
-                if (configuration.useDayViewInKemetDisclosure)
-                  const _DjedInKemetDisclosure()
-                else
-                  const _DjedDetailEntryDisclosure(),
-                const SizedBox(height: 5),
-                _DjedCompletion(
-                  selected: fixture.completion,
-                  onSelected: onCompletionSelected,
-                ),
-                if (configuration.showBackToDayViewAction) ...<Widget>[
-                  const SizedBox(height: 18),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFE7C66C),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      alignment: Alignment.centerLeft,
-                      textStyle: const TextStyle(
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontSize: 15,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    child: const Text('Back to Day View'),
-                  ),
-                ],
-              ],
+            const SizedBox(height: 17),
+            const _DjedInKemetDisclosure(),
+            const SizedBox(height: 5),
+            _DjedCompletion(
+              selected: fixture.completion,
+              onSelected: onCompletionSelected,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -860,37 +741,6 @@ class _DjedInKemetDisclosureState extends State<_DjedInKemetDisclosure> {
   }
 }
 
-class _DjedDetailEntryDisclosure extends StatelessWidget {
-  const _DjedDetailEntryDisclosure();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: DjedDayTokens.separator)),
-      ),
-      child: TextButton(
-        style: _djedDisclosureButtonStyle,
-        onPressed: () {},
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            Expanded(
-              child: Text(
-                'Why this belongs at the Djed',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            SizedBox(width: 12),
-            Text('+'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 ButtonStyle get _djedDisclosureButtonStyle => TextButton.styleFrom(
   foregroundColor: const Color(0xFF8A8378),
   padding: const EdgeInsets.symmetric(vertical: 13),
@@ -904,9 +754,10 @@ ButtonStyle get _djedDisclosureButtonStyle => TextButton.styleFrom(
 );
 
 class _DjedFocusCard extends StatelessWidget {
-  const _DjedFocusCard({required this.fixture});
+  const _DjedFocusCard({required this.fixture, this.stateLabel});
 
   final DjedDayVisualFixture fixture;
+  final String? stateLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -934,7 +785,8 @@ class _DjedFocusCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            fixture.sittingNumber == 1 ? 'ONE AT A TIME' : 'NEUTRAL',
+            stateLabel ??
+                (fixture.sittingNumber == 1 ? 'ONE AT A TIME' : 'NEUTRAL'),
             style: const TextStyle(
               color: Color(0xFF9B8248),
               fontFamily: 'GentiumPlus',

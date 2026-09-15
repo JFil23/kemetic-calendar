@@ -6,10 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
-import 'package:mobile/features/calendar/the_djed/presentation/djed_day_behavior_surface.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_sitting_presentation.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_sitting_behavior_surface.dart';
+import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -103,20 +105,27 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  DayViewSheetEventTarget sittingTarget(int flowId) {
+  DayViewSheetEventTarget sittingTarget(int flowId, int sittingNumber) {
+    final event = djedV2EventByNumber(sittingNumber)!;
     return DayViewSheetEventTarget(
       ky: 1,
       km: 1,
-      kd: 9,
+      kd: sittingNumber == 2 ? 5 : 9,
       event: EventItem(
-        title: 'Djed 3: Read the result',
+        title: event.title,
         startMin: 30,
         endMin: 35,
         color: const Color(0xFFE0873C),
         allDay: false,
         flowId: flowId,
-        clientEventId: 'djed-v2:$flowId:support-1-result',
+        clientEventId: djedV2ClientEventId(flowId: flowId, event: event),
       ),
+    );
+  }
+
+  TextButton actionButton(WidgetTester tester, String label) {
+    return tester.widget<TextButton>(
+      find.ancestor(of: find.text(label), matching: find.byType(TextButton)),
     );
   }
 
@@ -140,22 +149,10 @@ void main() {
         find.byKey(const ValueKey<String>('djed-detail-sitting-sheet-3')),
         findsOneWidget,
       );
-      expect(find.byType(DjedDayBehaviorSurface), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('djed-detail-make-todo-unavailable')),
-        findsOneWidget,
-      );
-      expect(
-        tester
-            .widget<TextButton>(
-              find.byKey(
-                const ValueKey<String>('djed-detail-make-todo-unavailable'),
-              ),
-            )
-            .onPressed,
-        isNull,
-      );
-      expect(find.text('Calendar'), findsOneWidget);
+      expect(find.byType(DjedSittingBehaviorSurface), findsOneWidget);
+      expect(find.byType(DjedDetailSittingPresentation), findsOneWidget);
+      expect(find.byType(DjedDayPresentation), findsNothing);
+      expect(find.text('Calendar'), findsNothing);
 
       await tester.scrollUntilVisible(
         find.text('It helped'),
@@ -174,7 +171,7 @@ void main() {
       expect(values['support-1-result']?.optionIds, contains('helped'));
 
       await closeSitting(tester, 3);
-      expect(find.byType(DjedDayBehaviorSurface), findsNothing);
+      expect(find.byType(DjedSittingBehaviorSurface), findsNothing);
 
       await openSitting(tester, 3);
       expect(find.text('What worked?'), findsOneWidget);
@@ -208,13 +205,9 @@ void main() {
         expect(heroLoadError, isNull);
         await tester.pumpAndSettle();
         await openSitting(tester, 3);
-        expect(find.byType(DjedDayBehaviorSurface), findsOneWidget);
-        expect(
-          find.byKey(
-            const ValueKey<String>('djed-detail-make-todo-unavailable'),
-          ),
-          findsOneWidget,
-        );
+        expect(find.byType(DjedSittingBehaviorSurface), findsOneWidget);
+        expect(find.byType(DjedDetailSittingPresentation), findsOneWidget);
+        expect(find.byType(DjedDayPresentation), findsNothing);
         await closeSitting(tester, 3);
       }
 
@@ -260,19 +253,12 @@ void main() {
       CalendarPage.debugOwnedDjedSittingEventTargetForTesting =
           ({required flowId, required sittingNumber}) {
             expect(flowId, 42);
-            expect(sittingNumber, 3);
-            return sittingTarget(flowId);
+            expect(sittingNumber, 2);
+            return sittingTarget(flowId, sittingNumber);
           };
       await pumpJoinedDjed(tester);
-      await openSitting(tester, 3);
-      final makeTodo = tester.widget<TextButton>(
-        find.byKey(const ValueKey<String>('djed-detail-make-todo')),
-      );
-      expect(makeTodo.onPressed, isNotNull);
-      expect(
-        find.byKey(const ValueKey<String>('djed-detail-make-todo-unavailable')),
-        findsNothing,
-      );
+      await openSitting(tester, 2);
+      expect(actionButton(tester, 'Put on calendar').onPressed, isNotNull);
     },
   );
 
@@ -307,17 +293,11 @@ void main() {
     );
     expect(carry.onPressed, isNull);
 
-    await openSitting(tester, 3);
-    expect(find.byType(DjedDayPresentation), findsOneWidget);
-    expect(find.byType(DjedDayBehaviorSurface), findsNothing);
-    final makeTodo = tester.widget<TextButton>(
-      find.byKey(const ValueKey<String>('djed-detail-make-todo')),
-    );
-    expect(makeTodo.onPressed, isNull);
-    expect(
-      find.byKey(const ValueKey<String>('djed-detail-make-todo-unavailable')),
-      findsNothing,
-    );
+    await openSitting(tester, 2);
+    expect(find.byType(DjedDetailSittingPresentation), findsOneWidget);
+    expect(find.byType(DjedSittingBehaviorSurface), findsNothing);
+    expect(find.byType(DjedDayPresentation), findsNothing);
+    expect(actionButton(tester, 'Put on calendar').onPressed, isNull);
   });
 
   testWidgets(
@@ -354,6 +334,170 @@ void main() {
     },
   );
 
+  testWidgets('Djed context excludes only the represented event identity', (
+    tester,
+  ) async {
+    final represented = djedV2EventByNumber(1)!;
+    await pumpJoinedDjed(
+      tester,
+      calendarPreview: FollowSkyCalendarPreview(
+        rows: <FollowSkyCalendarPreviewRow>[
+          FollowSkyCalendarPreviewRow(
+            eventId: djedV2ClientEventId(flowId: 42, event: represented),
+            localDay: DateTime(2026, 9, 6),
+            start: DateTime(2026, 9, 6, 6, 30),
+            end: DateTime(2026, 9, 6, 6, 35),
+            title: 'Represented Djed sitting',
+            flowName: 'The Djed',
+            eventColor: const Color(0xFFE0873C),
+          ),
+          FollowSkyCalendarPreviewRow(
+            eventId: djedV2ClientEventId(flowId: 99, event: represented),
+            localDay: DateTime(2026, 9, 6),
+            start: DateTime(2026, 9, 6, 8),
+            end: DateTime(2026, 9, 6, 8, 5),
+            title: 'Another Djed instance',
+            flowName: 'The Djed',
+            eventColor: const Color(0xFFE0873C),
+          ),
+        ],
+      ),
+    );
+
+    final sitting = find.byKey(
+      const ValueKey<String>('djed-event-block-detail-1'),
+    );
+    await Scrollable.ensureVisible(
+      tester.element(sitting),
+      alignment: .35,
+      duration: Duration.zero,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Represented Djed sitting'), findsNothing);
+    expect(find.text('Another Djed instance'), findsOneWidget);
+  });
+
+  testWidgets('detail event blocks receive their edited support names', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DjedDetailSurface(
+          supports: const <DjedSupportFixture>[
+            DjedSupportFixture(
+              name: 'Body',
+              condition: DjedSupportCondition.holding,
+            ),
+            DjedSupportFixture(
+              name: 'Family',
+              condition: DjedSupportCondition.underPressure,
+            ),
+            DjedSupportFixture(
+              name: 'Work',
+              condition: DjedSupportCondition.wobbling,
+            ),
+            DjedSupportFixture(
+              name: 'Practice',
+              condition: DjedSupportCondition.holding,
+            ),
+          ],
+          onCarry: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final block = find.byKey(
+      const ValueKey<String>('djed-event-block-detail-2'),
+    );
+    await Scrollable.ensureVisible(
+      tester.element(block),
+      alignment: .5,
+      duration: Duration.zero,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: block, matching: find.text('Body')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('detail disclosure survives ordinary form updates', (
+    tester,
+  ) async {
+    await pumpJoinedDjed(tester);
+    await openSitting(tester, 2);
+    final onMoveChanged = tester
+        .widget<TextFormField>(
+          find.byKey(const ValueKey<String>('djed-move-field')),
+        )
+        .onChanged!;
+    final scrollable = find.byKey(
+      const PageStorageKey<String>('djed-detail-sitting-scroll'),
+    );
+    await tester.drag(scrollable, const Offset(0, -700));
+    await tester.pumpAndSettle();
+    final disclosure = find.byKey(
+      const ValueKey<String>('djed-detail-source-disclosure'),
+    );
+    await tester.tap(disclosure);
+    await tester.pumpAndSettle();
+    final source = find.byKey(
+      const ValueKey<String>('djed-detail-source-body'),
+    );
+    expect(source, findsOneWidget);
+    final scrollPosition = find
+        .descendant(of: scrollable, matching: find.byType(Scrollable))
+        .first;
+    final before = tester
+        .state<ScrollableState>(scrollPosition)
+        .position
+        .pixels;
+
+    onMoveChanged('one small action');
+    await tester.pump();
+    expect(source, findsOneWidget);
+    expect(
+      tester.state<ScrollableState>(scrollPosition).position.pixels,
+      closeTo(before, .1),
+    );
+  });
+
+  testWidgets('closing a sitting restores the Djed detail list offset', (
+    tester,
+  ) async {
+    await pumpJoinedDjed(tester);
+    final sitting = find.byKey(
+      const ValueKey<String>('djed-event-block-detail-3'),
+    );
+    await Scrollable.ensureVisible(
+      tester.element(sitting),
+      alignment: .5,
+      duration: Duration.zero,
+    );
+    await tester.pumpAndSettle();
+    final detailScrollable = find
+        .descendant(
+          of: find.byKey(const ValueKey<String>('djed-detail-scroll')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    final before = tester
+        .state<ScrollableState>(detailScrollable)
+        .position
+        .pixels;
+
+    await tester.tap(sitting);
+    await tester.pumpAndSettle();
+    await closeSitting(tester, 3);
+
+    expect(
+      tester.state<ScrollableState>(detailScrollable).position.pixels,
+      closeTo(before, .1),
+    );
+  });
+
   testWidgets('catalog preview sittings stay on the visual presentation', (
     tester,
   ) async {
@@ -387,11 +531,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(sitting);
     await tester.pumpAndSettle();
-    expect(find.byType(DjedDayPresentation), findsOneWidget);
-    expect(find.byType(DjedDayBehaviorSurface), findsNothing);
-    final makeTodo = tester.widget<TextButton>(
-      find.byKey(const ValueKey<String>('djed-detail-make-todo')),
-    );
-    expect(makeTodo.onPressed, isNull);
+    expect(find.byType(DjedDetailSittingPresentation), findsOneWidget);
+    expect(find.byType(DjedSittingBehaviorSurface), findsNothing);
+    expect(find.byType(DjedDayPresentation), findsNothing);
+    expect(find.text('Calendar'), findsNothing);
   });
 }

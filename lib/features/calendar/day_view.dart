@@ -61,7 +61,6 @@ import 'the_djed_v2_flow.dart';
 import 'the_djed_local_store.dart';
 import 'the_djed/presentation/djed_day_presentation.dart';
 import 'the_djed/presentation/djed_day_behavior_surface.dart';
-import 'the_djed/presentation/djed_detail_page.dart';
 import 'the_djed/presentation/djed_event_block_visual.dart';
 import 'the_reading_house_flow.dart';
 import 'the_reading_house/reading_house_room_repository.dart';
@@ -3568,7 +3567,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           child: flowId == null
               ? DjedDayPresentation(
-                  configuration: DjedDayPresentationConfiguration.dayView,
                   fixture: fixture,
                   supports: _djedV2SupportFixtures(
                     flow?.notes,
@@ -3582,8 +3580,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                   flowId: flowId,
                   event: activeDjedEvent,
                   baseFixture: fixture,
-                  presentationConfiguration:
-                      DjedDayPresentationConfiguration.dayView,
                   supports: _djedV2SupportFixtures(
                     flow?.notes,
                     currentEvent.behaviorPayload,
