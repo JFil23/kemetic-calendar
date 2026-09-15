@@ -7,6 +7,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
+import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_sitting_presentation.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
@@ -750,6 +751,41 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('detail-entry disclosure and Back action remain unchanged', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DjedDetailSittingPresentation(
+            event: kDjedV2Events[3],
+            sitting: kDjedSittingFixtures[3],
+            fixture: kDjedDayVisualFixture,
+            supports: kDjedSupportFixtures,
+            onBack: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DjedDayPresentation), findsNothing);
+    expect(find.byType(InstrumentEventPresentationFrame), findsNothing);
+    expect(find.text('Why this belongs at the Djed'), findsOneWidget);
+    expect(find.text('In Kemet'), findsNothing);
+    expect(find.text('Back to the Djed'), findsOneWidget);
+    expect(find.text('Back to Day View'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('djed-in-kemet-disclosure')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'Day View keeps the authored Djed face without a sitting payload',

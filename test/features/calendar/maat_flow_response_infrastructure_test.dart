@@ -1506,11 +1506,19 @@ void main() {
       'lib/features/calendar/the_djed/presentation/'
       'djed_day_behavior_surface.dart',
     ).readAsStringSync();
+    final djedSittingBehavior = File(
+      'lib/features/calendar/the_djed/presentation/'
+      'djed_sitting_behavior_surface.dart',
+    ).readAsStringSync();
     final offeringBehavior = File(
       'lib/features/calendar/the_offering_table/presentation/'
       'offering_table_day_presentation.dart',
     ).readAsStringSync();
-    expect(djedBehavior, contains('kMaatFlowResponseDraftStore.rememberValue'));
+    expect(djedBehavior, contains('DjedSittingBehaviorSurface('));
+    expect(
+      djedSittingBehavior,
+      contains('kMaatFlowResponseDraftStore.rememberValue'),
+    );
     expect(
       offeringBehavior,
       contains('kMaatFlowResponseDraftStore.rememberValue'),
