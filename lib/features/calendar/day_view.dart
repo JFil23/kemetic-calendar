@@ -5447,6 +5447,7 @@ class DayViewPage extends StatefulWidget {
   final DayViewRestorationCallback? onRestorationStateChanged;
   final bool Function()? shouldPreserveEventDetailRestorationOnClose;
   final KarRepository? karRepository;
+  final DateTime Function()? clock;
 
   const DayViewPage({
     super.key,
@@ -5510,6 +5511,7 @@ class DayViewPage extends StatefulWidget {
     this.onRestorationStateChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
     this.karRepository,
+    this.clock,
   });
 
   @override
@@ -5963,7 +5965,7 @@ class _DayViewPageState extends State<DayViewPage> {
   Future<void> _jumpToToday() async {
     if (_isJumpingToToday || !_pageController.hasClients) return;
 
-    final now = DateTime.now();
+    final now = (widget.clock ?? DateTime.now)().toLocal();
     final today = KemeticMath.fromGregorian(now);
     final alreadyToday =
         _currentKy == today.kYear &&
@@ -6312,6 +6314,7 @@ class _DayViewPageState extends State<DayViewPage> {
                         currentKd: _currentKd,
                         showGregorian: _showGregorian,
                         getMonthName: widget.getMonthName,
+                        clock: widget.clock,
                         miniCalendarScrollController:
                             _miniCalendarScrollController,
                         onMiniCalendarManualScrollStart:
@@ -6488,6 +6491,7 @@ class _DayViewPageState extends State<DayViewPage> {
                               onboardingClosingBannerBuilder:
                                   widget.onboardingClosingBannerBuilder,
                               karRepository: widget.karRepository,
+                              clock: widget.clock,
                               initialEventDetailRestorationState:
                                   _activeEventDetailRestoration,
                               onEventDetailRestorationChanged:
@@ -6626,6 +6630,7 @@ class DayViewGrid extends StatefulWidget {
   resolveAdjacentEvent;
   final Future<void> Function(int ky, int km, int kd)? onNavigateToDay;
   final KarRepository? karRepository;
+  final DateTime Function()? clock;
 
   const DayViewGrid({
     super.key,
@@ -6679,6 +6684,7 @@ class DayViewGrid extends StatefulWidget {
     this.resolveAdjacentEvent,
     this.onNavigateToDay,
     this.karRepository,
+    this.clock,
   });
 
   @override
@@ -6690,6 +6696,8 @@ class _DayViewGridState extends State<DayViewGrid> {
   final GlobalKey _timelineKey = GlobalKey();
   KarRepository? _defaultKarRepository;
   bool _resolvedDefaultKarRepository = false;
+
+  DateTime get _now => (widget.clock ?? DateTime.now)().toLocal();
 
   KarRepository? get _karEventBlockRepository {
     final supplied = widget.karRepository;
@@ -7137,7 +7145,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     // 4) Fallback: scroll to current time
-    final now = DateTime.now().toLocal();
+    final now = _now;
     final minutesSinceMidnight = now.hour * 60 + now.minute;
     final targetOffset =
         (minutesSinceMidnight * _kDayViewPixelsPerMinute) -
@@ -7954,7 +7962,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   Widget _buildTimelineOverlayLayer() {
-    final now = DateTime.now().toLocal();
+    final now = _now;
     return Positioned.fill(
       key: dayViewTimelineOverlayLayerKey,
       child: IgnorePointer(
@@ -8290,7 +8298,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               ky: widget.ky,
               km: widget.km,
               kd: widget.kd,
-              now: DateTime.now(),
+              now: _now,
             ),
       );
     }
@@ -8685,7 +8693,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   bool _isToday() {
-    final now = DateTime.now().toLocal();
+    final now = _now;
     final todayK = KemeticMath.fromGregorian(now);
     return widget.ky == todayK.kYear &&
         widget.km == todayK.kMonth &&

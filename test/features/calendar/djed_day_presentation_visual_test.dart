@@ -416,6 +416,7 @@ void main() {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.dark,
           home: DayViewPage(
+            clock: () => DateTime(2026, 9, 14, 12),
             initialKy: 2,
             initialKm: 6,
             initialKd: 27,

@@ -39,6 +39,7 @@ class KemeticDayViewHeader extends StatelessWidget {
     this.onOpenQuickAdd,
     this.onOpenSearch,
     this.onOpenProfile,
+    this.clock,
   });
 
   final int currentKy;
@@ -56,6 +57,7 @@ class KemeticDayViewHeader extends StatelessWidget {
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final Future<void> Function(BuildContext context)? onOpenSearch;
   final Future<void> Function(BuildContext context)? onOpenProfile;
+  final DateTime Function()? clock;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +76,7 @@ class KemeticDayViewHeader extends StatelessWidget {
         ? (KemeticMath.isLeapKemeticYear(currentKy) ? 6 : 5)
         : 30;
 
-    final now = DateTime.now();
+    final now = (clock ?? DateTime.now)().toLocal();
     final today = KemeticMath.fromGregorian(now);
     final currentGregorian = KemeticMath.toGregorian(
       currentKy,
