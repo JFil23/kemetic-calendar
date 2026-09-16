@@ -1064,7 +1064,12 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await loadMaatFlowVisualTestFonts();
 
-    await pumpHouse(tester, size: const Size(390, 844), topPadding: 52);
+    await pumpHouse(
+      tester,
+      size: const Size(390, 844),
+      topPadding: 52,
+      clock: () => DateTime(2026, 9, 8, 12),
+    );
     await expectLater(
       find.byKey(_captureSurfaceKey),
       matchesGoldenFile('$_goldenRoot/reading-house-detail-390x844.png'),

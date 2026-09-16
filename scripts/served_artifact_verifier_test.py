@@ -42,11 +42,8 @@ class ServedArtifactVerifierTest(unittest.TestCase):
         self.origin = "https://0123abcd.kemet-rc.pages.dev"
         self.alias = "https://kemet-rc.pages.dev"
         self.source = {
-            "parent_commit": "1" * 40,
-            "parent_tree": "2" * 40,
-            "parent_mobile_gitlink": "3" * 40,
-            "mobile_commit": "3" * 40,
-            "mobile_tree": "4" * 40,
+            "app_commit": "3" * 40,
+            "app_tree": "4" * 40,
             "source_epoch": 1_700_000_000,
         }
         self.pwa_identity = {

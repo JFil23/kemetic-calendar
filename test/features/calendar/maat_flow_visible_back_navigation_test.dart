@@ -305,7 +305,9 @@ Future<void> _pumpFlowStudio(WidgetTester tester, Uri initialUri) async {
     ],
   );
   addTearDown(router.dispose);
-  await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+  await tester.pumpWidget(
+    MaterialApp.router(key: UniqueKey(), routerConfig: router),
+  );
   await tester.pump();
 }
 
@@ -314,7 +316,7 @@ Future<void> _scrollDiscoveryControlIntoViewport(
   Finder control,
 ) async {
   final scroll = find.byKey(
-    const ValueKey<String>('maat-flow-discovery-scroll'),
+    const PageStorageKey<String>('maat-flow-discovery-scroll'),
   );
   for (var attempt = 0; attempt < 12; attempt++) {
     final rect = tester.getRect(control);

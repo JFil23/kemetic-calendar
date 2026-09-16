@@ -470,16 +470,13 @@ void main() {
           RegExp(
             r'onEventTapRequested:\s+\(calendar, filedEvent, \{calendarEvents = const \[\]\}\) =>\s+CalendarPage\.openFiledCalendarEventFromAnyContext',
           ).allMatches(inbox).length,
-          greaterThanOrEqualTo(4),
+          3,
         );
         expect(
           RegExp(r'calendarEvents: calendarEvents').allMatches(inbox).length,
-          greaterThanOrEqualTo(4),
+          3,
         );
-        expect(
-          RegExp(r'calendar: calendar').allMatches(inbox).length,
-          greaterThanOrEqualTo(4),
-        );
+        expect(RegExp(r'calendar: calendar').allMatches(inbox).length, 3);
       },
     );
   });

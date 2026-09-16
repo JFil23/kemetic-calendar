@@ -72,17 +72,13 @@ void main() {
   });
 
   group('flow lineage origin types', () {
-    test('saved imports are preserved by app and database allowlists', () {
+    test('saved imports are preserved by the app allowlist', () {
       final repoSource = File(
         'lib/data/user_events_repo.dart',
       ).readAsStringSync();
       final savedImportSource = File(
         'lib/features/calendar/calendar_flow_pages.dart',
       ).readAsStringSync();
-      final migrationSource = File(
-        '../supabase/migrations/20260616120000_allow_saved_import_flow_origin.sql',
-      ).readAsStringSync();
-
       final allowedOrigins = _sourceBetween(
         repoSource,
         'const allowedOriginTypes = {',
@@ -91,8 +87,6 @@ void main() {
 
       expect(savedImportSource, contains("originType: 'saved_import'"));
       expect(allowedOrigins, contains("'saved_import'"));
-      expect(migrationSource, contains("'saved_import'"));
-      expect(migrationSource, contains('flows_origin_type_check'));
     });
 
     test('share import status lookup accepts route-backed lineage', () {

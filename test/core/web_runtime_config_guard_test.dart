@@ -166,14 +166,14 @@ void main() {
       expect(pipelineSource, contains('"APP_ENV"'));
       expect(pipelineSource, contains('"APP_SITE_URL"'));
       expect(pipelineSource, contains('reject_forbidden_environment'));
-      expect(pipelineSource, contains('require_clean_paired_repositories'));
+      expect(pipelineSource, contains('require_clean_app_repository'));
       expect(stagingConfigSource, contains('"environment": "staging"'));
       expect(productionConfigSource, contains('"environment": "production"'));
     });
 
     test('web release identity and archive are deterministic', () {
-      expect(pipelineSource, contains('"parent_tree"'));
-      expect(pipelineSource, contains('"mobile_tree"'));
+      expect(pipelineSource, contains('"app_commit"'));
+      expect(pipelineSource, contains('"app_tree"'));
       expect(pipelineSource, contains('"config_sha256"'));
       expect(pipelineSource, contains('"builder_sha256"'));
       expect(pipelineSource, contains('"lockfile_sha256"'));

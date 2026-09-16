@@ -1,0 +1,73 @@
+name: App
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  push:
+    branches:
+      - rc
+      - production
+
+jobs:
+  app-gate:
+    name: LOCK-GATE app authority and complete suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout the app repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Reject competing app authorities
+        run: |
+          set -euo pipefail
+          test ! -e .gitmodules
+          test -z "$(git ls-files --stage | awk '$1 == "160000" {print}')"
+          test "$(git worktree list --porcelain | grep -c '^worktree ')" -eq 1
+          test "$(git for-each-ref --format='%(refname:short)' refs/heads | wc -l | tr -d ' ')" -eq 1
+
+      - name: Set up pinned Flutter and Dart
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.3"
+          channel: stable
+          cache: true
+
+      - name: Install exact locked dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Run deterministic release and served-artifact contracts
+        run: |
+          set -euo pipefail
+          python3 scripts/web_release_pipeline_test.py
+          python3 scripts/served_artifact_verifier_test.py
+          python3 -m py_compile \
+            scripts/web_release_pipeline.py \
+            scripts/web_release_pipeline_test.py \
+            scripts/served_artifact_verifier.py \
+            scripts/served_artifact_verifier_test.py
+          bash -n scripts/build_web_release.sh scripts/deploy_cloudflare_pages.sh
+          python3 -m json.tool config/web/staging.public.json >/dev/null
+          python3 -m json.tool config/web/production.public.json >/dev/null
+          python3 -m json.tool config/web/cloudflare-served-contract.v1.json >/dev/null
+          python3 -m json.tool config/web/environment-delta-contract.v1.json >/dev/null
+
+      - name: Analyze the app
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run the complete app test suite
+        run: flutter test
+
+      - name: Prove generated metadata is the only checkout mutation
+        if: always()
+        run: |
+          set -euo pipefail
+          git restore --worktree -- .flutter-plugins-dependencies
+          git diff --check
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"

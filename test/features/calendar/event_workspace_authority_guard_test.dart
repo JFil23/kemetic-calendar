@@ -64,6 +64,9 @@ void main() {
       contains('no runtime RC  ≠  no production identity cut'),
     );
     expect(releaseCutover, contains('gitlink-only'));
+    expect(releaseCutover, contains('Superseded historical plan'));
+    expect(releaseCutover, contains('not release authority'));
+    expect(releaseCutover, contains('web_release_build_contract.md'));
   });
 
   test(

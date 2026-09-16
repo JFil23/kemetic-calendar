@@ -84,10 +84,10 @@ BUILDER_FILES = (
     "scripts/build_web_release.sh",
     "scripts/web_release_pipeline.py",
 )
-AUTHORIZED_GIT_SOURCE_BRANCH = "production"
-AUTHORIZED_GIT_SOURCE_REF = (
-    f"refs/remotes/origin/{AUTHORIZED_GIT_SOURCE_BRANCH}"
-)
+AUTHORIZED_GIT_SOURCE_BRANCHES = {
+    "staging": "rc",
+    "production": "production",
+}
 PINNED_FLUTTER_TOOLCHAIN = {
     "frameworkVersion": "3.35.3",
     "channel": "stable",
@@ -391,81 +391,69 @@ def git(repo: Path, *args: str) -> str:
     return run(("git", "-C", str(repo), *args))
 
 
-def require_clean_paired_repositories(repo_root: Path) -> dict[str, Any]:
+def authorized_git_source_branch(environment: str) -> str:
+    try:
+        return AUTHORIZED_GIT_SOURCE_BRANCHES[environment]
+    except KeyError as error:
+        raise ReleaseInputError(
+            "Release environment must be staging or production."
+        ) from error
+
+
+def require_clean_app_repository(
+    repo_root: Path,
+    *,
+    environment: str,
+) -> dict[str, Any]:
     repo_root = repo_root.resolve()
-    parent_root = repo_root.parent
-    mobile_toplevel = Path(git(repo_root, "rev-parse", "--show-toplevel")).resolve()
-    parent_toplevel = Path(git(parent_root, "rev-parse", "--show-toplevel")).resolve()
-    if mobile_toplevel != repo_root:
-        raise ReleaseInputError("The mobile repository root is not the build root.")
-    if parent_toplevel != parent_root or repo_root.name != "mobile":
+    branch = authorized_git_source_branch(environment)
+    app_toplevel = Path(git(repo_root, "rev-parse", "--show-toplevel")).resolve()
+    if app_toplevel != repo_root:
+        raise ReleaseInputError("The app repository root is not the build root.")
+
+    worktree_output = git(repo_root, "worktree", "list", "--porcelain")
+    worktree_count = sum(
+        1 for line in worktree_output.splitlines() if line.startswith("worktree ")
+    )
+    if worktree_count != 1:
         raise ReleaseInputError(
-            "Web release builds require a paired parent/mobile worktree layout."
+            "App repository must have exactly one linked worktree before release "
+            f"build; found {worktree_count}."
         )
-
-    for label, root in (("mobile", repo_root), ("parent", parent_root)):
-        worktree_output = git(root, "worktree", "list", "--porcelain")
-        worktree_count = sum(
-            1 for line in worktree_output.splitlines() if line.startswith("worktree ")
-        )
-        if worktree_count != 1:
-            raise ReleaseInputError(
-                f"{label.capitalize()} repository must have exactly one linked "
-                f"worktree before release build; found {worktree_count}."
-            )
-        active_branch = git(root, "branch", "--show-current")
-        if active_branch != AUTHORIZED_GIT_SOURCE_BRANCH:
-            raise ReleaseInputError(
-                f"{label.capitalize()} release source must be checked out on the "
-                f"sole active {AUTHORIZED_GIT_SOURCE_BRANCH!r} branch."
-            )
-        local_branches = [
-            branch
-            for branch in git(
-                root,
-                "for-each-ref",
-                "--format=%(refname:short)",
-                "refs/heads",
-            ).splitlines()
-            if branch
-        ]
-        if local_branches != [AUTHORIZED_GIT_SOURCE_BRANCH]:
-            raise ReleaseInputError(
-                f"{label.capitalize()} repository must retain exactly one local "
-                f"branch named {AUTHORIZED_GIT_SOURCE_BRANCH!r} before release "
-                f"build; found {local_branches}."
-            )
-
-    mobile_status = git(repo_root, "status", "--porcelain=v1", "--untracked-files=all")
-    parent_status = git(parent_root, "status", "--porcelain=v1", "--untracked-files=all")
-    if mobile_status:
-        raise ReleaseInputError("Mobile source tree must be clean before release build.")
-    if parent_status:
-        raise ReleaseInputError("Parent source tree must be clean before release build.")
-
-    mobile_commit = git(repo_root, "rev-parse", "HEAD^{commit}")
-    mobile_tree = git(repo_root, "rev-parse", "HEAD^{tree}")
-    parent_commit = git(parent_root, "rev-parse", "HEAD^{commit}")
-    parent_tree = git(parent_root, "rev-parse", "HEAD^{tree}")
-    parent_epoch = int(git(parent_root, "show", "-s", "--format=%ct", "HEAD"))
-
-    gitlink_line = git(parent_root, "ls-tree", "HEAD", "mobile")
-    match = re.fullmatch(r"160000 commit ([0-9a-f]{40})\tmobile", gitlink_line)
-    if not match:
-        raise ReleaseInputError("Parent HEAD does not contain the expected mobile gitlink.")
-    gitlink = match.group(1)
-    if gitlink != mobile_commit:
+    active_branch = git(repo_root, "branch", "--show-current")
+    if active_branch != branch:
         raise ReleaseInputError(
-            "Parent mobile gitlink does not match the checked-out mobile HEAD."
+            "App release source must be checked out on the sole active "
+            f"{branch!r} branch."
         )
+    local_branches = [
+        name
+        for name in git(
+            repo_root,
+            "for-each-ref",
+            "--format=%(refname:short)",
+            "refs/heads",
+        ).splitlines()
+        if name
+    ]
+    if local_branches != [branch]:
+        raise ReleaseInputError(
+            "App repository must retain exactly one local branch named "
+            f"{branch!r} before release build; found {local_branches}."
+        )
+
+    status = git(repo_root, "status", "--porcelain=v1", "--untracked-files=all")
+    if status:
+        raise ReleaseInputError("App source tree must be clean before release build.")
+
+    app_commit = git(repo_root, "rev-parse", "HEAD^{commit}")
+    app_tree = git(repo_root, "rev-parse", "HEAD^{tree}")
+    source_epoch = int(git(repo_root, "show", "-s", "--format=%ct", "HEAD"))
 
     return {
-        "parent_commit": parent_commit,
-        "parent_tree": parent_tree,
-        "parent_mobile_gitlink": gitlink,
-        "mobile_commit": mobile_commit,
-        "mobile_tree": mobile_tree,
-        "source_epoch": parent_epoch,
+        "app_commit": app_commit,
+        "app_tree": app_tree,
+        "source_epoch": source_epoch,
     }
 
 
@@ -479,46 +467,37 @@ def require_canonical_release_source(
         raise ReleaseInputError("Release environment must be staging or production.")
 
     repo_root = repo_root.resolve()
-    parent_root = repo_root.parent
-    source = require_clean_paired_repositories(repo_root)
+    branch = authorized_git_source_branch(environment)
+    authorized_ref = f"refs/remotes/origin/{branch}"
+    source = require_clean_app_repository(repo_root, environment=environment)
     if expected_source is not None:
-        for key in ("mobile_commit", "parent_commit", "parent_mobile_gitlink"):
+        for key in ("app_commit", "app_tree", "source_epoch"):
             if expected_source.get(key) != source[key]:
                 raise ReleaseInputError(
-                    "Release artifact source does not match the checked-out paired "
-                    f"repositories: {key}."
+                    "Release artifact source does not match the checked-out app "
+                    f"repository: {key}."
                 )
 
-    canonical: dict[str, str] = {}
-    for label, root, source_key in (
-        ("mobile", repo_root, "mobile_commit"),
-        ("parent", parent_root, "parent_commit"),
-    ):
-        git(
-            root,
-            "fetch",
-            "--quiet",
-            "--no-tags",
-            "origin",
-            f"+refs/heads/{AUTHORIZED_GIT_SOURCE_BRANCH}:"
-            f"{AUTHORIZED_GIT_SOURCE_REF}",
+    git(
+        repo_root,
+        "fetch",
+        "--quiet",
+        "--no-tags",
+        "origin",
+        f"+refs/heads/{branch}:{authorized_ref}",
+    )
+    authorized_commit = git(repo_root, "rev-parse", f"{authorized_ref}^{{commit}}")
+    source_commit = source["app_commit"]
+    if source_commit != authorized_commit:
+        raise ReleaseInputError(
+            f"App release source {source_commit} must exactly match current "
+            f"origin/{branch} {authorized_commit}."
         )
-        authorized_commit = git(
-            root,
-            "rev-parse",
-            f"{AUTHORIZED_GIT_SOURCE_REF}^{{commit}}",
-        )
-        source_commit = source[source_key]
-        if source_commit != authorized_commit:
-            raise ReleaseInputError(
-                f"{label.capitalize()} release source {source_commit} must "
-                f"exactly match current origin/{AUTHORIZED_GIT_SOURCE_BRANCH} "
-                f"{authorized_commit}."
-            )
-        canonical[f"{label}_source_commit"] = source_commit
-        canonical[f"{label}_authorized_commit"] = authorized_commit
-        canonical[f"{label}_authorized_ref"] = AUTHORIZED_GIT_SOURCE_REF
-    return canonical
+    return {
+        "app_source_commit": source_commit,
+        "app_authorized_commit": authorized_commit,
+        "app_authorized_ref": authorized_ref,
+    }
 
 
 def combined_file_digest(repo_root: Path, paths: Sequence[str]) -> str:
@@ -831,7 +810,7 @@ def compute_prepared_release(
     validate_named_config(config, environment=environment)
     validate_source_web_identity(repo_root)
 
-    source = require_clean_paired_repositories(repo_root)
+    source = require_clean_app_repository(repo_root, environment=environment)
     builder_digest = combined_file_digest(repo_root, BUILDER_FILES)
     lock_digest = sha256_file(repo_root / "pubspec.lock")
     config_digest = sha256_file(config_path)
@@ -853,7 +832,7 @@ def compute_prepared_release(
         "toolchain_sha256": toolchain_digest,
     }
     build_id = sha256_bytes(canonical_json_bytes(identity_inputs))
-    build_version = f"{environment}-{source['mobile_commit'][:7]}-{build_id[:12]}"
+    build_version = f"{environment}-{source['app_commit'][:7]}-{build_id[:12]}"
     source_epoch = int(source["source_epoch"])
 
     prepared = {
@@ -1522,29 +1501,14 @@ def validate_release_receipt(receipt: Mapping[str, Any]) -> None:
         raise ReleaseInputError("Release receipt objects have invalid types.")
     require_exact_keys(
         source,
-        (
-            "parent_commit",
-            "parent_tree",
-            "parent_mobile_gitlink",
-            "mobile_commit",
-            "mobile_tree",
-            "source_epoch",
-        ),
+        ("app_commit", "app_tree", "source_epoch"),
         label="release source",
     )
-    for key in (
-        "parent_commit",
-        "parent_tree",
-        "parent_mobile_gitlink",
-        "mobile_commit",
-        "mobile_tree",
-    ):
+    for key in ("app_commit", "app_tree"):
         if not isinstance(source[key], str) or not re.fullmatch(
             r"[0-9a-f]{40}", source[key]
         ):
             raise ReleaseInputError(f"release source {key} is invalid.")
-    if source["parent_mobile_gitlink"] != source["mobile_commit"]:
-        raise ReleaseInputError("Release receipt parent/mobile pairing is inconsistent.")
     if not isinstance(source["source_epoch"], int):
         raise ReleaseInputError("Release source_epoch must be an integer.")
 
@@ -1611,7 +1575,7 @@ def validate_release_receipt(receipt: Mapping[str, Any]) -> None:
     if receipt["build_id"] != expected_build_id:
         raise ReleaseInputError("Release build_id is inconsistent with its inputs.")
     expected_build_version = (
-        f"{receipt['environment']}-{source['mobile_commit'][:7]}-"
+        f"{receipt['environment']}-{source['app_commit'][:7]}-"
         f"{expected_build_id[:12]}"
     )
     if receipt["build_version"] != expected_build_version:
@@ -2247,12 +2211,9 @@ def command_assert_canonical_source(arguments: argparse.Namespace) -> None:
         environment=arguments.environment,
         expected_source=expected_source,
     )
-    print(f"canonical_mobile_source={result['mobile_source_commit']}")
-    print(f"canonical_mobile_authorized={result['mobile_authorized_commit']}")
-    print(f"canonical_mobile_authorized_ref={result['mobile_authorized_ref']}")
-    print(f"canonical_parent_source={result['parent_source_commit']}")
-    print(f"canonical_parent_authorized={result['parent_authorized_commit']}")
-    print(f"canonical_parent_authorized_ref={result['parent_authorized_ref']}")
+    print(f"canonical_app_source={result['app_source_commit']}")
+    print(f"canonical_app_authorized={result['app_authorized_commit']}")
+    print(f"canonical_app_authorized_ref={result['app_authorized_ref']}")
 
 
 def command_compare(arguments: argparse.Namespace) -> None:

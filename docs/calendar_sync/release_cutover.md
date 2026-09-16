@@ -1,5 +1,12 @@
 # Calendar sync release cutover
 
+> **Superseded historical plan — not release authority.** This document records
+> the earlier parent/mobile cutover process and must not be used to build,
+> approve, or deploy the app. The sole current source and gate contract is
+> [`docs/web_release_build_contract.md`](../web_release_build_contract.md),
+> using the app-only `rc` and `production` repositories with no backend
+> gitlink.
+
 Calendar sync ships as serial production cuts, never as the bundled
 development implementation.
 
