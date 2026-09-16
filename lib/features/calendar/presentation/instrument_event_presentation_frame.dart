@@ -32,26 +32,16 @@ double instrumentEventSheetExtentForViewport({
 Future<T?> showCalendarEventDetailSheetModal<T>({
   required BuildContext context,
   required WidgetBuilder builder,
-  bool editable = false,
 }) {
-  if (editable) {
-    return showEditableModalBottomSheet<T>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isDismissible: true,
-      enableDrag: true,
-      useRootNavigator: false,
-      constrainMediaSizeToAvailableHeight: true,
-      builder: builder,
-    );
-  }
   return showModalBottomSheet<T>(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
     isDismissible: true,
     enableDrag: true,
+    useSafeArea: true,
     useRootNavigator: false,
+    requestFocus: true,
     builder: builder,
   );
 }
