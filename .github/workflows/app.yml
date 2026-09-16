@@ -17,6 +17,9 @@ jobs:
     timeout-minutes: 60
     env:
       PYTHONDONTWRITEBYTECODE: "1"
+      # Calendar fixtures and approved visual baselines author civil dates in
+      # the product's Pacific reference zone. Never inherit the runner locale.
+      TZ: America/Los_Angeles
     steps:
       - name: Checkout the app repository
         uses: actions/checkout@v4
