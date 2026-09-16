@@ -28,6 +28,7 @@ import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../support/maat_flow_visual_test_fonts.dart';
 import '../../support/maat_flow_visual_goldens.dart';
 
 const _visualCaptureSurfaceKey = ValueKey<String>(
@@ -1564,26 +1565,7 @@ Future<void> _revealOfferingPresentationBody(WidgetTester tester) async {
 }
 
 Future<void> _loadOfferingVisualFonts() async {
-  final gentium = FontLoader('GentiumPlus')
-    ..addFont(rootBundle.load('ios/Runner/Fonts/GentiumPlus-Regular.ttf'))
-    ..addFont(rootBundle.load('ios/Runner/Fonts/GentiumPlus-Bold.ttf'));
-  final cormorant = FontLoader('CormorantGaramond')
-    ..addFont(rootBundle.load('ios/Runner/Fonts/CormorantGaramond-Regular.ttf'))
-    ..addFont(rootBundle.load('ios/Runner/Fonts/CormorantGaramond-Italic.ttf'))
-    ..addFont(rootBundle.load('ios/Runner/Fonts/CormorantGaramond-Medium.ttf'))
-    ..addFont(
-      rootBundle.load('ios/Runner/Fonts/CormorantGaramond-MediumItalic.ttf'),
-    )
-    ..addFont(
-      rootBundle.load('ios/Runner/Fonts/CormorantGaramond-SemiBold.ttf'),
-    );
-  final materialIcons = FontLoader('MaterialIcons')
-    ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-  await Future.wait(<Future<void>>[
-    gentium.load(),
-    cormorant.load(),
-    materialIcons.load(),
-  ]);
+  await loadMaatFlowVisualTestFonts();
 }
 
 Future<void> _pumpStaticOfferingDayView(

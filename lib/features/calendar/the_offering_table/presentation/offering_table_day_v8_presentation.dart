@@ -272,16 +272,33 @@ class _OfferingTableDayV8PresentationState
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Expanded(
-                child: Text(
-                  '✦  THE OFFERING TABLE',
-                  style: TextStyle(
-                    color: Color(0xFFC7963A),
-                    fontFamily: _ui,
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2.2,
-                  ),
+              Expanded(
+                child: Row(
+                  children: <Widget>[
+                    Semantics(
+                      label: '✦',
+                      child: const CustomPaint(
+                        size: Size.square(7),
+                        painter: _OfferingTableSparkPainter(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Flexible(
+                      child: Text(
+                        'THE OFFERING TABLE',
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        style: TextStyle(
+                          color: Color(0xFFC7963A),
+                          fontFamily: _ui,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2.2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Text(
@@ -715,6 +732,31 @@ class _OfferingTableDayV8PresentationState
     final minute = value.minute.toString().padLeft(2, '0');
     return '$hour:$minute ${value.hour < 12 ? 'AM' : 'PM'}';
   }
+}
+
+class _OfferingTableSparkPainter extends CustomPainter {
+  const _OfferingTableSparkPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final path = Path()
+      ..moveTo(center.dx, 0)
+      ..quadraticBezierTo(center.dx + .5, center.dy - .5, size.width, center.dy)
+      ..quadraticBezierTo(
+        center.dx + .5,
+        center.dy + .5,
+        center.dx,
+        size.height,
+      )
+      ..quadraticBezierTo(center.dx - .5, center.dy + .5, 0, center.dy)
+      ..quadraticBezierTo(center.dx - .5, center.dy - .5, center.dx, 0)
+      ..close();
+    canvas.drawPath(path, Paint()..color = const Color(0xFFC7963A));
+  }
+
+  @override
+  bool shouldRepaint(_OfferingTableSparkPainter oldDelegate) => false;
 }
 
 class _OfferingMoveListLayout extends SingleChildLayoutDelegate {

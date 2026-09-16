@@ -1,15 +1,29 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_contract.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_state.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_v8_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../support/maat_flow_visual_test_fonts.dart';
+
+const _allDaySheetCaptureKey = ValueKey<String>(
+  'offering-table-all-day-sheet-capture',
+);
+const _captureAllDaySheets = bool.fromEnvironment(
+  'CAPTURE_OFFERING_TABLE_ALL_DAY_SHEETS',
+);
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -26,8 +40,21 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    const appLinksMessages = MethodChannel('com.llfbandit.app_links/messages');
+    const appLinksEvents = MethodChannel('com.llfbandit.app_links/events');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(appLinksMessages, (_) async => null);
+    messenger.setMockMethodCallHandler(appLinksEvents, (_) async {
+      scheduleMicrotask(
+        () =>
+            messenger.handlePlatformMessage(appLinksEvents.name, null, (_) {}),
+      );
+      return null;
+    });
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await _ensureSupabaseInitialized();
+    await loadMaatFlowVisualTestFonts();
   });
 
   setUp(() {
@@ -488,6 +515,162 @@ void main() {
     );
     expect(find.text('Drink water.'), findsNothing);
   });
+
+  testWidgets(
+    'all thirty actual Day View sheets restore and traverse lowered, raised, and expanded states',
+    (tester) async {
+      for (final contract in kOfferingTableDayViewContracts) {
+        CalendarEventDetailSheetCoordinator.debugResetForTests();
+        final restored = _completedState(contract);
+        await _pumpDayView(
+          tester,
+          flowId: 900 + contract.day,
+          day: kOfferingTableDays[contract.day - 1],
+          initialDayState: restored,
+        );
+        await tester.tap(find.byType(OfferingTableEventBlockVisual));
+        await tester.pumpAndSettle();
+
+        final presentation = tester.widget<OfferingTableDayV8Presentation>(
+          find.byType(OfferingTableDayV8Presentation),
+        );
+        expect(
+          presentation.initialState.toJson(),
+          restored.toJson(),
+          reason: 'day ${contract.day} restored state',
+        );
+        expect(
+          presentation.initialState.dayComplete(
+            contract,
+            now: DateTime(2026, 9, 4, 8),
+          ),
+          isTrue,
+          reason: 'day ${contract.day} completion',
+        );
+
+        final outerSheet = find.byKey(
+          const ValueKey<String>('offering-table-resizable-sheet'),
+        );
+        final lowerSheet = find.byKey(
+          const ValueKey<String>('offering-table-layered-practice-sheet'),
+        );
+        final body = find.byKey(
+          const ValueKey<String>('offering-table-presentation-body'),
+        );
+        final outerBefore = tester.getRect(outerSheet);
+        final lowerBefore = tester.getRect(lowerSheet);
+        expect(
+          outerBefore.height,
+          closeTo((844 - 12) * .71, 2),
+          reason: 'day ${contract.day} initial extent',
+        );
+        for (final move in contract.moves) {
+          expect(
+            find.byKey(
+              ValueKey<String>(
+                'offering-table-day-${contract.day.toString().padLeft(2, '0')}-move-${move.id}',
+              ),
+            ),
+            findsOneWidget,
+            reason: 'day ${contract.day}, move ${move.id}',
+          );
+        }
+        if (_captureAllDaySheets) {
+          await expectLater(
+            find.byKey(_allDaySheetCaptureKey),
+            matchesGoldenFile(
+              '/tmp/offering-table-day-${contract.day.toString().padLeft(2, '0')}-lowered.png',
+            ),
+          );
+        }
+
+        await tester.drag(body, const Offset(0, -565));
+        await tester.pumpAndSettle();
+        final outerRaised = tester.getRect(outerSheet);
+        final lowerRaised = tester.getRect(lowerSheet);
+        expect(outerRaised, outerBefore, reason: 'day ${contract.day} host');
+        expect(
+          lowerRaised.top,
+          lessThan(lowerBefore.top - 250),
+          reason: 'day ${contract.day} foreground raises over the hero',
+        );
+        if (_captureAllDaySheets) {
+          await expectLater(
+            find.byKey(_allDaySheetCaptureKey),
+            matchesGoldenFile(
+              '/tmp/offering-table-day-${contract.day.toString().padLeft(2, '0')}-raised.png',
+            ),
+          );
+        }
+
+        final contextToggle = find.byKey(
+          const ValueKey<String>('offering-table-day-sheet-context-toggle'),
+        );
+        tester.widget<InkWell>(contextToggle).onTap!();
+        await tester.pumpAndSettle();
+        expect(
+          find.text(contract.context),
+          findsOneWidget,
+          reason: 'day ${contract.day} expanded context',
+        );
+        expect(
+          find.text(contract.instruction),
+          findsWidgets,
+          reason: 'day ${contract.day} expanded instruction',
+        );
+        final contextText = find.text(contract.context);
+        await tester.ensureVisible(contextText);
+        await tester.pumpAndSettle();
+        expect(
+          tester.getRect(contextText).bottom,
+          lessThan(tester.getRect(find.text('Make to-do')).top),
+          reason: 'day ${contract.day} expanded context clears fixed actions',
+        );
+        if (_captureAllDaySheets) {
+          await expectLater(
+            find.byKey(_allDaySheetCaptureKey),
+            matchesGoldenFile(
+              '/tmp/offering-table-day-${contract.day.toString().padLeft(2, '0')}-expanded.png',
+            ),
+          );
+        }
+
+        await tester.drag(body, const Offset(0, 1200));
+        await tester.pumpAndSettle();
+        expect(
+          tester.getRect(lowerSheet).top,
+          greaterThan(lowerRaised.top + 200),
+          reason: 'day ${contract.day} foreground lowers again',
+        );
+        expect(tester.takeException(), isNull, reason: 'day ${contract.day}');
+      }
+    },
+  );
+}
+
+OfferingTableDayViewState _completedState(OfferingTableDayContract contract) {
+  final state = OfferingTableDayViewState();
+  for (final move in contract.moves) {
+    if (contract.day == 8 && move.id == 'schedule') continue;
+    switch (move.kind) {
+      case OfferingTableMoveKind.name:
+        state.words[move.slot ?? move.id] =
+            move.fieldLabel?.toLowerCase() ?? 'authored value';
+      case OfferingTableMoveKind.pick:
+        state.picks[move.id] = move.options.first;
+      case OfferingTableMoveKind.timer:
+        state.timers[move.id] = OfferingTableTimerState(
+          elapsedMilliseconds: move.completeUnderTarget
+              ? 1000
+              : (move.targetSeconds ?? 0) * 1000,
+        );
+      case OfferingTableMoveKind.tap:
+      case OfferingTableMoveKind.drink:
+      case OfferingTableMoveKind.truth:
+        state.actions[move.id] = true;
+    }
+  }
+  return state;
 }
 
 Future<void> _pumpStaticBlock(
@@ -590,6 +773,7 @@ Future<void> _pumpDayView(
   required int flowId,
   OfferingTableDay? day,
   String? initialIntention,
+  OfferingTableDayViewState? initialDayState,
   List<NoteData> additionalNotes = const <NoteData>[],
 }) async {
   tester.view.physicalSize = const Size(390, 844);
@@ -605,41 +789,54 @@ Future<void> _pumpDayView(
       initialIntention,
     );
   }
+  if (initialDayState != null) {
+    await const OfferingTableLocalStore().saveDayViewState(
+      flowId,
+      resolvedDay.dayNumber,
+      initialDayState.toJson(),
+    );
+  }
   await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: DayViewGrid(
-          ky: 1,
-          km: 1,
-          kd: 1,
-          notes: <NoteData>[
-            NoteData(
-              clientEventId: 'offering-table-event-$flowId',
-              title: offeringTableEventTitle(resolvedDay),
-              allDay: false,
-              start: const TimeOfDay(hour: 7, minute: 30),
-              end: const TimeOfDay(hour: 8, minute: 30),
-              flowId: flowId,
-              behaviorPayload: <String, dynamic>{
-                'kind': 'maat_offering_table_day',
-                'flow_key': kOfferingTableFlowKey,
-                'day': resolvedDay.dayNumber,
-              },
-            ),
-            ...additionalNotes,
-          ],
-          showGregorian: false,
-          flowIndex: <int, FlowData>{
-            flowId: FlowData(
-              id: flowId,
-              name: kOfferingTableTitle,
-              color: const Color(0xFFC99A3D),
-              active: true,
-              notes: 'mode=gregorian;maat=$kOfferingTableFlowKey',
-            ),
-          },
-          activeLedgerFlowIds: <int>{flowId},
-          initialScrollOffset: 6 * 60,
+    RepaintBoundary(
+      key: _allDaySheetCaptureKey,
+      child: MaterialApp(
+        key: ValueKey<String>('offering-table-day-view-app-$flowId'),
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark,
+        home: Scaffold(
+          body: DayViewGrid(
+            ky: 1,
+            km: 1,
+            kd: 1,
+            notes: <NoteData>[
+              NoteData(
+                clientEventId: 'offering-table-event-$flowId',
+                title: offeringTableEventTitle(resolvedDay),
+                allDay: false,
+                start: const TimeOfDay(hour: 7, minute: 30),
+                end: const TimeOfDay(hour: 8, minute: 30),
+                flowId: flowId,
+                behaviorPayload: <String, dynamic>{
+                  'kind': 'maat_offering_table_day',
+                  'flow_key': kOfferingTableFlowKey,
+                  'day': resolvedDay.dayNumber,
+                },
+              ),
+              ...additionalNotes,
+            ],
+            showGregorian: false,
+            flowIndex: <int, FlowData>{
+              flowId: FlowData(
+                id: flowId,
+                name: kOfferingTableTitle,
+                color: const Color(0xFFC99A3D),
+                active: true,
+                notes: 'mode=gregorian;maat=$kOfferingTableFlowKey',
+              ),
+            },
+            activeLedgerFlowIds: <int>{flowId},
+            initialScrollOffset: 6 * 60,
+          ),
         ),
       ),
     ),
