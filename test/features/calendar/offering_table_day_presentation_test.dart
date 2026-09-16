@@ -342,10 +342,10 @@ void main() {
     );
     final page = find.descendant(of: sheet, matching: find.byType(PageView));
     final presentation = find.byKey(
-      const ValueKey<String>('offering-table-day-presentation'),
+      const ValueKey<String>('offering-table-day-presentation-v8'),
     );
     final lowerSheet = find.byKey(
-      const ValueKey<String>('offering-table-static-lower-sheet'),
+      const ValueKey<String>('offering-table-layered-practice-sheet'),
     );
     expect(sheet, findsOneWidget);
     expect(handle, findsOneWidget);
@@ -357,7 +357,7 @@ void main() {
     );
 
     final availableHeight = _viewport.height - 12;
-    final maxSheetHeight = availableHeight * 0.72;
+    final maxSheetHeight = availableHeight * 0.71;
     final layeredPageHeight = maxSheetHeight - 48 - 72;
     expect(tester.getSize(page).height, closeTo(layeredPageHeight, 20));
 

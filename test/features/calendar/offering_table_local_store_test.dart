@@ -68,4 +68,47 @@ void main() {
       false,
     );
   });
+
+  test('Day View state is isolated per day and survives recreation', () async {
+    const store = OfferingTableLocalStore();
+    await store.saveDayViewState(41, 8, <String, dynamic>{
+      'version': 1,
+      'words': <String, String>{'hunger': 'quiet'},
+      'actions': <String, bool>{'portion': true},
+    });
+    await store.saveDayViewState(41, 23, <String, dynamic>{
+      'version': 1,
+      'words': <String, String>{'delayed': 'reply'},
+      'actions': <String, bool>{'truth': true},
+    });
+
+    const recreated = OfferingTableLocalStore();
+    expect(
+      await recreated.loadDayViewState(41, 8),
+      containsPair('words', <String, String>{'hunger': 'quiet'}),
+    );
+    expect(
+      await recreated.loadDayViewState(41, 23),
+      containsPair('actions', <String, bool>{'truth': true}),
+    );
+    expect(await recreated.loadDayViewState(41, 9), isEmpty);
+  });
+
+  test(
+    'invalid Day View JSON is ignored and flow deletion removes it',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'offering_table_91_day_04_day_view_v1': '{not json',
+      });
+      const store = OfferingTableLocalStore();
+      expect(await store.loadDayViewState(91, 4), isEmpty);
+
+      await store.saveDayViewState(91, 4, <String, dynamic>{
+        'version': 1,
+        'words': <String, String>{'care': 'appointment'},
+      });
+      await store.deleteFlowData(91);
+      expect(await store.loadDayViewState(91, 4), isEmpty);
+    },
+  );
 }

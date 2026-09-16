@@ -69,6 +69,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = resolvedVisualState;
     final isTall = height >= 70;
+    final compactDayView = dayViewFace && !isTall;
     final radius = BorderRadius.circular(MaatEventBlockBorderTokens.radius);
     final face = Container(
       width: width,
@@ -115,17 +116,23 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
                   : isTall
                   ? 13
                   : 12,
-              top: dayViewFace
+              top: compactDayView
+                  ? 3
+                  : dayViewFace
                   ? 10
                   : isTall
                   ? 9
                   : 5,
-              right: dayViewFace
+              right: compactDayView
+                  ? 70
+                  : dayViewFace
                   ? 72
                   : isTall
                   ? 70
                   : 60,
-              bottom: dayViewFace
+              bottom: compactDayView
+                  ? 10
+                  : dayViewFace
                   ? 8
                   : isTall
                   ? 8
@@ -140,18 +147,32 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
               ),
             ),
             Positioned(
-              right: dayViewFace || isTall ? 10 : 8,
-              top: dayViewFace ? 19 : 0,
-              bottom: dayViewFace ? null : 0,
+              right: compactDayView
+                  ? 6
+                  : dayViewFace || isTall
+                  ? 10
+                  : 8,
+              top: compactDayView
+                  ? 0
+                  : dayViewFace
+                  ? 19
+                  : 0,
+              bottom: compactDayView
+                  ? 0
+                  : dayViewFace
+                  ? null
+                  : 0,
               child: dayViewFace
-                  ? Opacity(
-                      opacity: 0.86,
-                      child: OfferingTableCupVisual(
-                        stage: stage,
-                        state: state,
-                        tall: true,
-                        dayViewFace: true,
-                        animateRipple: animateRipple,
+                  ? Center(
+                      child: Opacity(
+                        opacity: 0.86,
+                        child: OfferingTableCupVisual(
+                          stage: stage,
+                          state: state,
+                          tall: true,
+                          dayViewFace: true,
+                          animateRipple: animateRipple,
+                        ),
                       ),
                     )
                   : Center(
@@ -176,6 +197,20 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
                     color: Color(0xFFB18A39),
                     fontFamily: 'GentiumPlus',
                     fontSize: 9,
+                  ),
+                ),
+              ),
+            if (timeLabel?.trim().isNotEmpty == true && compactDayView)
+              Positioned(
+                left: 12,
+                bottom: 2,
+                child: Text(
+                  timeLabel!.trim(),
+                  style: const TextStyle(
+                    color: Color(0xFFB18A39),
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 8,
+                    height: 1,
                   ),
                 ),
               ),
@@ -333,6 +368,7 @@ class _OfferingTableCardText extends StatelessWidget {
     final eyebrow =
         'THE OFFERING TABLE · DAY ${dayNumber.toString().padLeft(2, '0')}';
     final received = state == OfferingTableBlockVisualState.received;
+    final compactDayView = dayViewFace && !tall;
     final promptText = '“${prompt.trim()}”';
     final kickerStyle = TextStyle(
       color: dayViewFace ? const Color(0xFFF0CC6A) : Colors.white,
@@ -372,7 +408,13 @@ class _OfferingTableCardText extends StatelessWidget {
               ).createShader(bounds),
               child: kicker,
             ),
-          SizedBox(height: dayViewFace ? 4 : (tall ? 2 : 1)),
+          SizedBox(
+            height: compactDayView
+                ? 1
+                : dayViewFace
+                ? 4
+                : (tall ? 2 : 1),
+          ),
           Text(
             title,
             key: const ValueKey<String>('offering-table-block-title'),
@@ -386,7 +428,9 @@ class _OfferingTableCardText extends StatelessWidget {
               fontFamily: 'CormorantGaramond',
               fontFamilyFallback: const ['GentiumPlus', 'Georgia', 'serif'],
               fontSize: dayViewFace
-                  ? 18
+                  ? compactDayView
+                        ? 17
+                        : 18
                   : tall
                   ? 17
                   : 15.5,
@@ -407,7 +451,13 @@ class _OfferingTableCardText extends StatelessWidget {
                     ],
             ),
           ),
-          SizedBox(height: dayViewFace ? 3 : (tall ? 1 : 0)),
+          SizedBox(
+            height: compactDayView
+                ? 0
+                : dayViewFace
+                ? 3
+                : (tall ? 1 : 0),
+          ),
           Text(
             promptText,
             key: const ValueKey<String>('offering-table-block-teaser'),
@@ -421,7 +471,9 @@ class _OfferingTableCardText extends StatelessWidget {
               fontFamily: 'CormorantGaramond',
               fontFamilyFallback: const ['GentiumPlus', 'Georgia', 'serif'],
               fontSize: dayViewFace
-                  ? 12.5
+                  ? compactDayView
+                        ? 11.5
+                        : 12.5
                   : tall
                   ? 15
                   : 14,

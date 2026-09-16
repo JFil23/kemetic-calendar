@@ -27,6 +27,7 @@ Future<T?> showEditableModalBottomSheet<T>({
   bool isDismissible = true,
   bool enableDrag = true,
   bool useRootNavigator = false,
+  bool constrainMediaSizeToAvailableHeight = false,
 }) {
   return showModalBottomSheet<T>(
     context: context,
@@ -40,26 +41,36 @@ Future<T?> showEditableModalBottomSheet<T>({
     barrierColor: barrierColor,
     shape: shape,
     clipBehavior: clipBehavior,
-    builder: (modalContext) =>
-        _EditableModalSystemInsetOwner(child: builder(modalContext)),
+    builder: (modalContext) => _EditableModalSystemInsetOwner(
+      constrainMediaSizeToAvailableHeight: constrainMediaSizeToAvailableHeight,
+      child: builder(modalContext),
+    ),
   );
 }
 
 class _EditableModalSystemInsetOwner extends StatelessWidget {
-  const _EditableModalSystemInsetOwner({required this.child});
+  const _EditableModalSystemInsetOwner({
+    required this.child,
+    required this.constrainMediaSizeToAvailableHeight,
+  });
 
   final Widget child;
+  final bool constrainMediaSizeToAvailableHeight;
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final inset = media.viewInsets.bottom;
+    var consumed = media.removeViewInsets(removeBottom: true);
+    if (constrainMediaSizeToAvailableHeight && inset > 0) {
+      consumed = consumed.copyWith(
+        size: Size(media.size.width, math.max(0, media.size.height - inset)),
+      );
+    }
     return Padding(
       key: editableModalSystemInsetOwnerKey,
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-      child: MediaQuery(
-        data: media.removeViewInsets(removeBottom: true),
-        child: child,
-      ),
+      padding: EdgeInsets.only(bottom: inset),
+      child: MediaQuery(data: consumed, child: child),
     );
   }
 }

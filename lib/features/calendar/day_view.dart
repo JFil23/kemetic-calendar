@@ -47,7 +47,9 @@ import 'track_sky_flow.dart';
 import 'evening_threshold_flow.dart';
 import 'the_offering_table_flow.dart';
 import 'the_offering_table/presentation/offering_table_event_block_visual.dart';
-import 'the_offering_table/presentation/offering_table_day_presentation.dart';
+import 'the_offering_table/presentation/offering_table_day_contract.dart';
+import 'the_offering_table/presentation/offering_table_day_state.dart';
+import 'the_offering_table/presentation/offering_table_day_v8_presentation.dart';
 import 'the_offering_table_local_store.dart';
 import 'the_course_flow.dart';
 import 'the_course_context.dart';
@@ -1898,6 +1900,40 @@ bool offeringTableEventIsToday({
       kd == kemeticNow.kDay;
 }
 
+@visibleForTesting
+bool offeringTableEventIsNextNotStarted({
+  required EventItem target,
+  required Iterable<EventItem> events,
+  required int ky,
+  required int km,
+  required int kd,
+  required DateTime now,
+}) {
+  final localNow = now.toLocal();
+  final date = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
+  final today = DateUtils.dateOnly(localNow);
+  final tomorrow = today.add(const Duration(days: 1));
+  if (date != today && date != tomorrow) return false;
+  if (date == tomorrow) {
+    final sameTimeToday = today.add(Duration(minutes: target.startMin));
+    final dayNumber = _offeringTableDayFaceForEvent(target).dayNumber;
+    if (dayNumber > 1 && !sameTimeToday.isBefore(localNow)) return false;
+  }
+  final candidates =
+      events
+          .where((event) {
+            if (_eventMaatFlowKind(event) != MaatFlowKind.offeringTable) {
+              return false;
+            }
+            final start = date.add(Duration(minutes: event.startMin));
+            return !start.isBefore(localNow);
+          })
+          .toList(growable: false)
+        ..sort(_compareEventItemsBySchedule);
+  if (candidates.isEmpty) return false;
+  return _eventsShareStableIdentity(candidates.first, target);
+}
+
 class DayViewSheetEventTarget {
   final int ky;
   final int km;
@@ -2066,10 +2102,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   bool _onboardingDetailPromptScheduled = false;
   final OfferingTableLocalStore _offeringTableLocalStore =
       const OfferingTableLocalStore();
-  final Map<({int flowId, int dayNumber}), String>
-  _offeringTableIntentionsByDay = <({int flowId, int dayNumber}), String>{};
-  final Set<({int flowId, int dayNumber})> _offeringTableLoadingIntentions =
-      <({int flowId, int dayNumber})>{};
+  final Map<({int flowId, int dayNumber}), OfferingTableDayViewState>
+  _offeringTableDayStates =
+      <({int flowId, int dayNumber}), OfferingTableDayViewState>{};
+  final Set<int> _offeringTableLoadingFlowStates = <int>{};
 
   @override
   void initState() {
@@ -2091,7 +2127,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       widget.onPresentationChanged?.call(_presentation);
     });
     _primeTrackSkyFlowDataForEvent(_currentTarget.event);
-    _primeOfferingTableIntentionForEvent(_currentTarget.event);
+    _primeOfferingTableDayStatesForEvent(_currentTarget.event);
     _followSkyCatalog = widget.followSkyCatalog;
     if (_followSkyCatalog == null) unawaited(_loadFollowSkyCatalog());
   }
@@ -2312,7 +2348,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       widget.onPresentationChanged?.call(_presentation);
     }
     _primeTrackSkyFlowDataForEvent(nextTarget.event);
-    _primeOfferingTableIntentionForEvent(nextTarget.event);
+    _primeOfferingTableDayStatesForEvent(nextTarget.event);
     if (widget.onNavigateToDay != null &&
         (nextTarget.ky != previousTarget.ky ||
             nextTarget.km != previousTarget.km ||
@@ -2412,7 +2448,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     }());
   }
 
-  ({int flowId, int dayNumber})? _offeringTableIntentionKeyForEvent(
+  ({int flowId, int dayNumber})? _offeringTableDayStateKeyForEvent(
     EventItem event,
   ) {
     final flowId = event.flowId;
@@ -2433,45 +2469,77 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     return (flowId: flowId, dayNumber: day.dayNumber);
   }
 
-  void _primeOfferingTableIntentionForEvent(EventItem event) {
-    final key = _offeringTableIntentionKeyForEvent(event);
-    if (key == null ||
-        _offeringTableIntentionsByDay.containsKey(key) ||
-        !_offeringTableLoadingIntentions.add(key)) {
-      return;
-    }
+  void _primeOfferingTableDayStatesForEvent(EventItem event) {
+    final key = _offeringTableDayStateKeyForEvent(event);
+    if (key == null || !_offeringTableLoadingFlowStates.add(key.flowId)) return;
     unawaited(() async {
       try {
-        final intention = await _offeringTableLocalStore.loadIntention(
-          key.flowId,
-          key.dayNumber,
-        );
+        final loaded =
+            <({int flowId, int dayNumber}), OfferingTableDayViewState>{};
+        for (var day = 1; day <= 30; day++) {
+          final raw = await _offeringTableLocalStore.loadDayViewState(
+            key.flowId,
+            day,
+          );
+          final state = OfferingTableDayViewState.fromJson(raw);
+          if (day == key.dayNumber && state.isEmpty) {
+            final legacy = await _offeringTableLocalStore.loadIntention(
+              key.flowId,
+              day,
+            );
+            if (legacy.isNotEmpty) {
+              final contract = offeringTableDayViewContract(day);
+              final firstName = contract.moves
+                  .where((move) => move.kind == OfferingTableMoveKind.name)
+                  .firstOrNull;
+              if (firstName != null) {
+                state.words[firstName.slot ?? firstName.id] = legacy;
+              }
+            }
+          }
+          loaded[(flowId: key.flowId, dayNumber: day)] = state;
+        }
         if (!mounted) return;
-        setState(() => _offeringTableIntentionsByDay[key] = intention);
+        setState(() => _offeringTableDayStates.addAll(loaded));
       } finally {
-        _offeringTableLoadingIntentions.remove(key);
+        _offeringTableLoadingFlowStates.remove(key.flowId);
       }
     }());
   }
 
-  String _offeringTableIntentionForEvent(EventItem event) {
-    final key = _offeringTableIntentionKeyForEvent(event);
-    return key == null ? '' : (_offeringTableIntentionsByDay[key] ?? '');
+  OfferingTableDayViewState _offeringTableDayStateForEvent(EventItem event) {
+    final key = _offeringTableDayStateKeyForEvent(event);
+    return key == null
+        ? OfferingTableDayViewState()
+        : (_offeringTableDayStates[key] ?? OfferingTableDayViewState());
   }
 
-  Future<void> _saveOfferingTableIntentionForEvent(
+  Map<int, OfferingTableDayViewState> _offeringTableCourseStatesForEvent(
     EventItem event,
-    String value,
+  ) {
+    final key = _offeringTableDayStateKeyForEvent(event);
+    if (key == null) return const <int, OfferingTableDayViewState>{};
+    return <int, OfferingTableDayViewState>{
+      for (var day = 1; day <= 30; day++)
+        if (_offeringTableDayStates[(flowId: key.flowId, dayNumber: day)] !=
+            null)
+          day: _offeringTableDayStates[(flowId: key.flowId, dayNumber: day)]!,
+    };
+  }
+
+  Future<void> _saveOfferingTableDayStateForEvent(
+    EventItem event,
+    OfferingTableDayViewState state,
   ) async {
-    final key = _offeringTableIntentionKeyForEvent(event);
+    final key = _offeringTableDayStateKeyForEvent(event);
     if (key == null) return;
-    await _offeringTableLocalStore.saveIntention(
+    await _offeringTableLocalStore.saveDayViewState(
       key.flowId,
       key.dayNumber,
-      value,
+      state.isEmpty ? <String, dynamic>{} : state.toJson(),
     );
     if (!mounted) return;
-    setState(() => _offeringTableIntentionsByDay[key] = value.trim());
+    setState(() => _offeringTableDayStates[key] = state.copy());
   }
 
   TrackSkyEvent? _resolveTrackSkyEvent(
@@ -3476,19 +3544,17 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          child: OfferingTableDayPresentation(
+          child: OfferingTableDayV8Presentation(
             key: ValueKey<String>(
               'offering-table-presentation:${currentEvent.clientEventId ?? offeringTableDay.dayNumber}',
             ),
-            day: offeringTableDay,
+            contract: offeringTableDayViewContract(offeringTableDay.dayNumber),
             localDate: localDate,
             startMinute: currentEvent.startMin,
-            initialIntention: _offeringTableIntentionForEvent(currentEvent),
-            onSaveIntention: (value) =>
-                _saveOfferingTableIntentionForEvent(currentEvent, value),
-            lens: offeringTableLensFromNotes(flow?.notes),
-            clientEventId: currentEvent.clientEventId,
-            onWriteJournalResponse: widget.onWriteJournalResponse,
+            initialState: _offeringTableDayStateForEvent(currentEvent),
+            courseStates: _offeringTableCourseStatesForEvent(currentEvent),
+            onSaveState: (state) =>
+                _saveOfferingTableDayStateForEvent(currentEvent, state),
             completionPanel: buildMaatCompletionPanel(
               responseSpecsOverride: const <MaatFlowResponseSpec>[],
               pickerStyleOverride: _offeringTableCompletionPickerStyle,
@@ -5057,7 +5123,7 @@ double _authoredEventBlockMinHeight(MaatFlowKind? kind) {
   return switch (kind) {
     MaatFlowKind.theDjed => _kDayViewHourHeight,
     MaatFlowKind.readingHouse => 61,
-    MaatFlowKind.offeringTable => 92,
+    MaatFlowKind.offeringTable => _kDayViewHourHeight,
     _ => 0,
   };
 }
@@ -8283,10 +8349,13 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     if (graphic?.kind == CalendarEventGraphicKind.offeringTable) {
       final offeringTableDay = _offeringTableDayFaceForEvent(event);
+      final dayViewContract = offeringTableDayViewContract(
+        offeringTableDay.dayNumber,
+      );
       return OfferingTableEventBlockVisual(
         dayNumber: offeringTableDay.dayNumber,
-        title: offeringTableDay.title,
-        prompt: offeringTableDay.eventBlockPrompt,
+        title: dayViewContract.title,
+        prompt: dayViewContract.prompt,
         width: block.width,
         height: height,
         isPreview: isPreview,
@@ -8294,7 +8363,9 @@ class _DayViewGridState extends State<DayViewGrid> {
         timeLabel: _compactEventTimeLabel(event.startMin),
         animateRipple:
             !isPreview &&
-            offeringTableEventIsToday(
+            offeringTableEventIsNextNotStarted(
+              target: event,
+              events: _displayBlocks.map((block) => block.event),
               ky: widget.ky,
               km: widget.km,
               kd: widget.kd,
@@ -8757,6 +8828,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     try {
       showCalendarEventDetailSheetModal<void>(
         context: rootContext,
+        editable: _eventMaatFlowKind(event) == MaatFlowKind.offeringTable,
         builder: (sheetContext) => CalendarEventDetailSheet(
           hostContext: rootContext,
           initialTarget: sheetTarget,

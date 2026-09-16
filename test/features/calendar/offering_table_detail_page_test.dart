@@ -13,6 +13,9 @@ import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_contract.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_state.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_v8_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
@@ -876,21 +879,15 @@ void main() {
     tester,
   ) async {
     const size = Size(390, 844);
-    final day5Prompt = offeringTablePracticePresentation(
-      kOfferingTableDays[4],
-    ).previewSummary;
-    final day11Prompt = offeringTablePracticePresentation(
-      kOfferingTableDays[10],
-    ).previewSummary;
-    final day21Prompt = offeringTablePracticePresentation(
-      kOfferingTableDays[20],
-    ).previewSummary;
+    final day5Prompt = offeringTableDayViewContract(5).instruction;
+    final day11Prompt = offeringTableDayViewContract(11).instruction;
+    final day21Prompt = offeringTableDayViewContract(21).instruction;
     expect(day5Prompt, isNot(day11Prompt));
     expect(day11Prompt, isNot(day21Prompt));
 
     await _pumpDaySheet(tester, size: size, dayNumber: 5);
     await _revealOfferingPresentationBody(tester);
-    expect(find.text('PERSONAL TABLE · DAY 5'), findsWidgets);
+    expect(find.text('PERSONAL TABLE · DAY 05'), findsWidgets);
     expect(find.text(day5Prompt), findsWidgets);
     expect(
       find.text(
@@ -901,7 +898,7 @@ void main() {
 
     await _pumpDaySheet(tester, size: size, dayNumber: 11);
     await _revealOfferingPresentationBody(tester);
-    expect(find.text('HOUSEHOLD TABLE · DAY 1'), findsWidgets);
+    expect(find.text('HOUSEHOLD TABLE · DAY 11'), findsWidgets);
     expect(find.text(day11Prompt), findsWidgets);
     expect(
       find.text(
@@ -912,7 +909,7 @@ void main() {
 
     await _pumpDaySheet(tester, size: size, dayNumber: 21);
     await _revealOfferingPresentationBody(tester);
-    expect(find.text('FLOWING TABLE · DAY 1'), findsWidgets);
+    expect(find.text('FLOWING TABLE · DAY 21'), findsWidgets);
     expect(find.text(day21Prompt), findsWidgets);
     expect(
       find.text(
@@ -951,6 +948,7 @@ void main() {
 
       expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
       expect(find.byType(OfferingTableDayPresentation), findsNothing);
+      expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
       expect(
         find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')),
         findsOneWidget,
@@ -1053,19 +1051,19 @@ void main() {
       );
       expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isTrue);
       expect(
-        find.byKey(const ValueKey<String>('offering-table-small-supply-jar')),
+        find.byKey(const ValueKey<String>('offering-table-day-01-instrument')),
         findsOneWidget,
       );
       expect(find.text('Reflect'), findsNothing);
 
       await tester.tapAt(const Offset(195, 100));
       await tester.pumpAndSettle();
-      expect(find.byType(OfferingTableDayPresentation), findsNothing);
+      expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
       expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
 
       await tester.tap(offeringBlocksIn(eventLayer).first);
       await tester.pumpAndSettle();
-      expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
+      expect(find.byType(OfferingTableDayV8Presentation), findsOneWidget);
 
       await tester.tapAt(const Offset(195, 100));
       await tester.pumpAndSettle();
@@ -1073,13 +1071,9 @@ void main() {
 
       await tester.tap(offeringBlocksIn(eventLayer).last);
       await tester.pumpAndSettle();
-      expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
+      expect(find.byType(OfferingTableDayV8Presentation), findsOneWidget);
       expect(
-        find.text(
-          offeringTablePracticePresentation(
-            kOfferingTableDays[1],
-          ).previewSummary,
-        ),
+        find.text(offeringTableDayViewContract(2).orientation),
         findsWidgets,
       );
     },
@@ -1170,6 +1164,7 @@ void main() {
 
       expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
       expect(find.byType(OfferingTableDayPresentation), findsNothing);
+      expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
       final sheetRect = tester.getRect(
         find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')),
       );
@@ -1321,7 +1316,7 @@ void main() {
 
     await tester.tap(eventBlock);
     await tester.pumpAndSettle();
-    expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
+    expect(find.byType(OfferingTableDayV8Presentation), findsOneWidget);
     await expectLater(
       find.byKey(_visualCaptureSurfaceKey),
       matchesGoldenFile(
@@ -1386,9 +1381,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text(
-        offeringTablePracticePresentation(kOfferingTableDays.first).instruction,
-      ),
+      find.text(offeringTableDayViewContract(1).instruction),
       findsWidgets,
     );
     await expectLater(
@@ -1411,7 +1404,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.byKey(const ValueKey<String>('offering-table-intention-field')),
+      find.byKey(const ValueKey<String>('offering-table-field-supply')),
       'medication',
     );
     tester
@@ -1436,14 +1429,14 @@ void main() {
     await tester.pumpAndSettle();
 
     final field = tester.widget<TextField>(
-      find.byKey(const ValueKey<String>('offering-table-intention-field')),
+      find.byKey(const ValueKey<String>('offering-table-field-supply')),
     );
     expect(field.controller?.text, isEmpty);
     expect(
       find.text(
         'The supplies that run out do so silently. This rite catches one while the correction is still small.',
       ),
-      findsNothing,
+      findsOneWidget,
     );
     expect(tester.takeException(), isNull);
   });
@@ -1544,14 +1537,15 @@ Future<void> _pumpDaySheet(
         backgroundColor: OfferingTableDetailTokens.pageBackground,
         body: Align(
           alignment: Alignment.bottomCenter,
-          child: OfferingTableDayPresentation(
-            day: day,
+          child: OfferingTableDayV8Presentation(
+            contract: offeringTableDayViewContract(day.dayNumber),
             localDate: date,
             startMinute:
                 kOfferingTableDefaultHour * 60 + kOfferingTableDefaultMinute,
-            initialIntention: 'Protect my sleep.',
-            lens: OfferingTableLens.neutral,
-            persistResponses: false,
+            initialState: OfferingTableDayViewState(
+              words: const <String, String>{'supply': 'Protect my sleep.'},
+            ),
+            onSaveState: (_) async {},
             completionPanel: const Text('Completion fixture'),
           ),
         ),
