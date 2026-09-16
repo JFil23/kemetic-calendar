@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'the_djed_flow.dart';
 import 'track_sky_flow.dart';
 
@@ -338,6 +340,7 @@ DjedV2Event? djedV2EventByNumber(int? eventNumber) {
 }
 
 /// True when a calendar event is the scheduled sitting for this owned Djed.
+@visibleForTesting
 bool calendarEventMatchesOwnedDjedSitting({
   required int flowId,
   required int sittingNumber,
