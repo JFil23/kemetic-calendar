@@ -1344,10 +1344,7 @@ void main() {
       closeTo(19, 1),
       reason: 'The HTML authority places the handle 19px below the sheet top.',
     );
-    await tester.drag(
-      find.byKey(const ValueKey<String>('offering-table-presentation-body')),
-      const Offset(0, -565),
-    );
+    await _dragOfferingForeground(tester, const Offset(0, -565));
     await tester.pumpAndSettle();
     final outerAfterInnerRaise = tester.getRect(outerSheet);
     expect(outerAfterInnerRaise.top, closeTo(outerBefore.top, .5));
@@ -1399,10 +1396,7 @@ void main() {
   ) async {
     await _pumpDaySheet(tester, size: const Size(390, 844), dayNumber: 1);
 
-    await tester.drag(
-      find.byKey(const ValueKey<String>('offering-table-presentation-body')),
-      const Offset(0, -1100),
-    );
+    await _dragOfferingForeground(tester, const Offset(0, -1100));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey<String>('offering-table-field-supply')),
@@ -1557,11 +1551,22 @@ Future<void> _pumpDaySheet(
 }
 
 Future<void> _revealOfferingPresentationBody(WidgetTester tester) async {
-  await tester.drag(
-    find.byKey(const ValueKey<String>('offering-table-presentation-body')),
-    const Offset(0, -360),
-  );
+  await _dragOfferingForeground(tester, const Offset(0, -360));
   await tester.pumpAndSettle();
+}
+
+Future<void> _dragOfferingForeground(WidgetTester tester, Offset offset) async {
+  final lowerSheet = find.byKey(
+    const ValueKey<String>('offering-table-layered-practice-sheet'),
+  );
+  final lowerRect = tester.getRect(lowerSheet);
+  final presentation = tester.getRect(
+    find.byKey(const ValueKey<String>('offering-table-day-presentation-v8')),
+  );
+  await tester.dragFrom(
+    Offset(presentation.center.dx, lowerRect.top + 12),
+    offset,
+  );
 }
 
 Future<void> _loadOfferingVisualFonts() async {

@@ -374,7 +374,11 @@ void main() {
       const ValueKey<String>('offering-table-presentation-body'),
     );
     final xBefore = tester.getTopLeft(body).dx;
-    await tester.drag(body, const Offset(0, -400));
+    final lowerBefore = tester.getRect(lowerSheet);
+    await tester.dragFrom(
+      Offset(tester.getRect(sheet).center.dx, lowerBefore.top + 12),
+      const Offset(0, -400),
+    );
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(body).dx, closeTo(xBefore, 0.1));
   });

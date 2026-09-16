@@ -364,6 +364,7 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
     this.instrumentFooterHeight = footerHeight,
     this.initialLowerSheetPeek,
     this.lowerSheetOverlaysInstrument = false,
+    this.instrumentInteractive = false,
   });
 
   static const double footerHeight = 76;
@@ -379,6 +380,7 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
   final double instrumentFooterHeight;
   final double? initialLowerSheetPeek;
   final bool lowerSheetOverlaysInstrument;
+  final bool instrumentInteractive;
 
   @override
   Widget build(BuildContext context) {
@@ -413,11 +415,13 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                   children: <Widget>[
                     SizedBox(
                       height: heroHeight,
-                      child: ExcludeSemantics(
-                        child: IgnorePointer(
-                          child: RepaintBoundary(child: instrument),
-                        ),
-                      ),
+                      child: instrumentInteractive
+                          ? RepaintBoundary(child: instrument)
+                          : ExcludeSemantics(
+                              child: IgnorePointer(
+                                child: RepaintBoundary(child: instrument),
+                              ),
+                            ),
                     ),
                     if (instrumentFooterHeight > 0)
                       SizedBox(
@@ -430,6 +434,9 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
               CustomScrollView(
                 key: bodyScrollKey,
                 physics: const ClampingScrollPhysics(),
+                hitTestBehavior: instrumentInteractive
+                    ? HitTestBehavior.deferToChild
+                    : HitTestBehavior.opaque,
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 slivers: <Widget>[

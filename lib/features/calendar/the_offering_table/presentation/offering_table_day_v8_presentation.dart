@@ -245,8 +245,9 @@ class _OfferingTableDayV8PresentationState
       initialLowerSheetPeek: 28,
       instrumentFooterHeight: 0,
       instrument: _buildHero(now),
+      instrumentInteractive: true,
       instrumentFooter: const SizedBox.shrink(),
-      inputBuilder: (context, heroHeight, _) => _buildHeroInputs(heroHeight),
+      inputBuilder: (_, _, _) => const SizedBox.shrink(),
       body: _buildPracticeLayer(now),
       bodyScrollKey: const ValueKey<String>('offering-table-presentation-body'),
       lowerSheetKey: const ValueKey<String>(
@@ -256,174 +257,177 @@ class _OfferingTableDayV8PresentationState
   }
 
   Widget _buildHero(DateTime now) {
-    return Container(
+    return Stack(
       key: const ValueKey<String>('offering-table-fixed-hero'),
-      padding: const EdgeInsets.fromLTRB(10, 18, 10, 24),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: <Color>[Color(0xFF130C07), Color(0xFF0D0906)],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: Row(
-                  children: <Widget>[
-                    Semantics(
-                      label: '✦',
-                      child: const CustomPaint(
-                        size: Size.square(7),
-                        painter: _OfferingTableSparkPainter(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Flexible(
-                      child: Text(
-                        'THE OFFERING TABLE',
-                        maxLines: 1,
-                        overflow: TextOverflow.fade,
-                        softWrap: false,
-                        style: TextStyle(
-                          color: Color(0xFFC7963A),
-                          fontFamily: _ui,
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 2.2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '${_dateLabel(widget.localDate)}\n${widget.contract.stage.toUpperCase()} · DAY ${widget.contract.day.toString().padLeft(2, '0')}',
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  color: Color(0xFF816C4C),
-                  fontFamily: _ui,
-                  fontSize: 8,
-                  height: 1.55,
-                  letterSpacing: .7,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  widget.contract.title,
-                  key: const ValueKey<String>('offering-table-event-title'),
-                  maxLines: 2,
-                  overflow: TextOverflow.fade,
-                  style: const TextStyle(
-                    color: Color(0xFFEFE5D8),
-                    fontFamily: _display,
-                    fontSize: 27,
-                    fontWeight: FontWeight.w500,
-                    height: 1,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                _formatMinute(widget.startMinute),
-                style: const TextStyle(
-                  color: Color(0xFFA98348),
-                  fontFamily: _display,
-                  fontSize: 18,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            widget.contract.orientation,
-            maxLines: 2,
-            overflow: TextOverflow.fade,
-            style: const TextStyle(
-              color: Color(0xFFB9AA95),
-              fontFamily: _display,
-              fontSize: 14,
-              fontStyle: FontStyle.italic,
-              height: 1.28,
+      fit: StackFit.expand,
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.fromLTRB(10, 18, 10, 24),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[Color(0xFF130C07), Color(0xFF0D0906)],
             ),
           ),
-          const SizedBox(height: 11),
-          Expanded(
-            child: ClipRect(
-              child: OverflowBox(
-                alignment: Alignment.topCenter,
-                minHeight: 238,
-                maxHeight: 238,
-                child: SizedBox(
-                  height: 238,
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        flex: 43,
-                        child: Center(
-                          child: SizedBox(
-                            height: widget.contract.isWideInstrument
-                                ? 204
-                                : 226,
-                            child: OfferingTableDayInstrument(
-                              contract: widget.contract,
-                              state: _state,
-                              now: now,
-                              courseStates: <int, OfferingTableDayViewState>{
-                                ...widget.courseStates,
-                                widget.contract.day: _state,
-                              },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: Row(
+                      children: <Widget>[
+                        Semantics(
+                          label: '✦',
+                          child: const CustomPaint(
+                            size: Size.square(7),
+                            painter: _OfferingTableSparkPainter(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Flexible(
+                          child: Text(
+                            'THE OFFERING TABLE',
+                            maxLines: 1,
+                            overflow: TextOverflow.fade,
+                            softWrap: false,
+                            style: TextStyle(
+                              color: Color(0xFFC7963A),
+                              fontFamily: _ui,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 2.2,
                             ),
                           ),
                         ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${_dateLabel(widget.localDate)}\n${widget.contract.stage.toUpperCase()} · DAY ${widget.contract.day.toString().padLeft(2, '0')}',
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      color: Color(0xFF816C4C),
+                      fontFamily: _ui,
+                      fontSize: 8,
+                      height: 1.55,
+                      letterSpacing: .7,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      widget.contract.title,
+                      key: const ValueKey<String>('offering-table-event-title'),
+                      maxLines: 2,
+                      overflow: TextOverflow.fade,
+                      style: const TextStyle(
+                        color: Color(0xFFEFE5D8),
+                        fontFamily: _display,
+                        fontSize: 27,
+                        fontWeight: FontWeight.w500,
+                        height: 1,
                       ),
-                      const SizedBox(width: 10),
-                      const Expanded(flex: 57, child: SizedBox.expand()),
-                    ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _formatMinute(widget.startMinute),
+                    style: const TextStyle(
+                      color: Color(0xFFA98348),
+                      fontFamily: _display,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.contract.orientation,
+                maxLines: 2,
+                overflow: TextOverflow.fade,
+                style: const TextStyle(
+                  color: Color(0xFFB9AA95),
+                  fontFamily: _display,
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                  height: 1.28,
+                ),
+              ),
+              const SizedBox(height: 11),
+              Expanded(
+                child: ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    minHeight: 238,
+                    maxHeight: 238,
+                    child: SizedBox(
+                      height: 238,
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            flex: 43,
+                            child: Center(
+                              child: SizedBox(
+                                height: widget.contract.isWideInstrument
+                                    ? 204
+                                    : 226,
+                                child: OfferingTableDayInstrument(
+                                  contract: widget.contract,
+                                  state: _state,
+                                  now: now,
+                                  courseStates:
+                                      <int, OfferingTableDayViewState>{
+                                        ...widget.courseStates,
+                                        widget.contract.day: _state,
+                                      },
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(flex: 57, child: SizedBox.expand()),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+        Positioned.fill(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              children: <Widget>[
+                const Expanded(flex: 43, child: SizedBox.expand()),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 57,
+                  child: CustomSingleChildLayout(
+                    delegate: const _OfferingMoveListLayout(centerY: 237),
+                    child: _MoveList(
+                      contract: widget.contract,
+                      state: _state,
+                      now: () => _now,
+                      onMove: _toggleAction,
+                      onPick: _selectPick,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeroInputs(double heroHeight) {
-    return SizedBox.expand(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Row(
-          children: <Widget>[
-            const Expanded(flex: 43, child: SizedBox.expand()),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 57,
-              child: CustomSingleChildLayout(
-                delegate: const _OfferingMoveListLayout(centerY: 237),
-                child: _MoveList(
-                  contract: widget.contract,
-                  state: _state,
-                  now: () => _now,
-                  onMove: _toggleAction,
-                  onPick: _selectPick,
-                ),
-              ),
-            ),
-          ],
         ),
-      ),
+      ],
     );
   }
 

@@ -509,12 +509,210 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2 steps'), findsNothing);
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-day-03-move-place')),
-      findsOneWidget,
+    final placeMove = find.byKey(
+      const ValueKey<String>('offering-table-day-03-move-place'),
     );
+    expect(placeMove, findsOneWidget);
     expect(find.text('Drink water.'), findsNothing);
+
+    await tester.tap(placeMove);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    final persisted = await const OfferingTableLocalStore().loadDayViewState(
+      74,
+      day.dayNumber,
+    );
+    expect(
+      (persisted['actions'] as Map<String, dynamic>)['place'],
+      isTrue,
+      reason: 'the exposed fixed checklist remains interactive',
+    );
   });
+
+  testWidgets(
+    'all thirty Day View graphic checklists stay fixed while the foreground moves',
+    (tester) async {
+      // Authority: the approved Offering Table Day View interaction and the
+      // pre-v8 Day 1 behavior define the painted instrument and its interactive
+      // checklist as one fixed hero composition. Only the foreground practice
+      // layer scrolls. Outer-host resizing is a separate operation.
+      for (final contract in kOfferingTableDayViewContracts) {
+        CalendarEventDetailSheetCoordinator.debugResetForTests();
+        final flowId = 1200 + contract.day;
+        final restored = _completedState(contract);
+        await _pumpDayView(
+          tester,
+          flowId: flowId,
+          day: kOfferingTableDays[contract.day - 1],
+          initialDayState: restored,
+        );
+        await tester.tap(find.byType(OfferingTableEventBlockVisual));
+        await tester.pumpAndSettle();
+
+        final outerSheet = find.byKey(
+          const ValueKey<String>('offering-table-resizable-sheet'),
+        );
+        final fixedHero = find.byKey(
+          const ValueKey<String>('offering-table-fixed-hero'),
+        );
+        final instrument = find.byKey(
+          ValueKey<String>(
+            'offering-table-day-${contract.day.toString().padLeft(2, '0')}-instrument',
+          ),
+        );
+        final lowerSheet = find.byKey(
+          const ValueKey<String>('offering-table-layered-practice-sheet'),
+        );
+        final moveFinders = <OfferingTableMoveContract, Finder>{
+          for (final move in contract.moves)
+            move: find.byKey(
+              ValueKey<String>(
+                'offering-table-day-${contract.day.toString().padLeft(2, '0')}-move-${move.id}',
+              ),
+            ),
+        };
+
+        final outerBefore = tester.getRect(outerSheet);
+        final heroBefore = tester.getRect(fixedHero);
+        final instrumentBefore = tester.getRect(instrument);
+        final movesBefore = <OfferingTableMoveContract, Rect>{
+          for (final entry in moveFinders.entries)
+            entry.key: tester.getRect(entry.value),
+        };
+        final lowerBefore = tester.getRect(lowerSheet);
+
+        await tester.dragFrom(
+          Offset(outerBefore.center.dx, lowerBefore.top + 12),
+          const Offset(0, -220),
+        );
+        await tester.pumpAndSettle();
+
+        final outerRaised = tester.getRect(outerSheet);
+        final lowerRaised = tester.getRect(lowerSheet);
+        _expectRectClose(
+          outerRaised,
+          outerBefore,
+          reason: 'day ${contract.day} outer host stays fixed',
+        );
+        _expectRectClose(
+          tester.getRect(fixedHero),
+          heroBefore,
+          reason: 'day ${contract.day} hero stays fixed',
+        );
+        _expectRectClose(
+          tester.getRect(instrument),
+          instrumentBefore,
+          reason: 'day ${contract.day} graphic stays fixed',
+        );
+        expect(
+          lowerRaised.top,
+          lessThan(lowerBefore.top - 100),
+          reason: 'day ${contract.day} foreground moves independently',
+        );
+        for (final entry in moveFinders.entries) {
+          final raisedRect = tester.getRect(entry.value);
+          final beforeRect = movesBefore[entry.key]!;
+          _expectRectClose(
+            raisedRect.shift(Offset(-outerRaised.left, -outerRaised.top)),
+            beforeRect.shift(Offset(-outerBefore.left, -outerBefore.top)),
+            reason:
+                'day ${contract.day}, move ${entry.key.id} stays fixed to the sheet',
+          );
+          _expectOffsetClose(
+            raisedRect.center - tester.getRect(instrument).center,
+            beforeRect.center - instrumentBefore.center,
+            reason:
+                'day ${contract.day}, move ${entry.key.id} stays fixed to the graphic',
+          );
+        }
+
+        final shieldMove = contract.moves.lastWhere(
+          (move) =>
+              move.kind != OfferingTableMoveKind.name &&
+              move.kind != OfferingTableMoveKind.pick,
+        );
+        final coveredPoint = movesBefore[shieldMove]!.center;
+        expect(
+          lowerRaised.top,
+          lessThan(coveredPoint.dy),
+          reason: 'day ${contract.day} test control is covered by foreground',
+        );
+        await tester.tapAt(coveredPoint);
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
+        expect(
+          await const OfferingTableLocalStore().loadDayViewState(
+            flowId,
+            contract.day,
+          ),
+          restored.toJson(),
+          reason:
+              'day ${contract.day} covered hero controls cannot receive taps',
+        );
+
+        await tester.dragFrom(
+          Offset(outerRaised.center.dx, lowerRaised.top + 12),
+          const Offset(0, 1200),
+        );
+        await tester.pumpAndSettle();
+        _expectRectClose(
+          tester.getRect(outerSheet),
+          outerBefore,
+          reason: 'day ${contract.day} outer host remains fixed after lowering',
+        );
+        _expectRectClose(
+          tester.getRect(instrument),
+          instrumentBefore,
+          reason: 'day ${contract.day} graphic returns unchanged',
+        );
+        for (final entry in moveFinders.entries) {
+          _expectRectClose(
+            tester.getRect(entry.value),
+            movesBefore[entry.key]!,
+            reason:
+                'day ${contract.day}, move ${entry.key.id} returns unchanged',
+          );
+        }
+        expect(tester.takeException(), isNull, reason: 'day ${contract.day}');
+      }
+    },
+  );
+
+  testWidgets(
+    'Offering outer resize is independent from foreground scrolling',
+    (tester) async {
+      await _pumpDayView(tester, flowId: 1199);
+      await tester.tap(find.byType(OfferingTableEventBlockVisual));
+      await tester.pumpAndSettle();
+
+      final outerSheet = find.byKey(
+        const ValueKey<String>('offering-table-resizable-sheet'),
+      );
+      final lowerSheet = find.byKey(
+        const ValueKey<String>('offering-table-layered-practice-sheet'),
+      );
+      final presentation = find.byKey(
+        const ValueKey<String>('offering-table-day-presentation-v8'),
+      );
+      final handle = find.byKey(
+        const ValueKey<String>('follow-sky-sheet-resize-handle'),
+      );
+      final outerBefore = tester.getRect(outerSheet);
+
+      await tester.drag(handle, const Offset(0, -120));
+      await tester.pumpAndSettle();
+
+      final outerAfter = tester.getRect(outerSheet);
+      expect(outerAfter.height, greaterThan(outerBefore.height + 90));
+      expect(outerAfter.bottom, closeTo(outerBefore.bottom, .1));
+      expect(
+        tester.getRect(presentation).bottom - tester.getRect(lowerSheet).top,
+        closeTo(28, .5),
+        reason: 'outer resizing preserves the authored lowered foreground peek',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'all thirty actual Day View sheets restore and traverse lowered, raised, and expanded states',
@@ -554,9 +752,6 @@ void main() {
         final lowerSheet = find.byKey(
           const ValueKey<String>('offering-table-layered-practice-sheet'),
         );
-        final body = find.byKey(
-          const ValueKey<String>('offering-table-presentation-body'),
-        );
         final outerBefore = tester.getRect(outerSheet);
         final lowerBefore = tester.getRect(lowerSheet);
         expect(
@@ -584,7 +779,10 @@ void main() {
           );
         }
 
-        await tester.drag(body, const Offset(0, -565));
+        await tester.dragFrom(
+          Offset(outerBefore.center.dx, lowerBefore.top + 12),
+          const Offset(0, -565),
+        );
         await tester.pumpAndSettle();
         final outerRaised = tester.getRect(outerSheet);
         final lowerRaised = tester.getRect(lowerSheet);
@@ -635,7 +833,14 @@ void main() {
           );
         }
 
-        await tester.drag(body, const Offset(0, 1200));
+        final lowerBeforeReturn = tester.getRect(lowerSheet);
+        final returnStartY = (lowerBeforeReturn.top + 12)
+            .clamp(outerRaised.top + 60, outerRaised.bottom - 60)
+            .toDouble();
+        await tester.dragFrom(
+          Offset(outerRaised.center.dx, returnStartY),
+          const Offset(0, 1200),
+        );
         await tester.pumpAndSettle();
         expect(
           tester.getRect(lowerSheet).top,
@@ -646,6 +851,22 @@ void main() {
       }
     },
   );
+}
+
+void _expectRectClose(Rect actual, Rect expected, {required String reason}) {
+  expect(actual.left, closeTo(expected.left, .1), reason: '$reason left');
+  expect(actual.top, closeTo(expected.top, .1), reason: '$reason top');
+  expect(actual.width, closeTo(expected.width, .1), reason: '$reason width');
+  expect(actual.height, closeTo(expected.height, .1), reason: '$reason height');
+}
+
+void _expectOffsetClose(
+  Offset actual,
+  Offset expected, {
+  required String reason,
+}) {
+  expect(actual.dx, closeTo(expected.dx, .1), reason: '$reason dx');
+  expect(actual.dy, closeTo(expected.dy, .1), reason: '$reason dy');
 }
 
 OfferingTableDayViewState _completedState(OfferingTableDayContract contract) {
