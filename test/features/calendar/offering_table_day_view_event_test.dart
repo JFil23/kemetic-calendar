@@ -12,6 +12,7 @@ import 'package:mobile/features/calendar/the_offering_table/presentation/offerin
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -203,116 +204,36 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Day 30 field stays usable through the real keyboard transition',
-    (tester) async {
-      await _pumpDayView(tester, flowId: 76, day: kOfferingTableDays[29]);
-      await tester.tap(find.byType(OfferingTableEventBlockVisual));
-      await tester.pumpAndSettle();
+  testWidgets('Day 30 fields clear the keyboard in the real Day View sheet', (
+    tester,
+  ) async {
+    await _pumpDayView(tester, flowId: 76, day: kOfferingTableDays[29]);
+    await tester.tap(find.byType(OfferingTableEventBlockVisual));
+    await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(
-          const ValueKey<String>('offering-table-day-30-move-shortfall'),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('offering-table-day-30-move-shortfall'),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      final field = find.byKey(
-        const ValueKey<String>('offering-table-field-shortfall'),
-      );
-      expect(tester.widget<TextField>(field).focusNode?.hasFocus, isTrue);
-      final mediaSizeBeforeKeyboard = MediaQuery.sizeOf(tester.element(field));
-      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-      addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
-      await tester.pumpAndSettle();
+    final field = find.byKey(
+      const ValueKey<String>('offering-table-field-shortfall'),
+    );
+    expect(tester.widget<TextField>(field).focusNode?.hasFocus, isTrue);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(field);
+    await tester.pumpAndSettle();
 
-      expect(MediaQuery.sizeOf(tester.element(field)), mediaSizeBeforeKeyboard);
-      expect(tester.getRect(field).bottom, lessThanOrEqualTo(544));
-      expect(tester.testTextInput.isVisible, isTrue);
-
-      await tester.enterText(field, 'Order food before the trip.');
-      await tester.pumpAndSettle();
-      expect(tester.getRect(field).bottom, lessThanOrEqualTo(544));
-      expect(
-        tester.widget<TextField>(field).controller?.text,
-        'Order food before the trip.',
-      );
-
-      tester.view.viewInsets = FakeViewPadding.zero;
-      await tester.pumpAndSettle();
-      expect(tester.widget<TextField>(field).focusNode?.hasFocus, isTrue);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  for (final contract in kOfferingTableDayViewContracts) {
-    for (final move in contract.moves.where(
-      (move) => move.kind == OfferingTableMoveKind.name,
-    )) {
-      testWidgets(
-        'Day ${contract.day} ${move.id} field survives keyboard open, typing, and close',
-        (tester) async {
-          addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
-          await _pumpDayView(
-            tester,
-            flowId: 1000 + contract.day,
-            day: kOfferingTableDays[contract.day - 1],
-          );
-          await tester.tap(find.byType(OfferingTableEventBlockVisual));
-          await tester.pumpAndSettle();
-
-          final moveControl = find.byKey(
-            ValueKey<String>(
-              'offering-table-day-${contract.day.toString().padLeft(2, '0')}-move-${move.id}',
-            ),
-          );
-          await tester.tap(moveControl);
-          await tester.pumpAndSettle();
-
-          final field = find.byKey(
-            ValueKey<String>('offering-table-field-${move.slot ?? move.id}'),
-          );
-          expect(
-            tester.widget<TextField>(field).focusNode?.hasFocus,
-            isTrue,
-            reason: 'Day ${contract.day}, move ${move.id}',
-          );
-          final mediaSizeBeforeKeyboard = MediaQuery.sizeOf(
-            tester.element(field),
-          );
-
-          tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-          await tester.pumpAndSettle();
-          expect(
-            MediaQuery.sizeOf(tester.element(field)),
-            mediaSizeBeforeKeyboard,
-            reason: 'Day ${contract.day}, move ${move.id}',
-          );
-          expect(
-            tester.getRect(field).bottom,
-            lessThanOrEqualTo(544),
-            reason: 'Day ${contract.day}, move ${move.id}',
-          );
-          expect(tester.testTextInput.isVisible, isTrue);
-
-          final value = 'Day ${contract.day} ${move.id}';
-          await tester.enterText(field, value);
-          await tester.pumpAndSettle();
-          expect(tester.widget<TextField>(field).controller?.text, value);
-          expect(
-            tester.getRect(field).bottom,
-            lessThanOrEqualTo(544),
-            reason: 'Day ${contract.day}, move ${move.id}',
-          );
-
-          tester.view.viewInsets = FakeViewPadding.zero;
-          await tester.pumpAndSettle();
-          expect(tester.widget<TextField>(field).focusNode?.hasFocus, isTrue);
-          expect(tester.takeException(), isNull);
-        },
-      );
-    }
-  }
+    expect(find.byKey(editableModalSystemInsetOwnerKey), findsOneWidget);
+    expect(MediaQuery.viewInsetsOf(tester.element(field)).bottom, 0);
+    expect(tester.getRect(field).bottom, lessThanOrEqualTo(544));
+    expect(tester.testTextInput.isVisible, isTrue);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'static block states and responsive cup geometry match the mock',

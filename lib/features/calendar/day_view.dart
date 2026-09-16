@@ -8828,6 +8828,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     try {
       showCalendarEventDetailSheetModal<void>(
         context: rootContext,
+        editable: _eventMaatFlowKind(event) == MaatFlowKind.offeringTable,
         builder: (sheetContext) => CalendarEventDetailSheet(
           hostContext: rootContext,
           initialTarget: sheetTarget,

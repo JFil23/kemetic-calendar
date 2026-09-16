@@ -210,7 +210,20 @@ class _OfferingTableDayV8PresentationState
   }
 
   void _focusWord(String id) {
-    _wordFocusNodes[id]?.requestFocus();
+    final keyContext = _wordKeys[id]?.currentContext;
+    if (keyContext == null) return;
+    unawaited(
+      Scrollable.ensureVisible(
+        keyContext,
+        alignment: .12,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 560),
+        curve: Curves.easeOutCubic,
+      ).then((_) {
+        if (mounted) _wordFocusNodes[id]?.requestFocus();
+      }),
+    );
   }
 
   void _resetDay() {
