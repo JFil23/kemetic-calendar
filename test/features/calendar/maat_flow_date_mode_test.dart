@@ -398,7 +398,7 @@ void main() {
 
     expect(shared, contains('class InstrumentEventSheetHost'));
     expect(shared, contains('delta / availableSheetHeight'));
-    expect(dayView, contains('InstrumentEventSheetHost('));
+    expect(dayView, contains('MaatDayViewSheetHost('));
     expect(dayView, contains('showCalendarEventDetailSheetModal<void>('));
     expect(dayView, isNot(contains('_instrumentSheetExtent')));
     expect(offering, contains('showOfferingTablePreviewDaySheet('));

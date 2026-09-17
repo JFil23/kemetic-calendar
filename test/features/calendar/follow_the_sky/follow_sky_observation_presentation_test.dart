@@ -299,7 +299,7 @@ void main() {
     );
 
     final foreground = find.byKey(
-      const ValueKey<String>('follow-sky-foreground-layer'),
+      const ValueKey<String>('follow-sky-static-lower-sheet'),
     );
     final presentationBody = find.byKey(
       const ValueKey<String>('follow-sky-presentation-body'),

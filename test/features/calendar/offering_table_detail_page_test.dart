@@ -1326,9 +1326,9 @@ void main() {
     );
     expect(
       outerBackplateBefore.top,
-      closeTo(361.44, 1),
+      closeTo(253.28, 1),
       reason:
-          'The shared Ma\'at Day View housing opens at the Follow Sky .58 extent.',
+          'The shared Ma\'at Day View housing allocates Offering Table its approved .71 extent.',
     );
     final outerHandle = tester.getRect(
       find.byKey(const ValueKey<String>('instrument-sheet-handle-mark')),

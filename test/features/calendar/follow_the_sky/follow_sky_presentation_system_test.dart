@@ -239,7 +239,7 @@ void main() {
 
       expect(source, isNot(contains('full-moon-2026-08-28')));
       expect(source, isNot(contains('FollowSkyObservationSheet(')));
-      expect(source, contains('InstrumentEventSheetHost('));
+      expect(source, contains('MaatDayViewSheetHost('));
       expect(
         sheetHost,
         contains('final keyboardVisible = keyboardIsVisible(context)'),

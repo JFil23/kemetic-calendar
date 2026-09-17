@@ -261,7 +261,7 @@ void main() {
       expect(sharedHost, contains('enableDrag: true'));
       expect(sharedHost, contains('useRootNavigator: false'));
       expect(sharedHostState, isNot(contains('child: Align(')));
-      expect(dayView, contains('InstrumentEventSheetHost('));
+      expect(dayView, contains('MaatDayViewSheetHost('));
       expect(dayView, contains('_buildEventDetailOverflowButton('));
     },
   );
@@ -286,28 +286,66 @@ void main() {
       'lib/features/calendar/the_djed/presentation/'
       'djed_day_presentation.dart',
     ).readAsString();
+    final followSky = await File(
+      'lib/features/calendar/follow_the_sky/presentation/widgets/'
+      'follow_sky_observation_presentation.dart',
+    ).readAsString();
+    final kar = await File(
+      'lib/features/calendar/the_kar/presentation/'
+      'kar_day_behavior_surface.dart',
+    ).readAsString();
 
-    expect(dayView, contains('final activeMaatDayViewHousing ='));
+    expect(dayView, contains('final activeMaatDayViewFlow = switch'));
     expect(
-      dayView,
-      contains(': instrumentEventSheetMinExtent,'),
-      reason: 'the four canonical Ma\'at sheets inherit Follow Sky\'s .58 host',
+      sharedHost,
+      contains('class MaatDayViewSheetHost extends StatelessWidget'),
+      reason: 'one shared widget owns Day View sheet chrome for every flow',
     );
-    expect(
-      dayView,
-      contains('activeKarInstrument\n            ? .71'),
-      reason: 'K\uA7E3r keeps its separately approved geometry',
-    );
+    for (final flow in <String>[
+      'followSky',
+      'offeringTable',
+      'readingHouse',
+      'djed',
+      'kar',
+    ]) {
+      expect(dayView, contains('MaatDayViewFlow.$flow'));
+    }
+    expect(sharedHost, contains('MaatDayViewFlow.offeringTable'));
+    expect(sharedHost, contains('initialExtent: .71'));
     expect(dayView, contains('return MaatDayViewFooterActions('));
     expect(sharedHost, contains('class MaatDayViewFooterActions'));
-    expect(sharedHost, contains('final double? fixedInstrumentHeight;'));
+    expect(sharedHost, contains('class MaatDayViewForegroundShell'));
+    expect(sharedHost, contains('class MaatDayViewForegroundContent'));
+    expect(sharedHost, contains("'maat-day-view-completion-slot'"));
+    expect(sharedHost, contains('class MaatDayViewGraphicSpace'));
+    expect(sharedHost, isNot(contains('fixedInstrumentHeight')));
+    expect(sharedHost, isNot(contains('initialLowerSheetPeek')));
+    expect(sharedHost, isNot(contains('lowerSheetOverlaysInstrument')));
 
-    expect(offering, isNot(contains('initialLowerSheetPeek:')));
+    expect(offering, contains('MaatDayViewGraphicSpace.revealable('));
+    expect(offering, contains('minimumForegroundPeek: 28'));
     expect(offering, isNot(contains("width: 38")));
     expect(reading, isNot(contains('ReadingHouseDayFooterActions')));
     expect(reading, isNot(contains("width: 38")));
     expect(djed, isNot(contains('DjedDayFooterActions')));
     expect(djed, isNot(contains('DjedDayFooterChrome')));
+    for (final presentationSource in <String>[
+      followSky,
+      offering,
+      reading,
+      djed,
+      kar,
+    ]) {
+      expect(presentationSource, contains('graphicSpace:'));
+      expect(presentationSource, contains('foregroundStyle:'));
+      expect(presentationSource, contains('completion:'));
+      expect(
+        presentationSource,
+        isNot(contains('lowerSheetOverlaysInstrument:')),
+      );
+      expect(presentationSource, isNot(contains('initialLowerSheetPeek:')));
+    }
+    expect(kar, isNot(contains('class _SheetHandle')));
   });
 
   test('End Flow successor is same-day, stable, and excludes ending flow', () {

@@ -58,23 +58,42 @@ void main() {
     );
   });
 
-  testWidgets('all thirty days use one fixed hero and one shared scroll owner', (
+  testWidgets('all thirty days size one fixed hero from their authored checklist', (
     tester,
   ) async {
+    final preferredHeights = <int, double>{};
     for (final contract in kOfferingTableDayViewContracts) {
       await _pumpPresentation(tester, contract: contract);
 
       final frame = tester.widget<InstrumentEventPresentationFrame>(
         find.byType(InstrumentEventPresentationFrame),
       );
+      final preferredHeight = frame.graphicSpace.fixedHeight!;
+      preferredHeights[contract.day] = preferredHeight;
+      final checklist = find.byKey(
+        const ValueKey<String>('offering-table-fixed-checklist'),
+      );
+      final hero = find.byKey(
+        const ValueKey<String>('offering-table-fixed-hero'),
+      );
+      expect(preferredHeight, greaterThanOrEqualTo(420));
       expect(
-        frame.initialLowerSheetPeek,
-        isNull,
+        frame.graphicSpace.foregroundStartFor(300),
+        272,
         reason: 'day ${contract.day}',
       );
-      expect(frame.fixedHeroHeight, isNull, reason: 'day ${contract.day}');
-      expect(frame.fixedInstrumentHeight, 420, reason: 'day ${contract.day}');
-      expect(frame.instrumentFooterHeight, 0, reason: 'day ${contract.day}');
+      expect(
+        frame.graphicSpace.artworkHeightFor(300, 272),
+        preferredHeight,
+        reason: 'day ${contract.day}',
+      );
+      expect(
+        frame.graphicSpace.foregroundStartFor(preferredHeight),
+        preferredHeight,
+        reason: 'day ${contract.day} becomes completely revealable',
+      );
+      expect(frame.graphicSpace.minimumForegroundPeek, 28);
+      expect(frame.graphicSpace.footerHeight, 0, reason: 'day ${contract.day}');
       expect(
         find.byKey(const ValueKey<String>('offering-table-fixed-hero')),
         findsOneWidget,
@@ -94,6 +113,11 @@ void main() {
         findsOneWidget,
         reason: 'day ${contract.day}',
       );
+      expect(
+        tester.getRect(checklist).bottom,
+        lessThanOrEqualTo(tester.getRect(hero).bottom - 20),
+        reason: 'day ${contract.day}',
+      );
       for (final move in contract.moves) {
         expect(
           find.byKey(
@@ -107,6 +131,13 @@ void main() {
       }
       expect(tester.takeException(), isNull, reason: 'day ${contract.day}');
     }
+    expect(preferredHeights.values.toSet().length, greaterThan(1));
+    expect(preferredHeights[30]!, greaterThan(preferredHeights[1]!));
+    expect(
+      preferredHeights.values.every((height) => height <= 712),
+      isTrue,
+      reason: 'every authored hero fits the fully expanded 390x844 sheet',
+    );
   });
 
   testWidgets('mapped fields and action state drive the day instrument', (

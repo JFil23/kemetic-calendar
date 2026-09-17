@@ -313,6 +313,100 @@ class InstrumentEventSheetGeometry {
   final double handleWidth;
 }
 
+/// The five built-in Ma'at flows that use the canonical Day View housing.
+///
+/// Detail-entry sheets and user-created flows deliberately do not use this
+/// identity. Keeping the identity here makes the housing configuration one
+/// shared authority instead of a collection of route-local booleans.
+enum MaatDayViewFlow { followSky, offeringTable, readingHouse, djed, kar }
+
+@immutable
+class MaatDayViewHousingSpec {
+  const MaatDayViewHousingSpec({
+    required this.hostKey,
+    required this.semanticLabel,
+    required this.handleColor,
+    required this.initialExtent,
+    this.footerActionColor,
+  });
+
+  factory MaatDayViewHousingSpec.forFlow(MaatDayViewFlow flow) {
+    return switch (flow) {
+      MaatDayViewFlow.followSky => const MaatDayViewHousingSpec(
+        hostKey: 'follow-sky-resizable-sheet',
+        semanticLabel: 'Resize Follow Sky sheet',
+        handleColor: Color(0x7AD4AE43),
+        initialExtent: instrumentEventSheetMinExtent,
+      ),
+      MaatDayViewFlow.offeringTable => const MaatDayViewHousingSpec(
+        hostKey: 'offering-table-resizable-sheet',
+        semanticLabel: 'Resize Offering Table sheet',
+        handleColor: Color(0xFF72571E),
+        initialExtent: .71,
+      ),
+      MaatDayViewFlow.readingHouse => const MaatDayViewHousingSpec(
+        hostKey: 'reading-house-resizable-sheet',
+        semanticLabel: 'Resize Reading House sheet',
+        handleColor: Color(0xFF33463E),
+        initialExtent: instrumentEventSheetMinExtent,
+      ),
+      MaatDayViewFlow.djed => const MaatDayViewHousingSpec(
+        hostKey: 'djed-resizable-sheet',
+        semanticLabel: 'Resize Djed sheet',
+        handleColor: Color(0xFF72571E),
+        initialExtent: instrumentEventSheetMinExtent,
+      ),
+      MaatDayViewFlow.kar => const MaatDayViewHousingSpec(
+        hostKey: 'kar-resizable-sheet',
+        semanticLabel: 'Resize Kꜣr sheet',
+        handleColor: Color(0xFF33444A),
+        initialExtent: .71,
+        footerActionColor: Color(0xFFA9CFDA),
+      ),
+    };
+  }
+
+  final String hostKey;
+  final String semanticLabel;
+  final Color handleColor;
+  final double initialExtent;
+  final Color? footerActionColor;
+}
+
+/// The one outer Day View sheet for every built-in Ma'at flow.
+///
+/// Flow-specific presentations supply content only. This widget owns the
+/// Follow-the-Sky-approved host geometry, resize policy, handle placement,
+/// menu slot, and fixed-footer slot.
+class MaatDayViewSheetHost extends StatelessWidget {
+  const MaatDayViewSheetHost({
+    super.key,
+    required this.flow,
+    required this.body,
+    required this.trailing,
+    required this.footer,
+  });
+
+  final MaatDayViewFlow flow;
+  final Widget body;
+  final Widget trailing;
+  final Widget footer;
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = MaatDayViewHousingSpec.forFlow(flow);
+    return InstrumentEventSheetHost(
+      key: ValueKey<String>(spec.hostKey),
+      semanticLabel: spec.semanticLabel,
+      handleColor: spec.handleColor,
+      initialExtent: spec.initialExtent,
+      trailing: trailing,
+      body: body,
+      footer: footer,
+    );
+  }
+}
+
 /// The single fixed action footer for canonical Ma'at Day View sheets.
 ///
 /// Event capabilities and callbacks remain owned by Day View. This widget owns
@@ -383,6 +477,194 @@ typedef InstrumentEventInputBuilder =
       double instrumentHeight,
     );
 
+enum _MaatDayViewGraphicSpaceMode { responsive, fixed, revealable }
+
+/// Flow-authored graphic dimensions consumed by the one shared housing.
+///
+/// These values describe how much fixed graphic space a flow needs. They do
+/// not provide alternate scrolling, sheet, or foreground implementations.
+@immutable
+class MaatDayViewGraphicSpace {
+  const MaatDayViewGraphicSpace.responsive({
+    required this.minimumHeroHeight,
+    required this.maximumHeroHeight,
+    required this.heroHeightFraction,
+    this.footerHeight = 0,
+  }) : _mode = _MaatDayViewGraphicSpaceMode.responsive,
+       fixedHeight = null,
+       minimumForegroundPeek = 0,
+       _foregroundFillsViewport = false;
+
+  const MaatDayViewGraphicSpace.fixed({
+    required double height,
+    bool foregroundFillsViewport = false,
+  }) : _mode = _MaatDayViewGraphicSpaceMode.fixed,
+       fixedHeight = height,
+       minimumHeroHeight = 0,
+       maximumHeroHeight = 0,
+       heroHeightFraction = 0,
+       footerHeight = 0,
+       minimumForegroundPeek = 0,
+       _foregroundFillsViewport = foregroundFillsViewport;
+
+  /// Gives one authored day/state its own natural upper-composition height.
+  ///
+  /// When the current outer-sheet extent is shorter, the foreground keeps a
+  /// small visible grab area and covers the rest. Resizing the outer sheet
+  /// reveals more of the unchanged composition; it never rescales the art.
+  const MaatDayViewGraphicSpace.revealable({
+    required double preferredHeight,
+    required this.minimumForegroundPeek,
+  }) : _mode = _MaatDayViewGraphicSpaceMode.revealable,
+       fixedHeight = preferredHeight,
+       minimumHeroHeight = 0,
+       maximumHeroHeight = 0,
+       heroHeightFraction = 0,
+       footerHeight = 0,
+       _foregroundFillsViewport = true,
+       assert(minimumForegroundPeek >= 0);
+
+  final _MaatDayViewGraphicSpaceMode _mode;
+  final double? fixedHeight;
+  final double minimumHeroHeight;
+  final double maximumHeroHeight;
+  final double heroHeightFraction;
+  final double footerHeight;
+  final double minimumForegroundPeek;
+  final bool _foregroundFillsViewport;
+
+  double foregroundStartFor(double boundedHeight) {
+    return switch (_mode) {
+      _MaatDayViewGraphicSpaceMode.responsive =>
+        (boundedHeight * heroHeightFraction).clamp(
+              minimumHeroHeight,
+              maximumHeroHeight,
+            ) +
+            footerHeight,
+      _MaatDayViewGraphicSpaceMode.fixed => fixedHeight!,
+      _MaatDayViewGraphicSpaceMode.revealable =>
+        boundedHeight >= fixedHeight!
+            ? fixedHeight!
+            : math.max(0.0, boundedHeight - minimumForegroundPeek),
+    };
+  }
+
+  double artworkHeightFor(double boundedHeight, double foregroundStart) {
+    return _mode == _MaatDayViewGraphicSpaceMode.revealable
+        ? fixedHeight!
+        : foregroundStart;
+  }
+
+  bool get foregroundFillsViewport => _foregroundFillsViewport;
+}
+
+@immutable
+class MaatDayViewForegroundStyle {
+  const MaatDayViewForegroundStyle.color({
+    required Color color,
+    required this.borderColor,
+  }) : backgroundColor = color,
+       backgroundGradient = null;
+
+  const MaatDayViewForegroundStyle.gradient({
+    required Gradient gradient,
+    required this.borderColor,
+  }) : backgroundColor = null,
+       backgroundGradient = gradient;
+
+  final Color? backgroundColor;
+  final Gradient? backgroundGradient;
+  final Color borderColor;
+}
+
+/// Follow the Sky's approved rising foreground shell shared by all five
+/// built-in Ma'at Day View presentations.
+class MaatDayViewForegroundShell extends StatelessWidget {
+  const MaatDayViewForegroundShell({
+    super.key,
+    required this.style,
+    required this.child,
+  });
+
+  final MaatDayViewForegroundStyle style;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: style.backgroundColor,
+        gradient: style.backgroundGradient,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border(top: BorderSide(color: style.borderColor)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0xB3000000),
+            blurRadius: 24,
+            offset: Offset(0, -8),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+/// The one completion position inside the canonical Ma'at Day View housing.
+///
+/// Flows own the picker state and callbacks. The housing owns where that
+/// picker sits relative to the flow body and fixed footer.
+class MaatDayViewForegroundContent extends StatelessWidget {
+  const MaatDayViewForegroundContent({
+    super.key,
+    required this.body,
+    this.completion,
+  });
+
+  final Widget body;
+  final Widget? completion;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        body,
+        if (completion != null) ...<Widget>[
+          KeyedSubtree(
+            key: const ValueKey<String>('maat-day-view-completion-slot'),
+            child: completion!,
+          ),
+          const SizedBox(height: 22),
+        ],
+      ],
+    );
+  }
+}
+
+/// Keeps upper-layer controls aligned with the stationary artwork while the
+/// one shared scroll owner moves the foreground over both.
+///
+/// The controls remain inside the earlier sliver, so the later foreground
+/// still paints and hit-tests above them when it covers the upper composition.
+class _StationaryInstrumentInput extends StatelessWidget {
+  const _StationaryInstrumentInput({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final position = Scrollable.maybeOf(context)?.position;
+    if (position == null) return child;
+    return AnimatedBuilder(
+      animation: position,
+      child: child,
+      builder: (context, child) =>
+          Transform.translate(offset: Offset(0, position.pixels), child: child),
+    );
+  }
+}
+
 /// The production geometry shared by instrument-backed calendar details.
 ///
 /// This owns only the frame that Follow the Sky already proved: the fixed
@@ -396,13 +678,11 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
     required this.instrumentFooter,
     required this.inputBuilder,
     required this.body,
+    this.completion,
     required this.bodyScrollKey,
     required this.lowerSheetKey,
-    this.fixedHeroHeight,
-    this.fixedInstrumentHeight,
-    this.instrumentFooterHeight = footerHeight,
-    this.initialLowerSheetPeek,
-    this.lowerSheetOverlaysInstrument = false,
+    required this.graphicSpace,
+    required this.foregroundStyle,
     this.instrumentInteractive = false,
   });
 
@@ -413,20 +693,11 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
   final Widget instrumentFooter;
   final InstrumentEventInputBuilder inputBuilder;
   final Widget body;
+  final Widget? completion;
   final Key bodyScrollKey;
   final Key lowerSheetKey;
-
-  /// Overrides the housing's foreground start when a flow authors a specific
-  /// amount of hero space above its scrolling content.
-  final double? fixedHeroHeight;
-
-  /// Gives a flow's fixed artwork its natural height without moving the
-  /// housing-owned foreground start. The foreground clips and covers artwork
-  /// beyond its own start; it never resizes that artwork.
-  final double? fixedInstrumentHeight;
-  final double instrumentFooterHeight;
-  final double? initialLowerSheetPeek;
-  final bool lowerSheetOverlaysInstrument;
+  final MaatDayViewGraphicSpace graphicSpace;
+  final MaatDayViewForegroundStyle foregroundStyle;
   final bool instrumentInteractive;
 
   @override
@@ -436,17 +707,14 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
         final boundedHeight = constraints.hasBoundedHeight
             ? constraints.maxHeight
             : 620.0;
-        final lowerSheetStart = initialLowerSheetPeek == null
-            ? (fixedHeroHeight ??
-                      math.min(282.0, math.max(238.0, boundedHeight * 0.46))) +
-                  instrumentFooterHeight
-            : math.max(0.0, boundedHeight - initialLowerSheetPeek!);
-        final instrumentHeight = lowerSheetOverlaysInstrument
-            ? boundedHeight
-            : (fixedInstrumentHeight ?? lowerSheetStart);
+        final lowerSheetStart = graphicSpace.foregroundStartFor(boundedHeight);
+        final instrumentHeight = graphicSpace.artworkHeightFor(
+          boundedHeight,
+          lowerSheetStart,
+        );
         final heroHeight = math.max(
           0.0,
-          instrumentHeight - instrumentFooterHeight,
+          instrumentHeight - graphicSpace.footerHeight,
         );
         return DecoratedBox(
           decoration: decoration,
@@ -470,9 +738,9 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                               ),
                             ),
                     ),
-                    if (instrumentFooterHeight > 0)
+                    if (graphicSpace.footerHeight > 0)
                       SizedBox(
-                        height: instrumentFooterHeight,
+                        height: graphicSpace.footerHeight,
                         child: instrumentFooter,
                       ),
                   ],
@@ -490,21 +758,32 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: SizedBox(
                       height: lowerSheetStart,
-                      child: inputBuilder(
-                        context,
-                        heroHeight,
-                        instrumentHeight,
+                      child: _StationaryInstrumentInput(
+                        child: inputBuilder(
+                          context,
+                          heroHeight,
+                          instrumentHeight,
+                        ),
                       ),
                     ),
                   ),
                   SliverToBoxAdapter(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        minHeight: lowerSheetOverlaysInstrument
+                        minHeight: graphicSpace.foregroundFillsViewport
                             ? boundedHeight
                             : 0,
                       ),
-                      child: RepaintBoundary(key: lowerSheetKey, child: body),
+                      child: RepaintBoundary(
+                        key: lowerSheetKey,
+                        child: MaatDayViewForegroundShell(
+                          style: foregroundStyle,
+                          child: MaatDayViewForegroundContent(
+                            body: body,
+                            completion: completion,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],

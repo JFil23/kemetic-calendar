@@ -524,7 +524,8 @@ void main() {
     final frame = tester.widget<InstrumentEventPresentationFrame>(
       find.byType(InstrumentEventPresentationFrame),
     );
-    expect(frame.initialLowerSheetPeek, isNull);
+    expect(frame.graphicSpace.minimumForegroundPeek, 0);
+    expect(frame.graphicSpace.fixedHeight, isNotNull);
     expect(
       find.descendant(
         of: find.byType(InstrumentEventPresentationFrame),
@@ -950,7 +951,8 @@ void main() {
     final frame = tester.widget<InstrumentEventPresentationFrame>(
       find.byType(InstrumentEventPresentationFrame),
     );
-    expect(frame.initialLowerSheetPeek, isNull);
+    expect(frame.graphicSpace.minimumForegroundPeek, 0);
+    expect(frame.graphicSpace.fixedHeight, isNotNull);
     expect(
       find.byKey(const ValueKey<String>('instrument-sheet-handle-mark')),
       findsOneWidget,

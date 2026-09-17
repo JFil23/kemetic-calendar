@@ -110,8 +110,6 @@ class DjedDayPresentation extends StatelessWidget {
           ],
         ),
       ),
-      fixedHeroHeight: completeInstrumentHeight,
-      instrumentFooterHeight: 0,
       instrument: _DjedInstrument(
         fixture: fixture,
         supports: supports,
@@ -130,10 +128,24 @@ class DjedDayPresentation extends StatelessWidget {
         onSmallerMoveChanged: onSmallerMoveChanged,
         onCloseBeam: onCloseBeam,
         onRaise: onRaise,
-        onCompletionSelected: onCompletionSelected,
+      ),
+      completion: _DjedCompletion(
+        selected: fixture.completion,
+        onSelected: onCompletionSelected,
       ),
       bodyScrollKey: const ValueKey<String>('djed-presentation-body'),
       lowerSheetKey: const ValueKey<String>('djed-practice-sheet'),
+      graphicSpace: MaatDayViewGraphicSpace.fixed(
+        height: completeInstrumentHeight,
+      ),
+      foregroundStyle: const MaatDayViewForegroundStyle.gradient(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[Color(0xFF0B0805), Color(0xFF080604)],
+        ),
+        borderColor: Color(0x36D4AE43),
+      ),
     );
   }
 }
@@ -619,7 +631,6 @@ class _DjedPracticeSheet extends StatelessWidget {
     this.onSmallerMoveChanged,
     this.onCloseBeam,
     this.onRaise,
-    this.onCompletionSelected,
   });
 
   final DjedDayVisualFixture fixture;
@@ -632,59 +643,35 @@ class _DjedPracticeSheet extends StatelessWidget {
   final ValueChanged<String>? onSmallerMoveChanged;
   final VoidCallback? onCloseBeam;
   final VoidCallback? onRaise;
-  final ValueChanged<DjedCompletionVisualState>? onCompletionSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: <Color>[Color(0xFF0B0805), Color(0xFF080604)],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              DjedSittingActionContent(
+                fixture: fixture,
+                onStageAction: onStageAction,
+                onMoveChanged: onMoveChanged,
+                onDoToday: onDoToday,
+                onPutOnCalendar: onPutOnCalendar,
+                onResultSelected: onResultSelected,
+                onResultNoteChanged: onResultNoteChanged,
+                onSmallerMoveChanged: onSmallerMoveChanged,
+                onCloseBeam: onCloseBeam,
+                onRaise: onRaise,
+              ),
+              const SizedBox(height: 17),
+              const _DjedInKemetDisclosure(),
+            ],
+          ),
         ),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-        border: Border(top: BorderSide(color: Color(0x36D4AE43))),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Color(0x9E000000),
-            blurRadius: 32,
-            offset: Offset(0, -15),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                DjedSittingActionContent(
-                  fixture: fixture,
-                  onStageAction: onStageAction,
-                  onMoveChanged: onMoveChanged,
-                  onDoToday: onDoToday,
-                  onPutOnCalendar: onPutOnCalendar,
-                  onResultSelected: onResultSelected,
-                  onResultNoteChanged: onResultNoteChanged,
-                  onSmallerMoveChanged: onSmallerMoveChanged,
-                  onCloseBeam: onCloseBeam,
-                  onRaise: onRaise,
-                ),
-                const SizedBox(height: 17),
-                const _DjedInKemetDisclosure(),
-              ],
-            ),
-          ),
-          _DjedCompletion(
-            selected: fixture.completion,
-            onSelected: onCompletionSelected,
-          ),
-          const SizedBox(height: 22),
-        ],
-      ),
+      ],
     );
   }
 }

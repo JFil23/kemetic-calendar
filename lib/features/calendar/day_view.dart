@@ -4506,23 +4506,14 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         _isOnboardingTargetEvent(target.event) &&
         widget.onboardingClosingBannerBuilder != null;
     final instrumentPresentation = _instrumentPresentationForTarget(target);
-    final activeFollowSkyInstrument =
-        instrumentPresentation.kind == _DayViewInstrumentKind.followSky;
-    final activeOfferingTableInstrument =
-        instrumentPresentation.kind == _DayViewInstrumentKind.offeringTable;
-    final activeDjedInstrument =
-        instrumentPresentation.kind == _DayViewInstrumentKind.djed;
-    final activeReadingHouseInstrument =
-        instrumentPresentation.kind == _DayViewInstrumentKind.readingHouse;
-    final activeKarInstrument =
-        instrumentPresentation.kind == _DayViewInstrumentKind.kar;
-    final activeMaatDayViewHousing =
-        activeFollowSkyInstrument ||
-        activeOfferingTableInstrument ||
-        activeReadingHouseInstrument ||
-        activeDjedInstrument;
-    final activeInstrumentPresentation =
-        activeMaatDayViewHousing || activeKarInstrument;
+    final activeMaatDayViewFlow = switch (instrumentPresentation.kind) {
+      _DayViewInstrumentKind.followSky => MaatDayViewFlow.followSky,
+      _DayViewInstrumentKind.offeringTable => MaatDayViewFlow.offeringTable,
+      _DayViewInstrumentKind.readingHouse => MaatDayViewFlow.readingHouse,
+      _DayViewInstrumentKind.djed => MaatDayViewFlow.djed,
+      _DayViewInstrumentKind.kar => MaatDayViewFlow.kar,
+      _ => null,
+    };
 
     Widget buildDetailSurface() {
       if (_isWorkspacePresentation) {
@@ -4561,41 +4552,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
 
-    if (activeInstrumentPresentation && !_isWorkspacePresentation) {
-      return InstrumentEventSheetHost(
-        key: ValueKey<String>(
-          activeFollowSkyInstrument
-              ? 'follow-sky-resizable-sheet'
-              : activeOfferingTableInstrument
-              ? 'offering-table-resizable-sheet'
-              : activeReadingHouseInstrument
-              ? 'reading-house-resizable-sheet'
-              : activeKarInstrument
-              ? 'kar-resizable-sheet'
-              : 'djed-resizable-sheet',
-        ),
-        semanticLabel: activeFollowSkyInstrument
-            ? 'Resize Follow Sky sheet'
-            : activeOfferingTableInstrument
-            ? 'Resize Offering Table sheet'
-            : activeReadingHouseInstrument
-            ? 'Resize Reading House sheet'
-            : activeKarInstrument
-            ? 'Resize Kꜣr sheet'
-            : 'Resize Djed sheet',
-        handleColor: activeKarInstrument
-            ? const Color(0xFF33444A)
-            : activeReadingHouseInstrument
-            ? const Color(0xFF33463E)
-            : activeDjedInstrument || activeOfferingTableInstrument
-            ? const Color(0xFF72571E)
-            : _dayGold.withValues(alpha: 0.48),
-        initialExtent: activeKarInstrument
-            ? .71
-            : instrumentEventSheetMinExtent,
-        geometry: activeKarInstrument
-            ? InstrumentEventSheetGeometry.layered
-            : null,
+    if (activeMaatDayViewFlow != null && !_isWorkspacePresentation) {
+      final housingSpec = MaatDayViewHousingSpec.forFlow(activeMaatDayViewFlow);
+      return MaatDayViewSheetHost(
+        flow: activeMaatDayViewFlow,
         trailing: _buildEventDetailOverflowButton(
           rootContext: widget.hostContext,
           sheetContext: context,
@@ -4606,7 +4566,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           rootContext: widget.hostContext,
           sheetContext: context,
           target: target,
-          actionColor: activeKarInstrument ? const Color(0xFFA9CFDA) : null,
+          actionColor: housingSpec.footerActionColor,
         ),
       );
     }
@@ -5460,6 +5420,9 @@ class DayViewPage extends StatefulWidget {
   final DayViewRestorationCallback? onRestorationStateChanged;
   final bool Function()? shouldPreserveEventDetailRestorationOnClose;
   final KarRepository? karRepository;
+  final SkyCatalog? followSkyCatalog;
+  final SkyInstrumentDataProvider? followSkyInstrumentProvider;
+  final DateTime Function()? followSkyNow;
   final DateTime Function()? clock;
 
   const DayViewPage({
@@ -5524,6 +5487,9 @@ class DayViewPage extends StatefulWidget {
     this.onRestorationStateChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
     this.karRepository,
+    this.followSkyCatalog,
+    this.followSkyInstrumentProvider,
+    this.followSkyNow,
     this.clock,
   });
 
@@ -6504,6 +6470,10 @@ class _DayViewPageState extends State<DayViewPage> {
                               onboardingClosingBannerBuilder:
                                   widget.onboardingClosingBannerBuilder,
                               karRepository: widget.karRepository,
+                              followSkyCatalog: widget.followSkyCatalog,
+                              followSkyInstrumentProvider:
+                                  widget.followSkyInstrumentProvider,
+                              followSkyNow: widget.followSkyNow,
                               clock: widget.clock,
                               initialEventDetailRestorationState:
                                   _activeEventDetailRestoration,
@@ -6643,6 +6613,9 @@ class DayViewGrid extends StatefulWidget {
   resolveAdjacentEvent;
   final Future<void> Function(int ky, int km, int kd)? onNavigateToDay;
   final KarRepository? karRepository;
+  final SkyCatalog? followSkyCatalog;
+  final SkyInstrumentDataProvider? followSkyInstrumentProvider;
+  final DateTime Function()? followSkyNow;
   final DateTime Function()? clock;
 
   const DayViewGrid({
@@ -6697,6 +6670,9 @@ class DayViewGrid extends StatefulWidget {
     this.resolveAdjacentEvent,
     this.onNavigateToDay,
     this.karRepository,
+    this.followSkyCatalog,
+    this.followSkyInstrumentProvider,
+    this.followSkyNow,
     this.clock,
   });
 
@@ -8812,6 +8788,9 @@ class _DayViewGridState extends State<DayViewGrid> {
           onOnboardingObservedJournalNext:
               widget.onOnboardingObservedJournalNext,
           onboardingClosingBannerBuilder: widget.onboardingClosingBannerBuilder,
+          followSkyCatalog: widget.followSkyCatalog,
+          followSkyInstrumentProvider: widget.followSkyInstrumentProvider,
+          followSkyNow: widget.followSkyNow,
           karRepository: widget.karRepository,
         ),
       ).whenComplete(releaseSheet);

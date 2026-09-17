@@ -293,8 +293,25 @@ class _FollowSkyObservationPresentationState
         child: SizedBox(height: heroHeight, child: _buildSkyInput()),
       ),
       body: _buildBody(),
+      completion: CalendarCompletionPicker(
+        key: const ValueKey<String>('maat-day-view-completion-picker'),
+        current: _completion,
+        saving: _committingCompletion,
+        style: kMaatDayViewCompletionPickerStyle,
+        onChanged: (status) => unawaited(_commitCompletion(status)),
+      ),
       bodyScrollKey: const ValueKey<String>('follow-sky-presentation-body'),
       lowerSheetKey: const ValueKey<String>('follow-sky-static-lower-sheet'),
+      graphicSpace: const MaatDayViewGraphicSpace.responsive(
+        minimumHeroHeight: 238,
+        maximumHeroHeight: 282,
+        heroHeightFraction: .46,
+        footerHeight: InstrumentEventPresentationFrame.footerHeight,
+      ),
+      foregroundStyle: const MaatDayViewForegroundStyle.color(
+        color: _velvet,
+        borderColor: Color(0x3A6876D8),
+      ),
     );
   }
 
@@ -580,19 +597,6 @@ class _FollowSkyObservationPresentationState
   Widget _buildBody() {
     return Container(
       key: const ValueKey<String>('follow-sky-foreground-layer'),
-      padding: const EdgeInsets.only(bottom: 22),
-      decoration: const BoxDecoration(
-        color: _velvet,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border(top: BorderSide(color: Color(0x3A6876D8))),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Color(0xB3000000),
-            blurRadius: 24,
-            offset: Offset(0, -8),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -685,13 +689,6 @@ class _FollowSkyObservationPresentationState
             controller: _reflectionController,
             fieldKey: const ValueKey<String>('follow-sky-fixture-reflection'),
             style: _reflectionStyle,
-          ),
-          CalendarCompletionPicker(
-            key: const ValueKey<String>('maat-day-view-completion-picker'),
-            current: _completion,
-            saving: _committingCompletion,
-            style: kMaatDayViewCompletionPickerStyle,
-            onChanged: (status) => unawaited(_commitCompletion(status)),
           ),
         ],
       ),

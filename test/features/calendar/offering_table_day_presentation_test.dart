@@ -115,15 +115,15 @@ void main() {
     expect(handle, findsOneWidget);
     expect(presentation, findsOneWidget);
     final host = tester.widget<InstrumentEventSheetHost>(sheet);
-    expect(host.initialExtent, instrumentEventSheetMinExtent);
+    expect(host.initialExtent, .71);
     expect(host.geometry, isNull);
     final frame = tester.widget<InstrumentEventPresentationFrame>(
       find.byType(InstrumentEventPresentationFrame),
     );
-    expect(frame.fixedInstrumentHeight, 420);
+    expect(frame.graphicSpace.fixedHeight, 420);
 
     final availableHeight = _viewport.height - 12;
-    final initialSheetHeight = availableHeight * instrumentEventSheetMinExtent;
+    final initialSheetHeight = availableHeight * .71;
     final initialPageHeight = initialSheetHeight - 48 - 72;
     expect(tester.getSize(page).height, closeTo(initialPageHeight, 20));
     final pageBeforeResize = tester.getSize(page);
@@ -137,12 +137,16 @@ void main() {
     );
     expect(tester.getRect(hero), heroBeforeResize);
 
-    final body = find.byKey(
-      const ValueKey<String>('offering-table-presentation-body'),
+    final foreground = find.byKey(
+      const ValueKey<String>('offering-table-layered-practice-sheet'),
     );
     final sheetBeforeInnerScroll = tester.getRect(sheet);
     final heroBeforeInnerScroll = tester.getRect(hero);
-    await tester.drag(body, const Offset(0, -400));
+    final foregroundBeforeScroll = tester.getRect(foreground);
+    await tester.dragFrom(
+      Offset(foregroundBeforeScroll.center.dx, foregroundBeforeScroll.top + 18),
+      const Offset(0, -400),
+    );
     await tester.pumpAndSettle();
     expect(tester.getRect(sheet), sheetBeforeInnerScroll);
     expect(tester.getRect(hero), heroBeforeInnerScroll);

@@ -646,6 +646,56 @@ void main() {
   });
 
   testWidgets(
+    'all six Day View sittings lower the foreground below the complete fixed hero',
+    (tester) async {
+      _setPhoneViewport(tester);
+      for (var stageIndex = 0; stageIndex < 6; stageIndex++) {
+        final repository = MemoryKarRepository(
+          initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: _activeShrine()},
+        );
+        await _pumpDay(
+          tester,
+          repository: repository,
+          flowId: 91,
+          stageIndex: stageIndex,
+        );
+        final hero = find.byKey(const ValueKey<String>('kar-fixed-hero'));
+        final foreground = find.byKey(
+          const ValueKey<String>('kar-practice-sheet'),
+        );
+        final heroBefore = tester.getRect(hero);
+        final foregroundBefore = tester.getRect(foreground);
+        expect(
+          heroBefore.bottom,
+          lessThanOrEqualTo(foregroundBefore.top),
+          reason: 'stage $stageIndex',
+        );
+        if (stageIndex < 5) {
+          expect(
+            tester
+                .getRect(
+                  find.byKey(const ValueKey<String>('kar-day-shrine-stage')),
+                )
+                .bottom,
+            lessThanOrEqualTo(foregroundBefore.top),
+            reason: 'stage $stageIndex',
+          );
+        }
+
+        await tester.drag(foreground, const Offset(0, -180));
+        await tester.pumpAndSettle();
+        expect(tester.getRect(hero), heroBefore, reason: 'stage $stageIndex');
+        expect(
+          tester.getRect(foreground).top,
+          lessThan(foregroundBefore.top),
+          reason: 'stage $stageIndex',
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    },
+  );
+
+  testWidgets(
     'Day 30 walk stays in the same sheet and ignores older-cycle scenes',
     (tester) async {
       _setPhoneViewport(tester);

@@ -207,6 +207,45 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'chat composer stays in the fixed upper composition and cannot be tapped through the foreground',
+    (tester) async {
+      await pumpPresentation(tester, size: const Size(390, 844));
+      final field = find.byKey(
+        const ValueKey<String>('reading-house-chat-message-field'),
+      );
+      final editable = find.descendant(
+        of: field,
+        matching: find.byType(EditableText),
+      );
+      final lower = find.byKey(
+        const ValueKey<String>('reading-house-practice-sheet'),
+      );
+      final fieldBefore = tester.getRect(field);
+      final lowerBefore = tester.getRect(lower);
+
+      await tester.tap(field);
+      await tester.pump();
+      expect(tester.widget<EditableText>(editable).focusNode.hasFocus, isTrue);
+      tester.widget<EditableText>(editable).focusNode.unfocus();
+      await tester.pump();
+
+      await tester.dragFrom(
+        Offset(lowerBefore.center.dx, lowerBefore.top + 20),
+        const Offset(0, -220),
+      );
+      await tester.pumpAndSettle();
+      final lowerAfter = tester.getRect(lower);
+      expect(lowerAfter.top, lessThan(fieldBefore.center.dy));
+      expect(tester.getRect(field), fieldBefore);
+
+      await tester.tapAt(fieldBefore.center);
+      await tester.pump();
+      expect(tester.widget<EditableText>(editable).focusNode.hasFocus, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('completion selection uses the authored three-state control', (
     tester,
   ) async {

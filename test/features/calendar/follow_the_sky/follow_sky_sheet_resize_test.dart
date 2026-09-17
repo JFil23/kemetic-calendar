@@ -1,18 +1,28 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/sky_catalog.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/sky_catalog_repository.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/sky_instrument_data_provider.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/track_sky_materializer.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../support/maat_flow_visual_goldens.dart';
+import '../../../support/maat_flow_visual_test_fonts.dart';
 
 const _viewport = Size(390, 844);
 const _flowId = 73;
 const _minimumExtent = 0.58;
 const _reservedChromeHeight = 120.0;
+const _visualCaptureKey = ValueKey<String>('follow-sky-housing-visual-capture');
+final _goldenRoot = '../$maatFlowVisualGoldenRoot';
 late SkyCatalog _catalog;
 
 Future<void> _ensureSupabaseInitialized() async {
@@ -31,9 +41,22 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    const appLinksMessages = MethodChannel('com.llfbandit.app_links/messages');
+    const appLinksEvents = MethodChannel('com.llfbandit.app_links/events');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(appLinksMessages, (_) async => null);
+    messenger.setMockMethodCallHandler(appLinksEvents, (_) async {
+      scheduleMicrotask(
+        () =>
+            messenger.handlePlatformMessage(appLinksEvents.name, null, (_) {}),
+      );
+      return null;
+    });
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await _ensureSupabaseInitialized();
     _catalog = await SkyCatalogRepository().load();
+    await loadMaatFlowVisualTestFonts();
   });
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -115,6 +138,27 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Follow Sky defines the shared lowered and raised housing', (
+    tester,
+  ) async {
+    await _pumpFollowSkySheet(tester);
+
+    expect(find.byType(MaatDayViewSheetHost), findsOneWidget);
+    expect(find.byType(MaatDayViewForegroundShell), findsOneWidget);
+    expect(find.byType(MaatDayViewForegroundContent), findsOneWidget);
+
+    final foreground = find.byKey(
+      const ValueKey<String>('follow-sky-static-lower-sheet'),
+    );
+    final loweredRect = tester.getRect(foreground);
+    await tester.dragFrom(
+      Offset(loweredRect.center.dx, loweredRect.top + 24),
+      const Offset(0, -250),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getRect(foreground).top, lessThan(loweredRect.top));
+  });
+
   testWidgets('V2 ownership opens the sheet after the Flow is renamed', (
     tester,
   ) async {
@@ -166,35 +210,43 @@ void main() {
         intention: 'self confidence',
       );
       await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.dark(),
-          home: Scaffold(
-            body: DayViewGrid(
-              ky: 1,
-              km: 1,
-              kd: 1,
-              notes: <NoteData>[
-                NoteData(
-                  clientEventId: 'follow-sky-day-view-fixture',
-                  title: 'Full Moon + Partial Lunar Eclipse',
-                  allDay: false,
-                  start: const TimeOfDay(hour: 21, minute: 12),
-                  end: const TimeOfDay(hour: 22, minute: 0),
-                  flowId: _flowId,
-                  behaviorPayload: behaviorPayload,
-                ),
-              ],
-              showGregorian: false,
-              flowIndex: const <int, FlowData>{
-                _flowId: FlowData(
-                  id: _flowId,
-                  name: 'Follow the Sky',
-                  color: Color(0xFF9DA8FF),
-                  active: true,
-                ),
-              },
-              activeLedgerFlowIds: const <int>{_flowId},
-              initialScrollOffset: 20 * 60,
+        RepaintBoundary(
+          key: _visualCaptureKey,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.dark,
+            home: Scaffold(
+              body: DayViewGrid(
+                ky: 1,
+                km: 1,
+                kd: 1,
+                notes: <NoteData>[
+                  NoteData(
+                    clientEventId: 'follow-sky-day-view-fixture',
+                    title: 'Full Moon + Partial Lunar Eclipse',
+                    allDay: false,
+                    start: const TimeOfDay(hour: 21, minute: 12),
+                    end: const TimeOfDay(hour: 22, minute: 0),
+                    flowId: _flowId,
+                    behaviorPayload: behaviorPayload,
+                  ),
+                ],
+                showGregorian: false,
+                flowIndex: const <int, FlowData>{
+                  _flowId: FlowData(
+                    id: _flowId,
+                    name: 'Follow the Sky',
+                    color: Color(0xFF9DA8FF),
+                    active: true,
+                  ),
+                },
+                activeLedgerFlowIds: const <int>{_flowId},
+                initialScrollOffset: 20 * 60,
+                followSkyCatalog: _catalog,
+                followSkyInstrumentProvider:
+                    const CatalogSkyInstrumentDataProvider(),
+                followSkyNow: () => DateTime(2026, 8, 27, 12),
+              ),
             ),
           ),
         ),
@@ -218,6 +270,29 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       expect(_sheet, findsOneWidget);
       expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isTrue);
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile(
+          '$_goldenRoot/maat-day-housing-follow-sky-lowered-390x844.png',
+        ),
+      );
+
+      final foreground = find.byKey(
+        const ValueKey<String>('follow-sky-static-lower-sheet'),
+      );
+      final loweredRect = tester.getRect(foreground);
+      await tester.dragFrom(
+        Offset(loweredRect.center.dx, loweredRect.top + 24),
+        const Offset(0, -250),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getRect(foreground).top, lessThan(loweredRect.top));
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile(
+          '$_goldenRoot/maat-day-housing-follow-sky-raised-390x844.png',
+        ),
+      );
 
       final sheetTop = tester.getTopLeft(_sheet).dy;
       expect(sheetTop, greaterThan(0));
@@ -293,27 +368,31 @@ Future<void> _pumpFollowSkySheet(
   );
 
   await tester.pumpWidget(
-    MaterialApp(
-      theme: ThemeData.dark(),
-      home: Builder(
-        builder: (context) => Scaffold(
-          backgroundColor: Colors.black,
-          resizeToAvoidBottomInset: false,
-          body: CalendarEventDetailSheet(
-            hostContext: context,
-            initialTarget: target,
-            followSkyCatalog: _catalog,
-            followSkyInstrumentProvider:
-                const CatalogSkyInstrumentDataProvider(),
-            followSkyNow: () => DateTime(2026, 8, 27, 12),
-            flowResolver: (flowId) => flowId == _flowId
-                ? FlowData(
-                    id: _flowId,
-                    name: flowName,
-                    color: Color(0xFF9DA8FF),
-                    active: true,
-                  )
-                : null,
+    RepaintBoundary(
+      key: _visualCaptureKey,
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData.dark(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            backgroundColor: Colors.black,
+            resizeToAvoidBottomInset: false,
+            body: CalendarEventDetailSheet(
+              hostContext: context,
+              initialTarget: target,
+              followSkyCatalog: _catalog,
+              followSkyInstrumentProvider:
+                  const CatalogSkyInstrumentDataProvider(),
+              followSkyNow: () => DateTime(2026, 8, 27, 12),
+              flowResolver: (flowId) => flowId == _flowId
+                  ? FlowData(
+                      id: _flowId,
+                      name: flowName,
+                      color: Color(0xFF9DA8FF),
+                      active: true,
+                    )
+                  : null,
+            ),
           ),
         ),
       ),

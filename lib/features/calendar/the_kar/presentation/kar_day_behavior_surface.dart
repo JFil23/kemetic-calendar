@@ -47,6 +47,8 @@ class KarDayBehaviorSurface extends StatefulWidget {
 }
 
 class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
+  static const double _fixedHeroHeight = 354;
+
   KarShrine? _shrine;
   bool _loading = true;
   bool _saving = false;
@@ -186,18 +188,34 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
           ],
         ),
       ),
-      initialLowerSheetPeek: 241.75,
-      lowerSheetOverlaysInstrument: true,
-      instrumentFooterHeight: 0,
-      instrument: _buildHeroLayer(cycle),
-      instrumentFooter: const SizedBox.shrink(),
-      inputBuilder: (_, _, instrumentHeight) => _buildHeroControls(
-        cycle,
-        availableHeight: math.max(0, instrumentHeight - 241.75),
+      instrument: KeyedSubtree(
+        key: const ValueKey<String>('kar-fixed-hero'),
+        child: _buildHeroLayer(cycle),
       ),
+      instrumentFooter: const SizedBox.shrink(),
+      inputBuilder: (_, _, _) =>
+          _buildHeroControls(cycle, availableHeight: _fixedHeroHeight),
       body: _buildPracticeLayer(cycle),
+      completion: widget.completionPanel == null
+          ? null
+          : KeyedSubtree(
+              key: const ValueKey<String>('kar-completion-picker'),
+              child: widget.completionPanel!,
+            ),
       bodyScrollKey: const ValueKey<String>('kar-day-sheet-scroll'),
       lowerSheetKey: const ValueKey<String>('kar-practice-sheet'),
+      graphicSpace: const MaatDayViewGraphicSpace.fixed(
+        height: _fixedHeroHeight,
+        foregroundFillsViewport: true,
+      ),
+      foregroundStyle: MaatDayViewForegroundStyle.gradient(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[Color(0xFF0A0E0F), Color(0xFF07090A)],
+        ),
+        borderColor: Color(widget.netjer.accentValue).withValues(alpha: .21),
+      ),
     );
   }
 
@@ -351,47 +369,16 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
     return _practiceShell(_buildFreshPractice(cycle, stageIndex, active));
   }
 
-  Widget _practiceShell(Widget child) => Container(
-    decoration: BoxDecoration(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-      border: Border(
-        top: BorderSide(
-          color: Color(widget.netjer.accentValue).withValues(alpha: .21),
-        ),
-      ),
-      gradient: const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: <Color>[Color(0xFF0A0E0F), Color(0xFF07090A)],
-      ),
-      boxShadow: const <BoxShadow>[
-        BoxShadow(
-          color: Color(0xA3000000),
-          blurRadius: 32,
-          offset: Offset(0, -15),
-        ),
-      ],
+  Widget _practiceShell(Widget child) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      18,
+      22,
+      18,
+      widget.completionPanel == null ? 32 : 0,
     ),
-    child: Stack(
-      children: <Widget>[
-        const Positioned(left: 0, right: 0, top: 7, child: _SheetHandle()),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 22, 18, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              child,
-              if (widget.completionPanel != null) ...<Widget>[
-                const SizedBox(height: 18),
-                KeyedSubtree(
-                  key: const ValueKey<String>('kar-completion-picker'),
-                  child: widget.completionPanel!,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[child],
     ),
   );
 
@@ -1253,21 +1240,6 @@ class _CaptureChoiceButton extends StatelessWidget {
       child: Text(
         label,
         style: _style(ready ? accent2 : const Color(0xFFAEB8B8), 16),
-      ),
-    ),
-  );
-}
-
-class _SheetHandle extends StatelessWidget {
-  const _SheetHandle();
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Container(
-      width: 46,
-      height: 4,
-      decoration: BoxDecoration(
-        color: const Color(0xFF3A372E),
-        borderRadius: BorderRadius.circular(99),
       ),
     ),
   );

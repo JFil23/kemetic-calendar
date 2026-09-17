@@ -221,22 +221,127 @@ class _OfferingTableDayV8PresentationState
     _scheduleSave();
   }
 
+  double _measureMoveText(
+    BuildContext context,
+    String text,
+    TextStyle style,
+    double maxWidth,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout(maxWidth: maxWidth);
+    return painter.height;
+  }
+
+  double _measureMoveWidth(BuildContext context, String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    return painter.width;
+  }
+
+  double _pickRowsHeight(
+    BuildContext context,
+    OfferingTableMoveContract move,
+    double maxWidth,
+  ) {
+    const optionStyle = TextStyle(fontFamily: _ui, fontSize: 7.7, height: 1);
+    const spacing = 3.0;
+    final rowHeight =
+        _measureMoveText(context, 'Ag', optionStyle, maxWidth) + 10;
+    var rows = 1;
+    var rowWidth = 0.0;
+    for (final option in move.options) {
+      final width = _measureMoveWidth(context, option, optionStyle) + 12;
+      final nextWidth = rowWidth == 0 ? width : rowWidth + spacing + width;
+      if (rowWidth > 0 && nextWidth > maxWidth) {
+        rows += 1;
+        rowWidth = width;
+      } else {
+        rowWidth = nextWidth;
+      }
+    }
+    return rows * rowHeight + (rows - 1) * spacing;
+  }
+
+  double _checklistHeight(BuildContext context, double width) {
+    const labelStyle = TextStyle(
+      fontFamily: _display,
+      fontSize: 11.4,
+      height: 1.22,
+    );
+    const timerStyle = TextStyle(fontFamily: _ui, fontSize: 7.7);
+    final labelWidth = math.max(1.0, width - 21);
+    var height = 0.0;
+    for (final move in widget.contract.moves) {
+      final labelHeight = _measureMoveText(
+        context,
+        move.label,
+        labelStyle,
+        labelWidth,
+      );
+      height += 10 + math.max(13, labelHeight);
+      if (move.kind == OfferingTableMoveKind.pick) {
+        height += 5 + _pickRowsHeight(context, move, labelWidth);
+      }
+      if (move.kind == OfferingTableMoveKind.timer) {
+        height +=
+            2 +
+            _measureMoveText(
+              context,
+              'tap to begin · 0:00',
+              timerStyle,
+              labelWidth,
+            );
+      }
+    }
+    return height;
+  }
+
+  double _preferredHeroHeight(BuildContext context) {
+    // The HTML gives the visual zone a 254px minimum and lets a taller
+    // day-specific checklist increase the upper composition's natural height.
+    // The shared frame consumes this authored result; it does not impose one
+    // height on all thirty days.
+    final frameWidth = math.max(0.0, MediaQuery.sizeOf(context).width - 20);
+    final visualWidth = math.max(0.0, frameWidth - 20);
+    final checklistWidth = math.max(1.0, (visualWidth - 10) * .57);
+    final checklistHeight = _checklistHeight(context, checklistWidth);
+    return 420 + math.max(0.0, checklistHeight - 254);
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = _now;
+    final preferredHeroHeight = _preferredHeroHeight(context);
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('offering-table-day-presentation-v8'),
       decoration: const BoxDecoration(color: _velvet),
-      fixedInstrumentHeight: 420,
-      instrumentFooterHeight: 0,
       instrument: _buildHero(now),
       instrumentInteractive: true,
       instrumentFooter: const SizedBox.shrink(),
       inputBuilder: (_, _, _) => const SizedBox.shrink(),
       body: _buildPracticeLayer(now),
+      completion: widget.completionPanel,
       bodyScrollKey: const ValueKey<String>('offering-table-presentation-body'),
       lowerSheetKey: const ValueKey<String>(
         'offering-table-layered-practice-sheet',
+      ),
+      graphicSpace: MaatDayViewGraphicSpace.revealable(
+        preferredHeight: preferredHeroHeight,
+        minimumForegroundPeek: 28,
+      ),
+      foregroundStyle: const MaatDayViewForegroundStyle.gradient(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[Color(0xFF0B0805), Color(0xFF080604)],
+        ),
+        borderColor: Color(0x30C99A3D),
       ),
     );
   }
@@ -398,7 +503,10 @@ class _OfferingTableDayV8PresentationState
                 Expanded(
                   flex: 57,
                   child: CustomSingleChildLayout(
-                    delegate: const _OfferingMoveListLayout(centerY: 237),
+                    delegate: const _OfferingMoveListLayout(
+                      centerY: 237,
+                      minimumTop: 118,
+                    ),
                     child: _MoveList(
                       contract: widget.contract,
                       state: _state,
@@ -421,22 +529,6 @@ class _OfferingTableDayV8PresentationState
     final noMotion = MediaQuery.disableAnimationsOf(context);
     return Container(
       key: const ValueKey<String>('offering-table-foreground-layer'),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: <Color>[Color(0xFF0B0805), Color(0xFF080604)],
-        ),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-        border: Border(top: BorderSide(color: Color(0x30C99A3D))),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Color(0x9E000000),
-            blurRadius: 32,
-            offset: Offset(0, -15),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -556,8 +648,6 @@ class _OfferingTableDayV8PresentationState
               ],
             ),
           ),
-          widget.completionPanel,
-          const SizedBox(height: 22),
         ],
       ),
     );
@@ -708,9 +798,13 @@ class _OfferingTableSparkPainter extends CustomPainter {
 }
 
 class _OfferingMoveListLayout extends SingleChildLayoutDelegate {
-  const _OfferingMoveListLayout({required this.centerY});
+  const _OfferingMoveListLayout({
+    required this.centerY,
+    required this.minimumTop,
+  });
 
   final double centerY;
+  final double minimumTop;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
@@ -718,11 +812,11 @@ class _OfferingMoveListLayout extends SingleChildLayoutDelegate {
 
   @override
   Offset getPositionForChild(Size size, Size childSize) =>
-      Offset(0, centerY - childSize.height / 2);
+      Offset(0, math.max(minimumTop, centerY - childSize.height / 2));
 
   @override
   bool shouldRelayout(covariant _OfferingMoveListLayout oldDelegate) =>
-      oldDelegate.centerY != centerY;
+      oldDelegate.centerY != centerY || oldDelegate.minimumTop != minimumTop;
 }
 
 class _OfferingTableV8CourseTrack extends StatelessWidget {
@@ -926,6 +1020,7 @@ class _MoveList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      key: const ValueKey<String>('offering-table-fixed-checklist'),
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         for (final move in contract.moves) _move(context, move),

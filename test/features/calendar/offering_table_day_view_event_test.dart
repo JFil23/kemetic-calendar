@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
-import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_contract.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_state.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_v8_presentation.dart';
@@ -838,6 +837,53 @@ void main() {
   );
 
   testWidgets(
+    'Offering Day 30 outer resize reveals its full variable-height hero',
+    (tester) async {
+      await _pumpDayView(tester, flowId: 1198, day: kOfferingTableDays[29]);
+      await tester.tap(find.byType(OfferingTableEventBlockVisual));
+      await tester.pumpAndSettle();
+
+      final presentation = find.byKey(
+        const ValueKey<String>('offering-table-day-presentation-v8'),
+      );
+      final fixedHero = find.byKey(
+        const ValueKey<String>('offering-table-fixed-hero'),
+      );
+      final checklist = find.byKey(
+        const ValueKey<String>('offering-table-fixed-checklist'),
+      );
+      final lowerSheet = find.byKey(
+        const ValueKey<String>('offering-table-layered-practice-sheet'),
+      );
+      final handle = find.byKey(
+        const ValueKey<String>('follow-sky-sheet-resize-handle'),
+      );
+      final heroHeight = tester.getRect(fixedHero).height;
+      final initialForegroundTop =
+          tester.getRect(lowerSheet).top - tester.getRect(presentation).top;
+
+      expect(initialForegroundTop, lessThan(heroHeight));
+
+      await tester.drag(handle, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+
+      final presentationRect = tester.getRect(presentation);
+      final heroAfter = tester.getRect(fixedHero);
+      final foregroundAfter = tester.getRect(lowerSheet);
+      expect(heroAfter.height, closeTo(heroHeight, .1));
+      expect(
+        foregroundAfter.top - presentationRect.top,
+        closeTo(heroHeight, .5),
+      );
+      expect(
+        tester.getRect(checklist).bottom,
+        lessThanOrEqualTo(foregroundAfter.top),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'all thirty actual Day View sheets restore and traverse lowered, raised, and expanded states',
     (tester) async {
       for (final contract in kOfferingTableDayViewContracts) {
@@ -879,7 +925,7 @@ void main() {
         final lowerBefore = tester.getRect(lowerSheet);
         expect(
           outerBefore.height,
-          closeTo((844 - 12) * instrumentEventSheetMinExtent + 8, 2),
+          closeTo((844 - 12) * .71 + 8, 2),
           reason: 'day ${contract.day} initial extent',
         );
         for (final move in contract.moves) {

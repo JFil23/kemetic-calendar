@@ -212,6 +212,25 @@ void main() {
     final hostBeforeScroll = tester.getRect(hostFinder);
     final practiceBeforeScroll = tester.getRect(practiceFinder);
     final titleBeforeScroll = tester.getRect(houseChatTitle);
+    final chatField = find.byKey(
+      const ValueKey<String>('reading-house-chat-message-field'),
+    );
+    final fieldBeforeScroll = tester.getRect(chatField);
+    expect(
+      find.ancestor(
+        of: chatField,
+        matching: find.byKey(
+          const ValueKey<String>('reading-house-fixed-chat-layer'),
+        ),
+      ),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byKey(_visualCaptureKey),
+      matchesGoldenFile(
+        '$_goldenRoot/maat-day-housing-reading-house-lowered-390x844.png',
+      ),
+    );
     await tester.dragFrom(
       Offset(practiceBeforeScroll.center.dx, practiceBeforeScroll.top + 20),
       const Offset(0, -180),
@@ -223,6 +242,13 @@ void main() {
       lessThan(practiceBeforeScroll.top),
     );
     expect(tester.getRect(houseChatTitle), titleBeforeScroll);
+    expect(tester.getRect(chatField), fieldBeforeScroll);
+    await expectLater(
+      find.byKey(_visualCaptureKey),
+      matchesGoldenFile(
+        '$_goldenRoot/maat-day-housing-reading-house-raised-390x844.png',
+      ),
+    );
 
     await tester.drag(
       find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
@@ -233,6 +259,12 @@ void main() {
     expect(hostAfterResize.top, lessThan(hostBeforeScroll.top));
     expect(hostAfterResize.height, greaterThan(hostBeforeScroll.height));
     expect(tester.takeException(), isNull);
+
+    // Dispose the live-room subscription before the test binding checks for
+    // pending reconnect timers. The product route owns this subscription;
+    // this only makes the visual harness deterministic.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
   });
 
   testWidgets('Day View opens Kꜣr behavior in the existing shared sheet', (
@@ -300,6 +332,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(KarDayBehaviorSurface), findsOneWidget);
+    expect(find.byType(MaatDayViewSheetHost), findsOneWidget);
+    expect(find.byType(MaatDayViewForegroundShell), findsOneWidget);
     expect(find.byKey(dayViewBottomSheetBackplateKey), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('kar-resizable-sheet')),
@@ -320,12 +354,22 @@ void main() {
     final karSheetRect = tester.getRect(
       find.byKey(const ValueKey<String>('kar-resizable-sheet')),
     );
-    expect(karSheetRect.height, closeTo((844 - 12) * .71, 1.5));
+    expect(karSheetRect.height, closeTo((844 - 12) * .71 + 8, 1.5));
     expect(karSheetRect.bottom, closeTo(844, .01));
     final collapsedPracticeRect = tester.getRect(
       find.byKey(const ValueKey<String>('kar-practice-sheet')),
     );
-    expect(collapsedPracticeRect.top, closeTo(528.25, 2));
+    final shrineStageRect = tester.getRect(
+      find.byKey(const ValueKey<String>('kar-day-shrine-stage')),
+    );
+    expect(
+      shrineStageRect.bottom,
+      lessThanOrEqualTo(collapsedPracticeRect.top),
+    );
+    final karFrame = tester.widget<InstrumentEventPresentationFrame>(
+      find.byType(InstrumentEventPresentationFrame),
+    );
+    expect(karFrame.graphicSpace.fixedHeight, 354);
     expect(find.byType(ModalBottomSheetRoute), findsNothing);
     expect(
       find.descendant(
@@ -344,20 +388,26 @@ void main() {
     expect(find.text('Observed'), findsOneWidget);
     expect(find.text('Partly'), findsOneWidget);
     expect(find.text('Skipped'), findsOneWidget);
+    await expectLater(
+      find.byKey(_visualCaptureKey),
+      matchesGoldenFile(
+        '$_goldenRoot/maat-day-housing-kar-lowered-390x844.png',
+      ),
+    );
+    await tester.drag(
+      find.byKey(const ValueKey<String>('kar-day-sheet-scroll')),
+      const Offset(0, -430),
+    );
+    await tester.pumpAndSettle();
+    final raisedPracticeRect = tester.getRect(
+      find.byKey(const ValueKey<String>('kar-practice-sheet')),
+    );
+    expect(raisedPracticeRect.top, lessThan(collapsedPracticeRect.top));
+    await expectLater(
+      find.byKey(_visualCaptureKey),
+      matchesGoldenFile('$_goldenRoot/maat-day-housing-kar-raised-390x844.png'),
+    );
     if (_captureKarVisuals) {
-      await expectLater(
-        find.byKey(_visualCaptureKey),
-        matchesGoldenFile('/tmp/kar-day-flutter.png'),
-      );
-      await tester.drag(
-        find.byKey(const ValueKey<String>('kar-day-sheet-scroll')),
-        const Offset(0, -430),
-      );
-      await tester.pumpAndSettle();
-      final raisedPracticeRect = tester.getRect(
-        find.byKey(const ValueKey<String>('kar-practice-sheet')),
-      );
-      expect(raisedPracticeRect.top, closeTo(171, 2));
       await expectLater(
         find.byKey(_visualCaptureKey),
         matchesGoldenFile('/tmp/kar-day-fresh-raised-flutter.png'),
@@ -668,6 +718,13 @@ void _expectCanonicalMaatDayViewHousing(
 }) {
   final hostFinder = find.byKey(ValueKey<String>(hostKey));
   expect(hostFinder, findsOneWidget);
+  expect(find.byType(MaatDayViewSheetHost), findsOneWidget);
+  expect(find.byType(MaatDayViewForegroundShell), findsOneWidget);
+  expect(find.byType(MaatDayViewForegroundContent), findsOneWidget);
+  expect(
+    find.byKey(const ValueKey<String>('maat-day-view-completion-slot')),
+    findsOneWidget,
+  );
   final host = tester.widget<InstrumentEventSheetHost>(hostFinder);
   expect(host.initialExtent, instrumentEventSheetMinExtent);
   expect(host.geometry, isNull);

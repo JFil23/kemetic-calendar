@@ -158,11 +158,7 @@ class ReadingHouseDayPresentation extends StatelessWidget {
           ],
         ),
       ),
-      fixedHeroHeight: 292,
-      instrumentFooterHeight: 0,
-      instrument: _HouseChatRoom(fixture: fixture),
-      instrumentFooter: const SizedBox.shrink(),
-      inputBuilder: (_, _, _) => _HouseChatRoomInput(
+      instrument: _HouseChatRoom(
         fixture: fixture,
         scrollController: chatScrollController,
         onFollowingLatestChanged: onFollowingLatestChanged,
@@ -171,43 +167,32 @@ class ReadingHouseDayPresentation extends StatelessWidget {
         onSendMessage: onSendMessage,
         onJumpToLatest: onJumpToLatest,
       ),
+      instrumentInteractive: true,
+      instrumentFooter: const SizedBox.shrink(),
+      inputBuilder: (_, _, _) => const SizedBox.shrink(),
       body: _ReadingPracticeSheet(
         fixture: fixture,
         onPostAnnouncement: onPostAnnouncement,
         onPostSharedNote: onPostSharedNote,
         onPrivateReflectionChanged: onPrivateReflectionChanged,
-        onCompletionSelected: onCompletionSelected,
+      ),
+      completion: _CompletionBlock(
+        selected: fixture.completion,
+        onSelected: onCompletionSelected,
       ),
       bodyScrollKey: const ValueKey<String>('reading-house-presentation-body'),
       lowerSheetKey: const ValueKey<String>('reading-house-practice-sheet'),
+      graphicSpace: const MaatDayViewGraphicSpace.fixed(height: 292),
+      foregroundStyle: const MaatDayViewForegroundStyle.color(
+        color: ReadingHouseDayTokens.lower,
+        borderColor: Color(0x337FD9BC),
+      ),
     );
   }
 }
 
 class _HouseChatRoom extends StatelessWidget {
-  const _HouseChatRoom({required this.fixture});
-
-  final ReadingHouseDayVisualFixture fixture;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: <Widget>[
-        Positioned(
-          left: 16,
-          right: 16,
-          top: 16,
-          height: 54,
-          child: _HouseChatHeader(fixture: fixture, showRoomPeople: true),
-        ),
-      ],
-    );
-  }
-}
-
-class _HouseChatRoomInput extends StatelessWidget {
-  const _HouseChatRoomInput({
+  const _HouseChatRoom({
     required this.fixture,
     this.scrollController,
     this.onFollowingLatestChanged,
@@ -228,8 +213,16 @@ class _HouseChatRoomInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
-      clipBehavior: Clip.none,
+      key: const ValueKey<String>('reading-house-fixed-chat-layer'),
+      fit: StackFit.expand,
       children: <Widget>[
+        Positioned(
+          left: 16,
+          right: 16,
+          top: 16,
+          height: 54,
+          child: _HouseChatHeader(fixture: fixture, showRoomPeople: true),
+        ),
         Positioned(
           left: 16,
           right: 16,
@@ -1042,68 +1035,47 @@ class _ReadingPracticeSheet extends StatelessWidget {
     this.onPostAnnouncement,
     this.onPostSharedNote,
     this.onPrivateReflectionChanged,
-    this.onCompletionSelected,
   });
 
   final ReadingHouseDayVisualFixture fixture;
   final ValueChanged<String>? onPostAnnouncement;
   final ValueChanged<String>? onPostSharedNote;
   final ValueChanged<String>? onPrivateReflectionChanged;
-  final ValueChanged<ReadingHouseCompletionVisualState>? onCompletionSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: ReadingHouseDayTokens.lower,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-        border: Border(top: BorderSide(color: Color(0x337FD9BC))),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Color(0xA3000000),
-            blurRadius: 32,
-            offset: Offset(0, -15),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _PracticeOutputBlock(
+                title: 'Host announcement',
+                initialText: fixture.hostAnnouncement,
+                initialTextMetadata: 'HOST · just now',
+                hintText: 'Host announcement',
+                actionLabel: 'Post announcement',
+                onAction: onPostAnnouncement,
+                first: true,
+              ),
+              _PracticeOutputBlock(
+                title: 'Shared note',
+                hintText: 'What do you want to share publicly?',
+                actionLabel: 'Post to Feed',
+                onAction: onPostSharedNote,
+                publicAction: true,
+              ),
+              _PrivateReflectionBlock(
+                initialText: fixture.privateReflection,
+                onChanged: onPrivateReflectionChanged,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _PracticeOutputBlock(
-                  title: 'Host announcement',
-                  initialText: fixture.hostAnnouncement,
-                  initialTextMetadata: 'HOST · just now',
-                  hintText: 'Host announcement',
-                  actionLabel: 'Post announcement',
-                  onAction: onPostAnnouncement,
-                  first: true,
-                ),
-                _PracticeOutputBlock(
-                  title: 'Shared note',
-                  hintText: 'What do you want to share publicly?',
-                  actionLabel: 'Post to Feed',
-                  onAction: onPostSharedNote,
-                  publicAction: true,
-                ),
-                _PrivateReflectionBlock(
-                  initialText: fixture.privateReflection,
-                  onChanged: onPrivateReflectionChanged,
-                ),
-              ],
-            ),
-          ),
-          _CompletionBlock(
-            selected: fixture.completion,
-            onSelected: onCompletionSelected,
-          ),
-          const SizedBox(height: 22),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
