@@ -49,7 +49,6 @@ class _OfferingTableDayV8PresentationState
   final Map<String, TextEditingController> _wordControllers =
       <String, TextEditingController>{};
   final Map<String, FocusNode> _wordFocusNodes = <String, FocusNode>{};
-  final Map<String, GlobalKey> _wordKeys = <String, GlobalKey>{};
   Timer? _saveTimer;
   Timer? _timerTicker;
   Future<void> _writeTail = Future<void>.value();
@@ -69,7 +68,6 @@ class _OfferingTableDayV8PresentationState
       controller.addListener(() => _onWordChanged(id, controller.text));
       _wordControllers[id] = controller;
       _wordFocusNodes[id] = FocusNode();
-      _wordKeys[id] = GlobalKey();
     }
     _startTickerIfNeeded();
   }
@@ -210,20 +208,7 @@ class _OfferingTableDayV8PresentationState
   }
 
   void _focusWord(String id) {
-    final keyContext = _wordKeys[id]?.currentContext;
-    if (keyContext == null) return;
-    unawaited(
-      Scrollable.ensureVisible(
-        keyContext,
-        alignment: .12,
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 560),
-        curve: Curves.easeOutCubic,
-      ).then((_) {
-        if (mounted) _wordFocusNodes[id]?.requestFocus();
-      }),
-    );
+    _wordFocusNodes[id]?.requestFocus();
   }
 
   void _resetDay() {
@@ -642,7 +627,6 @@ class _OfferingTableDayV8PresentationState
   Widget _buildField(OfferingTableMoveContract move) {
     final id = move.slot ?? move.id;
     return Container(
-      key: _wordKeys[id],
       constraints: const BoxConstraints(minHeight: 49),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFF332413))),

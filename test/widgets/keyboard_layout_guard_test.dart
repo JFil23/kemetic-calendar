@@ -85,6 +85,21 @@ void main() {
       expect(source, isNot(contains('_revealFocusedEditable')));
     });
 
+    test('Offering Day V8 does not scroll before requesting focus', () {
+      final source = File(
+        'lib/features/calendar/the_offering_table/presentation/'
+        'offering_table_day_v8_presentation.dart',
+      ).readAsStringSync();
+      final focusWord = source
+          .split('void _focusWord(String id)')
+          .last
+          .split('void _resetDay()')
+          .first;
+
+      expect(focusWord, isNot(contains('Scrollable.ensureVisible')));
+      expect(focusWord, contains('_wordFocusNodes[id]?.requestFocus()'));
+    });
+
     test(
       'system input commands exist only for deliberate keyboard switching',
       () {
