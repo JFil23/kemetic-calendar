@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 
@@ -65,7 +66,6 @@ class _FollowSkyObservationPresentationState
   static const _velvet = Color(0xFF080706);
   static const _bone = Color(0xFFE8E2D6);
   static const _gold = Color(0xFFD4AE43);
-  static const _goldDim = Color(0xFF8A7030);
   static const _silverMid = Color(0xFF9E9A94);
   static const _silverLow = Color(0xFF6A6660);
   static const _separator = Color(0xFF2A2415);
@@ -686,66 +686,14 @@ class _FollowSkyObservationPresentationState
             fieldKey: const ValueKey<String>('follow-sky-fixture-reflection'),
             style: _reflectionStyle,
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
-            child: Row(
-              children: <Widget>[
-                const Text(
-                  'COMPLETION',
-                  style: TextStyle(
-                    color: _goldDim,
-                    fontFamily: _ui,
-                    fontSize: 10.5,
-                    letterSpacing: 2.7,
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(child: Container(height: 1, color: _separator)),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-            child: Row(
-              children: <Widget>[
-                _completionChip('Observed', CompletionStatus.observed),
-                const SizedBox(width: 9),
-                _completionChip('Partly', CompletionStatus.partial),
-                const SizedBox(width: 9),
-                _completionChip('Skipped', CompletionStatus.skipped),
-              ],
-            ),
+          CalendarCompletionPicker(
+            key: const ValueKey<String>('maat-day-view-completion-picker'),
+            current: _completion,
+            saving: _committingCompletion,
+            style: kMaatDayViewCompletionPickerStyle,
+            onChanged: (status) => unawaited(_commitCompletion(status)),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _completionChip(String label, CompletionStatus value) {
-    final selected = _completion == value;
-    return Expanded(
-      child: OutlinedButton(
-        onPressed: () => unawaited(_commitCompletion(value)),
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 45),
-          padding: EdgeInsets.zero,
-          foregroundColor: selected ? _glow : _silverMid,
-          backgroundColor: selected
-              ? _periwinkle.withValues(alpha: 0.13)
-              : Colors.transparent,
-          side: BorderSide(
-            color: selected ? _glow : _bone.withValues(alpha: 0.18),
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: const TextStyle(
-            fontFamily: _display,
-            fontSize: 16.5,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-        child: Text(label),
       ),
     );
   }

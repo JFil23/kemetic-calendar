@@ -410,37 +410,6 @@ CalendarCompletionPickerStyle _dayViewCompletionPickerStyle(
   );
 }
 
-const CalendarCompletionPickerStyle _offeringTableCompletionPickerStyle =
-    CalendarCompletionPickerStyle(
-      containerPadding: EdgeInsets.zero,
-      containerColor: Colors.transparent,
-      containerBorderColor: Colors.transparent,
-      containerBorderWidth: 0,
-      containerRadius: 0,
-      label: '',
-      labelColor: Colors.transparent,
-      labelFontSize: 0,
-      labelFontWeight: FontWeight.w400,
-      labelGap: 0,
-      buttonGap: 9,
-      selectedForegroundColor: Color(0xFFE8B27C),
-      selectedBackgroundColor: Color(0x21C08A52),
-      selectedBorderColor: Color(0xFFE8B27C),
-      unselectedForegroundColor: Color(0xFF9E9A94),
-      unselectedBackgroundColor: Colors.transparent,
-      unselectedBorderColor: Color(0x2EE8E2D6),
-      buttonBorderWidth: 1,
-      buttonPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      buttonRadius: 12,
-      buttonFontSize: 16.5,
-      buttonFontWeight: FontWeight.w400,
-      buttonFontFamily: _dayViewSerifFamily,
-      buttonFontFamilyFallback: _dayViewSerifFallback,
-      buttonMinimumSize: Size(0, 45),
-      buttonTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      buttonVisualDensity: VisualDensity.compact,
-    );
-
 enum _RitualCompletionFeedbackLevel { observed, partial, skipped }
 
 _RitualCompletionFeedbackLevel? _ritualFeedbackLevelForStatus(
@@ -2314,6 +2283,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       flowNotes: flow?.notes,
       behaviorPayload: event.behaviorPayload,
     );
+    final authoredFlowKind = resolveMaatFlowKind(
+      flowNotes: flow?.notes,
+      behaviorPayload: event.behaviorPayload,
+    );
     final offeringTableDay =
         isOfferingTableFlowReference(
           flowName: flow?.name,
@@ -2325,7 +2298,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             behaviorPayload: event.behaviorPayload,
           )
         : null;
-    if (completionContext != null &&
+    if (authoredFlowKind == MaatFlowKind.offeringTable &&
+        completionContext != null &&
         event.flowId != null &&
         offeringTableDay != null) {
       return _DayViewInstrumentPresentation(
@@ -2335,7 +2309,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
 
-    final readingHouseSitting = _isReadingHouseFlowName(flow?.name)
+    final readingHouseSitting = authoredFlowKind == MaatFlowKind.readingHouse
         ? readingHouseSittingForEvent(
             title: event.title,
             behaviorPayload: event.behaviorPayload,
@@ -2354,7 +2328,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     }
 
     final djedEvent = _djedV2EventForItem(event);
-    if (djedEvent != null) {
+    if (authoredFlowKind == MaatFlowKind.theDjed && djedEvent != null) {
       return _DayViewInstrumentPresentation(
         kind: _DayViewInstrumentKind.djed,
         completionContext: completionContext,
@@ -3639,7 +3613,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                 _saveOfferingTableDayStateForEvent(currentEvent, state),
             completionPanel: buildMaatCompletionPanel(
               responseSpecsOverride: const <MaatFlowResponseSpec>[],
-              pickerStyleOverride: _offeringTableCompletionPickerStyle,
+              pickerStyleOverride: kMaatDayViewCompletionPickerStyle,
             ),
           ),
         ),
@@ -4147,40 +4121,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     );
   }
 
-  Widget _buildEventDetailPrimaryAction({
-    required BuildContext rootContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    Color? actionColor,
-  }) {
-    return TextButton.icon(
-      onPressed: () async {
-        Navigator.pop(sheetContext);
-        final handled = await CalendarPage.makeTodoFromEventTarget(target);
-        if (!handled && rootContext.mounted) {
-          ScaffoldMessenger.of(
-            rootContext,
-          ).showSnackBar(const SnackBar(content: Text('Could not add to-do.')));
-        }
-      },
-      icon: actionColor == null
-          ? KemeticGold.icon(Icons.playlist_add_check)
-          : Icon(Icons.playlist_add_check, color: actionColor),
-      label: actionColor == null
-          ? KemeticGold.text(
-              'Make to-do',
-              style: _goldHeaderStyle.copyWith(fontSize: 15),
-            )
-          : Text(
-              'Make to-do',
-              style: _goldHeaderStyle.copyWith(
-                color: actionColor,
-                fontSize: 15,
-              ),
-            ),
-    );
-  }
-
   Widget _buildEventDetailOverflowButton({
     required BuildContext rootContext,
     required BuildContext sheetContext,
@@ -4476,55 +4416,34 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       target.event,
     );
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Flexible(
-          child: _buildEventDetailPrimaryAction(
-            rootContext: rootContext,
-            sheetContext: sheetContext,
-            target: target,
-            actionColor: actionColor,
-          ),
-        ),
-        Flexible(
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: calendarEnabled
-                  ? () async {
-                      final updatedTarget =
-                          await CalendarPage.showDetailSheetCalendarPicker(
-                            context: sheetContext,
-                            target: target,
-                            onOptimisticTargetChanged: (optimisticTarget) {
-                              if (sheetContext.mounted) {
-                                _moveToTarget(optimisticTarget);
-                              }
-                            },
-                          );
-                      if (!sheetContext.mounted || updatedTarget == null) {
-                        return;
+    return MaatDayViewFooterActions(
+      actionColor: actionColor,
+      calendarLabel: calendarLabel,
+      onMakeTodo: () async {
+        Navigator.pop(sheetContext);
+        final handled = await CalendarPage.makeTodoFromEventTarget(target);
+        if (!handled && rootContext.mounted) {
+          ScaffoldMessenger.of(
+            rootContext,
+          ).showSnackBar(const SnackBar(content: Text('Could not add to-do.')));
+        }
+      },
+      onCalendar: calendarEnabled
+          ? () async {
+              final updatedTarget =
+                  await CalendarPage.showDetailSheetCalendarPicker(
+                    context: sheetContext,
+                    target: target,
+                    onOptimisticTargetChanged: (optimisticTarget) {
+                      if (sheetContext.mounted) {
+                        _moveToTarget(optimisticTarget);
                       }
-                      _moveToTarget(updatedTarget);
-                    }
-                  : null,
-              child: actionColor == null
-                  ? KemeticGold.text(
-                      calendarLabel,
-                      style: _goldHeaderStyle.copyWith(fontSize: 15),
-                    )
-                  : Text(
-                      calendarLabel,
-                      style: _goldHeaderStyle.copyWith(
-                        color: actionColor,
-                        fontSize: 15,
-                      ),
-                    ),
-            ),
-          ),
-        ),
-      ],
+                    },
+                  );
+              if (!sheetContext.mounted || updatedTarget == null) return;
+              _moveToTarget(updatedTarget);
+            }
+          : null,
     );
   }
 
@@ -4597,14 +4516,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         instrumentPresentation.kind == _DayViewInstrumentKind.readingHouse;
     final activeKarInstrument =
         instrumentPresentation.kind == _DayViewInstrumentKind.kar;
-    final activeLayeredInstrument =
+    final activeMaatDayViewHousing =
+        activeFollowSkyInstrument ||
         activeOfferingTableInstrument ||
         activeReadingHouseInstrument ||
-        activeKarInstrument;
+        activeDjedInstrument;
     final activeInstrumentPresentation =
-        activeFollowSkyInstrument ||
-        activeDjedInstrument ||
-        activeLayeredInstrument;
+        activeMaatDayViewHousing || activeKarInstrument;
 
     Widget buildDetailSurface() {
       if (_isWorkspacePresentation) {
@@ -4669,15 +4587,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             ? const Color(0xFF33444A)
             : activeReadingHouseInstrument
             ? const Color(0xFF33463E)
-            : activeDjedInstrument || activeLayeredInstrument
+            : activeDjedInstrument || activeOfferingTableInstrument
             ? const Color(0xFF72571E)
             : _dayGold.withValues(alpha: 0.48),
-        initialExtent: activeFollowSkyInstrument || activeDjedInstrument
-            ? instrumentEventSheetMinExtent
-            : activeLayeredInstrument
+        initialExtent: activeKarInstrument
             ? .71
-            : .70,
-        geometry: activeLayeredInstrument
+            : instrumentEventSheetMinExtent,
+        geometry: activeKarInstrument
             ? InstrumentEventSheetGeometry.layered
             : null,
         trailing: _buildEventDetailOverflowButton(
@@ -4686,47 +4602,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           target: target,
         ),
         body: buildDetailSurface(),
-        footer: activeDjedInstrument
-            ? DjedDayFooterActions(
-                onMakeTodo: () async {
-                  Navigator.pop(context);
-                  final handled = await CalendarPage.makeTodoFromEventTarget(
-                    target,
-                  );
-                  if (!handled && widget.hostContext.mounted) {
-                    ScaffoldMessenger.of(widget.hostContext).showSnackBar(
-                      const SnackBar(content: Text('Could not add to-do.')),
-                    );
-                  }
-                },
-                onCalendar:
-                    CalendarPage.canChangeDetailSheetCalendar(target.event)
-                    ? () async {
-                        final updatedTarget =
-                            await CalendarPage.showDetailSheetCalendarPicker(
-                              context: context,
-                              target: target,
-                              onOptimisticTargetChanged: (optimisticTarget) {
-                                if (context.mounted) {
-                                  _moveToTarget(optimisticTarget);
-                                }
-                              },
-                            );
-                        if (!context.mounted || updatedTarget == null) {
-                          return;
-                        }
-                        _moveToTarget(updatedTarget);
-                      }
-                    : null,
-              )
-            : _buildEventDetailBottomActionRow(
-                rootContext: widget.hostContext,
-                sheetContext: context,
-                target: target,
-                actionColor: activeKarInstrument
-                    ? const Color(0xFFA9CFDA)
-                    : null,
-              ),
+        footer: _buildEventDetailBottomActionRow(
+          rootContext: widget.hostContext,
+          sheetContext: context,
+          target: target,
+          actionColor: activeKarInstrument ? const Color(0xFFA9CFDA) : null,
+        ),
       );
     }
 

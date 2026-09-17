@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
@@ -35,7 +38,26 @@ Future<void> _ensureSupabaseInitialized() async {
   await Supabase.initialize(
     url: 'https://example.supabase.co',
     anonKey: 'anon-key-0123456789012345678901234567890123456789',
+    httpClient: _EmptySupabaseClient(),
   );
+}
+
+class _EmptySupabaseClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final isModerationRpc = request.url.path.endsWith(
+      '/rpc/reading_house_can_moderate_calendar',
+    );
+    final body = isModerationRpc ? 'false' : '[]';
+    return http.StreamedResponse(
+      Stream<List<int>>.value(utf8.encode(body)),
+      200,
+      request: request,
+      headers: const <String, String>{
+        'content-type': 'application/json; charset=utf-8',
+      },
+    );
+  }
 }
 
 void main() {
@@ -98,7 +120,11 @@ void main() {
       }
       await tester.tap(find.byType(DjedEventBlockVisual));
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Event options'), findsOneWidget);
+      _expectCanonicalMaatDayViewHousing(
+        tester,
+        hostKey: 'djed-resizable-sheet',
+        completionKey: 'djed-completion-picker',
+      );
       expect(find.text('×'), findsNothing);
       expect(tester.takeException(), isNull);
     },
@@ -144,33 +170,70 @@ void main() {
     }
   });
 
-  testWidgets(
-    'Day View paints the Reading House compact card from flow identity, not sitting payload',
-    (tester) async {
-      await _pumpDayView(
-        tester,
-        flowId: 82,
-        flowName: kReadingHouseTitle,
-        flowKey: kReadingHouseFlowKey,
-        title: 'Open the Text',
-        start: const TimeOfDay(hour: 19, minute: 0),
-        firstVisibleMinute: 14 * 60,
-        payload: const <String, dynamic>{
-          'kind': 'maat_reading_house_sitting',
-          'flow_key': kReadingHouseFlowKey,
-        },
-      );
+  testWidgets('Day View opens Reading House in the canonical Ma\'at housing', (
+    tester,
+  ) async {
+    await _pumpDayView(
+      tester,
+      flowId: 82,
+      flowName: kReadingHouseTitle,
+      flowKey: kReadingHouseFlowKey,
+      title: 'Open the Text',
+      start: const TimeOfDay(hour: 19, minute: 0),
+      firstVisibleMinute: 14 * 60,
+      payload: const <String, dynamic>{
+        'kind': 'maat_reading_house_sitting',
+        'flow_key': kReadingHouseFlowKey,
+        'event_number': 1,
+      },
+    );
 
-      expect(find.byType(ReadingHouseEventBlockVisual), findsOneWidget);
-      expect(find.text(kReadingHouseSittings.first.title), findsOneWidget);
-      expect(find.text('THE READING HOUSE · SITTING 01'), findsOneWidget);
-      await expectLater(
-        find.byKey(_visualCaptureKey),
-        matchesGoldenFile('$_goldenRoot/reading-house-day-view-390x844.png'),
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.byType(ReadingHouseEventBlockVisual), findsOneWidget);
+    expect(find.text(kReadingHouseSittings.first.title), findsOneWidget);
+    expect(find.text('THE READING HOUSE · SITTING 01'), findsOneWidget);
+    await expectLater(
+      find.byKey(_visualCaptureKey),
+      matchesGoldenFile('$_goldenRoot/reading-house-day-view-390x844.png'),
+    );
+    await tester.tap(find.byType(ReadingHouseEventBlockVisual));
+    await tester.pumpAndSettle();
+    _expectCanonicalMaatDayViewHousing(
+      tester,
+      hostKey: 'reading-house-resizable-sheet',
+      completionKey: 'reading-house-completion-picker',
+    );
+    final hostFinder = find.byKey(
+      const ValueKey<String>('reading-house-resizable-sheet'),
+    );
+    final practiceFinder = find.byKey(
+      const ValueKey<String>('reading-house-practice-sheet'),
+    );
+    final houseChatTitle = find.text('House Chat');
+    final hostBeforeScroll = tester.getRect(hostFinder);
+    final practiceBeforeScroll = tester.getRect(practiceFinder);
+    final titleBeforeScroll = tester.getRect(houseChatTitle);
+    await tester.dragFrom(
+      Offset(practiceBeforeScroll.center.dx, practiceBeforeScroll.top + 20),
+      const Offset(0, -180),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getRect(hostFinder), hostBeforeScroll);
+    expect(
+      tester.getRect(practiceFinder).top,
+      lessThan(practiceBeforeScroll.top),
+    );
+    expect(tester.getRect(houseChatTitle), titleBeforeScroll);
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
+      const Offset(0, -120),
+    );
+    await tester.pumpAndSettle();
+    final hostAfterResize = tester.getRect(hostFinder);
+    expect(hostAfterResize.top, lessThan(hostBeforeScroll.top));
+    expect(hostAfterResize.height, greaterThan(hostBeforeScroll.height));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Day View opens Kꜣr behavior in the existing shared sheet', (
     tester,
@@ -598,6 +661,39 @@ void main() {
   });
 }
 
+void _expectCanonicalMaatDayViewHousing(
+  WidgetTester tester, {
+  required String hostKey,
+  required String completionKey,
+}) {
+  final hostFinder = find.byKey(ValueKey<String>(hostKey));
+  expect(hostFinder, findsOneWidget);
+  final host = tester.widget<InstrumentEventSheetHost>(hostFinder);
+  expect(host.initialExtent, instrumentEventSheetMinExtent);
+  expect(host.geometry, isNull);
+  expect(
+    find.byKey(const ValueKey<String>('instrument-sheet-handle-mark')),
+    findsOneWidget,
+  );
+  expect(find.byTooltip('Event options'), findsOneWidget);
+  expect(
+    find.byKey(const ValueKey<String>('maat-day-view-make-todo')),
+    findsOneWidget,
+  );
+  expect(
+    find.byKey(const ValueKey<String>('maat-day-view-calendar')),
+    findsOneWidget,
+  );
+  expect(find.byKey(ValueKey<String>(completionKey)), findsOneWidget);
+  expect(
+    find.descendant(
+      of: find.byType(InstrumentEventPresentationFrame),
+      matching: find.byType(CustomScrollView),
+    ),
+    findsOneWidget,
+  );
+}
+
 Future<void> _pumpDayView(
   WidgetTester tester, {
   required int flowId,
@@ -642,6 +738,7 @@ Future<void> _pumpDayView(
             notesForDay: (ky, km, kd) => <NoteData>[
               if (ky == 2 && km == 6 && kd == 18)
                 NoteData(
+                  calendarId: 'authored-calendar-$flowId',
                   clientEventId: 'authored-event-$flowId',
                   title: title,
                   allDay: false,

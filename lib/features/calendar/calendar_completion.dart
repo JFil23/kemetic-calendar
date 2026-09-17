@@ -177,6 +177,9 @@ class CalendarCompletionPickerStyle {
     this.labelFontSize = 12,
     this.labelFontWeight = FontWeight.w700,
     this.labelLetterSpacing = 0,
+    this.labelDividerColor,
+    this.labelDividerGap = 11,
+    this.labelDividerThickness = 1,
     this.labelGap = 8,
     this.buttonGap = 8,
     this.selectedForegroundColor = Colors.black,
@@ -210,6 +213,9 @@ class CalendarCompletionPickerStyle {
   final double labelFontSize;
   final FontWeight labelFontWeight;
   final double labelLetterSpacing;
+  final Color? labelDividerColor;
+  final double labelDividerGap;
+  final double labelDividerThickness;
   final double labelGap;
   final double buttonGap;
   final Color selectedForegroundColor;
@@ -229,6 +235,42 @@ class CalendarCompletionPickerStyle {
   final MaterialTapTargetSize? buttonTapTargetSize;
   final VisualDensity? buttonVisualDensity;
 }
+
+/// Follow the Sky's approved completion treatment for canonical Ma'at Day
+/// View sheets. Persistence stays flow-owned; the housing owns this chrome.
+const CalendarCompletionPickerStyle kMaatDayViewCompletionPickerStyle =
+    CalendarCompletionPickerStyle(
+      containerPadding: EdgeInsets.fromLTRB(20, 26, 20, 0),
+      containerColor: Colors.transparent,
+      containerBorderColor: Colors.transparent,
+      containerBorderWidth: 0,
+      containerRadius: 0,
+      label: 'COMPLETION',
+      labelColor: Color(0xFF8A7030),
+      labelFontSize: 10.5,
+      labelFontWeight: FontWeight.w400,
+      labelLetterSpacing: 2.7,
+      labelDividerColor: Color(0xFF2A2415),
+      labelDividerGap: 11,
+      labelDividerThickness: 1,
+      labelGap: 14,
+      buttonGap: 9,
+      selectedForegroundColor: Color(0xFFA4B1FF),
+      selectedBackgroundColor: Color(0x216876D8),
+      selectedBorderColor: Color(0xFFA4B1FF),
+      unselectedForegroundColor: Color(0xFF9E9A94),
+      unselectedBackgroundColor: Colors.transparent,
+      unselectedBorderColor: Color(0x2EE8E2D6),
+      buttonBorderWidth: 1,
+      buttonPadding: EdgeInsets.zero,
+      buttonRadius: 12,
+      buttonFontSize: 16.5,
+      buttonFontWeight: FontWeight.w400,
+      buttonFontFamily: 'CormorantGaramond',
+      buttonMinimumSize: Size(0, 45),
+      buttonTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      buttonVisualDensity: VisualDensity.compact,
+    );
 
 class CalendarCompletionPicker extends StatelessWidget {
   const CalendarCompletionPicker({
@@ -272,15 +314,37 @@ class CalendarCompletionPicker extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            pickerStyle.label,
-            style: TextStyle(
-              color: pickerStyle.labelColor,
-              fontSize: pickerStyle.labelFontSize,
-              fontWeight: pickerStyle.labelFontWeight,
-              letterSpacing: pickerStyle.labelLetterSpacing,
+          if (pickerStyle.labelDividerColor == null)
+            Text(
+              pickerStyle.label,
+              style: TextStyle(
+                color: pickerStyle.labelColor,
+                fontSize: pickerStyle.labelFontSize,
+                fontWeight: pickerStyle.labelFontWeight,
+                letterSpacing: pickerStyle.labelLetterSpacing,
+              ),
+            )
+          else
+            Row(
+              children: <Widget>[
+                Text(
+                  pickerStyle.label,
+                  style: TextStyle(
+                    color: pickerStyle.labelColor,
+                    fontSize: pickerStyle.labelFontSize,
+                    fontWeight: pickerStyle.labelFontWeight,
+                    letterSpacing: pickerStyle.labelLetterSpacing,
+                  ),
+                ),
+                SizedBox(width: pickerStyle.labelDividerGap),
+                Expanded(
+                  child: SizedBox(
+                    height: pickerStyle.labelDividerThickness,
+                    child: ColoredBox(color: pickerStyle.labelDividerColor!),
+                  ),
+                ),
+              ],
             ),
-          ),
           SizedBox(height: pickerStyle.labelGap),
           if (leadingContent != null) ...[
             leadingContent!,

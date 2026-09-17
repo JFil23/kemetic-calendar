@@ -58,7 +58,7 @@ void main() {
     );
   });
 
-  testWidgets('all thirty days use one fixed hero and one layered scroll owner', (
+  testWidgets('all thirty days use one fixed hero and one shared scroll owner', (
     tester,
   ) async {
     for (final contract in kOfferingTableDayViewContracts) {
@@ -67,7 +67,13 @@ void main() {
       final frame = tester.widget<InstrumentEventPresentationFrame>(
         find.byType(InstrumentEventPresentationFrame),
       );
-      expect(frame.initialLowerSheetPeek, 28, reason: 'day ${contract.day}');
+      expect(
+        frame.initialLowerSheetPeek,
+        isNull,
+        reason: 'day ${contract.day}',
+      );
+      expect(frame.fixedHeroHeight, isNull, reason: 'day ${contract.day}');
+      expect(frame.fixedInstrumentHeight, 420, reason: 'day ${contract.day}');
       expect(frame.instrumentFooterHeight, 0, reason: 'day ${contract.day}');
       expect(
         find.byKey(const ValueKey<String>('offering-table-fixed-hero')),
@@ -111,6 +117,7 @@ void main() {
     await _pumpPresentation(
       tester,
       contract: contract,
+      presentationHeight: 700,
       onSave: (state) async => saves.add(state),
     );
 
@@ -379,6 +386,7 @@ Future<void> _pumpPresentation(
   required OfferingTableDayContract contract,
   Future<void> Function(OfferingTableDayViewState state)? onSave,
   MediaQueryData mediaQueryData = const MediaQueryData(),
+  double presentationHeight = 470,
 }) async {
   tester.view.physicalSize = _viewport;
   tester.view.devicePixelRatio = 1;
@@ -395,7 +403,7 @@ Future<void> _pumpPresentation(
             alignment: Alignment.bottomCenter,
             child: SizedBox(
               width: 370,
-              height: 470,
+              height: presentationHeight,
               child: OfferingTableDayV8Presentation(
                 contract: contract,
                 localDate: DateTime(

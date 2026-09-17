@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_presentation_copy.dart';
@@ -651,32 +653,37 @@ class _DjedPracticeSheet extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 34),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            DjedSittingActionContent(
-              fixture: fixture,
-              onStageAction: onStageAction,
-              onMoveChanged: onMoveChanged,
-              onDoToday: onDoToday,
-              onPutOnCalendar: onPutOnCalendar,
-              onResultSelected: onResultSelected,
-              onResultNoteChanged: onResultNoteChanged,
-              onSmallerMoveChanged: onSmallerMoveChanged,
-              onCloseBeam: onCloseBeam,
-              onRaise: onRaise,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                DjedSittingActionContent(
+                  fixture: fixture,
+                  onStageAction: onStageAction,
+                  onMoveChanged: onMoveChanged,
+                  onDoToday: onDoToday,
+                  onPutOnCalendar: onPutOnCalendar,
+                  onResultSelected: onResultSelected,
+                  onResultNoteChanged: onResultNoteChanged,
+                  onSmallerMoveChanged: onSmallerMoveChanged,
+                  onCloseBeam: onCloseBeam,
+                  onRaise: onRaise,
+                ),
+                const SizedBox(height: 17),
+                const _DjedInKemetDisclosure(),
+              ],
             ),
-            const SizedBox(height: 17),
-            const _DjedInKemetDisclosure(),
-            const SizedBox(height: 5),
-            _DjedCompletion(
-              selected: fixture.completion,
-              onSelected: onCompletionSelected,
-            ),
-          ],
-        ),
+          ),
+          _DjedCompletion(
+            selected: fixture.completion,
+            onSelected: onCompletionSelected,
+          ),
+          const SizedBox(height: 22),
+        ],
       ),
     );
   }
@@ -1327,166 +1334,25 @@ class _DjedCompletion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final status = switch (selected) {
+      DjedCompletionVisualState.none => CompletionStatus.none,
+      DjedCompletionVisualState.observed => CompletionStatus.observed,
+      DjedCompletionVisualState.partly => CompletionStatus.partial,
+      DjedCompletionVisualState.skipped => CompletionStatus.skipped,
+    };
+    return CalendarCompletionPicker(
       key: const ValueKey<String>('djed-completion-picker'),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0x06D4AE43),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x29D4AE43)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Text(
-            'COMPLETION',
-            style: TextStyle(
-              color: Color(0xFFA88135),
-              fontFamily: 'GentiumPlus',
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: <Widget>[
-              for (final option in const <DjedCompletionVisualState>[
-                DjedCompletionVisualState.observed,
-                DjedCompletionVisualState.partly,
-                DjedCompletionVisualState.skipped,
-              ]) ...<Widget>[
-                Expanded(
-                  child: SizedBox(
-                    height: 40,
-                    child: OutlinedButton(
-                      onPressed: () => onSelected?.call(option),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: selected == option
-                            ? const Color(0xFF160F08)
-                            : const Color(0xFF9F9383),
-                        backgroundColor: selected == option
-                            ? const Color(0xFFD4AE43)
-                            : const Color(0xFF0D0906),
-                        side: BorderSide(
-                          color: selected == option
-                              ? const Color(0xFFE0B958)
-                              : const Color(0xFF3E2E1C),
-                        ),
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        textStyle: const TextStyle(
-                          fontFamily: MaatFlowListTokens.fontFamily,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      child: Text(_completionLabel(option)),
-                    ),
-                  ),
-                ),
-                if (option != DjedCompletionVisualState.skipped)
-                  const SizedBox(width: 8),
-              ],
-            ],
-          ),
-        ],
-      ),
+      current: status,
+      style: kMaatDayViewCompletionPickerStyle,
+      onChanged: (next) => onSelected?.call(switch (next) {
+        CompletionStatus.none => DjedCompletionVisualState.none,
+        CompletionStatus.observed => DjedCompletionVisualState.observed,
+        CompletionStatus.partial => DjedCompletionVisualState.partly,
+        CompletionStatus.skipped => DjedCompletionVisualState.skipped,
+      }),
     );
   }
 }
-
-class DjedDayFooterChrome extends StatelessWidget {
-  const DjedDayFooterChrome({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 9, 18, 20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: <Color>[Color(0xD6070503), Color(0xFF070503)],
-          stops: <double>[0, .3],
-        ),
-        border: Border(top: BorderSide(color: Color(0x1AD4AE43))),
-      ),
-      child: child,
-    );
-  }
-}
-
-class DjedDayFooterActions extends StatelessWidget {
-  const DjedDayFooterActions({
-    super.key,
-    this.onMakeTodo,
-    this.onCalendar,
-    this.makeTodoUnavailable = false,
-  });
-
-  final VoidCallback? onMakeTodo;
-  final VoidCallback? onCalendar;
-  final bool makeTodoUnavailable;
-
-  @override
-  Widget build(BuildContext context) {
-    final makeTodoLabel = makeTodoUnavailable
-        ? 'Make to-do unavailable'
-        : '≡✓  Make to-do';
-    return DjedDayFooterChrome(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Flexible(
-            child: TextButton(
-              key: ValueKey<String>(
-                makeTodoUnavailable
-                    ? 'djed-detail-make-todo-unavailable'
-                    : 'djed-detail-make-todo',
-              ),
-              onPressed: onMakeTodo,
-              style: _djedFooterButtonStyle,
-              child: Text(
-                makeTodoLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Flexible(
-            child: TextButton(
-              onPressed: onCalendar,
-              style: _djedFooterButtonStyle,
-              child: const Text(
-                'Calendar',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-ButtonStyle get _djedFooterButtonStyle => TextButton.styleFrom(
-  foregroundColor: const Color(0xFFD9B45D),
-  padding: EdgeInsets.zero,
-  minimumSize: Size.zero,
-  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-  textStyle: const TextStyle(
-    fontFamily: 'GentiumPlus',
-    fontSize: 15,
-    fontWeight: FontWeight.w700,
-  ),
-);
 
 double _sheetAngle(int sittingNumber) => switch (sittingNumber.clamp(1, 9)) {
   1 => -74,
@@ -1512,12 +1378,3 @@ String _sheetAngleLabel(int sittingNumber) =>
       8 => 'NEAR UPRIGHT · 8°',
       _ => 'UPRIGHT',
     };
-
-String _completionLabel(DjedCompletionVisualState state) {
-  return switch (state) {
-    DjedCompletionVisualState.observed => 'Observed',
-    DjedCompletionVisualState.partly => 'Partly',
-    DjedCompletionVisualState.skipped => 'Skipped',
-    DjedCompletionVisualState.none => '',
-  };
-}

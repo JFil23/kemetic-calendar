@@ -242,6 +242,11 @@ void main() {
         'lib/features/calendar/presentation/'
         'instrument_event_presentation_frame.dart',
       ).readAsString();
+      final sharedHostState = _sourceBetween(
+        sharedHost,
+        'class _InstrumentEventSheetHostState',
+        '@immutable\nclass InstrumentEventSheetGeometry',
+      );
 
       expect(
         sharedHost,
@@ -255,11 +260,55 @@ void main() {
       expect(sharedHost, contains('isDismissible: true'));
       expect(sharedHost, contains('enableDrag: true'));
       expect(sharedHost, contains('useRootNavigator: false'));
-      expect(sharedHost, isNot(contains('child: Align(')));
+      expect(sharedHostState, isNot(contains('child: Align(')));
       expect(dayView, contains('InstrumentEventSheetHost('));
       expect(dayView, contains('_buildEventDetailOverflowButton('));
     },
   );
+
+  test('canonical Ma\'at Day View housing has one chrome authority', () async {
+    final dayView = await File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsString();
+    final sharedHost = await File(
+      'lib/features/calendar/presentation/'
+      'instrument_event_presentation_frame.dart',
+    ).readAsString();
+    final offering = await File(
+      'lib/features/calendar/the_offering_table/presentation/'
+      'offering_table_day_v8_presentation.dart',
+    ).readAsString();
+    final reading = await File(
+      'lib/features/calendar/the_reading_house/presentation/'
+      'reading_house_day_presentation.dart',
+    ).readAsString();
+    final djed = await File(
+      'lib/features/calendar/the_djed/presentation/'
+      'djed_day_presentation.dart',
+    ).readAsString();
+
+    expect(dayView, contains('final activeMaatDayViewHousing ='));
+    expect(
+      dayView,
+      contains(': instrumentEventSheetMinExtent,'),
+      reason: 'the four canonical Ma\'at sheets inherit Follow Sky\'s .58 host',
+    );
+    expect(
+      dayView,
+      contains('activeKarInstrument\n            ? .71'),
+      reason: 'K\uA7E3r keeps its separately approved geometry',
+    );
+    expect(dayView, contains('return MaatDayViewFooterActions('));
+    expect(sharedHost, contains('class MaatDayViewFooterActions'));
+    expect(sharedHost, contains('final double? fixedInstrumentHeight;'));
+
+    expect(offering, isNot(contains('initialLowerSheetPeek:')));
+    expect(offering, isNot(contains("width: 38")));
+    expect(reading, isNot(contains('ReadingHouseDayFooterActions')));
+    expect(reading, isNot(contains("width: 38")));
+    expect(djed, isNot(contains('DjedDayFooterActions')));
+    expect(djed, isNot(contains('DjedDayFooterChrome')));
+  });
 
   test('End Flow successor is same-day, stable, and excludes ending flow', () {
     const targetEvent = EventItem(

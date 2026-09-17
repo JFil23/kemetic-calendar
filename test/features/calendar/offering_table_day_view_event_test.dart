@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_contract.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_state.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_v8_presentation.dart';
@@ -167,6 +168,63 @@ void main() {
   );
 
   testWidgets(
+    'a user-created lookalike name cannot enter canonical Ma\'at housing',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: const Scaffold(
+            body: DayViewGrid(
+              ky: 1,
+              km: 1,
+              kd: 1,
+              notes: <NoteData>[
+                NoteData(
+                  clientEventId: 'user-created-offering-lookalike',
+                  title: 'The Offering Table · Day 01 · The Small Supply',
+                  allDay: false,
+                  start: TimeOfDay(hour: 7, minute: 30),
+                  end: TimeOfDay(hour: 8, minute: 30),
+                  flowId: 9010,
+                ),
+              ],
+              showGregorian: false,
+              flowIndex: <int, FlowData>{
+                9010: FlowData(
+                  id: 9010,
+                  name: 'The Offering Table',
+                  color: Color(0xFFC99A3D),
+                  active: true,
+                  notes: 'mode=gregorian;custom_flow=1',
+                ),
+              },
+              activeLedgerFlowIds: <int>{9010},
+              initialScrollOffset: 360,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(OfferingTableEventBlockVisual));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-resizable-sheet')),
+        findsNothing,
+      );
+      expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
+      expect(find.byType(CalendarEventDetailSheet), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'Offering block preserves the authored width alone and shared lanes when overlapping',
     (tester) async {
       await _pumpDayView(tester, flowId: 73);
@@ -262,6 +320,12 @@ void main() {
   ) async {
     await _pumpDayView(tester, flowId: 76, day: kOfferingTableDays[29]);
     await tester.tap(find.byType(OfferingTableEventBlockVisual));
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
+      const Offset(0, -320),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(
@@ -559,6 +623,12 @@ void main() {
     await tester.tap(find.byType(OfferingTableEventBlockVisual));
     await tester.pumpAndSettle();
 
+    await tester.drag(
+      find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
+      const Offset(0, -320),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('2 steps'), findsNothing);
     final placeMove = find.byKey(
       const ValueKey<String>('offering-table-day-03-move-place'),
@@ -749,6 +819,8 @@ void main() {
         const ValueKey<String>('follow-sky-sheet-resize-handle'),
       );
       final outerBefore = tester.getRect(outerSheet);
+      final heroStopBefore =
+          tester.getRect(lowerSheet).top - tester.getRect(presentation).top;
 
       await tester.drag(handle, const Offset(0, -120));
       await tester.pumpAndSettle();
@@ -757,9 +829,9 @@ void main() {
       expect(outerAfter.height, greaterThan(outerBefore.height + 90));
       expect(outerAfter.bottom, closeTo(outerBefore.bottom, .1));
       expect(
-        tester.getRect(presentation).bottom - tester.getRect(lowerSheet).top,
-        closeTo(28, .5),
-        reason: 'outer resizing preserves the authored lowered foreground peek',
+        tester.getRect(lowerSheet).top - tester.getRect(presentation).top,
+        closeTo(heroStopBefore, .5),
+        reason: 'outer resizing preserves the authored fixed hero height',
       );
       expect(tester.takeException(), isNull);
     },
@@ -807,7 +879,7 @@ void main() {
         final lowerBefore = tester.getRect(lowerSheet);
         expect(
           outerBefore.height,
-          closeTo((844 - 12) * .71, 2),
+          closeTo((844 - 12) * instrumentEventSheetMinExtent + 8, 2),
           reason: 'day ${contract.day} initial extent',
         );
         for (final move in contract.moves) {
@@ -884,12 +956,10 @@ void main() {
           );
         }
 
-        final lowerBeforeReturn = tester.getRect(lowerSheet);
-        final returnStartY = (lowerBeforeReturn.top + 12)
-            .clamp(outerRaised.top + 60, outerRaised.bottom - 60)
-            .toDouble();
-        await tester.dragFrom(
-          Offset(outerRaised.center.dx, returnStartY),
+        await tester.drag(
+          find.byKey(
+            const ValueKey<String>('offering-table-presentation-body'),
+          ),
           const Offset(0, 1200),
         );
         await tester.pumpAndSettle();

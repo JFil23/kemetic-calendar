@@ -510,7 +510,7 @@ void main() {
       final topRow = _sourceBetween(
         dayView,
         'Widget _buildEventDetailTopActionRow',
-        'Widget _buildEventDetailPrimaryAction',
+        'Widget _buildEventDetailOverflowButton',
       );
       expect(topRow, contains('_buildAddReflectionButton('));
       expect(topRow, contains('if (!isFollowSkyObservation)'));

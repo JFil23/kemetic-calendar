@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
 const double instrumentEventSheetMinExtent = 0.58;
@@ -312,6 +313,69 @@ class InstrumentEventSheetGeometry {
   final double handleWidth;
 }
 
+/// The single fixed action footer for canonical Ma'at Day View sheets.
+///
+/// Event capabilities and callbacks remain owned by Day View. This widget owns
+/// only the Follow-the-Sky-approved placement and visual treatment.
+class MaatDayViewFooterActions extends StatelessWidget {
+  const MaatDayViewFooterActions({
+    super.key,
+    required this.onMakeTodo,
+    required this.calendarLabel,
+    this.onCalendar,
+    this.actionColor,
+  });
+
+  final VoidCallback onMakeTodo;
+  final String calendarLabel;
+  final VoidCallback? onCalendar;
+  final Color? actionColor;
+
+  static const TextStyle _labelStyle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    fontFamily: 'GentiumPlus',
+    fontFamilyFallback: <String>['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final color = actionColor;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: <Widget>[
+        Flexible(
+          child: TextButton.icon(
+            key: const ValueKey<String>('maat-day-view-make-todo'),
+            onPressed: onMakeTodo,
+            icon: color == null
+                ? KemeticGold.icon(Icons.playlist_add_check)
+                : Icon(Icons.playlist_add_check, color: color),
+            label: color == null
+                ? KemeticGold.text('Make to-do', style: _labelStyle)
+                : Text('Make to-do', style: _labelStyle.copyWith(color: color)),
+          ),
+        ),
+        Flexible(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              key: const ValueKey<String>('maat-day-view-calendar'),
+              onPressed: onCalendar,
+              child: color == null
+                  ? KemeticGold.text(calendarLabel, style: _labelStyle)
+                  : Text(
+                      calendarLabel,
+                      style: _labelStyle.copyWith(color: color),
+                    ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 typedef InstrumentEventInputBuilder =
     Widget Function(
       BuildContext context,
@@ -335,6 +399,7 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
     required this.bodyScrollKey,
     required this.lowerSheetKey,
     this.fixedHeroHeight,
+    this.fixedInstrumentHeight,
     this.instrumentFooterHeight = footerHeight,
     this.initialLowerSheetPeek,
     this.lowerSheetOverlaysInstrument = false,
@@ -350,7 +415,15 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
   final Widget body;
   final Key bodyScrollKey;
   final Key lowerSheetKey;
+
+  /// Overrides the housing's foreground start when a flow authors a specific
+  /// amount of hero space above its scrolling content.
   final double? fixedHeroHeight;
+
+  /// Gives a flow's fixed artwork its natural height without moving the
+  /// housing-owned foreground start. The foreground clips and covers artwork
+  /// beyond its own start; it never resizes that artwork.
+  final double? fixedInstrumentHeight;
   final double instrumentFooterHeight;
   final double? initialLowerSheetPeek;
   final bool lowerSheetOverlaysInstrument;
@@ -370,7 +443,7 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
             : math.max(0.0, boundedHeight - initialLowerSheetPeek!);
         final instrumentHeight = lowerSheetOverlaysInstrument
             ? boundedHeight
-            : lowerSheetStart;
+            : (fixedInstrumentHeight ?? lowerSheetStart);
         final heroHeight = math.max(
           0.0,
           instrumentHeight - instrumentFooterHeight,

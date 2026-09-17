@@ -23,6 +23,8 @@ const _captureDjedSittingStages = bool.fromEnvironment(
   'CAPTURE_DJED_SITTING_STAGES',
 );
 final _goldenRoot = maatFlowVisualGoldenRoot;
+void _noop() {}
+
 const _releasedSupportVisualFixtures = <DjedSupportFixture>[
   DjedSupportFixture(
     name: 'support 01',
@@ -128,9 +130,10 @@ void main() {
                         onResultSelected: (_) {},
                         onCompletionSelected: (_) {},
                       ),
-                      footer: DjedDayFooterActions(
+                      footer: MaatDayViewFooterActions(
                         onMakeTodo: () {},
                         onCalendar: () {},
+                        calendarLabel: 'Calendar',
                       ),
                     ),
                   ),
@@ -541,7 +544,7 @@ void main() {
     expect(find.text('×'), findsNothing);
     expect(find.textContaining('SITTING 04'), findsNothing);
     expect(
-      find.byKey(const ValueKey<String>('djed-detail-make-todo')),
+      find.byKey(const ValueKey<String>('maat-day-view-make-todo')),
       findsOneWidget,
     );
     final practiceSheet = find.byKey(
@@ -598,7 +601,9 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(practiceSheet).dy, closeTo(frameRect.top, 1));
-    final footerTop = tester.getRect(find.byType(DjedDayFooterChrome)).top;
+    final footerTop = tester
+        .getRect(find.byKey(const ValueKey<String>('maat-day-view-make-todo')))
+        .top;
     final requiredAtDock = <Finder>[
       find.descendant(
         of: practiceSheet,
@@ -653,7 +658,7 @@ void main() {
               )
               .top -
           tester.getRect(inKemetDisclosure).bottom,
-      closeTo(5, .1),
+      closeTo(0, .1),
     );
     final disclosureButton = tester.widget<TextButton>(inKemetDisclosure);
     expect(
@@ -707,7 +712,9 @@ void main() {
     );
     expect(
       tester
-          .getRect(find.byKey(const ValueKey<String>('djed-detail-make-todo')))
+          .getRect(
+            find.byKey(const ValueKey<String>('maat-day-view-make-todo')),
+          )
           .bottom,
       lessThanOrEqualTo(tester.view.physicalSize.height),
     );
@@ -850,7 +857,7 @@ void main() {
       expect(find.text('Make one move'), findsWidgets);
       expect(find.text('the weekly call with my sister'), findsWidgets);
       expect(
-        find.byKey(const ValueKey<String>('djed-detail-make-todo')),
+        find.byKey(const ValueKey<String>('maat-day-view-make-todo')),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);
@@ -900,7 +907,10 @@ void main() {
                   semanticLabel: 'Djed sitting details',
                   handleColor: DjedDayTokens.gold,
                   body: DjedDayPresentation(),
-                  footer: DjedDayFooterActions(),
+                  footer: MaatDayViewFooterActions(
+                    onMakeTodo: _noop,
+                    calendarLabel: 'Calendar',
+                  ),
                 ),
               ),
             ),

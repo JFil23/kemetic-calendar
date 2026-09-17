@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/app_theme.dart';
@@ -16,9 +14,7 @@ const _captureReadingHouseDayVisuals = bool.fromEnvironment(
   'CAPTURE_READING_HOUSE_DAY_VISUALS',
 );
 final _goldenRoot = maatFlowVisualGoldenRoot;
-
-double _authoredOpenSheetExtent(Size size) =>
-    math.min(600, size.height * .72) / (size.height - 12);
+void _noop() {}
 
 void main() {
   setUpAll(() async {
@@ -29,7 +25,7 @@ void main() {
     WidgetTester tester, {
     required Size size,
     double textScale = 1,
-    double initialExtent = 1,
+    double initialExtent = instrumentEventSheetMinExtent,
     ReadingHouseDayVisualFixture fixture = kReadingHouseDayVisualFixture,
   }) async {
     await tester.binding.setSurfaceSize(size);
@@ -100,7 +96,6 @@ void main() {
                       semanticLabel: 'Reading House sitting details',
                       handleColor: ReadingHouseDayTokens.mint,
                       initialExtent: initialExtent,
-                      geometry: InstrumentEventSheetGeometry.layered,
                       trailing: const Icon(
                         Icons.more_vert,
                         color: Color(0xFF756E68),
@@ -113,9 +108,10 @@ void main() {
                         onPostSharedNote: (_) {},
                         onCompletionSelected: (_) {},
                       ),
-                      footer: ReadingHouseDayFooterActions(
+                      footer: MaatDayViewFooterActions(
                         onMakeTodo: () {},
                         onCalendar: () {},
+                        calendarLabel: 'Calendar',
                       ),
                     ),
                   ),
@@ -129,12 +125,22 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('reuses the layered frame and preserves the approved lanes', (
+  testWidgets('reuses the shared frame and preserves the approved lanes', (
     tester,
   ) async {
     await pumpPresentation(tester, size: const Size(390, 720));
     expect(find.byType(InstrumentEventPresentationFrame), findsOneWidget);
     expect(find.text('House Chat'), findsOneWidget);
+    await tester.drag(
+      find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
+      const Offset(0, -360),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const ValueKey<String>('reading-house-presentation-body')),
+      const Offset(0, -520),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Host announcement'), findsWidgets);
     expect(find.text('Shared note'), findsOneWidget);
     expect(find.text('Private reflection'), findsOneWidget);
@@ -186,7 +192,10 @@ void main() {
                   semanticLabel: 'Reading House sitting details',
                   handleColor: ReadingHouseDayTokens.mint,
                   body: ReadingHouseDayPresentation(),
-                  footer: ReadingHouseDayFooterActions(),
+                  footer: MaatDayViewFooterActions(
+                    onMakeTodo: _noop,
+                    calendarLabel: 'Calendar',
+                  ),
                 ),
               ),
             ),
@@ -231,11 +240,7 @@ void main() {
   testWidgets(
     'Reading House scroll raises the inner practice card before outer resize',
     (tester) async {
-      await pumpPresentation(
-        tester,
-        size: const Size(390, 844),
-        initialExtent: .71,
-      );
+      await pumpPresentation(tester, size: const Size(390, 844));
       final host = find.byKey(
         const ValueKey<String>('reading-house-visual-sheet-host'),
       );
@@ -244,7 +249,7 @@ void main() {
       );
       final hostBefore = tester.getRect(host);
       final lowerBefore = tester.getRect(lower);
-      expect(hostBefore.top, closeTo(245, 12));
+      expect(hostBefore.top, closeTo(353, 12));
       expect(
         tester
             .getRect(
@@ -253,10 +258,10 @@ void main() {
               ),
             )
             .top,
-        closeTo(245, 12),
+        closeTo(353, 12),
       );
-      await tester.drag(
-        find.byKey(const ValueKey<String>('reading-house-presentation-body')),
+      await tester.dragFrom(
+        Offset(lowerBefore.center.dx, lowerBefore.top + 20),
         const Offset(0, -300),
       );
       await tester.pumpAndSettle();
@@ -271,8 +276,8 @@ void main() {
           '$_goldenRoot/reading-house-day-sheet-body-390x844.png',
         ),
       );
-      await tester.drag(
-        find.byKey(const ValueKey<String>('reading-house-presentation-body')),
+      await tester.dragFrom(
+        Offset(lowerAfter.center.dx, lowerAfter.top + 40),
         const Offset(0, -1600),
       );
       await tester.pumpAndSettle();
@@ -334,14 +339,20 @@ void main() {
         tester,
         size: fixture.$2,
         textScale: fixture.$3,
-        initialExtent: fixture.$1 == 'mockup' || fixture.$1 == 'incoming'
-            ? _authoredOpenSheetExtent(fixture.$2)
-            : 1,
+        initialExtent: instrumentEventSheetMinExtent,
         fixture: fixture.$4,
       );
       if (fixture.$1 == 'complete') {
         await tester.drag(
-          find.byKey(const ValueKey<String>('reading-house-presentation-body')),
+          find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
+          const Offset(0, -360),
+        );
+        await tester.pumpAndSettle();
+        final lower = tester.getRect(
+          find.byKey(const ValueKey<String>('reading-house-practice-sheet')),
+        );
+        await tester.dragFrom(
+          Offset(lower.center.dx, lower.top + 40),
           const Offset(0, -1800),
         );
         await tester.pumpAndSettle();

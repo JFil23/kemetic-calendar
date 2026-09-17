@@ -227,7 +227,7 @@ class _OfferingTableDayV8PresentationState
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('offering-table-day-presentation-v8'),
       decoration: const BoxDecoration(color: _velvet),
-      initialLowerSheetPeek: 28,
+      fixedInstrumentHeight: 420,
       instrumentFooterHeight: 0,
       instrument: _buildHero(now),
       instrumentInteractive: true,
@@ -437,27 +437,11 @@ class _OfferingTableDayV8PresentationState
           ),
         ],
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Positioned(
-            top: 7,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: SizedBox(
-                width: 38,
-                height: 3,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Color(0xFF4E3B1B),
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
-                  ),
-                ),
-              ),
-            ),
-          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -566,38 +550,14 @@ class _OfferingTableDayV8PresentationState
                           child: const Text('reset this day'),
                         ),
                       ),
-                      Container(
-                        margin: const EdgeInsets.only(top: 22),
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0x06C99A3D),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0x293E2E1C)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            const Text(
-                              'COMPLETION',
-                              style: TextStyle(
-                                color: Color(0xFFA88135),
-                                fontFamily: _ui,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 2,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            widget.completionPanel,
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
+          widget.completionPanel,
+          const SizedBox(height: 22),
         ],
       ),
     );

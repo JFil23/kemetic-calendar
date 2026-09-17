@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 
@@ -1064,50 +1066,43 @@ class _ReadingPracticeSheet extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 7, 18, 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            const Center(
-              child: SizedBox(
-                width: 38,
-                height: 3,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Color(0xFF33463E),
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _PracticeOutputBlock(
+                  title: 'Host announcement',
+                  initialText: fixture.hostAnnouncement,
+                  initialTextMetadata: 'HOST · just now',
+                  hintText: 'Host announcement',
+                  actionLabel: 'Post announcement',
+                  onAction: onPostAnnouncement,
+                  first: true,
                 ),
-              ),
+                _PracticeOutputBlock(
+                  title: 'Shared note',
+                  hintText: 'What do you want to share publicly?',
+                  actionLabel: 'Post to Feed',
+                  onAction: onPostSharedNote,
+                  publicAction: true,
+                ),
+                _PrivateReflectionBlock(
+                  initialText: fixture.privateReflection,
+                  onChanged: onPrivateReflectionChanged,
+                ),
+              ],
             ),
-            const SizedBox(height: 13),
-            _PracticeOutputBlock(
-              title: 'Host announcement',
-              initialText: fixture.hostAnnouncement,
-              initialTextMetadata: 'HOST · just now',
-              hintText: 'Host announcement',
-              actionLabel: 'Post announcement',
-              onAction: onPostAnnouncement,
-              first: true,
-            ),
-            _PracticeOutputBlock(
-              title: 'Shared note',
-              hintText: 'What do you want to share publicly?',
-              actionLabel: 'Post to Feed',
-              onAction: onPostSharedNote,
-              publicAction: true,
-            ),
-            _PrivateReflectionBlock(
-              initialText: fixture.privateReflection,
-              onChanged: onPrivateReflectionChanged,
-            ),
-            _CompletionBlock(
-              selected: fixture.completion,
-              onSelected: onCompletionSelected,
-            ),
-          ],
-        ),
+          ),
+          _CompletionBlock(
+            selected: fixture.completion,
+            onSelected: onCompletionSelected,
+          ),
+          const SizedBox(height: 22),
+        ],
       ),
     );
   }
@@ -1317,132 +1312,22 @@ class _CompletionBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: const Color(0x053FA98A),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0x247FD9BC)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Text(
-              'COMPLETION',
-              style: TextStyle(
-                color: Color(0xFF669A88),
-                fontFamily: 'GentiumPlus',
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: <Widget>[
-                for (final option in const <ReadingHouseCompletionVisualState>[
-                  ReadingHouseCompletionVisualState.observed,
-                  ReadingHouseCompletionVisualState.partly,
-                  ReadingHouseCompletionVisualState.skipped,
-                ]) ...<Widget>[
-                  Expanded(
-                    child: SizedBox(
-                      height: 40,
-                      child: OutlinedButton(
-                        onPressed: () => onSelected?.call(option),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: selected == option
-                              ? const Color(0xFF06100C)
-                              : const Color(0xFF8D9791),
-                          backgroundColor: selected == option
-                              ? const Color(0xFF3FA98A)
-                              : const Color(0xFF080B09),
-                          side: BorderSide(
-                            color: selected == option
-                                ? const Color(0xFF69C9AA)
-                                : const Color(0xFF26372F),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: EdgeInsets.zero,
-                          textStyle: const TextStyle(
-                            fontFamily: MaatFlowListTokens.fontFamily,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        child: Text(_completionLabel(option)),
-                      ),
-                    ),
-                  ),
-                  if (option != ReadingHouseCompletionVisualState.skipped)
-                    const SizedBox(width: 8),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ReadingHouseDayFooterActions extends StatelessWidget {
-  const ReadingHouseDayFooterActions({
-    super.key,
-    this.onMakeTodo,
-    this.onCalendar,
-  });
-
-  final VoidCallback? onMakeTodo;
-  final VoidCallback? onCalendar;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: <Widget>[
-        TextButton.icon(
-          key: const ValueKey<String>('reading-house-make-todo'),
-          onPressed: onMakeTodo,
-          style: TextButton.styleFrom(
-            foregroundColor: ReadingHouseDayTokens.mint,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            textStyle: const TextStyle(
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          icon: const Text(
-            '≡✓',
-            style: TextStyle(
-              color: ReadingHouseDayTokens.mint,
-              fontFamily: 'GentiumPlus',
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          label: const Text('Make to-do'),
-        ),
-        TextButton(
-          key: const ValueKey<String>('reading-house-calendar-action'),
-          onPressed: onCalendar,
-          style: TextButton.styleFrom(
-            foregroundColor: ReadingHouseDayTokens.mint,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            textStyle: const TextStyle(
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          child: const Text('Calendar'),
-        ),
-      ],
+    final status = switch (selected) {
+      ReadingHouseCompletionVisualState.none => CompletionStatus.none,
+      ReadingHouseCompletionVisualState.observed => CompletionStatus.observed,
+      ReadingHouseCompletionVisualState.partly => CompletionStatus.partial,
+      ReadingHouseCompletionVisualState.skipped => CompletionStatus.skipped,
+    };
+    return CalendarCompletionPicker(
+      key: const ValueKey<String>('reading-house-completion-picker'),
+      current: status,
+      style: kMaatDayViewCompletionPickerStyle,
+      onChanged: (next) => onSelected?.call(switch (next) {
+        CompletionStatus.none => ReadingHouseCompletionVisualState.none,
+        CompletionStatus.observed => ReadingHouseCompletionVisualState.observed,
+        CompletionStatus.partial => ReadingHouseCompletionVisualState.partly,
+        CompletionStatus.skipped => ReadingHouseCompletionVisualState.skipped,
+      }),
     );
   }
 }
@@ -1472,13 +1357,4 @@ InputDecoration _practiceInputDecoration(String hintText) {
       ),
     ),
   );
-}
-
-String _completionLabel(ReadingHouseCompletionVisualState value) {
-  return switch (value) {
-    ReadingHouseCompletionVisualState.observed => 'Observed',
-    ReadingHouseCompletionVisualState.partly => 'Partly',
-    ReadingHouseCompletionVisualState.skipped => 'Skipped',
-    ReadingHouseCompletionVisualState.none => '',
-  };
 }

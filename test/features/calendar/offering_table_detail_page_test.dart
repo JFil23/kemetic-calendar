@@ -1291,9 +1291,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('matches the locked Offering Table Day View and layered sheet', (
-    tester,
-  ) async {
+  testWidgets('matches the canonical Ma\'at Day View housing', (tester) async {
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -1322,27 +1320,29 @@ void main() {
     final outerSheet = find.byKey(
       const ValueKey<String>('offering-table-resizable-sheet'),
     );
-    final outerBefore = tester.getRect(
+    final outerSheetBefore = tester.getRect(outerSheet);
+    final outerBackplateBefore = tester.getRect(
       find.byKey(dayViewBottomSheetBackplateKey),
     );
     expect(
-      outerBefore.top,
-      closeTo(254, 12),
-      reason: 'The HTML authority opens the layered sheet at y=254 on 390×844.',
+      outerBackplateBefore.top,
+      closeTo(361.44, 1),
+      reason:
+          'The shared Ma\'at Day View housing opens at the Follow Sky .58 extent.',
     );
     final outerHandle = tester.getRect(
       find.byKey(const ValueKey<String>('instrument-sheet-handle-mark')),
     );
     expect(
-      outerHandle.top - outerBefore.top,
-      closeTo(19, 1),
-      reason: 'The HTML authority places the handle 19px below the sheet top.',
+      outerHandle.top - outerBackplateBefore.top,
+      closeTo(22, 1),
+      reason: 'The shared housing centers the 4px handle in its 48px top bar.',
     );
     await _dragOfferingForeground(tester, const Offset(0, -565));
     await tester.pumpAndSettle();
     final outerAfterInnerRaise = tester.getRect(outerSheet);
-    expect(outerAfterInnerRaise.top, closeTo(outerBefore.top, .5));
-    expect(outerAfterInnerRaise.height, closeTo(outerBefore.height, .5));
+    expect(outerAfterInnerRaise.top, closeTo(outerSheetBefore.top, .5));
+    expect(outerAfterInnerRaise.height, closeTo(outerSheetBefore.height, .5));
     await expectLater(
       find.byKey(_visualCaptureSurfaceKey),
       matchesGoldenFile(

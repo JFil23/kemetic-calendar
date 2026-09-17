@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
@@ -107,43 +108,44 @@ void main() {
     final presentation = find.byKey(
       const ValueKey<String>('offering-table-day-presentation-v8'),
     );
-    final lowerSheet = find.byKey(
-      const ValueKey<String>('offering-table-layered-practice-sheet'),
+    final hero = find.byKey(
+      const ValueKey<String>('offering-table-fixed-hero'),
     );
     expect(sheet, findsOneWidget);
     expect(handle, findsOneWidget);
     expect(presentation, findsOneWidget);
-    expect(
-      tester.getRect(presentation).bottom - tester.getRect(lowerSheet).top,
-      closeTo(28, .5),
-      reason: 'Day 1 keeps the authored lower ritual card peeking by 28 px.',
+    final host = tester.widget<InstrumentEventSheetHost>(sheet);
+    expect(host.initialExtent, instrumentEventSheetMinExtent);
+    expect(host.geometry, isNull);
+    final frame = tester.widget<InstrumentEventPresentationFrame>(
+      find.byType(InstrumentEventPresentationFrame),
     );
+    expect(frame.fixedInstrumentHeight, 420);
 
     final availableHeight = _viewport.height - 12;
-    final maxSheetHeight = availableHeight * 0.71;
-    final layeredPageHeight = maxSheetHeight - 48 - 72;
-    expect(tester.getSize(page).height, closeTo(layeredPageHeight, 20));
+    final initialSheetHeight = availableHeight * instrumentEventSheetMinExtent;
+    final initialPageHeight = initialSheetHeight - 48 - 72;
+    expect(tester.getSize(page).height, closeTo(initialPageHeight, 20));
+    final pageBeforeResize = tester.getSize(page);
+    final heroBeforeResize = tester.getRect(hero);
 
     await tester.drag(handle, const Offset(0, -120));
     await tester.pumpAndSettle();
-    expect(tester.getSize(page).height, closeTo(layeredPageHeight + 120, 20));
     expect(
-      tester.getRect(presentation).bottom - tester.getRect(lowerSheet).top,
-      closeTo(28, .5),
-      reason: 'Resizing the outer sheet preserves the authored card peek.',
+      tester.getSize(page).height,
+      closeTo(pageBeforeResize.height + 120, 20),
     );
+    expect(tester.getRect(hero), heroBeforeResize);
 
     final body = find.byKey(
       const ValueKey<String>('offering-table-presentation-body'),
     );
-    final xBefore = tester.getTopLeft(body).dx;
-    final lowerBefore = tester.getRect(lowerSheet);
-    await tester.dragFrom(
-      Offset(tester.getRect(sheet).center.dx, lowerBefore.top + 12),
-      const Offset(0, -400),
-    );
+    final sheetBeforeInnerScroll = tester.getRect(sheet);
+    final heroBeforeInnerScroll = tester.getRect(hero);
+    await tester.drag(body, const Offset(0, -400));
     await tester.pumpAndSettle();
-    expect(tester.getTopLeft(body).dx, closeTo(xBefore, 0.1));
+    expect(tester.getRect(sheet), sheetBeforeInnerScroll);
+    expect(tester.getRect(hero), heroBeforeInnerScroll);
   });
 }
 

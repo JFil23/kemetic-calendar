@@ -39,6 +39,21 @@
     },
     {
       "states": [
+        "djed-day-sheet",
+        "djed-day-sheet-docked",
+        "reading-house-day-sheet",
+        "reading-house-day-sheet-docked",
+        "reading-house-day-sheet-bottom",
+        "offering-day-sheet",
+        "offering-day-sheet-docked",
+        "offering-day-sheet-bottom",
+        "offering-day-sheet-context"
+      ],
+      "difference": "Follow the Sky is the mechanical housing authority for the four canonical Ma'at Day View sheets. They open at 0.58 with one outer handle, one foreground scroll owner, shared menu/completion/footer placement, and fixed natural-size artwork that is revealed or covered rather than resized. Older per-flow custom extents, inner handles, and nested-layer geometry shown by the HTML are superseded.",
+      "reason": "The user's September 17 instruction explicitly standardizes only the canonical Day View housing while preserving each flow's authored artwork, copy, fields, and interactive states. Flow-detail sheets, user-created flows, and K\ua723r are outside this contract."
+    },
+    {
+      "states": [
         "offering-day-view",
         "offering-day-sheet",
         "offering-day-sheet-docked",
@@ -200,9 +215,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 12.1097,
-        "changed_pixels_over_8": 90702,
-        "changed_pixel_percent_over_8": 27.5556
+        "mean_absolute_channel_error": 12.3696,
+        "changed_pixels_over_8": 92349,
+        "changed_pixel_percent_over_8": 28.056
       }
     },
     {
@@ -220,9 +235,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 9.6017,
-        "changed_pixels_over_8": 115058,
-        "changed_pixel_percent_over_8": 34.955
+        "mean_absolute_channel_error": 9.712,
+        "changed_pixels_over_8": 117091,
+        "changed_pixel_percent_over_8": 35.5727
       }
     },
     {
@@ -240,9 +255,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 11.0064,
-        "changed_pixels_over_8": 92179,
-        "changed_pixel_percent_over_8": 28.0043
+        "mean_absolute_channel_error": 11.044,
+        "changed_pixels_over_8": 93929,
+        "changed_pixel_percent_over_8": 28.536
       }
     },
     {
@@ -260,9 +275,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 10.1283,
-        "changed_pixels_over_8": 125129,
-        "changed_pixel_percent_over_8": 44.5616
+        "mean_absolute_channel_error": 10.2056,
+        "changed_pixels_over_8": 125011,
+        "changed_pixel_percent_over_8": 44.5196
       }
     },
     {
@@ -280,9 +295,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 10.4399,
-        "changed_pixels_over_8": 126267,
-        "changed_pixel_percent_over_8": 44.9669
+        "mean_absolute_channel_error": 10.5172,
+        "changed_pixels_over_8": 126149,
+        "changed_pixel_percent_over_8": 44.9249
       }
     },
     {
@@ -300,9 +315,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 11.0702,
-        "changed_pixels_over_8": 138476,
-        "changed_pixel_percent_over_8": 49.3148
+        "mean_absolute_channel_error": 11.1474,
+        "changed_pixels_over_8": 138358,
+        "changed_pixel_percent_over_8": 49.2728
       }
     },
     {
@@ -472,7 +487,7 @@
         "sha256": "ba77134ddcd137d9fd79d450dd04b2cef8650e579dabb8d1df9baad8e14cdb0c"
       },
       "golden": "reading-house-day-sheet-390x844.png",
-      "scope": "initial layered House sheet",
+      "scope": "initial shared Ma'at Day View housing",
       "html_content_top_inset": 0,
       "mask_top": 47,
       "size": [
@@ -480,9 +495,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 9.5292,
-        "changed_pixels_over_8": 82507,
-        "changed_pixel_percent_over_8": 25.0659
+        "mean_absolute_channel_error": 13.8164,
+        "changed_pixels_over_8": 149852,
+        "changed_pixel_percent_over_8": 45.5256
       }
     },
     {
@@ -492,7 +507,7 @@
         "sha256": "ba77134ddcd137d9fd79d450dd04b2cef8650e579dabb8d1df9baad8e14cdb0c"
       },
       "golden": "reading-house-day-sheet-body-390x844.png",
-      "scope": "inner House card docked",
+      "scope": "foreground House practice raised",
       "html_content_top_inset": 0,
       "mask_top": 47,
       "size": [
@@ -500,9 +515,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 8.6815,
-        "changed_pixels_over_8": 41068,
-        "changed_pixel_percent_over_8": 12.4766
+        "mean_absolute_channel_error": 8.5936,
+        "changed_pixels_over_8": 45964,
+        "changed_pixel_percent_over_8": 13.964
       }
     },
     {
@@ -520,9 +535,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 6.421,
-        "changed_pixels_over_8": 34114,
-        "changed_pixel_percent_over_8": 10.364
+        "mean_absolute_channel_error": 7.5867,
+        "changed_pixels_over_8": 44485,
+        "changed_pixel_percent_over_8": 13.5147
       }
     },
     {
@@ -540,9 +555,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 10.3248,
-        "changed_pixels_over_8": 75936,
-        "changed_pixel_percent_over_8": 27.0427
+        "mean_absolute_channel_error": 14.4754,
+        "changed_pixels_over_8": 131801,
+        "changed_pixel_percent_over_8": 46.9377
       }
     },
     {
@@ -560,9 +575,9 @@
         720
       ],
       "metrics": {
-        "mean_absolute_channel_error": 7.8032,
-        "changed_pixels_over_8": 72859,
-        "changed_pixel_percent_over_8": 25.9469
+        "mean_absolute_channel_error": 11.0842,
+        "changed_pixels_over_8": 83110,
+        "changed_pixel_percent_over_8": 29.5976
       }
     },
     {
@@ -580,9 +595,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 12.3168,
-        "changed_pixels_over_8": 78878,
-        "changed_pixel_percent_over_8": 23.9634
+        "mean_absolute_channel_error": 11.3662,
+        "changed_pixels_over_8": 68669,
+        "changed_pixel_percent_over_8": 20.8619
       }
     },
     {
@@ -592,7 +607,7 @@
         "sha256": "20e3619a6905c2e1d124da7a14def6f911107c79a89bf8da055ab361815a7bdb"
       },
       "golden": "offering-table-day-sheet-initial-390x844.png",
-      "scope": "initial layered detail sheet",
+      "scope": "initial shared Ma'at Day View housing",
       "html_content_top_inset": 0,
       "mask_top": 47,
       "size": [
@@ -600,9 +615,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 8.2952,
-        "changed_pixels_over_8": 92799,
-        "changed_pixel_percent_over_8": 28.1927
+        "mean_absolute_channel_error": 10.9777,
+        "changed_pixels_over_8": 108401,
+        "changed_pixel_percent_over_8": 32.9326
       }
     },
     {
@@ -612,7 +627,7 @@
         "sha256": "20e3619a6905c2e1d124da7a14def6f911107c79a89bf8da055ab361815a7bdb"
       },
       "golden": "offering-table-day-sheet-raised-390x844.png",
-      "scope": "inner ritual card docked",
+      "scope": "foreground ritual content raised",
       "html_content_top_inset": 0,
       "mask_top": 47,
       "size": [
@@ -620,9 +635,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 5.4489,
-        "changed_pixels_over_8": 31288,
-        "changed_pixel_percent_over_8": 9.5054
+        "mean_absolute_channel_error": 6.3535,
+        "changed_pixels_over_8": 50378,
+        "changed_pixel_percent_over_8": 15.305
       }
     },
     {
@@ -640,9 +655,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 4.4703,
-        "changed_pixels_over_8": 28154,
-        "changed_pixel_percent_over_8": 8.5533
+        "mean_absolute_channel_error": 5.2464,
+        "changed_pixels_over_8": 47540,
+        "changed_pixel_percent_over_8": 14.4428
       }
     },
     {
@@ -660,9 +675,9 @@
         844
       ],
       "metrics": {
-        "mean_absolute_channel_error": 5.8489,
-        "changed_pixels_over_8": 33652,
-        "changed_pixel_percent_over_8": 10.2236
+        "mean_absolute_channel_error": 6.0196,
+        "changed_pixels_over_8": 51848,
+        "changed_pixel_percent_over_8": 15.7516
       }
     },
     {
