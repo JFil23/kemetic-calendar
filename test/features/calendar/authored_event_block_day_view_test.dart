@@ -483,7 +483,6 @@ void main() {
     expect(unobscuredCaptureRect.size, const Size(354, 610));
     expect(unobscuredCaptureRect.center, const Offset(195, 422));
     final field = find.byKey(const ValueKey<String>('kar-describe-field'));
-    await tester.ensureVisible(field);
     await tester.tap(field);
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
     addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);

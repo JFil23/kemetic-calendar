@@ -45,10 +45,8 @@ void main() {
     (tester) async {
       tester.view.devicePixelRatio = 1.0;
       tester.view.physicalSize = const Size(390, 844);
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      tester.view.padding = const FakeViewPadding(bottom: 34);
+      addTearDown(tester.view.reset);
 
       final titleController = TextEditingController();
       final detailsController = TextEditingController();
@@ -63,36 +61,29 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: MediaQuery(
-            data: const MediaQueryData(
-              size: Size(390, 844),
-              padding: EdgeInsets.only(bottom: 34),
-              viewInsets: EdgeInsets.only(bottom: keyboardInset),
-            ),
-            child: Scaffold(
-              resizeToAvoidBottomInset: false,
-              body: KeyboardInsetBoundary(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: DaySheetKeyboardSafeFrame(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        DaySheetTextField(
-                          key: titleKey,
-                          controller: titleController,
-                          hint: 'Title',
-                        ),
-                        const SizedBox(height: 420),
-                        DaySheetTextField(
-                          key: detailsKey,
-                          controller: detailsController,
-                          hint: 'Details (optional)',
-                          minLines: 4,
-                          maxLines: 6,
-                        ),
-                      ],
-                    ),
+          home: Scaffold(
+            resizeToAvoidBottomInset: false,
+            body: KeyboardInsetBoundary(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: DaySheetKeyboardSafeFrame(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DaySheetTextField(
+                        key: titleKey,
+                        controller: titleController,
+                        hint: 'Title',
+                      ),
+                      const SizedBox(height: 420),
+                      DaySheetTextField(
+                        key: detailsKey,
+                        controller: detailsController,
+                        hint: 'Details (optional)',
+                        minLines: 4,
+                        maxLines: 6,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -102,28 +93,30 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.tap(find.byKey(detailsKey));
+      await tester.pumpAndSettle();
+      final detailsEditable = find.descendant(
+        of: find.byKey(detailsKey),
+        matching: find.byType(EditableText),
+      );
+      expect(
+        tester.widget<EditableText>(detailsEditable).focusNode.hasFocus,
+        isTrue,
+      );
+
+      tester.view.viewInsets = const FakeViewPadding(bottom: keyboardInset);
+      await tester.pumpAndSettle();
+
       final keyboardTop = 844 - keyboardInset;
       expect(
         tester.getRect(find.byKey(daySheetKeyboardSafeFrameKey)).bottom,
         lessThanOrEqualTo(keyboardTop),
       );
-
-      await tester.tap(find.byKey(titleKey));
-      await tester.pumpAndSettle();
-      expect(
-        tester.getRect(find.byKey(titleKey)).bottom,
-        lessThan(keyboardTop),
-      );
-
-      await tester.ensureVisible(find.byKey(detailsKey));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(detailsKey));
-      await tester.pumpAndSettle();
-
       expect(
         tester.getRect(find.byKey(detailsKey)).bottom,
         lessThan(keyboardTop),
       );
+      expect(find.byKey(titleKey), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

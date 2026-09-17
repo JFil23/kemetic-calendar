@@ -2008,6 +2008,38 @@ class DayViewSheetEventTarget {
   });
 }
 
+enum _DayViewInstrumentKind {
+  none,
+  followSky,
+  offeringTable,
+  readingHouse,
+  djed,
+  kar,
+}
+
+class _DayViewInstrumentPresentation {
+  const _DayViewInstrumentPresentation({
+    required this.kind,
+    this.completionContext,
+    this.followSkyClientEventId,
+    this.followSkyEventId,
+    this.offeringTableDay,
+    this.readingHouseSitting,
+    this.djedEvent,
+  });
+
+  const _DayViewInstrumentPresentation.none()
+    : this(kind: _DayViewInstrumentKind.none);
+
+  final _DayViewInstrumentKind kind;
+  final _MaatFlowCompletionContext? completionContext;
+  final String? followSkyClientEventId;
+  final String? followSkyEventId;
+  final OfferingTableDay? offeringTableDay;
+  final ReadingHouseSitting? readingHouseSitting;
+  final DjedV2Event? djedEvent;
+}
+
 @visibleForTesting
 DayViewSheetEventTarget? sameDayEndFlowSuccessor({
   required DayViewSheetEventTarget target,
@@ -2244,51 +2276,101 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
 
   FlowData? _chromeFlowForId(int? flowId) => widget.flowResolver?.call(flowId);
 
-  bool _isOfferingTableInstrumentEvent(EventItem event) {
-    if (resolveMaatFlowKind(behaviorPayload: event.behaviorPayload) ==
-        MaatFlowKind.offeringTable) {
-      return true;
+  _DayViewInstrumentPresentation _instrumentPresentationForTarget(
+    DayViewSheetEventTarget target, {
+    bool enabled = true,
+  }) {
+    if (!enabled ||
+        _detailSheetTargetKey(target) !=
+            _detailSheetTargetKey(_currentTarget)) {
+      return const _DayViewInstrumentPresentation.none();
     }
+
+    final event = target.event;
     final flow = _chromeFlowForId(event.flowId);
-    return event.flowId != null &&
+    final completionContext = _maatFlowCompletionContextForEvent(event, flow);
+    final followSkyClientEventId = event.clientEventId?.trim();
+    final followSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
+      event.behaviorPayload,
+    );
+    if (completionContext != null &&
+        FollowSkyObservationRoute.matches(
+          clientEventId: followSkyClientEventId,
+          behaviorPayload: event.behaviorPayload,
+          catalog: _followSkyCatalog,
+        ) &&
+        followSkyEventId != null &&
+        followSkyEventId.isNotEmpty) {
+      return _DayViewInstrumentPresentation(
+        kind: _DayViewInstrumentKind.followSky,
+        completionContext: completionContext,
+        followSkyClientEventId: followSkyClientEventId,
+        followSkyEventId: followSkyEventId,
+      );
+    }
+
+    final flowKind = resolveMaatFlowKind(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      behaviorPayload: event.behaviorPayload,
+    );
+    final offeringTableDay =
         isOfferingTableFlowReference(
           flowName: flow?.name,
           flowNotes: flow?.notes,
           behaviorPayload: event.behaviorPayload,
-        ) &&
-        offeringTableDayForEvent(
-              title: event.title,
-              behaviorPayload: event.behaviorPayload,
-            ) !=
-            null;
-  }
-
-  bool _isDjedInstrumentEvent(EventItem event) {
-    return _djedV2EventForItem(event) != null;
-  }
-
-  bool _isReadingHouseInstrumentEvent(EventItem event) {
-    if (resolveMaatFlowKind(behaviorPayload: event.behaviorPayload) ==
-        MaatFlowKind.readingHouse) {
-      return true;
+        )
+        ? offeringTableDayForEvent(
+            title: event.title,
+            behaviorPayload: event.behaviorPayload,
+          )
+        : null;
+    if (completionContext != null &&
+        event.flowId != null &&
+        offeringTableDay != null) {
+      return _DayViewInstrumentPresentation(
+        kind: _DayViewInstrumentKind.offeringTable,
+        completionContext: completionContext,
+        offeringTableDay: offeringTableDay,
+      );
     }
-    final flow = _chromeFlowForId(event.flowId);
-    return _isReadingHouseFlowName(flow?.name);
-  }
 
-  bool _isKarInstrumentEvent(EventItem event) {
-    if (resolveMaatFlowKind(behaviorPayload: event.behaviorPayload) ==
-        MaatFlowKind.theKar) {
-      return true;
+    final readingHouseSitting = _isReadingHouseFlowName(flow?.name)
+        ? readingHouseSittingForEvent(
+            title: event.title,
+            behaviorPayload: event.behaviorPayload,
+          )
+        : null;
+    if (completionContext != null &&
+        event.flowId != null &&
+        event.calendarId?.trim().isNotEmpty == true &&
+        event.clientEventId?.trim().isNotEmpty == true &&
+        readingHouseSitting != null) {
+      return _DayViewInstrumentPresentation(
+        kind: _DayViewInstrumentKind.readingHouse,
+        completionContext: completionContext,
+        readingHouseSitting: readingHouseSitting,
+      );
     }
-    final flow = _chromeFlowForId(event.flowId);
-    return event.flowId != null &&
-        resolveMaatFlowKind(
-              flowName: flow?.name,
-              flowNotes: flow?.notes,
-              behaviorPayload: event.behaviorPayload,
-            ) ==
-            MaatFlowKind.theKar;
+
+    final djedEvent = _djedV2EventForItem(event);
+    if (djedEvent != null) {
+      return _DayViewInstrumentPresentation(
+        kind: _DayViewInstrumentKind.djed,
+        completionContext: completionContext,
+        djedEvent: djedEvent,
+      );
+    }
+
+    if (completionContext != null &&
+        event.flowId != null &&
+        flowKind == MaatFlowKind.theKar) {
+      return _DayViewInstrumentPresentation(
+        kind: _DayViewInstrumentKind.kar,
+        completionContext: completionContext,
+      );
+    }
+    return const _DayViewInstrumentPresentation.none();
   }
 
   bool _isRepeatingNoteFlowId(int? flowId) {
@@ -3368,23 +3450,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final bool isNutrition =
         currentEvent.detail != null && currentEvent.detail!.contains('Source:');
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
-    final bool isOfferingTable = isOfferingTableFlowReference(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      behaviorPayload: currentEvent.behaviorPayload,
-    );
     final bool isTheCourse = _isTheCourseFlowName(flow?.name);
     final bool isDecanWatch = _isDecanWatchFlowName(flow?.name);
     final bool isOpenHand = _isOpenHandFlowName(flow?.name);
     final bool isDjed = _djedV2EventForItem(currentEvent) != null;
-    final bool isReadingHouse = _isReadingHouseFlowName(flow?.name);
-    final bool isKar =
-        resolveMaatFlowKind(
-          flowName: flow?.name,
-          flowNotes: flow?.notes,
-          behaviorPayload: currentEvent.behaviorPayload,
-        ) ==
-        MaatFlowKind.theKar;
     final flowKind = resolveMaatFlowKind(
       flowName: flow?.name,
       flowNotes: flow?.notes,
@@ -3402,18 +3471,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final djedV2Event = _djedV2EventForItem(currentEvent);
     final djedV1Event = isDjed && djedV2Event == null
         ? djedEventForEvent(
-            title: currentEvent.title,
-            behaviorPayload: currentEvent.behaviorPayload,
-          )
-        : null;
-    final readingHouseSitting = isReadingHouse
-        ? readingHouseSittingForEvent(
-            title: currentEvent.title,
-            behaviorPayload: currentEvent.behaviorPayload,
-          )
-        : null;
-    final offeringTableDay = isOfferingTable
-        ? offeringTableDayForEvent(
             title: currentEvent.title,
             behaviorPayload: currentEvent.behaviorPayload,
           )
@@ -3476,52 +3533,16 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final sharedPracticeRoomId = sharedPracticeRoomIdFromBehaviorPayload(
       currentEvent.behaviorPayload,
     );
-    final followSkyClientEventId = currentEvent.clientEventId?.trim();
-    final followSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
-      currentEvent.behaviorPayload,
+    final instrumentPresentation = _instrumentPresentationForTarget(
+      target,
+      enabled: enableFollowSkyEngagement,
     );
-    final hasFollowSkyInstrument =
-        enableFollowSkyEngagement &&
-        _detailSheetTargetKey(target) ==
-            _detailSheetTargetKey(_currentTarget) &&
-        completionContext != null &&
-        FollowSkyObservationRoute.matches(
-          clientEventId: followSkyClientEventId,
-          behaviorPayload: currentEvent.behaviorPayload,
-          catalog: _followSkyCatalog,
-        ) &&
-        followSkyEventId != null &&
-        followSkyEventId.isNotEmpty;
-    final hasOfferingTableInstrument =
-        enableFollowSkyEngagement &&
-        _detailSheetTargetKey(target) ==
-            _detailSheetTargetKey(_currentTarget) &&
-        completionContext != null &&
-        currentEvent.flowId != null &&
-        offeringTableDay != null;
-    final hasDjedInstrument =
-        enableFollowSkyEngagement &&
-        _detailSheetTargetKey(target) ==
-            _detailSheetTargetKey(_currentTarget) &&
-        djedV2Event != null;
-    final hasReadingHouseInstrument =
-        enableFollowSkyEngagement &&
-        _detailSheetTargetKey(target) ==
-            _detailSheetTargetKey(_currentTarget) &&
-        completionContext != null &&
-        currentEvent.flowId != null &&
-        currentEvent.calendarId?.trim().isNotEmpty == true &&
-        currentEvent.clientEventId?.trim().isNotEmpty == true &&
-        readingHouseSitting != null;
-    final hasKarInstrument =
-        enableFollowSkyEngagement &&
-        _detailSheetTargetKey(target) ==
-            _detailSheetTargetKey(_currentTarget) &&
-        completionContext != null &&
-        currentEvent.flowId != null &&
-        isKar;
 
-    if (hasFollowSkyInstrument) {
+    if (instrumentPresentation.kind == _DayViewInstrumentKind.followSky) {
+      final followSkyClientEventId =
+          instrumentPresentation.followSkyClientEventId!;
+      final followSkyEventId = instrumentPresentation.followSkyEventId!;
+      final instrumentCompletion = instrumentPresentation.completionContext!;
       final localDate = DateUtils.dateOnly(
         KemeticMath.toGregorian(target.ky, target.km, target.kd),
       );
@@ -3532,7 +3553,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             'follow-sky-presentation:$followSkyClientEventId',
           ),
           catalog: _followSkyCatalog!,
-          clientEventId: followSkyClientEventId!,
+          clientEventId: followSkyClientEventId,
           completionIdentity: _completionIdentityForEvent(currentEvent),
           skyEventId: followSkyEventId,
           localDate: localDate,
@@ -3547,7 +3568,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           onWriteJournalResponse: widget.onWriteJournalResponse,
           onCommitCompletion: (status) => _commitMaatFlowCompletion(
             target: target,
-            completion: completionContext,
+            completion: instrumentCompletion,
             status: status,
           ),
         ),
@@ -3596,7 +3617,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
 
-    if (hasOfferingTableInstrument) {
+    if (instrumentPresentation.kind == _DayViewInstrumentKind.offeringTable) {
+      final offeringTableDay = instrumentPresentation.offeringTableDay!;
       final localDate = DateUtils.dateOnly(
         KemeticMath.toGregorian(target.ky, target.km, target.kd),
       );
@@ -3624,7 +3646,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
 
-    if (hasReadingHouseInstrument) {
+    if (instrumentPresentation.kind == _DayViewInstrumentKind.readingHouse) {
+      final readingHouseSitting = instrumentPresentation.readingHouseSitting!;
+      final instrumentCompletion = instrumentPresentation.completionContext!;
       final calendarId = currentEvent.calendarId!.trim();
       final flowId = currentEvent.flowId!;
       final clientEventId = currentEvent.clientEventId!.trim();
@@ -3668,7 +3692,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               };
               return _commitMaatFlowCompletion(
                 target: target,
-                completion: completionContext,
+                completion: instrumentCompletion,
                 status: status,
                 additionalMetadata: readingHousePrivateMarginCompletionMetadata(
                   privateValues,
@@ -3680,8 +3704,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
 
-    if (hasDjedInstrument) {
-      final activeDjedEvent = djedV2Event;
+    if (instrumentPresentation.kind == _DayViewInstrumentKind.djed) {
+      final activeDjedEvent = instrumentPresentation.djedEvent!;
       final fixture = _djedV2DayVisualFixture(
         activeDjedEvent,
         behaviorPayload: currentEvent.behaviorPayload,
@@ -3768,7 +3792,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
 
-    if (hasKarInstrument) {
+    if (instrumentPresentation.kind == _DayViewInstrumentKind.kar) {
+      final instrumentCompletion = instrumentPresentation.completionContext!;
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: ClipRRect(
@@ -3788,7 +3813,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             ),
             onCompletionCommit: () => _commitMaatFlowCompletion(
               target: target,
-              completion: completionContext,
+              completion: instrumentCompletion,
               status: CompletionStatus.observed,
             ),
           ),
@@ -4561,25 +4586,17 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final hasOnboardingClosingBanner =
         _isOnboardingTargetEvent(target.event) &&
         widget.onboardingClosingBannerBuilder != null;
-    final media = MediaQuery.of(context);
-    final keyboardVisible = keyboardIsVisible(context);
-    final availableSheetHeight = math.max(
-      0.0,
-      media.size.height - media.padding.top - media.padding.bottom - 12,
-    );
-    final activeFollowSkyInstrument = FollowSkyObservationRoute.matches(
-      clientEventId: target.event.clientEventId,
-      behaviorPayload: target.event.behaviorPayload,
-      catalog: _followSkyCatalog,
-    );
-    final activeOfferingTableInstrument = _isOfferingTableInstrumentEvent(
-      target.event,
-    );
-    final activeDjedInstrument = _isDjedInstrumentEvent(target.event);
-    final activeReadingHouseInstrument = _isReadingHouseInstrumentEvent(
-      target.event,
-    );
-    final activeKarInstrument = _isKarInstrumentEvent(target.event);
+    final instrumentPresentation = _instrumentPresentationForTarget(target);
+    final activeFollowSkyInstrument =
+        instrumentPresentation.kind == _DayViewInstrumentKind.followSky;
+    final activeOfferingTableInstrument =
+        instrumentPresentation.kind == _DayViewInstrumentKind.offeringTable;
+    final activeDjedInstrument =
+        instrumentPresentation.kind == _DayViewInstrumentKind.djed;
+    final activeReadingHouseInstrument =
+        instrumentPresentation.kind == _DayViewInstrumentKind.readingHouse;
+    final activeKarInstrument =
+        instrumentPresentation.kind == _DayViewInstrumentKind.kar;
     final activeLayeredInstrument =
         activeOfferingTableInstrument ||
         activeReadingHouseInstrument ||
@@ -4588,22 +4605,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         activeFollowSkyInstrument ||
         activeDjedInstrument ||
         activeLayeredInstrument;
-    final maxSheetHeight = _isWorkspacePresentation
-        ? availableSheetHeight
-        : keyboardVisible
-        ? availableSheetHeight
-        : math.min(media.size.height * 0.68, 520.0);
-    final reservedChromeHeight = _isWorkspacePresentation
-        ? 24.0
-        : hasOnboardingClosingBanner
-        ? 250.0
-        : 120.0;
-    final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
-    final sheetHeight = _isWorkspacePresentation
-        ? maxPageHeight
-        : (_measuredHeights[currentKey] ?? 200.0)
-              .clamp(0.0, maxPageHeight)
-              .toDouble();
 
     Widget buildDetailSurface() {
       if (_isWorkspacePresentation) {
@@ -4728,6 +4729,29 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               ),
       );
     }
+
+    final media = MediaQuery.of(context);
+    final keyboardVisible = keyboardIsVisible(context);
+    final availableSheetHeight = math.max(
+      0.0,
+      media.size.height - media.padding.top - media.padding.bottom - 12,
+    );
+    final maxSheetHeight = _isWorkspacePresentation
+        ? availableSheetHeight
+        : keyboardVisible
+        ? availableSheetHeight
+        : math.min(media.size.height * 0.68, 520.0);
+    final reservedChromeHeight = _isWorkspacePresentation
+        ? 24.0
+        : hasOnboardingClosingBanner
+        ? 250.0
+        : 120.0;
+    final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
+    final sheetHeight = _isWorkspacePresentation
+        ? maxPageHeight
+        : (_measuredHeights[currentKey] ?? 200.0)
+              .clamp(0.0, maxPageHeight)
+              .toDouble();
 
     final content = Column(
       mainAxisSize: MainAxisSize.min,

@@ -151,6 +151,32 @@ void main() {
       expect(source, isNot(contains('reminderFieldScrollPadding')));
     });
 
+    test('Day Sheet does not reserve a second keyboard clearance band', () {
+      final source = File(
+        'lib/widgets/day_sheet_components.dart',
+      ).readAsStringSync();
+
+      expect(source, isNot(contains('scrollBottomPadding')));
+      expect(source, contains('KeyboardAwareEditableSurface('));
+    });
+
+    test('keyboard regressions do not pre-scroll focused fields in tests', () {
+      const paths = <String>[
+        'test/widgets/day_sheet_keyboard_safe_frame_test.dart',
+        'test/features/calendar/authored_event_block_day_view_test.dart',
+        'test/features/calendar/offering_table_detail_page_test.dart',
+      ];
+
+      for (final path in paths) {
+        final source = File(path).readAsStringSync();
+        expect(
+          source,
+          isNot(contains('tester.ensureVisible(field)')),
+          reason: path,
+        );
+      }
+    });
+
     test('one shared surface owns scoped focus correction', () {
       final owners = <String>[];
       for (final file in _dartSourcesUnder('lib')) {

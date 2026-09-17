@@ -29502,7 +29502,6 @@ class CalendarPageState extends State<CalendarPage>
                   child: DaySheetKeyboardSafeFrame(
                     expanded: followSkyIntentionEditing,
                     scrollable: false,
-                    scrollBottomPadding: 0,
                     bottomPadding: 0,
                     horizontalPadding: 0,
                     child: DefaultTextStyle(

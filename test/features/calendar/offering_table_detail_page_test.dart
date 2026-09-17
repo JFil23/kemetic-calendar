@@ -1004,7 +1004,6 @@ void main() {
       final field = find.byKey(
         const ValueKey<String>('offering-table-preview-practice-field'),
       );
-      await tester.ensureVisible(field);
       await tester.tap(field);
       tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);

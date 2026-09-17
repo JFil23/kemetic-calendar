@@ -698,7 +698,6 @@ class _FollowSkyEditingSheetHarnessState
             child: DaySheetKeyboardSafeFrame(
               expanded: _editing,
               scrollable: false,
-              scrollBottomPadding: 0,
               bottomPadding: 0,
               horizontalPadding: 0,
               child: Column(

@@ -101,7 +101,6 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
     this.horizontalPadding = 22,
     this.topPadding = 10,
     this.bottomPadding = 12,
-    this.scrollBottomPadding = 180,
     this.scrollable = true,
     this.expanded = false,
   });
@@ -111,7 +110,6 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
   final double horizontalPadding;
   final double topPadding;
   final double bottomPadding;
-  final double scrollBottomPadding;
   final bool scrollable;
   final bool expanded;
 
@@ -147,9 +145,6 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
                       key: daySheetKeyboardSafeScrollViewKey,
                       keyboardDismissBehavior:
                           ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: EdgeInsets.only(
-                        bottom: media.padding.bottom + scrollBottomPadding,
-                      ),
                       child: child,
                     )
                   : child,

@@ -114,6 +114,59 @@ void main() {
   });
 
   testWidgets(
+    'incomplete Offering identity cannot select instrument chrome without instrument content',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: const Scaffold(
+            body: DayViewGrid(
+              ky: 1,
+              km: 1,
+              kd: 1,
+              notes: <NoteData>[
+                NoteData(
+                  clientEventId: 'incomplete-offering-event',
+                  title: 'The Offering Table · Day 01 · The Small Supply',
+                  allDay: false,
+                  start: TimeOfDay(hour: 7, minute: 30),
+                  end: TimeOfDay(hour: 8, minute: 30),
+                  behaviorPayload: <String, dynamic>{
+                    'kind': 'maat_offering_table_day',
+                    'flow_key': kOfferingTableFlowKey,
+                    'day': 1,
+                  },
+                ),
+              ],
+              showGregorian: false,
+              flowIndex: <int, FlowData>{},
+              initialScrollOffset: 360,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(OfferingTableEventBlockVisual), findsOneWidget);
+
+      await tester.tap(find.byType(OfferingTableEventBlockVisual));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-resizable-sheet')),
+        findsNothing,
+      );
+      expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
+      expect(find.byType(CalendarEventDetailSheet), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'Offering block preserves the authored width alone and shared lanes when overlapping',
     (tester) async {
       await _pumpDayView(tester, flowId: 73);
