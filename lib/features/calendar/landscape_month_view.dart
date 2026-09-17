@@ -1980,13 +1980,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   }
 
   EventItem _eventItemFromNote(NoteData note) {
-    final startMin = note.allDay
-        ? 9 * 60
-        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-    final endMin = note.allDay
-        ? 17 * 60
-        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
-
     Color eventColor = Colors.blue;
     // Product rule: explicit per-event colors win; otherwise we fall back to
     // the owning flow's chrome color so historical/saved flow notes stay
@@ -2000,7 +1993,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       }
     }
 
-    return EventItem(
+    return EventItem.fromTimedNote(
       id: note.id,
       clientEventId: note.clientEventId,
       calendarId: note.calendarId,
@@ -2008,95 +2001,26 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       title: note.title,
       detail: note.detail,
       location: note.location,
-      startMin: startMin,
-      endMin: endMin,
+      allDay: note.allDay,
+      startHour: note.start?.hour,
+      startMinute: note.start?.minute,
+      endHour: note.end?.hour,
+      endMinute: note.end?.minute,
       flowId: note.flowId,
       color: eventColor,
       manualColor: note.manualColor,
-      allDay: note.allDay,
       category: note.category,
       isReminder: note.isReminder,
       reminderId: note.reminderId,
-      hasCanonicalSchedule: noteHasCanonicalSchedule(
-        allDay: note.allDay,
-        startHour: note.start?.hour,
-        startMinute: note.start?.minute,
-        endHour: note.end?.hour,
-        endMinute: note.end?.minute,
-      ),
     );
   }
 
   FlowData? _chromeFlowForId(int? flowId) => widget.flowIndex[flowId];
 
-  String _sheetEventIdentityKey(EventItem event) {
-    final id = event.id?.trim();
-    if (id != null && id.isNotEmpty) return 'id:$id';
-
-    final clientEventId = event.clientEventId?.trim();
-    if (clientEventId != null && clientEventId.isNotEmpty) {
-      return 'cid:$clientEventId';
-    }
-
-    final reminderId = event.reminderId?.trim();
-    if (reminderId != null && reminderId.isNotEmpty) {
-      return 'rid:$reminderId';
-    }
-
-    return [
-      event.title.trim().toLowerCase(),
-      event.startMin,
-      event.endMin,
-      event.flowId ?? '',
-      event.location?.trim().toLowerCase() ?? '',
-      event.detail?.trim().toLowerCase() ?? '',
-      event.allDay,
-      event.isReminder,
-    ].join('|');
-  }
-
-  bool _eventsShareStableIdentity(EventItem a, EventItem b) {
-    final aId = a.id?.trim();
-    final bId = b.id?.trim();
-    if (aId != null && aId.isNotEmpty && bId != null && bId.isNotEmpty) {
-      return aId == bId;
-    }
-
-    final aClientId = a.clientEventId?.trim();
-    final bClientId = b.clientEventId?.trim();
-    if (aClientId != null &&
-        aClientId.isNotEmpty &&
-        bClientId != null &&
-        bClientId.isNotEmpty) {
-      return aClientId == bClientId;
-    }
-
-    final aReminderId = a.reminderId?.trim();
-    final bReminderId = b.reminderId?.trim();
-    if (aReminderId != null &&
-        aReminderId.isNotEmpty &&
-        bReminderId != null &&
-        bReminderId.isNotEmpty) {
-      return aReminderId == bReminderId;
-    }
-
-    return _sheetEventIdentityKey(a) == _sheetEventIdentityKey(b);
-  }
-
-  int _compareEventItemsBySchedule(EventItem a, EventItem b) {
-    final startCmp = a.startMin.compareTo(b.startMin);
-    if (startCmp != 0) return startCmp;
-
-    final endCmp = a.endMin.compareTo(b.endMin);
-    if (endCmp != 0) return endCmp;
-
-    return _sheetEventIdentityKey(a).compareTo(_sheetEventIdentityKey(b));
-  }
-
   List<EventItem> _eventsForKemeticDay(int ky, int km, int kd) {
     final notes = _dedupeNotesForUI(widget.notesForDay(ky, km, kd));
     final events = [for (final note in notes) _eventItemFromNote(note)];
-    events.sort(_compareEventItemsBySchedule);
+    events.sort(compareEventItemsBySchedule);
     return events;
   }
 
@@ -2107,7 +2031,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     if (currentEvents.isEmpty) return target;
 
     for (final candidate in currentEvents) {
-      if (!_eventsShareStableIdentity(candidate, target.event)) continue;
+      if (!eventsShareStableIdentity(candidate, target.event)) continue;
       return DayViewSheetEventTarget(
         ky: target.ky,
         km: target.km,
@@ -2130,7 +2054,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
     final currentEvents = _eventsForKemeticDay(ky, km, kd);
     final currentIndex = currentEvents.indexWhere(
-      (candidate) => _eventsShareStableIdentity(candidate, event),
+      (candidate) => eventsShareStableIdentity(candidate, event),
     );
 
     if (currentIndex >= 0) {
@@ -2202,7 +2126,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
     if (events.isEmpty) return [];
 
-    events.sort(_compareEventItemsBySchedule);
+    events.sort(compareEventItemsBySchedule);
 
     const columnGap = 4.0;
     final widgets = <Widget>[];
@@ -2587,10 +2511,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     }
 
     try {
-      showModalBottomSheet(
+      showCalendarEventDetailSheetModal(
         context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
         builder: (sheetContext) => CalendarEventDetailSheet(
           hostContext: rootContext,
           initialTarget: sheetTarget,

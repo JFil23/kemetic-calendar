@@ -1510,23 +1510,28 @@ void main() {
       'lib/features/calendar/the_djed/presentation/'
       'djed_sitting_behavior_surface.dart',
     ).readAsStringSync();
-    final offeringBehavior = File(
+    final offeringV8 = File(
       'lib/features/calendar/the_offering_table/presentation/'
-      'offering_table_day_presentation.dart',
+      'offering_table_day_v8_presentation.dart',
     ).readAsStringSync();
     expect(djedBehavior, contains('DjedSittingBehaviorSurface('));
     expect(
       djedSittingBehavior,
       contains('kMaatFlowResponseDraftStore.rememberValue'),
     );
-    expect(
-      offeringBehavior,
-      contains('kMaatFlowResponseDraftStore.rememberValue'),
-    );
     expect(djedBehavior, isNot(contains('onWriteJournalResponse')));
-    expect(offeringBehavior, contains('onWriteJournalResponse'));
-    expect(offeringBehavior, contains('buildMaatFlowResponseSourceId('));
-    expect(offeringBehavior, contains('MaatJournalResponseBlock('));
+    expect(offeringV8, contains('completionPanel'));
+    expect(offeringV8, isNot(contains('onWriteJournalResponse')));
+    expect(offeringV8, isNot(contains('kMaatFlowResponseDraftStore')));
+    expect(offeringV8, isNot(contains('buildMaatFlowResponseSourceId(')));
+    expect(offeringV8, isNot(contains('MaatJournalResponseBlock(')));
+    expect(
+      File(
+        'lib/features/calendar/the_offering_table/presentation/'
+        'offering_table_day_presentation.dart',
+      ).existsSync(),
+      isFalse,
+    );
 
     for (final path in const <String>[
       'lib/features/calendar/evening_threshold_flow.dart',

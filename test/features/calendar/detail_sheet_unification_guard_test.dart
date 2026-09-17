@@ -69,15 +69,24 @@ void main() {
       }
       expect(dayViewOpener, contains('showCalendarEventDetailSheetModal'));
       expect(
+        dayViewOpener,
+        contains(
+          'editable: _eventMaatFlowKind(event) == MaatFlowKind.offeringTable',
+        ),
+      );
+      expect(
         presentationFrame,
         contains('backgroundColor: Colors.transparent'),
       );
+      expect(presentationFrame, contains('showCalendarEventDetailSheetModal'));
       for (final opener in <String>[
         mainCalendarOpener,
         mainGridChipOpener,
         landscapeOpener,
       ]) {
-        expect(opener, contains('backgroundColor: Colors.transparent'));
+        expect(opener, contains('showCalendarEventDetailSheetModal'));
+        expect(opener, isNot(contains('editable: true')));
+        expect(opener, isNot(contains('showModalBottomSheet(')));
       }
 
       expect(calendarPage, isNot(contains('_MainCalendarEventDetailSheet')));

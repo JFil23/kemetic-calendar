@@ -26,7 +26,6 @@ class JournalController {
 
   // V2 ADDITIONS
   JournalDocument? _currentDocument;
-  bool _isDocumentMode = false;
   Future<void>? _initFuture;
   Future<void>? _reloadTodayFuture;
   int _localEditRevision = 0;
@@ -93,35 +92,19 @@ class JournalController {
   String _cacheKey(String kind, String dateKey) =>
       _cacheKeyForScope(_cacheScope, kind, dateKey);
 
-  String _draftKey(String dateKey) => _cacheKey('draft', dateKey);
-
   String _documentKey(String dateKey) => _cacheKey('document', dateKey);
-
-  String _draftDirtyKey(String dateKey) => _cacheKey('draft_dirty', dateKey);
 
   String _documentDirtyKey(String dateKey) =>
       _cacheKey('document_dirty', dateKey);
 
-  String _draftModifiedKey(String dateKey) =>
-      _cacheKey('draft_modified_at', dateKey);
-
   String _documentModifiedKey(String dateKey) =>
       _cacheKey('document_modified_at', dateKey);
-
-  String _localDraftKey(String dateKey) =>
-      _cacheKeyForScope('local', 'draft', dateKey);
 
   String _localDocumentKey(String dateKey) =>
       _cacheKeyForScope('local', 'document', dateKey);
 
-  String _localDraftDirtyKey(String dateKey) =>
-      _cacheKeyForScope('local', 'draft_dirty', dateKey);
-
   String _localDocumentDirtyKey(String dateKey) =>
       _cacheKeyForScope('local', 'document_dirty', dateKey);
-
-  String _localDraftModifiedKey(String dateKey) =>
-      _cacheKeyForScope('local', 'draft_modified_at', dateKey);
 
   String _localDocumentModifiedKey(String dateKey) =>
       _cacheKeyForScope('local', 'document_modified_at', dateKey);
@@ -137,6 +120,9 @@ class JournalController {
 
   @visibleForTesting
   int get reloadTodayRunCount => _reloadTodayRunCount;
+
+  @visibleForTesting
+  bool debugFailV2MigrationWriteConfirmation = false;
 
   void _setSyncStatus(JournalSyncStatus status, [Object? error]) {
     if (_syncStatus == status && _lastSyncError == error) return;
@@ -186,52 +172,168 @@ class JournalController {
     return !localModifiedAt.isBefore(serverEntry.updatedAt.toUtc());
   }
 
+  bool _v1DraftShouldReplaceExistingV2({
+    required bool v1Dirty,
+    required DateTime? v1ModifiedAt,
+    required DateTime? v2ModifiedAt,
+    required bool v2Exists,
+  }) {
+    if (!v2Exists) return true;
+    if (!v1Dirty) return false;
+    if (v1ModifiedAt == null) return false;
+    if (v2ModifiedAt == null) return true;
+    return v1ModifiedAt.isAfter(v2ModifiedAt);
+  }
+
+  Iterable<String> _v1DraftDateKeys(SharedPreferences prefs, String scope) {
+    final prefix = 'journal:$scope:draft:';
+    return prefs.getKeys().where((key) => key.startsWith(prefix)).map((key) {
+      return key.substring(prefix.length);
+    });
+  }
+
+  Future<void> _removeV1DraftKeys(
+    SharedPreferences prefs, {
+    required String scope,
+    required String dateKey,
+  }) async {
+    await prefs.remove(_cacheKeyForScope(scope, 'draft', dateKey));
+    await prefs.remove(_cacheKeyForScope(scope, 'draft_dirty', dateKey));
+    await prefs.remove(_cacheKeyForScope(scope, 'draft_modified_at', dateKey));
+  }
+
+  Future<bool> _confirmPrefsWrite(
+    SharedPreferences prefs, {
+    required String key,
+    required Object expected,
+  }) async {
+    if (debugFailV2MigrationWriteConfirmation) return false;
+    final stored = prefs.get(key);
+    return stored == expected;
+  }
+
+  Future<void> _migrateOneV1Draft(
+    SharedPreferences prefs, {
+    required String scope,
+    required String dateKey,
+  }) async {
+    final draftKey = _cacheKeyForScope(scope, 'draft', dateKey);
+    final dirtyKey = _cacheKeyForScope(scope, 'draft_dirty', dateKey);
+    final modifiedKey = _cacheKeyForScope(scope, 'draft_modified_at', dateKey);
+    final text = prefs.getString(draftKey);
+    if (text == null || text.isEmpty) {
+      await _removeV1DraftKeys(prefs, scope: scope, dateKey: dateKey);
+      return;
+    }
+
+    final v1Dirty = prefs.getBool(dirtyKey) ?? false;
+    final v1ModifiedRaw = prefs.getString(modifiedKey);
+    final v1Modified = _parsePrefsDate(v1ModifiedRaw);
+    final documentKey = _cacheKeyForScope(scope, 'document', dateKey);
+    final documentDirtyKey = _cacheKeyForScope(
+      scope,
+      'document_dirty',
+      dateKey,
+    );
+    final documentModifiedKey = _cacheKeyForScope(
+      scope,
+      'document_modified_at',
+      dateKey,
+    );
+    final existingV2 = prefs.getString(documentKey);
+    final v2Exists = existingV2 != null && existingV2.isNotEmpty;
+    final v2Modified = _parsePrefsDate(prefs.getString(documentModifiedKey));
+
+    if (_v1DraftShouldReplaceExistingV2(
+      v1Dirty: v1Dirty,
+      v1ModifiedAt: v1Modified,
+      v2ModifiedAt: v2Modified,
+      v2Exists: v2Exists,
+    )) {
+      final json = jsonEncode(JournalDocument.fromPlainText(text).toJson());
+      final written = await prefs.setString(documentKey, json);
+      if (!written ||
+          !await _confirmPrefsWrite(prefs, key: documentKey, expected: json)) {
+        _log(
+          '_migrateV1Draft: V2 write unconfirmed for $scope $dateKey; keeping V1',
+        );
+        return;
+      }
+
+      final dirtyWritten = await prefs.setBool(documentDirtyKey, v1Dirty);
+      if (!dirtyWritten ||
+          !await _confirmPrefsWrite(
+            prefs,
+            key: documentDirtyKey,
+            expected: v1Dirty,
+          )) {
+        _log(
+          '_migrateV1Draft: V2 dirty flag unconfirmed for $scope $dateKey; keeping V1',
+        );
+        return;
+      }
+
+      if (v1Dirty && v1ModifiedRaw != null && v1ModifiedRaw.isNotEmpty) {
+        final modifiedWritten = await prefs.setString(
+          documentModifiedKey,
+          v1ModifiedRaw,
+        );
+        if (!modifiedWritten ||
+            !await _confirmPrefsWrite(
+              prefs,
+              key: documentModifiedKey,
+              expected: v1ModifiedRaw,
+            )) {
+          _log(
+            '_migrateV1Draft: V2 modified_at unconfirmed for $scope $dateKey; keeping V1',
+          );
+          return;
+        }
+      }
+    } else if (!v2Exists) {
+      return;
+    }
+
+    final confirmedV2 = prefs.getString(documentKey);
+    if (confirmedV2 == null || confirmedV2.isEmpty) {
+      _log('_migrateV1Draft: V2 still missing for $scope $dateKey; keeping V1');
+      return;
+    }
+
+    await _removeV1DraftKeys(prefs, scope: scope, dateKey: dateKey);
+    _log('_migrateV1Draft: upgraded $scope $dateKey to V2 document');
+  }
+
+  Future<void> _migrateV1DraftsIfNeeded(SharedPreferences prefs) async {
+    final scopes = <String>{_cacheScope, 'local'};
+    for (final scope in scopes) {
+      for (final dateKey in _v1DraftDateKeys(prefs, scope).toList()) {
+        await _migrateOneV1Draft(prefs, scope: scope, dateKey: dateKey);
+      }
+    }
+  }
+
   Future<void> _setLocalDirty({
     required SharedPreferences prefs,
     required String dateKey,
-    required bool documentMode,
     required bool dirty,
   }) async {
-    final dirtyKey = documentMode
-        ? _documentDirtyKey(dateKey)
-        : _draftDirtyKey(dateKey);
-    final modifiedKey = documentMode
-        ? _documentModifiedKey(dateKey)
-        : _draftModifiedKey(dateKey);
-
-    await prefs.setBool(dirtyKey, dirty);
+    await prefs.setBool(_documentDirtyKey(dateKey), dirty);
     if (dirty) {
       await prefs.setString(
-        modifiedKey,
+        _documentModifiedKey(dateKey),
         DateTime.now().toUtc().toIso8601String(),
       );
     }
   }
 
-  Future<void> _markLocalClean({
-    required String dateKey,
-    required bool documentMode,
-  }) async {
+  Future<void> _markLocalClean({required String dateKey}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await _setLocalDirty(
-        prefs: prefs,
-        dateKey: dateKey,
-        documentMode: documentMode,
-        dirty: false,
-      );
+      await _setLocalDirty(prefs: prefs, dateKey: dateKey, dirty: false);
     } catch (e) {
       _log('_markLocalClean error: $e');
     }
-  }
-
-  Future<void> _removeLocalScopeDraft(
-    SharedPreferences prefs,
-    String dateKey,
-  ) async {
-    await prefs.remove(_localDraftKey(dateKey));
-    await prefs.remove(_localDraftDirtyKey(dateKey));
-    await prefs.remove(_localDraftModifiedKey(dateKey));
   }
 
   Future<void> _removeLocalScopeDocument(
@@ -241,15 +343,6 @@ class JournalController {
     await prefs.remove(_localDocumentKey(dateKey));
     await prefs.remove(_localDocumentDirtyKey(dateKey));
     await prefs.remove(_localDocumentModifiedKey(dateKey));
-  }
-
-  String? _dirtyLocalScopeDraft(SharedPreferences prefs, String dateKey) {
-    if (!canSyncToCloud || _cacheScope == 'local') return null;
-    final dirty = prefs.getBool(_localDraftDirtyKey(dateKey)) ?? false;
-    if (!dirty) return null;
-    final draft = prefs.getString(_localDraftKey(dateKey));
-    if (draft == null || draft.isEmpty) return null;
-    return draft;
   }
 
   JournalDocument? _dirtyLocalScopeDocument(
@@ -344,11 +437,7 @@ class JournalController {
       }
     }
 
-    if (FeatureFlags.isJournalV2Active) {
-      await _loadDocumentForToday();
-    } else {
-      await _loadDraftForToday();
-    }
+    await _loadDocumentForToday();
 
     _log('reloadToday: complete');
   }
@@ -367,133 +456,16 @@ class JournalController {
     }
   }
 
-  /// Load draft for today (V1 behavior)
-  Future<void> _loadDraftForToday() async {
-    final today = _today;
-    _currentDate = today;
-    _isDocumentMode = false;
-    final dateKey = _formatDate(today);
-    final cacheScope = _cacheScope;
-    final editRevision = _localEditRevision;
-
-    final prefs = await SharedPreferences.getInstance();
-    var localDraft = prefs.getString(_draftKey(dateKey));
-    final localDirty = prefs.getBool(_draftDirtyKey(dateKey)) ?? false;
-    final localModifiedAt = _parsePrefsDate(
-      prefs.getString(_draftModifiedKey(dateKey)),
-    );
-
-    JournalEntry? entry;
-    var serverReadFailed = false;
-    Object? serverError;
-    try {
-      entry = await _repo.getByDateStrict(today);
-    } catch (e) {
-      serverReadFailed = true;
-      serverError = e;
-      _log('_loadDraftForToday server error: $e');
-    }
-
-    if (_shouldAbortReloadApply(
-      dateKey: dateKey,
-      cacheScope: cacheScope,
-      editRevision: editRevision,
-      source: '_loadDraftForToday',
-    )) {
-      return;
-    }
-
-    if (serverReadFailed) {
-      _setSyncStatus(JournalSyncStatus.saveFailed, serverError);
-    }
-
-    if (entry == null &&
-        !serverReadFailed &&
-        (localDraft == null || localDraft.isEmpty)) {
-      final localScopeDraft = _dirtyLocalScopeDraft(prefs, dateKey);
-      if (localScopeDraft != null) {
-        localDraft = localScopeDraft;
-        _currentDraft = localScopeDraft;
-        _currentDocument = null;
-        _hasUnsavedChanges = true;
-        await _saveLocalDraft(markDirty: true);
-        await _removeLocalScopeDraft(prefs, dateKey);
-        _setSyncStatus(JournalSyncStatus.unsavedLocal);
-        _scheduleAutosave();
-        _log(
-          '_loadDraftForToday: imported dirty local-scope draft for signed-in user (${_currentDraft.length} chars)',
-        );
-        onDraftChanged?.call();
-        return;
-      }
-    }
-
-    if (localDraft != null &&
-        localDraft.isNotEmpty &&
-        _shouldPreferDirtyLocal(
-          localDirty: localDirty,
-          localModifiedAt: localModifiedAt,
-          serverEntry: entry,
-        )) {
-      _currentDraft = localDraft;
-      _hasUnsavedChanges = true;
-      _setSyncStatus(JournalSyncStatus.unsavedLocal);
-      _scheduleAutosave();
-      _log(
-        '_loadDraftForToday: loaded dirty local draft (${_currentDraft.length} chars)',
-      );
-      onDraftChanged?.call();
-      return;
-    }
-
-    if (entry != null) {
-      _currentDraft = entry.body;
-      _currentDocument = null;
-      _hasUnsavedChanges = false;
-      await _saveLocalDraft(markDirty: false);
-      _setSyncStatus(JournalSyncStatus.synced);
-      _log(
-        '_loadDraftForToday: loaded from server (${_currentDraft.length} chars)',
-      );
-    } else if (localDraft != null && localDraft.isNotEmpty) {
-      _currentDraft = localDraft;
-      _hasUnsavedChanges = localDirty;
-      if (localDirty) {
-        _setSyncStatus(JournalSyncStatus.unsavedLocal);
-        _scheduleAutosave();
-      } else {
-        _setSyncStatus(
-          canSyncToCloud
-              ? JournalSyncStatus.synced
-              : JournalSyncStatus.unsavedLocal,
-        );
-      }
-      _log(
-        '_loadDraftForToday: server empty/unavailable, loaded local draft (${_currentDraft.length} chars)',
-      );
-    } else {
-      _currentDraft = '';
-      _currentDocument = null;
-      _hasUnsavedChanges = false;
-      if (!serverReadFailed) {
-        _setSyncStatus(JournalSyncStatus.synced);
-      }
-      _log('_loadDraftForToday: no entry found, starting fresh');
-    }
-
-    onDraftChanged?.call();
-  }
-
   /// Load document for today (V2 behavior)
   Future<void> _loadDocumentForToday() async {
     final today = _today;
     _currentDate = today;
-    _isDocumentMode = true;
     final dateKey = _formatDate(today);
     final cacheScope = _cacheScope;
     final editRevision = _localEditRevision;
 
     final prefs = await SharedPreferences.getInstance();
+    await _migrateV1DraftsIfNeeded(prefs);
     final localDocJson = prefs.getString(_documentKey(dateKey));
     final localDirty = prefs.getBool(_documentDirtyKey(dateKey)) ?? false;
     final localModifiedAt = _parsePrefsDate(
@@ -697,34 +669,17 @@ class JournalController {
   Future<void> updateDraft(String text) async {
     if (_currentDraft == text) return;
 
-    final beforeCompletionBadges = _completionBadgesFromCurrentEntry();
     _markLocalEdit();
     _currentDraft = text;
     _hasUnsavedChanges = true;
     _setSyncStatus(JournalSyncStatus.unsavedLocal);
 
-    if (_isDocumentMode || FeatureFlags.isJournalV2Active) {
-      _isDocumentMode = true;
-      _currentDocument = _plainTextToDocument(text);
-      await _saveLocalDocument(markDirty: true);
-    } else {
-      // Save locally immediately (V1 behavior)
-      await _saveLocalDraft(markDirty: true);
-    }
+    _currentDocument = _plainTextToDocument(text);
+    await _saveLocalDocument(markDirty: true);
 
     _scheduleAutosave();
 
     onDraftChanged?.call();
-    if (!_isDocumentMode) {
-      final afterIds = JournalBadgeUtils.completionTokensFromPlainText(
-        _currentDraft,
-      ).map((token) => token.id).toSet();
-      await _notifyCompletionBadgesRemoved(
-        beforeCompletionBadges
-            .where((token) => !afterIds.contains(token.id))
-            .toList(growable: false),
-      );
-    }
   }
 
   List<EventBadgeToken> _completionBadgesFromCurrentEntry() {
@@ -774,7 +729,6 @@ class JournalController {
     );
 
     _markLocalEdit();
-    _isDocumentMode = true;
     _currentDocument = normalized;
     _currentDraft = _documentToPlainText(normalized);
     _hasUnsavedChanges = true;
@@ -798,25 +752,6 @@ class JournalController {
     await updateDocument(nextDoc);
   }
 
-  /// Save draft to local storage (V1)
-  Future<void> _saveLocalDraft({required bool markDirty}) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final dateKey = _activeDateKey;
-      await prefs.setString(_draftKey(dateKey), _currentDraft);
-      await prefs.setString(_lastOpenDayKey, dateKey);
-      await _setLocalDirty(
-        prefs: prefs,
-        dateKey: dateKey,
-        documentMode: false,
-        dirty: markDirty,
-      );
-      _log('_saveLocalDraft: ✓ cached locally');
-    } catch (e) {
-      _log('_saveLocalDraft error: $e');
-    }
-  }
-
   /// Save document to local storage (V2)
   Future<void> _saveLocalDocument({required bool markDirty}) async {
     if (_currentDocument == null) return;
@@ -827,12 +762,7 @@ class JournalController {
       final docJson = jsonEncode(_currentDocument!.toJson());
       await prefs.setString(_documentKey(dateKey), docJson);
       await prefs.setString(_lastOpenDayKey, dateKey);
-      await _setLocalDirty(
-        prefs: prefs,
-        dateKey: dateKey,
-        documentMode: true,
-        dirty: markDirty,
-      );
+      await _setLocalDirty(prefs: prefs, dateKey: dateKey, dirty: markDirty);
       _log('_saveLocalDocument: ✓ cached locally');
     } catch (e) {
       _log('_saveLocalDocument error: $e');
@@ -848,25 +778,17 @@ class JournalController {
       _setSyncStatus(JournalSyncStatus.saving);
       _log('_autosave: saving to server (${_currentDraft.length} chars)');
 
-      String bodyToSave;
-      Map<String, dynamic> metaToSave = {
+      _currentDocument ??= JournalDocument.fromPlainText(_currentDraft);
+      final bodyToSave = jsonEncode(_currentDocument!.toJson());
+      final metaToSave = {
         'chars': _currentDraft.length,
         'last_autosave': DateTime.now().toUtc().toIso8601String(),
+        'document_version': _currentDocument!.version,
+        'block_count': _currentDocument!.blocks.length,
       };
-
-      if (_isDocumentMode && _currentDocument != null) {
-        // Save as document
-        bodyToSave = jsonEncode(_currentDocument!.toJson());
-        metaToSave['document_version'] = _currentDocument!.version;
-        metaToSave['block_count'] = _currentDocument!.blocks.length;
-      } else {
-        // Save as plain text (V1 behavior)
-        bodyToSave = _currentDraft;
-      }
 
       final saveDate = _currentDate ?? _today;
       final dateKey = _formatDate(saveDate);
-      final documentMode = _isDocumentMode && _currentDocument != null;
       await _repo.upsert(
         localDate: saveDate,
         body: bodyToSave,
@@ -881,7 +803,7 @@ class JournalController {
       }
 
       _hasUnsavedChanges = false;
-      await _markLocalClean(dateKey: dateKey, documentMode: documentMode);
+      await _markLocalClean(dateKey: dateKey);
       _setSyncStatus(JournalSyncStatus.synced);
       _log('_autosave: ✓ saved to server');
 
@@ -891,7 +813,7 @@ class JournalController {
           Events.trackIfAuthed('journal_autosave', {
             'chars': _currentDraft.length,
             'appended_block': false,
-            'document_mode': _isDocumentMode,
+            'document_mode': true,
           }).catchError((Object error, StackTrace stackTrace) {
             _log('_autosave tracking error: $error');
           }),
@@ -922,19 +844,11 @@ class JournalController {
     try {
       final removedCompletionBadges = _completionBadgesFromCurrentEntry();
       _markLocalEdit();
-      if (_isDocumentMode) {
-        _currentDocument = JournalDocument.fromPlainText('');
-        _currentDraft = '';
-        _hasUnsavedChanges = true;
-        _setSyncStatus(JournalSyncStatus.unsavedLocal);
-        await _saveLocalDocument(markDirty: true);
-      } else {
-        _currentDraft = '';
-        _currentDocument = null;
-        _hasUnsavedChanges = true;
-        _setSyncStatus(JournalSyncStatus.unsavedLocal);
-        await _saveLocalDraft(markDirty: true);
-      }
+      _currentDocument = JournalDocument.fromPlainText('');
+      _currentDraft = '';
+      _hasUnsavedChanges = true;
+      _setSyncStatus(JournalSyncStatus.unsavedLocal);
+      await _saveLocalDocument(markDirty: true);
       onDraftChanged?.call();
       await _autosave();
       await _notifyCompletionBadgesRemoved(removedCompletionBadges);
@@ -947,6 +861,7 @@ class JournalController {
   Future<void> finalizeYesterdayIfNeeded() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      await _migrateV1DraftsIfNeeded(prefs);
       final lastOpenDay = prefs.getString(_lastOpenDayKey);
 
       if (lastOpenDay == null || lastOpenDay == _todayKey) {
@@ -958,14 +873,7 @@ class JournalController {
         'finalizeYesterdayIfNeeded: detected rollover from $lastOpenDay to $_todayKey',
       );
 
-      // Load yesterday's draft/document from local storage
-      String? yesterdayContent;
-
-      if (_isDocumentMode) {
-        yesterdayContent = prefs.getString(_documentKey(lastOpenDay));
-      } else {
-        yesterdayContent = prefs.getString(_draftKey(lastOpenDay));
-      }
+      final yesterdayContent = prefs.getString(_documentKey(lastOpenDay));
 
       if (yesterdayContent != null && yesterdayContent.isNotEmpty) {
         final parts = lastOpenDay.split('-');
@@ -975,7 +883,6 @@ class JournalController {
           int.parse(parts[2]),
         );
 
-        // Finalize to server
         await _repo.upsert(
           localDate: yesterdayDate,
           body: yesterdayContent,
@@ -986,16 +893,9 @@ class JournalController {
           },
         );
 
-        // Clean up old local draft/document
-        if (_isDocumentMode) {
-          await prefs.remove(_documentKey(lastOpenDay));
-          await prefs.remove(_documentDirtyKey(lastOpenDay));
-          await prefs.remove(_documentModifiedKey(lastOpenDay));
-        } else {
-          await prefs.remove(_draftKey(lastOpenDay));
-          await prefs.remove(_draftDirtyKey(lastOpenDay));
-          await prefs.remove(_draftModifiedKey(lastOpenDay));
-        }
+        await prefs.remove(_documentKey(lastOpenDay));
+        await prefs.remove(_documentDirtyKey(lastOpenDay));
+        await prefs.remove(_documentModifiedKey(lastOpenDay));
 
         _log('finalizeYesterdayIfNeeded: ✓ finalized $lastOpenDay');
       }
@@ -1011,30 +911,12 @@ class JournalController {
   Future<int> appendToToday(String content) async {
     if (content.trim().isEmpty) return 0;
 
-    final appendPosition = _currentDraft.length;
-    final containsBadges = JournalBadgeUtils.hasBadges(content);
-
-    if ((_isDocumentMode && _currentDocument != null) ||
-        (containsBadges && FeatureFlags.isJournalV2Active)) {
-      _currentDocument ??= JournalDocument.fromPlainText(_currentDraft);
-      _isDocumentMode = true;
-      final appendedAt = await appendToDocument(content);
-      _log(
-        'appendToToday: appended ${content.length} chars at position $appendedAt',
-      );
-      return appendedAt;
-    }
-
-    final newText = _currentDraft.isEmpty
-        ? content
-        : '$_currentDraft\n\n$content';
-
-    await updateDraft(newText);
-
+    _currentDocument ??= JournalDocument.fromPlainText(_currentDraft);
+    final appendedAt = await appendToDocument(content);
     _log(
-      'appendToToday: appended ${content.length} chars at position $appendPosition',
+      'appendToToday: appended ${content.length} chars at position $appendedAt',
     );
-    return appendPosition;
+    return appendedAt;
   }
 
   /// Append content to document (V2)
@@ -1042,11 +924,7 @@ class JournalController {
     if (content.trim().isEmpty) return 0;
     final appendStart = _currentDraft.length;
 
-    // Ensure we have a document to append to
-    if (!_isDocumentMode || _currentDocument == null) {
-      _currentDocument ??= JournalDocument.fromPlainText(_currentDraft);
-      _isDocumentMode = true;
-    }
+    _currentDocument ??= JournalDocument.fromPlainText(_currentDraft);
 
     var doc = JournalBadgeUtils.normalizeDocument(_currentDocument!);
     final badgeTokens = JournalBadgeUtils.extractRawTokens(content);
@@ -1101,53 +979,45 @@ class JournalController {
     try {
       _log('loadDate: loading entry for ${_formatDate(date)}');
 
-      // Update current date
       _currentDate = date;
       final dateKey = _formatDate(date);
 
-      // Try to load from server first
+      final prefs = await SharedPreferences.getInstance();
+      await _migrateV1DraftsIfNeeded(prefs);
+
       final entry = await _repo.getByDate(date);
 
       if (entry != null) {
         _log('loadDate: found entry with ${entry.body.length} chars');
 
-        // Check if it's a V2 document or plain text
         if (entry.body.startsWith('{') && entry.body.contains('"version"')) {
-          // V2 document format
           try {
             final docJson = jsonDecode(entry.body) as Map<String, dynamic>;
             await _applyDocument(JournalDocument.fromJson(docJson));
-            _isDocumentMode = true;
             _log('loadDate: loaded V2 document');
           } catch (e) {
             _log(
-              'loadDate: failed to parse document, falling back to plain text: $e',
+              'loadDate: failed to parse document, migrating stripped body: $e',
             );
-            _currentDraft = JournalBadgeUtils.stripBadgesFromPlainText(
-              entry.body,
+            await _applyDocument(
+              JournalDocument.fromPlainText(
+                JournalBadgeUtils.stripBadgesFromPlainText(entry.body),
+              ),
             );
-            _currentDocument = null;
-            _isDocumentMode = false;
           }
         } else {
-          // Plain text format (V1)
-          _currentDraft = JournalBadgeUtils.stripBadgesFromPlainText(
-            entry.body,
+          await _applyDocument(
+            JournalDocument.fromPlainText(
+              JournalBadgeUtils.stripBadgesFromPlainText(entry.body),
+            ),
           );
-          _currentDocument = null;
-          _isDocumentMode = false;
-          _log('loadDate: loaded V1 plain text');
+          _log('loadDate: migrated V1 plain text to document');
         }
       } else {
-        // No entry found for this date
         _log('loadDate: no entry found for $dateKey');
-        _currentDraft = '';
-        _currentDocument = null;
-        _isDocumentMode = FeatureFlags.isJournalV2Active;
+        await _applyDocument(_emptyEditorDocument());
       }
 
-      // Update local storage tracking
-      final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastOpenDayKey, dateKey);
 
       _hasUnsavedChanges = false;
@@ -1157,14 +1027,24 @@ class JournalController {
       _log('loadDate: ✓ loaded entry for $dateKey');
     } catch (e) {
       _log('loadDate error: $e');
-      // On error, show empty entry
-      _currentDraft = '';
-      _currentDocument = null;
+      await _applyDocument(_emptyEditorDocument());
       _setSyncStatus(JournalSyncStatus.saveFailed, e);
     }
   }
 
-  /// Helper to format date as 'yyyy-mm-dd'
+  /// Empty archive/editor face: no leftover newline, still a V2 document.
+  JournalDocument _emptyEditorDocument() {
+    return JournalDocument(
+      version: kJournalDocVersion,
+      blocks: [
+        ParagraphBlock(
+          id: 'p-${DateTime.now().millisecondsSinceEpoch}',
+          ops: const [TextOp(insert: '')],
+        ),
+      ],
+    );
+  }
+
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }

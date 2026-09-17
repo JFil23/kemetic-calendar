@@ -12,7 +12,6 @@ import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/fol
 import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
-import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_contract.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_state.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_v8_presentation.dart';
@@ -948,7 +947,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
-      expect(find.byType(OfferingTableDayPresentation), findsNothing);
       expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
       expect(
         find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')),
@@ -1164,7 +1162,6 @@ void main() {
       );
 
       expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
-      expect(find.byType(OfferingTableDayPresentation), findsNothing);
       expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
       final sheetRect = tester.getRect(
         find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')),

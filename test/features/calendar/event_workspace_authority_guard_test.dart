@@ -214,13 +214,22 @@ void main() {
 
   test('paint all-day range is 9:00-17:00 and is not schedule authority', () {
     expect(dayView, contains('_eventItemFromNote'));
+    expect(dayView, contains('factory EventItem.fromTimedNote'));
     final paint = _sourceBetween(
       dayView,
-      'EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {',
-      'String _eventIdentityKey(EventItem event) {',
+      'factory EventItem.fromTimedNote({',
+      '@override\n  String toString() {',
     );
     expect(paint, contains('9 * 60'));
     expect(paint, contains('17 * 60'));
+    final adapter = _sourceBetween(
+      dayView,
+      'EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {',
+      'String eventItemIdentityKey(EventItem event) {',
+    );
+    expect(adapter, contains('EventItem.fromTimedNote('));
+    expect(adapter, isNot(contains('9 * 60')));
+    expect(adapter, isNot(contains('17 * 60')));
     expect(authorityMap, contains('Not a deadline'));
   });
 

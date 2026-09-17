@@ -1652,7 +1652,13 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         ? detailText
         : null;
     final location = (event.location ?? '').trim();
-    final resource = resolveEventResourceForDashboard(event.location);
+    final resource = resolveEventResource(
+      EventResourceSource(
+        behaviorPayload: event.behaviorPayload,
+        detail: event.detail,
+        location: event.location,
+      ),
+    );
     final normalizedLocation = location.isEmpty
         ? ''
         : normalizeExternalLinkToken(location);

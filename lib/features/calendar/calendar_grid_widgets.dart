@@ -2927,14 +2927,7 @@ class _DayChip extends StatelessWidget {
   }
 
   EventItem _noteToEventItem(_Note note) {
-    final startMin = note.allDay
-        ? 9 * 60
-        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-    final endMin = note.allDay
-        ? 17 * 60
-        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
-
-    return EventItem(
+    return EventItem.fromTimedNote(
       id: note.id,
       clientEventId: note.clientEventId,
       calendarId: note.calendarId,
@@ -2942,23 +2935,18 @@ class _DayChip extends StatelessWidget {
       title: note.title,
       detail: note.detail,
       location: note.location,
-      startMin: startMin,
-      endMin: endMin,
+      allDay: note.allDay,
+      startHour: note.start?.hour,
+      startMinute: note.start?.minute,
+      endHour: note.end?.hour,
+      endMinute: note.end?.minute,
       flowId: note.flowId,
       color: noteColorResolver(note),
       manualColor: note.manualColor,
-      allDay: note.allDay,
       category: note.category,
       isReminder: note.isReminder,
       reminderId: note.reminderId,
       behaviorPayload: note.behaviorPayload,
-      hasCanonicalSchedule: noteHasCanonicalSchedule(
-        allDay: note.allDay,
-        startHour: note.start?.hour,
-        startMinute: note.start?.minute,
-        endHour: note.end?.hour,
-        endMinute: note.end?.minute,
-      ),
     );
   }
 
@@ -2982,10 +2970,8 @@ class _DayChip extends StatelessWidget {
     }
 
     try {
-      showModalBottomSheet(
+      showCalendarEventDetailSheetModal(
         context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
         builder: (_) => CalendarEventDetailSheet(
           hostContext: context,
           initialTarget: initialTarget,

@@ -42,8 +42,6 @@ export 'services/track_sky_occurrence_reconciler.dart';
 export 'services/track_sky_reconciler.dart';
 export 'services/turning_journal_projector.dart';
 export 'services/turning_record_repository.dart';
-export 'follow_sky_v2_flags.dart';
-export 'follow_sky_cut_freeze.dart';
 export 'presentation/course_picker.dart';
 export 'presentation/follow_sky_calendar_preview.dart';
 export 'presentation/follow_sky_detail_page.dart';

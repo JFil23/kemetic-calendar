@@ -1,10 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
-import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
-import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
-import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
@@ -35,9 +33,17 @@ void main() {
   });
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    kMaatFlowResponseDraftStore.clearForTesting();
   });
-  tearDown(kMaatFlowResponseDraftStore.clearForTesting);
+
+  test('rejected OfferingTableDayPresentation is absent', () {
+    expect(
+      File(
+        'lib/features/calendar/the_offering_table/presentation/'
+        'offering_table_day_presentation.dart',
+      ).existsSync(),
+      isFalse,
+    );
+  });
 
   test('all thirty days own one non-empty authored event-block prompt', () {
     expect(kOfferingTableDays, hasLength(30));
@@ -83,249 +89,6 @@ void main() {
           'Give that first thing one quiet minute.',
         ],
       );
-    },
-  );
-
-  testWidgets('ritual count and checkbox use the closed presentation steps', (
-    tester,
-  ) async {
-    final day = kOfferingTableDays[2];
-    await _pumpPresentation(tester, day: day);
-
-    expect(find.text('2 steps'), findsNothing);
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-day-03-step-2')),
-      findsOneWidget,
-    );
-    expect(
-      find.text(
-        'Put it within reach now — on the counter, in the fridge front, or in your bag.',
-      ),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('uses Follow Sky gesture mapping and semantic 0.02 steps', (
-    tester,
-  ) async {
-    final semanticsHandle = tester.ensureSemantics();
-    await _pumpPresentation(tester, day: kOfferingTableDays[1]);
-
-    final gesture = find.byKey(
-      const ValueKey<String>('offering-table-intention-drag'),
-    );
-    final rect = tester.getRect(gesture);
-
-    await tester.tapAt(Offset(rect.left + 42, rect.center.dy));
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '0 percent placed');
-
-    await tester.tapAt(Offset(rect.center.dx, rect.center.dy));
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '50 percent placed');
-
-    await tester.tapAt(Offset(rect.right - 42, rect.center.dy));
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '100 percent placed');
-
-    final node = tester.getSemantics(gesture);
-    // The widget-test semantics owner for the active render view remains on
-    // this compatibility accessor in the current Flutter test binding.
-    // ignore: deprecated_member_use
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
-      node.id,
-      SemanticsAction.decrease,
-    );
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '98 percent placed');
-    semanticsHandle.dispose();
-  });
-
-  testWidgets('uses the quiet instruction and a clean upper graphic edge', (
-    tester,
-  ) async {
-    await _pumpPresentation(tester, day: kOfferingTableDays[1]);
-
-    final instruction = tester.widget<Text>(
-      find.byKey(const ValueKey<String>('offering-table-placement-label')),
-    );
-    expect(instruction.data, 'Speak your intention into the water');
-    expect(instruction.textAlign, TextAlign.center);
-    expect(instruction.style?.fontSize, 17);
-    expect(instruction.style?.color, const Color(0xC2E8B27C));
-    expect(instruction.style?.shadows, isNull);
-    expect(find.text('Place your intention in the water'), findsNothing);
-
-    final lowerBody = tester.widget<Container>(
-      find.byKey(const ValueKey<String>('offering-table-foreground-layer')),
-    );
-    final decoration = lowerBody.decoration! as BoxDecoration;
-    expect(decoration.boxShadow, isNull);
-  });
-
-  testWidgets('Day 1 ritual and why use the shared Offering authority', (
-    tester,
-  ) async {
-    await _pumpPresentation(tester);
-    final presentation = offeringTablePracticePresentation(
-      kOfferingTableDays.first,
-    );
-
-    expect(find.text('PERSONAL · DAY 01'), findsOneWidget);
-    for (final step in presentation.steps) {
-      expect(find.text(step), findsOneWidget);
-    }
-    expect(find.text('Protect my sleep.'), findsWidgets);
-
-    final body = find.byKey(
-      const ValueKey<String>('offering-table-presentation-body'),
-    );
-    await tester.drag(body, const Offset(0, -500));
-    await tester.pumpAndSettle();
-    final toggle = find.byKey(
-      const ValueKey<String>('offering-table-day-sheet-context-toggle'),
-    );
-    await tester.drag(body, const Offset(0, -160));
-    await tester.pumpAndSettle();
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(find.text(presentation.context), findsOneWidget);
-    expect(find.text(presentation.instruction), findsWidgets);
-    expect(find.text(presentation.why), findsNothing);
-    expect(
-      tester
-          .widget<Text>(
-            find.byKey(
-              const ValueKey<String>('offering-table-day-sheet-context-sign'),
-            ),
-          )
-          .data,
-      '−',
-    );
-
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<Text>(
-            find.byKey(
-              const ValueKey<String>('offering-table-day-sheet-context-sign'),
-            ),
-          )
-          .data,
-      '+',
-    );
-  });
-
-  testWidgets('blank intention is honest and editing updates the cup', (
-    tester,
-  ) async {
-    final saved = <String>[];
-    await _pumpPresentation(
-      tester,
-      day: kOfferingTableDays[1],
-      initialIntention: '',
-      intentionSaveDebounce: Duration.zero,
-      onSaveIntention: (value) async => saved.add(value),
-    );
-
-    expect(find.text('What matters to me.'), findsNothing);
-    expect(
-      find.text('No need was named when this table was carried.'),
-      findsNothing,
-    );
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-intention-air')),
-      findsNothing,
-    );
-    expect(find.text('name it…'), findsOneWidget);
-
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('offering-table-intention-field')),
-      'Call my mother.',
-    );
-    await tester.pump();
-
-    expect(find.text('Call my mother.'), findsWidgets);
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-intention-air')),
-      findsOneWidget,
-    );
-    expect(saved, <String>['Call my mother.']);
-  });
-
-  testWidgets('Reflect reuses the shared tool and writes through Journal', (
-    tester,
-  ) async {
-    final blocks = <MaatJournalResponseBlock>[];
-    await _pumpPresentation(
-      tester,
-      day: kOfferingTableDays[1],
-      reflectionSaveDebounce: Duration.zero,
-      onWriteJournalResponse: (block) async => blocks.add(block),
-    );
-
-    await tester.ensureVisible(find.text('Reflect'));
-    await tester.pumpAndSettle();
-    final reflectTool = find.ancestor(
-      of: find.text('Reflect'),
-      matching: find.byType(InkWell),
-    );
-    expect(reflectTool, findsOneWidget);
-    expect(tester.getSize(reflectTool).height, 69);
-    expect(
-      find.text('What did you notice about what needs to be fed?'),
-      findsNothing,
-    );
-
-    await tester.tap(find.text('Reflect'));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('What did you notice about what needs to be fed?'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('automatically kept in today’s Journal'),
-      findsOneWidget,
-    );
-
-    const reflection = 'Rest needed to be counted before the day filled.';
-    final field = find.byKey(
-      const ValueKey<String>('offering-table-reflection-field'),
-    );
-    await tester.ensureVisible(field);
-    await tester.enterText(field, reflection);
-    await tester.pumpAndSettle();
-
-    expect(blocks, hasLength(1));
-    expect(blocks.single.text, reflection);
-    expect(blocks.single.localDate, DateTime(2026, 8, 29));
-    expect(
-      blocks.single.sourceId,
-      'maat_response:the-offering-table:cid:offering-table-test-event:offering-table-reflection',
-    );
-    expect(blocks.single.sourceMetadata['kind'], 'offering_table_reflection');
-
-    await tester.ensureVisible(find.text('Reflect'));
-    await tester.tap(find.text('Reflect'));
-    await tester.pumpAndSettle();
-    expect(field, findsNothing);
-  });
-
-  testWidgets(
-    'narrow presentation keeps a fixed instrument and vertical body',
-    (tester) async {
-      await _pumpPresentation(tester, size: const Size(320, 700));
-      final body = find.byKey(
-        const ValueKey<String>('offering-table-presentation-body'),
-      );
-      final xBefore = tester.getTopLeft(body).dx;
-      await tester.drag(body, const Offset(0, -500));
-      await tester.pumpAndSettle();
-
-      expect(tester.getTopLeft(body).dx, closeTo(xBefore, 0.1));
-      expect(find.text('Completion fixture'), findsOneWidget);
-      expect(tester.takeException(), isNull);
     },
   );
 
@@ -382,44 +145,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(body).dx, closeTo(xBefore, 0.1));
   });
-}
-
-Future<void> _pumpPresentation(
-  WidgetTester tester, {
-  Size size = const Size(390, 700),
-  OfferingTableDay? day,
-  String initialIntention = 'Protect my sleep.',
-  Duration intentionSaveDebounce = const Duration(milliseconds: 350),
-  Duration reflectionSaveDebounce = const Duration(milliseconds: 450),
-  Future<void> Function(String value)? onSaveIntention,
-  MaatJournalResponseBlockWriter? onWriteJournalResponse,
-}) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: ThemeData.dark(),
-      home: Scaffold(
-        body: OfferingTableDayPresentation(
-          day: day ?? kOfferingTableDays.first,
-          localDate: DateTime(2026, 8, 29),
-          startMinute: 7 * 60 + 30,
-          initialIntention: initialIntention,
-          lens: OfferingTableLens.neutral,
-          completionPanel: const Text('Completion fixture'),
-          clientEventId: 'offering-table-test-event',
-          onSaveIntention: onSaveIntention,
-          onWriteJournalResponse: onWriteJournalResponse,
-          intentionSaveDebounce: intentionSaveDebounce,
-          reflectionSaveDebounce: reflectionSaveDebounce,
-        ),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
 }
 
 Future<void> _pumpOfferingSheet(WidgetTester tester) async {

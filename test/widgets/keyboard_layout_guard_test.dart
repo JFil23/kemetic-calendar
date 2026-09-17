@@ -4,10 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('universal keyboard architecture guard', () {
-    test('raw viewport insets have exactly three production authorities', () {
+    test('raw viewInsets stay in resolver and publisher, not extra owners', () {
       final owners =
           _dartSourcesUnder('lib')
-              .where((file) => file.readAsStringSync().contains('viewInsets'))
+              .where(
+                (file) =>
+                    file.readAsStringSync().contains('media.viewInsets.bottom'),
+              )
               .map((file) => file.path)
               .toList()
             ..sort();
@@ -16,22 +19,44 @@ void main() {
         owners,
         equals(<String>[
           'lib/widgets/kemetic_keyboard.dart',
-          'lib/widgets/keyboard_aware.dart',
           'lib/widgets/keyboard_viewport_metrics.dart',
         ]),
       );
     });
 
-    test('editable modal route consumes the system inset exactly once', () {
+    test('editable modal route consumes remaining system inset once', () {
       final source = File('lib/widgets/keyboard_aware.dart').readAsStringSync();
 
       expect(source, contains('showEditableModalBottomSheet<T>'));
-      expect(source, contains('media.viewInsets.bottom'));
+      expect(source, contains('class KeyboardInsetBoundary'));
+      expect(source, contains('remainingSystemKeyboardInsetOf'));
       expect(source, contains('media.removeViewInsets(removeBottom: true)'));
+      expect(source, isNot(contains('if (editable)')));
       expect(
-        RegExp(r'class _EditableModalSystemInsetOwner').allMatches(source),
+        RegExp(r'class KeyboardInsetBoundary').allMatches(source),
         hasLength(1),
       );
+    });
+
+    test('instrument host does not skip inset from an editable flag', () {
+      final source = File(
+        'lib/features/calendar/presentation/instrument_event_presentation_frame.dart',
+      ).readAsStringSync();
+      final host = source
+          .split('class InstrumentEventSheetHost')
+          .last
+          .split('class InstrumentEventSheetGeometry')
+          .first;
+      expect(host, isNot(contains('editable')));
+      expect(host, contains('KeyboardInsetConsumption.apply'));
+    });
+
+    test('Kꜣr capture uses the shared boundary instead of a local strip', () {
+      final source = File(
+        'lib/features/calendar/the_kar/presentation/kar_day_behavior_surface.dart',
+      ).readAsStringSync();
+      expect(source, contains('KeyboardInsetBoundary('));
+      expect(source, isNot(contains('removeViewInsets')));
     });
 
     test('root host publishes geometry without rewriting MediaQuery', () {

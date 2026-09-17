@@ -191,6 +191,8 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final remainingSystem = remainingSystemKeyboardInsetOf(context);
+    final remainingCustom = remainingCustomKeyboardInsetOf(context);
     final keyboardInset = keyboardInsetOf(context);
     final availableSheetHeight = math.max(
       0.0,
@@ -239,54 +241,59 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
                 (hasFooter ? footerGap + footerHeight : 0),
           );
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardInset),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: outerHeight,
-          child: Padding(
-            padding: outerPadding,
-            child: DayViewBottomSheetFrame(
-              borderRadius: geometry?.sheetBorderRadius ?? 20,
-              decoration: widget.frameDecoration,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  InstrumentEventSheetTopBar(
-                    semanticLabel: widget.semanticLabel,
-                    handleColor: widget.handleColor,
-                    height: topBarHeight,
-                    handleTop: geometry?.handleTop,
-                    handleWidth: geometry?.handleWidth ?? 42,
-                    onVerticalDragUpdate: keyboardInset == 0
-                        ? (details) =>
-                              _updateExtent(details, availableSheetHeight)
-                        : null,
-                    trailing: widget.trailing,
-                  ),
-                  SizedBox(height: bodyTopGap),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: geometry?.bodyHorizontalInset ?? 0,
+    return KeyboardInsetConsumption.apply(
+      context: context,
+      additionalSystem: remainingSystem,
+      additionalCustom: remainingCustom,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: keyboardInset),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: outerHeight,
+            child: Padding(
+              padding: outerPadding,
+              child: DayViewBottomSheetFrame(
+                borderRadius: geometry?.sheetBorderRadius ?? 20,
+                decoration: widget.frameDecoration,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    InstrumentEventSheetTopBar(
+                      semanticLabel: widget.semanticLabel,
+                      handleColor: widget.handleColor,
+                      height: topBarHeight,
+                      handleTop: geometry?.handleTop,
+                      handleWidth: geometry?.handleWidth ?? 42,
+                      onVerticalDragUpdate: keyboardInset == 0
+                          ? (details) =>
+                                _updateExtent(details, availableSheetHeight)
+                          : null,
+                      trailing: widget.trailing,
                     ),
-                    child: SizedBox(
-                      height: bodyHeight,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(
-                            geometry?.bodyBorderRadius ?? 20,
+                    SizedBox(height: bodyTopGap),
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: geometry?.bodyHorizontalInset ?? 0,
+                      ),
+                      child: SizedBox(
+                        height: bodyHeight,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(
+                              geometry?.bodyBorderRadius ?? 20,
+                            ),
                           ),
+                          child: widget.body,
                         ),
-                        child: widget.body,
                       ),
                     ),
-                  ),
-                  if (widget.footer != null) ...<Widget>[
-                    SizedBox(height: footerGap),
-                    SizedBox(height: footerHeight, child: widget.footer),
+                    if (widget.footer != null) ...<Widget>[
+                      SizedBox(height: footerGap),
+                      SizedBox(height: footerHeight, child: widget.footer),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),

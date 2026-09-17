@@ -554,7 +554,7 @@ void main() {
 
       final field = tester.widget<TextField>(find.byType(TextField));
       expect(field.controller?.text, isEmpty);
-      expect(field.decoration?.hintText, 'What did this help me see?');
+      expect(find.text('What did this help me see?'), findsOneWidget);
       expect(field.decoration?.hintText, isNot(contains('Reflection on')));
       expect(field.decoration?.hintText, isNot(contains('Date:')));
       expect(field.decoration?.hintText, isNot(contains('Source:')));

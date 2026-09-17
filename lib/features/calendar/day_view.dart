@@ -101,7 +101,8 @@ export 'presentation/instrument_event_presentation_frame.dart'
     show
         CalendarEventDetailSheetCoordinator,
         DayViewBottomSheetFrame,
-        dayViewBottomSheetBackplateKey;
+        dayViewBottomSheetBackplateKey,
+        showCalendarEventDetailSheetModal;
 
 const double _kMinEventBlockHeight = 56.0;
 const double _kTimelineLabelWidth = 60.0;
@@ -1547,7 +1548,7 @@ class EventLayoutEngine {
   }) {
     if (events.isEmpty) return [];
 
-    final sortedEvents = [...events]..sort(_compareEventItemsBySchedule);
+    final sortedEvents = [...events]..sort(compareEventItemsBySchedule);
     final overlapGroups = _buildOverlapGroups(
       sortedEvents,
       textScale: textScale,
@@ -1600,7 +1601,7 @@ class EventLayoutEngine {
     }
 
     blocks.sort((a, b) {
-      final scheduleCmp = _compareEventItemsBySchedule(a.event, b.event);
+      final scheduleCmp = compareEventItemsBySchedule(a.event, b.event);
       if (scheduleCmp != 0) return scheduleCmp;
 
       final leftCmp = a.leftOffset.compareTo(b.leftOffset);
@@ -1880,6 +1881,65 @@ class EventItem {
     this.hasCanonicalSchedule = false,
   });
 
+  factory EventItem.fromTimedNote({
+    String? id,
+    String? clientEventId,
+    String? calendarId,
+    String? calendarName,
+    required String title,
+    String? detail,
+    String? location,
+    required bool allDay,
+    int? startHour,
+    int? startMinute,
+    int? endHour,
+    int? endMinute,
+    required Color color,
+    Color? manualColor,
+    int? flowId,
+    String? flowName,
+    String? flowNotes,
+    String? category,
+    bool isReminder = false,
+    String? reminderId,
+    DateTime? canonicalEnd,
+    Map<String, dynamic>? behaviorPayload,
+  }) {
+    final startMin = allDay
+        ? 9 * 60
+        : (startHour ?? 9) * 60 + (startMinute ?? 0);
+    final endMin = allDay ? 17 * 60 : (endHour ?? 17) * 60 + (endMinute ?? 0);
+    return EventItem(
+      id: id,
+      clientEventId: clientEventId,
+      calendarId: calendarId,
+      calendarName: calendarName,
+      title: title,
+      detail: detail,
+      location: location,
+      startMin: startMin,
+      endMin: endMin,
+      canonicalEnd: canonicalEnd,
+      flowId: flowId,
+      flowName: flowName,
+      flowNotes: flowNotes,
+      color: color,
+      manualColor: manualColor,
+      allDay: allDay,
+      category: category,
+      isReminder: isReminder,
+      reminderId: reminderId,
+      behaviorPayload: behaviorPayload,
+      hasCanonicalSchedule: noteHasCanonicalSchedule(
+        allDay: allDay,
+        startHour: startHour,
+        startMinute: startMinute,
+        endHour: endHour,
+        endMinute: endMinute,
+      ),
+    );
+  }
+
   @override
   String toString() {
     return 'EventItem(title: "$title", flowId: $flowId, color: $color, startMin: $startMin)';
@@ -1929,9 +1989,9 @@ bool offeringTableEventIsNextNotStarted({
             return !start.isBefore(localNow);
           })
           .toList(growable: false)
-        ..sort(_compareEventItemsBySchedule);
+        ..sort(compareEventItemsBySchedule);
   if (candidates.isEmpty) return false;
-  return _eventsShareStableIdentity(candidates.first, target);
+  return eventsShareStableIdentity(candidates.first, target);
 }
 
 class DayViewSheetEventTarget {
@@ -1955,9 +2015,9 @@ DayViewSheetEventTarget? sameDayEndFlowSuccessor({
   required int endingFlowId,
 }) {
   final ordered = events.toList(growable: false)
-    ..sort(_compareEventItemsBySchedule);
+    ..sort(compareEventItemsBySchedule);
   final targetIndex = ordered.indexWhere(
-    (candidate) => _eventsShareStableIdentity(candidate, target.event),
+    (candidate) => eventsShareStableIdentity(candidate, target.event),
   );
   if (targetIndex < 0) return null;
 
@@ -2282,7 +2342,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   }
 
   String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
-      '${target.ky}:${target.km}:${target.kd}:${_eventIdentityKey(target.event)}';
+      '${target.ky}:${target.km}:${target.kd}:${eventItemIdentityKey(target.event)}';
 
   ({List<DayViewSheetEventTarget> pages, int currentIndex})
   _detailSheetPagesForTarget(DayViewSheetEventTarget target) {
@@ -2336,7 +2396,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         previousTarget.ky != nextTarget.ky ||
         previousTarget.km != nextTarget.km ||
         previousTarget.kd != nextTarget.kd ||
-        !_eventsShareStableIdentity(previousTarget.event, nextTarget.event);
+        !eventsShareStableIdentity(previousTarget.event, nextTarget.event);
     setState(() {
       _currentTarget = nextTarget;
       if (identityChanged) {
@@ -3034,7 +3094,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       eventId: event.id,
       clientEventId: event.clientEventId,
       reminderId: event.reminderId,
-      fallback: _eventIdentityKey(event),
+      fallback: eventItemIdentityKey(event),
     );
   }
 
@@ -4977,12 +5037,6 @@ List<NoteData> _dedupeDayNotesForUi(List<NoteData> notes) {
 }
 
 EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
-  final startMin = note.allDay
-      ? 9 * 60
-      : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-  final endMin = note.allDay
-      ? 17 * 60
-      : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
   final flow = note.flowId == null ? null : flowIndex[note.flowId];
 
   Color eventColor = Colors.blue;
@@ -4994,7 +5048,7 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
     eventColor = flow.color;
   }
 
-  return EventItem(
+  return EventItem.fromTimedNote(
     id: note.id,
     clientEventId: note.clientEventId,
     calendarId: note.calendarId,
@@ -5002,30 +5056,25 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
     title: note.title,
     detail: note.detail,
     location: note.location,
-    startMin: startMin,
-    endMin: endMin,
+    allDay: note.allDay,
+    startHour: note.start?.hour,
+    startMinute: note.start?.minute,
+    endHour: note.end?.hour,
+    endMinute: note.end?.minute,
     canonicalEnd: note.canonicalEnd,
     flowId: note.flowId,
     flowName: flow?.name,
     flowNotes: flow?.notes,
     color: eventColor,
     manualColor: note.manualColor,
-    allDay: note.allDay,
     category: note.category,
     isReminder: note.isReminder,
     reminderId: note.reminderId,
     behaviorPayload: note.behaviorPayload,
-    hasCanonicalSchedule: noteHasCanonicalSchedule(
-      allDay: note.allDay,
-      startHour: note.start?.hour,
-      startMinute: note.start?.minute,
-      endHour: note.end?.hour,
-      endMinute: note.end?.minute,
-    ),
   );
 }
 
-String _eventIdentityKey(EventItem event) {
+String eventItemIdentityKey(EventItem event) {
   final id = event.id?.trim();
   if (id != null && id.isNotEmpty) return 'id:$id';
 
@@ -5056,7 +5105,7 @@ String _eventIdentityKey(EventItem event) {
 Key dayViewOverflowVisualKey(String eventIdentity, int hour) =>
     ValueKey<String>('day_view_overflow_visual:$eventIdentity:$hour');
 
-bool _eventsShareStableIdentity(EventItem a, EventItem b) {
+bool eventsShareStableIdentity(EventItem a, EventItem b) {
   final aId = a.id?.trim();
   final bId = b.id?.trim();
   if (aId != null && aId.isNotEmpty && bId != null && bId.isNotEmpty) {
@@ -5081,7 +5130,7 @@ bool _eventsShareStableIdentity(EventItem a, EventItem b) {
     return aReminderId == bReminderId;
   }
 
-  return _eventIdentityKey(a) == _eventIdentityKey(b);
+  return eventItemIdentityKey(a) == eventItemIdentityKey(b);
 }
 
 bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
@@ -5209,14 +5258,14 @@ double _eventVisualEndMin(EventItem event, {double textScale = 1.0}) {
       _eventVisualHeightForLayout(event, textScale: textScale);
 }
 
-int _compareEventItemsBySchedule(EventItem a, EventItem b) {
+int compareEventItemsBySchedule(EventItem a, EventItem b) {
   final startCmp = a.startMin.compareTo(b.startMin);
   if (startCmp != 0) return startCmp;
 
   final endCmp = a.endMin.compareTo(b.endMin);
   if (endCmp != 0) return endCmp;
 
-  return _eventIdentityKey(a).compareTo(_eventIdentityKey(b));
+  return eventItemIdentityKey(a).compareTo(eventItemIdentityKey(b));
 }
 
 List<EventItem> _sortedEventsForDay({
@@ -5226,7 +5275,7 @@ List<EventItem> _sortedEventsForDay({
   final events = [
     for (final note in notes) _eventItemFromNote(note, flowIndex),
   ];
-  events.sort(_compareEventItemsBySchedule);
+  events.sort(compareEventItemsBySchedule);
   return events;
 }
 
@@ -5955,7 +6004,7 @@ class _DayViewPageState extends State<DayViewPage> {
           '${detail.identityType}:${detail.identityValue}';
     }
     return '${target.ky}:${target.km}:${target.kd}:'
-        '${_eventIdentityKey(target.event)}';
+        '${eventItemIdentityKey(target.event)}';
   }
 
   void _handleEventDetailRequest() {
@@ -6188,7 +6237,7 @@ class _DayViewPageState extends State<DayViewPage> {
   }) {
     final currentEvents = _eventsForKemeticDay(ky, km, kd);
     final currentIndex = currentEvents.indexWhere(
-      (candidate) => _eventsShareStableIdentity(candidate, event),
+      (candidate) => eventsShareStableIdentity(candidate, event),
     );
 
     if (currentIndex >= 0) {
@@ -6234,7 +6283,7 @@ class _DayViewPageState extends State<DayViewPage> {
     if (currentEvents.isEmpty) return target;
 
     for (final candidate in currentEvents) {
-      if (!_eventsShareStableIdentity(candidate, target.event)) continue;
+      if (!eventsShareStableIdentity(candidate, target.event)) continue;
       return DayViewSheetEventTarget(
         ky: target.ky,
         km: target.km,
@@ -7236,7 +7285,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   bool _eventsMatch(EventItem a, EventItem b) {
-    return _eventsShareStableIdentity(a, b) || identical(a, b);
+    return eventsShareStableIdentity(a, b) || identical(a, b);
   }
 
   List<PositionedEventBlock> _buildDisplayBlocks(
@@ -7945,7 +7994,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         if (startCmp != 0) return startCmp;
         final leftCmp = a.leftOffset.compareTo(b.leftOffset);
         if (leftCmp != 0) return leftCmp;
-        return _compareEventItemsBySchedule(a.event, b.event);
+        return compareEventItemsBySchedule(a.event, b.event);
       });
     final carouselGroups = <int, List<PositionedEventBlock>>{};
     final directBlocks = <PositionedEventBlock>[];

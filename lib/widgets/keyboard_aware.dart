@@ -11,12 +11,78 @@ const ValueKey<String> keyboardAwareEditableSurfaceKey = ValueKey<String>(
 const ValueKey<String> editableModalSystemInsetOwnerKey = ValueKey<String>(
   'editable-modal-system-inset-owner',
 );
+const ValueKey<String> keyboardInsetBoundaryKey = ValueKey<String>(
+  'keyboard-inset-boundary',
+);
 
-/// Opens an editable modal whose route content owns the system inset once.
+/// Records system and custom inset already applied by ancestor presentation
+/// boundaries so descendants consume only what remains.
+class KeyboardInsetConsumption extends InheritedWidget {
+  const KeyboardInsetConsumption({
+    super.key,
+    required this.consumedSystemInset,
+    required this.consumedCustomInset,
+    required super.child,
+  });
+
+  final double consumedSystemInset;
+  final double consumedCustomInset;
+
+  static KeyboardInsetConsumption? maybeOf(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<KeyboardInsetConsumption>();
+  }
+
+  static Widget apply({
+    required BuildContext context,
+    required double additionalSystem,
+    required double additionalCustom,
+    required Widget child,
+  }) {
+    final parent = maybeOf(context);
+    return KeyboardInsetConsumption(
+      consumedSystemInset:
+          (parent?.consumedSystemInset ?? 0) + additionalSystem,
+      consumedCustomInset:
+          (parent?.consumedCustomInset ?? 0) + additionalCustom,
+      child: child,
+    );
+  }
+
+  @override
+  bool updateShouldNotify(covariant KeyboardInsetConsumption oldWidget) {
+    return consumedSystemInset != oldWidget.consumedSystemInset ||
+        consumedCustomInset != oldWidget.consumedCustomInset;
+  }
+}
+
+double publishedSystemKeyboardInsetOf(BuildContext context) {
+  final scope = KemeticKeyboardScope.maybeOf(context);
+  if (scope != null) return scope.systemKeyboardInset;
+  return resolveKeyboardViewportMetrics(
+    MediaQuery.of(context),
+  ).layoutViewInsetBottom;
+}
+
+double remainingSystemKeyboardInsetOf(BuildContext context) {
+  final consumed =
+      KeyboardInsetConsumption.maybeOf(context)?.consumedSystemInset ?? 0;
+  return math.max(0, publishedSystemKeyboardInsetOf(context) - consumed);
+}
+
+double remainingCustomKeyboardInsetOf(BuildContext context) {
+  final published =
+      KemeticKeyboardScope.maybeOf(context)?.customKeyboardInset ?? 0;
+  final consumed =
+      KeyboardInsetConsumption.maybeOf(context)?.consumedCustomInset ?? 0;
+  return math.max(0, published - consumed);
+}
+
+/// Opens an editable modal whose route content owns remaining system inset once.
 ///
-/// The whole visible sheet is lifted above the system keyboard, then the
-/// consumed inset is removed for descendants. Inner editable surfaces remain
-/// responsible only for the overlaid Kemetic keyboard.
+/// The whole visible sheet is lifted above remaining system-keyboard occlusion,
+/// then raw viewInsets are stripped so descendants cannot consume them again.
+/// Inner editable surfaces remain responsible only for leftover custom inset.
 Future<T?> showEditableModalBottomSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -41,36 +107,53 @@ Future<T?> showEditableModalBottomSheet<T>({
     barrierColor: barrierColor,
     shape: shape,
     clipBehavior: clipBehavior,
-    builder: (modalContext) => _EditableModalSystemInsetOwner(
+    builder: (modalContext) => KeyboardInsetBoundary(
       constrainMediaSizeToAvailableHeight: constrainMediaSizeToAvailableHeight,
+      paddingKey: editableModalSystemInsetOwnerKey,
       child: builder(modalContext),
     ),
   );
 }
 
-class _EditableModalSystemInsetOwner extends StatelessWidget {
-  const _EditableModalSystemInsetOwner({
+/// One presentation-boundary owner for remaining system-keyboard occlusion.
+///
+/// Pads the remaining system inset, strips raw [MediaQuery.viewInsets], and
+/// records that consumption so descendants receive leftover occlusion plus
+/// custom inset once. Does not read an `editable` flag.
+class KeyboardInsetBoundary extends StatelessWidget {
+  const KeyboardInsetBoundary({
+    super.key,
     required this.child,
-    required this.constrainMediaSizeToAvailableHeight,
+    this.constrainMediaSizeToAvailableHeight = false,
+    this.paddingKey = keyboardInsetBoundaryKey,
   });
 
   final Widget child;
   final bool constrainMediaSizeToAvailableHeight;
+  final Key paddingKey;
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final inset = media.viewInsets.bottom;
+    final remainingSystem = remainingSystemKeyboardInsetOf(context);
     var consumed = media.removeViewInsets(removeBottom: true);
-    if (constrainMediaSizeToAvailableHeight && inset > 0) {
+    if (constrainMediaSizeToAvailableHeight && remainingSystem > 0) {
       consumed = consumed.copyWith(
-        size: Size(media.size.width, math.max(0, media.size.height - inset)),
+        size: Size(
+          media.size.width,
+          math.max(0, media.size.height - remainingSystem),
+        ),
       );
     }
-    return Padding(
-      key: editableModalSystemInsetOwnerKey,
-      padding: EdgeInsets.only(bottom: inset),
-      child: MediaQuery(data: consumed, child: child),
+    return KeyboardInsetConsumption.apply(
+      context: context,
+      additionalSystem: remainingSystem,
+      additionalCustom: 0,
+      child: Padding(
+        key: paddingKey,
+        padding: EdgeInsets.only(bottom: remainingSystem),
+        child: MediaQuery(data: consumed, child: child),
+      ),
     );
   }
 }
@@ -89,9 +172,10 @@ KeyboardViewportMetrics keyboardViewportMetricsOf(BuildContext context) {
 }
 
 double keyboardInsetOf(BuildContext context) {
-  final scope = KemeticKeyboardScope.maybeOf(context);
-  if (scope != null) return scope.keyboardInset;
-  return keyboardViewportMetricsOf(context).layoutViewInsetBottom;
+  return math.max(
+    remainingCustomKeyboardInsetOf(context),
+    remainingSystemKeyboardInsetOf(context),
+  );
 }
 
 bool keyboardIsVisible(BuildContext context) {
@@ -105,12 +189,12 @@ bool keyboardIsVisible(BuildContext context) {
 /// The single shared layout owner for an editable page or sheet.
 ///
 /// Flutter and [Scaffold] continue to own ordinary system-keyboard resizing.
-/// This surface adds clearance only when its caller owns a modal inset, or
-/// when the alternate Kemetic keyboard overlays the app. Flutter also keeps
-/// ownership of system-keyboard focus reveal. The scoped reveal below runs
-/// only for the custom Kemetic keyboard, whose occupied height Flutter cannot
-/// discover. It never searches or scrolls an arbitrary editable elsewhere in
-/// the application.
+/// This surface adds clearance only when its caller owns remaining system
+/// inset, or when the alternate Kemetic keyboard overlays the app. Flutter
+/// also keeps ownership of system-keyboard focus reveal. The scoped reveal
+/// below runs only for the custom Kemetic keyboard, whose occupied height
+/// Flutter cannot discover. It never searches or scrolls an arbitrary
+/// editable elsewhere in the application.
 class KeyboardAwareEditableSurface extends StatefulWidget {
   const KeyboardAwareEditableSurface({
     super.key,
@@ -156,11 +240,10 @@ class _KeyboardAwareEditableSurfaceState
 
   ({double top, double bottom, double inset}) _geometry() {
     final media = MediaQuery.of(context);
-    final scope = KemeticKeyboardScope.maybeOf(context);
     final viewport = keyboardViewportMetricsOf(context);
-    final customInset = scope?.customKeyboardInset ?? 0;
+    final customInset = remainingCustomKeyboardInsetOf(context);
     final systemInset = widget.manageSystemKeyboardInset
-        ? viewport.layoutViewInsetBottom
+        ? remainingSystemKeyboardInsetOf(context)
         : 0.0;
     final inset = math.max(customInset, systemInset);
     final customBottom = media.size.height - customInset;
@@ -242,10 +325,19 @@ class _KeyboardAwareEditableSurfaceState
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      key: keyboardAwareEditableSurfaceKey,
-      padding: EdgeInsets.only(bottom: _geometry().inset),
-      child: widget.child,
+    final remainingCustom = remainingCustomKeyboardInsetOf(context);
+    final remainingSystem = widget.manageSystemKeyboardInset
+        ? remainingSystemKeyboardInsetOf(context)
+        : 0.0;
+    return KeyboardInsetConsumption.apply(
+      context: context,
+      additionalSystem: remainingSystem,
+      additionalCustom: remainingCustom,
+      child: Padding(
+        key: keyboardAwareEditableSurfaceKey,
+        padding: EdgeInsets.only(bottom: _geometry().inset),
+        child: widget.child,
+      ),
     );
   }
 }

@@ -513,11 +513,8 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
         );
       },
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        final media = MediaQuery.of(dialogContext);
-        return KeyboardAwareEditableSurface(
-          manageSystemKeyboardInset: true,
-          child: MediaQuery(
-            data: media.removeViewInsets(removeBottom: true),
+        return KeyboardInsetBoundary(
+          child: KeyboardAwareEditableSurface(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final availableHeight = math.max(

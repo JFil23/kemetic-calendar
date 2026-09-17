@@ -502,12 +502,25 @@ void main() {
       lessThanOrEqualTo(keyboardTop),
     );
     expect(
+      find.ancestor(
+        of: captureWindow,
+        matching: find.byType(KeyboardInsetBoundary),
+      ),
+      findsOneWidget,
+    );
+    expect(
       tester
           .widgetList<KeyboardAwareEditableSurface>(
-            find.byType(KeyboardAwareEditableSurface),
+            find.descendant(
+              of: find.ancestor(
+                of: captureWindow,
+                matching: find.byType(KeyboardInsetBoundary),
+              ),
+              matching: find.byType(KeyboardAwareEditableSurface),
+            ),
           )
           .where((surface) => surface.manageSystemKeyboardInset),
-      hasLength(1),
+      isEmpty,
     );
     expect(
       find.ancestor(

@@ -145,6 +145,7 @@ import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_palette.dart';
 import 'maat_flow_visual_tokens.dart';
+import 'presentation/flow_studio_modal_sheet_host.dart';
 import 'presentation/maat_flow_discovery_view.dart';
 import 'presentation/maat_flow_detail_shell.dart';
 import 'maat_flow_response_journal_blocks.dart';
@@ -8624,66 +8625,10 @@ class CalendarPage extends StatefulWidget {
             );
           }
 
-          if (isTablet) {
-            return SafeArea(
-              child: FractionallySizedBox(
-                heightFactor: 0.9,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: Material(
-                    color: Colors.black,
-                    child: Column(
-                      children: [
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white),
-                            onPressed: () => Navigator.of(outerCtx).pop(),
-                          ),
-                        ),
-                        Expanded(child: buildNavigator()),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return DraggableScrollableSheet(
-            initialChildSize: 0.8,
-            minChildSize: 0.4,
-            maxChildSize: 1.0,
-            snap: true,
-            snapSizes: const <double>[0.8, 1.0],
-            expand: false,
-            builder: (innerCtx, scrollController) {
-              return ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-                child: Material(
-                  color: Colors.black,
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 10),
-                      Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(child: buildNavigator()),
-                    ],
-                  ),
-                ),
-              );
-            },
+          return FlowStudioModalSheetHost(
+            isTablet: isTablet,
+            onClose: () => Navigator.of(outerCtx).pop(),
+            child: buildNavigator(),
           );
         },
       );
@@ -12608,10 +12553,8 @@ class CalendarPageState extends State<CalendarPage>
       await _saveCalendarEventDetailOverlayForTarget(initialTarget);
       if (!mounted) return;
 
-      await showModalBottomSheet(
+      await showCalendarEventDetailSheetModal(
         context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
         builder: (_) => CalendarEventDetailSheet(
           hostContext: context,
           initialTarget: initialTarget,
@@ -24839,17 +24782,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   EventItem _noteToEventItem(_Note note) {
-    final startMin = note.allDay
-        ? 9 * 60
-        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-    final endMin = note.allDay
-        ? 17 * 60
-        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
-
-    // Prefer manual color; otherwise use resolver (handles flow color).
-    final resolvedColor = note.manualColor ?? _noteColor(note);
-
-    return EventItem(
+    return EventItem.fromTimedNote(
       id: note.id,
       clientEventId: note.clientEventId,
       calendarId: note.calendarId,
@@ -24857,23 +24790,18 @@ class CalendarPageState extends State<CalendarPage>
       title: note.title,
       detail: note.detail,
       location: note.location,
-      startMin: startMin,
-      endMin: endMin,
-      flowId: note.flowId,
-      color: resolvedColor,
-      manualColor: note.manualColor,
       allDay: note.allDay,
+      startHour: note.start?.hour,
+      startMinute: note.start?.minute,
+      endHour: note.end?.hour,
+      endMinute: note.end?.minute,
+      flowId: note.flowId,
+      color: note.manualColor ?? _noteColor(note),
+      manualColor: note.manualColor,
       category: note.category,
       isReminder: note.isReminder,
       reminderId: note.reminderId,
       behaviorPayload: note.behaviorPayload,
-      hasCanonicalSchedule: noteHasCanonicalSchedule(
-        allDay: note.allDay,
-        startHour: note.start?.hour,
-        startMinute: note.start?.minute,
-        endHour: note.end?.hour,
-        endMinute: note.end?.minute,
-      ),
     );
   }
 
@@ -26859,100 +26787,22 @@ class CalendarPageState extends State<CalendarPage>
             );
           }
 
-          if (isTablet) {
-            final navigatorKey = showCloseButton
-                ? GlobalKey<NavigatorState>()
-                : null;
-            return SafeArea(
-              child: FractionallySizedBox(
-                heightFactor: 0.9,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: Material(
-                    color: Colors.black,
-                    child: Column(
-                      children: [
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white),
-                            onPressed: () => Navigator.of(outerCtx).pop(),
-                          ),
-                        ),
-                        Expanded(
-                          child: maybeHandleSheetBack(
-                            flowStudioNavigator(key: navigatorKey),
-                            navigatorKey: navigatorKey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-
           final navigatorKey = showCloseButton
               ? GlobalKey<NavigatorState>()
               : null;
-          return DraggableScrollableSheet(
-            initialChildSize: 0.8,
-            minChildSize: 0.4,
-            maxChildSize: 1.0,
-            snap: true,
-            snapSizes: const [0.8, 1.0],
-            expand: false,
-            builder: (innerCtx, scrollController) {
-              return ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-                child: Material(
-                  color: Colors.black,
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: showCloseButton ? 52 : 22,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.white24,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            if (showCloseButton)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: IconButton(
-                                  tooltip: 'Close',
-                                  icon: const Icon(
-                                    Icons.close,
-                                    color: DaySheetTokens.silverMid,
-                                  ),
-                                  onPressed: closeOuterSheet,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: maybeHandleSheetBack(
-                          flowStudioNavigator(key: navigatorKey),
-                          navigatorKey: navigatorKey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+          return FlowStudioModalSheetHost(
+            isTablet: isTablet,
+            onClose: isTablet
+                ? () => Navigator.of(outerCtx).pop()
+                : closeOuterSheet,
+            phoneHeader: FlowStudioModalSheetHost.overlayPhoneHeader(
+              showCloseButton: showCloseButton,
+              onClose: closeOuterSheet,
+            ),
+            child: maybeHandleSheetBack(
+              flowStudioNavigator(key: navigatorKey),
+              navigatorKey: navigatorKey,
+            ),
           );
         },
       );
@@ -34445,14 +34295,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   EventItem _calendarSheetEventItemFromNote(_Note note) {
-    final startMin = note.allDay
-        ? 9 * 60
-        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-    final endMin = note.allDay
-        ? 17 * 60
-        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
-
-    return EventItem(
+    return EventItem.fromTimedNote(
       id: note.id,
       clientEventId: note.clientEventId,
       calendarId: note.calendarId,
@@ -34460,23 +34303,18 @@ class CalendarPageState extends State<CalendarPage>
       title: note.title,
       detail: note.detail,
       location: note.location,
-      startMin: startMin,
-      endMin: endMin,
+      allDay: note.allDay,
+      startHour: note.start?.hour,
+      startMinute: note.start?.minute,
+      endHour: note.end?.hour,
+      endMinute: note.end?.minute,
       flowId: note.flowId,
       color: _noteColor(note),
       manualColor: note.manualColor,
-      allDay: note.allDay,
       category: note.category,
       isReminder: note.isReminder,
       reminderId: note.reminderId,
       behaviorPayload: note.behaviorPayload,
-      hasCanonicalSchedule: noteHasCanonicalSchedule(
-        allDay: note.allDay,
-        startHour: note.start?.hour,
-        startMinute: note.start?.minute,
-        endHour: note.end?.hour,
-        endMinute: note.end?.minute,
-      ),
     );
   }
 

@@ -4,7 +4,6 @@ import '../../maat_flow_visual_tokens.dart';
 import '../../the_offering_table_flow.dart';
 import '../../../../widgets/keyboard_aware.dart';
 import 'offering_table_day_components.dart';
-import 'offering_table_day_presentation.dart';
 import 'offering_table_presentation_copy.dart';
 
 Future<void> showOfferingTablePreviewDaySheet({
