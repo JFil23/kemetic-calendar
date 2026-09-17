@@ -297,7 +297,7 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
         children: <Widget>[
           Positioned.fill(
             child: Align(
-              alignment: const Alignment(.55, .3),
+              alignment: const Alignment(0, .06),
               child: Semantics(
                 button: true,
                 label: 'Begin the Kꜣr walk',
@@ -305,7 +305,7 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
                   key: const ValueKey<String>('kar-begin-walk'),
                   behavior: HitTestBehavior.opaque,
                   onTap: () => setState(() => _walking = true),
-                  child: const SizedBox(width: 205, height: 118),
+                  child: const SizedBox(width: 126, height: 190),
                 ),
               ),
             ),
@@ -698,49 +698,11 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
             child: Align(
               alignment: Alignment.center,
               child: SizedBox(
+                width: 126,
                 height: 190,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    SizedBox(
-                      width: 126,
-                      child: KarDayShrineVisual(
-                        color: const Color(0xFFD4AE43),
-                        placedStages: _placedStages(cycle),
-                      ),
-                    ),
-                    const SizedBox(width: 18),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 18),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              _walking ? stage.place : 'Walk the kꜣr',
-                              style: _style(
-                                const Color(0xFFEFE6D7),
-                                31,
-                                weight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _walking
-                                  ? 'Find this place before asking for what was saved.'
-                                  : 'Enter at the threshold. Find the five places in order.',
-                              style: _style(
-                                const Color(0xFFA9A091),
-                                17,
-                                style: FontStyle.italic,
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                child: KarDayShrineVisual(
+                  color: const Color(0xFFD4AE43),
+                  placedStages: _placedStages(cycle),
                 ),
               ),
             ),

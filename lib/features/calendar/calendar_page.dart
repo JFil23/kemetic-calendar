@@ -5115,6 +5115,7 @@ class CalendarPage extends StatefulWidget {
             followSkyMeasurementIntervals: sky?.intervals ?? const [],
           ),
           addInstance: _addMaatFlowInstanceHeadless,
+          onPersisted: (_) => _refreshDetachedReadingHouseTimeline(),
           onBack: () => popMaatFlowDetailOrGo(
             context,
             fallbackLocation: backFallbackLocation,
@@ -8129,6 +8130,8 @@ class CalendarPage extends StatefulWidget {
         followSkyMeasurementIntervals: sky?.intervals ?? const [],
       ),
       addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
+      onPersisted: (_) =>
+          _refreshDetachedReadingHouseTimeline(flowsRepo: flowsRepo),
       onBack: onBack,
       onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
         navigator: navigator,
@@ -8138,6 +8141,21 @@ class CalendarPage extends StatefulWidget {
         onClose: onClose,
       ),
       onEndFlow: _endFlowHeadless,
+    );
+  }
+
+  static Future<void> _refreshDetachedReadingHouseTimeline({
+    FlowsRepo? flowsRepo,
+  }) async {
+    final repo = flowsRepo ?? FlowsRepo(Supabase.instance.client);
+    await repo.clearMyFiledFlowsCache();
+    unawaited(repo.refreshMyFiledFlows());
+    final mountedState = _mountedState;
+    if (mountedState?.mounted != true) return;
+    await mountedState!._requestHydration(
+      _CalendarHydrationRequest.catalogReconcile(
+        reason: 'reading_house_detail_persisted',
+      ),
     );
   }
 
@@ -13154,6 +13172,14 @@ class CalendarPageState extends State<CalendarPage>
         flowId: flowId,
         templateKey: template.key,
       ),
+      onPersisted: (_) async {
+        if (!mounted) return;
+        await _requestHydration(
+          _CalendarHydrationRequest.catalogReconcile(
+            reason: 'reading_house_detail_persisted',
+          ),
+        );
+      },
       onEndFlow: (flowId) => _endFlow(flowId),
     );
   }

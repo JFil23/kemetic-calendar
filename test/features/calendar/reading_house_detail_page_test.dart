@@ -31,6 +31,7 @@ void main() {
     bool computedStart = false,
     MaatFlowClock? clock,
     double topPadding = 0,
+    Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted,
   }) async {
     final fake = authority ?? _FakeReadingHouseAuthority();
     await tester.binding.setSurfaceSize(size);
@@ -54,6 +55,7 @@ void main() {
               initiallyHeld: initialFlowId != null,
               authority: fake,
               resolvePersonalCalendarId: () async => 'personal-calendar',
+              onPersisted: onPersisted,
               clock: clock,
               presentDayIanaTimeZone: TrackSkyTimeZone.pacific.ianaName,
             ),
@@ -330,7 +332,11 @@ void main() {
   testWidgets('hold is idempotent and placement is the event boundary', (
     tester,
   ) async {
-    final authority = await pumpHouse(tester);
+    final persisted = <ReadingHouseSnapshot>[];
+    final authority = await pumpHouse(
+      tester,
+      onPersisted: (snapshot) async => persisted.add(snapshot),
+    );
 
     await tester.tap(find.byKey(const ValueKey<String>('reading-house-hold')));
     await tester.pumpAndSettle();
@@ -338,6 +344,8 @@ void main() {
     expect(authority.lastSnapshot?.isScheduled, isFalse);
     expect(authority.lastSnapshot?.flowId, authority.flowId);
     expect(authority.lastSnapshot?.plan.state, kReadingHouseHeldState);
+    expect(persisted, hasLength(1));
+    expect(persisted.single.isScheduled, isFalse);
 
     await tester.tap(find.byKey(const ValueKey<String>('reading-house-held')));
     await tester.pumpAndSettle();
@@ -359,6 +367,8 @@ void main() {
       ),
       isTrue,
     );
+    expect(persisted, hasLength(2));
+    expect(persisted.last.isScheduled, isTrue);
   });
 
   testWidgets(

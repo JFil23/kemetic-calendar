@@ -1335,6 +1335,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
     required this.template,
     required this.addInstance,
     this.onJoined,
+    this.onPersisted,
     this.joinedFlow,
     this.relation = MaatFlowDetailRelation.catalogPreview,
     this.onBack,
@@ -1351,6 +1352,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
     required MaatFlowDetailComposition composition,
     required _ActiveMaatFlowAddInstance addInstance,
     Future<void> Function(int flowId)? onJoined,
+    Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted,
     VoidCallback? onBack,
     Future<void> Function(TrackSkyCourse? course, String notes)?
     onFollowSkyCourseSaved,
@@ -1367,6 +1369,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
       template: composition.template,
       addInstance: addInstance,
       onJoined: onJoined,
+      onPersisted: onPersisted,
       joinedFlow: composition.intendedInstance,
       relation: composition.relation,
       onBack: onBack,
@@ -1383,6 +1386,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
   final _MaatFlowTemplate template;
   final _ActiveMaatFlowAddInstance addInstance;
   final Future<void> Function(int flowId)? onJoined;
+  final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
   final _Flow? joinedFlow;
   final MaatFlowDetailRelation relation;
   final VoidCallback? onBack;
@@ -1627,6 +1631,7 @@ class _ActiveMaatFlowDetailSurfaceState
         final onJoined = widget.onJoined;
         if (onJoined != null) unawaited(onJoined(flowId));
       },
+      onPersisted: widget.onPersisted,
       onEndFlow: widget.onEndFlow,
       onBack: widget.onBack,
     );

@@ -388,6 +388,21 @@ void main() {
     expect(find.text('Observed'), findsOneWidget);
     expect(find.text('Partly'), findsOneWidget);
     expect(find.text('Skipped'), findsOneWidget);
+    final reflectionButton = find.byKey(
+      const ValueKey<String>('day-view-add-reflection'),
+    );
+    expect(reflectionButton, findsOneWidget);
+    expect(tester.getSize(reflectionButton).height, 34);
+    expect(
+      tester
+          .getSize(
+            find.byKey(
+              const ValueKey<String>('day-view-add-reflection-touch-target'),
+            ),
+          )
+          .height,
+      48,
+    );
     await expectLater(
       find.byKey(_visualCaptureKey),
       matchesGoldenFile(
@@ -526,7 +541,16 @@ void main() {
         of: find.byType(KarDayBehaviorSurface),
         matching: find.text('Walk the kꜣr'),
       ),
-      findsOneWidget,
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('kar-fixed-hero')),
+        matching: find.text(
+          'Enter at the threshold. Find the five places in order.',
+        ),
+      ),
+      findsNothing,
     );
     expect(
       find.byKey(const ValueKey<String>('kar-begin-walk')),
@@ -541,11 +565,24 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey<String>('kar-begin-walk')));
     await tester.pumpAndSettle();
-    expect(find.text('Threshold'), findsOneWidget);
     expect(
-      find.text('Find this place before asking for what was saved.'),
-      findsOneWidget,
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('kar-fixed-hero')),
+        matching: find.text('Threshold'),
+      ),
+      findsNothing,
     );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('kar-fixed-hero')),
+        matching: find.text(
+          'Find this place before asking for what was saved.',
+        ),
+      ),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey<String>('kar-begin-walk')), findsNothing);
+    expect(find.text('Is it here?'), findsOneWidget);
     if (_captureKarVisuals) {
       await expectLater(
         find.byKey(_visualCaptureKey),
@@ -733,6 +770,21 @@ void _expectCanonicalMaatDayViewHousing(
     findsOneWidget,
   );
   expect(find.byTooltip('Event options'), findsOneWidget);
+  final reflectionButton = find.byKey(
+    const ValueKey<String>('day-view-add-reflection'),
+  );
+  expect(reflectionButton, findsOneWidget);
+  expect(tester.getSize(reflectionButton).height, 34);
+  expect(
+    tester
+        .getSize(
+          find.byKey(
+            const ValueKey<String>('day-view-add-reflection-touch-target'),
+          ),
+        )
+        .height,
+    48,
+  );
   expect(
     find.byKey(const ValueKey<String>('maat-day-view-make-todo')),
     findsOneWidget,

@@ -144,6 +144,30 @@ void main() {
     await _pumpFollowSkySheet(tester);
 
     expect(find.byType(MaatDayViewSheetHost), findsOneWidget);
+    final reflectionButton = find.byKey(
+      const ValueKey<String>('day-view-add-reflection'),
+    );
+    expect(reflectionButton, findsOneWidget);
+    expect(tester.getSize(reflectionButton).height, 34);
+    final reflectionAction = find.ancestor(
+      of: find.text('Add reflection'),
+      matching: find.byWidgetPredicate((widget) => widget is OutlinedButton),
+    );
+    expect(reflectionAction, findsOneWidget);
+    expect(
+      tester.widget<OutlinedButton>(reflectionAction).onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .getSize(
+            find.byKey(
+              const ValueKey<String>('day-view-add-reflection-touch-target'),
+            ),
+          )
+          .height,
+      48,
+    );
     expect(find.byType(MaatDayViewForegroundShell), findsOneWidget);
     expect(find.byType(MaatDayViewForegroundContent), findsOneWidget);
 

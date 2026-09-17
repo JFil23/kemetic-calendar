@@ -1060,6 +1060,27 @@ void main() {
     expect(joinSource, isNot(contains('joinReadingHouseHeadless(')));
   });
 
+  test('active Reading House forwards persistence to Calendar hydration', () {
+    final activeFlowSource = File(
+      'lib/features/calendar/calendar_active_maat_flows.dart',
+    ).readAsStringSync();
+    final calendarSource = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final readingHouseSurface = _sourceBetween(
+      activeFlowSource,
+      'Widget _buildReadingHouse()',
+      '  Future<int> _scheduleKar',
+    );
+
+    expect(readingHouseSurface, contains('onPersisted: widget.onPersisted'));
+    expect(
+      calendarSource,
+      contains("reason: 'reading_house_detail_persisted'"),
+    );
+    expect(calendarSource, contains('_refreshDetachedReadingHouseTimeline'));
+  });
+
   test('Reading House narrow mutations stay on targeted authority paths', () {
     final authoritySource = File(
       'lib/features/calendar/the_reading_house/reading_house_authority.dart',

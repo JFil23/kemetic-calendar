@@ -1310,6 +1310,21 @@ void main() {
     await tester.tap(eventBlock);
     await tester.pumpAndSettle();
     expect(find.byType(OfferingTableDayV8Presentation), findsOneWidget);
+    final reflectionButton = find.byKey(
+      const ValueKey<String>('day-view-add-reflection'),
+    );
+    expect(reflectionButton, findsOneWidget);
+    expect(tester.getSize(reflectionButton).height, 34);
+    expect(
+      tester
+          .getSize(
+            find.byKey(
+              const ValueKey<String>('day-view-add-reflection-touch-target'),
+            ),
+          )
+          .height,
+      48,
+    );
     await expectLater(
       find.byKey(_visualCaptureSurfaceKey),
       matchesGoldenFile(

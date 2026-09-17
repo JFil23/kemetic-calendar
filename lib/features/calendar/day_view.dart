@@ -3395,9 +3395,25 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
     required CompletionSourceType sourceType,
+    bool compact = false,
   }) {
-    return OutlinedButton.icon(
-      style: _endButtonStyle(sheetContext),
+    final button = OutlinedButton.icon(
+      key: compact ? null : const ValueKey<String>('day-view-add-reflection'),
+      style: compact
+          ? OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: _dayGold.withValues(alpha: 0.42),
+                width: 0.7,
+              ),
+              backgroundColor: _dayGold.withValues(alpha: 0.06),
+              foregroundColor: _dayGold,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: const Size(0, 34),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(horizontal: -1, vertical: -2),
+              shape: const StadiumBorder(),
+            )
+          : _endButtonStyle(sheetContext),
       onPressed: () => unawaited(
         _openReflectionForTarget(
           routeContext: routeContext,
@@ -3406,8 +3422,50 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           sourceType: sourceType,
         ),
       ),
-      icon: KemeticGold.icon(Icons.edit_note_rounded),
+      icon: KemeticGold.icon(
+        Icons.edit_note_rounded,
+        size: compact ? 18 : null,
+      ),
       label: const Text('Add reflection'),
+    );
+    if (!compact) return button;
+    return SizedBox(
+      key: const ValueKey<String>('day-view-add-reflection-touch-target'),
+      width: 150,
+      height: 48,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          key: const ValueKey<String>('day-view-add-reflection'),
+          height: 34,
+          child: button,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventDetailReflectionAction({
+    required BuildContext rootContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    bool compact = false,
+  }) {
+    final currentEvent = target.event;
+    final flow = _chromeFlowForId(currentEvent.flowId);
+    final completionContext = _maatFlowCompletionContextForEvent(
+      currentEvent,
+      flow,
+    );
+    return _buildAddReflectionButton(
+      routeContext: rootContext,
+      sheetContext: sheetContext,
+      target: target,
+      sourceType: _completionSourceTypeForEvent(
+        currentEvent,
+        flow,
+        completionContext,
+      ),
+      compact: compact,
     );
   }
 
@@ -4083,35 +4141,17 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
   }) {
-    final currentEvent = target.event;
-    final flow = _chromeFlowForId(currentEvent.flowId);
-    final completionContext = _maatFlowCompletionContextForEvent(
-      currentEvent,
-      flow,
-    );
-    final sourceType = _completionSourceTypeForEvent(
-      currentEvent,
-      flow,
-      completionContext,
-    );
-    final isFollowSkyObservation = FollowSkyObservationRoute.matches(
-      clientEventId: currentEvent.clientEventId,
-      behaviorPayload: currentEvent.behaviorPayload,
-      catalog: _followSkyCatalog,
+    final reflectionAction = _buildEventDetailReflectionAction(
+      rootContext: rootContext,
+      sheetContext: sheetContext,
+      target: target,
     );
 
     return Row(
       children: [
         const Spacer(),
-        if (!isFollowSkyObservation) ...[
-          _buildAddReflectionButton(
-            routeContext: rootContext,
-            sheetContext: sheetContext,
-            target: target,
-            sourceType: sourceType,
-          ),
-          const SizedBox(width: 8),
-        ],
+        reflectionAction,
+        const SizedBox(width: 8),
         _buildEventDetailOverflowButton(
           rootContext: rootContext,
           sheetContext: sheetContext,
@@ -4556,6 +4596,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       final housingSpec = MaatDayViewHousingSpec.forFlow(activeMaatDayViewFlow);
       return MaatDayViewSheetHost(
         flow: activeMaatDayViewFlow,
+        leading: _buildEventDetailReflectionAction(
+          rootContext: widget.hostContext,
+          sheetContext: context,
+          target: target,
+          compact: true,
+        ),
         trailing: _buildEventDetailOverflowButton(
           rootContext: widget.hostContext,
           sheetContext: context,

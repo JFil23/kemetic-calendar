@@ -495,35 +495,33 @@ void main() {
     },
   );
 
-  test(
-    'generic detail retains Add reflection while Follow Sky owns its reflection',
-    () {
-      final dayView = File(
-        'lib/features/calendar/day_view.dart',
-      ).readAsStringSync();
-      final monthGrid = File(
-        'lib/features/calendar/calendar_grid_widgets.dart',
-      ).readAsStringSync();
-      final landscape = File(
-        'lib/features/calendar/landscape_month_view.dart',
-      ).readAsStringSync();
-      final topRow = _sourceBetween(
-        dayView,
-        'Widget _buildEventDetailTopActionRow',
-        'Widget _buildEventDetailOverflowButton',
-      );
-      expect(topRow, contains('_buildAddReflectionButton('));
-      expect(topRow, contains('if (!isFollowSkyObservation)'));
-      expect(dayView, contains("label: const Text('Add reflection')"));
-      expect(dayView, contains('FollowSkyObservationPresentationLoader('));
-      expect(dayView, isNot(contains('FollowSkyObservationSheet(')));
-      expect(dayView, isNot(contains('FollowSkyObservationPanel(')));
-      expect(topRow, isNot(contains("label: const Text('End Flow')")));
-      expect(dayView, contains("value: 'end_flow'"));
-      expect(monthGrid, contains('CalendarEventDetailSheet('));
-      expect(landscape, contains('CalendarEventDetailSheet('));
-    },
-  );
+  test('all event details retain Add reflection including Follow Sky', () {
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final monthGrid = File(
+      'lib/features/calendar/calendar_grid_widgets.dart',
+    ).readAsStringSync();
+    final landscape = File(
+      'lib/features/calendar/landscape_month_view.dart',
+    ).readAsStringSync();
+    final topRow = _sourceBetween(
+      dayView,
+      'Widget _buildEventDetailTopActionRow',
+      'Widget _buildEventDetailOverflowButton',
+    );
+    expect(topRow, contains('_buildEventDetailReflectionAction('));
+    expect(topRow, isNot(contains('if (!isFollowSkyObservation)')));
+    expect(dayView, contains('leading: _buildEventDetailReflectionAction('));
+    expect(dayView, contains("label: const Text('Add reflection')"));
+    expect(dayView, contains('FollowSkyObservationPresentationLoader('));
+    expect(dayView, isNot(contains('FollowSkyObservationSheet(')));
+    expect(dayView, isNot(contains('FollowSkyObservationPanel(')));
+    expect(topRow, isNot(contains("label: const Text('End Flow')")));
+    expect(dayView, contains("value: 'end_flow'"));
+    expect(monthGrid, contains('CalendarEventDetailSheet('));
+    expect(landscape, contains('CalendarEventDetailSheet('));
+  });
 
   test('End Flow returns a structured success, failure, or not-handled', () {
     final calendarPage = File(

@@ -130,6 +130,7 @@ class InstrumentEventSheetHost extends StatefulWidget {
     required this.semanticLabel,
     required this.handleColor,
     required this.body,
+    this.leading,
     this.trailing,
     this.footer,
     this.initialExtent = instrumentEventSheetMinExtent,
@@ -142,6 +143,7 @@ class InstrumentEventSheetHost extends StatefulWidget {
   final String semanticLabel;
   final Color handleColor;
   final Widget body;
+  final Widget? leading;
   final Widget? trailing;
   final Widget? footer;
   final double initialExtent;
@@ -241,6 +243,7 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
                       ? (details) =>
                             _updateExtent(details, availableSheetHeight)
                       : null,
+                  leading: widget.leading,
                   trailing: widget.trailing,
                 ),
                 SizedBox(height: bodyTopGap),
@@ -383,12 +386,14 @@ class MaatDayViewSheetHost extends StatelessWidget {
     super.key,
     required this.flow,
     required this.body,
+    this.leading,
     required this.trailing,
     required this.footer,
   });
 
   final MaatDayViewFlow flow;
   final Widget body;
+  final Widget? leading;
   final Widget trailing;
   final Widget footer;
 
@@ -400,6 +405,7 @@ class MaatDayViewSheetHost extends StatelessWidget {
       semanticLabel: spec.semanticLabel,
       handleColor: spec.handleColor,
       initialExtent: spec.initialExtent,
+      leading: leading,
       trailing: trailing,
       body: body,
       footer: footer,
@@ -1071,6 +1077,7 @@ class InstrumentEventSheetTopBar extends StatelessWidget {
     this.handleTop,
     this.handleWidth = 42,
     this.onVerticalDragUpdate,
+    this.leading,
     this.trailing,
   });
 
@@ -1080,6 +1087,7 @@ class InstrumentEventSheetTopBar extends StatelessWidget {
   final double? handleTop;
   final double handleWidth;
   final GestureDragUpdateCallback? onVerticalDragUpdate;
+  final Widget? leading;
   final Widget? trailing;
 
   @override
@@ -1122,6 +1130,8 @@ class InstrumentEventSheetTopBar extends StatelessWidget {
               ),
             ),
           ),
+          if (leading != null)
+            Positioned(left: 0, top: 0, bottom: 0, child: leading!),
           if (trailing != null)
             Align(alignment: Alignment.centerRight, child: trailing),
         ],
