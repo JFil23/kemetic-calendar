@@ -272,12 +272,7 @@ class _JournalOverlayState extends State<JournalOverlay>
         SnackBar(
           content: const Text('Select text first, then tap Link Insight.'),
           behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            keyboardInsetOf(context) + 120,
-          ),
+          margin: EdgeInsets.fromLTRB(16, 0, 16, 120),
           duration: const Duration(seconds: 2),
         ),
       );

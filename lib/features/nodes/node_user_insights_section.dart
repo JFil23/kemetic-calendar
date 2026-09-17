@@ -99,10 +99,9 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
   }
 
   Future<void> _openEditor({InsightEntry? entry}) async {
-    final changed = await showModalBottomSheet<bool>(
+    final changed = await showEditableModalBottomSheet<bool>(
       context: context,
       backgroundColor: const Color(0xFF050505),
-      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
@@ -612,7 +611,6 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     return KeyboardAwareEditableSurface(
-      manageSystemKeyboardInset: true,
       child: SafeArea(
         top: false,
         child: SizedBox(

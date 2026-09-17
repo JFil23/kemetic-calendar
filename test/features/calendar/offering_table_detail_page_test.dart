@@ -1009,8 +1009,6 @@ void main() {
       tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(field);
-      await tester.pumpAndSettle();
 
       expect(find.byKey(editableModalSystemInsetOwnerKey), findsOneWidget);
       expect(

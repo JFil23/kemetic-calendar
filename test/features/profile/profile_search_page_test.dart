@@ -50,7 +50,6 @@ void main() {
     expect(scaffold.body, isA<KeyboardAwareEditableSurface>());
 
     final surface = scaffold.body! as KeyboardAwareEditableSurface;
-    expect(surface.manageSystemKeyboardInset, isFalse);
     expect(surface.child, isA<Padding>());
     expect((surface.child as Padding).padding, const EdgeInsets.all(20));
 

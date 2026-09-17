@@ -29,6 +29,7 @@ import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/shared/kemetic_text.dart';
 import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/services/session_resume_service.dart';
@@ -1986,7 +1987,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     if (index < 0 || index >= _notes.length) return;
     final original = _notes[index];
     final controller = TextEditingController(text: original.text);
-    final updatedText = await showDialog<String>(
+    final updatedText = await showEditableDialog<String>(
       context: context,
       builder: (context) {
         return AlertDialog(

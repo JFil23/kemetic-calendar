@@ -66,8 +66,8 @@ void main() {
     expect(daySheet, contains('return DaySheetKeyboardSafeFrame('));
     expect(daySheetFrame, contains('class DaySheetKeyboardSafeFrame'));
     expect(daySheetFrame, contains('child: Scaffold('));
-    expect(daySheetFrame, contains('resizeToAvoidBottomInset: !expanded'));
-    expect(daySheetFrame, contains('manageSystemKeyboardInset: expanded'));
+    expect(daySheetFrame, contains('resizeToAvoidBottomInset: false'));
+    expect(daySheetFrame, isNot(contains('manageSystemKeyboardInset')));
     expect(daySheetFrame, isNot(contains('KeyboardSafeViewport(')));
     expect(daySheetFrame, isNot(contains('AnimatedPadding(')));
     expect(daySheetFrame, isNot(contains('viewInsetsBottom')));

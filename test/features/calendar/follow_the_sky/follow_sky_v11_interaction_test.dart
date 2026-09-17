@@ -7,6 +7,7 @@ import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/fol
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 import 'package:mobile/widgets/day_sheet_components.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/keyboard_viewport_metrics.dart';
 
 void main() {
@@ -530,7 +531,11 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-        MaterialApp(home: _FollowSkyEditingSheetHarness(catalog: catalog)),
+        MaterialApp(
+          builder: (context, child) =>
+              KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
+          home: _FollowSkyEditingSheetHarness(catalog: catalog),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -682,55 +687,57 @@ class _FollowSkyEditingSheetHarnessState
       resizeToAvoidBottomInset: false,
       body: Align(
         alignment: Alignment.bottomCenter,
-        child: NotificationListener<FollowSkyIntentionEditingNotification>(
-          onNotification: (notification) {
-            if (_editing != notification.editing) {
-              setState(() => _editing = notification.editing);
-            }
-            return true;
-          },
-          child: DaySheetKeyboardSafeFrame(
-            expanded: _editing,
-            scrollable: false,
-            scrollBottomPadding: 0,
-            bottomPadding: 0,
-            horizontalPadding: 0,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 44),
-                      DaySheetTabBar(
-                        key: _followSkyTestTabsKey,
-                        activeTab: DaySheetTab.flows,
-                        accent: DaySheetTokens.gold,
-                        onSelected: (_) {},
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Expanded(
-                  child: Navigator(
-                    key: _navigatorKey,
-                    onGenerateInitialRoutes: (_, _) => <Route<void>>[
-                      MaterialPageRoute<void>(
-                        builder: (_) => const ColoredBox(color: Colors.black),
-                      ),
-                      MaterialPageRoute<void>(
-                        builder: (_) => FollowSkyDetailSurface(
-                          initialCatalog: widget.catalog,
-                          now: DateTime.utc(2026, 8, 24, 12),
-                          isJoined: true,
+        child: KeyboardInsetBoundary(
+          child: NotificationListener<FollowSkyIntentionEditingNotification>(
+            onNotification: (notification) {
+              if (_editing != notification.editing) {
+                setState(() => _editing = notification.editing);
+              }
+              return true;
+            },
+            child: DaySheetKeyboardSafeFrame(
+              expanded: _editing,
+              scrollable: false,
+              scrollBottomPadding: 0,
+              bottomPadding: 0,
+              horizontalPadding: 0,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 44),
+                        DaySheetTabBar(
+                          key: _followSkyTestTabsKey,
+                          activeTab: DaySheetTab.flows,
+                          accent: DaySheetTokens.gold,
+                          onSelected: (_) {},
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: Navigator(
+                      key: _navigatorKey,
+                      onGenerateInitialRoutes: (_, _) => <Route<void>>[
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ColoredBox(color: Colors.black),
+                        ),
+                        MaterialPageRoute<void>(
+                          builder: (_) => FollowSkyDetailSurface(
+                            initialCatalog: widget.catalog,
+                            now: DateTime.utc(2026, 8, 24, 12),
+                            isJoined: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

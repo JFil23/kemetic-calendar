@@ -188,14 +188,12 @@ class AIFlowGenerationModal extends StatefulWidget {
     this.initialStartDate,
     this.initialEndDate,
     this.initialDateRangeIsManual = false,
-    this.manageKeyboardInset = true,
     this.generateFlowForTesting,
   });
 
   final DateTime? initialStartDate;
   final DateTime? initialEndDate;
   final bool initialDateRangeIsManual;
-  final bool manageKeyboardInset;
   final AIFlowGenerateCallback? generateFlowForTesting;
 
   @override
@@ -681,7 +679,6 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     final media = MediaQuery.of(context);
     final closedHeight = media.size.height * 0.85;
     return KeyboardAwareEditableSurface(
-      manageSystemKeyboardInset: widget.manageKeyboardInset,
       child: Container(
         key: aiFlowGenerationModalFrameKey,
         height: closedHeight,

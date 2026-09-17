@@ -627,7 +627,6 @@ void main() {
       final hostNote = find.byKey(
         const ValueKey<String>('reading_house_sitting_host_note_field'),
       );
-      await tester.ensureVisible(hostNote);
       await tester.tap(hostNote);
       await tester.pumpAndSettle();
       final surfaceHeight = tester

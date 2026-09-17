@@ -444,7 +444,6 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   Widget build(BuildContext context) {
     final tone = _FlowStudioTone.resolve(_selectedColor);
     return KeyboardAwareEditableSurface(
-      manageSystemKeyboardInset: true,
       child: AnimatedContainer(
         key: const ValueKey('quick-add-sheet-surface'),
         duration: const Duration(milliseconds: 180),
@@ -5950,10 +5949,9 @@ class CalendarPage extends StatefulWidget {
     _detachedQuickAddSheetOpenOrOpening = true;
 
     try {
-      await showModalBottomSheet<void>(
+      await showEditableModalBottomSheet<void>(
         context: context,
         useRootNavigator: true,
-        isScrollControlled: true,
         enableDrag: false,
         backgroundColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
@@ -8594,12 +8592,10 @@ class CalendarPage extends StatefulWidget {
         },
       );
       final isTablet = _isTabletForContext(context);
-      final result = await showModalBottomSheet<_FlowStudioResult?>(
+      final result = await showEditableModalBottomSheet<_FlowStudioResult?>(
         context: context,
-        isScrollControlled: true,
         backgroundColor: Colors.transparent,
         barrierColor: Colors.black54,
-        useSafeArea: true,
         useRootNavigator: true,
         isDismissible: !isTablet,
         enableDrag: !isTablet,
@@ -13417,7 +13413,7 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     try {
-      return await showDialog<bool>(
+      return await showEditableDialog<bool>(
             context: context,
             barrierDismissible: !isSaving,
             builder: (dialogCtx) {
@@ -17594,12 +17590,7 @@ class CalendarPageState extends State<CalendarPage>
             return SafeArea(
               top: false,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  0,
-                  16,
-                  16 + keyboardInsetOf(sheetContext),
-                ),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -21190,11 +21181,9 @@ class CalendarPageState extends State<CalendarPage>
     Future<void>? accountSave;
 
     try {
-      final result = await showModalBottomSheet<bool>(
+      final result = await showEditableModalBottomSheet<bool>(
         context: context,
-        isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        useSafeArea: true,
         isDismissible: true,
         enableDrag: true,
         shape: const RoundedRectangleBorder(
@@ -24688,9 +24677,8 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     if (!mounted) return;
-    await showModalBottomSheet<bool>(
+    await showEditableModalBottomSheet<bool>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => ShareFlowSheet(flowId: flowId, flowTitle: flowTitle),
     );
@@ -24772,9 +24760,8 @@ class CalendarPageState extends State<CalendarPage>
     required String eventId,
     required String title,
   }) async {
-    await showModalBottomSheet<bool>(
+    await showEditableModalBottomSheet<bool>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) =>
           ShareFlowSheet(flowId: null, flowTitle: title, eventId: eventId),
@@ -26739,12 +26726,10 @@ class CalendarPageState extends State<CalendarPage>
         'flow studio sheet show requested',
         state: _calendarSheetTraceState('flowStudio', phase: 'showRequested'),
       );
-      final sheetFuture = showModalBottomSheet<_FlowStudioResult?>(
+      final sheetFuture = showEditableModalBottomSheet<_FlowStudioResult?>(
         context: context,
-        isScrollControlled: true,
         backgroundColor: Colors.transparent,
         barrierColor: Colors.black54,
-        useSafeArea: true,
         useRootNavigator: true,
         isDismissible: isTablet ? false : true,
         enableDrag: isTablet ? false : true,
@@ -26872,12 +26857,10 @@ class CalendarPageState extends State<CalendarPage>
         );
         if (!mounted) return;
 
-        final result = await showModalBottomSheet<_FlowStudioResult?>(
+        final result = await showEditableModalBottomSheet<_FlowStudioResult?>(
           context: context,
-          isScrollControlled: true,
           backgroundColor: Colors.transparent,
           barrierColor: Colors.black54,
-          useSafeArea: true,
           useRootNavigator: true,
           isDismissible: !isTab,
           enableDrag: !isTab,
@@ -29241,11 +29224,9 @@ class CalendarPageState extends State<CalendarPage>
 
     try {
       _calendarDebugPrint('🚀 Attempting to show modal bottom sheet...');
-      showModalBottomSheet(
+      showEditableModalBottomSheet(
         context: context,
-        isScrollControlled: true,
         backgroundColor: Colors.transparent, // ✅ More stable like Flow Studio
-        useSafeArea: true,
         // iPad/tablet: allow swipe-to-close + backdrop tap to avoid trapped sheets.
         isDismissible: true,
         enableDrag: true,
@@ -30788,9 +30769,8 @@ class CalendarPageState extends State<CalendarPage>
     if (_quickAddSheetOpenOrOpening) return;
     _quickAddSheetOpenOrOpening = true;
     try {
-      await showModalBottomSheet(
+      await showEditableModalBottomSheet(
         context: context,
-        isScrollControlled: true,
         enableDrag: false,
         backgroundColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
@@ -33581,10 +33561,9 @@ class CalendarPageState extends State<CalendarPage>
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (sheetCtx) {
-        final inset = keyboardInsetOf(sheetCtx);
         return SafeArea(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + inset),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: SizedBox(
               height: MediaQuery.of(sheetCtx).size.height * 0.65,
               child: Column(

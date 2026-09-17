@@ -11,6 +11,7 @@ import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_sitti
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_djed_v2_flow.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -892,13 +893,15 @@ void main() {
             viewInsets: EdgeInsets.only(bottom: 300),
           ),
           child: Scaffold(
-            body: Align(
-              alignment: Alignment.bottomCenter,
-              child: InstrumentEventSheetHost(
-                semanticLabel: 'Djed sitting details',
-                handleColor: DjedDayTokens.gold,
-                body: DjedDayPresentation(),
-                footer: DjedDayFooterActions(),
+            body: KeyboardInsetBoundary(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: InstrumentEventSheetHost(
+                  semanticLabel: 'Djed sitting details',
+                  handleColor: DjedDayTokens.gold,
+                  body: DjedDayPresentation(),
+                  footer: DjedDayFooterActions(),
+                ),
               ),
             ),
           ),

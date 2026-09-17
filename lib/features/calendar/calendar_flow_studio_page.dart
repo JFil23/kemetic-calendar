@@ -1368,9 +1368,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   final TextEditingController _overviewCtrl = TextEditingController();
 
   Future<void> _openOverviewEditor() async {
-    await showModalBottomSheet(
+    await showEditableModalBottomSheet(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -1378,7 +1377,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       builder: (sheetCtx) {
         final media = MediaQuery.of(sheetCtx);
         return KeyboardAwareEditableSurface(
-          manageSystemKeyboardInset: widget.resizeToAvoidBottomInset,
           child: SafeArea(
             top: false,
             child: ConstrainedBox(
@@ -1773,15 +1771,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   Future<void> _showAIGenerationModal() async {
     final seedManualRange = _shouldSeedAiGenerationModalWithManualRange;
     final seedCurrentStart = seedManualRange || _dateRangeEditedInCurrentEditor;
-    final result = await showModalBottomSheet<AIFlowGenerationResponse>(
+    final result = await showEditableModalBottomSheet<AIFlowGenerationResponse>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AIFlowGenerationModal(
         initialStartDate: seedCurrentStart ? _startDate : null,
         initialEndDate: seedManualRange ? _endDate : null,
         initialDateRangeIsManual: seedManualRange,
-        manageKeyboardInset: widget.resizeToAvoidBottomInset,
       ),
     );
 
@@ -2118,9 +2114,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     List<_Flow> filtered = List.of(widget.existingFlows)
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-    await showModalBottomSheet(
+    await showEditableModalBottomSheet(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -2144,7 +2139,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           builder: (sheetCtx, setSheetState) {
             final media = MediaQuery.of(sheetCtx);
             return KeyboardAwareEditableSurface(
-              manageSystemKeyboardInset: widget.resizeToAvoidBottomInset,
               child: SafeArea(
                 top: false,
                 child: ConstrainedBox(

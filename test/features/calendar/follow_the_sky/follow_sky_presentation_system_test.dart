@@ -240,7 +240,12 @@ void main() {
       expect(source, isNot(contains('full-moon-2026-08-28')));
       expect(source, isNot(contains('FollowSkyObservationSheet(')));
       expect(source, contains('InstrumentEventSheetHost('));
-      expect(sheetHost, contains('onVerticalDragUpdate: keyboardInset == 0'));
+      expect(
+        sheetHost,
+        contains('final keyboardVisible = keyboardIsVisible(context)'),
+      );
+      expect(sheetHost, contains('onVerticalDragUpdate: !keyboardVisible'));
+      expect(sheetHost, isNot(contains('keyboardInset')));
       expect(route, isNot(contains('flowName')));
       expect(route, contains('catalog.byId(skyEventId)'));
     },

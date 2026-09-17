@@ -91,7 +91,6 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     final closedHeight = media.size.height * 0.9;
 
     return KeyboardAwareEditableSurface(
-      manageSystemKeyboardInset: true,
       child: Container(
         height: closedHeight,
         decoration: const BoxDecoration(

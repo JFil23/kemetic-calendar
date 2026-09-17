@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/ai_generation/ai_flow_generation_modal.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/models/ai_flow_generation_response.dart';
 
 void main() {
@@ -123,9 +124,8 @@ Future<AIFlowGenerationResponse?> _runModal(
           builder: (context) {
             return ElevatedButton(
               onPressed: () {
-                showModalBottomSheet<AIFlowGenerationResponse>(
+                showEditableModalBottomSheet<AIFlowGenerationResponse>(
                   context: context,
-                  isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   builder: (_) => AIFlowGenerationModal(
                     initialStartDate: DateTime(2026, 6, 2),

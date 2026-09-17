@@ -4562,14 +4562,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         _isOnboardingTargetEvent(target.event) &&
         widget.onboardingClosingBannerBuilder != null;
     final media = MediaQuery.of(context);
-    final keyboardInset = keyboardInsetOf(context);
+    final keyboardVisible = keyboardIsVisible(context);
     final availableSheetHeight = math.max(
       0.0,
-      media.size.height -
-          keyboardInset -
-          media.padding.top -
-          media.padding.bottom -
-          12,
+      media.size.height - media.padding.top - media.padding.bottom - 12,
     );
     final activeFollowSkyInstrument = FollowSkyObservationRoute.matches(
       clientEventId: target.event.clientEventId,
@@ -4594,7 +4590,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         activeLayeredInstrument;
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
-        : keyboardInset > 0
+        : keyboardVisible
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
     final reservedChromeHeight = _isWorkspacePresentation
@@ -4805,17 +4801,14 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       ],
     );
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardInset),
-      child: SafeArea(
-        top: false,
-        child: hasOnboardingClosingBanner
-            ? ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: availableSheetHeight),
-                child: SingleChildScrollView(child: content),
-              )
-            : content,
-      ),
+    return SafeArea(
+      top: false,
+      child: hasOnboardingClosingBanner
+          ? ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: availableSheetHeight),
+              child: SingleChildScrollView(child: content),
+            )
+          : content,
     );
   }
 
@@ -8877,7 +8870,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     try {
       showCalendarEventDetailSheetModal<void>(
         context: rootContext,
-        editable: _eventMaatFlowKind(event) == MaatFlowKind.offeringTable,
         builder: (sheetContext) => CalendarEventDetailSheet(
           hostContext: rootContext,
           initialTarget: sheetTarget,

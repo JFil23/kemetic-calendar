@@ -13,11 +13,7 @@ double instrumentEventSheetExtentForViewport({
   final media = MediaQuery.of(context);
   final availableSheetHeight = math.max(
     0.0,
-    media.size.height -
-        keyboardInsetOf(context) -
-        media.padding.top -
-        media.padding.bottom -
-        12,
+    media.size.height - media.padding.top - media.padding.bottom - 12,
   );
   if (availableSheetHeight <= 0) return instrumentEventSheetMinExtent;
   final fractionHeight = media.size.height * viewportFraction;
@@ -32,23 +28,10 @@ double instrumentEventSheetExtentForViewport({
 Future<T?> showCalendarEventDetailSheetModal<T>({
   required BuildContext context,
   required WidgetBuilder builder,
-  bool editable = false,
 }) {
-  if (editable) {
-    return showEditableModalBottomSheet<T>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isDismissible: true,
-      enableDrag: true,
-      useRootNavigator: false,
-      constrainMediaSizeToAvailableHeight: true,
-      builder: builder,
-    );
-  }
-  return showModalBottomSheet<T>(
+  return showEditableModalBottomSheet<T>(
     context: context,
     backgroundColor: Colors.transparent,
-    isScrollControlled: true,
     isDismissible: true,
     enableDrag: true,
     useRootNavigator: false,
@@ -191,18 +174,12 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final remainingSystem = remainingSystemKeyboardInsetOf(context);
-    final remainingCustom = remainingCustomKeyboardInsetOf(context);
-    final keyboardInset = keyboardInsetOf(context);
     final availableSheetHeight = math.max(
       0.0,
-      media.size.height -
-          keyboardInset -
-          media.padding.top -
-          media.padding.bottom -
-          12,
+      media.size.height - media.padding.top - media.padding.bottom - 12,
     );
-    final effectiveExtent = keyboardInset > 0 ? 1.0 : _extent;
+    final keyboardVisible = keyboardIsVisible(context);
+    final effectiveExtent = keyboardVisible ? 1.0 : _extent;
     final maxSheetHeight = availableSheetHeight * effectiveExtent;
     final hasFooter = widget.footer != null;
     final geometry = widget.geometry;
@@ -241,60 +218,50 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
                 (hasFooter ? footerGap + footerHeight : 0),
           );
 
-    return KeyboardInsetConsumption.apply(
-      context: context,
-      additionalSystem: remainingSystem,
-      additionalCustom: remainingCustom,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: keyboardInset),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: outerHeight,
-            child: Padding(
-              padding: outerPadding,
-              child: DayViewBottomSheetFrame(
-                borderRadius: geometry?.sheetBorderRadius ?? 20,
-                decoration: widget.frameDecoration,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    InstrumentEventSheetTopBar(
-                      semanticLabel: widget.semanticLabel,
-                      handleColor: widget.handleColor,
-                      height: topBarHeight,
-                      handleTop: geometry?.handleTop,
-                      handleWidth: geometry?.handleWidth ?? 42,
-                      onVerticalDragUpdate: keyboardInset == 0
-                          ? (details) =>
-                                _updateExtent(details, availableSheetHeight)
-                          : null,
-                      trailing: widget.trailing,
-                    ),
-                    SizedBox(height: bodyTopGap),
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: geometry?.bodyHorizontalInset ?? 0,
-                      ),
-                      child: SizedBox(
-                        height: bodyHeight,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(
-                              geometry?.bodyBorderRadius ?? 20,
-                            ),
-                          ),
-                          child: widget.body,
-                        ),
-                      ),
-                    ),
-                    if (widget.footer != null) ...<Widget>[
-                      SizedBox(height: footerGap),
-                      SizedBox(height: footerHeight, child: widget.footer),
-                    ],
-                  ],
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        height: outerHeight,
+        child: Padding(
+          padding: outerPadding,
+          child: DayViewBottomSheetFrame(
+            borderRadius: geometry?.sheetBorderRadius ?? 20,
+            decoration: widget.frameDecoration,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                InstrumentEventSheetTopBar(
+                  semanticLabel: widget.semanticLabel,
+                  handleColor: widget.handleColor,
+                  height: topBarHeight,
+                  handleTop: geometry?.handleTop,
+                  handleWidth: geometry?.handleWidth ?? 42,
+                  onVerticalDragUpdate: !keyboardVisible
+                      ? (details) =>
+                            _updateExtent(details, availableSheetHeight)
+                      : null,
+                  trailing: widget.trailing,
                 ),
-              ),
+                SizedBox(height: bodyTopGap),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: geometry?.bodyHorizontalInset ?? 0,
+                  ),
+                  child: SizedBox(
+                    height: bodyHeight,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(geometry?.bodyBorderRadius ?? 20),
+                      ),
+                      child: KeyboardAwareEditableSurface(child: widget.body),
+                    ),
+                  ),
+                ),
+                if (widget.footer != null) ...<Widget>[
+                  SizedBox(height: footerGap),
+                  SizedBox(height: footerHeight, child: widget.footer),
+                ],
+              ],
             ),
           ),
         ),

@@ -15,9 +15,8 @@ Future<void> showFollowSkyTurningSheet({
   required ValueChanged<String> onSetIntention,
 }) {
   final controller = TextEditingController(text: initialIntention);
-  return showModalBottomSheet<void>(
+  return showEditableModalBottomSheet<void>(
     context: context,
-    isScrollControlled: true,
     useRootNavigator: true,
     backgroundColor: FollowSkyV11Tokens.sheetBg,
     shape: const RoundedRectangleBorder(
@@ -127,10 +126,7 @@ Future<void> showFollowSkyTurningSheet({
           ),
         ),
       );
-      return KeyboardAwareEditableSurface(
-        manageSystemKeyboardInset: true,
-        child: content,
-      );
+      return KeyboardAwareEditableSurface(child: content);
     },
   );
 }

@@ -68,17 +68,13 @@ void main() {
         expect(opener, contains('onRemoveCompletionBadge:'));
       }
       expect(dayViewOpener, contains('showCalendarEventDetailSheetModal'));
-      expect(
-        dayViewOpener,
-        contains(
-          'editable: _eventMaatFlowKind(event) == MaatFlowKind.offeringTable',
-        ),
-      );
+      expect(dayViewOpener, isNot(contains('editable:')));
       expect(
         presentationFrame,
         contains('backgroundColor: Colors.transparent'),
       );
       expect(presentationFrame, contains('showCalendarEventDetailSheetModal'));
+      expect(presentationFrame, contains('showEditableModalBottomSheet<T>'));
       for (final opener in <String>[
         mainCalendarOpener,
         mainGridChipOpener,

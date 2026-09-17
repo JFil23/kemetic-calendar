@@ -5,6 +5,7 @@ import 'package:mobile/features/calendar/the_reading_house/presentation/reading_
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_day_presentation.dart';
 import 'package:mobile/features/calendar/the_reading_house/reading_house_room_controller.dart';
 import 'package:mobile/features/calendar/the_reading_house/reading_house_room_repository.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 class ReadingHouseRoomSheet extends StatefulWidget {
   const ReadingHouseRoomSheet({
@@ -21,10 +22,8 @@ class ReadingHouseRoomSheet extends StatefulWidget {
     required ReadingHouseRoomIdentity identity,
     required ReadingHouseRoomDataSource dataSource,
   }) {
-    return showModalBottomSheet<void>(
+    return showEditableModalBottomSheet<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) =>
           ReadingHouseRoomSheet(identity: identity, dataSource: dataSource),

@@ -1227,7 +1227,7 @@ class _ProfilePageState extends State<ProfilePage>
   Future<void> _requestJoinCommonsPractice(CommonsPracticeRoom room) async {
     if (_commonsJoiningRoomIds.contains(room.id)) return;
     final controller = TextEditingController();
-    final message = await showDialog<String?>(
+    final message = await showEditableDialog<String?>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF0D0D0F),

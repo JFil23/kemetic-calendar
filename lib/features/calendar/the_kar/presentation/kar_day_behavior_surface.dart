@@ -173,33 +173,31 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
         ),
       );
     }
-    return KeyboardAwareEditableSurface(
-      child: InstrumentEventPresentationFrame(
-        key: const ValueKey<String>('kar-day-presentation'),
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(0, -.72),
-            radius: 1.35,
-            colors: <Color>[
-              Color(widget.netjer.deepValue),
-              const Color(0xFF0A0F11),
-              const Color(0xFF050504),
-            ],
-          ),
+    return InstrumentEventPresentationFrame(
+      key: const ValueKey<String>('kar-day-presentation'),
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(0, -.72),
+          radius: 1.35,
+          colors: <Color>[
+            Color(widget.netjer.deepValue),
+            const Color(0xFF0A0F11),
+            const Color(0xFF050504),
+          ],
         ),
-        initialLowerSheetPeek: 241.75,
-        lowerSheetOverlaysInstrument: true,
-        instrumentFooterHeight: 0,
-        instrument: _buildHeroLayer(cycle),
-        instrumentFooter: const SizedBox.shrink(),
-        inputBuilder: (_, _, instrumentHeight) => _buildHeroControls(
-          cycle,
-          availableHeight: math.max(0, instrumentHeight - 241.75),
-        ),
-        body: _buildPracticeLayer(cycle),
-        bodyScrollKey: const ValueKey<String>('kar-day-sheet-scroll'),
-        lowerSheetKey: const ValueKey<String>('kar-practice-sheet'),
       ),
+      initialLowerSheetPeek: 241.75,
+      lowerSheetOverlaysInstrument: true,
+      instrumentFooterHeight: 0,
+      instrument: _buildHeroLayer(cycle),
+      instrumentFooter: const SizedBox.shrink(),
+      inputBuilder: (_, _, instrumentHeight) => _buildHeroControls(
+        cycle,
+        availableHeight: math.max(0, instrumentHeight - 241.75),
+      ),
+      body: _buildPracticeLayer(cycle),
+      bodyScrollKey: const ValueKey<String>('kar-day-sheet-scroll'),
+      lowerSheetKey: const ValueKey<String>('kar-practice-sheet'),
     );
   }
 

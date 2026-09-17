@@ -27,10 +27,8 @@ Future<bool> showSharedPracticeCompletionSheet({
   final status = initialStatus == CompletionStatus.none
       ? CompletionStatus.observed
       : initialStatus;
-  final result = await showModalBottomSheet<bool>(
+  final result = await showEditableModalBottomSheet<bool>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (sheetContext) => SharedPracticeCompletionSheet(
       roomId: roomId,
@@ -128,7 +126,6 @@ class _SharedPracticeCompletionSheetState
     final title = widget.stepTitle?.trim();
     final media = MediaQuery.of(context);
     return KeyboardAwareEditableSurface(
-      manageSystemKeyboardInset: true,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
         child: DecoratedBox(

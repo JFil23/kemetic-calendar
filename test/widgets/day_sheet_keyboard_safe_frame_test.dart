@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/widgets/day_sheet_components.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 void main() {
   testWidgets('day sheet tab bar exposes Notes, Reminders, and Flows', (
@@ -70,26 +71,28 @@ void main() {
             ),
             child: Scaffold(
               resizeToAvoidBottomInset: false,
-              body: Align(
-                alignment: Alignment.bottomCenter,
-                child: DaySheetKeyboardSafeFrame(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      DaySheetTextField(
-                        key: titleKey,
-                        controller: titleController,
-                        hint: 'Title',
-                      ),
-                      const SizedBox(height: 420),
-                      DaySheetTextField(
-                        key: detailsKey,
-                        controller: detailsController,
-                        hint: 'Details (optional)',
-                        minLines: 4,
-                        maxLines: 6,
-                      ),
-                    ],
+              body: KeyboardInsetBoundary(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: DaySheetKeyboardSafeFrame(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DaySheetTextField(
+                          key: titleKey,
+                          controller: titleController,
+                          hint: 'Title',
+                        ),
+                        const SizedBox(height: 420),
+                        DaySheetTextField(
+                          key: detailsKey,
+                          controller: detailsController,
+                          hint: 'Details (optional)',
+                          minLines: 4,
+                          maxLines: 6,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -139,16 +142,18 @@ void main() {
       MaterialApp(
         home: Scaffold(
           resizeToAvoidBottomInset: false,
-          body: Align(
-            alignment: Alignment.bottomCenter,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: expanded,
-              builder: (context, value, child) => DaySheetKeyboardSafeFrame(
-                expanded: value,
-                scrollable: false,
-                child: child!,
+          body: KeyboardInsetBoundary(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: expanded,
+                builder: (context, value, child) => DaySheetKeyboardSafeFrame(
+                  expanded: value,
+                  scrollable: false,
+                  child: child!,
+                ),
+                child: const SizedBox.expand(),
               ),
-              child: const SizedBox.expand(),
             ),
           ),
         ),

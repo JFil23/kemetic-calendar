@@ -491,7 +491,7 @@ void main() {
 
     const keyboardTop = 844.0 - 300.0;
     expect(tester.getRect(field).bottom, lessThanOrEqualTo(keyboardTop));
-    expect(find.byKey(editableModalSystemInsetOwnerKey), findsNothing);
+    expect(find.byKey(editableModalSystemInsetOwnerKey), findsOneWidget);
     expect(captureWindow, findsOneWidget);
     expect(
       tester.getCenter(captureWindow).dx,
@@ -509,18 +509,14 @@ void main() {
       findsOneWidget,
     );
     expect(
-      tester
-          .widgetList<KeyboardAwareEditableSurface>(
-            find.descendant(
-              of: find.ancestor(
-                of: captureWindow,
-                matching: find.byType(KeyboardInsetBoundary),
-              ),
-              matching: find.byType(KeyboardAwareEditableSurface),
-            ),
-          )
-          .where((surface) => surface.manageSystemKeyboardInset),
-      isEmpty,
+      find.descendant(
+        of: find.ancestor(
+          of: captureWindow,
+          matching: find.byType(KeyboardInsetBoundary),
+        ),
+        matching: find.byType(KeyboardAwareEditableSurface),
+      ),
+      findsOneWidget,
     );
     expect(
       find.ancestor(

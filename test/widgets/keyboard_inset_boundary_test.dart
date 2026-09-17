@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
@@ -22,6 +24,7 @@ void main() {
       expect(_ownerPad(tester), 344);
       expect(_innerRemaining(tester), 0);
       expect(_innerViewInsets(tester), 0);
+      expect(_innerMediaHeight(tester), 500);
     });
 
     testWidgets(
@@ -40,6 +43,7 @@ void main() {
         expect(_ownerPad(tester), 344);
         expect(_innerRemaining(tester), 0);
         expect(_innerViewInsets(tester), 0);
+        expect(_innerMediaHeight(tester), 500);
       },
     );
 
@@ -97,7 +101,7 @@ void main() {
     );
 
     testWidgets(
-      'custom keyboard: system boundary leaves custom inset for descendants',
+      'custom keyboard: modal boundary consumes custom occlusion once',
       (tester) async {
         await tester.binding.setSurfaceSize(const Size(390, 844));
         addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -109,14 +113,14 @@ void main() {
               isCustomKeyboardVisible: true,
               customKeyboardInset: 300,
               systemKeyboardInset: 0,
-              keyboardInset: 300,
               visibleTop: 0,
               visibleBottom: 844,
               isSystemKeyboardVisible: false,
               child: KeyboardInsetBoundary(
+                paddingKey: editableModalSystemInsetOwnerKey,
                 child: Builder(
                   builder: (context) {
-                    remainingAfterBoundary = keyboardInsetOf(context);
+                    remainingAfterBoundary = _remainingInset(context);
                     return const SizedBox.expand();
                   },
                 ),
@@ -126,11 +130,12 @@ void main() {
         );
         await tester.pump();
 
-        expect(remainingAfterBoundary, 300);
+        expect(remainingAfterBoundary, 0);
+        expect(_ownerPad(tester), 300);
       },
     );
 
-    testWidgets('custom keyboard is consumed once by the sheet host', (
+    testWidgets('instrument host receives already-constrained geometry', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -143,18 +148,20 @@ void main() {
             isCustomKeyboardVisible: true,
             customKeyboardInset: 300,
             systemKeyboardInset: 0,
-            keyboardInset: 300,
             visibleTop: 0,
             visibleBottom: 844,
             isSystemKeyboardVisible: false,
-            child: InstrumentEventSheetHost(
-              semanticLabel: 'Resize test sheet',
-              handleColor: Colors.white,
-              body: Builder(
-                builder: (context) {
-                  remainingInsideHost = keyboardInsetOf(context);
-                  return const SizedBox.expand();
-                },
+            child: KeyboardInsetBoundary(
+              paddingKey: editableModalSystemInsetOwnerKey,
+              child: InstrumentEventSheetHost(
+                semanticLabel: 'Resize test sheet',
+                handleColor: Colors.white,
+                body: Builder(
+                  builder: (context) {
+                    remainingInsideHost = _remainingInset(context);
+                    return const SizedBox.expand();
+                  },
+                ),
               ),
             ),
           ),
@@ -163,6 +170,7 @@ void main() {
       await tester.pump();
 
       expect(remainingInsideHost, 0);
+      expect(_ownerPad(tester), 300);
     });
   });
 }
@@ -215,6 +223,17 @@ double _innerViewInsets(WidgetTester tester) {
   ).bottom;
 }
 
+double _innerMediaHeight(WidgetTester tester) {
+  return MediaQuery.sizeOf(tester.element(find.byType(_InnerProbe))).height;
+}
+
+double _remainingInset(BuildContext context) {
+  return math.max(
+    remainingSystemKeyboardInsetOf(context),
+    remainingCustomKeyboardInsetOf(context),
+  );
+}
+
 class _InnerProbe extends StatelessWidget {
   const _InnerProbe();
 
@@ -224,7 +243,7 @@ class _InnerProbe extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    lastInsetHolder.value = keyboardInsetOf(context);
+    lastInsetHolder.value = _remainingInset(context);
     return const SizedBox.expand();
   }
 }

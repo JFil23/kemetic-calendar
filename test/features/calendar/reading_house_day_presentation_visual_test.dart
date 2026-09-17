@@ -6,6 +6,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_day_presentation.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
@@ -178,13 +179,15 @@ void main() {
             viewInsets: EdgeInsets.only(bottom: 300),
           ),
           child: Scaffold(
-            body: Align(
-              alignment: Alignment.bottomCenter,
-              child: InstrumentEventSheetHost(
-                semanticLabel: 'Reading House sitting details',
-                handleColor: ReadingHouseDayTokens.mint,
-                body: ReadingHouseDayPresentation(),
-                footer: ReadingHouseDayFooterActions(),
+            body: KeyboardInsetBoundary(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: InstrumentEventSheetHost(
+                  semanticLabel: 'Reading House sitting details',
+                  handleColor: ReadingHouseDayTokens.mint,
+                  body: ReadingHouseDayPresentation(),
+                  footer: ReadingHouseDayFooterActions(),
+                ),
               ),
             ),
           ),

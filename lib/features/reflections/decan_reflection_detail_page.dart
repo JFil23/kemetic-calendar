@@ -13,7 +13,6 @@ import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../widgets/insight_link_text.dart';
-import '../../widgets/keyboard_aware.dart';
 import '../calendar/calendar_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
@@ -264,12 +263,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         SnackBar(
           content: const Text('Select a phrase first.'),
           behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            keyboardInsetOf(context) + 120,
-          ),
+          margin: EdgeInsets.fromLTRB(16, 0, 16, 120),
           duration: const Duration(seconds: 2),
         ),
       );

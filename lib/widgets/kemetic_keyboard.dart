@@ -16,7 +16,6 @@ class KemeticKeyboardScope extends InheritedWidget {
   final bool isCustomKeyboardVisible;
   final double customKeyboardInset;
   final double systemKeyboardInset;
-  final double keyboardInset;
   final double visibleTop;
   final double visibleBottom;
   final bool isSystemKeyboardVisible;
@@ -27,7 +26,6 @@ class KemeticKeyboardScope extends InheritedWidget {
     required this.isCustomKeyboardVisible,
     required this.customKeyboardInset,
     required this.systemKeyboardInset,
-    required this.keyboardInset,
     required this.visibleTop,
     required this.visibleBottom,
     required this.isSystemKeyboardVisible,
@@ -42,7 +40,6 @@ class KemeticKeyboardScope extends InheritedWidget {
     return isCustomKeyboardVisible != oldWidget.isCustomKeyboardVisible ||
         customKeyboardInset != oldWidget.customKeyboardInset ||
         systemKeyboardInset != oldWidget.systemKeyboardInset ||
-        keyboardInset != oldWidget.keyboardInset ||
         visibleTop != oldWidget.visibleTop ||
         visibleBottom != oldWidget.visibleBottom ||
         isSystemKeyboardVisible != oldWidget.isSystemKeyboardVisible;
@@ -499,10 +496,6 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
         (rawBottomInset - _lastKeyboardHeight).abs() > 1) {
       _lastKeyboardHeight = rawBottomInset;
     }
-    final effectiveKeyboardInset = max(
-      layoutBottomInset,
-      _customKeyboardInset(media),
-    );
     final customKeyboardInset = _customKeyboardInset(media);
     final customKeyboardTop = media.size.height - customKeyboardInset;
     final visibleBottom = customKeyboardInset > 0
@@ -518,7 +511,6 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
             isCustomKeyboardVisible: _controller.shouldShowPanel,
             customKeyboardInset: customKeyboardInset,
             systemKeyboardInset: layoutBottomInset,
-            keyboardInset: effectiveKeyboardInset,
             visibleTop: viewport.visibleTop,
             visibleBottom: visibleBottom,
             isSystemKeyboardVisible: viewport.systemKeyboardVisible,

@@ -3019,9 +3019,8 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   }
 
   static Future<void> _openShareSheet(BuildContext context, _Flow flow) async {
-    final result = await showModalBottomSheet<bool>(
+    final result = await showEditableModalBottomSheet<bool>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) =>
           ShareFlowSheet(flowId: flow.id, flowTitle: flow.name),

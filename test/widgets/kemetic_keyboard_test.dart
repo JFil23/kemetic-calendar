@@ -1107,9 +1107,8 @@ class _QuickAddSheetHarness extends StatelessWidget {
             child: ElevatedButton(
               key: const ValueKey('open-quick-add-sheet'),
               onPressed: () {
-                showModalBottomSheet<void>(
+                showEditableModalBottomSheet<void>(
                   context: modalContext,
-                  isScrollControlled: true,
                   backgroundColor: Colors.black,
                   shape: const RoundedRectangleBorder(
                     borderRadius: BorderRadius.vertical(
@@ -1153,7 +1152,6 @@ class _QuickAddSheetHarnessContentState
   @override
   Widget build(BuildContext context) {
     return KeyboardAwareEditableSurface(
-      manageSystemKeyboardInset: true,
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
