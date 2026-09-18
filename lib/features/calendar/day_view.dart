@@ -1909,40 +1909,6 @@ bool offeringTableEventIsToday({
       kd == kemeticNow.kDay;
 }
 
-@visibleForTesting
-bool offeringTableEventIsNextNotStarted({
-  required EventItem target,
-  required Iterable<EventItem> events,
-  required int ky,
-  required int km,
-  required int kd,
-  required DateTime now,
-}) {
-  final localNow = now.toLocal();
-  final date = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
-  final today = DateUtils.dateOnly(localNow);
-  final tomorrow = today.add(const Duration(days: 1));
-  if (date != today && date != tomorrow) return false;
-  if (date == tomorrow) {
-    final sameTimeToday = today.add(Duration(minutes: target.startMin));
-    final dayNumber = _offeringTableDayFaceForEvent(target).dayNumber;
-    if (dayNumber > 1 && !sameTimeToday.isBefore(localNow)) return false;
-  }
-  final candidates =
-      events
-          .where((event) {
-            if (_eventMaatFlowKind(event) != MaatFlowKind.offeringTable) {
-              return false;
-            }
-            final start = date.add(Duration(minutes: event.startMin));
-            return !start.isBefore(localNow);
-          })
-          .toList(growable: false)
-        ..sort(compareEventItemsBySchedule);
-  if (candidates.isEmpty) return false;
-  return eventsShareStableIdentity(candidates.first, target);
-}
-
 class DayViewSheetEventTarget {
   final int ky;
   final int km;
@@ -8313,9 +8279,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         dayViewFace: true,
         animateRipple:
             !isPreview &&
-            offeringTableEventIsNextNotStarted(
-              target: event,
-              events: _displayBlocks.map((block) => block.event),
+            offeringTableEventIsToday(
               ky: widget.ky,
               km: widget.km,
               kd: widget.kd,

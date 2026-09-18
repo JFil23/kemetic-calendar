@@ -420,56 +420,10 @@ void main() {
     },
   );
 
-  test(
-    'ripple eligibility follows only the next not-yet-started occurrence',
-    () {
-      final now = DateTime(2026, 8, 29, 7, 0);
-      final today = KemeticMath.fromGregorian(now);
-      final first = _offeringEvent('first', 7 * 60 + 30);
-      final second = _offeringEvent('second', 9 * 60);
-
-      bool eligible(EventItem target, DateTime clock) =>
-          offeringTableEventIsNextNotStarted(
-            target: target,
-            events: <EventItem>[first, second],
-            ky: today.kYear,
-            km: today.kMonth,
-            kd: today.kDay,
-            now: clock,
-          );
-
-      expect(eligible(first, now), isTrue);
-      expect(eligible(second, now), isFalse);
-      expect(eligible(first, DateTime(2026, 8, 29, 8)), isFalse);
-      expect(eligible(second, DateTime(2026, 8, 29, 8)), isTrue);
-      expect(eligible(second, DateTime(2026, 8, 29, 10)), isFalse);
-      final kemeticTomorrow = KemeticMath.fromGregorian(
-        now.add(const Duration(days: 1)),
-      );
-      expect(
-        offeringTableEventIsNextNotStarted(
-          target: first,
-          events: <EventItem>[first],
-          ky: kemeticTomorrow.kYear,
-          km: kemeticTomorrow.kMonth,
-          kd: kemeticTomorrow.kDay,
-          now: now,
-        ),
-        isTrue,
-        reason: 'Day 1 is next when a flow begins tomorrow.',
-      );
-      expect(kOfferingTableRippleCycle, const Duration(milliseconds: 5400));
-      expect(
-        kOfferingTableRipplePhaseSeparation,
-        const Duration(milliseconds: 1800),
-      );
-    },
-  );
-
-  testWidgets('Day View animates only the next scheduled daily occurrence', (
+  testWidgets('Day View animates only today\'s Offering occurrence', (
     tester,
   ) async {
-    final now = DateTime(2026, 8, 29, 7);
+    final now = DateTime(2026, 8, 29, 8);
     final today = KemeticMath.fromGregorian(now);
     final past = KemeticMath.fromGregorian(
       now.subtract(const Duration(days: 3)),
@@ -531,9 +485,10 @@ void main() {
         ky: today.kYear,
         km: today.kMonth,
         kd: today.kDay,
-        clock: DateTime(2026, 8, 29, 8),
+        clock: now,
       ),
-      isFalse,
+      isTrue,
+      reason: 'Today\'s card keeps its loop after the 7:30 AM scheduled time.',
     );
     expect(
       await render(
@@ -542,7 +497,7 @@ void main() {
         kd: tomorrow.kDay,
         clock: DateTime(2026, 8, 29, 8),
       ),
-      isTrue,
+      isFalse,
     );
     expect(
       await render(ky: past.kYear, km: past.kMonth, kd: past.kDay, clock: now),
@@ -556,6 +511,42 @@ void main() {
         clock: now,
       ),
       isFalse,
+    );
+    expect(kOfferingTableRippleCycle, const Duration(milliseconds: 5400));
+    expect(
+      kOfferingTableRipplePhaseSeparation,
+      const Duration(milliseconds: 1800),
+    );
+
+    final justBeforeMidnight = DateTime(2026, 8, 29, 23, 59, 59);
+    final midnight = DateTime(2026, 8, 30);
+    expect(
+      await render(
+        ky: today.kYear,
+        km: today.kMonth,
+        kd: today.kDay,
+        clock: justBeforeMidnight,
+      ),
+      isTrue,
+    );
+    expect(
+      await render(
+        ky: today.kYear,
+        km: today.kMonth,
+        kd: today.kDay,
+        clock: midnight,
+      ),
+      isFalse,
+    );
+    expect(
+      await render(
+        ky: tomorrow.kYear,
+        km: tomorrow.kMonth,
+        kd: tomorrow.kDay,
+        clock: midnight,
+      ),
+      isTrue,
+      reason: 'At local midnight the next Kemetic day owns the loop.',
     );
   });
 
@@ -1259,21 +1250,6 @@ Future<void> _pumpDayView(
   );
   await tester.pumpAndSettle();
 }
-
-EventItem _offeringEvent(String id, int startMinute) => EventItem(
-  clientEventId: id,
-  title: 'The Offering Table · Day 01 · The Small Supply',
-  startMin: startMinute,
-  endMin: startMinute + 3,
-  flowId: 80,
-  color: const Color(0xFFC99A3D),
-  allDay: false,
-  behaviorPayload: const <String, dynamic>{
-    'kind': 'maat_offering_table_day',
-    'flow_key': kOfferingTableFlowKey,
-    'day': 1,
-  },
-);
 
 Future<Uint8List> _captureRenderedFrame(
   WidgetTester tester,
