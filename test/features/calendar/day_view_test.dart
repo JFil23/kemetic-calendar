@@ -669,6 +669,52 @@ void main() {
       expect(djedTablet.width, closeTo(314, 0.001));
     });
 
+    test('Offering Table uses the standard single-event geometry', () {
+      const ordinaryEvent = EventItem(
+        clientEventId: 'ordinary-event',
+        title: 'Ordinary Event',
+        startMin: 10 * 60,
+        endMin: 11 * 60,
+        color: Colors.green,
+        allDay: false,
+      );
+      const offeringEvent = EventItem(
+        clientEventId: 'offering-event',
+        title: 'The Offering Table · Day 01 · The Small Supply',
+        startMin: 10 * 60,
+        endMin: 11 * 60,
+        flowId: 85,
+        flowName: 'The Offering Table',
+        flowNotes: 'maat=the-offering-table',
+        color: Colors.orange,
+        allDay: false,
+      );
+
+      PositionedEventBlock layout(
+        EventItem event, {
+        double singleEventWidthFactor = 0.8,
+      }) => EventLayoutEngine.layoutEventItems(
+        events: <EventItem>[event],
+        availableWidth: 314,
+        columnGap: 4,
+        textScale: 1,
+        day: 1,
+        singleEventWidthFactor: singleEventWidthFactor,
+      ).single;
+
+      final ordinaryPhone = layout(ordinaryEvent);
+      final offeringPhone = layout(offeringEvent);
+      expect(offeringPhone.leftOffset, ordinaryPhone.leftOffset);
+      expect(offeringPhone.width, closeTo(ordinaryPhone.width, 0.001));
+      expect(offeringPhone.width, closeTo(251.2, 0.001));
+
+      final ordinaryTablet = layout(ordinaryEvent, singleEventWidthFactor: 1);
+      final offeringTablet = layout(offeringEvent, singleEventWidthFactor: 1);
+      expect(offeringTablet.leftOffset, ordinaryTablet.leftOffset);
+      expect(offeringTablet.width, closeTo(ordinaryTablet.width, 0.001));
+      expect(offeringTablet.width, closeTo(314, 0.001));
+    });
+
     test('Djed uses shared columns when it overlaps an ordinary event', () {
       final blocks = EventLayoutEngine.layoutEventItems(
         events: const <EventItem>[

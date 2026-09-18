@@ -66,8 +66,8 @@ no app surface is hidden by normalization.
 The three Day View captures use the real production `DayViewPage`, not an
 isolated grid. The evidence index records the remaining visible context
 differences explicitly: simplified mockup-only shared chrome, Djed's ordinary
-calendar fixture cards, Offering Table's internally inconsistent 7:30/9:30 and
-Kemetic/Gregorian placement, Reading House's late-day scroll clamp, and
+calendar fixture cards, Offering Table's superseded embedded event-card copy
+and internally inconsistent Kemetic/Gregorian placement, Reading House's late-day scroll clamp, and
 cross-renderer anti-aliasing. The user's September 13 Djed correction
 supersedes the older HTML sheet composition only: Djed Day View now uses Follow
 the Sky's standard outer host and frame-controlled foreground while retaining

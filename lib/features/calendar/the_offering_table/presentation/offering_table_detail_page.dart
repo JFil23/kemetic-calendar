@@ -901,27 +901,11 @@ class _OfferingFlowEventCard extends StatelessWidget {
           child: OfferingTableEventBlockVisual(
             dayNumber: day.dayNumber,
             title: title,
-            prompt: day.eventBlockPrompt,
             height: 100,
             width: double.infinity,
             isPreview: !carried,
             overlay: Stack(
               children: [
-                Positioned(
-                  left: 13,
-                  bottom: 7,
-                  child: Text(
-                    _formatTime(occurrence.startLocal),
-                    style: TextStyle(
-                      color: OfferingTableDetailTokens.glow.withValues(
-                        alpha: 0.72,
-                      ),
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                      fontSize: 10.5,
-                    ),
-                  ),
-                ),
                 Positioned(
                   right: 5,
                   bottom: 3,

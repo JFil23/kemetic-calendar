@@ -60,8 +60,8 @@
         "offering-day-sheet-bottom",
         "offering-day-sheet-context"
       ],
-      "difference": "The HTML labels the event 7:30 AM but positions it near the 9:30 row, and pairs Rekh-Wer 13 with FRI SEP 4. Flutter places the event on the real 7:30 row and maps Rekh-Wer 13 through canonical Kemetic date math to SAT AUG 29.",
-      "reason": "The reference is internally inconsistent. The event-block and sheet visuals follow the HTML; schedule placement and Gregorian metadata retain the functioning canonical calendar behavior the user said not to change."
+      "difference": "The explicit September 17 correction removes the teaser and embedded 7:30 AM label from every Offering Table event block. The prompt remains in the sheet, calendar placement remains 7:30, and Flutter maps the supplied Kemetic date through canonical calendar math to SAT AUG 29 rather than the HTML's FRI SEP 4.",
+      "reason": "The user's event-block correction supersedes the older HTML card copy without changing sheet content, schedule placement, or Gregorian metadata."
     },
     {
       "states": [

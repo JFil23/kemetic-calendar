@@ -1081,6 +1081,42 @@ void main() {
     expect(calendarSource, contains('_refreshDetachedReadingHouseTimeline'));
   });
 
+  test(
+    'already-persisted Reading House joins hydrate before opening their first event',
+    () {
+      final calendarSource = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final detachedCompletion = _sourceBetween(
+        calendarSource,
+        'static Future<void> _completeDetachedMaatJoinWithDayView',
+        'static Widget _buildDetachedMyFlowsPage',
+      );
+      final mountedCompletion = _sourceBetween(
+        calendarSource,
+        'Future<void> _completeMountedMaatJoinWithDayView',
+        'void _completeMountedStagedFlowAddWithDayView',
+      );
+
+      expect(
+        detachedCompletion,
+        contains('if (_pendingStagedFlows[flowId] == null)'),
+      );
+      expect(
+        detachedCompletion,
+        contains('_completeDetachedPersistedFlowWithDayView'),
+      );
+      expect(detachedCompletion, contains("reason: 'persisted_flow_joined'"));
+      expect(detachedCompletion, contains('_openDayViewForFlow(flowId)'));
+      expect(
+        mountedCompletion,
+        contains('if (CalendarPage._pendingStagedFlows[flowId] == null)'),
+      );
+      expect(mountedCompletion, contains("reason: 'persisted_flow_joined'"));
+      expect(mountedCompletion, contains('_openDayViewForFlow(flowId)'));
+    },
+  );
+
   test('Reading House narrow mutations stay on targeted authority paths', () {
     final authoritySource = File(
       'lib/features/calendar/the_reading_house/reading_house_authority.dart',

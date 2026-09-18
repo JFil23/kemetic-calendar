@@ -835,14 +835,6 @@ bool _isOpenHandFlowName(String? name) {
   return name?.trim().toLowerCase() == kTheOpenHandTitle.toLowerCase();
 }
 
-String _compactEventTimeLabel(int minuteOfDay) {
-  final hour24 = (minuteOfDay ~/ 60).clamp(0, 23);
-  final minute = minuteOfDay.remainder(60).clamp(0, 59);
-  final period = hour24 >= 12 ? 'PM' : 'AM';
-  final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
-  return '$hour12:${minute.toString().padLeft(2, '0')} $period';
-}
-
 DjedDayVisualFixture _djedV2DayVisualFixture(
   DjedV2Event event, {
   Map<String, dynamic>? behaviorPayload,
@@ -5055,8 +5047,7 @@ MaatFlowKind? _eventMaatFlowKind(EventItem event) {
 
 bool _usesFullWidthAuthoredEventBlock(EventItem event) {
   final kind = _eventMaatFlowKind(event);
-  return kind == MaatFlowKind.readingHouse ||
-      kind == MaatFlowKind.offeringTable;
+  return kind == MaatFlowKind.readingHouse;
 }
 
 ({double leading, double trailing})? _authoredEventBlockHorizontalExpansion(
@@ -5064,10 +5055,10 @@ bool _usesFullWidthAuthoredEventBlock(EventItem event) {
 ) {
   final kind = _eventMaatFlowKind(event);
   return switch (kind) {
-    // Reading House and Offering Table both begin at x=50 in their supplied
-    // Day Views while preserving the production lane's x=374 trailing edge.
-    MaatFlowKind.readingHouse ||
-    MaatFlowKind.offeringTable => (leading: 10, trailing: 0),
+    // Reading House retains its authored Day View position. Offering Table
+    // deliberately uses the same phone, overlap, and tablet geometry as an
+    // ordinary event card.
+    MaatFlowKind.readingHouse => (leading: 10, trailing: 0),
     _ => null,
   };
 }
@@ -8324,12 +8315,10 @@ class _DayViewGridState extends State<DayViewGrid> {
       return OfferingTableEventBlockVisual(
         dayNumber: offeringTableDay.dayNumber,
         title: dayViewContract.title,
-        prompt: dayViewContract.prompt,
         width: block.width,
         height: height,
         isPreview: isPreview,
         dayViewFace: true,
-        timeLabel: _compactEventTimeLabel(event.startMin),
         animateRipple:
             !isPreview &&
             offeringTableEventIsNextNotStarted(

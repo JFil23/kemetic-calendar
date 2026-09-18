@@ -208,6 +208,7 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
         height: _fixedHeroHeight,
         foregroundFillsViewport: true,
       ),
+      completionAnchoredAtScrollStop: true,
       foregroundStyle: MaatDayViewForegroundStyle.gradient(
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
@@ -292,26 +293,7 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
   }) {
     if (cycle == null) return const SizedBox.shrink();
     if (widget.stageIndex == 5) {
-      if (_walking) return const SizedBox.shrink();
-      return Stack(
-        children: <Widget>[
-          Positioned.fill(
-            child: Align(
-              alignment: const Alignment(0, .06),
-              child: Semantics(
-                button: true,
-                label: 'Begin the Kꜣr walk',
-                child: GestureDetector(
-                  key: const ValueKey<String>('kar-begin-walk'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() => _walking = true),
-                  child: const SizedBox(width: 126, height: 190),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
+      return const SizedBox.shrink();
     }
     if (!_isReturn(cycle)) return const SizedBox.shrink();
     final compact = availableHeight < 440;
@@ -718,13 +700,30 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'THE COMPLETE WALK',
+            'THE WALK',
             style: _style(const Color(0xFF7198A4), 8, spacing: 1.7),
           ),
           const SizedBox(height: 7),
           Text(
-            'Five places. Nothing new to make.',
+            'Walk the kꜣr',
             style: _style(const Color(0xFFE9E2D7), 23, weight: FontWeight.w500),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Enter at the threshold. Find the five places in order.',
+            style: _style(const Color(0xFFC8C1B6), 17, height: 1.4),
+          ),
+          const SizedBox(height: 18),
+          _ReturnButton(
+            key: const ValueKey<String>('kar-begin-walk'),
+            label: 'Begin',
+            primary: true,
+            onTap: () => setState(() => _walking = true),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Five places. Nothing new to make.',
+            style: _style(const Color(0xFFE9E2D7), 17, height: 1.35),
           ),
           const SizedBox(height: 7),
           Text(

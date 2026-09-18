@@ -8167,6 +8167,15 @@ class CalendarPage extends StatefulWidget {
     VoidCallback? onClose,
   }) async {
     _rememberJoinedMaatFlowTemplate(templateKey: template.key, flowId: flowId);
+    if (_pendingStagedFlows[flowId] == null) {
+      await _completeDetachedPersistedFlowWithDayView(
+        navigator: navigator,
+        flowId: flowId,
+        flowsRepo: flowsRepo,
+        onClose: onClose,
+      );
+      return;
+    }
     unawaited(flowsRepo.clearMyFiledFlowsCache());
     unawaited(
       flowsRepo.refreshMyFiledFlows().then((rows) {
@@ -8201,6 +8210,35 @@ class CalendarPage extends StatefulWidget {
     router?.go('/');
     final state = _mountedState;
     state?._schedulePendingStagedFlowDayViewIfAny();
+  }
+
+  static Future<void> _completeDetachedPersistedFlowWithDayView({
+    required NavigatorState navigator,
+    required int flowId,
+    required FlowsRepo flowsRepo,
+    VoidCallback? onClose,
+  }) async {
+    await flowsRepo.clearMyFiledFlowsCache();
+    final mountedState = _mountedState;
+    if (mountedState?.mounted == true) {
+      await mountedState!._requestHydration(
+        _CalendarHydrationRequest.catalogReconcile(
+          reason: 'persisted_flow_joined',
+        ),
+      );
+    }
+
+    final router = navigator.mounted ? GoRouter.of(navigator.context) : null;
+    if (onClose != null) {
+      onClose();
+    } else if (navigator.mounted) {
+      closeOrReturn(navigator.context, '/');
+    }
+    router?.go('/');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = _mountedState;
+      if (state?.mounted == true) state!._openDayViewForFlow(flowId);
+    });
   }
 
   static Widget _buildDetachedMyFlowsPage({
@@ -12927,7 +12965,7 @@ class CalendarPageState extends State<CalendarPage>
                 }
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (!mounted) return;
-                  _openDayViewForStagedFlow(importedFlowId);
+                  _openDayViewForFlow(importedFlowId);
                 });
                 return;
               }
@@ -17117,7 +17155,7 @@ class CalendarPageState extends State<CalendarPage>
     return (ky: first.ky, km: first.km, kd: first.kd, note: first.note);
   }
 
-  void _openDayViewForStagedFlow(int flowId) {
+  void _openDayViewForFlow(int flowId) {
     final first = _firstChronologicalNoteForFlow(flowId);
     if (first == null) {
       if (mounted) {
@@ -17213,7 +17251,7 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
     CalendarPage._clearStagedFlowDayViewIntent(flowId);
-    _openDayViewForStagedFlow(flowId);
+    _openDayViewForFlow(flowId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         CalendarPage._consumeStagedFlowCompletion(flowId);
@@ -17240,6 +17278,21 @@ class CalendarPageState extends State<CalendarPage>
       flowId: flowId,
     );
     _myFlowsFilingSnapshotCache = null;
+    if (CalendarPage._pendingStagedFlows[flowId] == null) {
+      await _flowsRepo.clearMyFiledFlowsCache();
+      await _requestHydration(
+        _CalendarHydrationRequest.catalogReconcile(
+          reason: 'persisted_flow_joined',
+        ),
+      );
+      if (!mounted) return;
+      final rootNavigator = Navigator.of(context, rootNavigator: true);
+      if (rootNavigator.canPop()) rootNavigator.pop();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openDayViewForFlow(flowId);
+      });
+      return;
+    }
     unawaited(_flowsRepo.clearMyFiledFlowsCache());
     _completeMountedStagedFlowAddWithDayView(flowId);
   }
@@ -27180,7 +27233,7 @@ class CalendarPageState extends State<CalendarPage>
           }
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            _openDayViewForStagedFlow(importedFlowId);
+            _openDayViewForFlow(importedFlowId);
           });
         }());
       },

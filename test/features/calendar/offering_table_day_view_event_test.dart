@@ -63,48 +63,49 @@ void main() {
   });
   tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
 
-  testWidgets(
-    'Offering block uses authored prompt while detail retains private need',
-    (tester) async {
-      final day = kOfferingTableDays[2];
-      await _pumpDayView(
-        tester,
-        flowId: 71,
-        day: day,
-        initialIntention: 'Protect my sleep.',
-      );
+  testWidgets('Offering block omits prompt while detail retains private need', (
+    tester,
+  ) async {
+    final day = kOfferingTableDays[2];
+    await _pumpDayView(
+      tester,
+      flowId: 71,
+      day: day,
+      initialIntention: 'Protect my sleep.',
+    );
 
-      expect(find.text('THE OFFERING TABLE · DAY 03'), findsOneWidget);
-      expect(find.text(day.title), findsWidgets);
-      expect(find.text('“put real food within reach”'), findsOneWidget);
-      expect(find.textContaining('Protect my sleep.'), findsNothing);
-      final block = tester.widget<OfferingTableEventBlockVisual>(
-        find.byType(OfferingTableEventBlockVisual),
-      );
-      expect(block.prompt, offeringTableDayViewContract(day.dayNumber).prompt);
-      expect(block.stage, OfferingTableBlockStage.personal);
-      expect(block.resolvedVisualState, OfferingTableBlockVisualState.named);
-      expect(
-        tester.getSize(find.byType(OfferingTableCupVisual)),
-        const Size(58, 54),
-      );
-      expect(block.height, 60);
+    expect(find.text('THE OFFERING TABLE · DAY 03'), findsOneWidget);
+    expect(find.text(day.title), findsWidgets);
+    expect(find.text('“put real food within reach”'), findsNothing);
+    expect(find.textContaining('Protect my sleep.'), findsNothing);
+    final blockFinder = find.byType(OfferingTableEventBlockVisual);
+    expect(
+      find.descendant(of: blockFinder, matching: find.text('7:30 AM')),
+      findsNothing,
+    );
+    final block = tester.widget<OfferingTableEventBlockVisual>(blockFinder);
+    expect(block.stage, OfferingTableBlockStage.personal);
+    expect(block.resolvedVisualState, OfferingTableBlockVisualState.named);
+    expect(
+      tester.getSize(find.byType(OfferingTableCupVisual)),
+      const Size(48, 45),
+    );
+    expect(block.height, 60);
 
-      await tester.tap(find.byType(OfferingTableEventBlockVisual));
-      await tester.pumpAndSettle();
+    await tester.tap(blockFinder);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Protect my sleep.'), findsWidgets);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.text('Protect my sleep.'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
 
-  testWidgets('Offering block remains authored when no private need exists', (
+  testWidgets('Offering block omits prompt when no private need exists', (
     tester,
   ) async {
     await _pumpDayView(tester, flowId: 72);
 
     expect(find.text(kOfferingTableDays.first.title), findsWidgets);
-    expect(find.text('“check one thing before it runs out”'), findsOneWidget);
+    expect(find.text('“check one thing before it runs out”'), findsNothing);
     expect(find.textContaining('No need was named'), findsNothing);
     final block = tester.widget<OfferingTableEventBlockVisual>(
       find.byType(OfferingTableEventBlockVisual),
@@ -224,7 +225,7 @@ void main() {
   );
 
   testWidgets(
-    'Offering block preserves the authored width alone and shared lanes when overlapping',
+    'Offering block uses the standard lane alone and when overlapping',
     (tester) async {
       await _pumpDayView(tester, flowId: 73);
 
@@ -234,9 +235,9 @@ void main() {
       var block = tester.widget<OfferingTableEventBlockVisual>(
         find.byType(OfferingTableEventBlockVisual),
       );
-      expect(blockRect.left, closeTo(50, .1));
-      expect(block.width, closeTo(324, .1));
-      expect(blockRect.width, closeTo(328, .1));
+      expect(blockRect.left, closeTo(60, .1));
+      expect(block.width, closeTo(251.2, .1));
+      expect(blockRect.width, closeTo(255.2, .1));
       expect(block.height, 60);
       expect(blockRect.height, 62);
 
@@ -371,18 +372,15 @@ void main() {
         height: 56,
         dayNumber: 23,
         title: 'The River Unblocked',
-        prompt: 'move one delayed thing downstream',
         isPreview: true,
       );
 
       expect(find.text('THE OFFERING TABLE · DAY 23'), findsOneWidget);
       expect(find.text('The River Unblocked'), findsOneWidget);
-      expect(find.text('“move one delayed thing downstream”'), findsOneWidget);
-      final promptText = tester.widget<Text>(
+      expect(
         find.byKey(const ValueKey<String>('offering-table-block-teaser')),
+        findsNothing,
       );
-      expect(promptText.maxLines, 1);
-      expect(promptText.overflow, TextOverflow.ellipsis);
       expect(
         tester.getSize(find.byType(OfferingTableCupVisual)),
         const Size(48, 50),
@@ -401,7 +399,6 @@ void main() {
         height: 74,
         dayNumber: 14,
         title: 'The Waiting Bowl',
-        prompt: 'refill what has been waiting',
         visualState: OfferingTableBlockVisualState.received,
       );
 
@@ -503,6 +500,15 @@ void main() {
       ),
       isTrue,
     );
+    final liveRipple = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<OfferingTableRipplePainter>()
+        .single;
+    expect(liveRipple.animation, isA<AnimationController>());
+    final livePhase = liveRipple.animation!.value;
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(liveRipple.animation!.value, isNot(livePhase));
     expect(
       await render(
         ky: today.kYear,
@@ -550,7 +556,6 @@ void main() {
         height: 58,
         dayNumber: 3,
         title: 'Bread Enough',
-        prompt: 'eat before the day starts',
         visualState: state,
         animateRipple: animateRipple,
         mediaQueryData: mediaQueryData,
@@ -597,11 +602,15 @@ void main() {
     final start = offeringTableRippleFrameForPhase(0);
     final peak = offeringTableRippleFrameForPhase(0.18);
     final middle = offeringTableRippleFrameForPhase(0.5);
+    final halfRise = offeringTableRippleFrameForPhase(0.09);
+    final halfFall = offeringTableRippleFrameForPhase(0.59);
     final end = offeringTableRippleFrameForPhase(1);
 
     expect(start.scale, closeTo(0.3, 0.0001));
     expect(start.opacity, closeTo(0, 0.0001));
     expect(peak.opacity, closeTo(0.6, 0.0001));
+    expect(halfRise.opacity, closeTo(0.3, 0.0001));
+    expect(halfFall.opacity, closeTo(0.3, 0.0001));
     expect(middle.scale, greaterThan(peak.scale));
     expect(middle.opacity, lessThan(peak.opacity));
     expect(end.scale, closeTo(1, 0.0001));
@@ -1067,7 +1076,6 @@ Future<void> _pumpStaticBlock(
   required double height,
   required int dayNumber,
   required String title,
-  required String prompt,
   bool isPreview = false,
   OfferingTableBlockVisualState? visualState,
   bool animateRipple = false,
@@ -1084,7 +1092,6 @@ Future<void> _pumpStaticBlock(
             child: OfferingTableEventBlockVisual(
               dayNumber: dayNumber,
               title: title,
-              prompt: prompt,
               width: width,
               height: height,
               isPreview: isPreview,

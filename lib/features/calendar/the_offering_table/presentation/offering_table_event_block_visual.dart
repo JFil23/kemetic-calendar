@@ -23,13 +23,12 @@ OfferingTableBlockStage offeringTableBlockStageForDay(int dayNumber) {
 /// Offering Table event-card face shared by its calendar surfaces.
 ///
 /// Day View remains the interaction authority. This widget only presents the
-/// canonical day title and authored prompt.
+/// canonical day identity and title.
 class OfferingTableEventBlockVisual extends StatelessWidget {
   const OfferingTableEventBlockVisual({
     super.key,
     required this.dayNumber,
     required this.title,
-    required this.prompt,
     required this.height,
     this.width,
     this.isPreview = false,
@@ -38,12 +37,10 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
     this.dayViewFace = false,
     this.visualState,
     this.animateRipple = false,
-    this.timeLabel,
-  }) : assert(prompt != '');
+  });
 
   final int dayNumber;
   final String title;
-  final String prompt;
   final double height;
   final double? width;
   final bool isPreview;
@@ -51,7 +48,6 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
   final double opacity;
   final bool dayViewFace;
   final bool animateRipple;
-  final String? timeLabel;
 
   /// Presentation-only fixture seam. Day View intentionally leaves this null
   /// until completion-to-received behavior is approved separately.
@@ -124,7 +120,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
                   ? 9
                   : 5,
               right: compactDayView
-                  ? 70
+                  ? 60
                   : dayViewFace
                   ? 72
                   : isTall
@@ -140,7 +136,6 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
               child: _OfferingTableCardText(
                 dayNumber: dayNumber,
                 title: title,
-                prompt: prompt,
                 state: state,
                 tall: isTall,
                 dayViewFace: dayViewFace,
@@ -187,33 +182,6 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
                       ),
                     ),
             ),
-            if (timeLabel?.trim().isNotEmpty == true && isTall)
-              Positioned(
-                left: dayViewFace ? 12 : 13,
-                bottom: 7,
-                child: Text(
-                  timeLabel!.trim(),
-                  style: const TextStyle(
-                    color: Color(0xFFB18A39),
-                    fontFamily: 'GentiumPlus',
-                    fontSize: 9,
-                  ),
-                ),
-              ),
-            if (timeLabel?.trim().isNotEmpty == true && compactDayView)
-              Positioned(
-                left: 12,
-                bottom: 2,
-                child: Text(
-                  timeLabel!.trim(),
-                  style: const TextStyle(
-                    color: Color(0xFFB18A39),
-                    fontFamily: 'GentiumPlus',
-                    fontSize: 8,
-                    height: 1,
-                  ),
-                ),
-              ),
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
@@ -350,7 +318,6 @@ class _OfferingTableCardText extends StatelessWidget {
   const _OfferingTableCardText({
     required this.dayNumber,
     required this.title,
-    required this.prompt,
     required this.state,
     required this.tall,
     this.dayViewFace = false,
@@ -358,7 +325,6 @@ class _OfferingTableCardText extends StatelessWidget {
 
   final int dayNumber;
   final String title;
-  final String prompt;
   final OfferingTableBlockVisualState state;
   final bool tall;
   final bool dayViewFace;
@@ -369,7 +335,6 @@ class _OfferingTableCardText extends StatelessWidget {
         'THE OFFERING TABLE · DAY ${dayNumber.toString().padLeft(2, '0')}';
     final received = state == OfferingTableBlockVisualState.received;
     final compactDayView = dayViewFace && !tall;
-    final promptText = '“${prompt.trim()}”';
     final kickerStyle = TextStyle(
       color: dayViewFace ? const Color(0xFFF0CC6A) : Colors.white,
       fontFamily: 'GentiumPlus',
@@ -451,46 +416,6 @@ class _OfferingTableCardText extends StatelessWidget {
                     ],
             ),
           ),
-          SizedBox(
-            height: compactDayView
-                ? 0
-                : dayViewFace
-                ? 3
-                : (tall ? 1 : 0),
-          ),
-          Text(
-            promptText,
-            key: const ValueKey<String>('offering-table-block-teaser'),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            softWrap: false,
-            style: TextStyle(
-              color: received
-                  ? const Color(0xFFB08D63)
-                  : Color(dayViewFace ? 0xFFE8C39E : 0xFFF6D6B2),
-              fontFamily: 'CormorantGaramond',
-              fontFamilyFallback: const ['GentiumPlus', 'Georgia', 'serif'],
-              fontSize: dayViewFace
-                  ? compactDayView
-                        ? 11.5
-                        : 12.5
-                  : tall
-                  ? 15
-                  : 14,
-              fontWeight: FontWeight.w500,
-              fontStyle: FontStyle.italic,
-              letterSpacing: dayViewFace ? 0 : 0.25,
-              height: dayViewFace ? 1.1 : 1.2,
-              shadows: dayViewFace
-                  ? const <Shadow>[]
-                  : const [
-                      Shadow(
-                        color: Color(0x80040201),
-                        offset: Offset(0.5, 0.7),
-                      ),
-                    ],
-            ),
-          ),
         ],
       ),
     );
@@ -516,7 +441,7 @@ class OfferingTableCupVisual extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = dayViewFace
-        ? const Size(58, 54)
+        ? const Size(48, 45)
         : tall
         ? const Size(58, 60)
         : const Size(48, 50);
@@ -845,9 +770,12 @@ class _OfferingTableRippleLoopState extends State<_OfferingTableRippleLoop>
   final normalizedPhase = phase.clamp(0.0, 1.0).toDouble();
   const curve = Cubic(0.25, 0.72, 0.4, 1);
   final scale = 0.3 + (0.7 * curve.transform(normalizedPhase));
+  // The authored SVG uses its easing curve for scale and a separate linear
+  // opacity animation. Keeping opacity linear is what makes the loop legible
+  // at the standard one-hour Day View card size.
   final opacity = normalizedPhase <= 0.18
-      ? 0.6 * curve.transform(normalizedPhase / 0.18)
-      : 0.6 * (1 - curve.transform((normalizedPhase - 0.18) / (1 - 0.18)));
+      ? 0.6 * (normalizedPhase / 0.18)
+      : 0.6 * (1 - ((normalizedPhase - 0.18) / (1 - 0.18)));
   return (scale: scale, opacity: opacity);
 }
 

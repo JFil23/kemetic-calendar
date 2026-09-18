@@ -411,13 +411,29 @@ void main() {
     );
     await tester.drag(
       find.byKey(const ValueKey<String>('kar-day-sheet-scroll')),
-      const Offset(0, -430),
+      const Offset(0, -1000),
     );
     await tester.pumpAndSettle();
     final raisedPracticeRect = tester.getRect(
       find.byKey(const ValueKey<String>('kar-practice-sheet')),
     );
     expect(raisedPracticeRect.top, lessThan(collapsedPracticeRect.top));
+    final scrollPosition = tester
+        .state<ScrollableState>(
+          find.descendant(
+            of: find.byKey(const ValueKey<String>('kar-day-sheet-scroll')),
+            matching: find.byType(Scrollable),
+          ),
+        )
+        .position;
+    expect(scrollPosition.pixels, closeTo(scrollPosition.maxScrollExtent, .1));
+    final presentationRect = tester.getRect(
+      find.byKey(const ValueKey<String>('kar-day-presentation')),
+    );
+    final completionSlotRect = tester.getRect(
+      find.byKey(const ValueKey<String>('maat-day-view-completion-slot')),
+    );
+    expect(completionSlotRect.bottom, closeTo(presentationRect.bottom - 22, 1));
     await expectLater(
       find.byKey(_visualCaptureKey),
       matchesGoldenFile('$_goldenRoot/maat-day-housing-kar-raised-390x844.png'),
@@ -538,7 +554,30 @@ void main() {
 
     expect(
       find.descendant(
-        of: find.byType(KarDayBehaviorSurface),
+        of: find.byKey(const ValueKey<String>('kar-practice-sheet')),
+        matching: find.text('Walk the kꜣr'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('kar-practice-sheet')),
+        matching: find.text('Five places. Nothing new to make.'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('kar-practice-sheet')),
+        matching: find.text(
+          'Only this cycle is walked. Dim historical places remain behind the route.',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('kar-fixed-hero')),
         matching: find.text('Walk the kꜣr'),
       ),
       findsNothing,
@@ -556,6 +595,13 @@ void main() {
       find.byKey(const ValueKey<String>('kar-begin-walk')),
       findsOneWidget,
     );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('kar-practice-sheet')),
+        matching: find.byKey(const ValueKey<String>('kar-begin-walk')),
+      ),
+      findsOneWidget,
+    );
     if (_captureKarVisuals) {
       await expectLater(
         find.byKey(_visualCaptureKey),
@@ -563,6 +609,27 @@ void main() {
       );
     }
 
+    await tester.drag(
+      find.byKey(const ValueKey<String>('kar-day-sheet-scroll')),
+      const Offset(0, -1000),
+    );
+    await tester.pumpAndSettle();
+    final walkPresentationRect = tester.getRect(
+      find.byKey(const ValueKey<String>('kar-day-presentation')),
+    );
+    final walkCompletionRect = tester.getRect(
+      find.byKey(const ValueKey<String>('maat-day-view-completion-slot')),
+    );
+    expect(
+      walkCompletionRect.bottom,
+      closeTo(walkPresentationRect.bottom - 22, 1),
+    );
+    if (_captureKarVisuals) {
+      await expectLater(
+        find.byKey(_visualCaptureKey),
+        matchesGoldenFile('/tmp/kar-day-walk-raised-flutter.png'),
+      );
+    }
     await tester.tap(find.byKey(const ValueKey<String>('kar-begin-walk')));
     await tester.pumpAndSettle();
     expect(

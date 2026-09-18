@@ -858,6 +858,17 @@ void main() {
     expect(firstMorning, findsOneWidget);
     expect(featured, findsOneWidget);
     expect(find.text('The Small Supply'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: featured,
+        matching: find.text('“check one thing before it runs out”'),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: featured, matching: find.text('7:30 AM')),
+      findsNothing,
+    );
     expect(runningLow, findsOneWidget);
     expect(calendar, findsOneWidget);
     expect(

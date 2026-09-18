@@ -625,25 +625,52 @@ class MaatDayViewForegroundContent extends StatelessWidget {
     super.key,
     required this.body,
     this.completion,
+    this.minimumHeight,
+    this.completionAnchoredAtScrollStop = false,
   });
 
   final Widget body;
   final Widget? completion;
+  final double? minimumHeight;
+  final bool completionAnchoredAtScrollStop;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        body,
-        if (completion != null) ...<Widget>[
-          KeyedSubtree(
-            key: const ValueKey<String>('maat-day-view-completion-slot'),
-            child: completion!,
-          ),
-          const SizedBox(height: 22),
-        ],
+    final completionWidget = completion;
+    final children = <Widget>[
+      body,
+      if (completionWidget != null) ...<Widget>[
+        KeyedSubtree(
+          key: const ValueKey<String>('maat-day-view-completion-slot'),
+          child: completionWidget,
+        ),
+        const SizedBox(height: 22),
       ],
+    ];
+    if (!completionAnchoredAtScrollStop ||
+        completionWidget == null ||
+        minimumHeight == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      );
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minimumHeight!),
+      child: IntrinsicHeight(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            body,
+            const Spacer(),
+            KeyedSubtree(
+              key: const ValueKey<String>('maat-day-view-completion-slot'),
+              child: completionWidget,
+            ),
+            const SizedBox(height: 22),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -690,6 +717,7 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
     required this.graphicSpace,
     required this.foregroundStyle,
     this.instrumentInteractive = false,
+    this.completionAnchoredAtScrollStop = false,
   });
 
   static const double footerHeight = 76;
@@ -705,6 +733,7 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
   final MaatDayViewGraphicSpace graphicSpace;
   final MaatDayViewForegroundStyle foregroundStyle;
   final bool instrumentInteractive;
+  final bool completionAnchoredAtScrollStop;
 
   @override
   Widget build(BuildContext context) {
@@ -787,6 +816,11 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                           child: MaatDayViewForegroundContent(
                             body: body,
                             completion: completion,
+                            minimumHeight: graphicSpace.foregroundFillsViewport
+                                ? boundedHeight
+                                : null,
+                            completionAnchoredAtScrollStop:
+                                completionAnchoredAtScrollStop,
                           ),
                         ),
                       ),

@@ -425,7 +425,7 @@ void main() {
       isNot(contains("_loadFromDisk(source: 'evening_threshold_join')")),
     );
     expect(source, contains('Could not stage the first day of this flow.'));
-    expect(source, contains('_openDayViewForStagedFlow(flowId)'));
+    expect(source, contains('_openDayViewForFlow(flowId)'));
   });
 
   test('universal staging boundary contains no Ma_at-named symbols', () {
@@ -458,7 +458,7 @@ void main() {
     );
     final completionHelpers = _sourceBetween(
       pageSource,
-      'void _openDayViewForStagedFlow',
+      'void _openDayViewForFlow',
       'Future<void> _completeMountedMaatJoinWithDayView',
     );
 
