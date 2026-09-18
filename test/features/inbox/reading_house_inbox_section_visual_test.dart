@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/app_theme.dart';
+import 'package:mobile/data/share_models.dart';
 import 'package:mobile/data/share_repo.dart';
+import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/features/calendar/the_reading_house/reading_house_room_repository.dart';
 import 'package:mobile/features/inbox/conversation_user.dart';
 import 'package:mobile/features/inbox/dm_conversation_models.dart';
@@ -24,7 +26,9 @@ const _captureKey = ValueKey<String>('reading-house-inbox-visual-capture');
 final _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 
 class _VisualRoomDataSource implements ReadingHouseRoomDataSource {
-  const _VisualRoomDataSource();
+  const _VisualRoomDataSource({this.summaries});
+
+  final List<ReadingHouseRoomSummary>? summaries;
 
   static const identity = ReadingHouseRoomIdentity(
     calendarId: 'odyssey-house-calendar',
@@ -102,7 +106,7 @@ class _VisualRoomDataSource implements ReadingHouseRoomDataSource {
 
   @override
   Future<List<ReadingHouseRoomSummary>> listSummaries() async =>
-      <ReadingHouseRoomSummary>[summary];
+      summaries ?? <ReadingHouseRoomSummary>[summary];
 
   @override
   Future<DateTime> markRead({
@@ -194,11 +198,13 @@ void main() {
     WidgetTester tester, {
     required Size size,
     double textScale = 1,
-    List<ReadingHouseInboxRoomFixture> rooms =
+    List<ReadingHouseInboxRoomFixture>? rooms =
         const <ReadingHouseInboxRoomFixture>[
           kReadingHouseInboxRoomVisualFixture,
         ],
     bool showPendingInvite = false,
+    ReadingHouseRoomDataSource roomDataSource = const _VisualRoomDataSource(),
+    Stream<CalendarInvalidated> flowLifecycleStream = const Stream.empty(),
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
@@ -222,8 +228,11 @@ void main() {
             child: InboxSheetRoutePage(
               childForTesting: InboxPage(
                 sheet: true,
-                inboxItemsStreamForTesting: Stream.value(const []),
-                flowLifecycleStreamForTesting: const Stream.empty(),
+                inboxItemsStreamForTesting:
+                    const Stream<List<InboxShareItem>>.empty()
+                        .asBroadcastStream(),
+                flowLifecycleStreamForTesting: flowLifecycleStream,
+                committedFlowItemsLoaderForTesting: () async => const [],
                 disableAuxiliarySubscriptionsForTesting: true,
                 readingHouseRoomsForTesting: rooms,
                 dmConversationsForTesting: <DmConversationSummary>[
@@ -249,8 +258,7 @@ void main() {
                 pendingReadingHouseInviteForTesting: showPendingInvite
                     ? kReadingHousePendingInviteFixture
                     : null,
-                readingHouseRoomDataSourceForTesting:
-                    const _VisualRoomDataSource(),
+                readingHouseRoomDataSourceForTesting: roomDataSource,
               ),
             ),
           ),
@@ -311,6 +319,52 @@ void main() {
     );
     expect(calendarId, 'celestine-house-calendar');
     expect(flowId, 82);
+  });
+
+  testWidgets('ended Houses have no Inbox room', (tester) async {
+    final lifecycle = StreamController<CalendarInvalidated>.broadcast(
+      sync: true,
+    );
+    addTearDown(lifecycle.close);
+    final endedSummary = ReadingHouseRoomSummary(
+      identity: const ReadingHouseRoomIdentity(
+        calendarId: 'beloved-house-calendar',
+        flowId: 93,
+      ),
+      title: 'Beloved',
+      members: const <ReadingHouseRoomMember>[],
+      memberCount: 2,
+      unreadCount: 0,
+      active: false,
+      locked: false,
+      ended: true,
+      latestMessage: 'This House has ended.',
+      latestMessageAt: DateTime.utc(2026, 9, 1),
+    );
+    await pumpPage(
+      tester,
+      size: const Size(390, 844),
+      rooms: null,
+      flowLifecycleStream: lifecycle.stream,
+      roomDataSource: _VisualRoomDataSource(
+        summaries: <ReadingHouseRoomSummary>[
+          _VisualRoomDataSource.summary,
+          endedSummary,
+        ],
+      ),
+    );
+    lifecycle.add(
+      const CalendarInvalidated(
+        reason: CalendarInvalidationReason.flowEndedCommitted,
+        flowId: 93,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ReadingHouseInboxRoomRow), findsOneWidget);
+    expect(find.text('The Reading House'), findsOneWidget);
+    expect(find.text('Beloved'), findsNothing);
+    expect(find.textContaining('ended'), findsNothing);
   });
 
   testWidgets('loading and error remain dedicated room-section states', (

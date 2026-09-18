@@ -132,8 +132,9 @@ class ReadingHouseRoomController extends ChangeNotifier {
   Future<void> send(String body) async {
     if (_disposed ||
         sending ||
-        summary?.locked == true ||
-        summary?.ended == true) {
+        summary == null ||
+        summary!.locked ||
+        summary!.ended) {
       return;
     }
     final trimmed = body.trim();

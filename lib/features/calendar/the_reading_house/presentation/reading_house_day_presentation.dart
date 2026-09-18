@@ -46,8 +46,7 @@ class ReadingHouseDayVisualFixture {
     this.memberCount = 2,
     this.newMessageCount = 0,
     this.completion = ReadingHouseCompletionVisualState.none,
-    this.hostAnnouncement =
-        'Bring one sentence that changed the way you entered the chapter.',
+    this.hostAnnouncement = '',
     this.privateReflection = '',
     this.roomSubtitle = 'Logistics and quick notes',
     this.roomGlyph = '◌',
@@ -158,7 +157,7 @@ class ReadingHouseDayPresentation extends StatelessWidget {
           ],
         ),
       ),
-      instrument: _HouseChatRoom(
+      instrument: ReadingHouseChatRoom(
         fixture: fixture,
         scrollController: chatScrollController,
         onFollowingLatestChanged: onFollowingLatestChanged,
@@ -191,8 +190,9 @@ class ReadingHouseDayPresentation extends StatelessWidget {
   }
 }
 
-class _HouseChatRoom extends StatelessWidget {
-  const _HouseChatRoom({
+class ReadingHouseChatRoom extends StatelessWidget {
+  const ReadingHouseChatRoom({
+    super.key,
     required this.fixture,
     this.scrollController,
     this.onFollowingLatestChanged,
@@ -200,6 +200,7 @@ class _HouseChatRoom extends StatelessWidget {
     this.onDeleteMessage,
     this.onSendMessage,
     this.onJumpToLatest,
+    this.messagesTopAligned = false,
   });
 
   final ReadingHouseDayVisualFixture fixture;
@@ -209,6 +210,7 @@ class _HouseChatRoom extends StatelessWidget {
   final ValueChanged<String>? onDeleteMessage;
   final ValueChanged<String>? onSendMessage;
   final VoidCallback? onJumpToLatest;
+  final bool messagesTopAligned;
 
   @override
   Widget build(BuildContext context) {
@@ -216,12 +218,39 @@ class _HouseChatRoom extends StatelessWidget {
       key: const ValueKey<String>('reading-house-fixed-chat-layer'),
       fit: StackFit.expand,
       children: <Widget>[
+        const Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[
+                  Color(0xFF0D1A15),
+                  Color(0xFF09120E),
+                  Color(0xFF070B09),
+                ],
+                stops: <double>[0, 0.58, 1],
+              ),
+            ),
+          ),
+        ),
+        const Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0.85, -1),
+                radius: 1.25,
+                colors: <Color>[Color(0x243FA98A), Color(0x003FA98A)],
+              ),
+            ),
+          ),
+        ),
         Positioned(
           left: 16,
           right: 16,
           top: 16,
           height: 54,
-          child: _HouseChatHeader(fixture: fixture, showRoomPeople: true),
+          child: _HouseChatHeader(fixture: fixture),
         ),
         Positioned(
           left: 16,
@@ -234,6 +263,7 @@ class _HouseChatRoom extends StatelessWidget {
             onFollowingLatestChanged: onFollowingLatestChanged,
             onLoadOlderMessages: onLoadOlderMessages,
             onDeleteMessage: onDeleteMessage,
+            messagesTopAligned: messagesTopAligned,
           ),
         ),
         Positioned(
@@ -254,128 +284,10 @@ class _HouseChatRoom extends StatelessWidget {
   }
 }
 
-class ReadingHouseChatPresentation extends StatelessWidget {
-  const ReadingHouseChatPresentation({
-    super.key,
-    required this.fixture,
-    this.onSendMessage,
-    this.onJumpToLatest,
-    this.chatScrollController,
-    this.onFollowingLatestChanged,
-    this.onLoadOlderMessages,
-    this.onDeleteMessage,
-    this.messagesTopAligned = false,
-    this.showRoomPeople = true,
-    this.showDeleteAffordance = true,
-  });
-
-  final ReadingHouseDayVisualFixture fixture;
-  final ValueChanged<String>? onSendMessage;
-  final VoidCallback? onJumpToLatest;
-  final ScrollController? chatScrollController;
-  final ValueChanged<bool>? onFollowingLatestChanged;
-  final VoidCallback? onLoadOlderMessages;
-  final ValueChanged<String>? onDeleteMessage;
-  final bool messagesTopAligned;
-  final bool showRoomPeople;
-  final bool showDeleteAffordance;
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: ReadingHouseDayTokens.velvet,
-      child: Column(
-        children: <Widget>[
-          Expanded(
-            child: ReadingHouseChatTranscript(
-              fixture: fixture,
-              scrollController: chatScrollController,
-              onFollowingLatestChanged: onFollowingLatestChanged,
-              onLoadOlderMessages: onLoadOlderMessages,
-              onDeleteMessage: onDeleteMessage,
-              messagesTopAligned: messagesTopAligned,
-              showRoomPeople: showRoomPeople,
-              showDeleteAffordance: showDeleteAffordance,
-            ),
-          ),
-          ReadingHouseChatComposer(
-            state: fixture.roomState,
-            newMessageCount: fixture.newMessageCount,
-            onSend: onSendMessage,
-            onJumpToLatest: onJumpToLatest,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class ReadingHouseChatTranscript extends StatelessWidget {
-  const ReadingHouseChatTranscript({
-    super.key,
-    required this.fixture,
-    this.scrollController,
-    this.onFollowingLatestChanged,
-    this.onLoadOlderMessages,
-    this.onDeleteMessage,
-    this.messagesTopAligned = false,
-    this.showRoomPeople = true,
-    this.showDeleteAffordance = true,
-  });
-
-  final ReadingHouseDayVisualFixture fixture;
-  final ScrollController? scrollController;
-  final ValueChanged<bool>? onFollowingLatestChanged;
-  final VoidCallback? onLoadOlderMessages;
-  final ValueChanged<String>? onDeleteMessage;
-  final bool messagesTopAligned;
-  final bool showRoomPeople;
-  final bool showDeleteAffordance;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('reading-house-fixed-chat-layer'),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      decoration: showRoomPeople
-          ? const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0.85, -0.9),
-                radius: 1.25,
-                colors: <Color>[
-                  Color(0xFF173128),
-                  ReadingHouseDayTokens.upper,
-                  ReadingHouseDayTokens.velvet,
-                ],
-              ),
-            )
-          : null,
-      child: Column(
-        children: <Widget>[
-          _HouseChatHeader(fixture: fixture, showRoomPeople: showRoomPeople),
-          const Divider(height: 1, color: Color(0x1C7FD9BC)),
-          Expanded(
-            child: _HouseChatBody(
-              fixture: fixture,
-              scrollController: scrollController,
-              onFollowingLatestChanged: onFollowingLatestChanged,
-              onLoadOlderMessages: onLoadOlderMessages,
-              onDeleteMessage: onDeleteMessage,
-              messagesTopAligned: messagesTopAligned,
-              showDeleteAffordance: showDeleteAffordance,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _HouseChatHeader extends StatelessWidget {
-  const _HouseChatHeader({required this.fixture, required this.showRoomPeople});
+  const _HouseChatHeader({required this.fixture});
 
   final ReadingHouseDayVisualFixture fixture;
-  final bool showRoomPeople;
 
   @override
   Widget build(BuildContext context) {
@@ -451,26 +363,21 @@ class _HouseChatHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              if (showRoomPeople) ...<Widget>[
-                for (
-                  var index = 0;
-                  index < fixture.memberInitials.length && index < 3;
-                  index++
-                )
-                  _RoomAvatar(
-                    fixture.memberInitials[index],
-                    overlap: index > 0,
-                  ),
-                const SizedBox(width: 7),
-                Text(
-                  '${fixture.memberCount} ${fixture.memberCount == 1 ? 'reader' : 'readers'}',
-                  style: const TextStyle(
-                    color: Color(0xFF779188),
-                    fontFamily: 'GentiumPlus',
-                    fontSize: 10,
-                  ),
+              for (
+                var index = 0;
+                index < fixture.memberInitials.length && index < 3;
+                index++
+              )
+                _RoomAvatar(fixture.memberInitials[index], overlap: index > 0),
+              const SizedBox(width: 7),
+              Text(
+                '${fixture.memberCount} ${fixture.memberCount == 1 ? 'reader' : 'readers'}',
+                style: const TextStyle(
+                  color: Color(0xFF779188),
+                  fontFamily: 'GentiumPlus',
+                  fontSize: 10,
                 ),
-              ],
+              ),
             ],
           ),
         ),
@@ -520,7 +427,6 @@ class _HouseChatBody extends StatelessWidget {
     this.onLoadOlderMessages,
     this.onDeleteMessage,
     this.messagesTopAligned = false,
-    this.showDeleteAffordance = true,
   });
 
   final ReadingHouseDayVisualFixture fixture;
@@ -529,7 +435,6 @@ class _HouseChatBody extends StatelessWidget {
   final VoidCallback? onLoadOlderMessages;
   final ValueChanged<String>? onDeleteMessage;
   final bool messagesTopAligned;
-  final bool showDeleteAffordance;
 
   Widget _messageList() => _MessageList(
     messages: fixture.messages,
@@ -538,7 +443,6 @@ class _HouseChatBody extends StatelessWidget {
     onLoadOlderMessages: onLoadOlderMessages,
     onDeleteMessage: onDeleteMessage,
     messagesTopAligned: messagesTopAligned,
-    showDeleteAffordance: showDeleteAffordance,
   );
 
   @override
@@ -599,7 +503,6 @@ class _MessageList extends StatelessWidget {
     this.onLoadOlderMessages,
     this.onDeleteMessage,
     this.messagesTopAligned = false,
-    this.showDeleteAffordance = true,
   });
 
   final List<ReadingHouseChatMessageFixture> messages;
@@ -608,16 +511,19 @@ class _MessageList extends StatelessWidget {
   final VoidCallback? onLoadOlderMessages;
   final ValueChanged<String>? onDeleteMessage;
   final bool messagesTopAligned;
-  final bool showDeleteAffordance;
 
   @override
   Widget build(BuildContext context) {
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         final metrics = notification.metrics;
-        onFollowingLatestChanged?.call(metrics.pixels <= 48);
-        if (metrics.maxScrollExtent > 0 &&
-            metrics.pixels >= metrics.maxScrollExtent - 48) {
+        onFollowingLatestChanged?.call(
+          messagesTopAligned ? metrics.extentAfter <= 48 : metrics.pixels <= 48,
+        );
+        final reachedOlderEdge = messagesTopAligned
+            ? metrics.pixels <= 48
+            : metrics.pixels >= metrics.maxScrollExtent - 48;
+        if (metrics.maxScrollExtent > 0 && reachedOlderEdge) {
           onLoadOlderMessages?.call();
         }
         return false;
@@ -637,7 +543,6 @@ class _MessageList extends StatelessWidget {
             onDelete: message.mine && message.id != null
                 ? () => onDeleteMessage?.call(message.id!)
                 : null,
-            showDeleteAffordance: showDeleteAffordance,
           );
         },
       ),
@@ -646,15 +551,10 @@ class _MessageList extends StatelessWidget {
 }
 
 class _ChatMessage extends StatelessWidget {
-  const _ChatMessage({
-    required this.message,
-    required this.showDeleteAffordance,
-    this.onDelete,
-  });
+  const _ChatMessage({required this.message, this.onDelete});
 
   final ReadingHouseChatMessageFixture message;
   final VoidCallback? onDelete;
-  final bool showDeleteAffordance;
 
   @override
   Widget build(BuildContext context) {
@@ -664,7 +564,7 @@ class _ChatMessage extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onLongPress: onDelete,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 2, 5),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -738,8 +638,7 @@ class _ChatMessage extends StatelessWidget {
                             fontSize: 9,
                           ),
                         ),
-                        if (showDeleteAffordance &&
-                            onDelete != null) ...<Widget>[
+                        if (onDelete != null) ...<Widget>[
                           const Spacer(),
                           GestureDetector(
                             key: ValueKey<String>(
@@ -767,7 +666,7 @@ class _ChatMessage extends StatelessWidget {
                         color: ReadingHouseDayTokens.copy,
                         fontFamily: 'GentiumPlus',
                         fontSize: 13.5,
-                        height: 1.25,
+                        height: 1.32,
                       ),
                     ),
                   ],
@@ -870,7 +769,16 @@ class ReadingHouseChatComposer extends StatefulWidget {
   final VoidCallback? onJumpToLatest;
   final bool compact;
 
-  bool get _canCompose => state == ReadingHouseRoomVisualState.active;
+  bool get _canDraft => switch (state) {
+    ReadingHouseRoomVisualState.active ||
+    ReadingHouseRoomVisualState.empty ||
+    ReadingHouseRoomVisualState.locked => true,
+    _ => false,
+  };
+
+  bool get _roomCanSend =>
+      state == ReadingHouseRoomVisualState.active ||
+      state == ReadingHouseRoomVisualState.empty;
 
   @override
   State<ReadingHouseChatComposer> createState() =>
@@ -881,14 +789,30 @@ class _ReadingHouseChatComposerState extends State<ReadingHouseChatComposer> {
   final TextEditingController _controller = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_draftChanged);
+  }
+
+  void _draftChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    _controller.removeListener(_draftChanged);
     _controller.dispose();
     super.dispose();
   }
 
+  bool get _canSend =>
+      widget._roomCanSend &&
+      widget.onSend != null &&
+      _controller.text.trim().isNotEmpty;
+
   void _submit([String? submitted]) {
     final body = (submitted ?? _controller.text).trim();
-    if (!widget._canCompose || body.isEmpty || widget.onSend == null) return;
+    if (!widget._roomCanSend || body.isEmpty || widget.onSend == null) return;
     widget.onSend!(body);
     _controller.clear();
   }
@@ -902,7 +826,12 @@ class _ReadingHouseChatComposerState extends State<ReadingHouseChatComposer> {
           ? const EdgeInsets.only(top: 7)
           : const EdgeInsets.fromLTRB(16, 7, 16, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF07100C),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[Color(0xEB070B09), Color(0xFF07100C)],
+          stops: <double>[0, 0.28],
+        ),
         border: Border(
           top: BorderSide(
             color: widget.compact
@@ -924,8 +853,8 @@ class _ReadingHouseChatComposerState extends State<ReadingHouseChatComposer> {
                       'reading-house-chat-message-field',
                     ),
                     controller: _controller,
-                    enabled: widget._canCompose,
-                    onSubmitted: _submit,
+                    enabled: widget._canDraft,
+                    onSubmitted: _canSend ? _submit : null,
                     style: const TextStyle(
                       color: Color(0xFFDCE5E0),
                       fontFamily: 'GentiumPlus',
@@ -935,8 +864,6 @@ class _ReadingHouseChatComposerState extends State<ReadingHouseChatComposer> {
                       hintText: switch (widget.state) {
                         ReadingHouseRoomVisualState.ended =>
                           'This House is read-only',
-                        ReadingHouseRoomVisualState.locked =>
-                          'Chat opens when readers join',
                         ReadingHouseRoomVisualState.solo =>
                           'Solo study has no House Chat',
                         _ => 'Message House Chat',
@@ -975,19 +902,23 @@ class _ReadingHouseChatComposerState extends State<ReadingHouseChatComposer> {
                 ),
               ),
               const SizedBox(width: 7),
-              IconButton(
-                key: const ValueKey<String>('reading-house-chat-send'),
-                onPressed: widget._canCompose ? _submit : null,
-                style: IconButton.styleFrom(
-                  fixedSize: const Size(36, 36),
-                  backgroundColor: const Color(0xFF173C30),
-                  disabledBackgroundColor: const Color(0xFF0B1712),
-                  side: BorderSide(
-                    color: ReadingHouseDayTokens.mint.withValues(alpha: 0.31),
+              Opacity(
+                opacity: _canSend ? 1 : 0.32,
+                child: IconButton(
+                  key: const ValueKey<String>('reading-house-chat-send'),
+                  onPressed: _canSend ? _submit : null,
+                  style: IconButton.styleFrom(
+                    fixedSize: const Size(36, 36),
+                    backgroundColor: const Color(0xFF173C30),
+                    disabledBackgroundColor: const Color(0xFF173C30),
+                    foregroundColor: const Color(0xFFD5F0E6),
+                    disabledForegroundColor: const Color(0xFFD5F0E6),
+                    side: BorderSide(
+                      color: ReadingHouseDayTokens.mint.withValues(alpha: 0.31),
+                    ),
                   ),
+                  icon: const Icon(Icons.arrow_upward, size: 16),
                 ),
-                color: const Color(0xFFD5F0E6),
-                icon: const Icon(Icons.arrow_upward, size: 16),
               ),
             ],
           ),
@@ -1123,6 +1054,8 @@ class _PracticeOutputBlockState extends State<_PracticeOutputBlock> {
 
   @override
   Widget build(BuildContext context) {
+    final previousText = widget.initialText?.trim();
+    final hasPreviousText = previousText?.isNotEmpty == true;
     return Container(
       padding: EdgeInsets.fromLTRB(0, widget.first ? 0 : 10, 0, 11),
       decoration: const BoxDecoration(
@@ -1132,7 +1065,7 @@ class _PracticeOutputBlockState extends State<_PracticeOutputBlock> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(widget.title, style: _practiceTitleStyle),
-          if (widget.initialText != null) ...<Widget>[
+          if (hasPreviousText) ...<Widget>[
             const SizedBox(height: 9),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
@@ -1158,7 +1091,7 @@ class _PracticeOutputBlockState extends State<_PracticeOutputBlock> {
                     const SizedBox(height: 5),
                   ],
                   Text(
-                    widget.initialText!,
+                    previousText!,
                     style: const TextStyle(
                       color: Color(0xFFBBC6C0),
                       fontFamily: 'GentiumPlus',
@@ -1170,7 +1103,7 @@ class _PracticeOutputBlockState extends State<_PracticeOutputBlock> {
               ),
             ),
           ],
-          if (widget.initialText != null) const SizedBox(height: 9),
+          if (hasPreviousText) const SizedBox(height: 9),
           TextField(
             controller: _controller,
             minLines: 2,
@@ -1179,6 +1112,7 @@ class _PracticeOutputBlockState extends State<_PracticeOutputBlock> {
               color: ReadingHouseDayTokens.bone,
               fontFamily: 'GentiumPlus',
               fontSize: 14,
+              height: 1.35,
             ),
             decoration: _practiceInputDecoration(widget.hintText),
           ),
@@ -1265,6 +1199,7 @@ class _PrivateReflectionBlockState extends State<_PrivateReflectionBlock> {
               color: ReadingHouseDayTokens.bone,
               fontFamily: 'GentiumPlus',
               fontSize: 14,
+              height: 1.35,
             ),
             decoration: _practiceInputDecoration(
               'What did this section ask you to hold?',
@@ -1309,6 +1244,7 @@ const TextStyle _practiceTitleStyle = TextStyle(
   fontFamily: MaatFlowListTokens.fontFamily,
   fontSize: 21,
   fontWeight: FontWeight.w500,
+  height: 1,
 );
 
 InputDecoration _practiceInputDecoration(String hintText) {
@@ -1318,6 +1254,7 @@ InputDecoration _practiceInputDecoration(String hintText) {
     filled: true,
     fillColor: const Color(0xFF070A08),
     contentPadding: const EdgeInsets.all(10),
+    constraints: const BoxConstraints(minHeight: 64),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
       borderSide: const BorderSide(color: Color(0x297FD9BC)),

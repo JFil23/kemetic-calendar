@@ -51,8 +51,8 @@ fails closed.
 | Djed detail | hero; supports scroll; support 2 selected; sitting 2 top; sitting 2 bottom | none |
 | Djed Day View | event block; initial sheet; raised practice foreground; result; smaller retry; final raising | duplicate presentation-frame capture of the raised state; mixed support-condition palette; released-history state with four filled beams, one pillar, and no ghost |
 | Reading House detail | hero; setup; calendar; sittings | none |
-| Reading House Inbox | accepted House; pending invitation; House Chat | multiple-House isolation fixture |
-| Reading House Day View | event block; initial sheet; docked House card; sheet bottom; incoming message; Observed completion | locked room; ended room |
+| Reading House Inbox | accepted House; pending invitation; House Chat | multiple-active-House isolation fixture; ended Houses absent |
+| Reading House Day View | event block; initial sheet; docked House card; sheet bottom; incoming message; Observed completion | one-reader draft with inactive Send; transient ended room |
 | Offering Table Day View | event block; initial sheet; docked ritual; ritual bottom; context expanded | none |
 | Offering Table detail | detail; ritual sheet; context expanded; completion | none |
 | Flow discovery | initial Follow the Sky; Offering Table card; Reading House card | Djed card, because the approved product has four flows while the supplied HTML has only three |
@@ -114,6 +114,12 @@ Material default.
 - Primary viewport: 390 x 844 logical pixels at device-pixel ratio 1.
 - The Reading House presentation-only sheet uses its authored 390 x 720
   content frame inside the production shared sheet host.
+- Reading House Day View and the Inbox room route share one House Chat visual
+  composition while retaining their distinct outer housings. In a current
+  one-reader House the message field accepts a draft and Send remains inactive;
+  an ended House is absent from that account's Inbox while its backend records
+  remain available for administration. The ended Day View golden covers only
+  an already-open sheet reacting safely when its owning room disappears.
 - Production fonts are loaded explicitly before each golden comparison.
 - Goldens exercise the widgets opened by the product; no parallel demo screen
   may satisfy the contract.

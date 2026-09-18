@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 
-enum ReadingHouseInboxRoomStatus { active, locked, empty, ended }
+enum ReadingHouseInboxRoomStatus { active, locked, empty }
 
 enum ReadingHouseInboxSectionStatus { loaded, loading, error }
 
@@ -73,17 +73,6 @@ kReadingHouseInboxMultipleRoomVisualFixtures = <ReadingHouseInboxRoomFixture>[
     memberCount: 1,
     unreadCount: 0,
     status: ReadingHouseInboxRoomStatus.locked,
-  ),
-  ReadingHouseInboxRoomFixture(
-    calendarId: 'beloved-house-calendar',
-    flowId: 93,
-    houseTitle: 'The Reading House',
-    bookTitle: 'Beloved',
-    latestMessage: 'This House has ended. The conversation is read-only.',
-    memberInitials: <String>['Y', 'N'],
-    memberCount: 2,
-    unreadCount: 0,
-    status: ReadingHouseInboxRoomStatus.ended,
   ),
 ];
 
@@ -168,8 +157,6 @@ class ReadingHouseInboxRoomRow extends StatelessWidget {
     ReadingHouseInboxRoomStatus.locked =>
       'House Chat opens when another reader joins.',
     ReadingHouseInboxRoomStatus.empty => 'No chat messages yet.',
-    ReadingHouseInboxRoomStatus.ended =>
-      'This House has ended · conversation is read-only.',
     ReadingHouseInboxRoomStatus.active => room.latestMessage,
   };
 
@@ -249,33 +236,18 @@ class ReadingHouseInboxRoomRow extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            room.houseTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: ReadingHouseInboxTokens.bone,
-                              fontFamily: MaatFlowListTokens.fontFamily,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              height: 1.08,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ),
-                        if (room.status == ReadingHouseInboxRoomStatus.ended)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 6),
-                            child: Icon(
-                              Icons.lock_outline,
-                              size: 13,
-                              color: ReadingHouseInboxTokens.low,
-                            ),
-                          ),
-                      ],
+                    Text(
+                      room.houseTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: ReadingHouseInboxTokens.bone,
+                        fontFamily: MaatFlowListTokens.fontFamily,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        height: 1.08,
+                        letterSpacing: 0.4,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(

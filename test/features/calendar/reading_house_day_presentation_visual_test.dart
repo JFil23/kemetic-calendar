@@ -145,32 +145,96 @@ void main() {
     expect(find.text('Shared note'), findsOneWidget);
     expect(find.text('Private reflection'), findsOneWidget);
     expect(find.text('Post to Feed'), findsOneWidget);
+    expect(find.text('HOST · just now'), findsNothing);
     expect(find.textContaining('House Margin'), findsNothing);
     expect(find.textContaining('shared margin'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('locked and ended room states remove the composer authority', (
+  testWidgets('one-reader room accepts a draft while keeping Send inactive', (
     tester,
   ) async {
-    for (final state in const <ReadingHouseRoomVisualState>[
-      ReadingHouseRoomVisualState.locked,
-      ReadingHouseRoomVisualState.ended,
-    ]) {
-      await pumpPresentation(
-        tester,
-        size: const Size(390, 720),
-        fixture: ReadingHouseDayVisualFixture(
-          roomState: state,
-          messages: kReadingHouseDayVisualFixture.messages,
+    await pumpPresentation(
+      tester,
+      size: const Size(390, 720),
+      fixture: const ReadingHouseDayVisualFixture(
+        roomState: ReadingHouseRoomVisualState.locked,
+        messages: <ReadingHouseChatMessageFixture>[],
+        memberInitials: <String>['Y'],
+        memberCount: 1,
+      ),
+    );
+    final fieldFinder = find.byKey(
+      const ValueKey<String>('reading-house-chat-message-field'),
+    );
+    final sendFinder = find.byKey(
+      const ValueKey<String>('reading-house-chat-send'),
+    );
+
+    expect(tester.widget<TextField>(fieldFinder).enabled, isTrue);
+    await tester.enterText(fieldFinder, 'Draft while I wait');
+    expect(find.text('Draft while I wait'), findsOneWidget);
+    expect(tester.widget<IconButton>(sendFinder).onPressed, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('empty two-reader room can send its first message', (
+    tester,
+  ) async {
+    final sent = <String>[];
+    const size = Size(390, 720);
+    await tester.binding.setSurfaceSize(size);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: ReadingHouseDayPresentation(
+            fixture: const ReadingHouseDayVisualFixture(
+              roomState: ReadingHouseRoomVisualState.empty,
+              messages: <ReadingHouseChatMessageFixture>[],
+              memberInitials: <String>['Y', 'AR'],
+              memberCount: 2,
+            ),
+            onSendMessage: sent.add,
+          ),
         ),
-      );
-      final field = tester.widget<TextField>(
-        find.byKey(const ValueKey<String>('reading-house-chat-message-field')),
-      );
-      expect(field.enabled, isFalse);
-      expect(tester.takeException(), isNull);
-    }
+      ),
+    );
+    await tester.pumpAndSettle();
+    final fieldFinder = find.byKey(
+      const ValueKey<String>('reading-house-chat-message-field'),
+    );
+    final sendFinder = find.byKey(
+      const ValueKey<String>('reading-house-chat-send'),
+    );
+    expect(tester.widget<IconButton>(sendFinder).onPressed, isNull);
+
+    await tester.enterText(fieldFinder, 'First message');
+    await tester.pump();
+    expect(tester.widget<IconButton>(sendFinder).onPressed, isNotNull);
+    await tester.tap(sendFinder);
+    await tester.pump();
+
+    expect(sent, <String>['First message']);
+    expect(find.text('First message'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ended room remains non-editable', (tester) async {
+    await pumpPresentation(
+      tester,
+      size: const Size(390, 720),
+      fixture: ReadingHouseDayVisualFixture(
+        roomState: ReadingHouseRoomVisualState.ended,
+        messages: kReadingHouseDayVisualFixture.messages,
+      ),
+    );
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('reading-house-chat-message-field')),
+    );
+    expect(field.enabled, isFalse);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('shared host remains keyboard-aware', (tester) async {
@@ -341,6 +405,8 @@ void main() {
       const ReadingHouseDayVisualFixture(
         roomState: ReadingHouseRoomVisualState.locked,
         messages: <ReadingHouseChatMessageFixture>[],
+        memberInitials: <String>['Y'],
+        memberCount: 1,
       ),
     ),
     (

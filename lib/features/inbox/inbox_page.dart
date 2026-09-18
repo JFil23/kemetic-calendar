@@ -772,6 +772,7 @@ class _InboxPageState extends State<InboxPage> {
     if (visualFixtures != null) return visualFixtures;
     final currentUserId = _readingHouseRoomRepo.currentUserId;
     return _latestReadingHouseRooms
+        .where((summary) => summary.active && !summary.ended)
         .map((summary) {
           final latestBody = summary.latestMessage?.trim();
           final latestAuthor = summary.latestAuthorId == currentUserId
@@ -800,9 +801,7 @@ class _InboxPageState extends State<InboxPage> {
                 .toList(growable: false),
             memberCount: summary.memberCount,
             unreadCount: summary.unreadCount,
-            status: summary.ended
-                ? ReadingHouseInboxRoomStatus.ended
-                : summary.locked
+            status: summary.locked
                 ? ReadingHouseInboxRoomStatus.locked
                 : latestBody == null || latestBody.isEmpty
                 ? ReadingHouseInboxRoomStatus.empty
@@ -819,7 +818,10 @@ class _InboxPageState extends State<InboxPage> {
       });
     }
     try {
-      final rooms = await _readingHouseRoomRepo.listSummaries();
+      final rooms =
+          await (widget.readingHouseRoomDataSourceForTesting ??
+                  _readingHouseRoomRepo)
+              .listSummaries();
       if (!mounted) return;
       setState(() {
         _latestReadingHouseRooms = rooms;

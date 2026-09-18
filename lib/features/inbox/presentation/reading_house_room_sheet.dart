@@ -92,7 +92,7 @@ class _ReadingHouseRoomSheetState extends State<ReadingHouseRoomSheet> {
   Future<void> _moveToLatest() async {
     if (_scrollController.hasClients) {
       await _scrollController.animateTo(
-        0,
+        _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
       );
@@ -102,17 +102,11 @@ class _ReadingHouseRoomSheetState extends State<ReadingHouseRoomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final summary = _controller.summary;
-    final memberCount = summary?.memberCount ?? 0;
     final fixture = readingHouseRoomVisualFixture(
       context: context,
       controller: _controller,
       currentUserId: widget.dataSource.currentUserId,
       newMessageCount: _controller.newMessageCount,
-      roomGlyph: '𓉐',
-      roomSubtitle: summary == null
-          ? 'The Reading House'
-          : 'The Reading House · ${summary.title} · $memberCount ${memberCount == 1 ? 'reader' : 'readers'}',
     );
     final mediaHeight = MediaQuery.sizeOf(context).height * 0.78;
     final sheetHeight = mediaHeight < 720 ? mediaHeight : 720.0;
@@ -170,17 +164,15 @@ class _ReadingHouseRoomSheetState extends State<ReadingHouseRoomSheet> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: ReadingHouseChatPresentation(
+              child: ReadingHouseChatRoom(
                 fixture: fixture,
-                chatScrollController: _scrollController,
+                scrollController: _scrollController,
                 onFollowingLatestChanged: _controller.setFollowingLatest,
                 onLoadOlderMessages: () => unawaited(_controller.loadOlder()),
                 onSendMessage: _send,
                 onDeleteMessage: _delete,
                 onJumpToLatest: () => unawaited(_moveToLatest()),
                 messagesTopAligned: true,
-                showRoomPeople: false,
-                showDeleteAffordance: false,
               ),
             ),
           ],

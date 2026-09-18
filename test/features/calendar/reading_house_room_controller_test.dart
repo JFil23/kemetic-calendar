@@ -88,7 +88,7 @@ void main() {
           home: Scaffold(
             body: AnimatedBuilder(
               animation: controller,
-              builder: (context, _) => ReadingHouseChatPresentation(
+              builder: (context, _) => ReadingHouseChatRoom(
                 fixture: readingHouseRoomVisualFixture(
                   context: context,
                   controller: controller,
@@ -150,6 +150,28 @@ void main() {
       await controller.start();
 
       await controller.send('This must not be written.');
+
+      expect(source.sentBodies, isEmpty);
+    },
+  );
+
+  test(
+    'a room removed by flow end rejects sends before repository writes',
+    () async {
+      final source = _FakeRoomDataSource(
+        <ReadingHouseRoomIdentity, List<ReadingHouseRoomMessage>>{
+          roomA: <ReadingHouseRoomMessage>[],
+        },
+        summaries: <ReadingHouseRoomSummary>[],
+      );
+      final controller = ReadingHouseRoomController(
+        dataSource: source,
+        identity: roomA,
+      );
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      await controller.send('This room no longer exists.');
 
       expect(source.sentBodies, isEmpty);
     },
