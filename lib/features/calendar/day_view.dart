@@ -5400,6 +5400,7 @@ class DayViewPage extends StatefulWidget {
   final DayViewRestorationCallback? onRestorationStateChanged;
   final bool Function()? shouldPreserveEventDetailRestorationOnClose;
   final KarRepository? karRepository;
+  final ReadingHouseRoomDataSource? readingHouseRoomDataSource;
   final SkyCatalog? followSkyCatalog;
   final SkyInstrumentDataProvider? followSkyInstrumentProvider;
   final DateTime Function()? followSkyNow;
@@ -5467,6 +5468,7 @@ class DayViewPage extends StatefulWidget {
     this.onRestorationStateChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
     this.karRepository,
+    this.readingHouseRoomDataSource,
     this.followSkyCatalog,
     this.followSkyInstrumentProvider,
     this.followSkyNow,
@@ -6450,6 +6452,8 @@ class _DayViewPageState extends State<DayViewPage> {
                               onboardingClosingBannerBuilder:
                                   widget.onboardingClosingBannerBuilder,
                               karRepository: widget.karRepository,
+                              readingHouseRoomDataSource:
+                                  widget.readingHouseRoomDataSource,
                               followSkyCatalog: widget.followSkyCatalog,
                               followSkyInstrumentProvider:
                                   widget.followSkyInstrumentProvider,
@@ -6593,6 +6597,7 @@ class DayViewGrid extends StatefulWidget {
   resolveAdjacentEvent;
   final Future<void> Function(int ky, int km, int kd)? onNavigateToDay;
   final KarRepository? karRepository;
+  final ReadingHouseRoomDataSource? readingHouseRoomDataSource;
   final SkyCatalog? followSkyCatalog;
   final SkyInstrumentDataProvider? followSkyInstrumentProvider;
   final DateTime Function()? followSkyNow;
@@ -6650,6 +6655,7 @@ class DayViewGrid extends StatefulWidget {
     this.resolveAdjacentEvent,
     this.onNavigateToDay,
     this.karRepository,
+    this.readingHouseRoomDataSource,
     this.followSkyCatalog,
     this.followSkyInstrumentProvider,
     this.followSkyNow,
@@ -6686,6 +6692,8 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   ReadingHouseRoomDataSource? get _readingHouseRoomDataSource {
+    final supplied = widget.readingHouseRoomDataSource;
+    if (supplied != null) return supplied;
     if (_resolvedDefaultReadingHouseRoomDataSource) {
       return _defaultReadingHouseRoomDataSource;
     }

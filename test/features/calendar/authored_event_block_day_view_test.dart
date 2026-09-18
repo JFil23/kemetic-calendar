@@ -14,6 +14,7 @@ import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_
 import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_kar/the_kar.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_event_block_visual.dart';
+import 'package:mobile/features/calendar/the_reading_house/reading_house_room_repository.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
@@ -60,6 +61,80 @@ class _EmptySupabaseClient extends http.BaseClient {
       },
     );
   }
+}
+
+class _OneReaderHouseDataSource implements ReadingHouseRoomDataSource {
+  const _OneReaderHouseDataSource({required this.flowId});
+
+  static const _userId = 'reader-you';
+  final int flowId;
+
+  @override
+  String get currentUserId => _userId;
+
+  @override
+  Future<List<ReadingHouseRoomSummary>> listSummaries() async =>
+      <ReadingHouseRoomSummary>[
+        ReadingHouseRoomSummary(
+          identity: ReadingHouseRoomIdentity(
+            calendarId: 'authored-calendar-$flowId',
+            flowId: flowId,
+          ),
+          title: 'catcher in the rye',
+          members: <ReadingHouseRoomMember>[
+            ReadingHouseRoomMember(
+              userId: _userId,
+              role: 'owner',
+              displayName: 'You',
+            ),
+          ],
+          memberCount: 1,
+          unreadCount: 0,
+          active: true,
+          locked: true,
+          ended: false,
+        ),
+      ];
+
+  @override
+  Future<List<ReadingHouseRoomMessage>> listMessages({
+    required ReadingHouseRoomIdentity identity,
+    DateTime? before,
+    int limit = 50,
+  }) async => const <ReadingHouseRoomMessage>[];
+
+  @override
+  Future<void> sendMessage({
+    required ReadingHouseRoomIdentity identity,
+    required String body,
+  }) async {}
+
+  @override
+  Future<void> updateMessage({
+    required ReadingHouseRoomIdentity identity,
+    required String messageId,
+    required String body,
+  }) async {}
+
+  @override
+  Future<void> deleteMessage({
+    required ReadingHouseRoomIdentity identity,
+    required String messageId,
+  }) async {}
+
+  @override
+  Future<DateTime> markRead({
+    required ReadingHouseRoomIdentity identity,
+    required DateTime through,
+  }) async => through;
+
+  @override
+  Stream<void> watchRoom(ReadingHouseRoomIdentity identity) =>
+      const Stream<void>.empty();
+
+  @override
+  Stream<List<ReadingHouseRoomSummary>> watchSummaries() =>
+      const Stream<List<ReadingHouseRoomSummary>>.empty();
 }
 
 void main() {
@@ -214,6 +289,7 @@ void main() {
       hostKey: 'reading-house-resizable-sheet',
       completionKey: 'reading-house-completion-picker',
     );
+    expect(find.text('1 reader'), findsOneWidget);
     expect(find.text('catcher in the rye'), findsOneWidget);
     expect(find.text('Reading House · catcher in the rye'), findsNothing);
     final hostFinder = find.byKey(
@@ -1070,6 +1146,9 @@ Future<void> _pumpDayView(
             activeLedgerFlowIds: <int>{flowId},
             initialFirstVisibleMinute: firstVisibleMinute,
             karRepository: karRepository,
+            readingHouseRoomDataSource: flowKey == kReadingHouseFlowKey
+                ? _OneReaderHouseDataSource(flowId: flowId)
+                : null,
             onRecordCompletion: onRecordCompletion,
           ),
         ),
