@@ -49,8 +49,8 @@
         "offering-day-sheet-bottom",
         "offering-day-sheet-context"
       ],
-      "difference": "Follow the Sky is the mechanical housing authority for the four canonical Ma'at Day View sheets. They open at 0.58 with one outer handle, one foreground scroll owner, shared menu/completion/footer placement, and fixed natural-size artwork that is revealed or covered rather than resized. Older per-flow custom extents, inner handles, and nested-layer geometry shown by the HTML are superseded.",
-      "reason": "The user's September 17 instruction explicitly standardizes only the canonical Day View housing while preserving each flow's authored artwork, copy, fields, and interactive states. Flow-detail sheets, user-created flows, and K\ua723r are outside this contract."
+      "difference": "Follow the Sky is the mechanical housing authority for all five canonical Ma'at Day View sheets. Follow the Sky, Reading House, and Djed open at 0.58; Offering Table and K\ua723r open at 0.71. All use one outer handle, one foreground scroll owner, shared menu/completion/footer placement, and fixed or authored variable-height artwork that is revealed or covered rather than resized. Older per-flow inner handles and nested-layer geometry shown by the HTML are superseded.",
+      "reason": "The user's September 18 instruction explicitly locks the universal five-flow Day View housing while preserving each flow's authored artwork, copy, fields, and interactive states. Separate Flow-tab detail sheets and user-created flows are outside this contract."
     },
     {
       "states": [
@@ -844,11 +844,55 @@
     },
     {
       "golden": "maat-flow-discovery-djed-390x844.png",
-      "reason": "The approved four-flow product adds Djed, but the supplied Discovery HTML contains only the other three cards."
+      "reason": "The approved five-flow product includes Djed, but the supplied Discovery HTML contains only the original three cards."
     },
     {
       "golden": "djed-day-released-filled-390x720.png",
       "reason": "The latest explicit user instruction supersedes the older HTML: release remains stored history but every support stays a filled beam, and every sitting renders exactly one pillar with no ghost."
+    },
+    {
+      "golden": "djed-day-sheet-in-kemet-expanded-production-390x844.png",
+      "reason": "The approved inline In Kemet disclosure and removal of the bottom Back action supersede the older Djed HTML state."
+    },
+    {
+      "golden": "djed-detail-sitting-2-top-390x844.png",
+      "reason": "Approved Djed Flow-tab detail adapter at the top of sitting 2; this is separate from Day View housing."
+    },
+    {
+      "golden": "djed-detail-sitting-2-bottom-390x844.png",
+      "reason": "Approved Djed Flow-tab detail adapter scrolled to its lower controls; this is separate from Day View housing."
+    },
+    {
+      "golden": "maat-day-housing-follow-sky-lowered-390x844.png",
+      "reason": "Follow the Sky is the approved mechanical Day View housing reference in its lowered state."
+    },
+    {
+      "golden": "maat-day-housing-follow-sky-raised-390x844.png",
+      "reason": "Follow the Sky is the approved mechanical Day View housing reference with its foreground raised."
+    },
+    {
+      "golden": "maat-day-housing-kar-lowered-390x844.png",
+      "reason": "The approved five-flow contract places Kꜣr in the universal Day View housing at its .71 lowered extent."
+    },
+    {
+      "golden": "maat-day-housing-kar-raised-390x844.png",
+      "reason": "The approved five-flow contract keeps Kꜣr in the universal Day View housing with its foreground raised."
+    },
+    {
+      "golden": "maat-day-housing-reading-house-lowered-390x844.png",
+      "reason": "Reading House uses the approved universal Day View housing while keeping House Chat in the fixed graphic layer."
+    },
+    {
+      "golden": "maat-day-housing-reading-house-raised-390x844.png",
+      "reason": "Reading House uses the approved universal Day View housing with its foreground raised independently of House Chat."
+    },
+    {
+      "golden": "offering-table-day-v8-instruments-30-780x2100.png",
+      "reason": "Approved contact sheet covering the distinct initial artwork for every Offering Table day."
+    },
+    {
+      "golden": "offering-table-day-v8-instruments-30-complete-780x2100.png",
+      "reason": "Approved contact sheet covering the completed artwork state for every Offering Table day."
     }
   ]
 }

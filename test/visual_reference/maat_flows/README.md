@@ -12,14 +12,17 @@ CSS, embedded artwork, SVG geometry, typography, copy, and observable
 interaction states govern the visual result. Their JavaScript is not copied
 into the app.
 
-This package contains **43** visual states, each with exact macOS, Linux ARM64,
-and Linux x86_64 goldens. **36** have an independent HTML-to-Flutter evidence
-set in `evidence/`; the other **7** are explicitly supplemental product/safety
-contracts or user-authored overrides that the supplied HTML does not govern. A
-prior report of 18 goldens was a stale partial count.
+This package contains **52** registered visual states. **34** have an
+independent HTML-to-Flutter evidence set in `evidence/`; the other **18** are
+explicitly supplemental product/safety contracts or user-authored overrides
+that the supplied HTML does not govern. The contract is intentionally
+bidirectional: no tracked golden may exist outside the manifest, and every
+registered golden must exist for every required rendering platform.
 
-The macOS captures in `goldens/` remain the reviewed visual acceptance
-authority. The captures in `goldens/linux/` are exact ARM64 Linux
+The macOS captures in `goldens/` remain reviewed visual acceptance evidence.
+The independent HTML files frozen in `authorities/`, together with later
+explicit user overrides recorded here, are the visual authority. The captures
+in `goldens/linux/` are exact ARM64 Linux
 expectations; the captures in `goldens/linux-x64/` are exact x86_64 Linux
 expectations for the release gate. Both were generated with Flutter 3.35.3
 (framework revision `a402d9a437`, engine revision `ddf47dd3ff`, engine hash
@@ -43,11 +46,18 @@ fails closed.
 | Offering Table Day View | `offering-table-day-view-bottom-detail-sheet-layered-v8.html` | `20e3619a6905c2e1d124da7a14def6f911107c79a89bf8da055ab361815a7bdb` |
 | Offering Table detail and ritual | `offering-table-bottom-sheet-ritual-first-mockup (7).html` | `6dd08f89eee3128a37df26cf2ec76d3b2789a57e13f12e422556e0d8d42975af` |
 | Flow discovery | `maat-flow-discovery-copy-v3.html` | `1d0559d15ff0d60b842739d22c125330590d19ce6aa09d253ba48f89f6e51ade` |
+| Kꜣr Day View | `the-kar-day-view-behaviors-v10-lifecycle-clean.html` | `e694f1003b89f1a822454bb3d156e0f8a179ec6fab4fb02a16059015941c7604` |
+
+The Day View HTML authorities for Djed, Offering Table, Reading House, and Kꜣr
+are stored byte-for-byte in `authorities/`. Follow the Sky predates those HTML
+references; its reviewed lowered and raised production captures are the
+mechanical housing authority recorded in `day_view_contract.v1.json`.
 
 ## State inventory
 
 | Authority | Direct HTML pairs | Supplemental Flutter contracts |
 | --- | --- | --- |
+| Follow the Sky Day View | none | approved lowered and raised mechanical housing reference |
 | Djed detail | hero; supports scroll; support 2 selected; sitting 2 top; sitting 2 bottom | none |
 | Djed Day View | event block; initial sheet; raised practice foreground; result; smaller retry; final raising | duplicate presentation-frame capture of the raised state; mixed support-condition palette; released-history state with four filled beams, one pillar, and no ghost |
 | Reading House detail | hero; setup; calendar; sittings | none |
@@ -55,7 +65,8 @@ fails closed.
 | Reading House Day View | event block; initial sheet; docked House card; sheet bottom; incoming message; Observed completion | one-reader draft with inactive Send; transient ended room |
 | Offering Table Day View | event block; initial sheet; docked ritual; ritual bottom; context expanded | none |
 | Offering Table detail | detail; ritual sheet; context expanded; completion | none |
-| Flow discovery | initial Follow the Sky; Offering Table card; Reading House card | Djed card, because the approved product has four flows while the supplied HTML has only three |
+| Kꜣr Day View | none | approved lowered and raised five-flow housing states |
+| Flow discovery | initial Follow the Sky; Offering Table card; Reading House card | Djed card, because the approved five-flow product extends the supplied three-card HTML |
 
 Every direct pair preserves its independently rendered reference and app
 capture, plus normalized inputs, a 50/50 overlay, and a contrast-amplified
@@ -63,7 +74,7 @@ absolute difference. Read [the evidence index](evidence/README.md) for the
 individual contact sheets. Phone status icons are treated as device chrome;
 no app surface is hidden by normalization.
 
-The three Day View captures use the real production `DayViewPage`, not an
+The Day View captures use the real production `DayViewPage`, not an
 isolated grid. The evidence index records the remaining visible context
 differences explicitly: simplified mockup-only shared chrome, Djed's ordinary
 calendar fixture cards, Offering Table's superseded embedded event-card copy
@@ -103,6 +114,14 @@ presentations reuse the same sitting state/actions and the approved Djed stage
 painter. The Flow detail calendar remains `MaatFlowThirtyDayCalendar`, matching
 Follow the Sky’s shared calendar geometry while supplying Djed dates, accents,
 and real event dots; the HTML calendar implementation is not copied.
+
+All five built-in Ma’at flows use the universal Day View housing. Follow the
+Sky, Reading House, and Djed open at `.58`; Offering Table and Kꜣr open at
+`.71`. The shared host owns resizing, its single outer handle, the foreground
+scroll, completion placement, menu placement, and keyboard/footer behavior.
+Each flow continues to own its artwork, copy, fields, and state transitions.
+Separate Flow-tab detail sheets and user-created flows are not part of this
+housing contract.
 The top and bottom sitting-sheet goldens exercise the owned/actionable path, so
 both plan actions are visibly enabled. Catalog and invited previews retain the
 same layout with mutations disabled; their disabled action labels use the

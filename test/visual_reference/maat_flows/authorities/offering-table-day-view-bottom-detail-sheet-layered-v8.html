@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Offering Table — Day View bottom detail sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Gentium+Plus:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#050403;--sheet:#0b0805;--sheet2:#100b06;--gold:#C99A3D;--gold-dim:#8A7030;
+  --glow:#F0C96A;--ivory:#D7CDBA;--bone:#E8DED0;--silver:#A59D91;--muted:#756C60;
+  --sep:#302313;--water:#83BEB9;--intent:#E8B27C;--display:"Cormorant Garamond",Georgia,serif;
+  --ui:"Gentium Plus",Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#000;color:var(--ivory)}
+body{
+  font-family:var(--ui);display:flex;align-items:flex-start;justify-content:center;gap:24px;
+  padding:22px 14px;background:radial-gradient(110% 90% at 50% 0,#171008,#000 72%);
+}
+.eval{
+  width:170px;padding-top:18px;color:#817768;font-size:12px;line-height:1.35;
+}
+.eval strong{display:block;color:#c59a43;font-size:10px;letter-spacing:1.5px;margin-bottom:8px}
+.eval select{
+  width:100%;background:#0a0704;border:1px solid #4a3517;color:#d8c9ad;border-radius:8px;padding:8px;
+  font:13px var(--ui);
+}
+.eval p{margin:10px 0 0}
+.phone{
+  width:390px;height:844px;position:relative;overflow:hidden;border-radius:40px;background:#030302;
+  box-shadow:0 38px 90px rgba(0,0,0,.84),0 0 0 1px #181108;
+}
+.status{
+  height:47px;position:absolute;left:0;right:0;top:0;z-index:8;padding:13px 24px 0;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5eee4;
+}
+.record-pill{background:#ef3d43;border-radius:999px;padding:4px 15px;line-height:1}
+.status-icons{font-size:12px;letter-spacing:2px}
+.dayview{position:absolute;inset:0;background:#020202;color:#9f7d31}
+.day-head{
+  position:absolute;top:47px;left:0;right:0;height:145px;border-bottom:1px solid #0f0d09;background:#030302;
+}
+.navline{height:48px;padding:9px 19px;display:flex;align-items:center;gap:12px;color:#7f6427}
+.navline .x{font-size:24px;font-weight:300}
+.navline .month{font:21px var(--display);flex:1}
+.navline .icons{font-size:22px;letter-spacing:10px}
+.date-strip{height:47px;display:flex;align-items:center;justify-content:center;gap:15px;color:#5d4a25;font:11px var(--ui)}
+.date-strip .d{width:21px;text-align:center}
+.date-strip .sel{
+  width:37px;height:37px;border:1px solid #8e6d26;border-radius:50%;display:grid;place-items:center;
+  color:#c09236;font:18px var(--display);
+}
+.date-name{text-align:center;color:#79602a;font:italic 15px var(--display)}
+.timeline{position:absolute;left:0;right:0;top:192px;bottom:0}
+.hour{height:61px;border-top:1px solid #0c0b08;position:relative}
+.hour span{position:absolute;left:7px;top:7px;color:#403a31;font-size:9px;letter-spacing:.6px}
+.event-block{
+  position:absolute;left:50px;right:16px;top:207px;height:92px;border:0;border-radius:8px;padding:10px 72px 8px 12px;
+  overflow:hidden;text-align:left;cursor:pointer;color:inherit;
+  background:
+    linear-gradient(90deg,rgba(10,6,3,.76),rgba(10,6,3,.48) 48%,rgba(10,6,3,.04)),
+    radial-gradient(ellipse at 88% 54%,rgba(150,214,206,.13),transparent 47%),
+    linear-gradient(154deg,#20130A,#694227 54%,#22150C);
+  box-shadow:0 6px 14px rgba(0,0,0,.5),0 0 12px rgba(210,150,96,.08);
+}
+.event-block::after{content:"";position:absolute;inset:0;border:1px dashed rgba(255,224,160,.53);border-radius:8px;pointer-events:none}
+.ev-kicker{font-size:8px;font-weight:700;letter-spacing:1.3px;color:#f0cc6a;white-space:nowrap}
+.ev-title{font:600 18px/1.05 var(--display);color:#fff4ed;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev-prompt{font:italic 12.5px/1.1 var(--display);color:#e8c39e;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev-time{position:absolute;left:12px;bottom:7px;font-size:9px;color:#b18a39}
+.ev-cup{position:absolute;right:10px;top:19px;width:58px;height:54px;opacity:.86}
+.ev-cup svg{width:100%;height:100%;overflow:visible}
+.offering-ripple{transform-box:view-box;transform-origin:28px 26.6px}
+.ev-cup .r1,.ev-cup .r2,.ev-cup .r3{
+  animation:ripple-scale 5.4s cubic-bezier(.25,.72,.4,1) infinite,ripple-opacity 5.4s linear infinite;
+}
+.ev-cup .r1{animation-delay:0s}.ev-cup .r2{animation-delay:-3.6s}.ev-cup .r3{animation-delay:-1.8s}
+@keyframes ripple-scale{from{transform:scale(.3)}to{transform:scale(1)}}
+@keyframes ripple-opacity{0%{opacity:0}18%{opacity:.6}100%{opacity:0}}
+.tap-hint{
+  position:absolute;left:50px;top:306px;color:#5f5030;font:italic 12px var(--display);opacity:.8
+}
+
+/* Scrim and the shared Day View detail-sheet composition. */
+.scrim{
+  position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.44);opacity:0;pointer-events:none;transition:opacity .22s ease;
+}
+.scrim.open{opacity:1;pointer-events:auto}
+.detail-sheet{
+  position:absolute;z-index:21;left:9px;right:9px;bottom:0;height:590px;
+  background:linear-gradient(180deg,#0d0906 0%,#090604 48%,#070503 100%);
+  border-radius:24px 24px 0 0;border:1px solid rgba(201,154,61,.08);border-bottom:0;
+  transform:translateY(102%);transition:transform .26s cubic-bezier(.18,.82,.3,1);
+  box-shadow:0 -20px 55px rgba(0,0,0,.65);overflow:hidden;
+}
+.detail-sheet.open{transform:none}
+.sheet-chrome{
+  position:absolute;left:0;right:0;top:0;height:48px;z-index:12;
+  background:linear-gradient(#0d0906 72%,rgba(13,9,6,.97));
+}
+.sheet-handle{position:absolute;left:50%;top:19px;width:41px;height:4px;transform:translateX(-50%);border-radius:4px;background:#72571e}
+.more{
+  position:absolute;right:12px;top:9px;width:36px;height:34px;border:0;background:transparent;color:#d19f35;
+  font:bold 25px/1 var(--ui);cursor:pointer
+}
+.sheet-footer{
+  position:absolute;left:0;right:0;bottom:0;height:72px;z-index:12;display:flex;align-items:center;justify-content:space-between;
+  padding:9px 18px 20px;background:linear-gradient(180deg,rgba(7,5,3,.84),#070503 30%);
+  border-top:1px solid rgba(201,154,61,.10);
+}
+.footer-btn{border:0;background:transparent;color:#d9b45d;font:700 15px var(--ui);cursor:pointer}
+.footer-btn.left::before{content:"≡✓";font-size:13px;margin-right:8px;color:#d6aa36}
+
+/* TRUE LAYERED SCROLL.
+   Stage 1: the lower practice surface physically rides over the stationary hero.
+   Stage 2: once the practice surface docks under the handle, only its own content
+   continues upward inside that now-fixed surface. */
+.layer-stage{
+  position:absolute;left:10px;right:10px;top:48px;bottom:72px;z-index:4;
+  overflow:hidden;border-radius:18px 18px 0 0;background:#0c0805;
+  touch-action:none;overscroll-behavior:contain;user-select:none;
+}
+.hero-layer{
+  position:absolute;inset:0;z-index:1;padding:18px 10px 24px;overflow:hidden;
+  background:
+    radial-gradient(120% 105% at 64% 15%,rgba(129,75,39,.24),transparent 52%),
+    radial-gradient(90% 90% at 15% 0%,rgba(111,67,38,.20),transparent 62%),
+    linear-gradient(180deg,#130c07 0%,#0d0906 100%);
+}
+.sheet-meta{display:grid;grid-template-columns:1fr auto;column-gap:12px;align-items:start}
+.sheet-kicker{font-size:8.5px;font-weight:700;letter-spacing:2.2px;color:#c7963a;text-transform:uppercase}
+.sheet-side{text-align:right;color:#816c4c;font-size:8px;letter-spacing:.7px;line-height:1.55;text-transform:uppercase}
+.sheet-title-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:8px}
+.sheet-title{font:500 27px/1 var(--display);color:#efe5d8;min-width:0}
+.sheet-time{font:18px var(--display);color:#a98348;white-space:nowrap}
+.sheet-orient{margin:8px 0 0;color:#b9aa95;font:italic 14px/1.28 var(--display);max-width:300px}
+
+/* The instrument and the ritual checklist are one visual field. */
+.visual-zone{
+  margin-top:11px;min-height:254px;display:grid;
+  grid-template-columns:minmax(122px,43%) minmax(0,1fr);gap:10px;align-items:center;position:relative;
+}
+.instrument-wrap{height:238px;display:grid;place-items:center;position:relative;min-width:0}
+.instrument{width:100%;height:226px;position:relative}
+.instrument.wide{width:100%;height:204px}
+.instrument svg{width:100%;height:100%;display:block;overflow:visible}
+.instrument .line{fill:none;stroke:var(--gold);stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round}
+.instrument .line-strong{fill:none;stroke:var(--glow);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.instrument .line-dim{fill:none;stroke:var(--gold);stroke-width:1.45;opacity:.29;stroke-linecap:round;stroke-linejoin:round}
+.instrument .dash{fill:none;stroke:var(--gold);stroke-width:1.35;opacity:.38;stroke-dasharray:5 5;stroke-linecap:round}
+.instrument .water{fill:url(#waterGradient);opacity:.78}
+.instrument .water-line{fill:none;stroke:var(--water);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.instrument .done{fill:none;stroke:var(--glow);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.instrument .done-fill{fill:var(--glow);stroke:none}
+.instrument .intent-fill{fill:var(--intent);stroke:none}
+.instrument .teal-fill{fill:#BFE4DF;stroke:none}
+.instrument .muted-fill{fill:var(--muted);opacity:.55}
+.instrument .neutral-fill{fill:var(--gold);opacity:.075}
+.instrument .gold-fill{fill:var(--gold);opacity:.16}
+.instrument .night-fill{fill:#030201;opacity:.74}
+.instrument text{font-family:var(--display)}
+.instrument .svg-label{fill:#8E7B5B;font-size:7.6px;letter-spacing:.35px;font-style:italic}
+.instrument .svg-small{fill:#8E8375;font-size:7px;font-style:italic}
+.instrument .svg-word{fill:var(--intent);font-size:10px;font-style:italic;pointer-events:none}
+.instrument .svg-word.carried{fill:#BFE4DF}
+.instrument .svg-word.empty{fill:rgba(232,178,124,.38)}
+.instrument .word-rule{stroke:rgba(201,154,61,.34);stroke-width:.8}
+.instrument .timer-track{fill:none;stroke:#342815;stroke-width:4}
+.instrument .timer-progress{fill:none;stroke:var(--glow);stroke-width:4;stroke-linecap:round}
+.instrument .seal-mark{fill:none;stroke:var(--glow);stroke-width:1.5}
+.instrument .seal-fill{fill:rgba(240,201,106,.12);stroke:var(--glow);stroke-width:1.25}
+
+.ritual-card{min-width:0;border:0;border-radius:0;overflow:visible;background:transparent;align-self:center}
+.move{border-bottom:1px solid rgba(48,35,19,.78);padding:7px 0}
+.move:last-child{border-bottom:0}
+.move-line{border:0;background:transparent;color:inherit;padding:0;width:100%;display:flex;gap:8px;text-align:left;cursor:pointer}
+.mark{width:13px;height:13px;flex:0 0 13px;margin-top:2px;border:1px solid #6b5327;border-radius:50%;display:grid;place-items:center;color:#171006;font-size:8px;transition:.2s}
+.move.done .mark{background:#d4a13d;border-color:#e4b754;color:#161008;box-shadow:0 0 8px rgba(220,170,70,.28)}
+.move.drink.done .mark{background:#83beb9;border-color:#a9dad4}
+.move.optional .mark{border-style:dashed}
+.move-copy{font:11.4px/1.22 var(--display);color:#a89b89;padding-top:0}
+.move.done .move-copy{color:#dfd4c3}
+.move-meta{display:block;font:7.7px var(--ui);color:#685e52;margin-top:2px}
+.picks{display:flex;flex-wrap:wrap;gap:3px;margin:5px 0 0 21px}
+.pick{border:1px solid #463319;background:#100b06;border-radius:999px;padding:4px 5px;color:#8f8375;font:7.7px var(--ui);cursor:pointer}
+.pick.selected{color:#e2d5c1;border-color:#b1853a;background:#1b1208}
+
+/* The lower layer. Its shell moves first; once docked, the content inside moves. */
+.practice-shell{
+  position:absolute;inset:0;z-index:7;overflow:hidden;border-radius:18px 18px 0 0;
+  background:#090604;border-top:1px solid rgba(201,154,61,.19);
+  box-shadow:0 -15px 32px rgba(0,0,0,.62),0 -1px 0 rgba(201,154,61,.06);
+  will-change:transform;
+}
+.practice-shell::before{
+  content:"";position:absolute;z-index:3;left:50%;top:7px;transform:translateX(-50%);
+  width:38px;height:3px;border-radius:4px;background:#4e3b1b;opacity:.85;
+}
+.practice-content{position:absolute;left:0;right:0;top:0;will-change:transform}
+.practice-layer{padding:22px 20px 30px;min-height:100%;background:linear-gradient(180deg,#0b0805 0%,#080604 100%)}
+.layer-kicker{font-size:8px;letter-spacing:2px;color:#95732d;text-transform:uppercase}
+.layer-intro{margin:8px 0 16px;color:#d2c6b5;font:17px/1.25 var(--display);max-width:304px}
+.fields{margin:0}
+.field-row{display:grid;grid-template-columns:76px 1fr;align-items:end;min-height:49px;border-bottom:1px solid #332413}
+.field-label{padding:0 10px 10px 0;color:#81682e;font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
+.field-input{width:100%;border:0;background:transparent;padding:5px 0 8px;color:#e8b27c;caret-color:#f0c96a;font:italic 17px/1.1 var(--display);user-select:text}
+.field-input:focus{outline:0;color:#f0c96a}.field-input::placeholder{color:#5e564c}
+.no-fields{font:italic 14px/1.4 var(--display);color:#665d51;padding:2px 0 8px}
+
+.completion-panel{margin-top:22px;padding:10px;border:1px solid rgba(201,154,61,.16);border-radius:8px;background:rgba(201,154,61,.025)}
+.completion-label{color:#a88135;font:600 9px var(--ui);letter-spacing:2px;margin-bottom:8px}
+.completion-row{display:flex;gap:8px}
+.completion-chip{flex:1;min-height:40px;border:1px solid #3e2e1c;border-radius:8px;background:#0d0906;color:#9f9383;font:500 14px var(--display);cursor:pointer}
+.completion-chip.active{background:#c99a3d;border-color:#d9ad52;color:#160f08;box-shadow:0 0 12px rgba(201,154,61,.14)}
+
+/* Final quiet field matches the approved lower-sheet treatment. */
+.course-bottom{margin:29px -20px 0;padding:28px 20px 28px;border-top:1px solid rgba(201,154,61,.07);background:#080604}
+.course-row{display:flex;align-items:center;gap:10px}
+.course-track{display:flex;align-items:center;gap:3px;flex:1;min-width:0;overflow:hidden}
+.course-point{width:4px;height:4px;border-radius:50%;background:#2c2318;display:block;flex:0 0 auto}
+.course-point.past{background:#7c6128}
+.course-point.current{width:8px;height:8px;background:#ffd56c;box-shadow:0 0 10px rgba(255,213,108,.48)}
+.course-point.seal{width:7px;height:7px;border-radius:1px;background:transparent;border:1px solid #493716;transform:rotate(45deg)}
+.course-point.seal.past{background:#6f5521;border-color:#6f5521}
+.course-point.seal.current{background:#ffd56c;border-color:#ffd56c;box-shadow:0 0 10px rgba(255,213,108,.45)}
+.course-stage{flex:0 0 auto;color:#a98136;font:11px var(--ui);letter-spacing:2px;text-transform:uppercase}
+.practice-returned{
+  margin-top:20px;padding:14px 15px;border-radius:14px;
+  border:1px solid rgba(201,154,61,.28);
+  background:radial-gradient(120% 160% at 10% 100%,rgba(240,201,106,.13),rgba(240,201,106,0) 60%);
+  font-family:var(--display);font-size:18px;line-height:1.32;color:var(--bone);
+  opacity:0;transform:translateY(5px);
+  transition:opacity .55s ease,transform .55s ease;
+  pointer-events:none;
+}
+.practice-returned.show{opacity:1;transform:none}
+.practice-returned em{display:block;font-size:14px;font-style:italic;color:var(--silver);margin-top:4px}
+.context{width:100%;margin-top:28px;padding:25px 2px 22px;border:0;border-top:1px solid #392817;background:transparent;color:#a99d8e;display:flex;justify-content:space-between;align-items:center;text-align:left;font:italic 18px var(--display);cursor:pointer}
+.context span:last-child{font:21px var(--ui);color:#a99d8e}
+.context-body{display:none;padding:0 2px 22px;color:#766c60;font:13px/1.42 var(--ui)}
+.context-body.open{display:block}
+.context-body p{margin:0 0 12px}
+.practice-foot{display:grid;grid-template-columns:1fr auto;align-items:center;padding:3px 2px 4px}
+.practice-reset{background:none;border:0;color:#5F5648;font:12px var(--ui);cursor:pointer;padding:8px 0 8px 12px}
+.practice-reset:hover{color:#8A7E6E}
+@media(max-width:620px){
+  body{padding:0}.eval{display:none}.phone{width:100vw;height:100vh;border-radius:0;max-width:430px}
+  .detail-sheet{height:min(590px,70vh);left:0;right:0}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="eval">
+  <strong>EVALUATION CONTROL</strong>
+  <select id="daySelect" aria-label="Preview Offering Table day"></select>
+  <p>This control is outside the app frame. Pick a day, open the event, then swipe or wheel upward inside the sheet: the lower card should ride over the fixed hero, dock, then scroll internally.</p>
+</div>
+
+<div class="phone" id="phone">
+  <div class="status"><span class="record-pill">5:39</span><span class="status-icons">▮▮▮ ⌁ ▰</span></div>
+  <div class="dayview">
+    <div class="day-head">
+      <div class="navline"><span class="x">×</span><span class="month">Rekh-Wer (Rḫ-wr)</span><span class="icons">＋𓂀𓁶</span></div>
+      <div class="date-strip"><span class="d">9</span><span class="d">10</span><span class="d">11</span><span class="d">12</span><span class="sel">13</span><span class="d">14</span><span class="d">15</span><span class="d">16</span></div>
+      <div class="date-name">Rekh-Wer 13, 2026</div>
+    </div>
+    <div class="timeline">
+      <div class="hour"><span>6 AM</span></div><div class="hour"><span>7 AM</span></div><div class="hour"><span>8 AM</span></div>
+      <div class="hour"><span>9 AM</span></div><div class="hour"><span>10 AM</span></div><div class="hour"><span>11 AM</span></div>
+      <button class="event-block" id="eventBlock" type="button">
+        <div class="ev-kicker" id="eventKicker"></div>
+        <div class="ev-title" id="eventTitle"></div>
+        <div class="ev-prompt" id="eventPrompt"></div>
+        <span class="ev-time">7:30 AM</span>
+        <div class="ev-cup" aria-hidden="true"><svg viewBox="0 0 56 52" aria-hidden="true">
+              <defs>
+                <filter id="otcup-shadow-d1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>
+                <radialGradient id="otcup-glow-d1" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#CFF0E9" stop-opacity=".40"/><stop offset="1" stop-color="#CFF0E9" stop-opacity="0"/></radialGradient>
+                <linearGradient id="otcup-clay-d1" x1="8%" y1="6%" x2="92%" y2="94%"><stop offset="0" stop-color="#F0BE8E"/><stop offset=".36" stop-color="#A2673C"/><stop offset=".78" stop-color="#4A2A18"/><stop offset="1" stop-color="#1B0F08"/></linearGradient>
+                <radialGradient id="otcup-water-d1" cx="34%" cy="24%" r="50%"><stop offset="0" stop-color="#E6F9F3"/><stop offset=".40" stop-color="#7CBCB6"/><stop offset="1" stop-color="#174441"/></radialGradient>
+              </defs>
+              <ellipse cx="30" cy="41" rx="20" ry="6" fill="#000" fill-opacity=".60" filter="url(#otcup-shadow-d1)"/>
+              <ellipse cx="28" cy="25" rx="28" ry="22" fill="url(#otcup-glow-d1)"/>
+              <path d="M6 25 A22 17 0 0 0 50 25 L42.6 33.4 A14.6 11 0 0 1 13.4 33.4 Z" fill="url(#otcup-clay-d1)"/>
+              <path d="M7.6 29.6 A22 17 0 0 0 15.2 36.6" fill="none" stroke="#FFDDB6" stroke-opacity=".38" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M48.4 29.6 A22 17 0 0 1 40.8 36.6" fill="none" stroke="#180D06" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/>
+              <path d="M13.4 33.4 A14.6 11 0 0 0 42.6 33.4" fill="none" stroke="#150C06" stroke-opacity=".50" stroke-width="1" stroke-linecap="round"/>
+              <ellipse cx="28" cy="26" rx="18.6" ry="14.2" fill="#150C07"/>
+              <ellipse cx="28" cy="26.6" rx="17" ry="12.8" fill="url(#otcup-water-d1)" stroke="#E9FCF7" stroke-opacity=".40" stroke-width=".85"/>
+              <ellipse cx="20.8" cy="21" rx="5.6" ry="2.6" fill="#F8FEFC" fill-opacity=".44" transform="rotate(-20 20.8 21)"/>
+              <ellipse cx="28" cy="25" rx="22" ry="17" fill="none" stroke="#F6D4A9" stroke-width="1.7"/>
+              <path d="M28 8 A22 17 0 0 0 6 25" fill="none" stroke="#FFEBD0" stroke-opacity=".75" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M28 42 A22 17 0 0 0 50 25" fill="none" stroke="#2A1710" stroke-opacity=".45" stroke-width="1.1" stroke-linecap="round"/>
+              <g class="offering-ripple r1"><ellipse cx="28" cy="26.6" rx="16.4" ry="12.3" fill="none" stroke="#EBFDF8" stroke-width=".85"/></g>
+              <g class="offering-ripple r2"><ellipse cx="28" cy="26.6" rx="16.4" ry="12.3" fill="none" stroke="#EBFDF8" stroke-width=".85"/></g>
+              <g class="offering-ripple r3"><ellipse cx="28" cy="26.6" rx="16.4" ry="12.3" fill="none" stroke="#EBFDF8" stroke-width=".85"/></g>
+            </svg></div>
+      </button>
+      <div class="tap-hint">tap the Offering Table event</div>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <section class="detail-sheet" id="sheet" aria-label="Event details">
+    <div class="sheet-chrome" id="sheetChrome"><div class="sheet-handle"></div><button class="more" type="button" aria-label="More">⋮</button></div>
+    <div class="layer-stage" id="layerStage">
+      <div class="hero-layer" id="heroLayer">
+        <div class="sheet-meta">
+          <div class="sheet-kicker">✦ &nbsp;THE OFFERING TABLE</div>
+          <div class="sheet-side"><div id="sheetDate"></div><div id="sheetStageDay"></div></div>
+        </div>
+        <div class="sheet-title-line"><div class="sheet-title" id="sheetTitle"></div><div class="sheet-time">7:30 AM</div></div>
+        <p class="sheet-orient" id="sheetOrient"></p>
+        <div class="visual-zone">
+          <div class="instrument-wrap"><div class="instrument" id="instrument"></div></div>
+          <div class="ritual-card" id="moves"></div>
+        </div>
+      </div>
+
+      <div class="practice-shell" id="practiceShell">
+        <div class="practice-content" id="practiceContent">
+          <div class="practice-layer">
+            <div class="layer-kicker" id="layerKicker"></div>
+            <p class="layer-intro" id="layerIntro"></p>
+            <div class="fields" id="fields"></div>
+
+            <div class="course-bottom">
+              <div class="course-row">
+                <div class="course-track" id="courseTrack"></div>
+                <div class="course-stage" id="courseStage"></div>
+              </div>
+              <div class="practice-returned" id="practiceReturned" aria-live="polite">
+                Provision returns to life through you.
+                <em id="practiceNext"></em>
+              </div>
+              <button class="context" id="contextBtn" type="button"><span>Why this belongs at the Offering Table</span><span id="contextSign">+</span></button>
+              <div class="context-body" id="contextBody"></div>
+
+              <div class="practice-foot">
+                <span></span>
+                <button class="practice-reset" id="practiceReset" type="button">reset this day</button>
+              </div>
+
+              <div class="completion-panel" id="completionPanel">
+                <div class="completion-label">COMPLETION</div>
+                <div class="completion-row">
+                  <button class="completion-chip" type="button" data-status="Observed">Observed</button>
+                  <button class="completion-chip" type="button" data-status="Partly">Partly</button>
+                  <button class="completion-chip" type="button" data-status="Skipped">Skipped</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sheet-footer">
+      <button class="footer-btn left" type="button">Make to-do</button>
+      <button class="footer-btn" type="button">Calendar</button>
+    </div>
+  </section>
+</div>
+
+<script>
+const offeringDays = [{"day":1,"stage":"Personal Table","title":"The Small Supply","prompt":"check one thing before it runs out","date":"2026-09-04","orient":"Check one supply before it becomes an emergency.","why":"The supplies that run out do so silently. This rite checks them while they can still be replenished easily.","instruction":"Check one thing you rely on: medication, water bottle, groceries, soap, clean clothes, or transit fare. Refill it, or write down the next concrete step.","steps":["Name one supply running low.","Refill it, or write down the next step.","Put it in sight or set one reminder."],"context":"The supplies that run out do so silently. This rite catches one while the correction is still small."},{"day":2,"stage":"Personal Table","title":"The Cup Before the Noise","prompt":"choose your first input","date":"2026-09-05","orient":"Choose what reaches you before the noise does.","why":"The day starts competing for your attention immediately. This practice lets you choose your first input.","instruction":"Choose the first thing you want to give your attention to. Then give your body water before feeds, messages, or tasks get first claim.","steps":["Name the first thing you want to give your attention to today.","Drink a glass of water before you open feeds, messages, or tasks.","Give that first thing one quiet minute."],"context":"The day's demands begin competing for attention before the body has been given anything. This rite reverses that order."},{"day":3,"stage":"Personal Table","title":"Bread Enough","prompt":"put real food within reach","date":"2026-09-06","orient":"Make sure real food has a place in your day.","why":"Food can become something you rush through. Today you treat one meal as actual provision.","instruction":"Choose your first real food before hunger has to improvise for you.","steps":["Name the first real food you will eat today.","Put it within reach now — on the counter, in the fridge front, or in your bag."],"context":"Food treated as fuel is not being received — it's being used. This rite makes one meal an act of provision rather than consumption."},{"day":4,"stage":"Personal Table","title":"The Body Washed","prompt":"do one piece of delayed care","date":"2026-09-07","orient":"Give your body one piece of care you've been putting off.","why":"Small acts of neglect build quietly. Today you correct one before it becomes normal.","instruction":"Make one delayed care task small enough to move today.","steps":["Wash your face, hands, or mouth slowly.","Name the body-care task you keep putting off.","Do the two-minute version now — or book it."],"context":"Neglect rarely announces itself — it accumulates in small deferrals. This rite names one and corrects it."},{"day":5,"stage":"Personal Table","title":"The Midpoint: Rest","prompt":"protect tonight's rest now","date":"2026-09-08","orient":"Protect tonight's rest before the day spends it.","why":"Rest is not leftover time. It is something that has to be provided for on purpose.","instruction":"Make one concrete change now that gives tonight a better chance.","steps":["Name how many hours you slept last night.","Name what is most likely to cut tonight short.","Cut thirty minutes from it, or set a stop time."],"context":"Provision is not only food. The Ka is sustained by repeated supports, and rest is one of the supports that disappears when it is not counted."},{"day":6,"stage":"Personal Table","title":"The Standing Appointment","prompt":"book the thing you've been meaning to book","date":"2026-09-09","orient":"Turn one postponed appointment into a date or a callable next step.","why":"Some needs stay abstract because they depend on business hours, a number, or a booking page. This rite makes one reachable.","instruction":"Name one appointment you have been deferring. Find the number or booking page. Book it, or put the call on today's calendar with the number already in the note.","steps":["Name the appointment you've been deferring.","Find the number or booking page.","Book it — or calendar the call with the number."],"context":"A needed appointment can stay vague for weeks. A date, booking page, or callable number turns it into something you can actually finish."},{"day":7,"stage":"Personal Table","title":"Dignity at the Table","prompt":"do one thing that protects your dignity","date":"2026-09-10","orient":"Do one thing that protects your dignity today.","why":"The Kemetic offering table held ointment and linen alongside food — care for the body's surface, not only its interior. This rite addresses the same.","instruction":"Choose one ordinary act that says your body does not have to earn basic provision.","steps":["Choose one: clean clothes, sit down to eat, take a real pause, or ask without apology.","Do it today."],"context":"The Kemetic offering table held ointment and linen alongside food — care for the body's surface, not only its interior."},{"day":8,"stage":"Personal Table","title":"The Quiet Hunger","prompt":"give one non-food need a real portion","date":"2026-09-11","orient":"Notice a need that isn't food but still leaves you depleted.","why":"The hunger that doesn't feel like hunger is usually the oldest one. This rite names it before it gets louder.","instruction":"Name the kind of deprivation that can hide behind 'I'm fine.' Give it one real portion, or make the first opening concrete.","steps":["Name one: sleep, quiet, sunlight, touch, movement, medical care, or help.","Give it one real portion today.","If today cannot hold it, put the first opening on your calendar."],"context":"The hunger that doesn't feel like hunger is usually the oldest one. This rite names it before it gets louder."},{"day":9,"stage":"Personal Table","title":"The First Repair","prompt":"close one small gap before noon","date":"2026-09-12","orient":"Close one small gap before noon.","why":"The first decan closes. One small gap is the only repair the seal requires — not everything, just the one that can move.","instruction":"Choose one repair that is small enough to finish before noon. Do it, then close the rite with water.","steps":["Choose one repair: eat, wash, stretch, rest ten minutes, refill, step outside, or ask for help.","Do it.","Drink water."],"context":"The first decan closes. One small gap is the only repair the seal requires — not everything, just the one that can move."},{"day":10,"stage":"Personal Table","title":"The Personal Table Sealed","prompt":"name what was fed and what still needs care","date":"2026-09-13","orient":"Close the first table with an honest account.","why":"The scribe's record closes with what is — not what was intended, but what actually happened. This rite produces that account.","instruction":"Name what improved and what still needs provision. Then make tomorrow slightly easier.","steps":["Name one need that was fed.","Name one need still asking.","Set up one support for tomorrow."],"context":"The scribe's record closes with what is — not what was intended, but what actually happened."},{"day":11,"stage":"Household Table","title":"The Household Table Opens","prompt":"name exactly what someone depends on","date":"2026-09-14","orient":"Notice who depends on your table.","why":"You are provisioned now. The table extends outward. Who else depends on the same supply chain?","instruction":"Make another person's need concrete enough that you can move one small part of it.","steps":["Name one person, animal, plant, or shared space that depends on you.","Name exactly what they need this week — food, a ride, a call, a repair, money, or time.","Do the smallest part now — or send one message about it."],"context":"Offering lists in tombs and temples are records of sustained relationship. Provision is not private when others depend on the table."},{"day":12,"stage":"Household Table","title":"The Dependent Named","prompt":"make one dependent's need exact","date":"2026-09-15","orient":"Make care specific enough to act on.","why":"Abstract care changes nothing. Named care in exact words produces the act that can follow it.","instruction":"Choose one dependent. Name the need in exact words, then answer one part of it.","steps":["Name one person or animal who depends on you.","Name what they need today, in exact words.","Send the message, or do the task now."],"context":"Abstract care changes nothing. Named care in exact words produces the act that can follow it."},{"day":13,"stage":"Household Table","title":"The Fair Share","prompt":"move one shared load toward even","date":"2026-09-16","orient":"Notice where a shared load could feel fairer.","why":"Someone is always carrying more than their share — usually quietly. This rite asks whether it's you or someone else, and acts accordingly.","instruction":"Describe the load without judging the person. Then move one part toward even.","steps":["Name one thing the household shares — food, money, cleaning, time, or space.","How is it sitting right now?","Move it one step toward even — pay, clean, refill, cover, or ask."],"context":"Someone is always carrying more than their share — usually quietly. This rite asks whether it's you or someone else, and acts accordingly."},{"day":14,"stage":"Household Table","title":"The Waiting Bowl","prompt":"refill one thing under three minutes","date":"2026-09-17","orient":"Find the thing that has been waiting for someone to notice.","why":"Things run low without announcement. This rite finds the one that has been waiting for someone to notice.","instruction":"Name one household thing that is empty or running low. If the refill is under three minutes, finish it now.","steps":["Name what is low or empty.","Refill it now — under three minutes."],"context":"Things run low without announcement. This rite finds the one that has been waiting for someone to notice."},{"day":15,"stage":"Household Table","title":"The Midpoint: Attention","prompt":"give one minute of full attention","date":"2026-09-18","orient":"Give one person or responsibility more than your leftover attention.","why":"Attention given in full is rarer than bread. This rite names where the supply has been running short.","instruction":"Give one undistracted minute, then keep the phone out of the way when the minute ends.","steps":["Name who's been getting your leftover attention.","Give them one undistracted minute.","After the minute, put the phone face down and leave it there."],"context":"In offering scenes, the table is visible because provision must be seen and carried. Attention is one way a household table becomes visible."},{"day":16,"stage":"Household Table","title":"The Cost Named","prompt":"name the cost of care","date":"2026-09-19","orient":"Name the cost of care before it becomes depletion.","why":"Care that does not account for its own cost depletes the one giving it. This rite names the cost before it becomes resentment.","instruction":"Make one care cost visible, then cover one part of it instead of carrying it invisibly.","steps":["Name the cost of care.","Cover one part now — pay, schedule, ask, or set a boundary."],"context":"Care that does not account for its own cost depletes the one giving it. This rite names the cost before it becomes resentment."},{"day":17,"stage":"Household Table","title":"The Care Message","prompt":"send the practical message","date":"2026-09-20","orient":"Say the practical thing while it is still simple.","why":"The provision line breaks quietly through deferred communication. This rite names what needs to be said while saying it is still simple.","instruction":"Use one plain sentence to keep a provision line from becoming a crisis.","steps":["Choose one: I have this / I need this / I'll bring this / I can't do this today.","Finish it in one line.","Send it now."],"context":"The provision line breaks quietly through deferred communication. This rite names what needs to be said while saying it is still simple."},{"day":18,"stage":"Household Table","title":"The Shared Rest","prompt":"change one thing that makes rest harder","date":"2026-09-21","orient":"Give some rest back to the household.","why":"Rest is a shared resource when multiple people live under one schedule. This rite asks what your pace is doing to the rest around it.","instruction":"Notice one way your pace makes rest harder for someone else. Change one part tonight.","steps":["Name one thing you do that makes rest harder for someone else.","Change one part tonight — the time, volume, room, or interruption."],"context":"Rest is a shared resource when multiple people live under one schedule. This rite asks what your pace is doing to the rest around it."},{"day":19,"stage":"Household Table","title":"The Unseen Labor","prompt":"take one unseen load off someone","date":"2026-09-22","orient":"Put one piece of unseen work back into the account.","why":"What sustains a household without being recorded disappears from the account. This rite puts it in.","instruction":"Name the work that usually disappears into the background. Then carry one part yourself.","steps":["Name the work that keeps this house running unnoticed.","Say who carries it.","Take one load off them today, without announcing it."],"context":"What sustains a household without being recorded disappears from the account. This rite puts it in."},{"day":20,"stage":"Household Table","title":"The Household Table Sealed","prompt":"put one household patch on the calendar","date":"2026-09-23","orient":"Close the household table with one honest repair.","why":"What improved? What still leaks? The second seal requires only these two facts, not a full solution.","instruction":"Name what improved, what still leaks, and the smallest patch worth scheduling.","steps":["Name what improved.","Name what still leaks.","Name the smallest patch.","Put it on today's calendar."],"context":"What improved? What still leaks? The second seal requires only these two facts, not a full solution."},{"day":21,"stage":"Flowing Table","title":"The Flowing Table Opens","prompt":"clear one small block in the flow","date":"2026-09-24","orient":"Notice what supports you, then clear one small block in the flow.","why":"Hapy did not stop at the nearest field. The flood that flows past you is also serving something downstream. This rite asks whether you are helping or obstructing.","instruction":"Name a source you usually overlook. If something is blocked, move it. If nothing is blocked, acknowledge the source directly.","steps":["Name a source you haven't acknowledged.","Clear one small obstruction. If none is blocked, acknowledge the source directly."],"context":"Hapy personifies the Nile flood as abundance that moves. Provision becomes disorder when flow is hoarded, blocked, or denied."},{"day":22,"stage":"Flowing Table","title":"The Source Named","prompt":"trace one thing back to its source","date":"2026-09-25","orient":"Trace one thing you use back to its source.","why":"What you use today did not begin with you. This rite traces one step back in the chain before the day moves forward.","instruction":"Follow one ordinary thing backward one step, then return something to the chain that made it possible.","steps":["Name one thing you'll use today.","Name its source — who grew, made, carried, taught, or paid for it.","Return something today — thanks, payment, credit, or care."],"context":"What you use today did not begin with you. This rite traces one step back in the chain before the day moves forward."},{"day":23,"stage":"Flowing Table","title":"The River Unblocked","prompt":"move one delayed thing today","date":"2026-09-26","orient":"Move one thing you have been holding up.","why":"Something you are holding — a reply, a payment, a permission — is keeping something else from moving. This rite moves it.","instruction":"Move one delayed thing one real step. If it cannot move, make sure the waiting person knows why.","steps":["Name what you've been holding.","Move it one real step today.","If it can't move, tell the person waiting."],"context":"Something you are holding — a reply, a payment, a permission — is keeping something else from moving. This rite moves it."},{"day":24,"stage":"Flowing Table","title":"The Hoard Checked","prompt":"move one surplus back into circulation","date":"2026-09-27","orient":"Check whether something extra has become a blockage.","why":"Surplus is not a problem unless it's preventing flow. This rite checks the line between supply and obstruction.","instruction":"Name one surplus and move one small portion out of the house or account today.","steps":["Name one surplus.","Move one portion out today — give, return, donate, or pass it on."],"context":"Surplus is not a problem unless it's preventing flow. This rite checks the line between supply and obstruction."},{"day":25,"stage":"Flowing Table","title":"The Midpoint: Hapy","prompt":"send one part of provision onward","date":"2026-09-28","orient":"Notice where provision reached you, then let some of it keep moving.","why":"The flood was celebrated for its movement — what it reached and what grew because of it. This rite asks where your provision is reaching.","instruction":"Name what reached you and where it can go next without draining you. Move one part today.","steps":["Name where provision reached you this week.","Name where it can go next.","Send one part there today."],"context":"Hymns to Hapy praise the flood because it feeds fields and households. Flow is provision made visible across more than one table."},{"day":26,"stage":"Flowing Table","title":"The Return Given","prompt":"use one support you already have","date":"2026-09-29","orient":"Use what has already been given.","why":"In the temple, offerings were eventually consumed — that was called reversion, and it was sacred. Provision that is never received serves nothing. This rite uses what was given.","instruction":"Name one support already available to you. Receive it by actually using it.","steps":["Name one support you already have but haven't used.","Use it today — eat it, spend it, accept it, or put the tool to work."],"context":"In the temple, offerings were eventually consumed — that was called reversion, and it was sacred. Provision that is never received serves nothing."},{"day":27,"stage":"Flowing Table","title":"The Land Remembered","prompt":"return one act of care","date":"2026-09-30","orient":"Return one small act of care to what supports your life.","why":"The table never existed apart from the land that supplied it. This rite names the land's role before the debt goes unrecorded.","instruction":"Name one way land, water, weather, or public infrastructure provisions you. Make one concrete return before the day ends.","steps":["Name what provisions you today — land, water, weather, or public works.","Choose one return: pick up, conserve, water, repair, recycle, walk, or use less.","Do it before the day ends."],"context":"The table never existed apart from the land that supplied it. This rite names the land's role before the debt goes unrecorded."},{"day":28,"stage":"Flowing Table","title":"The Relationship Fed","prompt":"give one relationship something usable","date":"2026-10-01","orient":"Feed one relationship with something the other person can actually receive.","why":"Relationships sustained by history alone are slowly depleting. This rite adds one provision before the account needs to draw down.","instruction":"Choose a sustaining relationship and give it one concrete form of provision today.","steps":["Name a relationship that sustains you.","Choose what they can actually receive: thanks, time, food, help, repair, or a clean boundary.","Give it today."],"context":"Relationships sustained by history alone are slowly depleting. This rite adds one provision before the account needs to draw down."},{"day":29,"stage":"Flowing Table","title":"The Flow Prepared","prompt":"set tomorrow's support out tonight","date":"2026-10-02","orient":"Make tomorrow easier before it begins.","why":"The table that is set the night before is the table that works in the morning. This rite prepares one thing so tomorrow starts provisioned.","instruction":"Prepare one support tonight so the next morning starts with less friction.","steps":["Choose tomorrow's support — water, breakfast, medicine, clothes, a message, money, or clear space.","Set it out tonight.","Name what this makes easier."],"context":"The table that is set the night before is the table that works in the morning. This rite prepares one thing so tomorrow starts provisioned."},{"day":30,"stage":"Flowing Table","title":"The Table Is Complete","prompt":"close the table with what is true","date":"2026-10-03","orient":"Close the cycle with accuracy, not perfection.","why":"The table was never about perfection — it was about the record being honest. The cycle closes with accuracy, not with achievement.","instruction":"Speak only the lines that are true. Name one shortfall and one surprise. Drink the water, then sit for one quiet breath.","steps":["Speak only the lines that are true. Say, if true: My water was placed with attention. Say, if true: Food, rest, or care was not treated as imaginary. Say, if true: I fed one need before it became collapse. Say, if true: I noticed who else depends on the table. Say, if true: What flowed to me was allowed to return. Name one shortfall. Name one provision that surprised you.","Sit for one quiet breath after drinking the water.","Share only this prompt if you choose: one thing the table held that I did not expect."],"context":"The offering table is not an end point. The water is consumed, the support returns to life, and the next cycle starts from what is now known."}];
+
+function fmtSheetDate(iso){const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});}
+function escHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escSvg(v){return escHtml(v);}
+function escAttr(v){return escHtml(v).replace(/`/g,'&#96;');}
+function clipText(v,n=22){v=String(v||'').trim();return v.length>n?v.slice(0,n-1)+'…':v;}
+const M=(id,kind,label,extra={})=>({id,kind,label,...extra});
+const MOVE_SPECS={
+1:[M('supply','name','Name one supply running low.',{slot:'supply',placeholder:'supply…',fieldLabel:'SUPPLY'}),M('refill','tap','Refill it, or write down the next step.',{binds:'refilled'}),M('visible','tap','Put it in sight or set one reminder.',{binds:'visible'})],
+2:[M('input','name','Name the first thing you want to give your attention to.',{slot:'input',placeholder:'first thing…',fieldLabel:'INPUT'}),M('drink','drink','Drink a glass of water before you open anything.',{binds:'drunk'}),M('quiet','timer','Give that first thing one quiet minute.',{target:60,mode:'target',binds:'quiet'})],
+3:[M('food','name','Name the first real food you will eat today.',{slot:'food',placeholder:'first real food…',fieldLabel:'FOOD'}),M('place','tap','Put it within reach now — on the counter or in your bag.',{binds:'placed'})],
+4:[M('wash','tap','Wash your face, hands, or mouth slowly.',{binds:'washed'}),M('care','name','Name the body-care task you keep putting off.',{slot:'care',placeholder:'body-care task…',fieldLabel:'CARE'}),M('do','tap','Do the two-minute version now — or book it.',{binds:'carried'})],
+5:[M('hours','name','Name how many hours you slept.',{slot:'hours',placeholder:'hours…',fieldLabel:'HOURS'}),M('shortener','name','Name what is most likely to cut tonight short.',{slot:'shortener',placeholder:'what cuts sleep short…',fieldLabel:'SHORTENER'}),M('reduce','tap','Cut thirty minutes from it, or set a stop time.',{binds:'reduced'})],
+6:[M('appointment','name','Name the appointment you have been deferring.',{slot:'appointment',placeholder:'appointment…',fieldLabel:'APPOINTMENT'}),M('find','tap','Find the number or booking page.',{binds:'found'}),M('book','tap','Book it — or calendar the call with the number.',{binds:'booked'})],
+7:[M('dignity','pick','Choose one thing that tells your body it matters.',{options:['Clean clothes','Sit down to eat','A real pause','Ask without apology']}),M('act','tap','Do it today.',{binds:'acted'})],
+8:[M('hunger','name','Name one: sleep, quiet, sunlight, touch, movement, medical care, or help.',{slot:'hunger',placeholder:'what are you going without?…',fieldLabel:'HUNGER'}),M('portion','tap','Give it one real portion today.',{binds:'portioned'}),M('schedule','tap','If today cannot hold it, put the first opening on your calendar.',{optional:true,binds:'scheduled'})],
+9:[M('repair','pick','Choose one repair you can finish before noon.',{options:['Eat','Wash','Stretch','Rest 10 min','Refill','Step outside','Ask for help']}),M('do','tap','Do it.',{binds:'acted'}),M('drink','drink','Drink water.',{binds:'received'})],
+10:[M('fed','name','Name one need that was fed.',{slot:'fed',placeholder:'fed…',fieldLabel:'FED'}),M('asking','name','Name one need still asking.',{slot:'asking',placeholder:'still asking…',fieldLabel:'ASKING'}),M('prepare','tap','Set up one support for tomorrow.',{binds:'prepared'})],
+11:[M('dependent','name','Name one person, animal, plant, or shared space that depends on you.',{slot:'dependent',placeholder:'who depends on you…',fieldLabel:'WHO'}),M('need','name','Name exactly what they need this week.',{slot:'need',placeholder:'food, ride, call, repair, money, time…',fieldLabel:'NEED'}),M('provide','tap','Do the smallest part now — or send one message about it.',{binds:'provided'})],
+12:[M('dependent','name','Name one person or animal who depends on you.',{slot:'dependent',placeholder:'who depends on you…',fieldLabel:'WHO'}),M('need','name','Name what they need today, in exact words.',{slot:'need',placeholder:'exact need…',fieldLabel:'NEED'}),M('care','tap','Send the message, or do the task now.',{binds:'provided'})],
+13:[M('resource','name','Name one thing the household shares.',{slot:'resource',placeholder:'food, money, cleaning, time, space…',fieldLabel:'RESOURCE'}),M('position','pick','How is it sitting right now?',{options:['I carry more','About even','Someone else carries more']}),M('adjust','tap','Move it one step toward even — pay, clean, refill, cover, or ask.',{binds:'adjusted'})],
+14:[M('refill','name','Name what is low or empty.',{slot:'refill',placeholder:'what needs refill…',fieldLabel:'REFILL'}),M('refillTimer','timer','Refill it now — under three minutes.',{target:180,mode:'under',binds:'filled'})],
+15:[M('attention','name',"Name who's been getting your leftover attention.",{slot:'attention',placeholder:'person or responsibility…',fieldLabel:'ATTENTION'}),M('attentionTimer','timer','Give them one undistracted minute.',{target:60,mode:'target',blackout:true,binds:'attended'}),M('phone','tap','After the minute, put the phone face down and leave it there.',{binds:'phoneDown'})],
+16:[M('cost','name','Name the cost of care.',{slot:'cost',placeholder:'money, time, patience, transport…',fieldLabel:'COST'}),M('cover','tap','Cover one part now — pay, schedule, ask, or set a boundary.',{binds:'covered'})],
+17:[M('stem','pick','Choose one plain sentence.',{options:['I have this','I need this',"I'll bring this","I can't do this today"]}),M('message','name','Finish it in one line.',{slot:'message',placeholder:'plain care message…',fieldLabel:'MESSAGE'}),M('send','tap','Send it now.',{binds:'sent'})],
+18:[M('impact','name','Name one thing you do that makes rest harder for someone else.',{slot:'impact',placeholder:'time, volume, room, interruption…',fieldLabel:'IMPACT'}),M('adjust','tap','Change one part tonight — the time, volume, room, or interruption.',{binds:'adjusted'})],
+19:[M('labor','name','Name the work that keeps this house running unnoticed.',{slot:'labor',placeholder:'unseen labor…',fieldLabel:'LABOR'}),M('credit','tap','Say who carries it.',{binds:'credited'}),M('lighten','tap','Take one load off them today, without announcing it.',{binds:'lightened'})],
+20:[M('improved','name','Name what improved.',{slot:'improved',placeholder:'improved…',fieldLabel:'IMPROVED'}),M('leak','name','Name what still leaks.',{slot:'leak',placeholder:'still leaks…',fieldLabel:'STILL LEAKS'}),M('patch','name','Name the smallest patch.',{slot:'patch',placeholder:'next patch…',fieldLabel:'PATCH'}),M('calendar','tap',"Put it on today's calendar.",{binds:'scheduled'})],
+21:[M('source','name',"Name a source you haven't acknowledged.",{slot:'source',placeholder:'source…',fieldLabel:'SOURCE'}),M('clear','tap','Clear one small obstruction. If none is blocked, acknowledge the source directly.',{binds:'cleared'})],
+22:[M('thing','name',"Name one thing you'll use today.",{slot:'thing',placeholder:'what you use…',fieldLabel:'THING'}),M('source','name','Name its source — who grew, made, carried, taught, or paid for it.',{slot:'source',placeholder:'source…',fieldLabel:'SOURCE'}),M('offer','tap','Return something today — thanks, payment, credit, or care.',{binds:'returned'})],
+23:[M('delayed','name',"Name what you've been holding.",{slot:'delayed',placeholder:'delayed thing…',fieldLabel:'DELAYED'}),M('moved','tap','Move it one real step today.',{binds:'moved'}),M('truth','tap',"If it can't move, tell the person waiting.",{optional:true,binds:'truth'})],
+24:[M('surplus','name','Name one surplus.',{slot:'surplus',placeholder:'surplus…',fieldLabel:'SURPLUS'}),M('release','tap','Move one portion out today — give, return, donate, or pass it on.',{binds:'released'})],
+25:[M('received','name','Name where provision reached you this week.',{slot:'received',placeholder:'what reached you…',fieldLabel:'RECEIVED'}),M('onward','name','Name where it can go next.',{slot:'onward',placeholder:'where it can go…',fieldLabel:'ONWARD'}),M('flow','tap','Send one part there today.',{binds:'flowing'})],
+26:[M('support','name',"Name one support you already have but haven't used.",{slot:'support',placeholder:'support already available…',fieldLabel:'SUPPORT'}),M('use','tap','Use it today — eat it, spend it, accept it, or put the tool to work.',{binds:'returned'})],
+27:[M('provision','name','Name what provisions you today — land, water, weather, or public works.',{slot:'provision',placeholder:'what provisions you…',fieldLabel:'PROVISION'}),M('returnKind','pick','Choose one return.',{options:['Pick up','Conserve','Water','Repair','Recycle','Walk','Use less']}),M('return','tap','Do it before the day ends.',{binds:'returned'})],
+28:[M('relationship','name','Name a relationship that sustains you.',{slot:'relationship',placeholder:'relationship…',fieldLabel:'RELATIONSHIP'}),M('provision','pick','Choose what they can actually receive.',{options:['Thanks','Time','Food','Help','Repair','Clean boundary']}),M('give','tap','Give it today.',{binds:'fed'})],
+29:[M('support','pick',"Choose tomorrow's support.",{options:['Water','Breakfast','Medicine','Clothes','Message','Money','Clear space']}),M('prepare','tap','Set it out tonight.',{binds:'prepared'}),M('easier','name','Name what this makes easier.',{slot:'easier',placeholder:'what gets easier…',fieldLabel:'EASIER'})],
+30:[
+ M('truth1','truth','My water was placed with attention.'),M('truth2','truth','Food, rest, or care was not treated as imaginary.'),M('truth3','truth','I fed one need before it became collapse.'),M('truth4','truth','I noticed who else depends on the table.'),M('truth5','truth','What flowed to me was allowed to return.'),
+ M('shortfall','name','Name one shortfall.',{slot:'shortfall',placeholder:'one shortfall…',fieldLabel:'SHORTFALL'}),M('surprise','name','Name one provision that surprised you.',{slot:'surprise',placeholder:'one surprise…',fieldLabel:'SURPRISE'}),M('drink','drink','Drink the water.'),M('breath','timer','Sit for one quiet breath.',{target:8,mode:'target',binds:'sealed'}),M('share','tap','Share one thing only if you choose.',{optional:true})
+]
+};
+
+
+
+const STORAGE_KEY='offering-table-dayview-sheet-eval-v1';
+let courseState={};
+try{courseState=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')||{};}catch(_){courseState={};}
+function dayState(day){
+  const k=String(day);
+  if(!courseState[k])courseState[k]={moves:{},words:{},picks:{},levels:{},timers:{},timestamps:{}};
+  const st=courseState[k];st.moves||={};st.words||={};st.picks||={};st.levels||={};st.timers||={};st.timestamps||={};st.completionStatus||='';return st;
+}
+function saveCourse(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(courseState));}catch(_){}}
+function moveSpec(day,id){return (MOVE_SPECS[day]||[]).find(m=>m.id===id);}
+function timerElapsed(st,id){const t=st.timers[id];if(!t)return 0;return Math.max(0,(t.elapsedMs||0)+(t.running?Date.now()-(t.startedAt||Date.now()):0));}
+function moveDone(day,move,st=dayState(day)){
+  if(move.kind==='name')return !!String(st.words[move.slot]||'').trim();
+  if(move.kind==='pick')return !!st.picks[move.id];
+  if(move.kind==='timer'){const e=timerElapsed(st,move.id),t=st.timers[move.id]||{};return move.mode==='under'?e>0&&!t.running:e>=move.target*1000;}
+  return !!st.moves[move.id];
+}
+function done(day,id){const m=moveSpec(day,id);return m?moveDone(day,m):!!dayState(day).moves[id];}
+function word(day,slot){return dayState(day).words[slot]||'';}
+function pick(day,id){return dayState(day).picks[id]||'';}
+function level(day,id){return Number(dayState(day).levels[id]||0);}
+function setMove(day,id,val=true){dayState(day).moves[id]=val;saveCourse();}
+function carriedWord(day,slot){
+  const map={1:'refill',3:'place',4:'do',5:'reduce',6:'book',8:'portion',10:'prepare',11:'provide',12:'care',13:'adjust',16:'cover',17:'send',18:'adjust',19:'lighten',20:'calendar',21:'clear',22:'offer',23:'moved',24:'release',25:'flow',26:'use',27:'return',28:'give',29:'prepare'};
+  const id=map[day];return id?done(day,id):false;
+}
+function primaryLabel(st){const w=Object.values(st.words||{}).find(v=>String(v).trim());if(w)return w;const p=Object.values(st.picks||{}).find(Boolean);return p||'';}
+function stateHasSubstance(day){const st=dayState(day);return Object.values(st.moves).some(Boolean)||Object.values(st.words).some(v=>String(v).trim())||Object.values(st.picks).some(Boolean);}
+function currentTimeLabel(){return new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
+const C={g:'#C99A3D',gl:'#F0C96A',w:'#83BEB9',a:'#E8B27C',t:'#BFE4DF',m:'#756C60'};
+function svgDefs(day){return `<defs>
+  <radialGradient id="haloGradient" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="${C.gl}" stop-opacity=".34"/><stop offset=".55" stop-color="${C.gl}" stop-opacity=".12"/><stop offset="1" stop-color="${C.gl}" stop-opacity="0"/></radialGradient>
+  <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CBEAE6"/><stop offset=".45" stop-color="#8BC5BF"/><stop offset="1" stop-color="#5A928D"/></linearGradient>
+  <linearGradient id="goldWash" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F0C96A" stop-opacity=".26"/><stop offset="1" stop-color="#C99A3D" stop-opacity=".04"/></linearGradient>
+</defs>`;}
+function halo(cx,cy,rx,ry,show){return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#haloGradient)" opacity="${show?1:0}" pointer-events="none"/>`;}
+function timerProgress(day,id,target){return Math.min(1,timerElapsed(dayState(day),id)/(target*1000));}
+function fmtTimer(ms,target){ms=Math.max(0,ms);const total=Math.max(0,Math.ceil((target*1000-ms)/1000));const m=Math.floor(total/60),s=total%60;return `${m}:${String(s).padStart(2,'0')}`;}
+function completion(day){
+  const specs=MOVE_SPECS[day]||[];
+  if(day===8){
+    return !!word(8,'hunger')&&(done(8,'portion')||done(8,'schedule'));
+  }
+  if(day===23){
+    return !!word(23,'delayed')&&(done(23,'moved')||done(23,'truth'));
+  }
+  const required=specs.filter(move=>!move.optional);
+  return required.length>0&&required.every(move=>moveDone(day,move));
+}
+function wordSlot(day,slot,x,y,w,label,opts={}){
+  const st=dayState(day),val=st.words[slot]||'',carried=opts.carried??carriedWord(day,slot),font=opts.font||10;
+  const cls=`svg-word${carried?' carried':''}${val?'':' empty'}`;
+  const display=val?clipText(val,opts.max||24):label;
+  const anchor=opts.anchor||'middle',tx=anchor==='start'?x:x+w/2;
+  const lineY=y+5;
+  return `<g aria-hidden="true"><line class="word-rule" x1="${x}" y1="${lineY}" x2="${x+w}" y2="${lineY}"/><text class="${cls}" style="font-size:${font}px" x="${tx}" y="${y}" text-anchor="${anchor}">${escSvg(display)}</text></g>`;
+}
+function currentTimeLabel(){return new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
+
+function instrumentSvg(day){
+  const st=dayState(day);const complete=completion(day);const wide=[15,25,26].includes(day)||[10,20,30].includes(day);const vb=wide?'0 0 346 196':'0 0 142 204';
+  let b='';
+  switch(day){
+    case 1:{
+      const refill=done(1,'refill'),vis=done(1,'visible');
+      b=`${halo(71,110,65,62,complete)}<clipPath id="jarClip1"><path d="M42 43 H100 L108 60 V157 Q71 172 34 157 V60 Z"/></clipPath><path class="line" d="M42 43 H100 L108 60 V157 Q71 172 34 157 V60 Z"/><path class="line" d="M42 43 L48 31 H94 L100 43"/>${refill?`<rect x="34" y="110" width="74" height="55" class="water" clip-path="url(#jarClip1)"/><path class="water-line" d="M35 111 H107"/>`:''}${wordSlot(1,'supply',45,89,52,'supply…',{carried:refill,font:9})}${vis?`<path class="done" d="M112 72 h19 v64 h-19 M117 80 h9"/>`:''}`;break;}
+    case 2:{
+      const p=timerProgress(2,'quiet',60);const drank=done(2,'drink');
+      b=`${halo(71,91,65,68,complete)}<path class="line" d="M31 61 C33 111 48 132 71 132 C94 132 109 111 111 61"/><ellipse class="line" cx="71" cy="61" rx="40" ry="8"/>${!drank?`<ellipse cx="71" cy="65" rx="37" ry="6" class="water"/>`:''}<circle cx="71" cy="61" r="49" class="timer-track"/><circle cx="71" cy="61" r="49" class="timer-progress" pathLength="100" stroke-dasharray="${p*100} 100" transform="rotate(-90 71 61)"/>${wordSlot(2,'input',29,104,84,'first input…',{carried:done(2,'quiet')})}`;break;}
+    case 3:{
+      const placed=done(3,'place'),food=word(3,'food');const loafY=placed?126:88;
+      b=`${halo(71,120,66,46,complete)}<path class="line" d="M18 145 H124 L114 166 H28 Z"/><ellipse cx="71" cy="${loafY}" rx="34" ry="12" class="${placed?'done':'line-dim'}"/><path class="${placed?'done':'line-dim'}" d="M49 ${loafY} q22 -13 44 0"/>${food?`<text x="71" y="${loafY+3}" text-anchor="middle" class="svg-small">${escSvg(clipText(food,18))}</text>`:''}${placed?`<path class="done" d="M43 137 H99"/><path class="done" d="M91 133 l8 4 l-8 4"/>`:''}`;break;}
+    case 4:{
+      b=`${halo(71,112,65,52,complete)}<ellipse class="line" cx="71" cy="126" rx="51" ry="22"/><path class="water-line" d="M25 123 Q71 137 117 123" opacity="${done(4,'wash')?.8:.24}"/>${wordSlot(4,'care',31,101,80,'body-care…',{carried:done(4,'do')})}${done(4,'do')?`<path class="done" d="M49 151 q22 12 44 0"/>`:''}`;break;}
+    case 5:{
+      const reduced=done(5,'reduce');const hours=Math.max(0,Math.min(10,Math.round(Number(word(5,'hours'))||0)));const hasShort=!!word(5,'shortener');
+      b=`${halo(71,115,66,46,complete)}${Array.from({length:10},(_,i)=>{const lit=i<hours;const shortDot=i===Math.max(0,hours-1)&&hasShort&&!reduced;return `<circle cx="${18+i*12}" cy="72" r="${lit?3:2}" fill="${lit&&!shortDot?C.gl:'#3A2C16'}" opacity="${lit&&!shortDot?.98:.5}"/>`;}).join('')}<path class="line" d="M47 145 V106 L71 89 L95 106 V145 M58 145 V121 H84 V145"/>${hasShort?`<path class="${reduced?'done':'line-dim'}" d="M29 90 Q42 81 50 86"/>`:''}${wordSlot(5,'hours',28,101,39,'hours…',{carried:reduced,font:8.3})}${wordSlot(5,'shortener',77,101,47,'shortener…',{carried:reduced,font:7.8,max:12})}`;break;}
+    case 6:{
+      const found=done(6,'find'),booked=done(6,'book');
+      b=`${halo(71,112,66,54,complete)}
+      <rect x="24" y="50" width="94" height="108" rx="5" class="line"/>
+      <path class="line" d="M24 76 H118 M45 42 V60 M97 42 V60"/>
+      <circle cx="44" cy="96" r="8" class="${booked?'done':'line-dim'}"/>
+      <circle cx="71" cy="96" r="8" class="line-dim"/>
+      <circle cx="98" cy="96" r="8" class="line-dim"/>
+      ${wordSlot(6,'appointment',36,127,70,'appointment…',{carried:booked,font:8.5,max:19})}
+      ${found?`<g><path class="done" d="M38 171 H104"/><path class="done" d="M43 166 q7 -8 14 0 M85 166 q7 -8 14 0"/><text x="71" y="188" text-anchor="middle" class="svg-small">number / booking page found</text></g>`:''}
+      ${booked?`<path class="done" d="M38 96 l5 5 l10-13"/><text x="71" y="36" text-anchor="middle" class="svg-label">ON THE CALENDAR</text>`:''}`;break;}
+    case 7:{
+      const chosen=pick(7,'dignity');
+      b=`${halo(71,116,66,52,complete)}<path class="line" d="M24 145 H118"/><path class="line" d="M34 72 h42 v58 h-42 z"/><path class="${chosen?'done':'dash'}" d="M84 77 Q118 88 108 123 Q92 129 82 117 Z"/>${chosen?`<text x="71" y="166" text-anchor="middle" class="svg-label">${escSvg(clipText(chosen,24))}</text>`:''}`;break;}
+    case 8:{
+      const portion=done(8,'portion'),scheduled=done(8,'schedule');const mode=portion?'Portion now':scheduled?'Opening scheduled':'';
+      b=`${halo(71,122,66,44,complete)}<path class="line" d="M19 116 Q27 153 71 153 Q115 153 123 116"/><ellipse class="line" cx="71" cy="116" rx="52" ry="12"/>${portion?`<path d="M71 116 L111 123 Q100 144 72 149 Z" fill="url(#goldWash)" stroke="${C.gl}" stroke-width="1.2"/>`:''}${scheduled?`<path class="done" d="M27 164 H115 M35 158 V170 M107 158 V170"/>`:''}${wordSlot(8,'hunger',32,113,78,'quiet hunger…',{carried:portion||scheduled,font:9.3})}${mode?`<text x="71" y="184" class="svg-label" text-anchor="middle">${escSvg(mode)}</text>`:''}`;break;}
+    case 9:{
+      const recv=done(9,'drink');const rep=pick(9,'repair');
+      b=`${halo(71,107,66,56,complete)}<circle cx="71" cy="98" r="47" class="line"/><circle cx="71" cy="98" r="28" class="${recv?'done':'line-dim'}"/><circle cx="71" cy="98" r="7" class="${recv?'done-fill':'neutral-fill'}"/>${recv?`<path class="done" d="M63 98 l6 6 l12-15"/>`:''}<text x="71" y="160" text-anchor="middle" class="svg-label">${escSvg(rep||'choose repair')}</text><text x="71" y="176" text-anchor="middle" class="svg-small">${recv?'water · '+escSvg(dayState(9).timestamps.drink||''):currentTimeLabel()}</text>`;break;}
+    case 10:{
+      b=`${halo(286,98,48,45,complete)}<rect x="30" y="35" width="238" height="111" rx="3" class="line"/><text x="48" y="54" class="svg-label">FED</text><text x="161" y="54" class="svg-label">STILL ASKING</text><line x1="145" y1="45" x2="145" y2="130" class="line-dim"/>${wordSlot(10,'fed',45,88,82,'fed…',{carried:done(10,'prepare'),anchor:'start',font:9.5,max:18})}${wordSlot(10,'asking',160,88,84,'still asking…',{carried:false,anchor:'start',font:9.5,max:18})}${done(10,'prepare')?`<path class="done" d="M44 124 H126"/>`:''}<circle cx="298" cy="90" r="21" class="${done(10,'prepare')?'done':'line-dim'}"/>`;break;}
+    case 11:{
+      b=`${halo(71,119,67,48,complete)}<ellipse cx="71" cy="123" rx="51" ry="28" class="line"/>${done(11,'provide')?`<ellipse cx="71" cy="130" rx="44" ry="17" fill="url(#goldWash)"/>`:''}${wordSlot(11,'dependent',39,112,64,'who…',{carried:done(11,'provide'),font:8.8})}${wordSlot(11,'need',39,138,64,'need…',{carried:done(11,'provide'),font:8.5})}`;break;}
+    case 12:{
+      const care=done(12,'care');
+      b=`${halo(71,117,66,52,complete)}<path class="line" d="M20 105 q4 39 23 39 q19 0 23-39"/><ellipse cx="43" cy="105" rx="23" ry="6" class="line"/><path class="line" d="M76 105 q4 39 23 39 q19 0 23-39"/><ellipse cx="99" cy="105" rx="23" ry="6" class="line"/>${care?`<path class="water-line" d="M59 98 C68 84 78 84 87 98"/><path class="done" d="M67 91 l7 -5 l-1 9"/>`:''}${wordSlot(12,'dependent',25,101,36,'who…',{carried:care,font:7.6})}${wordSlot(12,'need',81,101,36,'need…',{carried:care,font:7.6})}`;break;}
+    case 13:{
+      const pos=pick(13,'position'),adjusted=done(13,'adjust');
+      let rays='M71 105 L71 55 M71 105 L114 130 M71 105 L28 130';
+      if(!adjusted&&pos==='I carry more')rays='M71 105 L71 55 M71 105 L119 118 M71 105 L31 142';
+      if(!adjusted&&pos==='Someone else carries more')rays='M71 105 L71 55 M71 105 L107 145 M71 105 L23 116';
+      if(!adjusted&&pos==='About even')rays='M71 105 L71 55 M71 105 L114 130 M71 105 L28 130';
+      b=`${halo(71,112,66,58,complete)}<circle cx="71" cy="105" r="50" class="line"/><path class="${adjusted?'done':'line'}" d="${rays}"/>${pos?`<text x="71" y="165" text-anchor="middle" class="svg-label">${adjusted?'share made even · ':''}${escSvg(pos)}</text>`:''}${wordSlot(13,'resource',39,101,64,'resource…',{carried:adjusted,font:8.8})}`;break;}
+    case 14:{
+      const p=timerProgress(14,'refillTimer',180),e=timerElapsed(st,'refillTimer');
+      b=`${halo(71,120,65,50,complete)}<path class="line" d="M22 111 Q29 154 71 154 Q113 154 120 111"/><ellipse cx="71" cy="111" rx="49" ry="10" class="line"/>${e>0?`<path class="water" d="M27 ${149-34*p} Q71 ${158-25*p} 115 ${149-34*p} L112 150 Q71 163 30 150 Z" opacity=".7"/>`:''}${wordSlot(14,'refill',37,108,68,'what is low…',{carried:done(14,'refillTimer'),font:8.8})}<circle cx="71" cy="69" r="25" class="timer-track"/><circle cx="71" cy="69" r="25" class="timer-progress" pathLength="100" stroke-dasharray="${p*100} 100" transform="rotate(-90 71 69)"/><text x="71" y="72" text-anchor="middle" class="svg-label">${escSvg(fmtTimer(e,180))}</text>`;break;}
+    case 15:{
+      const p=timerProgress(15,'attentionTimer',60);
+      b=`${halo(173,105,120,62,complete)}<path class="line" d="M35 132 H311"/><circle cx="173" cy="94" r="50" class="timer-track"/><circle cx="173" cy="94" r="50" class="timer-progress" pathLength="100" stroke-dasharray="${p*100} 100" transform="rotate(-90 173 94)"/>${wordSlot(15,'attention',114,99,118,'full attention…',{carried:done(15,'attentionTimer'),font:10.2})}${done(15,'phone')?`<rect x="264" y="72" width="34" height="54" rx="5" class="done"/><path class="done" d="M269 119 H293"/>`:`<rect x="264" y="72" width="34" height="54" rx="5" class="line-dim"/>`}`;break;}
+    case 16:{
+      const asked=done(16,'cover'),hasCost=!!word(16,'cost');const leftY=asked?124:(hasCost?139:124),rightY=124;
+      b=`${halo(71,116,66,50,complete)}<path class="${asked?'done':'line'}" d="M22 76 H120 M71 58 V82" transform="${asked?'':'rotate(-6 71 76)'}"/><path class="line" d="M34 ${leftY-23} V${leftY} M108 ${rightY-23} V${rightY}"/><path class="line" d="M20 ${leftY} H48 L43 ${leftY+24} H25 Z M94 ${rightY} H122 L117 ${rightY+24} H99 Z"/>${wordSlot(16,'cost',21,leftY+12,26,'cost…',{carried:asked,font:7.2,max:8})}${asked?`<path class="done" d="M13 91 q10 -11 20 0 M109 91 q10 -11 20 0 M13 91 v10 M129 91 v10"/>`:''}`;break;}
+    case 17:{
+      const stem=pick(17,'stem'),sent=done(17,'send');
+      b=`${halo(71,116,66,52,complete)}<path class="line" d="M19 69 H123 V151 H19 Z"/>${stem?`<path class="done" d="M19 69 L71 38 L123 69"/><rect x="30" y="73" width="82" height="62" rx="2" class="neutral-fill"/>`:`<path class="line" d="M19 69 L71 111 L123 69"/>`}<path class="${sent?'done':'line-dim'}" d="M19 151 L58 113 M123 151 L84 113"/>${stem?`<text x="71" y="91" text-anchor="middle" class="svg-small">${escSvg(clipText(stem,24))}</text>`:''}${wordSlot(17,'message',36,132,70,'finish it…',{carried:sent,font:8.5,max:22})}${sent?`<circle cx="71" cy="111" r="8" class="seal-fill"/><path class="seal-mark" d="M67 111 l3 3 l6-8"/>`:''}`;break;}
+    case 18:{
+      const adjusted=done(18,'adjust');
+      b=`${halo(71,116,66,48,complete)}<path class="line" d="M20 84 L71 52 L122 84"/><path class="line" d="M27 151 V112 Q38 99 49 112 V151 M93 151 V112 Q104 99 115 112 V151"/>${adjusted?`<path class="done" d="M18 165 H124"/><path class="line-dim" d="M31 122 H45 M97 122 H111"/>`:`<path class="water-line" d="M18 165 Q31 151 44 165 Q57 179 70 165 Q83 151 96 165 Q109 179 124 165" opacity=".7"/>`}${wordSlot(18,'impact',38,143,66,'impact…',{carried:adjusted,font:8.2,max:18})}`;break;}
+    case 19:{
+      b=`${halo(71,119,66,48,complete)}<path class="line" d="M18 133 Q42 101 67 126 M124 133 Q100 101 75 126"/><circle cx="42" cy="105" r="13" class="${done(19,'credit')?'done':'line-dim'}"/><circle cx="100" cy="105" r="13" class="${done(19,'lighten')?'done':'line-dim'}"/>${wordSlot(19,'labor',38,153,66,'unseen labor…',{carried:done(19,'lighten'),font:8.7})}`;break;}
+    case 20:{
+      b=`${halo(294,98,45,43,complete)}<rect x="24" y="36" width="264" height="116" rx="3" class="line"/><text x="40" y="55" class="svg-label">IMPROVED</text><text x="131" y="55" class="svg-label">STILL LEAKS</text><text x="221" y="55" class="svg-label">PATCH</text>${wordSlot(20,'improved',38,84,70,'improved…',{carried:done(20,'calendar'),anchor:'start',font:8.3,max:15})}${wordSlot(20,'leak',129,84,70,'leak…',{carried:false,anchor:'start',font:8.3,max:15})}${wordSlot(20,'patch',218,84,55,'patch…',{carried:done(20,'calendar'),anchor:'start',font:8.3,max:13})}${done(20,'calendar')?`<rect x="216" y="102" width="59" height="33" rx="3" class="done"/><path class="done" d="M224 111 H266 M224 119 H260 M224 127 H250"/>`:`<rect x="216" y="102" width="59" height="33" rx="3" class="dash"/>`}`;break;}
+    case 21:{
+      const open=done(21,'clear');
+      b=`${halo(71,116,65,50,complete)}<path class="line" d="M22 157 V70 H120 V157"/><path class="${open?'done':'line'}" d="M54 157 V95 H88 V157" transform="${open?'translate(24 -18) rotate(15 71 126)':''}"/>${wordSlot(21,'source',38,86,66,'source…',{carried:open,font:8.8})}<path class="water-line" d="M16 176 Q48 ${open?154:170} 71 176 Q97 ${open?154:170} 128 176" opacity="${open?.8:.25}"/>`;break;}
+    case 22:{
+      const returned=done(22,'offer'),thing=word(22,'thing'),source=word(22,'source');
+      const thingText=thing?escSvg(clipText(thing,9)):'';const sourceText=source?escSvg(clipText(source,10)):'';
+      b=`${halo(71,114,66,50,complete)}<rect x="10" y="98" width="31" height="31" rx="3" class="line"/><path class="line" d="M53 118 Q70 96 87 118 Q70 136 53 118 Z"/><path class="line" d="M101 102 q4 27 18 27 q14 0 18-27"/><ellipse cx="119" cy="102" rx="18" ry="5" class="line"/><path class="line-dim" d="M41 113 H53 M87 113 H101"/><path class="line-dim" d="M47 109 l6 4 l-6 4 M95 109 l6 4 l-6 4"/>${thingText?`<text x="25.5" y="118" text-anchor="middle" class="svg-small">${thingText}</text>`:''}${sourceText?`<text x="70" y="121" text-anchor="middle" class="svg-small">${sourceText}</text>`:''}${returned?`<path class="done" d="M121 78 C103 63 83 65 69 80 C55 94 39 92 22 81"/><path class="done" d="M30 74 l-10 7 l11 4"/>`:''}`;break;}
+    case 23:{
+      const moved=done(23,'moved'),truth=done(23,'truth');
+      b=`${halo(71,114,66,54,complete)}<path class="water-line" d="M17 79 Q46 94 71 79 Q96 64 125 79 M17 161 Q46 176 71 161 Q96 146 125 161" opacity=".55"/><path class="line" d="M43 72 H99 V157 H43 Z"/>${moved?`<path class="done" d="M64 72 V112 H78 V72"/><path class="water-line" d="M64 119 Q71 113 78 119"/>`:`<path class="line-dim" d="M64 72 V132 H78 V72"/>`}${wordSlot(23,'delayed',49,107,44,'delayed…',{carried:moved,font:7.8,max:11})}${truth?`<g><rect x="90" y="120" width="34" height="27" rx="2" class="done"/><path class="done" d="M90 120 l12 10 h22"/><text x="107" y="156" text-anchor="middle" class="svg-small">not today</text></g>`:''}`;break;}
+    case 24:{
+      const released=done(24,'release');
+      const grains=Array.from({length:12},(_,i)=>`<circle cx="${39+(i%4)*21}" cy="${103+Math.floor(i/4)*17}" r="3" fill="${C.g}" opacity=".28"/>`).join('');
+      const leaving=released?Array.from({length:5},(_,i)=>`<circle cx="${58+i*7}" cy="${157+i*5}" r="2.4" fill="${C.gl}" opacity="${.9-i*.12}"/>`).join(''):'';
+      b=`${halo(71,112,66,55,complete)}<path class="line" d="M29 73 H113 L120 94 V159 H22 V94 Z"/><path class="line" d="M29 73 L43 52 H99 L113 73"/>${grains}${released?`<path class="done" d="M54 139 H88 V159 H54 Z"/>${leaving}`:`<rect x="54" y="139" width="34" height="20" class="line-dim"/>`}${wordSlot(24,'surplus',39,84,64,'surplus…',{carried:released,font:8.5})}`;break;}
+    case 25:{
+      const flow=done(25,'flow');
+      b=`${halo(173,107,123,60,complete)}<path class="${flow?'water-line':'line-dim'}" d="M24 112 C72 55 111 159 161 105 C210 52 248 157 322 96" stroke-width="${flow?3:1.5}"/>${wordSlot(25,'received',46,70,112,'where it reached you…',{carried:flow,font:9.5})}${wordSlot(25,'onward',195,140,112,'where it can flow…',{carried:flow,font:9.5})}${flow?`<circle cx="172" cy="105" r="4" class="done-fill"/><path class="done" d="M294 81 l27 15 l-25 11"/>`:''}`;break;}
+    case 26:{
+      const using=done(26,'use');
+      const artifacts=[{day:1,type:'jar'},{day:6,type:'calendar'},{day:8,type:'bowl'},{day:13,type:'share'},{day:16,type:'scale'},{day:21,type:'gate'},{day:24,type:'granary'}];
+      const icon=(type,x,y,cls)=>{
+        if(type==='cup')return `<path class="${cls}" d="M${x-10} ${y-8} q2 21 10 21 q8 0 10-21"/><ellipse cx="${x}" cy="${y-8}" rx="10" ry="3" class="${cls}"/>`;
+        if(type==='jar')return `<path class="${cls}" d="M${x-9} ${y-12} h18 l4 7 v20 q-13 6-26 0 v-20 z"/>`;
+        if(type==='bowl')return `<path class="${cls}" d="M${x-12} ${y-2} q3 18 12 18 q9 0 12-18"/><ellipse cx="${x}" cy="${y-2}" rx="12" ry="4" class="${cls}"/>`;
+        if(type==='share')return `<circle cx="${x}" cy="${y}" r="13" class="${cls}"/><path class="${cls}" d="M${x} ${y} V${y-13} M${x} ${y} L${x-11} ${y+7} M${x} ${y} L${x+11} ${y+7}"/>`;
+        if(type==='scale')return `<path class="${cls}" d="M${x-14} ${y-8} H${x+14} M${x} ${y-16} V${y+8} M${x-11} ${y-7} L${x-14} ${y+9} h8 z M${x+11} ${y-7} L${x+8} ${y+9} h8 z"/>`;
+        if(type==='gate')return `<path class="${cls}" d="M${x-12} ${y+13} V${y-10} H${x+12} V${y+13} M${x-5} ${y+13} V${y-2} H${x+5} V${y+13}"/>`;
+        if(type==='calendar')return `<rect x="${x-13}" y="${y-11}" width="26" height="25" rx="2" class="${cls}"/><path class="${cls}" d="M${x-13} ${y-3} H${x+13} M${x-7} ${y-15} V${y-7} M${x+7} ${y-15} V${y-7}"/>`;
+        return `<path class="${cls}" d="M${x-12} ${y-8} H${x+12} L${x+15} ${y-2} V${y+14} H${x-15} V${y-2} Z"/><rect x="${x-5}" y="${y+4}" width="10" height="10" class="${cls}"/>`;
+      };
+      const active=artifacts.map(a=>stateHasSubstance(a.day));let selected=active.lastIndexOf(true);if(selected<0)selected=0;
+      const xs=[46,88,130,173,216,258,300],baseY=116;
+      const tableObjects=artifacts.map((a,i)=>{const cls=active[i]?'line':'dash';const ghost=(using&&i===selected)?'dash':cls;return `<g opacity="${active[i]?1:.36}">${icon(a.type,xs[i],baseY,ghost)}</g>`;}).join('');
+      const lifted=using?icon(artifacts[selected].type,173,60,'done'):'';
+      b=`${halo(173,78,120,70,using)}<path class="line" d="M22 143 H324 L311 169 H35 Z"/><path class="line-dim" d="M42 169 V184 M304 169 V184"/>${tableObjects}${wordSlot(26,'support',118,38,110,'support already available…',{carried:using,font:8.5,max:24})}${using?`<path class="done" d="M${xs[selected]} 96 C${xs[selected]} 78 136 84 161 70"/><path class="done" d="M156 64 l8 5 l-5 8"/>${lifted}<path class="done" d="M150 84 Q173 96 196 84"/>`:''}`;break;}
+    case 27:{
+      const ret=pick(27,'returnKind'),returned=done(27,'return');
+      b=`${halo(71,115,66,54,complete)}<rect x="20" y="66" width="102" height="88" class="line"/>${Array.from({length:4},(_,i)=>`<line x1="${45+i*25}" y1="66" x2="${45+i*25}" y2="154" class="line-dim"/>`).join('')}${Array.from({length:3},(_,i)=>`<line x1="20" y1="${88+i*22}" x2="122" y2="${88+i*22}" class="line-dim"/>`).join('')}${returned?`<path class="water-line" d="M20 104 C43 88 61 119 80 104 C97 90 109 96 122 91"/><path class="done" d="M96 82 l20 9 l-20 9"/>`:''}${wordSlot(27,'provision',39,112,64,'what provisions…',{carried:returned,font:8.1,max:17})}${ret?`<text x="71" y="178" text-anchor="middle" class="svg-label">return · ${escSvg(ret)}</text>`:''}`;break;}
+    case 28:{
+      const fed=done(28,'give'),rel=word(28,'relationship'),prov=pick(28,'provision');
+      b=`${halo(71,119,66,48,complete)}<circle cx="35" cy="116" r="22" class="line"/><circle cx="107" cy="116" r="22" class="line"/><path class="${fed?'done':'dash'}" d="M57 116 C72 88 88 144 85 116"/>${wordSlot(28,'relationship',38,80,66,'relationship…',{carried:fed,font:8.5})}${prov?`<text x="71" y="163" class="svg-label" text-anchor="middle">${escSvg(prov)}</text>`:''}`;break;}
+    case 29:{
+      const support=pick(29,'support'),prepared=done(29,'prepare');
+      b=`${halo(71,119,64,46,complete)}<rect x="14" y="112" width="114" height="44" rx="4" class="line"/><rect x="25" y="73" width="34" height="30" rx="3" class="dash"/><circle cx="94" cy="88" r="19" class="dash"/><path class="dash" d="M72 69 h39 v36"/>${prepared?`<path class="done" d="M22 163 H120"/><text x="71" y="181" class="svg-label" text-anchor="middle">set for tomorrow · still dashed</text>`:''}${support?`<text x="71" y="104" class="svg-label" text-anchor="middle">${escSvg(support)}</text>`:''}${wordSlot(29,'easier',38,139,66,'easier because…',{carried:prepared,font:8.3})}`;break;}
+    case 30:{
+      const t1=done(30,'truth1'),t2=done(30,'truth2'),t3=done(30,'truth3'),t4=done(30,'truth4'),t5=done(30,'truth5');const truths=[t1,t2,t3,t4,t5];const p=timerProgress(30,'breath',8);const support=pick(29,'support');
+      b=`${halo(300,104,44,44,done(30,'breath'))}<path class="line" d="M18 188 H328 L316 214 H30 Z"/><rect x="46" y="24" width="239" height="147" rx="3" class="line"/><text x="59" y="42" class="svg-label">THE ACCOUNT</text>${truths.map((v,i)=>`<g><circle cx="61" cy="${58+i*19}" r="4" class="${v?'done-fill':'neutral-fill'}"/><line x1="72" y1="${58+i*19}" x2="${v?258:182}" y2="${58+i*19}" class="${v?'done':'line-dim'}"/><text x="75" y="${55+i*19}" class="svg-small">${i+1}</text></g>`).join('')}${wordSlot(30,'shortfall',62,166,92,'shortfall…',{carried:false,font:8.5,max:18})}${wordSlot(30,'surprise',169,166,96,'surprise…',{carried:done(30,'breath'),font:8.5,max:18})}<circle cx="306" cy="92" r="24" class="timer-track"/><circle cx="306" cy="92" r="24" class="timer-progress" pathLength="100" stroke-dasharray="${p*100} 100" transform="rotate(-90 306 92)"/>${done(30,'breath')?`<g><circle cx="306" cy="92" r="18" class="seal-fill"/><path class="seal-mark" d="M297 92 l7 7 l13-18 M306 74 V110 M288 92 H324"/></g>`:''}${support?`<g opacity=".55"><rect x="292" y="139" width="28" height="22" rx="2" class="dash"/><text x="306" y="174" text-anchor="middle" class="svg-small">day 29 · ${escSvg(clipText(support,10))}</text></g>`:''}`;break;}
+  }
+  return `<svg viewBox="${vb}" role="img" aria-label="Interactive instrument for day ${day}">${svgDefs(day)}${b}</svg>`;
+}
+
+
+
+const phone=document.getElementById('phone'),eventBlock=document.getElementById('eventBlock'),sheet=document.getElementById('sheet'),
+scrim=document.getElementById('scrim'),layerStage=document.getElementById('layerStage'),practiceShell=document.getElementById('practiceShell'),
+practiceContent=document.getElementById('practiceContent'),instrument=document.getElementById('instrument'),fields=document.getElementById('fields'),moves=document.getElementById('moves');
+let activeDay=1, rafId=0, layeredPos=0, revealDistance=0, innerMax=0;
+let programmaticFieldFocus=false;
+let layeredAnimationFrame=0;
+let layeredAnimationToken=0;
+const practiceReturned=document.getElementById('practiceReturned');
+const practiceNext=document.getElementById('practiceNext');
+
+function stageShort(stage){return stage.startsWith('Personal')?'PERSONAL TABLE':stage.startsWith('Household')?'HOUSEHOLD TABLE':'FLOWING TABLE';}
+function populateSelect(){
+  const sel=document.getElementById('daySelect');
+  sel.innerHTML=offeringDays.map(d=>`<option value="${d.day}">Day ${String(d.day).padStart(2,'0')} · ${escHtml(d.title)}</option>`).join('');
+  sel.value=String(activeDay);
+  sel.addEventListener('change',()=>{activeDay=Number(sel.value);closeSheet();renderEvent();});
+}
+function renderEvent(){
+  const d=offeringDays[activeDay-1];
+  eventBlock.dataset.day=d.day;
+  document.getElementById('eventKicker').textContent=`THE OFFERING TABLE · DAY ${String(d.day).padStart(2,'0')}`;
+  document.getElementById('eventTitle').textContent=d.title;
+  document.getElementById('eventPrompt').textContent=`“${d.prompt}”`;
+}
+function renderHeader(){
+  const d=offeringDays[activeDay-1];
+  document.getElementById('sheetTitle').textContent=d.title;
+  document.getElementById('sheetOrient').textContent=d.orient;
+  document.getElementById('sheetDate').textContent=fmtSheetDate(d.date).replace(',',' ·').toUpperCase();
+  document.getElementById('sheetStageDay').textContent=`${stageShort(d.stage)} · DAY ${String(d.day).padStart(2,'0')}`;
+  document.getElementById('layerKicker').textContent=`${stageShort(d.stage)} · DAY ${String(d.day).padStart(2,'0')}`;
+  document.getElementById('layerIntro').textContent=d.instruction;
+  document.getElementById('contextBody').innerHTML=`<p>${escHtml(d.context)}</p><p>${escHtml(d.instruction)}</p>`;
+  renderCourseBand();
+}
+function renderGraphic(){
+  const wide=[10,15,20,25,26,30].includes(activeDay);
+  instrument.classList.toggle('wide',wide);
+  instrument.innerHTML=instrumentSvg(activeDay);
+}
+function renderFields(){
+  const st=dayState(activeDay),names=(MOVE_SPECS[activeDay]||[]).filter(m=>m.kind==='name');
+  if(!names.length){fields.innerHTML='<div class="no-fields">Nothing to name here. The action is the record.</div>';return;}
+  fields.innerHTML=names.map(m=>`<label class="field-row"><span class="field-label">${escHtml(m.fieldLabel||m.slot)}</span><input class="field-input" data-slot="${escAttr(m.slot)}" value="${escAttr(st.words[m.slot]||'')}" placeholder="${escAttr(m.placeholder||'name it…')}"></label>`).join('');
+  fields.querySelectorAll('.field-input').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      st.words[inp.dataset.slot]=inp.value;saveCourse();renderGraphic();
+      const row=moves.querySelector(`[data-move="${CSS.escape((names.find(n=>n.slot===inp.dataset.slot)||{}).id||'')}"]`);
+      if(row)row.classList.toggle('done',!!inp.value.trim());
+      renderReturnedNotification();
+    });
+    inp.addEventListener('focus',()=>{
+      if(programmaticFieldFocus)return;
+      ensurePracticeElementVisible(inp);
+    });
+  });
+}
+function timerMeta(move){const st=dayState(activeDay),e=timerElapsed(st,move.id),t=st.timers[move.id]||{};if(move.mode==='under')return !e?'start 3:00':`${t.running?'running':'held'} · ${Math.floor(e/1000)}s`;return `${t.running?'pause':'start'} · ${fmtTimer(e,move.target)}`;}
+function renderMoves(){
+  const st=dayState(activeDay),specs=MOVE_SPECS[activeDay]||[];
+  moves.innerHTML=specs.map(m=>{
+    const ok=moveDone(activeDay,m,st);
+    const meta=m.kind==='timer'?`<span class="move-meta">${escHtml(timerMeta(m))}</span>`:'';
+    const pickrow=m.kind==='pick'?`<div class="picks">${m.options.map(o=>`<button class="pick ${st.picks[m.id]===o?'selected':''}" data-pick="${escAttr(m.id)}" data-value="${escAttr(o)}">${escHtml(o)}</button>`).join('')}</div>`:'';
+    return `<div class="move ${ok?'done':''} ${m.kind==='drink'?'drink':''} ${m.optional?'optional':''}" data-move="${escAttr(m.id)}">
+      <button class="move-line" type="button" data-action="${escAttr(m.id)}"><span class="mark">${ok?'✓':''}</span><span class="move-copy">${escHtml(m.label)}${meta}</span></button>${pickrow}
+    </div>`;
+  }).join('');
+  moves.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>handleMove(b.dataset.action)));
+  moves.querySelectorAll('[data-pick]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();dayState(activeDay).picks[b.dataset.pick]=b.dataset.value;saveCourse();renderAllSheet();
+  }));
+}
+function handleMove(id){
+  const m=moveSpec(activeDay,id),st=dayState(activeDay);if(!m)return;
+  if(m.kind==='name'){
+    const input=fields.querySelector(`[data-slot="${CSS.escape(m.slot)}"]`);
+    ensurePracticeElementVisible(input,{focus:true});
+    return;
+  }
+  if(m.kind==='pick')return;
+  if(m.kind==='timer'){toggleTimer(m);return;}
+  st.moves[id]=!st.moves[id];
+  if(activeDay===8&&st.moves[id]&&(id==='portion'||id==='schedule'))st.moves[id==='portion'?'schedule':'portion']=false;
+  if(m.kind==='drink'&&st.moves[id])st.timestamps[id]=currentTimeLabel();
+  saveCourse();renderAllSheet();
+}
+function toggleTimer(m){
+  const st=dayState(activeDay),old=st.timers[m.id]||{elapsedMs:0,running:false,startedAt:0},e=timerElapsed(st,m.id);
+  if(old.running){old.elapsedMs=e;old.running=false;old.startedAt=0;}
+  else if(e<m.target*1000){old.elapsedMs=e;old.running=true;old.startedAt=Date.now();}
+  st.timers[m.id]=old;saveCourse();renderAllSheet();scheduleTimer();
+}
+function scheduleTimer(){if(!rafId)rafId=requestAnimationFrame(timerFrame)}
+function timerFrame(){
+  rafId=0;let any=false;const st=dayState(activeDay);
+  for(const m of MOVE_SPECS[activeDay]||[]){
+    if(m.kind!=='timer')continue;const t=st.timers[m.id];if(!t?.running)continue;any=true;
+    const e=timerElapsed(st,m.id);if(e>=m.target*1000){t.elapsedMs=m.target*1000;t.running=false;t.startedAt=0;saveCourse();}
+  }
+  if(sheet.classList.contains('open')){renderGraphic();renderMoves();}
+  if(any)scheduleTimer();
+}
+
+function stageBandLabel(stage){
+  if(stage.startsWith('Personal'))return 'Personal';
+  if(stage.startsWith('Household'))return 'Household';
+  return 'Flowing';
+}
+function renderCourseBand(){
+  const d=offeringDays[activeDay-1],track=document.getElementById('courseTrack');
+  let html='';
+  for(let i=1;i<=30;i++){
+    const seal=(i===10||i===20||i===30);
+    const cls=['course-point'];
+    if(seal)cls.push('seal');
+    if(i<activeDay)cls.push('past');
+    if(i===activeDay)cls.push('current');
+    html+=`<i class="${cls.join(' ')}"></i>`;
+  }
+  track.innerHTML=html;
+  document.getElementById('courseStage').textContent=stageBandLabel(d.stage);
+}
+
+
+function renderCompletionPicker(){
+  const status=dayState(activeDay).completionStatus||'';
+  document.querySelectorAll('.completion-chip').forEach(b=>b.classList.toggle('active',b.dataset.status===status));
+}
+function renderReturnedNotification(){
+  const show=completion(activeDay);
+  practiceReturned.classList.toggle('show',show);
+  practiceNext.textContent=activeDay<30
+    ? `Day ${activeDay+1} arrives tomorrow at 7:30.`
+    : 'The thirty-day table is complete.';
+  requestAnimationFrame(measureLayeredScroll);
+}
+function measureLayeredScroll(){
+  const stageH=layerStage.clientHeight||470;
+  const peek=28;
+  revealDistance=Math.max(0,stageH-peek);
+  innerMax=Math.max(0,practiceContent.scrollHeight-stageH);
+  layeredPos=Math.min(layeredPos,revealDistance+innerMax);
+  applyLayeredScroll();
+}
+function applyLayeredScroll(){
+  const reveal=Math.min(layeredPos,revealDistance);
+  const panelY=revealDistance-reveal;
+  const innerY=Math.max(0,layeredPos-revealDistance);
+  practiceShell.style.transform=`translate3d(0,${panelY}px,0)`;
+  practiceContent.style.transform=`translate3d(0,${-innerY}px,0)`;
+  layerStage.dataset.phase=layeredPos<revealDistance?'reveal':'inner';
+  layerStage.dataset.layeredPos=String(Math.round(layeredPos));
+}
+function setLayeredPos(next){
+  layeredPos=Math.max(0,Math.min(Number(next)||0,revealDistance+innerMax));
+  applyLayeredScroll();
+}
+function cancelLayeredAnimation(){
+  layeredAnimationToken++;
+  if(layeredAnimationFrame){
+    cancelAnimationFrame(layeredAnimationFrame);
+    layeredAnimationFrame=0;
+  }
+}
+function easeLayered(t){
+  return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+}
+function animateLayeredPos(target,{duration=650,onDone}={}){
+  measureLayeredScroll();
+  target=Math.max(0,Math.min(Number(target)||0,revealDistance+innerMax));
+  const start=layeredPos;
+  const distance=Math.abs(target-start);
+  if(distance<1){
+    setLayeredPos(target);
+    onDone?.();
+    return;
+  }
+
+  cancelLayeredAnimation();
+  const token=layeredAnimationToken;
+  const started=performance.now();
+  const scaled=Math.max(460,Math.min(860,duration + distance*.30));
+
+  const tick=(now)=>{
+    if(token!==layeredAnimationToken)return;
+    const t=Math.min(1,(now-started)/scaled);
+    setLayeredPos(start+(target-start)*easeLayered(t));
+    if(t<1){
+      layeredAnimationFrame=requestAnimationFrame(tick);
+    }else{
+      layeredAnimationFrame=0;
+      setLayeredPos(target);
+      onDone?.();
+    }
+  };
+  layeredAnimationFrame=requestAnimationFrame(tick);
+}
+function resetLayeredScroll(){
+  cancelLayeredAnimation();
+  layeredPos=0;
+  requestAnimationFrame(()=>{measureLayeredScroll();setLayeredPos(0);});
+}
+function dockPracticeLayer({smooth=true,onDone}={}){
+  measureLayeredScroll();
+  if(layeredPos>=revealDistance-1){
+    onDone?.();
+    return;
+  }
+  if(smooth) animateLayeredPos(revealDistance,{duration:580,onDone});
+  else {setLayeredPos(revealDistance);onDone?.();}
+}
+function ensurePracticeElementVisible(el,{focus=false}={}){
+  if(!el)return;
+  measureLayeredScroll();
+
+  const desiredInner=Math.min(innerMax,Math.max(0,el.offsetTop-58));
+  const target=revealDistance+desiredInner;
+
+  animateLayeredPos(target,{
+    duration:700,
+    onDone:()=>{
+      if(!focus)return;
+      programmaticFieldFocus=true;
+      try{el.focus({preventScroll:true});}catch(_){el.focus();}
+      requestAnimationFrame(()=>{programmaticFieldFocus=false;});
+    }
+  });
+}
+
+function resetCurrentDay(){
+  courseState[String(activeDay)]={
+    moves:{},
+    words:{},
+    picks:{},
+    levels:{},
+    timers:{},
+    timestamps:{},
+    completionStatus:''
+  };
+  saveCourse();
+  renderAllSheet();
+}
+
+function renderAllSheet(){renderHeader();renderGraphic();renderFields();renderMoves();renderCompletionPicker();renderReturnedNotification();requestAnimationFrame(measureLayeredScroll);}
+function openSheet(){
+  activeDay=Number(eventBlock.dataset.day||1);
+  renderAllSheet();
+  scrim.classList.add('open');
+  sheet.classList.add('open');
+  resetLayeredScroll();
+  scheduleTimer();
+}
+function closeSheet(){scrim.classList.remove('open');sheet.classList.remove('open');}
+eventBlock.addEventListener('click',openSheet);
+scrim.addEventListener('click',closeSheet);
+document.querySelector('.more').addEventListener('click',()=>alert('Current Day View overflow menu'));
+document.getElementById('contextBtn').addEventListener('click',()=>{
+  const body=document.getElementById('contextBody'),open=body.classList.toggle('open');
+  document.getElementById('contextSign').textContent=open?'−':'+';
+  requestAnimationFrame(measureLayeredScroll);
+});
+document.getElementById('practiceReset').addEventListener('click',resetCurrentDay);
+
+
+// Current completion picker: tap the selected state again to clear it.
+document.querySelectorAll('.completion-chip').forEach(b=>b.addEventListener('click',e=>{
+  e.stopPropagation();
+  const st=dayState(activeDay),next=b.dataset.status||'';
+  st.completionStatus=st.completionStatus===next?'':next;
+  saveCourse();renderCompletionPicker();
+}));
+
+// Two-stage layered scrolling. One gesture continues seamlessly from
+// "raise the card" into "scroll inside the raised card".
+layerStage.addEventListener('wheel',e=>{
+  if(!sheet.classList.contains('open'))return;
+  if(Math.abs(e.deltaY)<.1)return;
+  e.preventDefault();cancelLayeredAnimation();measureLayeredScroll();setLayeredPos(layeredPos+e.deltaY);
+},{passive:false});
+let layerDrag=null;
+layerStage.addEventListener('pointerdown',e=>{
+  if(e.button!==undefined&&e.button!==0)return;
+  if(e.target.closest('button,input,textarea,select,label'))return;
+  cancelLayeredAnimation();
+  layerDrag={id:e.pointerId,y:e.clientY,pos:layeredPos,moved:false};
+  try{layerStage.setPointerCapture(e.pointerId)}catch(_){}
+});
+layerStage.addEventListener('pointermove',e=>{
+  if(!layerDrag||layerDrag.id!==e.pointerId)return;
+  const dy=layerDrag.y-e.clientY;
+  if(Math.abs(dy)>3)layerDrag.moved=true;
+  if(!layerDrag.moved)return;
+  e.preventDefault();measureLayeredScroll();setLayeredPos(layerDrag.pos+dy);
+});
+function finishLayerDrag(e){
+  if(!layerDrag||layerDrag.id!==e.pointerId)return;
+  try{layerStage.releasePointerCapture(e.pointerId)}catch(_){}
+  layerDrag=null;
+}
+layerStage.addEventListener('pointerup',finishLayerDrag);
+layerStage.addEventListener('pointercancel',finishLayerDrag);
+window.addEventListener('resize',()=>requestAnimationFrame(measureLayeredScroll));
+
+// Evaluation hooks: useful for verifying all three states without changing app UI.
+window.__offeringLayered={
+  hero:()=>setLayeredPos(0),
+  halfway:()=>{measureLayeredScroll();setLayeredPos(revealDistance*.52)},
+  dock:()=>{measureLayeredScroll();setLayeredPos(revealDistance)},
+  bottom:()=>{measureLayeredScroll();setLayeredPos(revealDistance+innerMax)},
+  metrics:()=>({layeredPos,revealDistance,innerMax,phase:layerStage.dataset.phase})
+};
+
+/* Pulling down on the handle closes the sheet without changing the internal scroll model. */
+let dragY=null;
+document.getElementById('sheetChrome').addEventListener('pointerdown',e=>{dragY=e.clientY;});
+document.getElementById('sheetChrome').addEventListener('pointerup',e=>{if(dragY!=null&&e.clientY-dragY>55)closeSheet();dragY=null;});
+
+populateSelect();renderEvent();
+// Query-only evaluation aid: ?auto=1&day=6&layer=mid|dock|bottom
+const __q=new URLSearchParams(location.search);
+if(__q.has('day')){const n=Number(__q.get('day'));if(n>=1&&n<=30){activeDay=n;document.getElementById('daySelect').value=String(n);renderEvent();}}
+if(__q.get('auto')==='1'){setTimeout(()=>{openSheet();setTimeout(()=>{const l=__q.get('layer');if(l==='mid')window.__offeringLayered.halfway();else if(l==='dock')window.__offeringLayered.dock();else if(l==='bottom')window.__offeringLayered.bottom();},80);},50);}
+</script>
+</body>
+</html>

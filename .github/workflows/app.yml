@@ -51,8 +51,10 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/web_release_pipeline_test.py
+          python3 scripts/maat_visual_contract_test.py
           python3 scripts/served_artifact_verifier_test.py
           python3 -m py_compile \
+            scripts/maat_visual_contract_test.py \
             scripts/web_release_pipeline.py \
             scripts/web_release_pipeline_test.py \
             scripts/served_artifact_verifier.py \
