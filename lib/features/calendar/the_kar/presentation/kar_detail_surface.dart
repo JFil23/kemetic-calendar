@@ -298,11 +298,11 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
           ),
         ),
         body: flowId == null
-            ? KarDayBehaviorSurface.preview(
+            ? KarDetailSittingBehaviorSurface.preview(
                 netjer: _netjer,
                 stageIndex: stageIndex,
               )
-            : KarDayBehaviorSurface(
+            : KarDetailSittingBehaviorSurface(
                 repository: widget.repository,
                 netjer: _netjer,
                 flowId: flowId,

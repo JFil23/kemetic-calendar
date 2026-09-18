@@ -153,7 +153,7 @@ void main() {
 
       expect(
         find.descendant(
-          of: find.byType(KarDayBehaviorSurface),
+          of: find.byType(KarDetailSittingBehaviorSurface),
           matching: find.text('Wisdom'),
         ),
         findsOneWidget,
@@ -252,7 +252,7 @@ void main() {
     expect(
       find.ancestor(
         of: captureWindow,
-        matching: find.byType(KarDayBehaviorSurface),
+        matching: find.byType(KarDetailSittingBehaviorSurface),
       ),
       findsNothing,
     );
@@ -463,7 +463,10 @@ void main() {
         const ValueKey<String>('kar-detail-event-sheet-0'),
       );
       expect(sheet, findsOneWidget);
-      expect(find.byType(KarDayBehaviorSurface), findsOneWidget);
+      expect(find.byType(KarDayBehaviorSurface), findsNothing);
+      expect(find.byType(KarDetailSittingBehaviorSurface), findsOneWidget);
+      expect(find.byType(KarDayViewPresentation), findsNothing);
+      expect(find.byType(KarDetailSittingPresentation), findsOneWidget);
       final expandedHeight = tester.getSize(sheet).height;
       expect(expandedHeight, closeTo((844 - 12) * .71, 1.5));
       await tester.drag(
@@ -1004,7 +1007,10 @@ Future<void> _openDetailEventSheet(
     find.byKey(ValueKey<String>('kar-detail-event-sheet-$stageIndex')),
     findsOneWidget,
   );
-  expect(find.byType(KarDayBehaviorSurface), findsOneWidget);
+  expect(find.byType(KarDayBehaviorSurface), findsNothing);
+  expect(find.byType(KarDetailSittingBehaviorSurface), findsOneWidget);
+  expect(find.byType(KarDayViewPresentation), findsNothing);
+  expect(find.byType(KarDetailSittingPresentation), findsOneWidget);
 }
 
 Future<void> _raiseKarEventContent(
@@ -1012,7 +1018,7 @@ Future<void> _raiseKarEventContent(
   double distance = 380,
 }) async {
   await tester.drag(
-    find.byKey(const ValueKey<String>('kar-day-sheet-scroll')),
+    find.byKey(const ValueKey<String>('kar-detail-sitting-scroll')),
     Offset(0, -distance),
   );
   await tester.pumpAndSettle();

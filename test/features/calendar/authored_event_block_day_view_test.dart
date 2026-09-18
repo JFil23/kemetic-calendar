@@ -522,6 +522,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(KarDayBehaviorSurface), findsOneWidget);
+    expect(find.byType(KarDayViewPresentation), findsOneWidget);
+    expect(find.byType(KarDetailSittingBehaviorSurface), findsNothing);
+    expect(find.byType(KarDetailSittingPresentation), findsNothing);
     expect(find.byType(MaatDayViewSheetHost), findsOneWidget);
     expect(find.byType(MaatDayViewForegroundShell), findsOneWidget);
     expect(find.byKey(dayViewBottomSheetBackplateKey), findsOneWidget);

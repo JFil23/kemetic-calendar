@@ -12,7 +12,9 @@ import '../the_kar_models.dart';
 import 'kar_capture_editor.dart';
 import 'kar_event_block_visual.dart';
 
-class KarDayBehaviorSurface extends StatefulWidget {
+enum _KarSittingPresentationMode { dayView, detailEntry }
+
+class KarDayBehaviorSurface extends StatelessWidget {
   const KarDayBehaviorSurface({
     super.key,
     required this.repository,
@@ -24,15 +26,79 @@ class KarDayBehaviorSurface extends StatefulWidget {
     this.clock,
   });
 
-  const KarDayBehaviorSurface.preview({
+  final KarRepository repository;
+  final KarNetjer netjer;
+  final int flowId;
+  final int stageIndex;
+  final Widget? completionPanel;
+  final Future<void> Function()? onCompletionCommit;
+  final DateTime Function()? clock;
+
+  @override
+  Widget build(BuildContext context) {
+    return _KarSittingBehaviorCore(
+      repository: repository,
+      netjer: netjer,
+      flowId: flowId,
+      stageIndex: stageIndex,
+      completionPanel: completionPanel,
+      onCompletionCommit: onCompletionCommit,
+      clock: clock,
+      presentationMode: _KarSittingPresentationMode.dayView,
+    );
+  }
+}
+
+class KarDetailSittingBehaviorSurface extends StatelessWidget {
+  const KarDetailSittingBehaviorSurface({
+    super.key,
+    required this.repository,
+    required this.netjer,
+    required this.flowId,
+    required this.stageIndex,
+    this.clock,
+  });
+
+  const KarDetailSittingBehaviorSurface.preview({
     super.key,
     required this.netjer,
     required this.stageIndex,
   }) : repository = null,
        flowId = null,
-       completionPanel = null,
-       onCompletionCommit = null,
        clock = null;
+
+  final KarRepository? repository;
+  final KarNetjer netjer;
+  final int? flowId;
+  final int stageIndex;
+  final DateTime Function()? clock;
+
+  @override
+  Widget build(BuildContext context) {
+    return _KarSittingBehaviorCore(
+      repository: repository,
+      netjer: netjer,
+      flowId: flowId,
+      stageIndex: stageIndex,
+      completionPanel: null,
+      onCompletionCommit: null,
+      clock: clock,
+      presentationMode: _KarSittingPresentationMode.detailEntry,
+    );
+  }
+}
+
+class _KarSittingBehaviorCore extends StatefulWidget {
+  const _KarSittingBehaviorCore({
+    required this.repository,
+    required this.netjer,
+    required this.flowId,
+    required this.stageIndex,
+    required this.completionPanel,
+    required this.onCompletionCommit,
+    required this.clock,
+    required this.presentationMode,
+  });
 
   final KarRepository? repository;
   final KarNetjer netjer;
@@ -41,12 +107,14 @@ class KarDayBehaviorSurface extends StatefulWidget {
   final Widget? completionPanel;
   final Future<void> Function()? onCompletionCommit;
   final DateTime Function()? clock;
+  final _KarSittingPresentationMode presentationMode;
 
   @override
-  State<KarDayBehaviorSurface> createState() => _KarDayBehaviorSurfaceState();
+  State<_KarSittingBehaviorCore> createState() =>
+      _KarSittingBehaviorCoreState();
 }
 
-class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
+class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
   static const double _fixedHeroHeight = 354;
 
   KarShrine? _shrine;
@@ -175,49 +243,30 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
         ),
       );
     }
-    return InstrumentEventPresentationFrame(
-      key: const ValueKey<String>('kar-day-presentation'),
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: const Alignment(0, -.72),
-          radius: 1.35,
-          colors: <Color>[
-            Color(widget.netjer.deepValue),
-            const Color(0xFF0A0F11),
-            const Color(0xFF050504),
-          ],
-        ),
-      ),
-      instrument: KeyedSubtree(
-        key: const ValueKey<String>('kar-fixed-hero'),
-        child: _buildHeroLayer(cycle),
-      ),
-      instrumentFooter: const SizedBox.shrink(),
-      inputBuilder: (_, _, _) =>
-          _buildHeroControls(cycle, availableHeight: _fixedHeroHeight),
-      body: _buildPracticeLayer(cycle),
-      completion: widget.completionPanel == null
-          ? null
-          : KeyedSubtree(
-              key: const ValueKey<String>('kar-completion-picker'),
-              child: widget.completionPanel!,
-            ),
-      bodyScrollKey: const ValueKey<String>('kar-day-sheet-scroll'),
-      lowerSheetKey: const ValueKey<String>('kar-practice-sheet'),
-      graphicSpace: const MaatDayViewGraphicSpace.fixed(
-        height: _fixedHeroHeight,
-        foregroundFillsViewport: true,
-      ),
-      completionAnchoredAtScrollStop: true,
-      foregroundStyle: MaatDayViewForegroundStyle.gradient(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: <Color>[Color(0xFF0A0E0F), Color(0xFF07090A)],
-        ),
-        borderColor: Color(widget.netjer.accentValue).withValues(alpha: .21),
-      ),
+    final hero = KeyedSubtree(
+      key: const ValueKey<String>('kar-fixed-hero'),
+      child: _buildHeroLayer(cycle),
     );
+    final heroControls = _buildHeroControls(
+      cycle,
+      availableHeight: _fixedHeroHeight,
+    );
+    final practice = _buildPracticeLayer(cycle);
+    return switch (widget.presentationMode) {
+      _KarSittingPresentationMode.dayView => KarDayViewPresentation(
+        netjer: widget.netjer,
+        hero: hero,
+        heroControls: heroControls,
+        practice: practice,
+        completionPanel: widget.completionPanel,
+      ),
+      _KarSittingPresentationMode.detailEntry => KarDetailSittingPresentation(
+        netjer: widget.netjer,
+        hero: hero,
+        heroControls: heroControls,
+        practice: practice,
+      ),
+    };
   }
 
   bool _isReturn(KarCycle cycle) {
@@ -835,6 +884,106 @@ class _KarDayBehaviorSurfaceState extends State<KarDayBehaviorSurface> {
       if (placement.activeVersion != null) placement.stageIndex,
   };
 }
+
+class KarDayViewPresentation extends StatelessWidget {
+  const KarDayViewPresentation({
+    super.key,
+    required this.netjer,
+    required this.hero,
+    required this.heroControls,
+    required this.practice,
+    this.completionPanel,
+  });
+
+  final KarNetjer netjer;
+  final Widget hero;
+  final Widget heroControls;
+  final Widget practice;
+  final Widget? completionPanel;
+
+  @override
+  Widget build(BuildContext context) {
+    return InstrumentEventPresentationFrame(
+      key: const ValueKey<String>('kar-day-presentation'),
+      decoration: _karSittingFrameDecoration(netjer),
+      instrument: hero,
+      instrumentFooter: const SizedBox.shrink(),
+      inputBuilder: (_, _, _) => heroControls,
+      body: practice,
+      completion: completionPanel == null
+          ? null
+          : KeyedSubtree(
+              key: const ValueKey<String>('kar-completion-picker'),
+              child: completionPanel!,
+            ),
+      bodyScrollKey: const ValueKey<String>('kar-day-sheet-scroll'),
+      lowerSheetKey: const ValueKey<String>('kar-practice-sheet'),
+      graphicSpace: const MaatDayViewGraphicSpace.fixed(
+        height: _KarSittingBehaviorCoreState._fixedHeroHeight,
+        foregroundFillsViewport: true,
+      ),
+      completionAnchoredAtScrollStop: true,
+      foregroundStyle: _karSittingForegroundStyle(netjer),
+    );
+  }
+}
+
+class KarDetailSittingPresentation extends StatelessWidget {
+  const KarDetailSittingPresentation({
+    super.key,
+    required this.netjer,
+    required this.hero,
+    required this.heroControls,
+    required this.practice,
+  });
+
+  final KarNetjer netjer;
+  final Widget hero;
+  final Widget heroControls;
+  final Widget practice;
+
+  @override
+  Widget build(BuildContext context) {
+    return InstrumentEventPresentationFrame(
+      key: const ValueKey<String>('kar-detail-sitting-presentation'),
+      decoration: _karSittingFrameDecoration(netjer),
+      instrument: hero,
+      instrumentFooter: const SizedBox.shrink(),
+      inputBuilder: (_, _, _) => heroControls,
+      body: practice,
+      bodyScrollKey: const ValueKey<String>('kar-detail-sitting-scroll'),
+      lowerSheetKey: const ValueKey<String>('kar-detail-practice-sheet'),
+      graphicSpace: const MaatDayViewGraphicSpace.fixed(
+        height: _KarSittingBehaviorCoreState._fixedHeroHeight,
+        foregroundFillsViewport: true,
+      ),
+      completionAnchoredAtScrollStop: true,
+      foregroundStyle: _karSittingForegroundStyle(netjer),
+    );
+  }
+}
+
+BoxDecoration _karSittingFrameDecoration(KarNetjer netjer) => BoxDecoration(
+  gradient: RadialGradient(
+    center: const Alignment(0, -.72),
+    radius: 1.35,
+    colors: <Color>[
+      Color(netjer.deepValue),
+      const Color(0xFF0A0F11),
+      const Color(0xFF050504),
+    ],
+  ),
+);
+
+MaatDayViewForegroundStyle _karSittingForegroundStyle(KarNetjer netjer) =>
+    MaatDayViewForegroundStyle.gradient(
+      gradient: const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: <Color>[Color(0xFF0A0E0F), Color(0xFF07090A)],
+      ),
+      borderColor: Color(netjer.accentValue).withValues(alpha: .21),
+    );
 
 class _KarDayMeta extends StatelessWidget {
   const _KarDayMeta({required this.netjer, required this.side});
