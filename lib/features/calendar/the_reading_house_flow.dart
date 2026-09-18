@@ -56,6 +56,30 @@ const int kReadingHouseDefaultDurationMinutes = 60;
 const String kReadingHouseMetadataKey = 'reading_house';
 const int kReadingHouseMetadataVersion = 1;
 
+String readingHouseCalendarNameForBook(String bookTitle) {
+  final clean = bookTitle.trim();
+  return clean.isEmpty ? kReadingHouseDefaultBookTitle : clean;
+}
+
+String readingHouseCalendarDisplayName({
+  Map<String, dynamic>? behaviorPayload,
+  String? storedCalendarName,
+}) {
+  final bookTitle = behaviorPayload?['book_title']?.toString().trim();
+  if (bookTitle != null && bookTitle.isNotEmpty) return bookTitle;
+
+  final stored = storedCalendarName?.trim();
+  if (stored != null && stored.isNotEmpty) {
+    const legacyPrefix = 'Reading House · ';
+    if (stored.startsWith(legacyPrefix)) {
+      final withoutPrefix = stored.substring(legacyPrefix.length).trim();
+      if (withoutPrefix.isNotEmpty) return withoutPrefix;
+    }
+    if (stored != kReadingHouseTitle) return stored;
+  }
+  return kReadingHouseDefaultBookTitle;
+}
+
 const String kReadingHouseOverview =
     'The Reading House\n\n'
     'A house gathers around one book. Whoever opens the house is the host — they name the book, set the reading, and shape the sittings the house moves through together.\n\n'

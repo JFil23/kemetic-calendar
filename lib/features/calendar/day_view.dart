@@ -68,7 +68,7 @@ import 'the_reading_house_flow.dart';
 import 'the_reading_house/reading_house_room_repository.dart';
 import 'the_reading_house/presentation/reading_house_day_behavior_surface.dart';
 import 'the_reading_house/presentation/reading_house_day_presentation.dart';
-import 'the_reading_house/presentation/reading_house_event_block_visual.dart';
+import 'the_reading_house/presentation/reading_house_event_block_behavior_surface.dart';
 import 'reading_house_private_margin_store.dart';
 import 'reading_house_shared_fragments_repo.dart';
 import 'the_kar/the_kar.dart';
@@ -1525,34 +1525,22 @@ class EventLayoutEngine {
         totalColumns,
         dayViewMaxVisibleEventColumns,
       );
-      final authoredSingleEventWidthFactor =
-          group.length == 1 && _usesFullWidthAuthoredEventBlock(group.single)
-          ? 1.0
-          : singleEventWidthFactor;
       final columnWidth = _columnWidthForGroup(
         availableWidth: availableWidth,
         columnGap: columnGap,
         totalColumns: visibleColumns,
-        singleEventWidthFactor: authoredSingleEventWidthFactor,
+        singleEventWidthFactor: singleEventWidthFactor,
       );
 
       for (final event in group) {
         final column = columnAssignments[event] ?? 0;
         final visibleColumn = column % dayViewMaxVisibleEventColumns;
-        final authoredExpansion = group.length == 1
-            ? _authoredEventBlockHorizontalExpansion(event)
-            : null;
-        final leftOffset =
-            visibleColumn * (columnWidth + columnGap) -
-            (authoredExpansion?.leading ?? 0);
+        final leftOffset = visibleColumn * (columnWidth + columnGap);
         blocks.add(
           PositionedEventBlock(
             event: event,
             leftOffset: leftOffset,
-            width:
-                columnWidth +
-                (authoredExpansion?.leading ?? 0) +
-                (authoredExpansion?.trailing ?? 0),
+            width: columnWidth,
             overlapGroupIndex: groupIndex,
             columnIndex: column,
             totalColumns: totalColumns,
@@ -2067,6 +2055,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
     this.followSkyInstrumentProvider,
     this.followSkyNow,
     this.karRepository,
+    this.readingHouseRoomDataSource,
     this.initialPresentation = eventWorkspacePresentationDetail,
   });
 
@@ -2135,6 +2124,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
   final SkyInstrumentDataProvider? followSkyInstrumentProvider;
   final DateTime Function()? followSkyNow;
   final KarRepository? karRepository;
+  final ReadingHouseRoomDataSource? readingHouseRoomDataSource;
   final String initialPresentation;
 
   @override
@@ -3691,9 +3681,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             clientEventId: clientEventId,
             eventNumber: readingHouseSitting.eventNumber,
             completionIdentity: _completionIdentityForEvent(currentEvent),
-            roomDataSource: SupabaseReadingHouseRoomRepository(
-              Supabase.instance.client,
-            ),
+            roomDataSource:
+                widget.readingHouseRoomDataSource ??
+                SupabaseReadingHouseRoomRepository(Supabase.instance.client),
             practiceRepository: ReadingHouseSharedFragmentsRepo(
               Supabase.instance.client,
             ),
@@ -4441,9 +4431,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required DayViewSheetEventTarget target,
     Color? actionColor,
   }) {
-    final calendarLabel = CalendarPage.detailSheetCalendarButtonLabel(
-      target.event,
-    );
+    final calendarLabel =
+        _eventMaatFlowKind(target.event) == MaatFlowKind.readingHouse
+        ? readingHouseCalendarDisplayName(
+            behaviorPayload: target.event.behaviorPayload,
+            storedCalendarName: target.event.calendarName,
+          )
+        : CalendarPage.detailSheetCalendarButtonLabel(target.event);
     final calendarEnabled = CalendarPage.canChangeDetailSheetCalendar(
       target.event,
     );
@@ -5045,28 +5039,9 @@ MaatFlowKind? _eventMaatFlowKind(EventItem event) {
   );
 }
 
-bool _usesFullWidthAuthoredEventBlock(EventItem event) {
-  final kind = _eventMaatFlowKind(event);
-  return kind == MaatFlowKind.readingHouse;
-}
-
-({double leading, double trailing})? _authoredEventBlockHorizontalExpansion(
-  EventItem event,
-) {
-  final kind = _eventMaatFlowKind(event);
-  return switch (kind) {
-    // Reading House retains its authored Day View position. Offering Table
-    // deliberately uses the same phone, overlap, and tablet geometry as an
-    // ordinary event card.
-    MaatFlowKind.readingHouse => (leading: 10, trailing: 0),
-    _ => null,
-  };
-}
-
 double _authoredEventBlockMinHeight(MaatFlowKind? kind) {
   return switch (kind) {
     MaatFlowKind.theDjed => _kDayViewHourHeight,
-    MaatFlowKind.readingHouse => 61,
     MaatFlowKind.offeringTable => _kDayViewHourHeight,
     _ => 0,
   };
@@ -6722,6 +6697,8 @@ class _DayViewGridState extends State<DayViewGrid> {
   final GlobalKey _timelineKey = GlobalKey();
   KarRepository? _defaultKarRepository;
   bool _resolvedDefaultKarRepository = false;
+  ReadingHouseRoomDataSource? _defaultReadingHouseRoomDataSource;
+  bool _resolvedDefaultReadingHouseRoomDataSource = false;
 
   DateTime get _now => (widget.clock ?? DateTime.now)().toLocal();
 
@@ -6738,6 +6715,21 @@ class _DayViewGridState extends State<DayViewGrid> {
       _defaultKarRepository = null;
     }
     return _defaultKarRepository;
+  }
+
+  ReadingHouseRoomDataSource? get _readingHouseRoomDataSource {
+    if (_resolvedDefaultReadingHouseRoomDataSource) {
+      return _defaultReadingHouseRoomDataSource;
+    }
+    _resolvedDefaultReadingHouseRoomDataSource = true;
+    try {
+      _defaultReadingHouseRoomDataSource = SupabaseReadingHouseRoomRepository(
+        Supabase.instance.client,
+      );
+    } on Object {
+      _defaultReadingHouseRoomDataSource = null;
+    }
+    return _defaultReadingHouseRoomDataSource;
   }
 
   BuildContext? _timelineCtx;
@@ -8356,8 +8348,12 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     if (graphic?.kind == CalendarEventGraphicKind.readingHouse) {
       final sitting = _readingHouseSittingFaceForEvent(event);
-      return ReadingHouseEventBlockVisual(
-        size: ReadingHouseEventBlockSize.compact,
+      return ReadingHouseEventBlockBehaviorSurface(
+        identity: ReadingHouseRoomIdentity(
+          calendarId: event.calendarId?.trim() ?? '',
+          flowId: event.flowId ?? 0,
+        ),
+        dataSource: _readingHouseRoomDataSource,
         sittingNumber: sitting.eventNumber,
         title: sitting.title,
         prompt: sitting.privatePrompt,
@@ -8789,6 +8785,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         builder: (sheetContext) => CalendarEventDetailSheet(
           hostContext: rootContext,
           initialTarget: sheetTarget,
+          readingHouseRoomDataSource: _readingHouseRoomDataSource,
           flowResolver: _chromeFlowForId,
           activeLedgerFlowIds: widget.activeLedgerFlowIds,
           resolveCurrentEventTarget: widget.resolveCurrentEventTarget,

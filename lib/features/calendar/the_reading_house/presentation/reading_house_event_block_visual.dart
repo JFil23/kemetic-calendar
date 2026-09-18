@@ -73,8 +73,8 @@ class ReadingHouseEventBlockVisual extends StatelessWidget {
     this.title = 'Open the Text',
     this.prompt =
         'Before company shapes the reading, what is this opening asking you to hold privately?',
-    this.memberInitials = const <String>['Y', 'M', 'A'],
-    this.memberLabel = 'You and 2 other readers',
+    this.memberInitials = const <String>['Y'],
+    this.memberLabel = 'You',
     this.timingLabel,
     this.width,
     this.height,
@@ -219,7 +219,7 @@ class _CompactBlock extends StatelessWidget {
     final content = Container(
       key: const ValueKey<String>('reading-house-event-block-compact'),
       width: data.width,
-      height: data.height ?? 61,
+      height: data.height ?? 60,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0x6B7FD9BC)),

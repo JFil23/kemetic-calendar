@@ -8,6 +8,28 @@ import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 
 void main() {
+  test('Reading House calendar display name is the book title only', () {
+    expect(
+      readingHouseCalendarNameForBook('  catcher in the rye  '),
+      'catcher in the rye',
+    );
+    expect(
+      readingHouseCalendarDisplayName(
+        behaviorPayload: const <String, dynamic>{
+          'book_title': 'The Book of Gates',
+        },
+        storedCalendarName: 'Reading House · Older title',
+      ),
+      'The Book of Gates',
+    );
+    expect(
+      readingHouseCalendarDisplayName(
+        storedCalendarName: 'Reading House · The Odyssey',
+      ),
+      'The Odyssey',
+    );
+  });
+
   test('house metadata round-trips partial setup and unscheduled sittings', () {
     const plan = ReadingHousePlan(
       bookTitle: 'The Odyssey',

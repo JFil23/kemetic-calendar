@@ -913,9 +913,5 @@ String? _firstNonempty(Iterable<String?> values) {
 }
 
 String _sharedCalendarName(String bookTitle) {
-  final clean = bookTitle.trim();
-  if (clean.isEmpty || clean == kReadingHouseDefaultBookTitle) {
-    return kReadingHouseTitle;
-  }
-  return 'Reading House · $clean';
+  return readingHouseCalendarNameForBook(bookTitle);
 }

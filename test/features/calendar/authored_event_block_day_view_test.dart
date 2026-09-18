@@ -185,12 +185,22 @@ void main() {
         'kind': 'maat_reading_house_sitting',
         'flow_key': kReadingHouseFlowKey,
         'event_number': 1,
+        'book_title': 'catcher in the rye',
       },
+      calendarName: 'Reading House · catcher in the rye',
     );
 
     expect(find.byType(ReadingHouseEventBlockVisual), findsOneWidget);
     expect(find.text(kReadingHouseSittings.first.title), findsOneWidget);
     expect(find.text('THE READING HOUSE · SITTING 01'), findsOneWidget);
+    expect(find.text('You'), findsOneWidget);
+    expect(find.text('You and 2 other readers'), findsNothing);
+    final readingHouseRect = tester.getRect(
+      find.byType(ReadingHouseEventBlockVisual),
+    );
+    expect(readingHouseRect.left, closeTo(60, .1));
+    expect(readingHouseRect.width, closeTo(251.2, .1));
+    expect(readingHouseRect.height, 60);
     await expectLater(
       find.byKey(_visualCaptureKey),
       matchesGoldenFile('$_goldenRoot/reading-house-day-view-390x844.png'),
@@ -202,6 +212,8 @@ void main() {
       hostKey: 'reading-house-resizable-sheet',
       completionKey: 'reading-house-completion-picker',
     );
+    expect(find.text('catcher in the rye'), findsOneWidget);
+    expect(find.text('Reading House · catcher in the rye'), findsNothing);
     final hostFinder = find.byKey(
       const ValueKey<String>('reading-house-resizable-sheet'),
     );
@@ -265,6 +277,43 @@ void main() {
     // this only makes the visual harness deterministic.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('Reading House uses the shared lane for overlapping events', (
+    tester,
+  ) async {
+    await _pumpDayView(
+      tester,
+      flowId: 82,
+      flowName: kReadingHouseTitle,
+      flowKey: kReadingHouseFlowKey,
+      title: 'Open the Text',
+      payload: const <String, dynamic>{
+        'kind': 'maat_reading_house_sitting',
+        'flow_key': kReadingHouseFlowKey,
+        'event_number': 1,
+      },
+      additionalNotes: const <NoteData>[
+        NoteData(
+          clientEventId: 'reading-house-overlap',
+          title: 'Ordinary overlap',
+          allDay: false,
+          start: TimeOfDay(hour: 7, minute: 45),
+          end: TimeOfDay(hour: 8, minute: 45),
+          manualColor: Color(0xFF62C18C),
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    final readingHouseRect = tester.getRect(
+      find.byType(ReadingHouseEventBlockVisual),
+    );
+    expect(readingHouseRect.left, closeTo(60, .1));
+    expect(readingHouseRect.width, closeTo(155, .1));
+    expect(readingHouseRect.height, 60);
+    expect(find.text('Ordinary overlap'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Day View opens Kꜣr behavior in the existing shared sheet', (
@@ -877,6 +926,7 @@ Future<void> _pumpDayView(
   required String flowKey,
   required String title,
   required Map<String, dynamic> payload,
+  String? calendarName,
   TimeOfDay start = const TimeOfDay(hour: 7, minute: 30),
   int firstVisibleMinute = 6 * 60,
   List<NoteData> additionalNotes = const <NoteData>[],
@@ -915,6 +965,7 @@ Future<void> _pumpDayView(
               if (ky == 2 && km == 6 && kd == 18)
                 NoteData(
                   calendarId: 'authored-calendar-$flowId',
+                  calendarName: calendarName,
                   clientEventId: 'authored-event-$flowId',
                   title: title,
                   allDay: false,
