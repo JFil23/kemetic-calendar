@@ -35,12 +35,31 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.sha }}
 
-      - name: Set up pinned Flutter and Dart
+      - name: Set up pinned Flutter and Dart (x64)
+        if: matrix.arch == 'linux-x64'
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.35.3"
           channel: stable
           cache: true
+
+      # Flutter publishes the 3.35.3 ARM64 host artifacts used by the tool,
+      # but not a preassembled Linux ARM64 SDK archive for setup actions.
+      # Bootstrap the exact release commit so this job still renders on the
+      # native ARM64 engine instead of relabelling an x64 capture.
+      - name: Set up pinned Flutter and Dart (ARM64)
+        if: matrix.arch == 'linux-arm64'
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "aarch64"
+          git init "$RUNNER_TEMP/flutter"
+          git -C "$RUNNER_TEMP/flutter" remote add origin https://github.com/flutter/flutter.git
+          git -C "$RUNNER_TEMP/flutter" fetch --depth 1 origin a402d9a4376add5bc2d6b1e33e53edaae58c07f8
+          git -C "$RUNNER_TEMP/flutter" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)" = "a402d9a4376add5bc2d6b1e33e53edaae58c07f8"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" config --no-analytics
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
 
       - name: Install exact locked dependencies
         run: flutter pub get --enforce-lockfile
@@ -69,6 +88,7 @@ jobs:
     timeout-minutes: 60
     env:
       PYTHONDONTWRITEBYTECODE: "1"
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       # Calendar fixtures and approved visual baselines author civil dates in
       # the product's Pacific reference zone. Never inherit the runner locale.
       TZ: America/Los_Angeles
@@ -87,7 +107,8 @@ jobs:
           test ! -e .gitmodules
           test -z "$(git ls-files --stage | awk '$1 == "160000" {print}')"
           test "$(git worktree list --porcelain | grep -c '^worktree ')" -eq 1
-          test "$(git for-each-ref --format='%(refname:short)' refs/heads | wc -l | tr -d ' ')" -eq 1
+          test "$(git for-each-ref --format='%(refname:short)' refs/heads | wc -l | tr -d ' ')" -le 1
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
       - name: Set up pinned Flutter and Dart
         uses: subosito/flutter-action@v2
