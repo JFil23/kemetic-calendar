@@ -27,7 +27,9 @@ import tempfile
 import zlib
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
-from urllib.parse import urlparse
+from urllib import error as urlerror
+from urllib import request as urlrequest
+from urllib.parse import urlencode, urlparse
 
 
 SCHEMA_VERSION = 1
@@ -88,6 +90,9 @@ AUTHORIZED_GIT_SOURCE_BRANCHES = {
     "staging": "rc",
     "production": "production",
 }
+GITHUB_REPOSITORY = "JFil23/kemetic-calendar"
+APP_GATE_WORKFLOW_FILE = "app.yml"
+APP_GATE_WORKFLOW_NAME = "App"
 PINNED_FLUTTER_TOOLCHAIN = {
     "frameworkVersion": "3.35.3",
     "channel": "stable",
@@ -497,6 +502,105 @@ def require_canonical_release_source(
         "app_source_commit": source_commit,
         "app_authorized_commit": authorized_commit,
         "app_authorized_ref": authorized_ref,
+    }
+
+
+def github_json(
+    url: str,
+    *,
+    environ: Mapping[str, str],
+) -> Any:
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "kemetic-calendar-release-gate",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = environ.get("GH_TOKEN") or environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urlrequest.Request(url, headers=headers)
+    try:
+        with urlrequest.urlopen(request, timeout=30) as response:
+            return json.load(response)
+    except (urlerror.HTTPError, urlerror.URLError, TimeoutError) as error:
+        raise ReleaseInputError(
+            f"Could not verify the GitHub app gate: {error}"
+        ) from error
+    except json.JSONDecodeError as error:
+        raise ReleaseInputError(
+            "GitHub app-gate response was not valid JSON."
+        ) from error
+
+
+def require_green_app_gate(
+    commit: str,
+    *,
+    environment: str,
+    environ: Mapping[str, str],
+    fetch_json=github_json,
+) -> dict[str, Any]:
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise ReleaseInputError("App-gate commit must be a full lowercase SHA.")
+    branch = authorized_git_source_branch(environment)
+    query = urlencode(
+        {
+            "branch": branch,
+            "event": "push",
+            "head_sha": commit,
+            "per_page": "20",
+        }
+    )
+    url = (
+        f"https://api.github.com/repos/{GITHUB_REPOSITORY}/actions/workflows/"
+        f"{APP_GATE_WORKFLOW_FILE}/runs?{query}"
+    )
+    response = fetch_json(url, environ=environ)
+    if not isinstance(response, Mapping):
+        raise ReleaseInputError("GitHub app-gate response must be an object.")
+    runs = response.get("workflow_runs")
+    if not isinstance(runs, list):
+        raise ReleaseInputError("GitHub app-gate response is missing workflow_runs.")
+    exact_runs = [
+        run
+        for run in runs
+        if isinstance(run, Mapping)
+        and run.get("name") == APP_GATE_WORKFLOW_NAME
+        and run.get("head_sha") == commit
+        and run.get("head_branch") == branch
+        and run.get("event") == "push"
+    ]
+    if not exact_runs:
+        raise ReleaseInputError(
+            f"No exact-SHA {APP_GATE_WORKFLOW_NAME} gate exists for {commit}."
+        )
+    run = max(
+        exact_runs,
+        key=lambda item: (
+            int(item.get("run_attempt") or 0),
+            int(item.get("run_number") or 0),
+            int(item.get("id") or 0),
+        ),
+    )
+    status = run.get("status")
+    conclusion = run.get("conclusion")
+    if status != "completed" or conclusion != "success":
+        raise ReleaseInputError(
+            "Exact-SHA app gate is not green: "
+            f"commit={commit} status={status!r} conclusion={conclusion!r}."
+        )
+    html_url = run.get("html_url")
+    if not isinstance(html_url, str) or not html_url.startswith(
+        f"https://github.com/{GITHUB_REPOSITORY}/actions/runs/"
+    ):
+        raise ReleaseInputError("Exact-SHA app gate has an invalid run URL.")
+    return {
+        "commit": commit,
+        "branch": branch,
+        "run_id": int(run.get("id") or 0),
+        "run_attempt": int(run.get("run_attempt") or 0),
+        "run_url": html_url,
+        "status": status,
+        "conclusion": conclusion,
     }
 
 
@@ -2216,6 +2320,32 @@ def command_assert_canonical_source(arguments: argparse.Namespace) -> None:
     print(f"canonical_app_authorized_ref={result['app_authorized_ref']}")
 
 
+def command_assert_green_app_gate(arguments: argparse.Namespace) -> None:
+    expected_source = None
+    if arguments.release_dir is not None:
+        receipt = load_json(arguments.release_dir / "release-receipt.json")
+        if not isinstance(receipt, Mapping):
+            raise ReleaseInputError("Release receipt must be a JSON object.")
+        validate_release_receipt(receipt)
+        if receipt["environment"] != arguments.environment:
+            raise ReleaseInputError(
+                "Release receipt environment does not match the deployment lane."
+            )
+        expected_source = receipt["source"]
+    source = require_canonical_release_source(
+        arguments.repo_root,
+        environment=arguments.environment,
+        expected_source=expected_source,
+    )
+    result = require_green_app_gate(
+        source["app_source_commit"],
+        environment=arguments.environment,
+        environ=os.environ,
+    )
+    print(f"green_app_gate_commit={result['commit']}")
+    print(f"green_app_gate_run={result['run_url']}")
+
+
 def command_compare(arguments: argparse.Namespace) -> None:
     print(
         json.dumps(
@@ -2285,6 +2415,14 @@ def build_parser() -> argparse.ArgumentParser:
     assert_canonical_source.add_argument("--repo-root", type=Path, required=True)
     assert_canonical_source.add_argument("--release-dir", type=Path)
     assert_canonical_source.set_defaults(handler=command_assert_canonical_source)
+
+    assert_green_app_gate = subparsers.add_parser("assert-green-app-gate")
+    assert_green_app_gate.add_argument(
+        "environment", choices=tuple(ENVIRONMENT_CONFIGS)
+    )
+    assert_green_app_gate.add_argument("--repo-root", type=Path, required=True)
+    assert_green_app_gate.add_argument("--release-dir", type=Path)
+    assert_green_app_gate.set_defaults(handler=command_assert_green_app_gate)
 
     compare = subparsers.add_parser("compare")
     compare.add_argument("first", type=Path)

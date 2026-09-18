@@ -423,6 +423,11 @@ class BuildOrchestrationTest(unittest.TestCase):
         self.assertIn("served_artifact_verifier.py verify", deploy)
         self.assertIn("served_artifact_verifier.py preflight-target", deploy)
         self.assertIn("assert-canonical-source", deploy)
+        self.assertIn("assert-green-app-gate", deploy)
+        self.assertLess(
+            deploy.index("assert-green-app-gate"),
+            deploy.index('"${CMD[@]}"'),
+        )
         self.assertLess(
             deploy.index("served_artifact_verifier.py preflight-target"),
             deploy.index('"${CMD[@]}"'),
@@ -704,6 +709,93 @@ class CanonicalReleaseSourceTest(unittest.TestCase):
                     environment="staging",
                     expected_source=artifact_source,
                 )
+
+
+class ExactShaAppGateTest(unittest.TestCase):
+    commit = "a" * 40
+
+    def run_fixture(
+        self,
+        *,
+        status: str = "completed",
+        conclusion: str | None = "success",
+        head_sha: str | None = None,
+        head_branch: str = "rc",
+        name: str = "App",
+        event: str = "push",
+    ) -> dict:
+        return {
+            "id": 123,
+            "name": name,
+            "head_sha": head_sha or self.commit,
+            "head_branch": head_branch,
+            "event": event,
+            "status": status,
+            "conclusion": conclusion,
+            "run_attempt": 1,
+            "run_number": 42,
+            "html_url": (
+                "https://github.com/JFil23/kemetic-calendar/actions/runs/123"
+            ),
+        }
+
+    def require(self, runs: list[dict]) -> dict:
+        def fetch(url: str, *, environ: dict[str, str]) -> dict:
+            self.assertIn(f"head_sha={self.commit}", url)
+            self.assertIn("branch=rc", url)
+            self.assertIn("event=push", url)
+            self.assertEqual(environ, {})
+            return {"workflow_runs": runs}
+
+        return pipeline.require_green_app_gate(
+            self.commit,
+            environment="staging",
+            environ={},
+            fetch_json=fetch,
+        )
+
+    def test_exact_completed_success_is_accepted(self) -> None:
+        result = self.require([self.run_fixture()])
+        self.assertEqual(result["commit"], self.commit)
+        self.assertEqual(result["run_id"], 123)
+
+    def test_missing_exact_sha_gate_fails_closed(self) -> None:
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "No exact-SHA App gate",
+        ):
+            self.require([])
+
+    def test_running_gate_fails_closed(self) -> None:
+        with self.assertRaisesRegex(pipeline.ReleaseInputError, "not green"):
+            self.require(
+                [self.run_fixture(status="in_progress", conclusion=None)]
+            )
+
+    def test_failed_gate_fails_closed(self) -> None:
+        with self.assertRaisesRegex(pipeline.ReleaseInputError, "not green"):
+            self.require([self.run_fixture(conclusion="failure")])
+
+    def test_wrong_branch_or_workflow_cannot_satisfy_gate(self) -> None:
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "No exact-SHA App gate",
+        ):
+            self.require(
+                [
+                    self.run_fixture(head_branch="production"),
+                    self.run_fixture(name="Other"),
+                    self.run_fixture(event="workflow_dispatch"),
+                ]
+            )
+
+    def test_latest_attempt_must_be_green(self) -> None:
+        successful = self.run_fixture()
+        running = self.run_fixture(status="queued", conclusion=None)
+        running["id"] = 124
+        running["run_attempt"] = 2
+        with self.assertRaisesRegex(pipeline.ReleaseInputError, "not green"):
+            self.require([successful, running])
 
 
 class PreCompilationMaterializationTest(unittest.TestCase):

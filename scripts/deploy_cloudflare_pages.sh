@@ -35,6 +35,11 @@ case "$ENVIRONMENT" in
 esac
 WRANGLER_VERSION="4.114.0"
 
+python3 scripts/web_release_pipeline.py assert-green-app-gate \
+  "$ENVIRONMENT" \
+  --repo-root "$PWD" \
+  --release-dir "$RELEASE_DIR"
+
 EXTRACT_DIR="$(mktemp -d "/tmp/kemetic-web-upload.XXXXXX")"
 EVIDENCE_ROOT="$(dirname "$RELEASE_DIR")/web-deployment-receipts"
 mkdir -p "$EVIDENCE_ROOT"
