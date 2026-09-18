@@ -54,8 +54,8 @@ jobs:
           test "$(uname -m)" = "aarch64"
           git init "$RUNNER_TEMP/flutter"
           git -C "$RUNNER_TEMP/flutter" remote add origin https://github.com/flutter/flutter.git
-          git -C "$RUNNER_TEMP/flutter" fetch --depth 1 origin a402d9a4376add5bc2d6b1e33e53edaae58c07f8
-          git -C "$RUNNER_TEMP/flutter" checkout --detach FETCH_HEAD
+          git -C "$RUNNER_TEMP/flutter" fetch --depth 1 origin refs/tags/3.35.3:refs/tags/3.35.3
+          git -C "$RUNNER_TEMP/flutter" checkout --detach refs/tags/3.35.3
           test "$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)" = "a402d9a4376add5bc2d6b1e33e53edaae58c07f8"
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
           "$RUNNER_TEMP/flutter/bin/flutter" config --no-analytics
