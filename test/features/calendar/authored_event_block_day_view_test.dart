@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ import 'package:mobile/features/calendar/the_kar/the_kar.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
+import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -315,6 +317,69 @@ void main() {
     expect(find.text('Ordinary overlap'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Reading House keeps its focused chat field clear while fixed actions stay behind the keyboard',
+    (tester) async {
+      final keyboardVisible = ValueNotifier<bool>(false);
+      addTearDown(keyboardVisible.dispose);
+
+      await _pumpDayView(
+        tester,
+        flowId: 87,
+        flowName: kReadingHouseTitle,
+        flowKey: kReadingHouseFlowKey,
+        title: 'Open the Text',
+        start: const TimeOfDay(hour: 19, minute: 0),
+        firstVisibleMinute: 14 * 60,
+        payload: const <String, dynamic>{
+          'kind': 'maat_reading_house_sitting',
+          'flow_key': kReadingHouseFlowKey,
+          'event_number': 1,
+          'book_title': 'catcher in the rye',
+        },
+        calendarName: 'Reading House · catcher in the rye',
+        keyboardVisibility: keyboardVisible,
+      );
+
+      await tester.tap(find.byType(ReadingHouseEventBlockVisual));
+      await tester.pumpAndSettle();
+
+      final field = find.byKey(
+        const ValueKey<String>('reading-house-chat-message-field'),
+      );
+      final editable = find.descendant(
+        of: field,
+        matching: find.byType(EditableText),
+      );
+      const makeTodoKey = ValueKey<String>('maat-day-view-make-todo');
+      const calendarKey = ValueKey<String>('maat-day-view-calendar');
+
+      expect(field, findsOneWidget);
+      expect(find.byKey(makeTodoKey), findsOneWidget);
+      expect(find.byKey(calendarKey), findsOneWidget);
+
+      await tester.tap(field);
+      await tester.pump();
+      keyboardVisible.value = true;
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<EditableText>(editable).focusNode.hasFocus, isTrue);
+      expect(find.byKey(makeTodoKey), findsNothing);
+      expect(find.byKey(calendarKey), findsNothing);
+      expect(tester.getRect(field).bottom, lessThanOrEqualTo(544));
+
+      keyboardVisible.value = false;
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(makeTodoKey), findsOneWidget);
+      expect(find.byKey(calendarKey), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
 
   testWidgets('Day View opens Kꜣr behavior in the existing shared sheet', (
     tester,
@@ -931,6 +996,7 @@ Future<void> _pumpDayView(
   int firstVisibleMinute = 6 * 60,
   List<NoteData> additionalNotes = const <NoteData>[],
   KarRepository? karRepository,
+  ValueListenable<bool>? keyboardVisibility,
   Future<void> Function({
     required String clientEventId,
     required int flowId,
@@ -950,6 +1016,22 @@ Future<void> _pumpDayView(
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark,
+        builder: keyboardVisibility == null
+            ? null
+            : (context, navigator) => ValueListenableBuilder<bool>(
+                valueListenable: keyboardVisibility,
+                child: navigator,
+                builder: (context, visible, navigatorChild) =>
+                    KemeticKeyboardScope(
+                      isCustomKeyboardVisible: false,
+                      customKeyboardInset: 0,
+                      systemKeyboardInset: visible ? 300 : 0,
+                      visibleTop: 0,
+                      visibleBottom: visible ? 544 : 844,
+                      isSystemKeyboardVisible: visible,
+                      child: navigatorChild!,
+                    ),
+              ),
         home: MediaQuery(
           data: const MediaQueryData(
             size: Size(390, 844),

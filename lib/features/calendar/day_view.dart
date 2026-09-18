@@ -4580,11 +4580,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         : keyboardVisible
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
+    final showBottomActions = !_isWorkspacePresentation && !keyboardVisible;
+    final bottomActionChromeHeight = showBottomActions ? 54.0 : 0.0;
     final reservedChromeHeight = _isWorkspacePresentation
         ? 24.0
         : hasOnboardingClosingBanner
-        ? 250.0
-        : 120.0;
+        ? 196.0 + bottomActionChromeHeight
+        : 66.0 + bottomActionChromeHeight;
     final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
     final sheetHeight = _isWorkspacePresentation
         ? maxPageHeight
@@ -4646,7 +4648,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                     child: buildDetailSurface(),
                   ),
                 ),
-                if (!_isWorkspacePresentation) ...[
+                if (showBottomActions) ...[
                   const SizedBox(height: 8),
                   SizedBox(
                     height: 46,

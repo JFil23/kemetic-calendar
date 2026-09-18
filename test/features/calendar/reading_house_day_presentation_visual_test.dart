@@ -4,8 +4,9 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_day_presentation.dart';
-import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
+import 'package:mobile/widgets/kemetic_keyboard.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
 import '../../support/maat_flow_visual_goldens.dart';
@@ -237,39 +238,79 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('shared host remains keyboard-aware', (tester) async {
-    const size = Size(390, 844);
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: MediaQuery(
-          data: MediaQueryData(
-            size: size,
-            viewInsets: EdgeInsets.only(bottom: 300),
-          ),
-          child: Scaffold(
-            body: KeyboardInsetBoundary(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: InstrumentEventSheetHost(
-                  semanticLabel: 'Reading House sitting details',
-                  handleColor: ReadingHouseDayTokens.mint,
-                  body: ReadingHouseDayPresentation(),
-                  footer: MaatDayViewFooterActions(
-                    onMakeTodo: _noop,
-                    calendarLabel: 'Calendar',
+  testWidgets(
+    'shared host keeps fixed actions behind system and Kemetic keyboards',
+    (tester) async {
+      const size = Size(390, 844);
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      Widget harness({
+        required bool systemKeyboardVisible,
+        required bool customKeyboardVisible,
+      }) {
+        final keyboardVisible = systemKeyboardVisible || customKeyboardVisible;
+        return MaterialApp(
+          home: KemeticKeyboardScope(
+            isCustomKeyboardVisible: customKeyboardVisible,
+            customKeyboardInset: customKeyboardVisible ? 300 : 0,
+            systemKeyboardInset: systemKeyboardVisible ? 300 : 0,
+            visibleTop: 0,
+            visibleBottom: keyboardVisible ? 544 : 844,
+            isSystemKeyboardVisible: systemKeyboardVisible,
+            child: const MediaQuery(
+              data: MediaQueryData(size: size),
+              child: Scaffold(
+                body: KeyboardInsetBoundary(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: InstrumentEventSheetHost(
+                      semanticLabel: 'Reading House sitting details',
+                      handleColor: ReadingHouseDayTokens.mint,
+                      body: ReadingHouseDayPresentation(),
+                      footer: MaatDayViewFooterActions(
+                        onMakeTodo: _noop,
+                        calendarLabel: 'Calendar',
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-  });
+        );
+      }
+
+      const makeTodoKey = ValueKey<String>('maat-day-view-make-todo');
+      const calendarKey = ValueKey<String>('maat-day-view-calendar');
+
+      await tester.pumpWidget(
+        harness(systemKeyboardVisible: false, customKeyboardVisible: false),
+      );
+      expect(find.byKey(makeTodoKey), findsOneWidget);
+      expect(find.byKey(calendarKey), findsOneWidget);
+
+      await tester.pumpWidget(
+        harness(systemKeyboardVisible: true, customKeyboardVisible: false),
+      );
+      expect(find.byKey(makeTodoKey), findsNothing);
+      expect(find.byKey(calendarKey), findsNothing);
+
+      await tester.pumpWidget(
+        harness(systemKeyboardVisible: false, customKeyboardVisible: true),
+      );
+      expect(find.byKey(makeTodoKey), findsNothing);
+      expect(find.byKey(calendarKey), findsNothing);
+
+      await tester.pumpWidget(
+        harness(systemKeyboardVisible: false, customKeyboardVisible: false),
+      );
+      expect(find.byKey(makeTodoKey), findsOneWidget);
+      expect(find.byKey(calendarKey), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'chat composer stays in the fixed upper composition and cannot be tapped through the foreground',

@@ -123,7 +123,8 @@ class DayViewBottomSheetFrame extends StatelessWidget {
 /// This is the extracted Day View behavior: it owns the modal-height extent,
 /// keyboard-aware available height, vertical resize equation, backplate,
 /// resize region, and outer sheet geometry. Consumers provide only their
-/// presentation body, trailing control, and optional fixed footer.
+/// presentation body, trailing control, and optional fixed footer. Fixed
+/// footer actions leave the visible viewport while either keyboard is open.
 class InstrumentEventSheetHost extends StatefulWidget {
   const InstrumentEventSheetHost({
     super.key,
@@ -185,6 +186,7 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
     final effectiveExtent = keyboardVisible ? 1.0 : _extent;
     final maxSheetHeight = availableSheetHeight * effectiveExtent;
     final hasFooter = widget.footer != null;
+    final showFooter = hasFooter && !keyboardVisible;
     final geometry = widget.geometry;
 
     // These values preserve the two production geometries that existed before
@@ -211,14 +213,14 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
     final footerHeight = geometry?.footerHeight ?? 46.0;
     final topBarHeight = geometry?.topBarHeight ?? 48.0;
     final bodyHeight = geometry == null
-        ? math.max(0.0, maxSheetHeight - (hasFooter ? 120.0 : 66.0))
+        ? math.max(0.0, maxSheetHeight - (showFooter ? 120.0 : 66.0))
         : math.max(
             0.0,
             outerHeight -
                 outerPadding.vertical -
                 topBarHeight -
                 bodyTopGap -
-                (hasFooter ? footerGap + footerHeight : 0),
+                (showFooter ? footerGap + footerHeight : 0),
           );
 
     return SafeArea(
@@ -261,9 +263,9 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
                     ),
                   ),
                 ),
-                if (widget.footer != null) ...<Widget>[
+                if (showFooter) ...<Widget>[
                   SizedBox(height: footerGap),
-                  SizedBox(height: footerHeight, child: widget.footer),
+                  SizedBox(height: footerHeight, child: widget.footer!),
                 ],
               ],
             ),

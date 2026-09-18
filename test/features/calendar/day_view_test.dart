@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -26,6 +27,7 @@ import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/calendar_floating_shortcuts.dart';
+import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -2161,6 +2163,52 @@ void main() {
     );
 
     testWidgets(
+      'generic event detail actions stay behind the system keyboard and return after dismissal',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final keyboardVisible = ValueNotifier<bool>(false);
+        addTearDown(keyboardVisible.dispose);
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            keyboardVisibility: keyboardVisible,
+            notes: [
+              _timedNote(
+                title: 'Focus Block',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Focus Block'));
+        await tester.pumpAndSettle();
+
+        const makeTodoKey = ValueKey<String>('maat-day-view-make-todo');
+        const calendarKey = ValueKey<String>('maat-day-view-calendar');
+        expect(find.byKey(makeTodoKey), findsOneWidget);
+        expect(find.byKey(calendarKey), findsOneWidget);
+
+        keyboardVisible.value = true;
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(makeTodoKey), findsNothing);
+        expect(find.byKey(calendarKey), findsNothing);
+
+        keyboardVisible.value = false;
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(makeTodoKey), findsOneWidget);
+        expect(find.byKey(calendarKey), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
       'detail sheet survives source grid disposal and notifier rebuilds',
       (tester) async {
         await _setPhoneViewport(tester);
@@ -3967,6 +4015,7 @@ class _DayViewHarness extends StatelessWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.keyboardVisibility,
   });
 
   final List<NoteData> notes;
@@ -3984,10 +4033,27 @@ class _DayViewHarness extends StatelessWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final ValueListenable<bool>? keyboardVisibility;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      builder: keyboardVisibility == null
+          ? null
+          : (context, navigator) => ValueListenableBuilder<bool>(
+              valueListenable: keyboardVisibility!,
+              child: navigator,
+              builder: (context, visible, navigatorChild) =>
+                  KemeticKeyboardScope(
+                    isCustomKeyboardVisible: false,
+                    customKeyboardInset: 0,
+                    systemKeyboardInset: visible ? 300 : 0,
+                    visibleTop: 0,
+                    visibleBottom: visible ? 544 : 844,
+                    isSystemKeyboardVisible: visible,
+                    child: navigatorChild!,
+                  ),
+            ),
       home: Scaffold(
         body: DayViewGrid(
           ky: 1,
