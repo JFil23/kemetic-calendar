@@ -257,6 +257,7 @@ void main() {
       flowKey: kReadingHouseFlowKey,
       title: 'Open the Text',
       start: const TimeOfDay(hour: 19, minute: 0),
+      end: const TimeOfDay(hour: 22, minute: 0),
       firstVisibleMinute: 14 * 60,
       payload: const <String, dynamic>{
         'kind': 'maat_reading_house_sitting',
@@ -483,6 +484,7 @@ void main() {
       flowKey: kKarFlowKey,
       title: KarNetjer.djehuty.labels.first,
       start: const TimeOfDay(hour: 9, minute: 0),
+      end: const TimeOfDay(hour: 12, minute: 0),
       payload: const <String, dynamic>{
         'kind': 'maat_kar_scene',
         'flow_key': kKarFlowKey,
@@ -1072,6 +1074,7 @@ Future<void> _pumpDayView(
   required Map<String, dynamic> payload,
   String? calendarName,
   TimeOfDay start = const TimeOfDay(hour: 7, minute: 30),
+  TimeOfDay? end,
   int firstVisibleMinute = 6 * 60,
   List<NoteData> additionalNotes = const <NoteData>[],
   KarRepository? karRepository,
@@ -1131,7 +1134,9 @@ Future<void> _pumpDayView(
                   title: title,
                   allDay: false,
                   start: start,
-                  end: TimeOfDay(hour: start.hour + 1, minute: start.minute),
+                  end:
+                      end ??
+                      TimeOfDay(hour: start.hour + 1, minute: start.minute),
                   flowId: flowId,
                   behaviorPayload: payload,
                 ),

@@ -34,6 +34,7 @@ import 'follow_the_sky/services/sky_instrument_data_provider.dart';
 import 'follow_the_sky/services/track_sky_materializer.dart';
 import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
+import 'maat_event_block_layout_spec.dart';
 import 'maat_flow_catalog.dart';
 import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_palette.dart';
@@ -5007,14 +5008,6 @@ MaatFlowKind? _eventMaatFlowKind(EventItem event) {
   );
 }
 
-double _authoredEventBlockMinHeight(MaatFlowKind? kind) {
-  return switch (kind) {
-    MaatFlowKind.theDjed => _kDayViewHourHeight,
-    MaatFlowKind.offeringTable => _kDayViewHourHeight,
-    _ => 0,
-  };
-}
-
 DjedV2Event? _djedV2EventForItem(EventItem event) {
   final fromPayload = djedV2EventForEvent(
     behaviorPayload: event.behaviorPayload,
@@ -5070,11 +5063,11 @@ double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
     durationMinutes = 180;
   }
 
-  final authoredHeight = _authoredEventBlockMinHeight(
+  final fixedMaatHeight = MaatEventBlockLayoutSpec.forFlow(
     _eventMaatFlowKind(event),
-  );
-  if (authoredHeight > 0) {
-    return authoredHeight;
+  ).fixedVisualHeight;
+  if (fixedMaatHeight != null) {
+    return fixedMaatHeight;
   }
 
   if (event.isReminder) {
