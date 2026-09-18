@@ -625,9 +625,7 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       return;
     }
 
-    final clientId = existingIds.contains(canonicalId)
-        ? canonicalId
-        : (existingIds.isEmpty ? canonicalId : existingIds.first);
+    final clientId = canonicalId;
     for (final duplicate in existingIds.where((id) => id != clientId)) {
       await _events.deleteByClientId(
         duplicate,
@@ -864,9 +862,7 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
         eventNumber: sitting.eventNumber,
       );
       final existingIds = existingByAction[actionId] ?? const <String>[];
-      final clientId = existingIds.contains(canonicalId)
-          ? canonicalId
-          : (existingIds.isEmpty ? canonicalId : existingIds.first);
+      final clientId = canonicalId;
       for (final duplicate in existingIds.where((id) => id != clientId)) {
         await _events.deleteByClientId(
           duplicate,
@@ -906,7 +902,7 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
 String readingHouseClientEventId({
   required int flowId,
   required int eventNumber,
-}) => 'maat:reading-house:$flowId:sitting:$eventNumber';
+}) => 'reading-house:$flowId:sitting:$eventNumber';
 
 String? _firstNonempty(Iterable<String?> values) {
   for (final value in values) {

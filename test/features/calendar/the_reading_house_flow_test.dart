@@ -62,7 +62,12 @@ void main() {
     () {
       expect(
         readingHouseClientEventId(flowId: 87, eventNumber: 2),
-        'maat:reading-house:87:sitting:2',
+        'reading-house:87:sitting:2',
+      );
+      expect(
+        readingHouseClientEventId(flowId: 87, eventNumber: 2),
+        isNot(startsWith('maat:')),
+        reason: '`maat:` is reserved for filtered legacy event rows.',
       );
     },
   );

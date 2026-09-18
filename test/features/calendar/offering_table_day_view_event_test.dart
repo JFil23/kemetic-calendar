@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/app_theme.dart';
@@ -505,10 +507,25 @@ void main() {
         .map((paint) => paint.painter)
         .whereType<OfferingTableRipplePainter>()
         .single;
-    expect(liveRipple.animation, isA<AnimationController>());
-    final livePhase = liveRipple.animation!.value;
+    expect(liveRipple.phase, isNotNull);
+    final livePhase = liveRipple.phase;
+    final rippleBoundary = find.byKey(
+      const ValueKey<String>('offering-table-cup-ripple-boundary'),
+    );
+    final firstFrame = await _captureRenderedFrame(tester, rippleBoundary);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(liveRipple.animation!.value, isNot(livePhase));
+    final advancedRipple = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<OfferingTableRipplePainter>()
+        .single;
+    expect(advancedRipple.phase, isNot(livePhase));
+    final advancedFrame = await _captureRenderedFrame(tester, rippleBoundary);
+    expect(
+      advancedFrame,
+      isNot(orderedEquals(firstFrame)),
+      reason: 'The upcoming Offering card must visibly change between frames.',
+    );
     expect(
       await render(
         ky: today.kYear,
@@ -569,33 +586,37 @@ void main() {
 
     final animated = await pumpState(OfferingTableBlockVisualState.named);
     expect(animated.visible, isTrue);
-    expect(animated.animation, isA<AnimationController>());
-    final controller = animated.animation!;
-    final initialValue = controller.value;
+    expect(animated.phase, isNotNull);
+    final initialValue = animated.phase;
     await tester.pump(const Duration(milliseconds: 300));
-    expect(controller.value, isNot(initialValue));
+    final advanced = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<OfferingTableRipplePainter>()
+        .single;
+    expect(advanced.phase, isNot(initialValue));
 
     final empty = await pumpState(OfferingTableBlockVisualState.empty);
     expect(empty.visible, isFalse);
-    expect(empty.animation, isNull);
+    expect(empty.phase, isNull);
 
     final received = await pumpState(OfferingTableBlockVisualState.received);
     expect(received.visible, isFalse);
-    expect(received.animation, isNull);
+    expect(received.phase, isNull);
 
     final reducedMotion = await pumpState(
       OfferingTableBlockVisualState.named,
       mediaQueryData: const MediaQueryData(disableAnimations: true),
     );
     expect(reducedMotion.visible, isTrue);
-    expect(reducedMotion.animation, isNull);
+    expect(reducedMotion.phase, isNull);
 
     final pastOrFuture = await pumpState(
       OfferingTableBlockVisualState.named,
       animateRipple: false,
     );
     expect(pastOrFuture.visible, isTrue);
-    expect(pastOrFuture.animation, isNull);
+    expect(pastOrFuture.phase, isNull);
   });
 
   test('ripple frames match the approved pulse envelope', () {
@@ -1253,3 +1274,17 @@ EventItem _offeringEvent(String id, int startMinute) => EventItem(
     'day': 1,
   },
 );
+
+Future<Uint8List> _captureRenderedFrame(
+  WidgetTester tester,
+  Finder boundaryFinder,
+) async {
+  final boundary = tester.renderObject<RenderRepaintBoundary>(boundaryFinder);
+  final bytes = await tester.runAsync(() async {
+    final image = await boundary.toImage(pixelRatio: 1);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    return data!.buffer.asUint8List();
+  });
+  return bytes!;
+}

@@ -449,6 +449,7 @@ class OfferingTableCupVisual extends StatelessWidget {
       child: SizedBox.fromSize(
         size: size,
         child: RepaintBoundary(
+          key: const ValueKey<String>('offering-table-cup-ripple-boundary'),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -754,10 +755,14 @@ class _OfferingTableRippleLoopState extends State<_OfferingTableRippleLoop>
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: OfferingTableRipplePainter(
-        visible: widget.visible,
-        animation: _shouldAnimate ? _controller : null,
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) => CustomPaint(
+        willChange: _shouldAnimate,
+        painter: OfferingTableRipplePainter(
+          visible: widget.visible,
+          phase: _shouldAnimate ? _controller.value : null,
+        ),
       ),
     );
   }
@@ -781,19 +786,18 @@ class _OfferingTableRippleLoopState extends State<_OfferingTableRippleLoop>
 
 @visibleForTesting
 class OfferingTableRipplePainter extends CustomPainter {
-  const OfferingTableRipplePainter({required this.visible, this.animation})
-    : super(repaint: animation);
+  const OfferingTableRipplePainter({required this.visible, this.phase});
 
   final bool visible;
-  final Animation<double>? animation;
+  final double? phase;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (!visible) return;
     canvas.save();
     canvas.scale(size.width / 56, size.height / 52);
-    final driver = animation;
-    final rings = driver == null
+    final animationPhase = phase;
+    final rings = animationPhase == null
         ? const <({double scale, double opacity})>[
             (scale: 0.42, opacity: 0.18),
             (scale: 0.68, opacity: 0.13),
@@ -801,7 +805,8 @@ class OfferingTableRipplePainter extends CustomPainter {
           ]
         : List<({double scale, double opacity})>.generate(3, (index) {
             final phase =
-                (driver.value - (index * _offeringTableRipplePhaseOffset)) % 1;
+                (animationPhase - (index * _offeringTableRipplePhaseOffset)) %
+                1;
             return offeringTableRippleFrameForPhase(phase);
           }, growable: false);
     for (final ring in rings) {
@@ -813,7 +818,11 @@ class OfferingTableRipplePainter extends CustomPainter {
         ),
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 0.85
+          // Keep the authored 0.85 logical-pixel stroke after the approved
+          // Day View badge was reduced from the HTML's 56-wide SVG stage.
+          ..strokeWidth = animationPhase == null
+              ? 0.85
+              : 0.85 * (56 / size.width)
           ..color = const Color(0xFFEBFDF8).withValues(alpha: ring.opacity),
       );
     }
@@ -822,8 +831,7 @@ class OfferingTableRipplePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant OfferingTableRipplePainter oldDelegate) {
-    return oldDelegate.visible != visible ||
-        !identical(oldDelegate.animation, animation);
+    return oldDelegate.visible != visible || oldDelegate.phase != phase;
   }
 }
 
