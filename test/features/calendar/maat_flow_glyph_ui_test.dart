@@ -183,7 +183,7 @@ void main() {
   });
 
   test(
-    'core-flow discovery intentionally omits joined and progress state chrome',
+    'core-flow discovery omits state chrome and removed metadata sections',
     () {
       final source = File(
         'lib/features/calendar/presentation/maat_flow_discovery_view.dart',
@@ -194,7 +194,11 @@ void main() {
       expect(source, isNot(contains('progressRing')));
       expect(source, isNot(contains('completionCounts')));
       expect(source, contains('MaatFlowDiscoveryCard('));
-      expect(source, contains('data.arrivalLabel.toUpperCase()'));
+      expect(source, contains('data.possibility'));
+      expect(source, isNot(contains('_HawStewardshipMark')));
+      expect(source, isNot(contains('arrivalLabel')));
+      expect(source, isNot(contains('arrivalTitle')));
+      expect(source, isNot(contains('arrivalPrompt')));
     },
   );
 
