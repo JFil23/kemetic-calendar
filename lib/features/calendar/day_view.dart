@@ -6721,7 +6721,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   bool _isDraggingEvent = false;
   int? _dragPreviewStartMin;
   EventItem? _dragPreviewEvent;
-  int? _lastDragSnappedMinute; // backup of last snapped minute during drag
+  double _dragGrabOffsetMinutes = 0;
   String? _initialEventDetailRestoreKey;
   bool _initialEventDetailRestoreInFlight = false;
   DayViewSheetEventTarget? _openDetailTarget;
@@ -6983,6 +6983,22 @@ class _DayViewGridState extends State<DayViewGrid> {
     return ((y / 15).round() * 15).clamp(0, 24 * 60 - 1).toInt();
   }
 
+  void _rememberDragGrabOffset(EventItem event, Offset globalPosition) {
+    final box = _findTimelineBox();
+    if (box == null) {
+      _dragGrabOffsetMinutes = 0;
+      return;
+    }
+    final local = box.globalToLocal(globalPosition);
+    final scrollOffset = _scrollController.hasClients
+        ? _scrollController.offset
+        : 0.0;
+    _dragGrabOffsetMinutes = (local.dy + scrollOffset - event.startMin).clamp(
+      0.0,
+      math.max(0.0, (event.endMin - event.startMin).toDouble()),
+    );
+  }
+
   void _clearDragPreview() {
     if (_dragPreviewEvent == null && _dragPreviewStartMin == null) return;
     _dragPreviewEvent = null;
@@ -7012,39 +7028,41 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
     if (target != null && target != _scrollController.offset) {
-      _scrollController.animateTo(
-        target,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-      );
+      // The drag gesture owns timeline movement while an event is held. A
+      // synchronous step keeps the pointer-to-minute mapping deterministic at
+      // release and avoids leaving a competing scroll animation in flight.
+      _scrollController.jumpTo(target);
       return true;
     }
     return false;
   }
 
-  void _handleDragUpdate(EventItem event, DragUpdateDetails details) {
+  void _handleDragTargetMove(DragTargetDetails<_DragPayload> details) {
+    if (!_isDraggingEvent) return;
+    final event = details.data.event;
     _dragPreviewEvent ??= event;
     final box = _findTimelineBox();
     if (box == null) return;
 
     bool shouldSetState = false;
-    final snapped = _snappedMinuteFromGlobalOffset(
-      details.globalPosition,
-      box: box,
-    );
-    final local = box.globalToLocal(details.globalPosition);
+    final snapped = _snappedMinuteFromGlobalOffset(details.offset, box: box);
+    // DragTarget reports the feedback's top-left because the draggable uses
+    // childDragAnchorStrategy. That point is the event's start-time anchor.
+    // Add the original grab offset only when deciding whether the pointer is
+    // near an auto-scroll edge; it must not alter the event's snapped time.
+    final pointerPosition = details.offset + Offset(0, _dragGrabOffsetMinutes);
+    final local = box.globalToLocal(pointerPosition);
     if (kDebugMode) {
       final scrollOffset = _scrollController.hasClients
           ? _scrollController.offset
           : 0.0;
       final double y = local.dy + scrollOffset;
       debugPrint(
-        '[DayView] dragUpdate global=${details.globalPosition} local.dy=${local.dy.toStringAsFixed(2)} scroll=${scrollOffset.toStringAsFixed(2)} y=${y.toStringAsFixed(2)} snapped=$snapped previewMin=$_dragPreviewStartMin',
+        '[DayView] dragTargetMove cardTop=${details.offset} pointer.dy=${pointerPosition.dy.toStringAsFixed(2)} local.dy=${local.dy.toStringAsFixed(2)} scroll=${scrollOffset.toStringAsFixed(2)} y=${y.toStringAsFixed(2)} snapped=$snapped previewMin=$_dragPreviewStartMin',
       );
     }
     if (snapped != null && snapped != _dragPreviewStartMin) {
       _dragPreviewStartMin = snapped;
-      _lastDragSnappedMinute = snapped;
       unawaited(AppHaptics.selection());
       shouldSetState = true;
     }
@@ -7052,12 +7070,11 @@ class _DayViewGridState extends State<DayViewGrid> {
     final scrolled = _maybeAutoScroll(box, local.dy);
     if (scrolled) {
       final rescanned = _snappedMinuteFromGlobalOffset(
-        details.globalPosition,
+        details.offset,
         box: box,
       );
       if (rescanned != null && rescanned != _dragPreviewStartMin) {
         _dragPreviewStartMin = rescanned;
-        _lastDragSnappedMinute = rescanned;
         unawaited(AppHaptics.selection());
       }
       shouldSetState = true;
@@ -7651,36 +7668,10 @@ class _DayViewGridState extends State<DayViewGrid> {
                   );
                 },
                 onWillAcceptWithDetails: (_) => true,
-                onMove: (details) {
-                  final snapped = _snappedMinuteFromGlobalOffset(
-                    details.offset,
-                  );
-                  if (snapped == null) return;
-                  _dragPreviewEvent ??= details.data.event;
-                  if (snapped == _dragPreviewStartMin) return;
-                  _dragPreviewStartMin = snapped;
-                  _lastDragSnappedMinute = snapped;
-                  unawaited(AppHaptics.selection());
-                  if (mounted) setState(() {});
-                  if (kDebugMode) {
-                    debugPrint(
-                      '[DayView] onMove offset=${details.offset} snapped=$snapped',
-                    );
-                  }
-                },
+                onMove: _handleDragTargetMove,
                 onAcceptWithDetails: (details) {
                   if (kDebugMode) {
                     debugPrint('[DayView] DragTarget onAcceptWithDetails');
-                  }
-                  // Reject drop while the timeline is still scrolling.
-                  if (_scrollController.hasClients &&
-                      _scrollController.position.isScrollingNotifier.value) {
-                    if (kDebugMode) {
-                      debugPrint(
-                        '[DayView] DragTarget: rejecting drop while scrolling',
-                      );
-                    }
-                    return;
                   }
                   final event = details.data.event;
                   int? committedMinute;
@@ -7691,16 +7682,6 @@ class _DayViewGridState extends State<DayViewGrid> {
                     if (kDebugMode) {
                       debugPrint(
                         '[DayView] drop: using preview minute $committedMinute for id=${event.id} cid=${event.clientEventId}',
-                      );
-                    }
-                  }
-
-                  if (committedMinute == null &&
-                      _lastDragSnappedMinute != null) {
-                    committedMinute = _lastDragSnappedMinute;
-                    if (kDebugMode) {
-                      debugPrint(
-                        '[DayView] drop: using last snapped minute $committedMinute for id=${event.id} cid=${event.clientEventId}',
                       );
                     }
                   }
@@ -7723,17 +7704,6 @@ class _DayViewGridState extends State<DayViewGrid> {
                       );
                     }
                   }
-                  // Temporary: avoid no-op when preview didn't update; prefer fixing drag path if logs show _handleDragUpdate not updating.
-                  if (committedMinute == event.startMin &&
-                      _lastDragSnappedMinute != null &&
-                      _lastDragSnappedMinute != event.startMin) {
-                    if (kDebugMode) {
-                      debugPrint(
-                        '[DayView] drop: no-op escape using last snapped minute $_lastDragSnappedMinute',
-                      );
-                    }
-                    committedMinute = _lastDragSnappedMinute;
-                  }
                   if (kDebugMode) {
                     debugPrint(
                       '[DayView] drop commit minute=$committedMinute '
@@ -7749,10 +7719,9 @@ class _DayViewGridState extends State<DayViewGrid> {
                     widget.km,
                     widget.kd,
                     event,
-                    committedMinute!,
+                    committedMinute,
                   );
                   _clearDragPreview();
-                  _lastDragSnappedMinute = null;
                 },
               ),
             ),
@@ -8176,6 +8145,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     final draggable = LongPressDraggable<_DragPayload>(
+      key: ValueKey<String>(
+        'day-view-draggable-${eventItemIdentityKey(event)}',
+      ),
       data: _DragPayload(event),
       delay: const Duration(milliseconds: 350),
       feedback: Material(
@@ -8183,12 +8155,10 @@ class _DayViewGridState extends State<DayViewGrid> {
         child: buildVisual(opacity: 0.8),
       ),
       childWhenDragging: buildHitTarget(buildVisual(opacity: 0.35)),
-      onDragUpdate: (details) => _handleDragUpdate(event, details),
       onDragStarted: () {
         _isDraggingEvent = true;
         _dragPreviewEvent = event;
         _dragPreviewStartMin = event.startMin;
-        _lastDragSnappedMinute = event.startMin;
         unawaited(AppHaptics.selection());
         if (kDebugMode) {
           debugPrint(
@@ -8200,16 +8170,17 @@ class _DayViewGridState extends State<DayViewGrid> {
       },
       onDraggableCanceled: (_, _) {
         _isDraggingEvent = false;
+        _dragGrabOffsetMinutes = 0;
         _clearDragPreview();
-        _lastDragSnappedMinute = null;
       },
-      onDragEnd: (_) {
+      onDragEnd: (details) {
         _isDraggingEvent = false;
-        _clearDragPreview();
+        _dragGrabOffsetMinutes = 0;
+        if (!details.wasAccepted) _clearDragPreview();
       },
       onDragCompleted: () {
         _isDraggingEvent = false;
-        _clearDragPreview();
+        _dragGrabOffsetMinutes = 0;
       },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -8217,7 +8188,13 @@ class _DayViewGridState extends State<DayViewGrid> {
         child: buildHitTarget(buildVisual()),
       ),
     );
-    return wrapOnboardingTarget(draggable);
+    return wrapOnboardingTarget(
+      Listener(
+        onPointerDown: (details) =>
+            _rememberDragGrabOffset(event, details.position),
+        child: draggable,
+      ),
+    );
   }
 
   double _eventVisualHeight(EventItem event) {

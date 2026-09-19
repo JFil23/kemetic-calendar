@@ -26,16 +26,130 @@ class KarShrineVisual extends StatelessWidget {
   const KarShrineVisual({
     super.key,
     this.color = const Color(0xFF91B7C7),
+    this.currentColor,
     this.placed = 0,
+    this.currentStage,
+    this.pastStages = const <int>{},
+    this.onStageTap,
   });
 
   final Color color;
+  final Color? currentColor;
   final int placed;
+  final int? currentStage;
+  final Set<int> pastStages;
+  final ValueChanged<int>? onStageTap;
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    painter: _KarShrineVisualPainter(color: color, placed: placed),
-    size: const Size(248, 225),
+  Widget build(BuildContext context) {
+    final interactive = currentStage != null;
+    return SizedBox(
+      width: 248,
+      height: 225,
+      child: Stack(
+        children: <Widget>[
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _KarShrineVisualPainter(
+                color: color,
+                placed: placed,
+                drawLegacyDots: !interactive,
+              ),
+            ),
+          ),
+          if (interactive)
+            for (var index = 0; index < _karShrineEntryPoints.length; index++)
+              if (index == currentStage || pastStages.contains(index))
+                Positioned(
+                  left: _karShrineEntryPoints[index].dx - 13,
+                  top: _karShrineEntryPoints[index].dy - 13,
+                  child: _KarInteractiveEntryDot(
+                    key: ValueKey<String>('kar-entry-dot-$index'),
+                    color: color,
+                    currentColor: currentColor ?? color,
+                    current: index == currentStage,
+                    label: index == currentStage
+                        ? '${kKarStages[index].place}, current sitting'
+                        : '${kKarStages[index].place}, previous sitting',
+                    onTap: index == currentStage || onStageTap == null
+                        ? null
+                        : () => onStageTap!(index),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+}
+
+const List<Offset> _karShrineEntryPoints = <Offset>[
+  Offset(124, 198),
+  Offset(57, 110),
+  Offset(191, 110),
+  Offset(124, 27),
+  Offset(206, 202.5),
+];
+
+class _KarInteractiveEntryDot extends StatelessWidget {
+  const _KarInteractiveEntryDot({
+    super.key,
+    required this.color,
+    required this.currentColor,
+    required this.current,
+    required this.label,
+    required this.onTap,
+  });
+
+  final Color color;
+  final Color currentColor;
+  final bool current;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: label,
+    button: onTap != null,
+    child: SizedBox(
+      width: 26,
+      height: 26,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Center(
+          child: Container(
+            width: current ? 16 : 14,
+            height: current ? 16 : 14,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: current ? currentColor : color.withValues(alpha: .76),
+              border: Border.all(
+                color: const Color(
+                  0xFFE1F4F9,
+                ).withValues(alpha: current ? .84 : .38),
+              ),
+              boxShadow: <BoxShadow>[
+                if (current) ...<BoxShadow>[
+                  BoxShadow(
+                    color: color.withValues(alpha: .07),
+                    spreadRadius: 6,
+                  ),
+                  BoxShadow(
+                    color: color.withValues(alpha: .92),
+                    blurRadius: 14,
+                  ),
+                  BoxShadow(
+                    color: color.withValues(alpha: .52),
+                    blurRadius: 28,
+                  ),
+                ] else
+                  BoxShadow(color: color.withValues(alpha: .30), blurRadius: 9),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -147,10 +261,15 @@ class _KarDayShrinePainter extends CustomPainter {
 }
 
 class _KarShrineVisualPainter extends CustomPainter {
-  const _KarShrineVisualPainter({required this.color, required this.placed});
+  const _KarShrineVisualPainter({
+    required this.color,
+    required this.placed,
+    required this.drawLegacyDots,
+  });
 
   final Color color;
   final int placed;
+  final bool drawLegacyDots;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -211,41 +330,45 @@ class _KarShrineVisualPainter extends CustomPainter {
     canvas.drawRRect(base, stone);
     canvas.drawRRect(base, line..color = const Color(0xFF44391F));
 
-    const points = <Offset>[
-      Offset(124, 198),
-      Offset(57, 110),
-      Offset(191, 110),
-      Offset(124, 27),
-      Offset(206, 202.5),
-    ];
-    final count = placed.clamp(0, 5);
-    for (var index = 0; index < points.length; index++) {
-      if (index > count) continue;
-      final isTarget = index == count && count < 5;
-      final dot = Paint()
-        ..color = isTarget
-            ? color
-            : color.withValues(alpha: index < count ? .72 : .12)
-        ..style = PaintingStyle.fill;
-      if (isTarget) {
+    if (drawLegacyDots) {
+      final count = placed.clamp(0, 5);
+      for (var index = 0; index < _karShrineEntryPoints.length; index++) {
+        if (index > count) continue;
+        final isTarget = index == count && count < 5;
+        final dot = Paint()
+          ..color = isTarget
+              ? color
+              : color.withValues(alpha: index < count ? .72 : .12)
+          ..style = PaintingStyle.fill;
+        if (isTarget) {
+          canvas.drawCircle(
+            _karShrineEntryPoints[index],
+            15,
+            Paint()
+              ..shader =
+                  RadialGradient(
+                    colors: <Color>[
+                      color.withValues(alpha: .36),
+                      Colors.transparent,
+                    ],
+                  ).createShader(
+                    Rect.fromCircle(
+                      center: _karShrineEntryPoints[index],
+                      radius: 15,
+                    ),
+                  ),
+          );
+        }
+        canvas.drawCircle(_karShrineEntryPoints[index], isTarget ? 6 : 5, dot);
         canvas.drawCircle(
-          points[index],
-          15,
+          _karShrineEntryPoints[index],
+          isTarget ? 6 : 5,
           Paint()
-            ..shader = RadialGradient(
-              colors: <Color>[color.withValues(alpha: .36), Colors.transparent],
-            ).createShader(Rect.fromCircle(center: points[index], radius: 15)),
+            ..color = color.withValues(alpha: isTarget ? .9 : .35)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1,
         );
       }
-      canvas.drawCircle(points[index], isTarget ? 6 : 5, dot);
-      canvas.drawCircle(
-        points[index],
-        isTarget ? 6 : 5,
-        Paint()
-          ..color = color.withValues(alpha: isTarget ? .9 : .35)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1,
-      );
     }
 
     canvas.restore();
@@ -253,7 +376,9 @@ class _KarShrineVisualPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _KarShrineVisualPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.placed != placed;
+      oldDelegate.color != color ||
+      oldDelegate.placed != placed ||
+      oldDelegate.drawLegacyDots != drawLegacyDots;
 }
 
 class _KarShrinePainter extends CustomPainter {

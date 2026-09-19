@@ -47,7 +47,7 @@ class SupabaseKarRepository implements KarRepository {
             'user_id': userId,
             'netjer_key': netjer.key,
             'state': const <String, dynamic>{
-              'schema_version': 1,
+              'schema_version': 2,
               'active_cycle_id': null,
               'cycles': <dynamic>[],
               'drafts': <String, dynamic>{},

@@ -332,7 +332,120 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
               netjer: widget.netjer,
               cycle: cycle,
               stageIndex: stageIndex,
+              onPastStageTap: _showPastStage,
             ),
+    );
+  }
+
+  ({KarSceneContent scene, String sourceLabel}) _sceneForStage(int stageIndex) {
+    final shrine = _shrine;
+    final cycle = _cycle;
+    if (shrine == null || cycle == null) {
+      return (scene: const KarSceneContent(), sourceLabel: 'No saved scene');
+    }
+    final current = cycle.placements[stageIndex].activeVersion;
+    if (current != null) {
+      return (
+        scene: current.scene,
+        sourceLabel: 'Cycle ${cycle.sequence.toString().padLeft(2, '0')}',
+      );
+    }
+    final draft = shrine.drafts['${cycle.id}:$stageIndex'];
+    if (draft != null && !draft.scene.isEmpty) {
+      return (scene: draft.scene, sourceLabel: 'Saved draft · not yet placed');
+    }
+    for (final earlier in shrine.earlierCycles.reversed) {
+      final historical = earlier.placements[stageIndex].activeVersion;
+      if (historical != null) {
+        return (
+          scene: historical.scene,
+          sourceLabel:
+              'Earlier cycle ${earlier.sequence.toString().padLeft(2, '0')}',
+        );
+      }
+    }
+    return (scene: const KarSceneContent(), sourceLabel: 'No saved scene');
+  }
+
+  Future<void> _showPastStage(int stageIndex) async {
+    final stage = kKarStages[stageIndex];
+    final stored = _sceneForStage(stageIndex);
+    await showGeneralDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: true,
+      barrierLabel: 'Close saved Kꜣr scene',
+      barrierColor: const Color(0xD9000000),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) => Dialog(
+        key: ValueKey<String>('kar-past-entry-$stageIndex'),
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: Material(
+            color: const Color(0xFF090907),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+              side: BorderSide(
+                color: Color(widget.netjer.accentValue).withValues(alpha: .42),
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(
+                            '${stored.sourceLabel.toUpperCase()} · ${stage.place.toUpperCase()}',
+                            style: _style(
+                              const Color(0xFF8A7030),
+                              8,
+                              spacing: 1.5,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Close saved scene',
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Text(
+                          '×',
+                          style: TextStyle(
+                            color: Color(0xFF8D877E),
+                            fontSize: 22,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    widget.netjer.labels[stageIndex],
+                    style: _style(
+                      const Color(0xFFECE5DA),
+                      28,
+                      weight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  KarSavedSceneView(
+                    scene: stored.scene,
+                    color: Color(widget.netjer.accent2Value),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -395,7 +508,7 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
     final stageIndex = widget.stageIndex.clamp(0, 4);
     final active = cycle?.placements[stageIndex].activeVersion;
     if (active != null && !_replace) {
-      return _practiceShell(_buildReturnPractice(stageIndex, active.content));
+      return _practiceShell(_buildReturnPractice(stageIndex, active));
     }
     return _practiceShell(_buildFreshPractice(cycle, stageIndex, active));
   }
@@ -666,7 +779,7 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
     );
   }
 
-  Widget _buildReturnPractice(int stageIndex, String saved) {
+  Widget _buildReturnPractice(int stageIndex, KarEntryVersion saved) {
     final stage = kKarStages[stageIndex];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -700,7 +813,8 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
           const SizedBox(height: 15),
           _RevealCard(
             label: 'What you placed here',
-            content: saved,
+            scene: saved.scene,
+            sceneColor: Color(widget.netjer.accent2Value),
             primaryLabel: 'Keep this place',
             onPrimary: _finishReturn,
             secondaryLabel: 'Make this place again',
@@ -864,7 +978,8 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
           const SizedBox(height: 12),
           _RevealCard(
             label: 'What you placed here',
-            content: placement.content,
+            scene: placement.scene,
+            sceneColor: Color(widget.netjer.accent2Value),
             primaryLabel: 'Continue',
             onPrimary: _advanceWalk,
           ),
@@ -906,9 +1021,10 @@ class KarDayViewPresentation extends StatelessWidget {
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('kar-day-presentation'),
       decoration: _karSittingFrameDecoration(netjer),
-      instrument: hero,
+      instrument: const SizedBox.shrink(),
       instrumentFooter: const SizedBox.shrink(),
-      inputBuilder: (_, _, _) => heroControls,
+      inputBuilder: (_, _, _) =>
+          _KarStationaryInteractiveHero(hero: hero, controls: heroControls),
       body: practice,
       completion: completionPanel == null
           ? null
@@ -947,9 +1063,10 @@ class KarDetailSittingPresentation extends StatelessWidget {
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('kar-detail-sitting-presentation'),
       decoration: _karSittingFrameDecoration(netjer),
-      instrument: hero,
+      instrument: const SizedBox.shrink(),
       instrumentFooter: const SizedBox.shrink(),
-      inputBuilder: (_, _, _) => heroControls,
+      inputBuilder: (_, _, _) =>
+          _KarStationaryInteractiveHero(hero: hero, controls: heroControls),
       body: practice,
       bodyScrollKey: const ValueKey<String>('kar-detail-sitting-scroll'),
       lowerSheetKey: const ValueKey<String>('kar-detail-practice-sheet'),
@@ -961,6 +1078,29 @@ class KarDetailSittingPresentation extends StatelessWidget {
       foregroundStyle: _karSittingForegroundStyle(netjer),
     );
   }
+}
+
+/// Kꜣr's shrine is both artwork and an input surface. Keeping that single
+/// composition in the frame's stationary input layer lets dot taps and the
+/// foreground scroll share Flutter's normal gesture arena while the rising
+/// foreground still paints and hit-tests above covered dots.
+class _KarStationaryInteractiveHero extends StatelessWidget {
+  const _KarStationaryInteractiveHero({
+    required this.hero,
+    required this.controls,
+  });
+
+  final Widget hero;
+  final Widget controls;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: <Widget>[
+      Positioned.fill(child: hero),
+      Positioned.fill(child: controls),
+    ],
+  );
 }
 
 BoxDecoration _karSittingFrameDecoration(KarNetjer netjer) => BoxDecoration(
@@ -1062,11 +1202,13 @@ class _KarDayShrineStage extends StatelessWidget {
     required this.netjer,
     required this.cycle,
     required this.stageIndex,
+    required this.onPastStageTap,
   });
 
   final KarNetjer netjer;
   final KarCycle? cycle;
   final int stageIndex;
+  final ValueChanged<int> onPastStageTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1123,7 +1265,13 @@ class _KarDayShrineStage extends StatelessWidget {
                   height: 225,
                   child: KarShrineVisual(
                     color: accent,
+                    currentColor: accent2,
                     placed: cycle?.placedCount ?? 0,
+                    currentStage: stageIndex,
+                    pastStages: <int>{
+                      for (var index = 0; index < stageIndex; index++) index,
+                    },
+                    onStageTap: onPastStageTap,
                   ),
                 ),
               ),
@@ -1246,8 +1394,8 @@ class _KarCaptureChoice extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = Color(netjer.accentValue);
     final accent2 = Color(netjer.accent2Value);
-    final drawingReady = draft?.kind == 'drawing';
-    final descriptionReady = draft?.kind == 'description';
+    final drawingReady = draft?.hasDrawing == true;
+    final descriptionReady = draft?.hasDescription == true;
     return Container(
       padding: const EdgeInsets.only(top: 15),
       decoration: const BoxDecoration(
@@ -1406,14 +1554,18 @@ List<String> _dayPromptParagraphs(String prompt) {
 class _RevealCard extends StatelessWidget {
   const _RevealCard({
     required this.label,
-    required this.content,
     required this.primaryLabel,
     required this.onPrimary,
+    this.content,
+    this.scene,
+    this.sceneColor,
     this.secondaryLabel,
     this.onSecondary,
-  });
+  }) : assert(content != null || scene != null);
   final String label;
-  final String content;
+  final String? content;
+  final KarSceneContent? scene;
+  final Color? sceneColor;
   final String primaryLabel;
   final VoidCallback onPrimary;
   final String? secondaryLabel;
@@ -1434,15 +1586,21 @@ class _RevealCard extends StatelessWidget {
           style: _style(const Color(0xFF8A7030), 9.5, spacing: 1.15),
         ),
         const SizedBox(height: 8),
-        Text(
-          content,
-          style: _style(
-            const Color(0xFFD6D0C6),
-            16,
-            style: FontStyle.italic,
-            height: 1.35,
+        if (scene != null)
+          KarSavedSceneView(
+            scene: scene!,
+            color: sceneColor ?? const Color(0xFFC9E3EB),
+          )
+        else
+          Text(
+            content!,
+            style: _style(
+              const Color(0xFFD6D0C6),
+              16,
+              style: FontStyle.italic,
+              height: 1.35,
+            ),
           ),
-        ),
         const SizedBox(height: 12),
         Row(
           children: <Widget>[

@@ -90,6 +90,69 @@ void main() {
     );
   });
 
+  test(
+    'one Kꜣr scene preserves both description and drawing through JSON persistence',
+    () {
+      final started = _startedShrine();
+      final described = started.saveDraft(
+        cycleId: 'cycle-1',
+        stageIndex: 0,
+        draft: KarDraft(
+          kind: 'description',
+          content: 'A blue robe and a silver pipe.',
+          savedAt: DateTime.utc(2026, 9, 10, 18),
+        ),
+      );
+      final captured = described.saveDraft(
+        cycleId: 'cycle-1',
+        stageIndex: 0,
+        draft: KarDraft(
+          kind: 'drawing',
+          content: '[[[10.0,10.0],[40.0,40.0]]]',
+          savedAt: DateTime.utc(2026, 9, 10, 19),
+        ),
+      );
+
+      final draft = captured.drafts['cycle-1:0']!;
+      expect(draft.kind, 'both');
+      expect(draft.scene.description, 'A blue robe and a silver pipe.');
+      expect(draft.scene.drawing, '[[[10.0,10.0],[40.0,40.0]]]');
+
+      final placed = captured.placeDraft(
+        cycleId: 'cycle-1',
+        stageIndex: 0,
+        versionId: 'entry-both',
+        now: DateTime.utc(2026, 9, 10, 20),
+      );
+      final restored = KarShrine.fromRow(<String, dynamic>{
+        'id': placed.id,
+        'netjer_key': placed.netjer.key,
+        'revision': placed.revision,
+        'state': jsonDecode(jsonEncode(placed.toStateJson())),
+      });
+      final scene = restored.activeCycle!.placements.first.activeVersion!.scene;
+      expect(scene.hasDescription, isTrue);
+      expect(scene.hasDrawing, isTrue);
+      expect(scene.description, 'A blue robe and a silver pipe.');
+      expect(scene.drawing, '[[[10.0,10.0],[40.0,40.0]]]');
+    },
+  );
+
+  test(
+    'legacy one-part Kꜣr state remains readable after the state upgrade',
+    () {
+      final restored = KarDraft.fromJson(<String, dynamic>{
+        'kind': 'drawing',
+        'content': '[[[1.0,2.0]]]',
+        'saved_at': DateTime.utc(2026, 9, 10).toIso8601String(),
+      });
+
+      expect(restored.hasDrawing, isTrue);
+      expect(restored.hasDescription, isFalse);
+      expect(restored.scene.drawing, '[[[1.0,2.0]]]');
+    },
+  );
+
   test('replacement appends an immutable version and preserves lineage', () {
     var shrine = _startedShrine();
     shrine = _draftAndPlace(

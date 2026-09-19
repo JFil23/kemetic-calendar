@@ -13,6 +13,9 @@ import 'package:mobile/features/calendar/the_djed/presentation/djed_detail_page.
 import 'package:mobile/features/calendar/the_djed/presentation/djed_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_kar/the_kar.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
+import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_reading_house/reading_house_room_repository.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
@@ -1008,6 +1011,149 @@ void main() {
     expect(visual.returning, isFalse);
     expect(find.text('04 · Lintel'), findsOneWidget);
   });
+
+  testWidgets(
+    'all five Ma\'at event blocks keep their grab point and commit an accurate long-press move',
+    (tester) async {
+      final cases =
+          <
+            ({
+              int flowId,
+              String flowName,
+              String flowKey,
+              String title,
+              Map<String, dynamic> payload,
+              Finder Function() finder,
+              KarRepository? karRepository,
+            })
+          >[
+            (
+              flowId: 201,
+              flowName: 'Follow the Sky',
+              flowKey: 'track-the-sky',
+              title: 'Autumn Equinox',
+              payload: const <String, dynamic>{
+                'kind': 'track_sky_v2',
+                'skyEventId': 'autumn-equinox-2026',
+                'trackSkySchemaVersion': 2,
+              },
+              finder: () => find.byType(TrackSkyEventBlockVisual),
+              karRepository: null,
+            ),
+            (
+              flowId: 202,
+              flowName: kOfferingTableTitle,
+              flowKey: kOfferingTableFlowKey,
+              title: 'The Offering Table · Day 01 · The Small Supply',
+              payload: const <String, dynamic>{
+                'kind': 'maat_offering_table_day',
+                'flow_key': kOfferingTableFlowKey,
+                'day': 1,
+              },
+              finder: () => find.byType(OfferingTableEventBlockVisual),
+              karRepository: null,
+            ),
+            (
+              flowId: 203,
+              flowName: kReadingHouseTitle,
+              flowKey: kReadingHouseFlowKey,
+              title: 'Open the Text',
+              payload: const <String, dynamic>{
+                'kind': 'maat_reading_house_sitting',
+                'flow_key': kReadingHouseFlowKey,
+                'event_number': 1,
+              },
+              finder: () => find.byType(ReadingHouseEventBlockVisual),
+              karRepository: null,
+            ),
+            (
+              flowId: 204,
+              flowName: kTheDjedTitle,
+              flowKey: kTheDjedFlowKey,
+              title: 'Set your footing',
+              payload: const <String, dynamic>{
+                'kind': 'maat_djed_v2_event',
+                'flow_key': kTheDjedFlowKey,
+              },
+              finder: () => find.byType(DjedEventBlockVisual),
+              karRepository: null,
+            ),
+            (
+              flowId: 205,
+              flowName: kKarTitle,
+              flowKey: kKarFlowKey,
+              title: 'Wisdom',
+              payload: const <String, dynamic>{
+                'kind': 'maat_kar_scene',
+                'flow_key': kKarFlowKey,
+                'kar_cycle_id': 'cycle-drag',
+                'kar_cycle_sequence': 1,
+                'kar_netjer': 'djehuty',
+                'kar_stage_index': 0,
+                'kar_day': 1,
+                'kar_place': 'Threshold',
+              },
+              finder: () => find.byType(KarEventBlockVisual),
+              karRepository: MemoryKarRepository(
+                initial: <KarNetjer, KarShrine>{
+                  KarNetjer.djehuty:
+                      KarShrine(
+                        id: 'kar-drag-djehuty',
+                        netjer: KarNetjer.djehuty,
+                        revision: 0,
+                        cycles: const <KarCycle>[],
+                      ).beginCycle(
+                        cycleId: 'cycle-drag',
+                        anchorDate: DateTime(2026, 9, 10),
+                        flowId: 205,
+                      ),
+                },
+              ),
+            ),
+          ];
+
+      for (final entry in cases) {
+        int? committedMinute;
+        EventItem? committedEvent;
+        await _pumpDayView(
+          tester,
+          flowId: entry.flowId,
+          flowName: entry.flowName,
+          flowKey: entry.flowKey,
+          title: entry.title,
+          payload: entry.payload,
+          start: const TimeOfDay(hour: 9, minute: 0),
+          firstVisibleMinute: 8 * 60,
+          karRepository: entry.karRepository,
+          onMoveEventTime: (ky, km, kd, event, minute) async {
+            committedEvent = event;
+            committedMinute = minute;
+          },
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final block = entry.finder();
+        expect(block, findsOneWidget, reason: entry.flowName);
+        final gesture = await tester.startGesture(tester.getCenter(block));
+        await tester.pump(const Duration(milliseconds: 400));
+        // A held card receives a continuous pointer stream on-device. Move it
+        // through an intermediate position so this proof exercises the same
+        // update path instead of relying on a single synthetic jump at the
+        // long-press transition boundary.
+        await gesture.moveBy(const Offset(0, 15));
+        await tester.pump(const Duration(milliseconds: 16));
+        await gesture.moveBy(const Offset(0, 60));
+        await tester.pump(const Duration(milliseconds: 104));
+        await gesture.up();
+        await tester.pump();
+
+        expect(committedEvent?.flowId, entry.flowId, reason: entry.flowName);
+        expect(committedMinute, 10 * 60 + 15, reason: entry.flowName);
+        expect(tester.takeException(), isNull, reason: entry.flowName);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    },
+  );
 }
 
 void _expectCanonicalMaatDayViewHousing(
@@ -1086,6 +1232,7 @@ Future<void> _pumpDayView(
     Map<String, dynamic>? metadata,
   })?
   onRecordCompletion,
+  DayViewMoveEventTime? onMoveEventTime,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -1158,6 +1305,7 @@ Future<void> _pumpDayView(
                 ? _OneReaderHouseDataSource(flowId: flowId)
                 : null,
             onRecordCompletion: onRecordCompletion,
+            onMoveEventTime: onMoveEventTime,
           ),
         ),
       ),

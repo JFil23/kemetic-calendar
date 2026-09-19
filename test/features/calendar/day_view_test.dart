@@ -417,6 +417,21 @@ void main() {
   });
 
   group('DayViewGrid overlapping event gestures', () {
+    test('one timeline target owns event-drag snapping and release', () {
+      final source = File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync();
+
+      expect(
+        RegExp(r'onMove:\s*_handleDragTargetMove').allMatches(source).length,
+        1,
+      );
+      expect(source, isNot(contains('onDragUpdate:')));
+      expect(source, isNot(contains('_lastDragSnappedMinute')));
+      expect(source, isNot(contains('rejecting drop while scrolling')));
+      expect(source, contains('_scrollController.jumpTo(target);'));
+    });
+
     testWidgets(
       'saved initial scroll offset is clamped to the current extent',
       (tester) async {

@@ -50,12 +50,10 @@ class _KarCaptureEditorState extends State<KarCaptureEditor> {
     final draft = widget.initialDraft;
     _draw =
         widget.initialMode == 'drawing' ||
-        (widget.initialMode == null && draft?.kind == 'drawing');
-    _controller = TextEditingController(
-      text: draft?.kind == 'description' ? draft?.content : '',
-    );
-    _hasDraft = draft != null && draft.content.trim().isNotEmpty;
-    if (draft?.kind == 'drawing') _restoreStrokes(draft!.content);
+        (widget.initialMode == null && draft?.hasDrawing == true);
+    _controller = TextEditingController(text: draft?.scene.description ?? '');
+    _hasDraft = draft != null && !draft.scene.isEmpty;
+    if (draft?.hasDrawing == true) _restoreStrokes(draft!.scene.drawing);
   }
 
   void _restoreStrokes(String raw) {
@@ -352,6 +350,89 @@ class _DrawingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DrawingPainter oldDelegate) => true;
+}
+
+class KarSavedSceneView extends StatelessWidget {
+  const KarSavedSceneView({
+    super.key,
+    required this.scene,
+    required this.color,
+    this.emptyText = 'No drawing or description was saved.',
+  });
+
+  final KarSceneContent scene;
+  final Color color;
+  final String emptyText;
+
+  List<List<Offset>> _decodedStrokes() {
+    if (!scene.hasDrawing) return const <List<Offset>>[];
+    try {
+      final decoded = jsonDecode(scene.drawing) as List;
+      return <List<Offset>>[
+        for (final strokeRaw in decoded)
+          <Offset>[
+            for (final pointRaw in strokeRaw as List)
+              Offset(
+                ((pointRaw as List)[0] as num).toDouble(),
+                (pointRaw[1] as num).toDouble(),
+              ),
+          ],
+      ];
+    } catch (_) {
+      return const <List<Offset>>[];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strokes = _decodedStrokes();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (scene.hasDescription)
+          Text(
+            scene.description,
+            key: const ValueKey<String>('kar-saved-description'),
+            style: _text(
+              const Color(0xFFD6D0C6),
+              16,
+              style: FontStyle.italic,
+              height: 1.35,
+            ),
+          ),
+        if (scene.hasDescription && strokes.isNotEmpty)
+          const SizedBox(height: 14),
+        if (strokes.isNotEmpty)
+          Container(
+            key: const ValueKey<String>('kar-saved-drawing'),
+            // Use the capture pad's authored height so legacy point data is
+            // revealed in full instead of clipping its lower third.
+            height: 285,
+            decoration: BoxDecoration(
+              color: const Color(0xFF050504),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: color.withValues(alpha: .24)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: CustomPaint(
+              painter: _DrawingPainter(strokes: strokes, color: color),
+              size: Size.infinite,
+            ),
+          ),
+        if (!scene.hasDescription && strokes.isEmpty)
+          Text(
+            emptyText,
+            key: const ValueKey<String>('kar-saved-scene-empty'),
+            style: _text(
+              const Color(0xFF777169),
+              15,
+              style: FontStyle.italic,
+              height: 1.35,
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 TextStyle _text(

@@ -263,6 +263,58 @@ void main() {
     expect(find.text('Bad drawings welcome.'), findsNWidgets(2));
   });
 
+  testWidgets('one Day View sitting can keep both a drawing and description', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+    final repository = MemoryKarRepository(
+      initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: _activeShrine()},
+    );
+    await _pumpDay(tester, repository: repository, flowId: 91, stageIndex: 0);
+    await tester.drag(
+      find.byKey(const ValueKey<String>('kar-day-sheet-scroll')),
+      const Offset(0, -380),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Draw'));
+    await tester.pumpAndSettle();
+    final pad = find.byKey(const ValueKey<String>('kar-drawing-pad'));
+    await tester.dragFrom(
+      tester.getTopLeft(pad) + const Offset(30, 30),
+      const Offset(80, 70),
+    );
+    await tester.pump();
+    final save = find.byKey(const ValueKey<String>('kar-save-draft'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(find.text('Draw  ✓'), findsOneWidget);
+
+    await tester.tap(find.text('Describe'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('kar-describe-field')),
+      'A dark robe covered in handwritten notes.',
+    );
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Draw  ✓'), findsOneWidget);
+    expect(find.text('Describe  ✓'), findsOneWidget);
+    final place = find.byKey(const ValueKey<String>('kar-place-draft'));
+    await tester.ensureVisible(place);
+    await tester.tap(place);
+    await tester.pumpAndSettle();
+
+    final stored = await repository.loadOrCreate(KarNetjer.djehuty);
+    final scene = stored.activeCycle!.placements.first.activeVersion!.scene;
+    expect(scene.hasDrawing, isTrue);
+    expect(scene.hasDescription, isTrue);
+    expect(scene.description, 'A dark robe covered in handwritten notes.');
+  });
+
   testWidgets(
     'detail uses three aligned decans and dated calendar cards before behavior',
     (tester) async {
@@ -695,6 +747,91 @@ void main() {
         );
         await tester.pumpWidget(const SizedBox.shrink());
       }
+    },
+  );
+
+  testWidgets(
+    'past sitting dots stay visible and reveal descriptions, drawings, or an open place',
+    (tester) async {
+      _setPhoneViewport(tester);
+      var shrine = _activeShrine().saveDraft(
+        cycleId: 'cycle-1',
+        stageIndex: 0,
+        draft: KarDraft(
+          kind: 'description',
+          content: 'A robe covered in handwritten notes.',
+          savedAt: DateTime.utc(2026, 9, 10, 10),
+        ),
+      );
+      shrine = shrine.saveDraft(
+        cycleId: 'cycle-1',
+        stageIndex: 0,
+        draft: KarDraft(
+          kind: 'drawing',
+          content: '[[[12.0,12.0],[64.0,64.0]]]',
+          savedAt: DateTime.utc(2026, 9, 10, 11),
+        ),
+      );
+      shrine = shrine.placeDraft(
+        cycleId: 'cycle-1',
+        stageIndex: 0,
+        versionId: 'entry-both',
+        now: DateTime.utc(2026, 9, 10, 12),
+      );
+      final repository = MemoryKarRepository(
+        initial: <KarNetjer, KarShrine>{KarNetjer.djehuty: shrine},
+      );
+
+      await _pumpDay(tester, repository: repository, flowId: 91, stageIndex: 2);
+
+      expect(
+        find.byKey(const ValueKey<String>('kar-entry-dot-0')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('kar-entry-dot-1')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('kar-entry-dot-2')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('kar-entry-dot-3')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('kar-entry-dot-4')),
+        findsNothing,
+      );
+
+      await tester.tap(find.byKey(const ValueKey<String>('kar-entry-dot-0')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('kar-past-entry-0')),
+        findsOneWidget,
+      );
+      expect(find.text('A robe covered in handwritten notes.'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('kar-saved-drawing')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey<String>('kar-saved-drawing')))
+            .height,
+        285,
+      );
+      await tester.tap(find.byTooltip('Close saved scene'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey<String>('kar-entry-dot-1')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('kar-past-entry-1')),
+        findsOneWidget,
+      );
+      expect(find.text('No drawing or description was saved.'), findsOneWidget);
     },
   );
 

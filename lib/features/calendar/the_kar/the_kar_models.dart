@@ -272,36 +272,100 @@ const List<KarStage> kKarStages = <KarStage>[
 enum KarCycleStatus { active, completed, abandoned }
 
 @immutable
+class KarSceneContent {
+  const KarSceneContent({this.description = '', this.drawing = ''});
+
+  final String description;
+  final String drawing;
+
+  bool get hasDescription => description.trim().isNotEmpty;
+  bool get hasDrawing => drawing.trim().isNotEmpty;
+  bool get isEmpty => !hasDescription && !hasDrawing;
+  String get kind => hasDescription && hasDrawing
+      ? 'both'
+      : hasDrawing
+      ? 'drawing'
+      : 'description';
+  String get primaryContent => hasDescription ? description : drawing;
+
+  factory KarSceneContent.fromLegacy({
+    required String kind,
+    required String content,
+  }) => switch (kind) {
+    'drawing' => KarSceneContent(drawing: content),
+    _ => KarSceneContent(description: content),
+  };
+
+  factory KarSceneContent.fromJson(Map<String, dynamic> json) {
+    final description = json['description']?.toString() ?? '';
+    final drawing = json['drawing']?.toString() ?? '';
+    if (description.trim().isNotEmpty || drawing.trim().isNotEmpty) {
+      return KarSceneContent(description: description, drawing: drawing);
+    }
+    return KarSceneContent.fromLegacy(
+      kind: json['kind']?.toString() ?? 'description',
+      content: json['content']?.toString() ?? '',
+    );
+  }
+
+  KarSceneContent merge(KarSceneContent update) => KarSceneContent(
+    description: update.hasDescription ? update.description : description,
+    drawing: update.hasDrawing ? update.drawing : drawing,
+  );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'description': description,
+    'drawing': drawing,
+  };
+}
+
+@immutable
 class KarEntryVersion {
-  const KarEntryVersion({
+  factory KarEntryVersion({
+    required String id,
+    required String kind,
+    required String content,
+    required DateTime createdAt,
+    required String source,
+    String? supersedesId,
+  }) => KarEntryVersion.scene(
+    id: id,
+    scene: KarSceneContent.fromLegacy(kind: kind, content: content),
+    createdAt: createdAt,
+    source: source,
+    supersedesId: supersedesId,
+  );
+
+  const KarEntryVersion.scene({
     required this.id,
-    required this.kind,
-    required this.content,
+    required this.scene,
     required this.createdAt,
     required this.source,
     this.supersedesId,
   });
+
   final String id;
-  final String kind;
-  final String content;
+  final KarSceneContent scene;
   final DateTime createdAt;
   final String source;
   final String? supersedesId;
+  String get kind => scene.kind;
+  String get content => scene.primaryContent;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
     'kind': kind,
     'content': content,
+    ...scene.toJson(),
     'created_at': createdAt.toUtc().toIso8601String(),
     'source': source,
     if (supersedesId != null) 'supersedes_id': supersedesId,
   };
 
   factory KarEntryVersion.fromJson(Map<String, dynamic> json) =>
-      KarEntryVersion(
+      KarEntryVersion.scene(
         id: json['id'] as String,
-        kind: json['kind'] as String,
-        content: json['content'] as String,
+        scene: KarSceneContent.fromJson(json),
         createdAt: DateTime.parse(json['created_at'] as String),
         source: json['source'] as String? ?? 'cycle_sitting',
         supersedesId: json['supersedes_id'] as String?,
@@ -447,22 +511,35 @@ class KarCycle {
 
 @immutable
 class KarDraft {
-  const KarDraft({
-    required this.kind,
-    required this.content,
-    required this.savedAt,
-  });
-  final String kind;
-  final String content;
+  factory KarDraft({
+    required String kind,
+    required String content,
+    required DateTime savedAt,
+  }) => KarDraft.scene(
+    scene: KarSceneContent.fromLegacy(kind: kind, content: content),
+    savedAt: savedAt,
+  );
+
+  const KarDraft.scene({required this.scene, required this.savedAt});
+
+  final KarSceneContent scene;
   final DateTime savedAt;
+  String get kind => scene.kind;
+  String get content => scene.primaryContent;
+  bool get hasDescription => scene.hasDescription;
+  bool get hasDrawing => scene.hasDrawing;
+
+  KarDraft merge(KarDraft update) =>
+      KarDraft.scene(scene: scene.merge(update.scene), savedAt: update.savedAt);
+
   Map<String, dynamic> toJson() => <String, dynamic>{
     'kind': kind,
     'content': content,
+    ...scene.toJson(),
     'saved_at': savedAt.toUtc().toIso8601String(),
   };
-  factory KarDraft.fromJson(Map<String, dynamic> json) => KarDraft(
-    kind: json['kind'] as String,
-    content: json['content'] as String,
+  factory KarDraft.fromJson(Map<String, dynamic> json) => KarDraft.scene(
+    scene: KarSceneContent.fromJson(json),
     savedAt: DateTime.parse(json['saved_at'] as String),
   );
 }
@@ -549,7 +626,14 @@ class KarShrine {
     String? cycleId,
   }) {
     final cycle = _editableCycle(cycleId);
-    return copyWith(drafts: {...drafts, '${cycle.id}:$stageIndex': draft});
+    final key = '${cycle.id}:$stageIndex';
+    final existing = drafts[key];
+    return copyWith(
+      drafts: {
+        ...drafts,
+        key: existing == null ? draft : existing.merge(draft),
+      },
+    );
   }
 
   KarShrine placeDraft({
@@ -562,16 +646,15 @@ class KarShrine {
     final cycle = _editableCycle(cycleId);
     final draftKey = '${cycle.id}:$stageIndex';
     final draft = drafts[draftKey];
-    if (draft == null || draft.content.trim().isEmpty) {
+    if (draft == null || draft.scene.isEmpty) {
       throw StateError('Save a drawing or description first.');
     }
     final placements = [...cycle.placements];
     final previous = placements[stageIndex].activeVersion;
     placements[stageIndex] = placements[stageIndex].place(
-      KarEntryVersion(
+      KarEntryVersion.scene(
         id: versionId,
-        kind: draft.kind,
-        content: draft.content,
+        scene: draft.scene,
         createdAt: now,
         source: source,
         supersedesId: previous?.id,
@@ -625,7 +708,7 @@ class KarShrine {
   }
 
   Map<String, dynamic> toStateJson() => <String, dynamic>{
-    'schema_version': 1,
+    'schema_version': 2,
     'active_cycle_id': activeCycleId,
     'cycles': cycles.map((value) => value.toJson()).toList(),
     'drafts': drafts.map((key, value) => MapEntry(key, value.toJson())),
