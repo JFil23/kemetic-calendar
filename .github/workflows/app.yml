@@ -70,6 +70,7 @@ jobs:
           flutter test --update-goldens \
             test/features/calendar/authored_event_block_day_view_test.dart \
             test/features/calendar/follow_the_sky/follow_sky_sheet_resize_test.dart \
+            test/features/calendar/maat_flow_discovery_view_test.dart \
             test/features/calendar/offering_table_day_v8_presentation_test.dart
 
       - name: Upload exact architecture references

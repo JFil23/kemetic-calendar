@@ -90,6 +90,8 @@ void main() {
     );
     expect(find.text('Follow the Sky'), findsOneWidget);
     expect(find.text('The Offering Table'), findsOneWidget);
+    expect(find.text('NEXT TURNING'), findsNothing);
+    expect(find.text('Autumn Equinox'), findsNothing);
     expect(find.text('JOINED'), findsNothing);
     expect(find.text('NOT YET JOINED'), findsNothing);
 
@@ -132,7 +134,64 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('preserves the four-card HTML reference scroll inventory', (
+  testWidgets('omits arrival metadata from every discovery card', (
+    tester,
+  ) async {
+    await pumpDiscovery(tester, size: const Size(390, 844), onOpen: (_) {});
+
+    const removedCopy = <String>[
+      'NEXT TURNING',
+      'Autumn Equinox',
+      '“What do you want to make more room for so it can grow?”',
+      'FIRST MORNING',
+      'The First Water',
+      '“Before food, phone, or work, fill the cup.”',
+      'STARTER SITTING',
+      'Open the Text',
+      '“What is this opening asking you to hold privately?”',
+      'FIRST SITTING',
+      'Set your footing',
+      '“Pick one ten-minute reset.”',
+      'FIRST IMAGE',
+      'The Threshold',
+      '“Choose the presence this kꜣr will hold.”',
+    ];
+
+    for (final flow in kCoreMaatFlowDiscoveryFixtures) {
+      final card = find.byKey(
+        ValueKey<String>('maat-flow-discovery-card-${flow.flowKey}'),
+      );
+      await tester.scrollUntilVisible(
+        card,
+        420,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      for (final text in removedCopy) {
+        expect(find.text(text), findsNothing);
+      }
+      expect(
+        find.descendant(of: card, matching: find.byType(Divider)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: card, matching: find.text('ḥꜣw')),
+        findsNothing,
+      );
+      expect(find.descendant(of: card, matching: find.text('ḥ')), findsNothing);
+      final description = find.descendant(
+        of: card,
+        matching: find.text(flow.possibility),
+      );
+      expect(description, findsOneWidget);
+      expect(
+        tester.getRect(card).bottom - tester.getRect(description).bottom,
+        closeTo(20, 0.01),
+      );
+    }
+  });
+
+  testWidgets('preserves the four-card reference image and title inventory', (
     tester,
   ) async {
     await pumpDiscovery(

@@ -66,7 +66,7 @@ mechanical housing authority recorded in `day_view_contract.v1.json`.
 | Offering Table Day View | event block; initial sheet; docked ritual; ritual bottom; context expanded | none |
 | Offering Table detail | detail; ritual sheet; context expanded; completion | none |
 | Kꜣr Day View | none | approved lowered and raised five-flow housing states |
-| Flow discovery | initial Follow the Sky; Offering Table card; Reading House card | Djed card, because the approved five-flow product extends the supplied three-card HTML |
+| Flow discovery | card artwork, world line, title, and description for Follow the Sky, Offering Table, and Reading House | Djed and Kꜣr cards, because the approved five-flow product extends the supplied three-card HTML; all five cards omit the superseded stewardship row and arrival metadata block |
 
 Every direct pair preserves its independently rendered reference and app
 capture, plus normalized inputs, a 50/50 overlay, and a contrast-amplified

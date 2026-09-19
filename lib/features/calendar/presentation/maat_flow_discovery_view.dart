@@ -13,9 +13,6 @@ class MaatFlowDiscoveryCardData {
     required this.glyph,
     required this.worldLine,
     required this.possibility,
-    required this.arrivalLabel,
-    required this.arrivalTitle,
-    required this.arrivalPrompt,
     required this.accent,
     this.heroAlignment = Alignment.center,
   });
@@ -27,9 +24,6 @@ class MaatFlowDiscoveryCardData {
   final String glyph;
   final String worldLine;
   final String possibility;
-  final String arrivalLabel;
-  final String arrivalTitle;
-  final String arrivalPrompt;
   final Color accent;
 }
 
@@ -44,9 +38,6 @@ kCoreMaatFlowDiscoveryFixtures = <MaatFlowDiscoveryCardData>[
     worldLine: 'Sky · as turnings occur',
     possibility:
         'The sky keeps moving. What you’re working toward moves with it.',
-    arrivalLabel: 'Next turning',
-    arrivalTitle: 'Autumn Equinox',
-    arrivalPrompt: '“What do you want to make more room for so it can grow?”',
     accent: Color(0xFFA4B1FF),
   ),
   MaatFlowDiscoveryCardData(
@@ -57,9 +48,6 @@ kCoreMaatFlowDiscoveryFixtures = <MaatFlowDiscoveryCardData>[
     glyph: '𓊵',
     worldLine: 'Provision · every morning for thirty days',
     possibility: 'Declare your intention before the day asks anything of you.',
-    arrivalLabel: 'First morning',
-    arrivalTitle: 'The First Water',
-    arrivalPrompt: '“Before food, phone, or work, fill the cup.”',
     accent: Color(0xFFD8A442),
   ),
   MaatFlowDiscoveryCardData(
@@ -71,9 +59,6 @@ kCoreMaatFlowDiscoveryFixtures = <MaatFlowDiscoveryCardData>[
     worldLine: 'House · on dates the host sets',
     possibility:
         'A guided book club. Choose your book, invite readers, or open it to anyone.',
-    arrivalLabel: 'Starter sitting',
-    arrivalTitle: 'Open the Text',
-    arrivalPrompt: '“What is this opening asking you to hold privately?”',
     accent: Color(0xFFA8E6D1),
   ),
   MaatFlowDiscoveryCardData(
@@ -85,9 +70,6 @@ kCoreMaatFlowDiscoveryFixtures = <MaatFlowDiscoveryCardData>[
     worldLine: 'Stability · nine sittings across thirty days',
     possibility:
         'Strengthen four parts of your life, one small move at a time.',
-    arrivalLabel: 'First sitting',
-    arrivalTitle: 'Set your footing',
-    arrivalPrompt: '“Pick one ten-minute reset.”',
     accent: Color(0xFFE7C66C),
   ),
   MaatFlowDiscoveryCardData(
@@ -99,9 +81,6 @@ kCoreMaatFlowDiscoveryFixtures = <MaatFlowDiscoveryCardData>[
     worldLine: 'Imagination · five scenes across thirty days',
     possibility:
         'Give five impossible images a place, then return through them in order.',
-    arrivalLabel: 'First image',
-    arrivalTitle: 'The Threshold',
-    arrivalPrompt: '“Choose the presence this kꜣr will hold.”',
     accent: Color(0xFF91B7C7),
   ),
 ];
@@ -276,9 +255,7 @@ class MaatFlowDiscoveryCard extends StatelessWidget {
       container: true,
       button: true,
       enabled: onOpen != null,
-      label:
-          '${data.title}. ${data.possibility}. '
-          '${data.arrivalLabel}: ${data.arrivalTitle}. ${data.arrivalPrompt}',
+      label: '${data.title}. ${data.possibility}',
       onTap: onOpen,
       child: ExcludeSemantics(
         child: DecoratedBox(
@@ -379,8 +356,6 @@ class MaatFlowDiscoveryCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        const _HawStewardshipMark(),
-                        const SizedBox(height: 5),
                         Text(
                           data.title,
                           style: const TextStyle(
@@ -402,41 +377,6 @@ class MaatFlowDiscoveryCard extends StatelessWidget {
                             height: 1.28,
                           ),
                         ),
-                        const SizedBox(height: 17),
-                        const Divider(height: 1, color: Color(0xFF2A2415)),
-                        const SizedBox(height: 13),
-                        Text(
-                          data.arrivalLabel.toUpperCase(),
-                          style: const TextStyle(
-                            color: Color(0xFF8A7030),
-                            fontFamily: MaatFlowListTokens.fontFamily,
-                            fontSize: 10,
-                            letterSpacing: 2,
-                            height: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          data.arrivalTitle,
-                          style: const TextStyle(
-                            color: Color(0xFFC8C4BC),
-                            fontFamily: MaatFlowListTokens.fontFamily,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            height: 1.08,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          data.arrivalPrompt,
-                          style: const TextStyle(
-                            color: Color(0xFFC8C4BC),
-                            fontFamily: MaatFlowListTokens.fontFamily,
-                            fontSize: 16,
-                            letterSpacing: -0.1,
-                            height: 1.25,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -445,51 +385,6 @@ class MaatFlowDiscoveryCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _HawStewardshipMark extends StatelessWidget {
-  const _HawStewardshipMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 30,
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 22,
-            height: 22,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: Color(0xFF0A0805),
-              shape: BoxShape.circle,
-              border: Border.fromBorderSide(
-                BorderSide(color: Color(0xFF5A4A20)),
-              ),
-            ),
-            child: const Text(
-              'ḥ',
-              style: TextStyle(
-                color: Color(0xFF8A7030),
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'ḥꜣw',
-            style: TextStyle(
-              color: Color(0xFF6A6660),
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontSize: 13,
-              letterSpacing: 0.4,
-            ),
-          ),
-        ],
       ),
     );
   }
