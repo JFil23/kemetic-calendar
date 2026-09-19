@@ -7,6 +7,7 @@ import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/fol
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 import 'package:mobile/widgets/day_sheet_components.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/keyboard_viewport_metrics.dart';
 
 void main() {
@@ -112,7 +113,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: FollowSkyDetailPage(
+          home: FollowSkyDetailSurface(
             initialCatalog: catalog,
             calendarPreview: preview,
             now: now,
@@ -384,7 +385,7 @@ void main() {
         .firstWhere((night) => night.companion != null);
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(initialCatalog: catalog, now: now),
+        home: FollowSkyDetailSurface(initialCatalog: catalog, now: now),
       ),
     );
     await tester.pumpAndSettle();
@@ -454,7 +455,7 @@ void main() {
     TrackSkyEnrollmentDraft? capturedDraft;
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(
+        home: FollowSkyDetailSurface(
           initialCatalog: catalog,
           now: now,
           onJoin: (draft) async => capturedDraft = draft,
@@ -530,7 +531,11 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-        MaterialApp(home: _FollowSkyEditingSheetHarness(catalog: catalog)),
+        MaterialApp(
+          builder: (context, child) =>
+              KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
+          home: _FollowSkyEditingSheetHarness(catalog: catalog),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -631,8 +636,8 @@ void main() {
       expect(tester.getRect(tabs), visualTabsRect);
       expect(tester.getRect(question), visualQuestionRect);
       expect(tester.getRect(field), visualFieldRect);
-      expect(tester.getRect(dock), visualDockRect);
-      expect(tester.getRect(dockControl), visualDockControlRect);
+      expect(dock, findsNothing);
+      expect(dockControl, findsNothing);
 
       FocusManager.instance.primaryFocus?.unfocus();
       tester.view.viewInsets = FakeViewPadding.zero;
@@ -643,6 +648,8 @@ void main() {
         tester.getRect(sheet).height,
         closeTo(closedSheetRect.height, 0.01),
       );
+      expect(dock, findsOneWidget);
+      expect(dockControl, findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -680,58 +687,56 @@ class _FollowSkyEditingSheetHarnessState
       resizeToAvoidBottomInset: false,
       body: Align(
         alignment: Alignment.bottomCenter,
-        child: NotificationListener<FollowSkyIntentionEditingNotification>(
-          onNotification: (notification) {
-            if (_editing != notification.editing) {
-              setState(() => _editing = notification.editing);
-            }
-            return true;
-          },
-          child: DaySheetKeyboardSafeFrame(
-            expanded: _editing,
-            scrollable: false,
-            scrollBottomPadding: 0,
-            bottomPadding: 0,
-            horizontalPadding: 0,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 44),
-                      DaySheetTabBar(
-                        key: _followSkyTestTabsKey,
-                        activeTab: DaySheetTab.flows,
-                        accent: DaySheetTokens.gold,
-                        onSelected: (_) {},
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Expanded(
-                  child: Navigator(
-                    key: _navigatorKey,
-                    onGenerateInitialRoutes: (_, _) => [
-                      MaterialPageRoute<void>(
-                        builder: (context) => MaatFlowsListDetailReveal<void>(
-                          initialDetailBuilder: (context) =>
-                              FollowSkyDetailPage(
-                                initialCatalog: widget.catalog,
-                                now: DateTime.utc(2026, 8, 24, 12),
-                                isJoined: true,
-                                standalone: false,
-                              ),
-                          foregroundBuilder: (context, revealDetail) =>
-                              const ColoredBox(color: Colors.black),
+        child: KeyboardInsetBoundary(
+          child: NotificationListener<FollowSkyIntentionEditingNotification>(
+            onNotification: (notification) {
+              if (_editing != notification.editing) {
+                setState(() => _editing = notification.editing);
+              }
+              return true;
+            },
+            child: DaySheetKeyboardSafeFrame(
+              expanded: _editing,
+              scrollable: false,
+              bottomPadding: 0,
+              horizontalPadding: 0,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 44),
+                        DaySheetTabBar(
+                          key: _followSkyTestTabsKey,
+                          activeTab: DaySheetTab.flows,
+                          accent: DaySheetTokens.gold,
+                          onSelected: (_) {},
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: Navigator(
+                      key: _navigatorKey,
+                      onGenerateInitialRoutes: (_, _) => <Route<void>>[
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ColoredBox(color: Colors.black),
+                        ),
+                        MaterialPageRoute<void>(
+                          builder: (_) => FollowSkyDetailSurface(
+                            initialCatalog: widget.catalog,
+                            now: DateTime.utc(2026, 8, 24, 12),
+                            isJoined: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -773,7 +778,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
         child: child ?? const SizedBox.shrink(),
       ),
       home: standalone
-          ? FollowSkyDetailPage(
+          ? FollowSkyDetailSurface(
               initialCatalog: catalog,
               now: DateTime.utc(2026, 8, 24, 12),
             )
@@ -789,6 +794,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
     'What do you want to stay true to when conditions change?',
   );
   final preview = _byKeyPrefix('follow-sky-preview-day-').first;
+  final dock = find.byType(FollowSkyV11Dock);
   final scrollable = _followSkyScrollable();
   final scrollState = tester.state<ScrollableState>(scrollable);
 
@@ -809,6 +815,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
 
   final initialQuestionRect = tester.getRect(question);
   final initialFieldRect = tester.getRect(field);
+  expect(dock, findsOneWidget);
   expect(initialQuestionRect.top, closeTo(recordedQuestionTop, 0.5));
   expect(initialFieldRect.top, greaterThan(initialQuestionRect.bottom));
   expect(initialFieldRect.bottom, lessThan(tester.getRect(preview).top));
@@ -875,7 +882,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
         .localToGlobal(caretRect.bottomLeft)
         .dy;
 
-    expect(questionRect.top, greaterThanOrEqualTo(visibleTop), reason: phase);
+    expect(dock, findsNothing, reason: phase);
     expect(fieldRect.top, greaterThan(questionRect.bottom), reason: phase);
     expect(fieldRect.top, greaterThanOrEqualTo(visibleTop), reason: phase);
     expect(fieldRect.bottom, lessThanOrEqualTo(visibleBottom), reason: phase);
@@ -909,6 +916,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
   final dismissedOffsets = <double>[];
   for (var cycle = 0; cycle < 3; cycle++) {
     await closeKeyboard();
+    expect(dock, findsOneWidget, reason: '${scenario.label} cycle $cycle');
     dismissedOffsets.add(scrollState.position.pixels);
 
     await tester.tap(field);

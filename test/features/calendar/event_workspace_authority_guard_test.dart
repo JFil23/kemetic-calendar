@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// appears. Empty prefix is not an allowlist hole.
 void main() {
   late String dayView;
+  late String presentationFrame;
   late String calendarPage;
   late String externalLinks;
   late String restoration;
@@ -20,6 +21,9 @@ void main() {
 
   setUpAll(() {
     dayView = File('lib/features/calendar/day_view.dart').readAsStringSync();
+    presentationFrame = File(
+      'lib/features/calendar/presentation/instrument_event_presentation_frame.dart',
+    ).readAsStringSync();
     eventResource = File(
       'lib/features/calendar/event_resource.dart',
     ).readAsStringSync();
@@ -60,6 +64,9 @@ void main() {
       contains('no runtime RC  ≠  no production identity cut'),
     );
     expect(releaseCutover, contains('gitlink-only'));
+    expect(releaseCutover, contains('Superseded historical plan'));
+    expect(releaseCutover, contains('not release authority'));
+    expect(releaseCutover, contains('web_release_build_contract.md'));
   });
 
   test(
@@ -69,8 +76,11 @@ void main() {
         dayView,
         contains('class CalendarEventDetailSheet extends StatefulWidget'),
       );
-      expect(dayView, contains('class CalendarEventDetailSheetCoordinator'));
-      expect(dayView, contains('static bool tryMarkOpenOrOpening()'));
+      expect(
+        presentationFrame,
+        contains('class CalendarEventDetailSheetCoordinator'),
+      );
+      expect(presentationFrame, contains('static bool tryMarkOpenOrOpening()'));
       expect(calendarPage, contains('CalendarEventDetailSheet('));
       expect(
         File(
@@ -192,7 +202,9 @@ void main() {
     expect(mutation, contains('canonicalEnd: persistedEnd'));
     expect(
       mutation,
-      contains('event.allDay || event.isReminder || !event.hasCanonicalSchedule'),
+      contains(
+        'event.allDay || event.isReminder || !event.hasCanonicalSchedule',
+      ),
     );
     expect(mutation, contains('_repeatingNoteFlowForId(event.flowId)'));
     expect(mutation, isNot(contains('23 * 60 + 59')));
@@ -202,13 +214,22 @@ void main() {
 
   test('paint all-day range is 9:00-17:00 and is not schedule authority', () {
     expect(dayView, contains('_eventItemFromNote'));
+    expect(dayView, contains('factory EventItem.fromTimedNote'));
     final paint = _sourceBetween(
       dayView,
-      'EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {',
-      'String _eventIdentityKey(EventItem event) {',
+      'factory EventItem.fromTimedNote({',
+      '@override\n  String toString() {',
     );
     expect(paint, contains('9 * 60'));
     expect(paint, contains('17 * 60'));
+    final adapter = _sourceBetween(
+      dayView,
+      'EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {',
+      'String eventItemIdentityKey(EventItem event) {',
+    );
+    expect(adapter, contains('EventItem.fromTimedNote('));
+    expect(adapter, isNot(contains('9 * 60')));
+    expect(adapter, isNot(contains('17 * 60')));
     expect(authorityMap, contains('Not a deadline'));
   });
 

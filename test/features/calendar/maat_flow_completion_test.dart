@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('day view shows tri-state Ma_at completion for every Ma_at flow', () {
+  test('day view shows tri-state completion for retained Ma_at flows', () {
     final source = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
@@ -20,34 +20,15 @@ void main() {
     expect(completionPicker, contains('CompletionStatus.partial'));
     expect(completionPicker, contains('CompletionStatus.skipped'));
 
-    expect(source, contains("flowKey: kDawnHouseRiteFlowKey"));
-    expect(source, contains("flowKey: kEveningThresholdRiteFlowKey"));
     expect(source, contains("flowKey: 'track-the-sky'"));
-    expect(source, contains("flowKey: kTheWeighingFlowKey"));
     expect(source, contains("flowKey: kOfferingTableFlowKey"));
-    expect(source, contains("flowKey: kTheTendingFlowKey"));
-    expect(source, contains("flowKey: kKeptWordFlowKey"));
     expect(source, contains("flowKey: kTheCourseFlowKey"));
     expect(source, contains("flowKey: kMoonReturnFlowKey"));
-    expect(source, contains("flowKey: kTheWagFlowKey"));
     expect(source, contains("flowKey: kDecanWatchFlowKey"));
-    expect(source, contains("flowKey: kDaysOutsideTheYearFlowKey"));
     expect(source, contains("flowKey: kTheOpenHandFlowKey"));
     expect(source, contains("flowKey: kTheDjedFlowKey"));
     expect(source, contains('flowKey: maatDecanDefinition.key'));
     expect(source, contains('showPartly: false'));
-    expect(source, contains("'conversation_pending': 'Conversation pending'"));
-    expect(source, contains("'names_spoken': 'Names spoken'"));
-    expect(source, contains("'observed_from_inside': 'Inside'"));
-    expect(source, contains("'raised': 'Raised'"));
-    expect(source, contains("'decision_pronounced'"));
-    expect(source, contains("'transmitted'"));
-    expect(source, contains("'stones_placed'"));
-    expect(source, contains("'cooled'"));
-    expect(source, contains("'spoken'"));
-    expect(source, contains("'record_complete'"));
-    expect(source, contains("'beer_poured'"));
-    expect(source, contains("'golden_one_present'"));
   });
 
   test(
@@ -98,19 +79,29 @@ void main() {
     },
   );
 
-  test('Days Outside detail keeps year threshold notes out of shares', () {
+  test('archived historical detail mounts no writable response panel', () {
     final source = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
 
-    expect(source, contains('class _DaysOutsideYearLocalNotesPanel'));
-    expect(source, contains('DaysOutsideYearLocalStore'));
+    final activePanelMounts = source.substring(
+      source.indexOf('if (sharedPracticeRoomId != null)'),
+      source.indexOf(
+        'if (currentEvent.flowId != null && openHandEvent != null)',
+      ),
+    );
+    expect(
+      activePanelMounts,
+      isNot(contains('_DaysOutsideYearLocalNotesPanel')),
+    );
+    expect(activePanelMounts, isNot(contains('_TheTendingLocalNotesPanel')));
+    expect(activePanelMounts, isNot(contains('_KeptWordLocalNotesPanel')));
+    expect(activePanelMounts, isNot(contains('_TheWagLocalNotesPanel')));
+    expect(source, isNot(contains("'year_intention':")));
     expect(
       source,
-      contains('Record the threshold note for this year-opening step.'),
+      contains('kArchivedCompatibilityMaatFlowKinds.contains(flowKind)'),
     );
-    expect(source, contains("shareButtonLabel: 'Share one word'"));
-    expect(source, isNot(contains("'year_intention':")));
   });
 
   test(

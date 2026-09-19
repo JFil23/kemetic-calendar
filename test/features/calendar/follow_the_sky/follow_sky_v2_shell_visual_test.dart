@@ -21,7 +21,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(
+        home: FollowSkyDetailSurface(
           isJoined: true,
           initialCatalog: catalog,
           now: DateTime.utc(2026, 9, 1, 12),

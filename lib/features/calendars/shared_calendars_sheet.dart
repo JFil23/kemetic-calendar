@@ -90,11 +90,9 @@ class SharedCalendarsSheet extends StatefulWidget {
     List<String> initialExpandedCalendarIds = const <String>[],
     ValueChanged<Map<String, dynamic>>? onContinuityChanged,
   }) {
-    return showModalBottomSheet<bool>(
+    return showEditableModalBottomSheet<bool>(
       context: context,
-      isScrollControlled: true,
       useRootNavigator: true,
-      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SharedCalendarsSheet(
         repo: repo,
@@ -547,7 +545,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     String initialName = '',
     int? initialColorValue,
   }) async {
-    return showDialog<_CalendarEditorResult>(
+    return showEditableDialog<_CalendarEditorResult>(
       context: context,
       useRootNavigator: true,
       builder: (ctx) => _CalendarEditorDialog(
@@ -559,7 +557,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   }
 
   Future<_BirthdayEditorResult?> _showBirthdayEditor() {
-    return showDialog<_BirthdayEditorResult>(
+    return showEditableDialog<_BirthdayEditorResult>(
       context: context,
       useRootNavigator: true,
       builder: (ctx) => const _BirthdayEditorDialog(),
@@ -648,7 +646,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       ],
     );
 
-    return Container(
+    final sheet = Container(
       decoration: BoxDecoration(
         color: H3wCalendarSheetTokens.pageBase,
         borderRadius: widget.routeMode
@@ -674,6 +672,8 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
               ),
       ),
     );
+    if (widget.routeMode) return sheet;
+    return KeyboardAwareEditableSurface(child: sheet);
   }
 
   Widget _sheetHeader() {
@@ -2681,7 +2681,7 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
         ? 'Choose date'
         : DateFormat.yMMMMd().format(_birthday!);
 
-    return Dialog(
+    final dialog = Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 26),
       child: Container(
@@ -2722,7 +2722,6 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
                 controller: _nameCtrl,
                 autofocus: false,
                 cursorColor: H3wCalendarSheetTokens.gold,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 17,
@@ -2830,6 +2829,7 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
         ),
       ),
     );
+    return dialog;
   }
 }
 
@@ -2869,7 +2869,7 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    final dialog = Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 26),
       child: Container(
@@ -2920,7 +2920,6 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
                 controller: _nameCtrl,
                 autofocus: false,
                 cursorColor: H3wCalendarSheetTokens.sharedAccent,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 17,
@@ -3040,5 +3039,6 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
         ),
       ),
     );
+    return dialog;
   }
 }

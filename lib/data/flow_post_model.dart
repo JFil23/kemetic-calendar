@@ -152,6 +152,13 @@ class FlowPost {
         (authorHandle?.trim().isNotEmpty ?? false);
   }
 
+  String? get sharedNote {
+    final direct = aiMetadata?['shared_note']?.toString().trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+    final nested = payloadJson?['shared_note']?.toString().trim();
+    return nested == null || nested.isEmpty ? null : nested;
+  }
+
   bool get hasEngagementSnapshot {
     return hasLikesCount || hasCommentsCount || hasLikedByMe;
   }

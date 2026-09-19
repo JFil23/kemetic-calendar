@@ -32,11 +32,8 @@ def prepared_fixture(environment: str) -> dict:
     config = load_config(environment)
     toolchain = pinned_toolchain_fixture()
     source = {
-        "parent_commit": "1" * 40,
-        "parent_tree": "2" * 40,
-        "parent_mobile_gitlink": "3" * 40,
-        "mobile_commit": "3" * 40,
-        "mobile_tree": "4" * 40,
+        "app_commit": "3" * 40,
+        "app_tree": "4" * 40,
         "source_epoch": 1_700_000_000,
     }
     inputs = {
@@ -100,7 +97,9 @@ def recompute_prepared_identity(prepared: dict) -> None:
         pipeline.canonical_json_bytes(identity_inputs)
     )
     prepared["build_version"] = (
-        f"{prepared['environment']}-3333333-{prepared['build_id'][:12]}"
+        f"{prepared['environment']}-"
+        f"{prepared['source']['app_commit'][:7]}-"
+        f"{prepared['build_id'][:12]}"
     )
 
 
@@ -302,11 +301,8 @@ class AmbientInputTest(unittest.TestCase):
 
     def test_prepared_identity_ignores_unrelated_ambient_values(self) -> None:
         source = {
-            "parent_commit": "1" * 40,
-            "parent_tree": "2" * 40,
-            "parent_mobile_gitlink": "3" * 40,
-            "mobile_commit": "3" * 40,
-            "mobile_tree": "4" * 40,
+            "app_commit": "3" * 40,
+            "app_tree": "4" * 40,
             "source_epoch": 1_700_000_000,
         }
         toolchain = pinned_toolchain_fixture()
@@ -314,7 +310,7 @@ class AmbientInputTest(unittest.TestCase):
             with (
                 mock.patch.object(
                     pipeline,
-                    "require_clean_paired_repositories",
+                    "require_clean_app_repository",
                     return_value=source,
                 ),
                 mock.patch.object(
@@ -343,15 +339,12 @@ class AmbientInputTest(unittest.TestCase):
 
     def test_source_history_and_epoch_are_part_of_build_identity(self) -> None:
         base_source = {
-            "parent_commit": "1" * 40,
-            "parent_tree": "2" * 40,
-            "parent_mobile_gitlink": "3" * 40,
-            "mobile_commit": "3" * 40,
-            "mobile_tree": "4" * 40,
+            "app_commit": "3" * 40,
+            "app_tree": "4" * 40,
             "source_epoch": 1_700_000_000,
         }
         changed_source = dict(base_source)
-        changed_source["parent_commit"] = "9" * 40
+        changed_source["app_commit"] = "9" * 40
         changed_source["source_epoch"] = 1_700_000_001
         toolchain = pinned_toolchain_fixture()
         with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
@@ -362,7 +355,7 @@ class AmbientInputTest(unittest.TestCase):
             ):
                 with mock.patch.object(
                     pipeline,
-                    "require_clean_paired_repositories",
+                    "require_clean_app_repository",
                     return_value=base_source,
                 ):
                     first_prepared = pipeline.prepare_release(
@@ -373,7 +366,7 @@ class AmbientInputTest(unittest.TestCase):
                     )
                 with mock.patch.object(
                     pipeline,
-                    "require_clean_paired_repositories",
+                    "require_clean_app_repository",
                     return_value=changed_source,
                 ):
                     second_prepared = pipeline.prepare_release(
@@ -430,6 +423,11 @@ class BuildOrchestrationTest(unittest.TestCase):
         self.assertIn("served_artifact_verifier.py verify", deploy)
         self.assertIn("served_artifact_verifier.py preflight-target", deploy)
         self.assertIn("assert-canonical-source", deploy)
+        self.assertIn("assert-green-app-gate", deploy)
+        self.assertLess(
+            deploy.index("assert-green-app-gate"),
+            deploy.index('"${CMD[@]}"'),
+        )
         self.assertLess(
             deploy.index("served_artifact_verifier.py preflight-target"),
             deploy.index('"${CMD[@]}"'),
@@ -484,116 +482,111 @@ class BuildOrchestrationTest(unittest.TestCase):
                     )
 
 
-class PairedRepositoryAuthorityTest(unittest.TestCase):
-    mobile_commit = "a" * 40
-    parent_commit = "b" * 40
+class AppRepositoryAuthorityTest(unittest.TestCase):
+    app_commit = "a" * 40
 
     def setUp(self) -> None:
-        self.mobile_worktree_count = 1
-        self.parent_worktree_count = 1
-        self.mobile_status = ""
-        self.parent_status = ""
-        self.parent_gitlink = self.mobile_commit
+        self.worktree_count = 1
+        self.status = ""
+        self.branch = "rc"
+        self.local_branches = ["rc"]
 
     def git_result(self, repo: Path, *arguments: str) -> str:
-        is_mobile = repo == REPO_ROOT
+        self.assertEqual(repo, REPO_ROOT)
         if arguments == ("rev-parse", "--show-toplevel"):
             return str(repo)
         if arguments == ("worktree", "list", "--porcelain"):
-            count = (
-                self.mobile_worktree_count
-                if is_mobile
-                else self.parent_worktree_count
-            )
             return "\n\n".join(
-                f"worktree /authority/{'mobile' if is_mobile else 'parent'}-{index}"
-                for index in range(count)
+                f"worktree /authority/app-{index}"
+                for index in range(self.worktree_count)
             )
+        if arguments == ("branch", "--show-current"):
+            return self.branch
+        if arguments == (
+            "for-each-ref",
+            "--format=%(refname:short)",
+            "refs/heads",
+        ):
+            return "\n".join(self.local_branches)
         if arguments == ("status", "--porcelain=v1", "--untracked-files=all"):
-            return self.mobile_status if is_mobile else self.parent_status
+            return self.status
         if arguments == ("rev-parse", "HEAD^{commit}"):
-            return self.mobile_commit if is_mobile else self.parent_commit
+            return self.app_commit
         if arguments == ("rev-parse", "HEAD^{tree}"):
-            return "c" * 40 if is_mobile else "d" * 40
-        if arguments == ("show", "-s", "--format=%ct", "HEAD") and not is_mobile:
+            return "c" * 40
+        if arguments == ("show", "-s", "--format=%ct", "HEAD"):
             return "1700000000"
-        if arguments == ("ls-tree", "HEAD", "mobile") and not is_mobile:
-            return f"160000 commit {self.parent_gitlink}\tmobile"
         raise AssertionError((repo, arguments))
 
-    def require_source(self) -> dict[str, object]:
+    def require_source(self, environment: str = "staging") -> dict[str, object]:
         with mock.patch.object(pipeline, "git", side_effect=self.git_result):
-            return pipeline.require_clean_paired_repositories(REPO_ROOT)
+            return pipeline.require_clean_app_repository(
+                REPO_ROOT,
+                environment=environment,
+            )
 
-    def test_exactly_one_worktree_per_repository_is_accepted(self) -> None:
+    def test_exactly_one_app_worktree_is_accepted(self) -> None:
         source = self.require_source()
-        self.assertEqual(source["mobile_commit"], self.mobile_commit)
-        self.assertEqual(source["parent_commit"], self.parent_commit)
+        self.assertEqual(source["app_commit"], self.app_commit)
+        self.assertEqual(source["app_tree"], "c" * 40)
 
-    def test_extra_parent_worktree_fails(self) -> None:
-        self.parent_worktree_count = 2
+    def test_extra_app_worktree_fails(self) -> None:
+        self.worktree_count = 2
         with self.assertRaisesRegex(
             pipeline.ReleaseInputError,
-            "Parent repository must have exactly one linked worktree",
+            "App repository must have exactly one linked worktree",
         ):
             self.require_source()
 
-    def test_extra_mobile_worktree_fails(self) -> None:
-        self.mobile_worktree_count = 2
+    def test_wrong_lane_branch_fails(self) -> None:
+        self.branch = "production"
         with self.assertRaisesRegex(
             pipeline.ReleaseInputError,
-            "Mobile repository must have exactly one linked worktree",
+            "sole active 'rc' branch",
         ):
             self.require_source()
 
-    def test_dirty_parent_fails(self) -> None:
-        self.parent_status = " M mobile"
+    def test_extra_local_branch_fails(self) -> None:
+        self.local_branches.append("old-candidate")
         with self.assertRaisesRegex(
             pipeline.ReleaseInputError,
-            "Parent source tree must be clean",
+            "retain exactly one local branch named 'rc'",
         ):
             self.require_source()
 
-    def test_dirty_mobile_fails(self) -> None:
-        self.mobile_status = " M lib/main.dart"
+    def test_dirty_app_fails(self) -> None:
+        self.status = " M lib/main.dart"
         with self.assertRaisesRegex(
             pipeline.ReleaseInputError,
-            "Mobile source tree must be clean",
+            "App source tree must be clean",
         ):
             self.require_source()
 
-    def test_mismatched_gitlink_fails(self) -> None:
-        self.parent_gitlink = "e" * 40
-        with self.assertRaisesRegex(
-            pipeline.ReleaseInputError,
-            "gitlink does not match",
-        ):
-            self.require_source()
+    def test_production_lane_requires_production_branch(self) -> None:
+        self.branch = "production"
+        self.local_branches = ["production"]
+        source = self.require_source(environment="production")
+        self.assertEqual(source["app_commit"], self.app_commit)
 
 
 class CanonicalReleaseSourceTest(unittest.TestCase):
     def source(self) -> dict[str, object]:
         return {
-            "mobile_commit": "a" * 40,
-            "parent_commit": "b" * 40,
-            "parent_mobile_gitlink": "a" * 40,
+            "app_commit": "a" * 40,
+            "app_tree": "b" * 40,
+            "source_epoch": 1_700_000_000,
         }
 
     def git_result(self, repo: Path, *arguments: str) -> str:
+        self.assertEqual(repo, REPO_ROOT)
         self.assertNotIn("main", " ".join(arguments))
-        if arguments == (
-            "fetch",
-            "--quiet",
-            "--no-tags",
-            "origin",
-            "+refs/heads/production:refs/remotes/origin/production",
-        ):
+        if arguments[:4] == ("fetch", "--quiet", "--no-tags", "origin"):
             return ""
-        if arguments == (
-            "rev-parse",
-            "refs/remotes/origin/production^{commit}",
+        if arguments in (
+            ("rev-parse", "refs/remotes/origin/production^{commit}"),
+            ("rev-parse", "refs/remotes/origin/rc^{commit}"),
         ):
-            return "a" * 40 if repo == REPO_ROOT else "b" * 40
+            return "a" * 40
         raise AssertionError((repo, arguments))
 
     def require_source(
@@ -605,7 +598,7 @@ class CanonicalReleaseSourceTest(unittest.TestCase):
     ) -> tuple[dict[str, str], mock.Mock]:
         with mock.patch.object(
             pipeline,
-            "require_clean_paired_repositories",
+            "require_clean_app_repository",
             return_value=source,
         ), mock.patch.object(pipeline, "git", side_effect=self.git_result) as git_mock:
             result = pipeline.require_canonical_release_source(
@@ -619,51 +612,33 @@ class CanonicalReleaseSourceTest(unittest.TestCase):
         self,
         *,
         environment: str,
-        source_key: str,
     ) -> None:
         source = self.source()
-        source[source_key] = "c" * 40
+        source["app_commit"] = "c" * 40
+        branch = "rc" if environment == "staging" else "production"
         with self.assertRaisesRegex(
             pipeline.ReleaseInputError,
-            "must exactly match current origin/production",
+            f"must exactly match current origin/{branch}",
         ):
             self.require_source(source, environment=environment)
 
-    def test_production_requires_exact_mobile_origin_production(self) -> None:
-        self.assert_exact_source_rejected(
-            environment="production",
-            source_key="mobile_commit",
-        )
+    def test_production_requires_exact_app_origin_production(self) -> None:
+        self.assert_exact_source_rejected(environment="production")
 
-    def test_production_requires_exact_parent_origin_production(self) -> None:
-        self.assert_exact_source_rejected(
-            environment="production",
-            source_key="parent_commit",
-        )
+    def test_staging_requires_exact_app_origin_rc(self) -> None:
+        self.assert_exact_source_rejected(environment="staging")
 
-    def test_staging_requires_exact_mobile_origin_production(self) -> None:
-        self.assert_exact_source_rejected(
-            environment="staging",
-            source_key="mobile_commit",
-        )
-
-    def test_staging_requires_exact_parent_origin_production(self) -> None:
-        self.assert_exact_source_rejected(
-            environment="staging",
-            source_key="parent_commit",
-        )
-
-    def test_staging_rejects_descendant_of_origin_production(self) -> None:
+    def test_staging_rejects_descendant_of_origin_rc(self) -> None:
         source = self.source()
-        source["mobile_commit"] = "c" * 40
+        source["app_commit"] = "c" * 40
         with mock.patch.object(
             pipeline,
-            "require_clean_paired_repositories",
+            "require_clean_app_repository",
             return_value=source,
         ), mock.patch.object(pipeline, "git", side_effect=self.git_result) as git_mock:
             with self.assertRaisesRegex(
                 pipeline.ReleaseInputError,
-                "must exactly match current origin/production",
+                "must exactly match current origin/rc",
             ):
                 pipeline.require_canonical_release_source(
                     REPO_ROOT,
@@ -673,10 +648,10 @@ class CanonicalReleaseSourceTest(unittest.TestCase):
 
     def test_production_rejects_descendant_of_origin_production(self) -> None:
         source = self.source()
-        source["parent_commit"] = "c" * 40
+        source["app_commit"] = "c" * 40
         with mock.patch.object(
             pipeline,
-            "require_clean_paired_repositories",
+            "require_clean_app_repository",
             return_value=source,
         ), mock.patch.object(pipeline, "git", side_effect=self.git_result) as git_mock:
             with self.assertRaisesRegex(
@@ -698,7 +673,7 @@ class CanonicalReleaseSourceTest(unittest.TestCase):
         self.assertNotIn("origin/main", calls)
         self.assertNotIn("refs/heads/main", calls)
         self.assertEqual(
-            result["mobile_authorized_ref"],
+            result["app_authorized_ref"],
             "refs/remotes/origin/production",
         )
 
@@ -709,16 +684,21 @@ class CanonicalReleaseSourceTest(unittest.TestCase):
                     self.source(),
                     environment=environment,
                 )
-                self.assertEqual(result["mobile_authorized_commit"], "a" * 40)
-                self.assertEqual(result["parent_authorized_commit"], "b" * 40)
+                self.assertEqual(result["app_authorized_commit"], "a" * 40)
+                expected_ref = (
+                    "refs/remotes/origin/rc"
+                    if environment == "staging"
+                    else "refs/remotes/origin/production"
+                )
+                self.assertEqual(result["app_authorized_ref"], expected_ref)
                 self.assertNotIn("main", repr(git_mock.call_args_list))
 
     def test_artifact_must_match_checked_out_source(self) -> None:
         source = self.source()
         artifact_source = dict(source)
-        artifact_source["parent_commit"] = "c" * 40
+        artifact_source["app_tree"] = "c" * 40
         with mock.patch.object(
-            pipeline, "require_clean_paired_repositories", return_value=source
+            pipeline, "require_clean_app_repository", return_value=source
         ):
             with self.assertRaisesRegex(
                 pipeline.ReleaseInputError,
@@ -729,6 +709,93 @@ class CanonicalReleaseSourceTest(unittest.TestCase):
                     environment="staging",
                     expected_source=artifact_source,
                 )
+
+
+class ExactShaAppGateTest(unittest.TestCase):
+    commit = "a" * 40
+
+    def run_fixture(
+        self,
+        *,
+        status: str = "completed",
+        conclusion: str | None = "success",
+        head_sha: str | None = None,
+        head_branch: str = "rc",
+        name: str = "App",
+        event: str = "push",
+    ) -> dict:
+        return {
+            "id": 123,
+            "name": name,
+            "head_sha": head_sha or self.commit,
+            "head_branch": head_branch,
+            "event": event,
+            "status": status,
+            "conclusion": conclusion,
+            "run_attempt": 1,
+            "run_number": 42,
+            "html_url": (
+                "https://github.com/JFil23/kemetic-calendar/actions/runs/123"
+            ),
+        }
+
+    def require(self, runs: list[dict]) -> dict:
+        def fetch(url: str, *, environ: dict[str, str]) -> dict:
+            self.assertIn(f"head_sha={self.commit}", url)
+            self.assertIn("branch=rc", url)
+            self.assertIn("event=push", url)
+            self.assertEqual(environ, {})
+            return {"workflow_runs": runs}
+
+        return pipeline.require_green_app_gate(
+            self.commit,
+            environment="staging",
+            environ={},
+            fetch_json=fetch,
+        )
+
+    def test_exact_completed_success_is_accepted(self) -> None:
+        result = self.require([self.run_fixture()])
+        self.assertEqual(result["commit"], self.commit)
+        self.assertEqual(result["run_id"], 123)
+
+    def test_missing_exact_sha_gate_fails_closed(self) -> None:
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "No exact-SHA App gate",
+        ):
+            self.require([])
+
+    def test_running_gate_fails_closed(self) -> None:
+        with self.assertRaisesRegex(pipeline.ReleaseInputError, "not green"):
+            self.require(
+                [self.run_fixture(status="in_progress", conclusion=None)]
+            )
+
+    def test_failed_gate_fails_closed(self) -> None:
+        with self.assertRaisesRegex(pipeline.ReleaseInputError, "not green"):
+            self.require([self.run_fixture(conclusion="failure")])
+
+    def test_wrong_branch_or_workflow_cannot_satisfy_gate(self) -> None:
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "No exact-SHA App gate",
+        ):
+            self.require(
+                [
+                    self.run_fixture(head_branch="production"),
+                    self.run_fixture(name="Other"),
+                    self.run_fixture(event="workflow_dispatch"),
+                ]
+            )
+
+    def test_latest_attempt_must_be_green(self) -> None:
+        successful = self.run_fixture()
+        running = self.run_fixture(status="queued", conclusion=None)
+        running["id"] = 124
+        running["run_attempt"] = 2
+        with self.assertRaisesRegex(pipeline.ReleaseInputError, "not green"):
+            self.require([successful, running])
 
 
 class PreCompilationMaterializationTest(unittest.TestCase):
@@ -865,7 +932,7 @@ class EnvironmentDeltaValidationTest(unittest.TestCase):
 
     def test_cross_source_release_receipt_is_rejected(self) -> None:
         def change_source(prepared: dict) -> None:
-            prepared["source"]["parent_commit"] = "9" * 40
+            prepared["source"]["app_commit"] = "9" * 40
 
         production = create_fixture_release(
             self.root / "cross-source",

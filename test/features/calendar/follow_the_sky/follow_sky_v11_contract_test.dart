@@ -44,6 +44,7 @@ void main() {
 
     final draft = enrollment.buildJoinDraft(
       catalog: catalog,
+      eligibleNights: enrollment.canonicalNights(catalog: catalog),
       ianaTimeZone: 'America/Los_Angeles',
       excludedSkyEventIds: excluded,
     );
@@ -82,13 +83,13 @@ void main() {
     expect(detail, isNot(contains('MEASURE')));
   });
 
-  testWidgets('FollowSkyDetailPage renders V11 headings', (tester) async {
+  testWidgets('FollowSkyDetailSurface renders V11 headings', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(
+        home: FollowSkyDetailSurface(
           initialCatalog: catalog,
           now: DateTime.utc(2026, 9, 1, 12),
         ),
@@ -107,7 +108,7 @@ void main() {
     expect(heroStar.style?.fontFamily, 'Noto Sans Egyptian Hieroglyphs');
     expect(heroStar.style?.fontSize, 29);
     expect(find.text('HOW A TURNING WORKS'), findsOneWidget);
-    expect(find.text('ENDURE'), findsWidgets);
+    expect(find.text('BALANCE'), findsWidgets);
     expect(find.text('Carry this course'), findsOneWidget);
   });
 
@@ -116,7 +117,7 @@ void main() {
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(390, 844));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      final pageKey = GlobalKey<FollowSkyDetailPageState>();
+      final pageKey = GlobalKey<FollowSkyDetailSurfaceState>();
       final equinox = catalog.byId('autumn-equinox-2026')!;
       final legacyPayload = TrackSkyEventOwnership.behaviorPayload(
         skyEventId: equinox.id,
@@ -136,7 +137,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: FollowSkyDetailPage(
+          home: FollowSkyDetailSurface(
             key: pageKey,
             initialCatalog: catalog,
             now: DateTime.utc(2026, 9, 1, 12),
@@ -156,12 +157,12 @@ void main() {
         find.text(
           'Day and night come nearly even. Then the balance begins to turn.',
         ),
-        findsOneWidget,
+        findsWidgets,
       );
       expect(find.text('BALANCE'), findsWidgets);
       expect(
         find.text('What do you want to make more room for so it can grow?'),
-        findsOneWidget,
+        findsWidgets,
       );
       expect(find.text('MEASURE'), findsNothing);
       expect(

@@ -34,6 +34,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   flutter_local_notifications: ^19.4.2
+  flutter_timezone: ^5.1.0
   timezone: ^0.10.1
   path_provider: ^2.1.4
   firebase_core: ^2.32.0
@@ -114,11 +115,10 @@ flutter:
     - assets/widget/
     - assets/follow_the_sky/
     - assets/the_offering_table/
+    - assets/the_reading_house/
+    - assets/the_djed/
+    - assets/the_kar/
     - assets/profile/day_cycle_alt_2/
-
-  # Using GoogleFonts package for all typography
-  # Includes support for Egyptological transliteration characters
-  # Fonts loaded from Google Fonts CDN at runtime (no local files needed)
 
   # To add assets to your application, add an assets section, like this:
   # assets:

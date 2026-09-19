@@ -107,6 +107,7 @@ void main() {
     late String calendarPage;
     late String dayView;
     late String gridWidgets;
+    late String keyboardAware;
 
     setUpAll(() async {
       calendarPage = await File(
@@ -117,6 +118,9 @@ void main() {
       ).readAsString();
       gridWidgets = await File(
         'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsString();
+      keyboardAware = await File(
+        'lib/widgets/keyboard_aware.dart',
       ).readAsString();
     });
 
@@ -264,7 +268,9 @@ void main() {
       expect(reminderEditor, contains(': endLocal'));
       expect(reminderEditor, isNot(contains('_previewReminderLocally')));
       expect(reminderEditor, contains('DaySheetKeyboardSafeFrame('));
-      expect(reminderEditor, contains('useSafeArea: true'));
+      expect(reminderEditor, contains('showEditableModalBottomSheet<bool>'));
+      expect(reminderEditor, isNot(contains('useSafeArea: true')));
+      expect(keyboardAware, contains('useSafeArea: true'));
       expect(reminderEditor, isNot(contains('maxHeightFactor: 0.85')));
       expect(
         reminderEditor,
@@ -279,7 +285,7 @@ void main() {
       final daySheetReminderLauncher = _sourceBetween(
         calendarPage,
         'Future<bool> openReminderEditorForSelectedDay',
-        'const fieldScrollPadding = keyboardManagedTextFieldScrollPadding',
+        'void selectDaySheetTab',
       );
       expect(
         daySheetReminderLauncher,

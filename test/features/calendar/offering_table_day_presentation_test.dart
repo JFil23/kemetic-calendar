@@ -1,10 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
-import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
-import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
-import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
@@ -35,9 +34,17 @@ void main() {
   });
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    kMaatFlowResponseDraftStore.clearForTesting();
   });
-  tearDown(kMaatFlowResponseDraftStore.clearForTesting);
+
+  test('rejected OfferingTableDayPresentation is absent', () {
+    expect(
+      File(
+        'lib/features/calendar/the_offering_table/presentation/'
+        'offering_table_day_presentation.dart',
+      ).existsSync(),
+      isFalse,
+    );
+  });
 
   test('all thirty days own one non-empty authored event-block prompt', () {
     expect(kOfferingTableDays, hasLength(30));
@@ -53,272 +60,36 @@ void main() {
         reason: 'Day ${day.dayNumber} must remain one-line safe',
       );
     }
-    expect(kOfferingTableDays[2].eventBlockPrompt, 'eat before the day starts');
+    expect(
+      kOfferingTableDays[2].eventBlockPrompt,
+      'put real food within reach',
+    );
   });
 
-  test('all thirty days close the shared ritual checklist with water once', () {
-    const daysWithExistingDrinkingWaterAct = <int>{2, 26, 30};
-
-    for (final day in kOfferingTableDays) {
-      final presentation = offeringTablePracticePresentation(day);
-      expect(presentation.steps, isNotEmpty, reason: 'Day ${day.dayNumber}');
-      final appendedClosures = presentation.steps
-          .where((step) => step == 'Drink water.')
-          .length;
-      if (daysWithExistingDrinkingWaterAct.contains(day.dayNumber)) {
-        expect(appendedClosures, 0, reason: 'Day ${day.dayNumber}');
-      } else {
-        expect(presentation.steps.last, 'Drink water.');
-        expect(appendedClosures, 1, reason: 'Day ${day.dayNumber}');
+  test(
+    'all thirty days preserve their authored mockup steps without additions',
+    () {
+      for (final day in kOfferingTableDays) {
+        final presentation = offeringTablePracticePresentation(day);
+        expect(presentation.steps, isNotEmpty, reason: 'Day ${day.dayNumber}');
       }
-    }
 
-    expect(
-      offeringTablePracticePresentation(kOfferingTableDays.first).steps,
-      const <String>[
-        'Fill a cup of water.',
-        'Name one basic need that has been unmet for a few days.',
-        'Do the smallest thing that begins to meet it.',
-        'Drink water.',
-      ],
-    );
-    expect(
-      offeringTablePracticePresentation(kOfferingTableDays[1]).steps,
-      const <String>[
-        'Drink water before opening a feed or message thread.',
-        'Name what you want your first real input to be today.',
-        'Protect one quiet minute for it.',
-      ],
-    );
-    expect(
-      offeringTablePracticePresentation(kOfferingTableDays[5]).steps.length,
-      3,
-      reason: 'an existing 2-step ritual gains one closing water step',
-    );
-    expect(
-      offeringTablePracticePresentation(kOfferingTableDays[7]).steps.length,
-      2,
-      reason: 'an existing 1-step ritual gains one closing water step',
-    );
-    expect(
-      offeringTablePracticePresentation(kOfferingTableDays[25]).steps.single,
-      contains('drink the water'),
-    );
-    expect(
-      offeringTablePracticePresentation(
-        kOfferingTableDays[29],
-      ).steps.any((step) => step.contains('after drinking the water')),
-      isTrue,
-    );
-  });
-
-  testWidgets('ritual count and checkbox use the closed presentation steps', (
-    tester,
-  ) async {
-    final day = kOfferingTableDays[2];
-    await _pumpPresentation(tester, day: day);
-
-    expect(find.text('4 steps'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-day-03-step-4')),
-      findsOneWidget,
-    );
-    expect(find.text('Drink water.'), findsOneWidget);
-  });
-
-  testWidgets('uses Follow Sky gesture mapping and semantic 0.02 steps', (
-    tester,
-  ) async {
-    final semanticsHandle = tester.ensureSemantics();
-    await _pumpPresentation(tester);
-
-    final gesture = find.byKey(
-      const ValueKey<String>('offering-table-intention-drag'),
-    );
-    final rect = tester.getRect(gesture);
-
-    await tester.tapAt(Offset(rect.left + 42, rect.center.dy));
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '0 percent placed');
-
-    await tester.tapAt(Offset(rect.center.dx, rect.center.dy));
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '50 percent placed');
-
-    await tester.tapAt(Offset(rect.right - 42, rect.center.dy));
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '100 percent placed');
-
-    final node = tester.getSemantics(gesture);
-    // The widget-test semantics owner for the active render view remains on
-    // this compatibility accessor in the current Flutter test binding.
-    // ignore: deprecated_member_use
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
-      node.id,
-      SemanticsAction.decrease,
-    );
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '98 percent placed');
-    semanticsHandle.dispose();
-  });
-
-  testWidgets('uses the quiet instruction and a clean upper graphic edge', (
-    tester,
-  ) async {
-    await _pumpPresentation(tester);
-
-    final instruction = tester.widget<Text>(
-      find.byKey(const ValueKey<String>('offering-table-placement-label')),
-    );
-    expect(instruction.data, 'Speak your intention into the water');
-    expect(instruction.textAlign, TextAlign.center);
-    expect(instruction.style?.fontSize, 17);
-    expect(instruction.style?.color, const Color(0xC2E8B27C));
-    expect(instruction.style?.shadows, isNull);
-    expect(find.text('Place your intention in the water'), findsNothing);
-
-    final lowerBody = tester.widget<Container>(
-      find.byKey(const ValueKey<String>('offering-table-foreground-layer')),
-    );
-    final decoration = lowerBody.decoration! as BoxDecoration;
-    expect(decoration.boxShadow, isNull);
-  });
-
-  testWidgets('Day 1 ritual and why use the shared Offering authority', (
-    tester,
-  ) async {
-    await _pumpPresentation(tester);
-    final presentation = offeringTablePracticePresentation(
-      kOfferingTableDays.first,
-    );
-
-    expect(find.text("TODAY'S RITUAL"), findsOneWidget);
-    for (final step in presentation.steps) {
-      expect(find.text(step), findsOneWidget);
-    }
-    expect(find.text('Protect my sleep.'), findsWidgets);
-
-    final body = find.byKey(
-      const ValueKey<String>('offering-table-presentation-body'),
-    );
-    await tester.drag(body, const Offset(0, -500));
-    await tester.pumpAndSettle();
-    final toggle = find.byKey(
-      const ValueKey<String>('offering-table-day-sheet-context-toggle'),
-    );
-    await tester.ensureVisible(toggle);
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(find.text(presentation.why), findsOneWidget);
-  });
-
-  testWidgets('blank intention is honest and editing updates the cup', (
-    tester,
-  ) async {
-    final saved = <String>[];
-    await _pumpPresentation(
-      tester,
-      initialIntention: '',
-      intentionSaveDebounce: Duration.zero,
-      onSaveIntention: (value) async => saved.add(value),
-    );
-
-    expect(find.text('What matters to me.'), findsNothing);
-    expect(
-      find.text('No need was named when this table was carried.'),
-      findsNothing,
-    );
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-intention-air')),
-      findsNothing,
-    );
-    expect(find.text('Name today’s intention…'), findsOneWidget);
-
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('offering-table-intention-field')),
-      'Call my mother.',
-    );
-    await tester.pump();
-
-    expect(find.text('Call my mother.'), findsWidgets);
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-intention-air')),
-      findsOneWidget,
-    );
-    expect(saved, <String>['Call my mother.']);
-  });
-
-  testWidgets('Reflect reuses the shared tool and writes through Journal', (
-    tester,
-  ) async {
-    final blocks = <MaatJournalResponseBlock>[];
-    await _pumpPresentation(
-      tester,
-      reflectionSaveDebounce: Duration.zero,
-      onWriteJournalResponse: (block) async => blocks.add(block),
-    );
-
-    await tester.ensureVisible(find.text('Reflect'));
-    await tester.pumpAndSettle();
-    final reflectTool = find.ancestor(
-      of: find.text('Reflect'),
-      matching: find.byType(InkWell),
-    );
-    expect(reflectTool, findsOneWidget);
-    expect(tester.getSize(reflectTool).height, 69);
-    expect(
-      find.text('What did you notice about what needs to be fed?'),
-      findsNothing,
-    );
-
-    await tester.tap(find.text('Reflect'));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('What did you notice about what needs to be fed?'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('automatically kept in today’s Journal'),
-      findsOneWidget,
-    );
-
-    const reflection = 'Rest needed to be counted before the day filled.';
-    final field = find.byKey(
-      const ValueKey<String>('offering-table-reflection-field'),
-    );
-    await tester.ensureVisible(field);
-    await tester.enterText(field, reflection);
-    await tester.pumpAndSettle();
-
-    expect(blocks, hasLength(1));
-    expect(blocks.single.text, reflection);
-    expect(blocks.single.localDate, DateTime(2026, 8, 29));
-    expect(
-      blocks.single.sourceId,
-      'maat_response:the-offering-table:cid:offering-table-test-event:offering-table-reflection',
-    );
-    expect(blocks.single.sourceMetadata['kind'], 'offering_table_reflection');
-
-    await tester.ensureVisible(find.text('Reflect'));
-    await tester.tap(find.text('Reflect'));
-    await tester.pumpAndSettle();
-    expect(field, findsNothing);
-  });
-
-  testWidgets(
-    'narrow presentation keeps a fixed instrument and vertical body',
-    (tester) async {
-      await _pumpPresentation(tester, size: const Size(320, 700));
-      final body = find.byKey(
-        const ValueKey<String>('offering-table-presentation-body'),
+      expect(
+        offeringTablePracticePresentation(kOfferingTableDays.first).steps,
+        const <String>[
+          'Name one supply running low.',
+          'Refill it, or write down the next step.',
+          'Put it in sight or set one reminder.',
+        ],
       );
-      final xBefore = tester.getTopLeft(body).dx;
-      await tester.drag(body, const Offset(0, -500));
-      await tester.pumpAndSettle();
-
-      expect(tester.getTopLeft(body).dx, closeTo(xBefore, 0.1));
-      expect(find.text('Completion fixture'), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      expect(
+        offeringTablePracticePresentation(kOfferingTableDays[1]).steps,
+        const <String>[
+          'Name the first thing you want to give your attention to today.',
+          'Drink a glass of water before you open feeds, messages, or tasks.',
+          'Give that first thing one quiet minute.',
+        ],
+      );
     },
   );
 
@@ -334,70 +105,52 @@ void main() {
       const ValueKey<String>('follow-sky-sheet-resize-handle'),
     );
     final page = find.descendant(of: sheet, matching: find.byType(PageView));
-    final hero = find.byKey(const ValueKey<String>('offering-table-cup-hero'));
+    final presentation = find.byKey(
+      const ValueKey<String>('offering-table-day-presentation-v8'),
+    );
+    final hero = find.byKey(
+      const ValueKey<String>('offering-table-fixed-hero'),
+    );
     expect(sheet, findsOneWidget);
     expect(handle, findsOneWidget);
-    expect(tester.getSize(hero).height, 238);
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-day-presentation')),
-      findsOneWidget,
+    expect(presentation, findsOneWidget);
+    final host = tester.widget<InstrumentEventSheetHost>(sheet);
+    expect(host.initialExtent, .71);
+    expect(host.geometry, isNull);
+    final frame = tester.widget<InstrumentEventPresentationFrame>(
+      find.byType(InstrumentEventPresentationFrame),
     );
+    expect(frame.graphicSpace.fixedHeight, 420);
 
     final availableHeight = _viewport.height - 12;
-    final minimumPageHeight = availableHeight * 0.58 - 120;
-    expect(tester.getSize(page).height, closeTo(minimumPageHeight, 0.1));
+    final initialSheetHeight = availableHeight * .71;
+    final initialPageHeight = initialSheetHeight - 48 - 72;
+    expect(tester.getSize(page).height, closeTo(initialPageHeight, 20));
+    final pageBeforeResize = tester.getSize(page);
+    final heroBeforeResize = tester.getRect(hero);
 
     await tester.drag(handle, const Offset(0, -120));
     await tester.pumpAndSettle();
-    expect(tester.getSize(page).height, closeTo(minimumPageHeight + 120, 0.1));
-    expect(tester.getSize(hero).height, 238);
-
-    final body = find.byKey(
-      const ValueKey<String>('offering-table-presentation-body'),
+    expect(
+      tester.getSize(page).height,
+      closeTo(pageBeforeResize.height + 120, 20),
     );
-    final xBefore = tester.getTopLeft(body).dx;
-    await tester.drag(body, const Offset(0, -400));
+    expect(tester.getRect(hero), heroBeforeResize);
+
+    final foreground = find.byKey(
+      const ValueKey<String>('offering-table-layered-practice-sheet'),
+    );
+    final sheetBeforeInnerScroll = tester.getRect(sheet);
+    final heroBeforeInnerScroll = tester.getRect(hero);
+    final foregroundBeforeScroll = tester.getRect(foreground);
+    await tester.dragFrom(
+      Offset(foregroundBeforeScroll.center.dx, foregroundBeforeScroll.top + 18),
+      const Offset(0, -400),
+    );
     await tester.pumpAndSettle();
-    expect(tester.getTopLeft(body).dx, closeTo(xBefore, 0.1));
+    expect(tester.getRect(sheet), sheetBeforeInnerScroll);
+    expect(tester.getRect(hero), heroBeforeInnerScroll);
   });
-}
-
-Future<void> _pumpPresentation(
-  WidgetTester tester, {
-  Size size = const Size(390, 700),
-  OfferingTableDay? day,
-  String initialIntention = 'Protect my sleep.',
-  Duration intentionSaveDebounce = const Duration(milliseconds: 350),
-  Duration reflectionSaveDebounce = const Duration(milliseconds: 450),
-  Future<void> Function(String value)? onSaveIntention,
-  MaatJournalResponseBlockWriter? onWriteJournalResponse,
-}) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: ThemeData.dark(),
-      home: Scaffold(
-        body: OfferingTableDayPresentation(
-          day: day ?? kOfferingTableDays.first,
-          localDate: DateTime(2026, 8, 29),
-          startMinute: 7 * 60 + 30,
-          initialIntention: initialIntention,
-          lens: OfferingTableLens.neutral,
-          completionPanel: const Text('Completion fixture'),
-          clientEventId: 'offering-table-test-event',
-          onSaveIntention: onSaveIntention,
-          onWriteJournalResponse: onWriteJournalResponse,
-          intentionSaveDebounce: intentionSaveDebounce,
-          reflectionSaveDebounce: reflectionSaveDebounce,
-        ),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
 }
 
 Future<void> _pumpOfferingSheet(WidgetTester tester) async {

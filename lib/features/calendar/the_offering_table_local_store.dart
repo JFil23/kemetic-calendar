@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OfferingTableLocalStore {
@@ -39,6 +41,38 @@ class OfferingTableLocalStore {
     }
   }
 
+  Future<Map<String, dynamic>> loadDayViewState(
+    int flowId,
+    int dayNumber,
+  ) async {
+    _validateDayNumber(dayNumber);
+    final prefs = await _resolvedPrefs();
+    final raw = prefs.getString(_dayViewStateKey(flowId, dayNumber));
+    if (raw == null || raw.trim().isEmpty) return <String, dynamic>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, dynamic>{};
+      return decoded.map((key, value) => MapEntry(key.toString(), value));
+    } on FormatException {
+      return <String, dynamic>{};
+    }
+  }
+
+  Future<void> saveDayViewState(
+    int flowId,
+    int dayNumber,
+    Map<String, dynamic> value,
+  ) async {
+    _validateDayNumber(dayNumber);
+    final prefs = await _resolvedPrefs();
+    final key = _dayViewStateKey(flowId, dayNumber);
+    if (value.isEmpty) {
+      await prefs.remove(key);
+      return;
+    }
+    await prefs.setString(key, jsonEncode(value));
+  }
+
   Future<void> deleteFlowData(int flowId) async {
     final prefs = await _resolvedPrefs();
     final prefix = _prefix(flowId);
@@ -58,6 +92,9 @@ class OfferingTableLocalStore {
 
   static String _intentionKey(int flowId, int dayNumber) =>
       _key(flowId, 'day_${dayNumber.toString().padLeft(2, '0')}_intention');
+
+  static String _dayViewStateKey(int flowId, int dayNumber) =>
+      _key(flowId, 'day_${dayNumber.toString().padLeft(2, '0')}_day_view_v1');
 
   static void _validateDayNumber(int dayNumber) {
     if (dayNumber < 1 || dayNumber > 30) {

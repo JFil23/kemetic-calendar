@@ -110,6 +110,7 @@ void main() {
                         date: start.add(Duration(days: offset)),
                         isToday: offset == 0,
                         highlighted: true,
+                        topLabel: offset == 0 ? 'START DATE' : null,
                         secondaryColors: const [
                           Color(0xFF82C96C),
                           Color(0xFF5EA4D9),

@@ -3,320 +3,350 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('keyboard layout guard', () {
-    test('flow post comments use one direct keyboard inset', () {
+  group('universal keyboard architecture guard', () {
+    test('raw viewInsets stay in resolver and publisher, not extra owners', () {
+      final owners =
+          _dartSourcesUnder('lib')
+              .where(
+                (file) =>
+                    file.readAsStringSync().contains('media.viewInsets.bottom'),
+              )
+              .map((file) => file.path)
+              .toList()
+            ..sort();
+
+      expect(
+        owners,
+        equals(<String>[
+          'lib/widgets/kemetic_keyboard.dart',
+          'lib/widgets/keyboard_viewport_metrics.dart',
+        ]),
+      );
+    });
+
+    test('editable modal routes consume remaining occlusion once', () {
+      final source = File('lib/widgets/keyboard_aware.dart').readAsStringSync();
+
+      expect(source, contains('showEditableModalBottomSheet<T>'));
+      expect(source, contains('showEditableDialog<T>'));
+      expect(source, contains('class KeyboardInsetBoundary'));
+      expect(source, contains('remainingSystemKeyboardInsetOf'));
+      expect(source, contains('remainingCustomKeyboardInsetOf'));
+      expect(source, contains('math.max(remainingSystem, remainingCustom)'));
+      expect(source, contains('media.removeViewInsets(removeBottom: true)'));
+      expect(source, isNot(contains('if (editable)')));
+      expect(
+        RegExp(r'class KeyboardInsetBoundary').allMatches(source),
+        hasLength(1),
+      );
+    });
+
+    test('instrument host receives constrained geometry without inset math', () {
       final source = File(
-        'lib/features/profile/flow_post_engagement_row.dart',
+        'lib/features/calendar/presentation/instrument_event_presentation_frame.dart',
       ).readAsStringSync();
+      final host = source
+          .split('class InstrumentEventSheetHost')
+          .last
+          .split('class InstrumentEventSheetGeometry')
+          .first;
+      expect(host, isNot(contains('editable')));
+      expect(host, isNot(contains('KeyboardInsetConsumption.apply')));
+      expect(host, isNot(contains('remainingSystemKeyboardInsetOf')));
+      expect(host, isNot(contains('remainingCustomKeyboardInsetOf')));
+      expect(host, isNot(contains('keyboardInsetOf')));
+      expect(host, contains('KeyboardAwareEditableSurface('));
 
-      expect(source, contains('final keyboardInset = media.viewInsets.bottom'));
-      expect(
-        source,
-        contains('final heightFactor = keyboardInset > 0 ? 0.72 : 0.46'),
-      );
-      expect(
-        source,
-        contains('padding: EdgeInsets.only(bottom: keyboardInset)'),
-      );
-      expect(
-        source,
-        contains('scrollPadding: keyboardManagedTextFieldScrollPadding'),
-      );
-      expect(source, isNot(contains('AnimatedPadding(')));
-      expect(source, isNot(contains('KeyboardSafeViewport(')));
+      final route = source
+          .split('Future<T?> showCalendarEventDetailSheetModal<T>')
+          .last
+          .split('class CalendarEventDetailSheetCoordinator')
+          .first;
+      expect(route, contains('showEditableModalBottomSheet<T>'));
+      expect(route, isNot(contains('editable')));
     });
 
-    test('embedded flow studio lets the day sheet own keyboard resizing', () {
+    test('Kꜣr capture uses the shared boundary instead of a local strip', () {
       final source = File(
-        'lib/features/calendar/calendar_flow_studio_page.dart',
+        'lib/features/calendar/the_kar/presentation/kar_day_behavior_surface.dart',
       ).readAsStringSync();
-      final calendarSource = File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsStringSync();
-
-      expect(source, contains('final bodyPadding = EdgeInsets.fromLTRB('));
-      expect(source, contains('AppBottomInsets.contentBottomPadding(context)'));
-      expect(
-        source,
-        contains('body: ListView(\n        padding: bodyPadding,'),
-      );
-      expect(
-        source,
-        contains('resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset'),
-      );
-      expect(
-        calendarSource,
-        contains('resizeToAvoidBottomInset: persistOverlay'),
-      );
-      expect(source, isNot(contains('KeyboardSafeViewport(')));
-      expect(
-        source,
-        contains('manageKeyboardInset: widget.resizeToAvoidBottomInset'),
-      );
-      expect(
-        source,
-        contains(
-          'const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;',
-        ),
-      );
-      expect(source, isNot(contains('AnimatedPadding(')));
+      expect(source, contains('KeyboardInsetBoundary('));
+      expect(source, isNot(contains('removeViewInsets')));
     });
 
-    test('route-backed editors leave resizing to the utility sheet', () {
-      final calendarSource = File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsStringSync();
-      final journalRouteSource = File('lib/main.dart').readAsStringSync();
-      final journalSource = File(
-        'lib/features/journal/journal_overlay.dart',
-      ).readAsStringSync();
-
-      expect(calendarSource, contains('resizeToAvoidBottomInset: false'));
-      expect(journalRouteSource, contains('resizeToAvoidBottomInset: false'));
-      expect(
-        journalSource,
-        contains('resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset'),
-      );
-    });
-
-    test('day sheet repeats the planner scaffold and scroll approach', () {
-      final source = File(
-        'lib/widgets/day_sheet_components.dart',
-      ).readAsStringSync();
-
-      expect(source, contains('child: Scaffold('));
-      expect(source, contains('resizeToAvoidBottomInset: !expanded'));
-      expect(source, contains('media.size.height - media.viewInsets.bottom'));
-      expect(source, contains('media.size.height * maxHeightFactor'));
-      expect(source, contains('SingleChildScrollView('));
-      expect(source, isNot(contains('return KeyboardSafeViewport(')));
-    });
-
-    test('quick add settles before focus and has one direct keyboard lift', () {
-      final source = File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsStringSync();
-      final start = source.indexOf('class _QuickAddSheetState');
-      final end = source.indexOf('enum MonthExpansionLevel', start);
-      final quickAdd = source.substring(start, end);
-
-      expect(quickAdd, contains('MediaQuery.viewInsetsOf(context).bottom'));
-      expect(quickAdd, contains('autofocus: false'));
-      expect(quickAdd, isNot(contains('_requestInitialFocus')));
-      expect(quickAdd, isNot(contains('requestFocus()')));
-      expect(quickAdd, isNot(contains('KeyboardSafeViewport(')));
-      expect(quickAdd, isNot(contains('AnimatedPadding(')));
-    });
-
-    test('modal text editors wait for an explicit user focus', () {
-      final calendarSource = File(
-        'lib/features/calendars/shared_calendars_sheet.dart',
-      ).readAsStringSync();
-      final birthdayEditor = calendarSource.substring(
-        calendarSource.indexOf('class _BirthdayEditorDialogState'),
-        calendarSource.indexOf('class _CalendarEditorResult'),
-      );
-      final calendarEditor = calendarSource.substring(
-        calendarSource.indexOf('class _CalendarEditorDialogState'),
-      );
-
-      final rhythmSource = File(
-        'lib/features/rhythm/pages/todays_alignment_page.dart',
-      ).readAsStringSync();
-      final noteEditor = rhythmSource.substring(
-        rhythmSource.indexOf('  Future<void> _editNote('),
-        rhythmSource.indexOf('  Future<void> _deleteNote('),
-      );
-
-      for (final editor in [birthdayEditor, calendarEditor, noteEditor]) {
-        expect(editor, contains('autofocus: false'));
-        expect(editor, isNot(contains('autofocus: true')));
-      }
-    });
-
-    test('editor sheets use direct non-animated keyboard ownership', () {
-      const directInsetFiles = <String>[
-        'lib/features/ai_generation/ai_flow_generation_modal.dart',
-        'lib/features/calendar/calendar_flow_studio_page.dart',
-        'lib/features/calendar/day_view.dart',
-        'lib/features/calendar/reading_house_authoring_page.dart',
-        'lib/features/nodes/node_link_picker_sheet.dart',
-        'lib/features/nodes/node_user_insights_section.dart',
-        'lib/features/profile/flow_post_engagement_row.dart',
-        'lib/features/shared_practice/shared_practice_completion_sheet.dart',
-        'lib/features/sharing/share_flow_sheet.dart',
-      ];
-
-      for (final path in directInsetFiles) {
-        final source = File(path).readAsStringSync();
-        expect(
-          source.contains('viewInsets') || source.contains('keyboardInsetOf'),
-          isTrue,
-          reason: path,
-        );
-        expect(source, isNot(contains('KeyboardSafeViewport')), reason: path);
-        expect(source, isNot(contains('AnimatedPadding(')), reason: path);
-      }
-
-      final calendarSource = File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsStringSync();
-      final dialogStart = calendarSource.indexOf(
-        'Future<bool> _openCalendarScopedNoteDialog',
-      );
-      final dialogEnd = calendarSource.indexOf(
-        'String? _normalizeCalendarId',
-        dialogStart,
-      );
-      final scopedNoteDialog = calendarSource.substring(dialogStart, dialogEnd);
-      expect(scopedNoteDialog, contains('return Dialog('));
-      expect(scopedNoteDialog, isNot(contains('KeyboardSafeViewport')));
-    });
-
-    test('today planner lets the surrounding viewport own keyboard geometry', () {
-      final source = File(
-        'lib/features/rhythm/pages/todays_alignment_page.dart',
-      ).readAsStringSync();
-
-      expect(source, contains('child: content'));
-      expect(
-        source,
-        contains(
-          'final listBottomPadding = bottomPaddingAboveGlobalChrome(context, 32);',
-        ),
-      );
-      expect(source, contains('bottomPadding: listBottomPadding'));
-      expect(source, isNot(contains('effectiveListBottomPadding')));
-      expect(source, isNot(contains('KemeticKeyboardRevealScope')));
-      expect(
-        source,
-        contains('scrollPadding: keyboardManagedTextFieldScrollPadding'),
-      );
-    });
-
-    test('material text fields repeat the shared scroll-padding approach', () {
-      final violations = <String>[];
-      for (final file in _dartSourcesUnder('lib')) {
-        final source = file.readAsStringSync();
-        final fieldCount = RegExp(
-          r'\b(?:TextField|TextFormField)\s*\(',
-        ).allMatches(source).length;
-        if (fieldCount == 0) continue;
-        final managedPaddingCount = RegExp(
-          r'scrollPadding:\s*(?:keyboardManagedTextFieldScrollPadding|fieldScrollPadding|reminderFieldScrollPadding|scrollPadding)',
-        ).allMatches(source).length;
-        if (managedPaddingCount < fieldCount) {
-          violations.add(
-            '${file.path}: $fieldCount fields, '
-            '$managedPaddingCount managed paddings',
-          );
-        }
-      }
-
-      expect(violations, isEmpty);
-    });
-
-    test('production has no field-level reveal scopes or legacy viewport', () {
-      final source = _dartSourcesUnder(
-        'lib',
-      ).map((file) => file.readAsStringSync()).join('\n');
-
-      expect(source, isNot(contains('KemeticKeyboardRevealScope')));
-      expect(source, isNot(contains('keyboardAwareTextFieldScrollPadding')));
-      expect(source, isNot(contains('addKeyboardBottomInset')));
-      expect(source, isNot(contains('KeyboardSafeViewport')));
-      expect(source, isNot(contains('KemeticKeyboardViewportScope')));
-    });
-
-    test('global host routes system edits only to multiline caret reveal', () {
+    test('root host publishes geometry without rewriting MediaQuery', () {
       final source = File(
         'lib/widgets/kemetic_keyboard.dart',
       ).readAsStringSync();
 
-      expect(source, contains('if (!textChanged && selectionChanged)'));
-      expect(source, contains('if (textChanged || selectionChanged)'));
-      expect(source, contains('_scheduleMultilineCaretReveal();'));
-      expect(source, isNot(contains('_handleEditableValueChanged')));
-      expect(source, isNot(contains('_syncEditableValueListener')));
+      expect(source, contains('KemeticKeyboardScope('));
+      expect(source, contains('visibleBottom: visibleBottom'));
+      expect(source, isNot(contains('final double keyboardInset;')));
+      expect(source, isNot(contains('keyboardInset: effectiveKeyboardInset')));
+      expect(source, isNot(contains('copyWith(viewInsets:')));
+      expect(source, isNot(contains('effectiveViewInsets')));
+      expect(source, isNot(contains('child: MediaQuery(')));
     });
 
-    test('global keyboard host never reveals in response to text changes', () {
-      final source = File(
-        'lib/widgets/kemetic_keyboard.dart',
-      ).readAsStringSync();
-      final innerCaretReveal = source.substring(
-        source.indexOf('void _revealMultilineCaretInsideEditable()'),
-        source.indexOf('void _revealFocusedEditableForCustomKeyboard()'),
-      );
-
-      expect(
-        source,
-        contains(
-          'if (textChanged || selectionChanged) {\n'
-          '      _scheduleMultilineCaretReveal();',
-        ),
-      );
-      expect(
-        innerCaretReveal,
-        contains('final position = renderEditable.offset;'),
-      );
-      expect(innerCaretReveal, isNot(contains('Scrollable.maybeOf')));
-      expect(innerCaretReveal, isNot(contains('animateTo')));
-    });
-
-    test('global host leaves system reveal to EditableText', () {
+    test('root host never performs app-wide focus scrolling', () {
       final source = File(
         'lib/widgets/kemetic_keyboard.dart',
       ).readAsStringSync();
 
       expect(source, isNot(contains('Scrollable.ensureVisible')));
-      expect(source, isNot(contains('Duration(milliseconds: 140)')));
-      expect(RegExp(r'\.animateTo\(').allMatches(source), hasLength(1));
-      expect(source, contains('_scheduleCustomKeyboardReveal'));
-      expect(source, contains('if (!_controller.shouldShowPanel) return;'));
-      expect(source, contains('_scheduleMultilineCaretReveal'));
-      expect(source, contains('position.jumpTo(targetPixels)'));
+      expect(source, isNot(contains('Scrollable.maybeOf')));
+      expect(source, isNot(contains('.animateTo(')));
+      expect(source, isNot(contains('.jumpTo(')));
+      expect(source, isNot(contains('_scheduleCustomKeyboardReveal')));
+      expect(source, isNot(contains('_scheduleMultilineCaretReveal')));
+      expect(source, isNot(contains('_revealFocusedEditable')));
     });
 
-    test('Follow Sky embedded root owns one inset and shell owns none', () {
-      final calendarSource = File(
-        'lib/features/calendar/calendar_page.dart',
+    test('Offering Day V8 does not scroll before requesting focus', () {
+      final source = File(
+        'lib/features/calendar/the_offering_table/presentation/'
+        'offering_table_day_v8_presentation.dart',
       ).readAsStringSync();
-      final detailSource = File(
-        'lib/features/calendar/follow_the_sky/presentation/'
-        'follow_sky_detail_page.dart',
-      ).readAsStringSync();
-      final exampleSource = File(
-        'lib/features/calendar/follow_the_sky/presentation/widgets/'
-        'follow_sky_turning_example.dart',
-      ).readAsStringSync();
-      final frameSource = File(
+      final focusWord = source
+          .split('void _focusWord(String id)')
+          .last
+          .split('void _resetDay()')
+          .first;
+
+      expect(focusWord, isNot(contains('Scrollable.ensureVisible')));
+      expect(focusWord, contains('_wordFocusNodes[id]?.requestFocus()'));
+    });
+
+    test(
+      'system input commands exist only for deliberate keyboard switching',
+      () {
+        final owners = <String>[];
+        for (final file in _dartSourcesUnder('lib')) {
+          if (file.readAsStringSync().contains('SystemChannels.textInput')) {
+            owners.add(file.path);
+          }
+        }
+
+        expect(owners, equals(<String>['lib/widgets/kemetic_keyboard.dart']));
+        final source = File(owners.single).readAsStringSync();
+        expect(
+          RegExp(r"SystemChannels\.textInput").allMatches(source),
+          hasLength(3),
+        );
+        expect(RegExp(r"TextInput\.hide").allMatches(source), hasLength(2));
+        expect(RegExp(r"TextInput\.show").allMatches(source), hasLength(1));
+        expect(source, contains('Future<void> _openCustomKeyboard()'));
+        expect(source, contains('void _closeCustomAndRestoreSystem()'));
+      },
+    );
+
+    test('ordinary material fields use Flutter scroll-padding defaults', () {
+      final source = _dartSourcesUnder(
+        'lib',
+      ).map((file) => file.readAsStringSync()).join('\n');
+
+      expect(source, isNot(contains('scrollPadding:')));
+      expect(source, isNot(contains('keyboardManagedTextFieldScrollPadding')));
+      expect(source, isNot(contains('fieldScrollPadding')));
+      expect(source, isNot(contains('reminderFieldScrollPadding')));
+    });
+
+    test('Day Sheet does not reserve a second keyboard clearance band', () {
+      final source = File(
         'lib/widgets/day_sheet_components.dart',
       ).readAsStringSync();
-      final shellSource = File(
-        'lib/features/calendar/follow_the_sky/presentation/widgets/'
-        'follow_sky_scroll_shell.dart',
-      ).readAsStringSync();
 
-      expect(calendarSource, contains('FollowSkyIntentionEditingNotification'));
-      expect(calendarSource, contains('expanded: followSkyIntentionEditing'));
+      expect(source, isNot(contains('scrollBottomPadding')));
+      expect(source, contains('KeyboardAwareEditableSurface('));
+    });
+
+    test('keyboard regressions do not pre-scroll focused fields in tests', () {
+      const paths = <String>[
+        'test/widgets/day_sheet_keyboard_safe_frame_test.dart',
+        'test/features/calendar/authored_event_block_day_view_test.dart',
+        'test/features/calendar/offering_table_detail_page_test.dart',
+      ];
+
+      for (final path in paths) {
+        final source = File(path).readAsStringSync();
+        expect(
+          source,
+          isNot(contains('tester.ensureVisible(field)')),
+          reason: path,
+        );
+      }
+    });
+
+    test('one shared surface owns scoped focus correction', () {
+      final owners = <String>[];
+      for (final file in _dartSourcesUnder('lib')) {
+        final source = file.readAsStringSync();
+        if (source.contains('class KeyboardAwareEditableSurface')) {
+          owners.add(file.path);
+        }
+      }
+
+      expect(owners, equals(<String>['lib/widgets/keyboard_aware.dart']));
+      final surface = File(
+        owners.single,
+      ).readAsStringSync().split('class KeyboardAwareEditableSurface').last;
+      expect(surface, contains('FocusManager.instance.addListener'));
+      expect(surface, contains('Scrollable.maybeOf(focusedContext)'));
+      expect(surface, contains('position.jumpTo(target)'));
+      expect(surface, contains('if (!_customKeyboardIsVisible) return;'));
+      expect(surface, isNot(contains('TextEditingController')));
+      expect(surface, isNot(contains('EditableTextState')));
+      expect(surface, isNot(contains('SystemChannels.textInput')));
+      expect(surface, isNot(contains('manageSystemKeyboardInset')));
       expect(
-        detailSource,
-        contains('FollowSkyIntentionEditingNotification(editing).dispatch'),
+        surface,
+        isNot(contains('remainingSystemKeyboardInsetOf(context)')),
       );
-      expect(
-        frameSource,
-        contains('media.size.height - media.viewInsets.bottom'),
-      );
-      expect(frameSource, contains('final sheetHeight = expanded'));
-      expect(frameSource, contains('resizeToAvoidBottomInset: !expanded'));
-      expect(exampleSource, contains('onFocusChange: onEditingFocusChanged'));
-      expect(detailSource, isNot(contains('viewInsets')));
-      expect(exampleSource, isNot(contains('ensureVisible')));
-      expect(exampleSource, isNot(contains('animateTo')));
-      expect(shellSource, isNot(contains('keyboardInsetOf')));
-      expect(shellSource, isNot(contains('_restingHeroHeight')));
-      expect(shellSource, isNot(contains('viewInsets')));
+    });
+
+    test('all named editable route families consume the shared surface', () {
+      const paths = <String>[
+        'lib/widgets/utility_sheet_route_scaffold.dart',
+        'lib/widgets/day_sheet_components.dart',
+        'lib/features/calendar/calendar_flow_studio_page.dart',
+        'lib/features/calendar/the_reading_house/presentation/'
+            'reading_house_detail_page.dart',
+        'lib/features/calendar/the_reading_house/presentation/'
+            'reading_house_sitting_editor.dart',
+        'lib/features/nodes/node_link_picker_sheet.dart',
+        'lib/features/profile/edit_profile_page.dart',
+        'lib/features/profile/profile_search_page.dart',
+        'lib/features/sharing/share_flow_sheet.dart',
+        'lib/features/calendar/the_offering_table/presentation/'
+            'offering_table_preview_day_sheet.dart',
+        'lib/features/calendar/the_offering_table/presentation/'
+            'offering_table_detail_page.dart',
+        'lib/features/calendar/the_kar/presentation/'
+            'kar_day_behavior_surface.dart',
+        'lib/features/journal/journal_overlay.dart',
+        'lib/features/calendar/day_view.dart',
+      ];
+
+      for (final path in paths) {
+        expect(
+          File(path).readAsStringSync(),
+          contains('KeyboardAwareEditableSurface('),
+          reason: path,
+        );
+      }
+    });
+
+    test('all named editable modal families use the shared route boundary', () {
+      const paths = <String>[
+        'lib/features/calendar/the_reading_house/presentation/'
+            'reading_house_detail_page.dart',
+        'lib/features/calendar/the_reading_house/presentation/'
+            'reading_house_sitting_editor.dart',
+        'lib/features/nodes/node_link_picker_sheet.dart',
+        'lib/features/nodes/node_user_insights_section.dart',
+        'lib/features/calendars/shared_calendars_sheet.dart',
+        'lib/features/shared_practice/shared_practice_completion_sheet.dart',
+        'lib/features/profile/flow_post_engagement_row.dart',
+        'lib/features/inbox/presentation/reading_house_room_sheet.dart',
+        'lib/features/calendar/follow_the_sky/presentation/widgets/'
+            'follow_sky_turning_sheet.dart',
+        'lib/features/calendar/calendar_page.dart',
+        'lib/features/calendar/calendar_flow_pages.dart',
+        'lib/features/calendar/calendar_flow_studio_page.dart',
+        'lib/features/calendar/presentation/'
+            'instrument_event_presentation_frame.dart',
+        'lib/features/calendar/the_offering_table/presentation/'
+            'offering_table_preview_day_sheet.dart',
+      ];
+
+      for (final path in paths) {
+        final source = File(path).readAsStringSync();
+        expect(source, contains('showEditableModalBottomSheet'), reason: path);
+        expect(
+          source,
+          isNot(contains('manageSystemKeyboardInset')),
+          reason: path,
+        );
+      }
+    });
+
+    test('all named editable dialog families use the shared boundary', () {
+      const paths = <String>[
+        'lib/features/calendars/shared_calendars_sheet.dart',
+        'lib/features/calendar/calendar_page.dart',
+        'lib/features/profile/profile_page.dart',
+        'lib/features/rhythm/pages/todays_alignment_page.dart',
+      ];
+
+      for (final path in paths) {
+        expect(
+          File(path).readAsStringSync(),
+          contains('showEditableDialog'),
+          reason: path,
+        );
+      }
+    });
+
+    test('feature code cannot own keyboard inset arithmetic', () {
+      final offenders = <String>[];
+      for (final file in _dartSourcesUnder('lib')) {
+        if (file.path == 'lib/widgets/keyboard_aware.dart') continue;
+        final source = file.readAsStringSync();
+        if (source.contains('keyboardInsetOf(') ||
+            source.contains('remainingSystemKeyboardInsetOf(') ||
+            source.contains('remainingCustomKeyboardInsetOf(') ||
+            source.contains('KeyboardInsetConsumption.apply(')) {
+          offenders.add(file.path);
+        }
+      }
+      expect(offenders, isEmpty);
+    });
+
+    test(
+      'removed system-inset switches and test scroll cheats stay absent',
+      () {
+        final production = _dartSourcesUnder(
+          'lib',
+        ).map((file) => file.readAsStringSync()).join('\n');
+        expect(production, isNot(contains('manageSystemKeyboardInset')));
+        expect(production, isNot(contains('keyboardInsetOf(')));
+        expect(production, isNot(contains('final double keyboardInset;')));
+
+        final offeringDetail = File(
+          'test/features/calendar/offering_table_detail_page_test.dart',
+        ).readAsStringSync();
+        final offeringAfterKeyboard = offeringDetail
+            .split(
+              'tester.view.viewInsets = const FakeViewPadding(bottom: 300);',
+            )
+            .last
+            .split("testWidgets(")
+            .first;
+        expect(offeringAfterKeyboard, isNot(contains('ensureVisible(field)')));
+
+        final readingHouse = File(
+          'test/features/calendar/reading_house_detail_page_test.dart',
+        ).readAsStringSync();
+        final readingKeyboardCase = readingHouse
+            .split(
+              "tester.view.viewInsets = const FakeViewPadding(bottom: 300)",
+            )
+            .last
+            .split("tester.view.viewInsets = FakeViewPadding.zero")
+            .first;
+        expect(readingKeyboardCase, isNot(contains('ensureVisible(hostNote)')));
+      },
+    );
+
+    test('legacy keyboard bandaids cannot return', () {
+      final source = _dartSourcesUnder(
+        'lib',
+      ).map((file) => file.readAsStringSync()).join('\n');
+
+      expect(source, isNot(contains('KemeticKeyboardRevealScope')));
+      expect(source, isNot(contains('KeyboardSafeViewport')));
+      expect(source, isNot(contains('KemeticKeyboardViewportScope')));
+      expect(source, isNot(contains('addKeyboardBottomInset')));
     });
   });
 }

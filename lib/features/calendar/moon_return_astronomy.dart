@@ -3,8 +3,7 @@ import 'dart:math' as math;
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-import 'dawn_house_rite_flow.dart';
-import 'evening_threshold_rite_flow.dart';
+import 'maat_solar_schedule.dart';
 import 'moon_return_flow.dart';
 import 'track_sky_flow.dart';
 
@@ -205,10 +204,10 @@ MoonReturnOccurrence _newMoonOccurrence(
   _MoonPhaseInstant phase,
   TrackSkyTimeZone timezone,
 ) {
-  final base = eveningThresholdScheduleForDate(
+  final base = maatSunsetScheduleForDate(
     _dateOnly(phase.instantLocal),
     timezone,
-    fallbackMinutesAfterMidnight: kEveningThresholdDefaultFallbackMinutes,
+    fallbackMinutesAfterMidnight: kMaatDefaultEveningFallbackMinutes,
   );
   final startUtc = base.usedFallback
       ? base.startUtc
@@ -238,9 +237,9 @@ MoonReturnOccurrence _fullMoonOccurrence(
   TrackSkyTimeZone timezone, {
   required bool isBonusBlueMoon,
 }) {
-  final reference = kEveningThresholdReferenceLocations[timezone]!;
+  final reference = kMaatSolarReferenceLocations[timezone]!;
   final moonriseUtc = _moonriseUtc(_dateOnly(phase.instantLocal), timezone);
-  final fallback = eveningThresholdScheduleForDate(
+  final fallback = maatSunsetScheduleForDate(
     _dateOnly(phase.instantLocal),
     timezone,
     fallbackMinutesAfterMidnight: 20 * 60,
@@ -280,7 +279,7 @@ MoonReturnEnrollmentWindow _windowForNewMoonPhase(
 ) {
   final localNewMoonDate = _dateOnly(phase.instantLocal);
   final openDate = localNewMoonDate.subtract(const Duration(days: 2));
-  final dawn = dawnHouseRiteScheduleForDate(openDate, timezone);
+  final dawn = maatDawnScheduleForDate(openDate, timezone);
   return MoonReturnEnrollmentWindow(
     opensAtLocal: dawn.startLocal,
     closesAtLocal: DateTime(
@@ -455,7 +454,7 @@ DateTime _julianDayToUtc(double julianDay) {
 
 DateTime? _moonriseUtc(DateTime localDate, TrackSkyTimeZone timezone) {
   _ensureMoonReturnTimeZonesInitialized();
-  final reference = kEveningThresholdReferenceLocations[timezone]!;
+  final reference = kMaatSolarReferenceLocations[timezone]!;
   final location = tz.getLocation(timezone.ianaName);
   final midnightUtc = tz.TZDateTime(
     location,

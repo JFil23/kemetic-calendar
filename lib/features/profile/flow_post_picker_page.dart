@@ -11,6 +11,13 @@ import '_post_glossy_helper.dart';
 
 enum FlowPostTab { active, saved }
 
+bool canUserPublishFlow(FlowRow flow, String? currentUserId) {
+  final normalizedUserId = currentUserId?.trim();
+  return normalizedUserId != null &&
+      normalizedUserId.isNotEmpty &&
+      flow.userId == normalizedUserId;
+}
+
 class FlowPostPickerPage extends StatefulWidget {
   const FlowPostPickerPage({super.key});
 
@@ -65,8 +72,13 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   }
 
   List<FlowRow> get _activeFlows {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     final flows = _filedFlows
-        .where((flow) => flow.visibleInActiveList)
+        .where(
+          (flow) =>
+              flow.visibleInActiveList &&
+              canUserPublishFlow(flow, currentUserId),
+        )
         .toList();
     flows.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return flows;
@@ -74,7 +86,14 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
 
   // Saved flows can be posted/shared later even if they are no longer active.
   List<FlowRow> get _savedFlows {
-    final flows = _filedFlows.where((flow) => flow.visibleInSavedList).toList();
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final flows = _filedFlows
+        .where(
+          (flow) =>
+              flow.visibleInSavedList &&
+              canUserPublishFlow(flow, currentUserId),
+        )
+        .toList();
     flows.sort(_compareSavedFlows);
     return flows;
   }

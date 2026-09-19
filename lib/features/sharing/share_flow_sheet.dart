@@ -89,11 +89,8 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final closedHeight = media.size.height * 0.9;
-    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardInset),
+    return KeyboardAwareEditableSurface(
       child: Container(
         height: closedHeight,
         decoration: const BoxDecoration(
@@ -178,7 +175,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                       const SizedBox(height: 16),
                     ],
                     // Search field
-                    _buildSearchField(scrollPadding: fieldScrollPadding),
+                    _buildSearchField(),
 
                     if (_searchResults.isNotEmpty) ...[
                       const SizedBox(height: 16),
@@ -229,10 +226,9 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     );
   }
 
-  Widget _buildSearchField({required EdgeInsets scrollPadding}) {
+  Widget _buildSearchField() {
     return TextField(
       controller: _searchController,
-      scrollPadding: scrollPadding,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: _isEventShare

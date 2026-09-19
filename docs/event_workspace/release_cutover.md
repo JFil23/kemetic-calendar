@@ -1,5 +1,12 @@
 # Event Workspace release cutover
 
+> **Superseded historical plan — not release authority.** This document records
+> the earlier parent/mobile cutover process and must not be used to build,
+> approve, or deploy the app. The sole current source and gate contract is
+> [`docs/web_release_build_contract.md`](../web_release_build_contract.md),
+> using the app-only `rc` and `production` repositories with no backend
+> gitlink.
+
 Served production identity is a first-class authority, equal to event identity and time.
 
 ```text

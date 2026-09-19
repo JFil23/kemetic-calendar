@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
-import 'package:mobile/features/calendar/follow_the_sky/presentation/maat_list_to_detail_route.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import 'package:mobile/features/onboarding/onboarding_progress.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -95,7 +94,7 @@ void main() {
     expect(GuidedOnboardingController.instance.target, isNull);
   });
 
-  testWidgets('route-backed Ma at detail back returns to list before hub', (
+  testWidgets('route-backed detail returns to five-flow discovery before hub', (
     tester,
   ) async {
     await _seedCompletedOnboarding(
@@ -112,32 +111,29 @@ void main() {
     await _pumpRouteBackedMaatDetail(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
+    final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
+    expect(detailBack, findsOneWidget);
+    final detailRoute = ModalRoute.of(tester.element(detailBack));
+    expect(detailRoute, isNotNull);
     expect(
-      find.byKey(MaatFlowsListDetailReveal.detailSurfaceKey),
-      findsOneWidget,
-    );
-
-    await tester.binding.handlePopRoute();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(MaatFlowsListDetailReveal.detailSurfaceKey),
+      find.byKey(
+        const ValueKey<String>('maat-flow-discovery-view'),
+        skipOffstage: false,
+      ),
       findsNothing,
     );
-    expect(
-      find.byKey(MaatFlowsListDetailReveal.foregroundTransformKey),
-      findsOneWidget,
-    );
+    expect(detailRoute!.isCurrent, isTrue);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(MaatFlowsListDetailReveal.foregroundTransformKey),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey<String>('follow-sky-back')), findsNothing);
+    expect(detailRoute.isCurrent, isTrue);
+    expect(find.text('Flows'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
     expect(find.text('Flow Studio'), findsOneWidget);
   });
 }

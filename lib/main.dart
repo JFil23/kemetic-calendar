@@ -15,6 +15,7 @@ import 'data/user_events_repo.dart';
 import 'features/calendar/notify.dart';
 import 'features/calendar/calendar_page.dart';
 import 'features/calendar/calendar_hydration_diagnostics.dart';
+import 'features/calendar/maat_flow_temporal_controller.dart';
 import 'features/calendar/daily_cosmic_context_badge.dart';
 import 'features/calendar/ics_preview_card.dart';
 import 'utils/ics_parser.dart';
@@ -85,6 +86,7 @@ import 'features/settings/settings_page.dart';
 import 'features/settings/settings_prefs.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
 import 'widgets/kemetic_keyboard.dart';
+import 'widgets/keyboard_aware.dart';
 import 'widgets/kemetic_day_info.dart';
 import 'services/app_restoration_service.dart';
 import 'services/app_window_service.dart';
@@ -422,6 +424,7 @@ Future<void> main() async {
     _configureLogging();
 
     WidgetsFlutterBinding.ensureInitialized();
+    await MaatFlowDeviceTimeZone.initialize();
     CalendarHydrationDiagnostics.instance.setBuildLabel(
       kIsWeb ? hydrationDiagnosticBuildEnv : 'native',
     );
@@ -1638,7 +1641,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         }
         return SessionTrackedRoute(
           location: state.uri.toString(),
-          child: SharedPracticeRoomPage(roomId: roomId),
+          child: SharedPracticeRoomRoutePage(roomId: roomId),
         );
       },
     ),
@@ -2512,7 +2515,7 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
     if (!_launchOverlayDismissed.value) return true;
     if (!_dailyCosmicContextAuthenticated) return true;
     if (_globalOverlayModalDepth.value > 0) return true;
-    if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
+    if (keyboardIsVisible(context)) return true;
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
       return true;
     }
@@ -2565,7 +2568,7 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
     if (supabase.auth.currentSession == null) return true;
     if (_dailyCosmicContextController.hasVisibleBadge) return true;
     if (_globalOverlayModalDepth.value > 0) return true;
-    if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
+    if (keyboardIsVisible(context)) return true;
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
       return true;
     }

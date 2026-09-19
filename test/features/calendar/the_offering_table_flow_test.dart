@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
@@ -87,10 +85,7 @@ void main() {
         'maat=the-offering-table;offering_tz=eastern;'
         'offering_lens=hapy;no_cup_mode=1';
 
-    expect(
-      offeringTableTimeZoneFromNotes(notes),
-      TrackSkyTimeZone.eastern,
-    );
+    expect(offeringTableTimeZoneFromNotes(notes), TrackSkyTimeZone.eastern);
     expect(offeringTableLensFromNotes(notes), OfferingTableLens.hapy);
     expect(offeringTableNoCupModeFromNotes(notes), isTrue);
   });
@@ -144,7 +139,7 @@ void main() {
     expect(detail, contains('Water\nHold the cup'));
     expect(detail, contains('Words\n"Wash yourself'));
     expect(detail, contains('Lens\nLet Hapy'));
-    expect(detail, contains('Provision\nBefore food'));
+    expect(detail, contains('Provision\nCheck one thing you rely on'));
     expect(detail, contains('Drink\nDrink the water'));
     expect(
       detail,
@@ -232,7 +227,7 @@ void main() {
   test('purpose copy checkpoints match the upgraded offering table', () {
     expect(
       offeringTableDayByNumber(1)?.purpose,
-      'The Kemetic offering table began with water before anything else — not because water is symbolic, but because it is the most immediate provision. This rite does the same.',
+      'The supplies that run out do so silently. This rite checks them while they can still be replenished easily.',
     );
     expect(
       offeringTableDayByNumber(10)?.purpose,
@@ -248,11 +243,9 @@ void main() {
     );
   });
 
-  test('representative source note is preserved', () {
-    expect(
-      kOfferingTableDays.first.sourceNote,
-      'Kemetic offering ritual begins with water before bread, oil, or incense. The table starts by acknowledging what sustains life first.',
-    );
+  test('first day follows the supplied Small Supply authority', () {
+    expect(kOfferingTableDays.first.title, 'The Small Supply');
+    expect(kOfferingTableDays.first.sourceNote, isNull);
   });
 
   test('canonical detail rebuilds a stored offering table day', () {
@@ -260,7 +253,7 @@ void main() {
       flowName: kOfferingTableTitle,
       flowNotes:
           'mode=gregorian;maat=the-offering-table;offering_lens=ausar;no_cup_mode=1',
-      title: 'Day 1: The First Water',
+      title: 'Day 1: The Small Supply',
       actionId: 'the-offering-table-day-01',
       behaviorPayload: const <String, dynamic>{
         'kind': 'maat_offering_table_day',
@@ -274,26 +267,38 @@ void main() {
     expect(detail, contains('Lens\nLet Ausar'));
   });
 
-  test('shared headless join path stages thirty daily events', () {
-    final source = File(
-      'lib/features/calendar/flow_join_service.dart',
-    ).readAsStringSync();
-    final methodStart = source.indexOf(
-      'Future<FlowJoinResult> joinOfferingTableHeadless({',
-    );
-    expect(methodStart, isNonNegative);
-    final methodEnd = source.indexOf(
-      'Future<FlowJoinResult> joinTheTendingHeadless({',
-      methodStart,
-    );
-    expect(methodEnd, isNonNegative);
-    final method = source.substring(methodStart, methodEnd);
+  test('materialization inputs cover all thirty Offering Table days', () {
+    final startDate = DateTime(2026, 6, 1);
+    final actionIds = <String>{};
+    final scheduledDates = <DateTime>{};
 
-    expect(method, contains('_offeringTableDays'));
-    expect(method, contains('await _upsertEventRow('));
-    expect(method, contains('stagePlannedNotesAndDeferPersist('));
-    expect(method, isNot(contains('await _repo.upsertManyDeterministic')));
-    expect(method, contains(r'offering_hour=$kOfferingTableDefaultHour'));
-    expect(method, contains('no_cup_mode='));
+    for (var index = 0; index < kOfferingTableDays.length; index++) {
+      final day = kOfferingTableDays[index];
+      final schedule = offeringTableScheduleForDate(
+        day,
+        startDate.add(Duration(days: index)),
+        TrackSkyTimeZone.pacific,
+      );
+      final payload = offeringTableBehaviorPayload(
+        day: day,
+        schedule: schedule,
+        lens: OfferingTableLens.neutral,
+        noCupMode: false,
+      );
+
+      actionIds.add(offeringTableActionId(day));
+      scheduledDates.add(
+        DateTime(
+          schedule.startLocal.year,
+          schedule.startLocal.month,
+          schedule.startLocal.day,
+        ),
+      );
+      expect(payload['day'], day.dayNumber);
+      expect(payload['flow_key'], 'the-offering-table');
+    }
+
+    expect(actionIds, hasLength(30));
+    expect(scheduledDates, hasLength(30));
   });
 }

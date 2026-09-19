@@ -1,16 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 
 void main() {
   test('default initial prompt resolver exposes the prompt-enabled flows', () {
-    expect(kInitialMaatFlowPromptSpecs, hasLength(32));
+    expect(kInitialMaatFlowPromptSpecs, hasLength(23));
 
     final expectedLabelsByFlow = <String, List<String>>{
       'the-moon-return': <String>['What do you set down?'],
       'the-course': <String>['What action fits this hour?'],
-      'dawn-house-rite': <String>['What order do you bring into the day?'],
-      'evening-threshold-rite': <String>['What do you release tonight?'],
       'the-offering-table': <String>[
         'What was fed?',
         'What did you provide today?',
@@ -25,10 +25,6 @@ void main() {
         'Visibility',
         'What did the sky show?',
         'What bearing do you carry into the next ten days?',
-      ],
-      'the-first-arrangement': <String>[
-        'What space will you put in order?',
-        'What changed in the space?',
       ],
       'the-living-pattern': <String>[
         'What pattern are you watching?',
@@ -50,18 +46,6 @@ void main() {
         'What must stand upright?',
         'What did you raise or restore?',
       ],
-      'the-tending': <String>[
-        'What care needs to become specific?',
-        'What tending act did you complete?',
-      ],
-      'the-kept-word': <String>[
-        'What word or agreement needs attention?',
-        'What word, repair, or conversation needs to be remembered?',
-      ],
-      'the-wag': <String>[
-        'What gift, memory, or legacy will you carry?',
-        'What gift, memory, or legacy did you carry?',
-      ],
       'the-khat': <String>[
         'What is the body asking for?',
         'What care did you give the body?',
@@ -70,11 +54,6 @@ void main() {
         'What change are you watching above?',
         'What changed above you?',
       ],
-      'the-weighing': <String>[
-        'What needs to be placed on the scale?',
-        'What record, number, or correction needs to be witnessed?',
-      ],
-      'the-days-outside-the-year': <String>['What threshold are you crossing?'],
       'the-fair-hearing': <String>[
         'What must be heard before deciding?',
         'What decision, measure, or unheard side needs to be remembered?',
@@ -94,10 +73,6 @@ void main() {
       'the-living-text': <String>[
         'What line is asking to live through you?',
         'What did you read, question, connect, or apply?',
-      ],
-      'the-clearing': <String>[
-        'What heat needs space before response?',
-        'What changed because you waited before responding?',
       ],
       'het-heru': <String>[
         'What hot force needs cooling?',
@@ -133,6 +108,14 @@ void main() {
         prompt!.fields.map((field) => field.label),
         entry.value,
         reason: entry.key,
+      );
+    }
+
+    for (final kind in kArchivedCompatibilityMaatFlowKinds) {
+      expect(
+        resolveMaatFlowInitialPromptSpec(flowKey: kind.flowKey),
+        isNull,
+        reason: kind.flowKey,
       );
     }
 

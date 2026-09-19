@@ -180,15 +180,39 @@ class TrackSkyEnrollmentService {
     return List<SkyObservingNight>.unmodifiable(nights);
   }
 
+  /// Canonical nights whose existing observing window has not ended.
+  ///
+  /// This is the shared uncarried-preview/enrollment filter. It deliberately
+  /// uses the same materializer as persistence, so a phase remains current
+  /// through its effective window and drops immediately after that window.
+  List<SkyObservingNight> upcomingNights({
+    required SkyCatalog catalog,
+    required String ianaTimeZone,
+    required DateTime nowUtc,
+  }) {
+    final present = nowUtc.toUtc();
+    final upcoming = <SkyObservingNight>[];
+    for (final night in canonicalNights(catalog: catalog)) {
+      final occurrence = materializer.materialize(
+        event: night.anchor,
+        night: night,
+        ianaTimeZone: ianaTimeZone,
+      );
+      if (!occurrence.endsAtUtc.isBefore(present)) upcoming.add(night);
+    }
+    return List<SkyObservingNight>.unmodifiable(upcoming);
+  }
+
   List<MaterializedSkyOccurrence> buildCanonicalOccurrences({
     required SkyCatalog catalog,
     required String ianaTimeZone,
+    Iterable<SkyObservingNight>? nights,
     bool hasObservingLocation = false,
     Set<String> excludedSkyEventIds = const <String>{},
     Map<String, String>? intentionBySkyEventId,
   }) {
     final occurrences = <MaterializedSkyOccurrence>[];
-    for (final night in canonicalNights(catalog: catalog)) {
+    for (final night in nights ?? canonicalNights(catalog: catalog)) {
       if (excludedSkyEventIds.contains(night.skyEventId)) continue;
       final decision = visibilityService.decide(
         night.windowSource,
@@ -209,6 +233,7 @@ class TrackSkyEnrollmentService {
 
   TrackSkyEnrollmentDraft buildJoinDraft({
     required SkyCatalog catalog,
+    required List<SkyObservingNight> eligibleNights,
     required String ianaTimeZone,
     String? timezoneKey,
     String? overview,
@@ -220,6 +245,7 @@ class TrackSkyEnrollmentService {
     final occurrences = buildCanonicalOccurrences(
       catalog: catalog,
       ianaTimeZone: ianaTimeZone,
+      nights: eligibleNights,
       hasObservingLocation: hasObservingLocation,
       excludedSkyEventIds: excludedSkyEventIds,
       intentionBySkyEventId: intentionBySkyEventId,

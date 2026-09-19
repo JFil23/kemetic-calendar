@@ -65,3 +65,22 @@ class MaatFlowListTokens {
     14,
   );
 }
+
+/// The Kꜣr mockups use a fuller book face than the shared flow-list display
+/// face. Gentium is the bundled production font closest to their Georgia
+/// typography, and keeps the rendering stable across web and native builds.
+abstract final class KarFlowVisualTokens {
+  static const String fontFamily = 'GentiumPlus';
+  static const List<String> fontFallback = <String>[
+    'CormorantGaramond',
+    'Georgia',
+    'serif',
+  ];
+}
+
+/// The shared solid edge used by authored Djed-style Maat event blocks.
+abstract final class MaatEventBlockBorderTokens {
+  static const double radius = 10;
+  static const double width = 1;
+  static const Color color = Color(0x70E0873C);
+}

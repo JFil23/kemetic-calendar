@@ -14,7 +14,12 @@ import '../services/sky_catalog_repository.dart';
 import '../services/sky_visibility_service.dart';
 import '../services/track_sky_enrollment_service.dart';
 import '../services/track_sky_materializer.dart';
+import '../../maat_flow_identity.dart';
+import '../../maat_flow_temporal_controller.dart';
+import '../../maat_flow_temporal_policy.dart';
+import '../../maat_flow_temporal_resolver.dart';
 import '../../presentation/maat_flow_detail_shell.dart';
+import '../../track_sky_timezone.dart';
 import 'follow_sky_calendar_preview.dart';
 import 'turning_meaning.dart';
 import 'widgets/follow_sky_all_turnings_list.dart';
@@ -33,8 +38,8 @@ class FollowSkyIntentionEditingNotification extends Notification {
 }
 
 /// Follow the Sky V11 detail orchestrator.
-class FollowSkyDetailPage extends StatefulWidget {
-  const FollowSkyDetailPage({
+class FollowSkyDetailSurface extends StatefulWidget {
+  const FollowSkyDetailSurface({
     super.key,
     this.existingFlowNotes,
     this.existingFlowId,
@@ -49,7 +54,11 @@ class FollowSkyDetailPage extends StatefulWidget {
     this.catalogRepository,
     this.initialCatalog,
     this.now,
-    this.standalone = true,
+    this.clock,
+    this.presentDayIanaTimeZone,
+    this.ianaTimeZoneProvider,
+    this.temporalScheduler,
+    this.onBack,
     this.title = 'Follow the Sky',
     this.subtitle = FollowSkyV11Tokens.heroSubtitle,
     this.onHierarchyChanged,
@@ -74,16 +83,20 @@ class FollowSkyDetailPage extends StatefulWidget {
   final SkyCatalogRepository? catalogRepository;
   final SkyCatalog? initialCatalog;
   final DateTime? now;
-  final bool standalone;
+  final MaatFlowClock? clock;
+  final String? presentDayIanaTimeZone;
+  final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
+  final MaatFlowTemporalScheduler? temporalScheduler;
+  final VoidCallback? onBack;
   final String title;
   final String subtitle;
   final VoidCallback? onHierarchyChanged;
 
   @override
-  State<FollowSkyDetailPage> createState() => FollowSkyDetailPageState();
+  State<FollowSkyDetailSurface> createState() => FollowSkyDetailSurfaceState();
 }
 
-class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
+class FollowSkyDetailSurfaceState extends State<FollowSkyDetailSurface> {
   static const int _expandedTurningCount = 5;
 
   late final SkyCatalogRepository _catalogRepo;
@@ -99,16 +112,22 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   bool _joining = false;
   late bool _carried;
   SkyCatalog? _catalog;
+  late MaatFlowTemporalController _temporalController;
   Object? _error;
 
   bool get hasActiveCourse => false;
+
+  MaatFlowTemporalResolution? get _temporalResolution =>
+      _temporalController.resolution;
+
+  MaatFlowTemporalContext get _temporalContext => _temporalController.context;
 
   Future<void> joinFromDock() => _carry();
 
   Future<void> carryCourseFromDock() => _carry();
 
   Future<void> openNextTurningFromDock() async {
-    final next = _catalog?.nextObservingNight(nowUtc: _now);
+    final next = _temporalResolution?.firstSkyNight;
     if (next == null) return;
     await _openTurningSheet(next);
   }
@@ -117,30 +136,17 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   Future<void> openTurningSheetForTest(SkyObservingNight night) =>
       _openTurningSheet(night);
 
-  DateTime get _now => widget.now ?? DateTime.now().toUtc();
+  DateTime get _nowUtc => _temporalContext.nowUtc;
 
   List<SkyObservingNight> get _thirtyDayNights {
-    final until = _now.add(const Duration(days: 30));
-    return _canonicalNights
-        .where(
-          (night) =>
-              !night.primaryInstantUtc.isBefore(_now) &&
-              !night.primaryInstantUtc.isAfter(until),
-        )
+    final until = _nowUtc.add(const Duration(days: 30));
+    return _upcomingNights
+        .where((night) => !night.primaryInstantUtc.isAfter(until))
         .toList(growable: false);
   }
 
-  List<SkyObservingNight> get _upcomingNights {
-    return _canonicalNights
-        .where((night) => !night.primaryInstantUtc.isBefore(_now))
-        .toList(growable: false);
-  }
-
-  List<SkyObservingNight> get _canonicalNights {
-    final catalog = _catalog;
-    if (catalog == null) return const [];
-    return _enrollment.canonicalNights(catalog: catalog);
-  }
+  List<SkyObservingNight> get _upcomingNights =>
+      _temporalResolution?.skyNights ?? const <SkyObservingNight>[];
 
   List<SkyObservingNight> get _previewNights =>
       _upcomingNights.take(_expandedTurningCount).toList(growable: false);
@@ -150,16 +156,13 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     return preview.isEmpty ? _thirtyDayNights : preview;
   }
 
-  SkyObservingNight? get _firstEclipsePreview {
+  SkyObservingNight? get _exampleNight {
     final nights = _intentionPreviewNights;
     for (final night in nights) {
       if (_excludedSkyEventIds.contains(night.skyEventId)) continue;
-      if (night.companion != null ||
-          night.displayName.toLowerCase().contains('eclipse')) {
-        return night;
-      }
+      return night;
     }
-    return nights.isNotEmpty ? nights.first : null;
+    return null;
   }
 
   @override
@@ -173,9 +176,10 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
       materializer: materializer,
       visibilityService: const SkyVisibilityService(),
     );
-    if (widget.initialCatalog != null) {
-      _catalog = widget.initialCatalog;
-    } else {
+    _catalog = widget.initialCatalog;
+    _temporalController = _createTemporalController()..start();
+    _temporalController.addListener(_handleTemporalChange);
+    if (widget.initialCatalog == null) {
       unawaited(_load());
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -184,24 +188,94 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   }
 
   @override
-  void didUpdateWidget(covariant FollowSkyDetailPage oldWidget) {
+  void didUpdateWidget(covariant FollowSkyDetailSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isJoined != oldWidget.isJoined && widget.isJoined != _carried) {
       _carried = widget.isJoined;
+      if (_carried) {
+        _temporalController.lockCarried(
+          persistedResolution: _temporalController.resolutionForCarry,
+        );
+      } else {
+        _temporalController.unlock();
+      }
+    }
+    if (widget.timezone != oldWidget.timezone ||
+        widget.now != oldWidget.now ||
+        widget.clock != oldWidget.clock ||
+        widget.presentDayIanaTimeZone != oldWidget.presentDayIanaTimeZone ||
+        widget.ianaTimeZoneProvider != oldWidget.ianaTimeZoneProvider ||
+        widget.temporalScheduler != oldWidget.temporalScheduler) {
+      _replaceTemporalController();
     }
   }
 
   @override
   void dispose() {
+    _temporalController.removeListener(_handleTemporalChange);
+    _temporalController.dispose();
     _exampleIntentionController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  TrackSkyTimeZone get _sharedTimezone =>
+      TrackSkyTimeZoneX.tryParse(widget.timezone.key) ??
+      TrackSkyTimeZone.pacific;
+
+  MaatFlowTemporalController _createTemporalController() {
+    return MaatFlowTemporalController(
+      ianaTimeZone:
+          widget.presentDayIanaTimeZone ??
+          MaatFlowDeviceTimeZone.currentIanaTimeZone,
+      ianaTimeZoneProvider:
+          widget.ianaTimeZoneProvider ??
+          (widget.presentDayIanaTimeZone == null
+              ? MaatFlowDeviceTimeZone.refresh
+              : () async => widget.presentDayIanaTimeZone!),
+      clock: () => widget.now ?? widget.clock?.call() ?? maatFlowSystemClock(),
+      scheduler: widget.temporalScheduler ?? scheduleMaatFlowTemporalCallback,
+      resolve: _resolveTemporal,
+      carried: _carried,
+    );
+  }
+
+  MaatFlowTemporalResolution? _resolveTemporal(
+    MaatFlowTemporalContext context,
+  ) {
+    final catalog = _catalog;
+    if (catalog == null) return null;
+    return const MaatFlowTemporalResolver().resolve(
+      kind: MaatFlowKind.trackSky,
+      context: context,
+      skyCatalog: catalog,
+      skyEnrollment: _enrollment,
+      scheduleTimeZone: _sharedTimezone,
+    );
+  }
+
+  void _replaceTemporalController() {
+    final old = _temporalController;
+    final wasCarried = old.isCarried;
+    final carriedResolution = old.resolutionForCarry;
+    old.removeListener(_handleTemporalChange);
+    old.dispose();
+    _temporalController = _createTemporalController();
+    if (wasCarried) {
+      _temporalController.lockCarried(persistedResolution: carriedResolution);
+    }
+    _temporalController.addListener(_handleTemporalChange);
+    _temporalController.start();
+  }
+
+  void _handleTemporalChange() {
+    if (mounted) setState(() {});
+  }
+
   void _setDraftIntentionForSkyNight(SkyObservingNight night, String value) {
     final nextValue = value.trim().isEmpty ? null : value;
     final currentValue = _draftIntentions[night.skyEventId];
-    final exampleNight = _firstEclipsePreview;
+    final exampleNight = _exampleNight;
     final nextExampleText = nextValue ?? '';
     final shouldSyncExample =
         exampleNight?.skyEventId == night.skyEventId &&
@@ -232,6 +306,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
         _catalog = catalog;
         _error = null;
       });
+      _temporalController.replaceResolver(_resolveTemporal);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e);
@@ -271,17 +346,23 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
 
   Future<void> _carry() async {
     if (_catalog == null || widget.onJoin == null || _joining) return;
+    final resolution = _temporalController.resolutionForCarry;
+    if (resolution == null) return;
     setState(() => _joining = true);
     try {
       final draft = _enrollment.buildJoinDraft(
         catalog: _catalog!,
+        eligibleNights: resolution.skyNights,
         ianaTimeZone: widget.timezone.ianaName,
         timezoneKey: widget.timezone.key,
         excludedSkyEventIds: Set<String>.from(_excludedSkyEventIds),
         intentionBySkyEventId: Map<String, String>.from(_draftIntentions),
       );
       await widget.onJoin!(draft);
-      if (mounted) setState(() => _carried = true);
+      if (mounted) {
+        setState(() => _carried = true);
+        _temporalController.lockCarried(persistedResolution: resolution);
+      }
     } finally {
       if (mounted) setState(() => _joining = false);
     }
@@ -332,35 +413,33 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
           )
         : _buildV11Body();
 
-    if (!widget.standalone) {
-      return Material(
-        color: FollowSkyV11Tokens.pageBg,
-        child: Stack(
-          children: [
-            body,
+    return Material(
+      key: const ValueKey<String>('follow-sky-detail-surface'),
+      color: FollowSkyV11Tokens.pageBg,
+      child: Stack(
+        children: [
+          body,
+          if (widget.onBack != null)
             Positioned(
               top: MediaQuery.paddingOf(context).top + 4,
               left: 4,
-              child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: FollowSkyV11Tokens.gold,
-                ),
-                onPressed: () => Navigator.of(context).maybePop(),
+              child: BackButton(
+                key: const ValueKey<String>('follow-sky-back'),
+                color: FollowSkyV11Tokens.gold,
+                onPressed: widget.onBack,
               ),
             ),
-          ],
-        ),
-      );
-    }
-
-    return Scaffold(backgroundColor: FollowSkyV11Tokens.pageBg, body: body);
+        ],
+      ),
+    );
   }
 
   Widget _buildV11Body() {
-    final windowStart = DateUtils.dateOnly(_now.toLocal());
-    final exampleMeaning = TurningMeaningResolver.approvedLunarEclipse;
-    final exampleNight = _firstEclipsePreview;
+    final windowStart = _temporalContext.presentLocalDate;
+    final exampleNight = _exampleNight;
+    final exampleMeaning = exampleNight == null
+        ? null
+        : _meaningResolver.forNight(exampleNight);
     final orderedUpcomingNights = _upcomingNights;
     final previewNights = orderedUpcomingNights
         .take(_expandedTurningCount)
@@ -389,16 +468,15 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
             excludedSkyEventIds: _excludedSkyEventIds,
             carried: _carried,
           ),
-          FollowSkyTurningExample(
-            meaning: exampleMeaning,
-            controller: _exampleIntentionController,
-            onEditingFocusChanged: _handleExampleIntentionEditingChanged,
-            onChanged: (text) {
-              if (exampleNight != null) {
-                _setDraftIntentionForSkyNight(exampleNight, text);
-              }
-            },
-          ),
+          if (exampleMeaning != null)
+            FollowSkyTurningExample(
+              meaning: exampleMeaning,
+              controller: _exampleIntentionController,
+              onEditingFocusChanged: _handleExampleIntentionEditingChanged,
+              onChanged: (text) {
+                _setDraftIntentionForSkyNight(exampleNight!, text);
+              },
+            ),
           FollowSkyPreviewCalendar(
             skyNights: previewNights,
             calendarRows: widget.calendarPreview.rows,

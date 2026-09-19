@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/moon_return_astronomy.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
@@ -235,27 +237,23 @@ void main() {
     expect(detail, contains('unless safety, access, or weather prevents it'));
   });
 
-  test('calendar UI and join branch enforce designated windows', () {
-    final detailSource = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
-    ).readAsStringSync();
-    final pageSource = File(
-      'lib/features/calendar/calendar_page.dart',
+  test('Moon Return is absorbed and cannot be newly discovered or joined', () {
+    final activeSource = File(
+      'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
     final joinSource = File(
       'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
 
-    expect(detailSource, contains('_pickMoonReturnWindowDate'));
-    expect(detailSource, contains('designated new-moon enrollment windows'));
-    expect(detailSource, contains('Add Flow'));
-    expect(pageSource, contains('_MaatFlowTemplateKind.moonReturn'));
-    expect(pageSource, contains('joinMoonReturnHeadless'));
+    final entry = maatFlowCatalogEntry(MaatFlowKind.moonReturn);
+    expect(entry.status, MaatFlowCatalogStatus.absorbed);
+    expect(entry.isDiscoverable, isFalse);
+    expect(entry.isJoinable, isFalse);
+    expect(entry.isCompatibilitySupported, isFalse);
+    expect(activeSource, isNot(contains('_pickMoonReturnWindowDate')));
+    expect(activeSource, isNot(contains('_buildMoonReturnScaffold')));
     expect(joinSource, contains('resolveMoonReturnEnrollmentWindowSafely'));
-    expect(pageSource, isNot(contains('moonReturnEnrollmentIsOpen')));
     expect(joinSource, contains('moonReturnClientEventId'));
-    expect(joinSource, contains('stagePlannedNotesAndDeferPersist('));
-    expect(pageSource, isNot(contains('kMoonReturnDays')));
   });
 }
 

@@ -187,16 +187,6 @@ EventResource? resolveEventResource(EventResourceSource source) {
   return null;
 }
 
-EventResource? resolveEventResourceForDashboard(String? location) {
-  return resolveEventResource(
-    EventResourceSource(
-      behaviorPayload: null,
-      detail: null,
-      location: location,
-    ),
-  );
-}
-
 bool eventResourceCameFromLocation(EventResourceSource source) {
   return resolveEventResource(
         EventResourceSource(

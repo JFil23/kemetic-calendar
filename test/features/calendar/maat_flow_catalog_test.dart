@@ -3,25 +3,28 @@ import 'package:mobile/features/calendar/maat_flow_catalog.dart';
 import 'package:mobile/features/calendar/maat_flow_identity.dart';
 
 void main() {
-  const approvedCoreKeys = <String>{
+  const approvedProductKeys = <String>{
     'track-the-sky',
-    'dawn-house-rite',
-    'evening-threshold-rite',
     'the-offering-table',
-    'the-weighing',
-    'the-kept-word',
     'the-djed',
-    'the-tending',
-    'the-first-arrangement',
-    'the-clearing',
     'the-reading-house',
-    'the-wag',
-    'the-days-outside-the-year',
+    'the-kar',
+  };
+  const archivedKinds = <MaatFlowKind>{
+    MaatFlowKind.dawnHouseRite,
+    MaatFlowKind.eveningThresholdRite,
+    MaatFlowKind.theWeighing,
+    MaatFlowKind.keptWord,
+    MaatFlowKind.theTending,
+    MaatFlowKind.firstArrangement,
+    MaatFlowKind.clearing,
+    MaatFlowKind.theWag,
+    MaatFlowKind.daysOutsideTheYear,
   };
 
-  test('all 33 historical identities have exactly one disposition', () {
-    expect(MaatFlowKind.values, hasLength(33));
-    expect(kMaatFlowCatalog, hasLength(33));
+  test('all 34 historical identities have exactly one disposition', () {
+    expect(MaatFlowKind.values, hasLength(34));
+    expect(kMaatFlowCatalog, hasLength(34));
     expect(kMaatFlowCatalog.keys.toSet(), MaatFlowKind.values.toSet());
 
     for (final kind in MaatFlowKind.values) {
@@ -30,59 +33,73 @@ void main() {
     }
   });
 
-  test('catalog exposes exactly the approved 13 core products', () {
-    expect(coreMaatFlowKinds, hasLength(13));
-    expect(coreMaatFlowKeys, approvedCoreKeys);
-    expect(coreMaatFlowKeys, hasLength(13));
-    expect(coreMaatFlowKeys.toSet(), hasLength(13));
+  test('catalog exposes exactly the five active products', () {
+    expect(discoverableMaatFlowKinds, hasLength(5));
+    expect(discoverableMaatFlowKeys, approvedProductKeys);
+    expect(coreMaatFlowKinds, hasLength(5));
+    expect(coreMaatFlowKeys, approvedProductKeys);
     expect(coreMaatFlowKinds.every(isCoreMaatFlowKind), isTrue);
     expect(coreMaatFlowKeys.every(isCoreMaatFlowKey), isTrue);
+    expect(approvedProductKeys.every(isMaatFlowNewJoinAllowed), isTrue);
+  });
+
+  test('catalog separates five core products from nine archived products', () {
+    final counts = <MaatFlowCatalogStatus, int>{};
+    for (final entry in kMaatFlowCatalog.values) {
+      counts.update(entry.status, (count) => count + 1, ifAbsent: () => 1);
+    }
+
+    expect(counts, <MaatFlowCatalogStatus, int>{
+      MaatFlowCatalogStatus.core: 5,
+      MaatFlowCatalogStatus.archived: 9,
+      MaatFlowCatalogStatus.absorbed: 14,
+      MaatFlowCatalogStatus.retired: 5,
+      MaatFlowCatalogStatus.legacy: 1,
+    });
+    expect(
+      kMaatFlowCatalog.values
+          .where((entry) => entry.status != MaatFlowCatalogStatus.core)
+          .every((entry) => !entry.isJoinable),
+      isTrue,
+    );
   });
 
   test(
-    'catalog status totals are 13 core, 14 absorbed, 5 retired, 1 legacy',
+    'all nine archived identities resolve but remain compatibility-only',
     () {
-      final counts = <MaatFlowCatalogStatus, int>{};
-      for (final entry in kMaatFlowCatalog.values) {
-        counts.update(entry.status, (count) => count + 1, ifAbsent: () => 1);
+      expect(kArchivedCompatibilityMaatFlowKinds, archivedKinds);
+      for (final kind in archivedKinds) {
+        expect(
+          resolveMaatFlowKind(
+            behaviorPayload: <String, dynamic>{'flow_key': kind.flowKey},
+          ),
+          kind,
+          reason: kind.flowKey,
+        );
+        expect(
+          maatFlowCatalogEntry(kind).status,
+          MaatFlowCatalogStatus.archived,
+        );
+        expect(isMaatFlowCompatibilitySupported(kind.flowKey), isTrue);
+        expect(isMaatFlowDiscoverable(kind.flowKey), isFalse);
+        expect(isMaatFlowNewJoinAllowed(kind.flowKey), isFalse);
       }
-
-      expect(counts, <MaatFlowCatalogStatus, int>{
-        MaatFlowCatalogStatus.core: 13,
-        MaatFlowCatalogStatus.absorbed: 14,
-        MaatFlowCatalogStatus.retired: 5,
-        MaatFlowCatalogStatus.legacy: 1,
-      });
-      expect(
-        kMaatFlowCatalog.values
-            .where((entry) => entry.status != MaatFlowCatalogStatus.core)
-            .every((entry) => !entry.isJoinable),
-        isTrue,
-      );
     },
   );
 
-  test('core taxonomy verbs are complete and unique', () {
+  test('active product taxonomy verbs are complete and unique', () {
     final verbs = coreMaatFlowKinds
         .map((kind) => maatFlowCatalogEntry(kind).verb)
         .toList(growable: false);
 
     expect(verbs, everyElement(isNotNull));
-    expect(verbs.toSet(), hasLength(13));
+    expect(verbs.toSet(), hasLength(5));
     expect(verbs.toSet(), <String?>{
       'ORIENT',
-      'BEGIN',
-      'CLOSE',
       'NOURISH',
-      'CORRECT',
-      'KEEP',
       'STABILIZE',
-      'CARE',
-      'ORDER',
-      'CLEAR',
       'STUDY',
-      'REMEMBER',
-      'RENEW',
+      'IMAGINE',
     });
   });
 
@@ -136,12 +153,12 @@ void main() {
   });
 
   test(
-    'new-join gate rejects all 20 non-core kinds before side effects',
+    'new-join gate rejects all 29 non-product kinds before side effects',
     () async {
       final nonCoreKinds = MaatFlowKind.values
           .where((kind) => !isCoreMaatFlowKind(kind))
           .toList(growable: false);
-      expect(nonCoreKinds, hasLength(20));
+      expect(nonCoreKinds, hasLength(29));
 
       for (final kind in nonCoreKinds) {
         var flowWrites = 0;

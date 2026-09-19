@@ -74,7 +74,7 @@ void main() {
 
   test("Ma'at flow list helper uses the Flow Studio Add Flow ID", () {
     final source = _between(
-      _read('lib/features/calendar/calendar_maat_flows.dart'),
+      _read('lib/features/calendar/calendar_active_maat_flows.dart'),
       'Future<void> _maybeShowFlowStudioAddFlowHelper',
       '  Future<void> _markFlowStudioHelperCompleted',
     );
@@ -235,7 +235,7 @@ void main() {
   test('all visible helper bubbles provide registered helper IDs', () {
     final sources = [
       _read('lib/features/calendar/calendar_flow_pages.dart'),
-      _read('lib/features/calendar/calendar_maat_flows.dart'),
+      _read('lib/features/calendar/calendar_active_maat_flows.dart'),
       _read('lib/features/calendar/calendar_page.dart'),
       _read('lib/features/journal/journal_page.dart'),
       _read('lib/features/settings/settings_page.dart'),

@@ -77,27 +77,31 @@ void main() {
 
       final initialRoutesSection = source.substring(rootEnd, routeStart);
       expect(initialRoutesSection, contains('VoidCallback? onReturnToHub'));
-      expect(initialRoutesSection, contains('hubRoute(), listRoute'));
-      expect(initialRoutesSection, contains('initialTemplate: template'));
+      expect(
+        initialRoutesSection,
+        contains('return <Route<dynamic>>[hubRoute(), listRoute];'),
+      );
+      expect(initialRoutesSection, contains('MaterialPageRoute<int?>'));
+      expect(initialRoutesSection, contains('initialTemplateKey:'));
       expect(initialRoutesSection, isNot(contains('detailRoute')));
     },
   );
 
   test(
-    'successful Ma at join cannot persist stale list state after owner closes',
+    'successful Ma at join keeps detail inline and closes only the owner sheet',
     () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsStringSync();
-      final reveal = _sourceBetween(
+      final routePush = _sourceBetween(
         source,
-        'Future<T?> _revealFlowStudioDetail<T>(',
+        'Future<T?> _pushFlowStudioRoute<T>(',
         'Future<_FlowStudioResult?> _pushFlowStudioEditor(',
       );
-      final detailPush = _sourceBetween(
+      final inlineDetail = _sourceBetween(
         source,
-        'Future<int?> _pushMaatFlowTemplateDetail(',
-        'Map<String, Object?> _calendarSheetTraceState(',
+        'Widget _buildMaatFlowsListPage(',
+        'Widget _buildFlowStudioHubPage(',
       );
       final completion = _sourceBetween(
         source,
@@ -105,16 +109,18 @@ void main() {
         '_Note? _firstFlowTargetNoteForDay(',
       );
 
-      expect(reveal, contains('NavigatorState navigator'));
-      expect(reveal, contains('navigator.mounted'));
+      expect(routePush, contains('NavigatorState navigator'));
+      expect(routePush, contains('navigator.mounted'));
       expect(
-        reveal.indexOf('navigator.mounted'),
-        lessThan(reveal.lastIndexOf('returnState,')),
+        routePush.indexOf('navigator.mounted'),
+        lessThan(routePush.lastIndexOf('returnState,')),
       );
-      expect(
-        detailPush,
-        contains('_revealFlowStudioDetail<int?>(\n      navigator,'),
-      );
+      expect(inlineDetail, contains('initialTemplateKey: initialTemplateKey'));
+      expect(inlineDetail, contains('detailBuilder:'));
+      expect(inlineDetail, contains('_buildMaatFlowDetailSurface('));
+      expect(inlineDetail, contains('onSelectedTemplateChanged:'));
+      expect(source, isNot(contains('_pushMaatFlowTemplateDetail')));
+      expect(source, isNot(contains('_maatFlowDetailSheetRoute')));
       expect(completion, contains('rootNavigator.pop();'));
       expect(completion, contains('_schedulePendingStagedFlowDayViewIfAny();'));
       expect(

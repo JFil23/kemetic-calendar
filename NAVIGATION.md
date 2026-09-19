@@ -220,6 +220,9 @@ Documented gesture systems:
   detail surface.
 - `PinchGestureSurface` is a two-finger scale surface and is not swipe
   navigation.
+- Kꜣr Day View uses local tap hit regions to begin the shrine walk and dismiss
+  its capture editor scrim. They do not claim an edge swipe or navigate between
+  routes.
 
 There is no active Journal page-level swipe navigation. Do not reintroduce one
 without a documented exception and tests.

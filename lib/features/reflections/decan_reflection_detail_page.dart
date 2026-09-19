@@ -263,12 +263,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         SnackBar(
           content: const Text('Select a phrase first.'),
           behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            MediaQuery.of(context).viewInsets.bottom + 120,
-          ),
+          margin: EdgeInsets.fromLTRB(16, 0, 16, 120),
           duration: const Duration(seconds: 2),
         ),
       );

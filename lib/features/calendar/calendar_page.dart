@@ -108,7 +108,6 @@ import '../../shared/date_picker/stone_register_date_picker.dart'
 import '../../widgets/flow_start_date_picker.dart';
 import '../../widgets/day_sheet_components.dart';
 import '../../widgets/event_create_date_picker.dart';
-import '../../widgets/maat_flow_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart' show showGregorianDatePicker;
 import '../../widgets/kemetic_date_picker.dart' show showKemeticDatePicker;
 import '../../widgets/recurrence_until_date_picker.dart';
@@ -146,40 +145,38 @@ import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_palette.dart';
 import 'maat_flow_visual_tokens.dart';
-import 'maat_flow_interactive_primitives.dart';
+import 'presentation/flow_studio_modal_sheet_host.dart';
+import 'presentation/maat_flow_discovery_view.dart';
+import 'presentation/maat_flow_detail_shell.dart';
 import 'maat_flow_response_journal_blocks.dart';
-import 'maat_flow_response_models.dart';
-import 'maat_flow_response_resolver.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_catalog.dart';
+import 'maat_flow_temporal_policy.dart';
+import 'maat_flow_temporal_resolver.dart';
+import 'maat_flow_temporal_controller.dart';
 import 'track_sky_flow.dart';
 import 'follow_the_sky/follow_the_sky.dart';
-import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_flow.dart';
-import 'evening_threshold_rite_flow.dart';
-import 'the_weighing_flow.dart';
 import 'the_offering_table_flow.dart';
 import 'the_offering_table/presentation/offering_table_detail_page.dart';
-import 'the_tending_flow.dart';
-import 'the_kept_word_flow.dart';
 import 'the_course_flow.dart';
 import 'the_course_context.dart';
 import 'moon_return_flow.dart';
 import 'moon_return_astronomy.dart';
-import 'the_wag_flow.dart';
-import 'the_wag_scheduler.dart';
-import 'the_wag_enrollment.dart';
 import 'the_decan_watch_flow.dart';
 import 'the_decan_watch_scheduler.dart';
 import 'the_decan_watch_enrollment.dart';
-import 'the_days_outside_year_flow.dart';
-import 'the_days_outside_year_scheduler.dart';
-import 'the_days_outside_year_enrollment.dart';
 import 'the_open_hand_flow.dart';
 import 'the_open_hand_enrollment.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_enrollment.dart';
+import 'the_djed_v2_flow.dart';
+import 'the_djed/presentation/djed_detail_page.dart';
+import 'presentation/archived_maat_flow_detail_view.dart';
 import 'the_reading_house_flow.dart';
+import 'the_reading_house/reading_house_authority.dart';
+import 'the_reading_house/presentation/reading_house_detail_page.dart';
+import 'the_kar/the_kar.dart';
 import 'maat_decan_flow.dart';
 import '../settings/settings_prefs.dart';
 import '../calendars/shared_calendars_sheet.dart';
@@ -212,7 +209,7 @@ part 'calendar_grid_widgets.dart';
 part 'calendar_month_detail.dart';
 part 'calendar_flow_studio_page.dart';
 part 'calendar_flow_pages.dart';
-part 'calendar_maat_flows.dart';
+part 'calendar_active_maat_flows.dart';
 part 'reading_house_authoring_page.dart';
 part 'my_flow_card_spec.dart';
 part 'my_flow_maat_badge.dart';
@@ -228,6 +225,12 @@ part 'hydration/calendar_hydration_engine.dart';
 part 'snapshot/calendar_snapshot_page_adapter.dart';
 part 'snapshot/calendar_presentation_page_adapter.dart';
 part 'quick_add_parser.dart';
+
+@visibleForTesting
+bool maatFlowDetailUsesCalendarPreview(String templateKey) =>
+    templateKey == kOfferingTableFlowKey ||
+    templateKey == kTheDjedFlowKey ||
+    templateKey == kKarFlowKey;
 
 class _MountedFlowEndPatch {
   const _MountedFlowEndPatch({
@@ -440,8 +443,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   @override
   Widget build(BuildContext context) {
     final tone = _FlowStudioTone.resolve(_selectedColor);
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    return KeyboardAwareEditableSurface(
       child: AnimatedContainer(
         key: const ValueKey('quick-add-sheet-surface'),
         duration: const Duration(milliseconds: 180),
@@ -579,7 +581,6 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                   TextField(
                     key: const ValueKey('quick-add-input'),
                     controller: _textCtrl,
-                    scrollPadding: keyboardManagedTextFieldScrollPadding,
                     autofocus: false,
                     focusNode: _focusNode,
                     cursorColor: _selectedColor,
@@ -982,18 +983,6 @@ const Color _gold = KemeticGold.base;
 const Color _cardBorderGold = _gold;
 
 // Gradients are now imported from shared/glossy_text.dart
-const Gradient _maatBadgeGoldGloss = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [
-    Color(0xFFFFF1BF),
-    Color(0xFFF2CF63),
-    Color(0xFFFFF8D9),
-    Color(0xFFF4D97A),
-  ],
-  stops: [0.0, 0.34, 0.62, 1.0],
-);
-
 // Base text styles (color overridden to white inside gloss wrappers)
 const TextStyle _titleGold = TextStyle(
   fontSize: 22,
@@ -3612,67 +3601,32 @@ class _MaatFlowDay {
 enum _MaatFlowTemplateKind {
   sequence,
   trackSky,
-  dawnHouseRite,
   eveningThreshold,
-  eveningThresholdRite,
-  theWeighing,
   offeringTable,
-  theTending,
-  keptWord,
   theCourse,
   moonReturn,
-  theWag,
   decanWatch,
-  daysOutsideTheYear,
   theOpenHand,
   theDjed,
   readingHouse,
+  theKar,
   maatDecan,
 }
 
 enum _MaatFlowLibraryCategory { dailyRhythm, innerWork, livingInMaat }
 
-extension _MaatFlowLibraryCategoryLabel on _MaatFlowLibraryCategory {
-  String get label => switch (this) {
-    _MaatFlowLibraryCategory.dailyRhythm => 'DAILY RHYTHM',
-    _MaatFlowLibraryCategory.innerWork => 'INNER WORK',
-    _MaatFlowLibraryCategory.livingInMaat => "LIVING IN MA'AT",
-  };
-}
-
-const List<_MaatFlowLibraryCategory> _kMaatFlowLibraryCategories =
-    <_MaatFlowLibraryCategory>[
-      _MaatFlowLibraryCategory.dailyRhythm,
-      _MaatFlowLibraryCategory.innerWork,
-      _MaatFlowLibraryCategory.livingInMaat,
-    ];
-
 const String _kTrackSkyBadgeText =
     'In Kemet, the priests watched the sky to keep the calendar true, to read the coming of the flood, and to set the festivals in their seasons. The sky was the first clock and the first scripture - order written overhead for anyone who learned to read it.';
-const String _kDawnHouseRiteBadgeText =
-    "In Kemet, the priest entered the temple before sunrise, broke the seal on the shrine, and washed the god's image as the first light arrived. Dawn was not the start of work - it was the daily remaking of the world, and someone had to be awake to meet it.";
 const String _kEveningThresholdBadgeText =
     'In Kemet, every temple gate had a keeper, and nothing crossed without being named. The threshold was a real boundary, not a doorway - what passed through it passed by choice. What was left at the gate stayed at the gate.';
-const String _kClosingBadgeText =
-    'In Kemet, sunset was not an ending but a departure. Ra boarded the night barque and began the dangerous passage through the twelve hours of darkness. The living closed their work, cooled the day, and let it go - because what is not set down cannot rest.';
-const String _kWeighingBadgeText =
-    "In Kemet, the heart was set on a scale against the feather of Ma'at, and Djehuty recorded what the balance showed. The scale did not condemn - it measured. A heart heavy with falsehood was simply a heart that did not match the truth.";
 const String _kOfferingTableBadgeText =
     'In Kemet, the offering table was laid with water before bread, every single day, whether or not anyone felt moved to lay it. Provision was not gratitude - it was maintenance. What sustains life is fed first, and fed always.';
-const String _kTendingBadgeText =
-    'In Kemet, Aset gathered the scattered pieces of Ausar and Heru stood to restore the order that had collapsed. Care was never a warm feeling - it was specific labor, done for the vulnerable, whether or not it was easy. The gathering came before the standing.';
-const String _kKeptWordBadgeText =
-    'In Kemet, order in the kingdom began inside the palace walls. "The front of the house determines the back" - what was spoken truly in the closest relationships held everything further out together. You cannot keep order in the world while breaking it at home.';
 const String _kCourseBadgeText =
     "In Kemet, a person stood inside three clocks at once: the sun's daily arc, the ten-day decan, and the turning season. To know the hour was not enough - you had to know what kind of time it was, and what that time was asking of you.";
 const String _kMoonReturnBadgeText =
     'In Kemet, the moon was the Eye of Heru - wounded by Set, torn into pieces, and restored to wholeness by Djehuty across the month. The dark moon was not absence. It was the eye mid-healing, on its way back to full.';
-const String _kWagBadgeText =
-    'In Kemet, the Wag festival set water and bread before the blessed dead and spoke their names aloud. A name unspoken was a death deeper than the first. The living kept the dead alive by remembering them out loud - and trusted to be remembered in turn.';
 const String _kDecanWatchBadgeText =
     'In Kemet, thirty-six star groups rose in turn through the night, each marking the passage of ten days. And above them stood the Imperishable Stars, which never set - the fixed point against which all time was measured. To watch them was to add your own count to a count older than memory.';
-const String _kDaysOutsideYearBadgeText =
-    'In Kemet, five days belonged to no month and no season - the births of Ausar, Heru, Set, Aset, and Nebet-Het, when ordinary time was suspended. You crossed the gap carrying nothing finished, and stepped into the new year remade.';
 const String _kOpenHandBadgeText =
     'In Kemet, the just person recorded specific gifts on the tomb wall as proof of a life in Ma\'at: bread to the hungry, water to the thirsty, clothing to the naked, a boat to the one stranded on the shore. Generosity was not a sentiment. It was a list of things actually given.';
 const String _kDjedBadgeText =
@@ -3695,16 +3649,12 @@ const String _kShoreBadgeText =
     'In Kemet, honest trade was weighed on a true scale, and Djehuty\'s ape sat beside the balance as its heart. "The measure is the eye of Ra." Goods gained by a tilted scale turned to lead by morning - what is taken dishonestly never truly stays.';
 const String _kAutobiographyBadgeText =
     'In Kemet, a life was carved on the tomb wall for the living who passed by to read - not boasts, but a reckoning: what I built, what I gave, what I stood for. The account had to be honest, because the same deeds would be weighed on the scale. A life set down plainly is a life that endures.';
-const String _kFirstArrangementBadgeText =
-    'In Kemet, creation itself was Zep Tepi - the First Occasion, when the gods set each thing in its proper place and order rose out of the waters. To order a space is to repeat that first act in miniature: not to add, but to put what exists where it belongs.';
 const String _kLivingPatternBadgeText =
     'In Kemet, the deepest principles were read from the natural world - the flood that gave and withdrew, the jackal at the desert\'s edge, the star that vanished and returned. Nature was a text written by the gods, and patient watching, not invention, was how you read it.';
 const String _kTrueNameBadgeText =
     "In Kemet, the ren - the true name - was one of the real parts of a person, as real as the body. To know a thing's accurate name was to know its nature; Aset gained power over Ra by learning the name he had hidden. The account others gave you is not always the name the scale shows.";
 const String _kLivingTextBadgeText =
     "In Kemet, a scribe's note in the margin could be carried into the next copy, and the next - a reader's insight becoming part of the text itself. The writing was never finished. Each careful reader added to a thing that had been growing for generations.";
-const String _kClearingBadgeText =
-    'In Kemet, the temperate person was likened to a tree grown in open sun - fruitful, shading others, ending its days in a grove. The hot-headed person was a tree in an enclosure, stripped of its leaves in a single moment. The difference was not temperament. It was where the heat could reach.';
 const String _kWanderingBadgeText =
     'In Kemet, when Ausar was lost, Aset and Nebet-Het searched the length of the land, lamenting as they went, until they found him. Grief was given a shape and a journey. The searching was not weakness - it was the work, and "I found" was the cry at the end of it.';
 const String _kKhatBadgeText =
@@ -3777,20 +3727,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     kind: _MaatFlowTemplateKind.trackSky,
   ),
   _MaatFlowTemplate(
-    key: kDawnHouseRiteFlowKey,
-    title: kDawnHouseRiteTitle,
-    overview: kDawnHouseRiteOverview,
-    subtitle: 'Daily · Water, light, and one right act at dawn',
-    historicalBadgeText: _kDawnHouseRiteBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
-    glyph: '𓉐',
-    glyphMeaning: 'House',
-    glyphSourceWord: 'pr',
-    glyphType: 'ideogram',
-    color: const Color(0xFFEFA25C),
-    kind: _MaatFlowTemplateKind.dawnHouseRite,
-  ),
-  _MaatFlowTemplate(
     key: kEveningThresholdFlowKey,
     title: kEveningThresholdTitle,
     overview: kEveningThresholdOverview,
@@ -3803,34 +3739,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphType: 'composite',
     color: const Color(0xFFC2673F),
     kind: _MaatFlowTemplateKind.eveningThreshold,
-  ),
-  _MaatFlowTemplate(
-    key: kEveningThresholdRiteFlowKey,
-    title: kEveningThresholdRiteTitle,
-    overview: kEveningThresholdRiteOverview,
-    subtitle: 'Daily · Close the visible day before the night begins',
-    historicalBadgeText: _kClosingBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
-    glyph: '𓊌',
-    glyphMeaning: 'Boundary or threshold',
-    glyphSourceWord: 'ist',
-    glyphType: 'ideogram',
-    color: const Color(0xFF6F58D9),
-    kind: _MaatFlowTemplateKind.eveningThresholdRite,
-  ),
-  _MaatFlowTemplate(
-    key: kTheWeighingFlowKey,
-    title: kTheWeighingTitle,
-    overview: kTheWeighingOverview,
-    subtitle: 'Reckoning · Put material and spoken records on the scale',
-    historicalBadgeText: _kWeighingBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.innerWork,
-    glyph: kTheWeighingGlyph,
-    glyphMeaning: 'Balance and weighing',
-    glyphSourceWord: 'iwsw',
-    glyphType: 'ideogram',
-    color: const Color(0xFFB8A88A),
-    kind: _MaatFlowTemplateKind.theWeighing,
   ),
   _MaatFlowTemplate(
     key: kOfferingTableFlowKey,
@@ -3846,34 +3754,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphType: 'ideogram',
     color: const Color(0xFFC08A52),
     kind: _MaatFlowTemplateKind.offeringTable,
-  ),
-  _MaatFlowTemplate(
-    key: kTheTendingFlowKey,
-    title: kTheTendingTitle,
-    overview: kTheTendingOverview,
-    subtitle: 'Care · Find who needs you and do the labor',
-    historicalBadgeText: _kTendingBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
-    glyph: kTheTendingGlyph,
-    glyphMeaning: 'Field and tending',
-    glyphSourceWord: 'sekhet',
-    glyphType: 'determinative',
-    color: const Color(0xFF7A6B9E),
-    kind: _MaatFlowTemplateKind.theTending,
-  ),
-  _MaatFlowTemplate(
-    key: kKeptWordFlowKey,
-    title: kKeptWordTitle,
-    overview: kKeptWordOverview,
-    subtitle: 'Speech · Name broken agreements and restore right order',
-    historicalBadgeText: _kKeptWordBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
-    glyph: kKeptWordGlyph,
-    glyphMeaning: 'Mouth and speech',
-    glyphSourceWord: 'r',
-    glyphType: 'ideogram',
-    color: const Color(0xFF8B7355),
-    kind: _MaatFlowTemplateKind.keptWord,
   ),
   _MaatFlowTemplate(
     key: kTheCourseFlowKey,
@@ -3904,20 +3784,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     kind: _MaatFlowTemplateKind.moonReturn,
   ),
   _MaatFlowTemplate(
-    key: kTheWagFlowKey,
-    title: kTheWagTitle,
-    overview: kTheWagOverview,
-    subtitle: 'Ancestors · Name the dead, set the table, hold the feast',
-    historicalBadgeText: _kWagBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
-    glyph: kTheWagGlyph,
-    glyphMeaning: 'Bark and procession',
-    glyphSourceWord: 'wia',
-    glyphType: 'ideogram',
-    color: const Color(0xFF9C6B4E),
-    kind: _MaatFlowTemplateKind.theWag,
-  ),
-  _MaatFlowTemplate(
     key: kDecanWatchFlowKey,
     title: kDecanWatchTitle,
     overview: kDecanWatchOverview,
@@ -3930,20 +3796,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphType: 'ideogram',
     color: const Color(0xFF2F4A75),
     kind: _MaatFlowTemplateKind.decanWatch,
-  ),
-  _MaatFlowTemplate(
-    key: kDaysOutsideTheYearFlowKey,
-    title: kDaysOutsideTheYearTitle,
-    overview: kDaysOutsideTheYearOverview,
-    subtitle: 'Threshold · Five births before the year opens',
-    historicalBadgeText: _kDaysOutsideYearBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
-    glyph: kDaysOutsideTheYearGlyph,
-    glyphMeaning: 'Year',
-    glyphSourceWord: 'rnpt',
-    glyphType: 'ideogram',
-    color: const Color(0xFF6A5A86),
-    kind: _MaatFlowTemplateKind.daysOutsideTheYear,
   ),
   _MaatFlowTemplate(
     key: kTheOpenHandFlowKey,
@@ -3986,6 +3838,20 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphType: 'ideogram',
     color: const Color(0xFF4FA58D),
     kind: _MaatFlowTemplateKind.readingHouse,
+  ),
+  _MaatFlowTemplate(
+    key: kKarFlowKey,
+    title: kKarTitle,
+    overview: kKarOverview,
+    subtitle: 'Imagination · Five scenes, thirty days, one returning walk',
+    historicalBadgeText: kKarHistoricalBadgeText,
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
+    glyph: kKarGlyph,
+    glyphMeaning: 'Shrine',
+    glyphSourceWord: 'kꜣr',
+    glyphType: 'ideogram',
+    color: const Color(0xFF91B7C7),
+    kind: _MaatFlowTemplateKind.theKar,
   ),
   _MaatFlowTemplate(
     key: kFairHearingFlowKey,
@@ -4115,20 +3981,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     kind: _MaatFlowTemplateKind.maatDecan,
   ),
   _MaatFlowTemplate(
-    key: kFirstArrangementFlowKey,
-    title: kFirstArrangementTitle,
-    overview: kFirstArrangementOverview,
-    subtitle: 'Space · See what is there and order it from the first occasion',
-    historicalBadgeText: _kFirstArrangementBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
-    glyph: kFirstArrangementGlyph,
-    glyphMeaning: 'Ordered land or ground',
-    glyphSourceWord: 'tA',
-    glyphType: 'determinative',
-    color: const Color(0xFF6E8E68),
-    kind: _MaatFlowTemplateKind.maatDecan,
-  ),
-  _MaatFlowTemplate(
     key: kLivingPatternFlowKey,
     title: kLivingPatternTitle,
     overview: kLivingPatternOverview,
@@ -4169,21 +4021,6 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphSourceWord: 'sS anx',
     glyphType: 'compound',
     color: const Color(0xFF6F7F99),
-    kind: _MaatFlowTemplateKind.maatDecan,
-  ),
-  _MaatFlowTemplate(
-    key: kClearingFlowKey,
-    title: kClearingTitle,
-    overview: kClearingOverview,
-    subtitle:
-        'Stillness · Find the heat-driven pattern. Create space before response.',
-    historicalBadgeText: _kClearingBadgeText,
-    libraryCategory: _MaatFlowLibraryCategory.innerWork,
-    glyph: kClearingGlyph,
-    glyphMeaning: 'Water and cleansing',
-    glyphSourceWord: 'n',
-    glyphType: 'determinative',
-    color: const Color(0xFF8FA76B),
     kind: _MaatFlowTemplateKind.maatDecan,
   ),
   _MaatFlowTemplate(
@@ -4234,7 +4071,9 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
 
 final List<_MaatFlowTemplate> _kCoreMaatFlowTemplates =
     List<_MaatFlowTemplate>.unmodifiable(
-      _kMaatFlowTemplates.where((template) => isCoreMaatFlowKey(template.key)),
+      _kMaatFlowTemplates.where(
+        (template) => isMaatFlowDiscoverable(template.key),
+      ),
     );
 
 /* ─────────────────────────── CALENDAR PAGE (flows + notes) ─────────────────────────── */
@@ -5204,6 +5043,12 @@ class CalendarPage extends StatefulWidget {
     required String name,
     String? notes,
     List<dynamic> eventsJson = const <dynamic>[],
+    String backFallbackLocation = kMaatFlowsListRoute,
+    MaatFlowDetailRelation relation = MaatFlowDetailRelation.catalogPreview,
+    int? intendedFlowId,
+    DateTime? intendedStart,
+    DateTime? intendedEnd,
+    FollowSkyCalendarPreview? calendarPreview,
   }) {
     final templateKey = _canonicalMaatTemplateKeyForSnapshot(
       name: name,
@@ -5212,15 +5057,199 @@ class CalendarPage extends StatefulWidget {
     );
     if (templateKey == null) return null;
 
-    for (final template in _kMaatFlowTemplates) {
+    final kind = resolveMaatFlowKind(
+      behaviorPayload: <String, dynamic>{'flow_key': templateKey},
+    );
+    if (kind != null && kArchivedCompatibilityMaatFlowKinds.contains(kind)) {
+      return Builder(
+        builder: (context) => ArchivedMaatFlowDetailView(
+          fixture: _archivedMaatFlowFixtureFromSnapshot(
+            kind: kind,
+            name: name,
+            eventsJson: eventsJson,
+          ),
+          onBack: () => popMaatFlowDetailOrGo(
+            context,
+            fallbackLocation: backFallbackLocation,
+          ),
+        ),
+      );
+    }
+
+    for (final template in _kCoreMaatFlowTemplates) {
       if (template.key != templateKey) continue;
-      return _MaatFlowTemplateDetailPage(
-        template: template,
-        addInstance: _addMaatFlowInstanceHeadless,
+      final intended = intendedFlowId == null
+          ? null
+          : _Flow(
+              id: intendedFlowId,
+              name: name,
+              color: template.color,
+              active: true,
+              rules: const <FlowRule>[],
+              start: intendedStart,
+              end: intendedEnd,
+              notes: notes,
+            );
+      FollowSkyCalendarPreview? resolvedCalendar = calendarPreview;
+      final sky =
+          template.key == 'track-the-sky' &&
+              relation != MaatFlowDetailRelation.invited
+          ? _mountedState?._followSkyLiveInputs()
+          : null;
+      if (resolvedCalendar == null &&
+          relation != MaatFlowDetailRelation.invited) {
+        resolvedCalendar = template.key == 'track-the-sky'
+            ? sky?.preview
+            : maatFlowDetailUsesCalendarPreview(template.key)
+            ? _mountedState?._maatFlowCalendarPreview()
+            : null;
+      }
+      return Builder(
+        builder: (context) => _ActiveMaatFlowDetailSurface.fromComposition(
+          composition: resolveMaatFlowDetailComposition(
+            template: template,
+            relation: relation,
+            intendedInstance: intended,
+            calendar: resolvedCalendar,
+            followSkyCandidates: sky?.candidates ?? const [],
+            followSkyMeasurementIntervals: sky?.intervals ?? const [],
+          ),
+          addInstance: _addMaatFlowInstanceHeadless,
+          onPersisted: (_) => _refreshDetachedReadingHouseTimeline(),
+          onBack: () => popMaatFlowDetailOrGo(
+            context,
+            fallbackLocation: backFallbackLocation,
+          ),
+        ),
       );
     }
     return null;
   }
+
+  static ArchivedMaatFlowFixture _archivedMaatFlowFixtureFromSnapshot({
+    required MaatFlowKind kind,
+    required String name,
+    required List<dynamic> eventsJson,
+    bool ended = false,
+  }) {
+    final decoded = <({DateTime? date, String title, String status})>[];
+    final responses = <ArchivedMaatFlowResponseFixture>[];
+    for (final raw in eventsJson) {
+      if (raw is! Map) continue;
+      final event = Map<String, dynamic>.from(raw);
+      final date =
+          _dateOnlyFromSnapshot(event['date']) ??
+          _dateOnlyFromSnapshot(event['start_date']) ??
+          _dateOnlyFromSnapshot(event['starts_at_utc']);
+      final title = event['title']?.toString().trim();
+      final payload = event['behavior_payload'] is Map
+          ? Map<String, dynamic>.from(event['behavior_payload'] as Map)
+          : const <String, dynamic>{};
+      final status =
+          event['completion_status']?.toString().trim() ??
+          payload['completion_status']?.toString().trim() ??
+          'Preserved';
+      decoded.add((
+        date: date,
+        title: title?.isNotEmpty == true ? title! : name,
+        status: status.isEmpty ? 'Preserved' : status,
+      ));
+      final rawResponses =
+          event['responses'] ??
+          payload['responses'] ??
+          payload['response_values'];
+      if (rawResponses is Map) {
+        for (final entry in rawResponses.entries) {
+          final response = entry.value?.toString().trim() ?? '';
+          if (response.isEmpty) continue;
+          responses.add(
+            ArchivedMaatFlowResponseFixture(
+              prompt: entry.key.toString(),
+              response: response,
+            ),
+          );
+        }
+      }
+    }
+    decoded.sort((a, b) {
+      final aDate = a.date;
+      final bDate = b.date;
+      if (aDate == null && bDate == null) return 0;
+      if (aDate == null) return 1;
+      if (bDate == null) return -1;
+      return aDate.compareTo(bDate);
+    });
+    final dated = decoded.where((entry) => entry.date != null).toList();
+    final dateRange = dated.isEmpty
+        ? 'Original dates preserved'
+        : dated.length == 1
+        ? _formatArchivedFlowDate(dated.first.date!)
+        : '${_formatArchivedFlowDate(dated.first.date!)}–${_formatArchivedFlowDate(dated.last.date!)}';
+    return ArchivedMaatFlowFixture(
+      flowKey: kind.flowKey,
+      title: name.trim().isEmpty ? _archivedMaatFlowTitle(kind) : name.trim(),
+      glyph: _archivedMaatFlowGlyph(kind),
+      dateRange: dateRange,
+      events: <ArchivedMaatFlowEventFixture>[
+        for (final entry in decoded)
+          ArchivedMaatFlowEventFixture(
+            dateLabel: entry.date == null
+                ? 'DATE PRESERVED'
+                : _formatArchivedFlowDate(entry.date!).toUpperCase(),
+            title: entry.title,
+            status: entry.status,
+          ),
+      ],
+      responses: responses,
+      ended: ended,
+    );
+  }
+
+  static ArchivedMaatFlowFixture _archivedMaatFlowFixtureFromRows({
+    required MaatFlowKind kind,
+    required _Flow flow,
+    required List<FlowEventRow> events,
+  }) {
+    return _archivedMaatFlowFixtureFromSnapshot(
+      kind: kind,
+      name: flow.name,
+      ended: !flow.active,
+      eventsJson: <Map<String, dynamic>>[
+        for (final event in events)
+          <String, dynamic>{
+            'title': event.title,
+            'starts_at_utc': event.startsAtUtc.toIso8601String(),
+            'action_id': event.actionId,
+            if (event.behaviorPayload != null)
+              'behavior_payload': event.behaviorPayload,
+          },
+      ],
+    );
+  }
+
+  static String _formatArchivedFlowDate(DateTime date) {
+    const months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  static String _archivedMaatFlowTitle(MaatFlowKind kind) =>
+      archivedMaatFlowTitle(kind);
+
+  static String _archivedMaatFlowGlyph(MaatFlowKind kind) =>
+      archivedMaatFlowGlyph(kind);
 
   static String? _canonicalMaatTemplateKeyForSnapshot({
     required String name,
@@ -5921,10 +5950,9 @@ class CalendarPage extends StatefulWidget {
     _detachedQuickAddSheetOpenOrOpening = true;
 
     try {
-      await showModalBottomSheet<void>(
+      await showEditableModalBottomSheet<void>(
         context: context,
         useRootNavigator: true,
-        isScrollControlled: true,
         enableDrag: false,
         backgroundColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
@@ -7637,22 +7665,14 @@ class CalendarPage extends StatefulWidget {
     bool? useKemetic,
     TrackSkyTimeZone? trackSkyTimeZone,
     int? alertMinutesBefore,
-    bool? dawnDiscreetMode,
-    DawnHouseRiteLens? dawnLens,
-    bool? eveningDiscreetMode,
-    EveningThresholdRiteLens? eveningLens,
-    int? eveningFallbackMinutesAfterMidnight,
-    TheWeighingLens? theWeighingLens,
     OfferingTableLens? offeringTableLens,
     bool? offeringNoCupMode,
-    TheTendingLens? theTendingLens,
-    KeptWordLens? keptWordLens,
     CourseLens? courseLens,
     MoonReturnLens? moonReturnLens,
-    WagLens? wagLens,
     DecanWatchLens? decanWatchLens,
     OpenHandLens? openHandLens,
     DjedLens? djedLens,
+    DjedV2Configuration? djedConfiguration,
     List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   }) async {
@@ -7666,16 +7686,23 @@ class CalendarPage extends StatefulWidget {
     );
 
     if (template.kind == _MaatFlowTemplateKind.offeringTable) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final temporalContext = MaatFlowTemporalContext.capture(
+        ianaTimeZone: MaatFlowDeviceTimeZone.currentIanaTimeZone,
+      );
       return _joinOfferingTableHeadless(
         template: template,
         completionRequired: completionRequired,
         personalCalendarIdOverride: personalCalendarId,
         startDate:
             startDate ??
-            defaultOfferingTableStartDate(
-              trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-            ),
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+            const MaatFlowTemporalResolver()
+                .resolve(
+                  kind: MaatFlowKind.offeringTable,
+                  context: temporalContext,
+                )
+                .startDate,
+        timezone: timezone,
         lens: offeringTableLens ?? OfferingTableLens.neutral,
         noCupMode: offeringNoCupMode == true,
       );
@@ -7710,35 +7737,6 @@ class CalendarPage extends StatefulWidget {
       return stageResult(result);
     }
 
-    if (template.kind == _MaatFlowTemplateKind.theWag) {
-      final result = await FlowJoinService().joinWagHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        lens: wagLens ?? WagLens.neutral,
-        alertOffsetMinutes: 0,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear) {
-      final result = await FlowJoinService().joinDaysOutsideYearHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        alertOffsetMinutes: 0,
-      );
-      return stageResult(result);
-    }
-
     if (template.kind == _MaatFlowTemplateKind.theOpenHand) {
       final result = await FlowJoinService().joinOpenHandHeadless(
         templateKey: template.key,
@@ -7764,42 +7762,54 @@ class CalendarPage extends StatefulWidget {
         timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
         startDate: startDate,
         lens: djedLens ?? DjedLens.neutral,
+        configuration:
+            djedConfiguration ??
+            const DjedV2Configuration(supports: <DjedV2SupportDefinition>[]),
         alertOffsetMinutes: 0,
       );
       return stageResult(result);
     }
 
     if (template.kind == _MaatFlowTemplateKind.readingHouse) {
-      final result = await FlowJoinService().joinReadingHouseHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        plan: readingHousePlanFromDraftValues(
-          kMaatFlowResponseDraftStore.valuesForFlow(template.key),
-        ),
-        readingHouseSittings: readingHouseSittings,
-        alertOffsetMinutes: kEventFilingNoAlertMinutes,
+      final calendarId = personalCalendarId?.trim();
+      if (calendarId == null || calendarId.isEmpty) return -1;
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final temporalContext = MaatFlowTemporalContext.capture(
+        ianaTimeZone: MaatFlowDeviceTimeZone.currentIanaTimeZone,
       );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.maatDecan) {
-      final definition = maatDecanFlowDefinitionForKey(template.key);
-      if (definition == null) return -1;
-      final result = await FlowJoinService().joinMaatDecanFlowHeadless(
-        definition: definition,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        alertOffsetMinutes: 0,
+      final firstDate = DateUtils.dateOnly(
+        startDate ??
+            const MaatFlowTemporalResolver()
+                .resolve(
+                  kind: MaatFlowKind.readingHouse,
+                  context: temporalContext,
+                )
+                .startDate,
       );
-      return stageResult(result);
+      final normalizedSittings = normalizeReadingHouseSittingOrder(
+        readingHouseSittings ?? readingHouseStarterSittingsForAuthoring(),
+      );
+      final resolvedDates = readingHouseResolvedStarterDates(
+        firstDate,
+        normalizedSittings,
+      );
+      final sittings = <ReadingHouseSitting>[
+        for (final (index, sitting) in normalizedSittings.indexed)
+          sitting.scheduledDate != null
+              ? sitting
+              : sitting.copyWith(scheduledDate: resolvedDates[index]),
+      ];
+      final snapshot = await LiveReadingHouseAuthority(Supabase.instance.client)
+          .ensureHouse(
+            personalCalendarId: calendarId,
+            plan: readingHousePlanFromDraftValues(
+              kMaatFlowResponseDraftStore.valuesForFlow(template.key),
+            ),
+            sittings: sittings,
+            openDoors: false,
+            timezone: timezone,
+          );
+      return snapshot.flowId ?? -1;
     }
 
     if (template.kind == _MaatFlowTemplateKind.decanWatch) {
@@ -7817,22 +7827,6 @@ class CalendarPage extends StatefulWidget {
       return stageResult(result);
     }
 
-    if (template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
-      final result = await FlowJoinService().joinDawnHouseRiteHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        discreet: dawnDiscreetMode == true,
-        lens: dawnLens ?? DawnHouseRiteLens.neutral,
-        alertOffsetMinutes: kEventFilingNoAlertMinutes,
-      );
-      return stageResult(result);
-    }
-
     if (template.kind == _MaatFlowTemplateKind.eveningThreshold) {
       final result = await FlowJoinService().joinEveningThresholdHeadless(
         templateKey: template.key,
@@ -7844,71 +7838,6 @@ class CalendarPage extends StatefulWidget {
         startDate: startDate,
         alertOffsetMinutes: 0,
         initialCarryText: eveningThresholdInitialCarry,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
-      final fallbackMinutes =
-          eveningFallbackMinutesAfterMidnight ??
-          kEveningThresholdDefaultFallbackMinutes;
-      final result = await FlowJoinService().joinEveningThresholdRiteHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        discreet: eveningDiscreetMode == true,
-        lens: eveningLens ?? EveningThresholdRiteLens.neutral,
-        fallbackMinutesAfterMidnight: fallbackMinutes,
-        alertOffsetMinutes: kEventFilingNoAlertMinutes,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.theWeighing) {
-      final result = await FlowJoinService().joinTheWeighingHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        lens: theWeighingLens ?? TheWeighingLens.neutral,
-        alertOffsetMinutes: kEventFilingNoAlertMinutes,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.theTending) {
-      final result = await FlowJoinService().joinTheTendingHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        lens: theTendingLens ?? TheTendingLens.neutral,
-        alertOffsetMinutes: 0,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.keptWord) {
-      final result = await FlowJoinService().joinKeptWordHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        lens: keptWordLens ?? KeptWordLens.neutral,
-        alertOffsetMinutes: 0,
       );
       return stageResult(result);
     }
@@ -7947,22 +7876,14 @@ class CalendarPage extends StatefulWidget {
     bool? useKemetic,
     TrackSkyTimeZone? trackSkyTimeZone,
     int? alertMinutesBefore,
-    bool? dawnDiscreetMode,
-    DawnHouseRiteLens? dawnLens,
-    bool? eveningDiscreetMode,
-    EveningThresholdRiteLens? eveningLens,
-    int? eveningFallbackMinutesAfterMidnight,
-    TheWeighingLens? theWeighingLens,
     OfferingTableLens? offeringTableLens,
     bool? offeringNoCupMode,
-    TheTendingLens? theTendingLens,
-    KeptWordLens? keptWordLens,
     CourseLens? courseLens,
     MoonReturnLens? moonReturnLens,
-    WagLens? wagLens,
     DecanWatchLens? decanWatchLens,
     OpenHandLens? openHandLens,
     DjedLens? djedLens,
+    DjedV2Configuration? djedConfiguration,
     List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   }) {
@@ -7974,22 +7895,14 @@ class CalendarPage extends StatefulWidget {
       useKemetic: useKemetic,
       trackSkyTimeZone: trackSkyTimeZone,
       alertMinutesBefore: alertMinutesBefore,
-      dawnDiscreetMode: dawnDiscreetMode,
-      dawnLens: dawnLens,
-      eveningDiscreetMode: eveningDiscreetMode,
-      eveningLens: eveningLens,
-      eveningFallbackMinutesAfterMidnight: eveningFallbackMinutesAfterMidnight,
-      theWeighingLens: theWeighingLens,
       offeringTableLens: offeringTableLens,
       offeringNoCupMode: offeringNoCupMode,
-      theTendingLens: theTendingLens,
-      keptWordLens: keptWordLens,
       courseLens: courseLens,
       moonReturnLens: moonReturnLens,
-      wagLens: wagLens,
       decanWatchLens: decanWatchLens,
       openHandLens: openHandLens,
       djedLens: djedLens,
+      djedConfiguration: djedConfiguration,
       readingHouseSittings: readingHouseSittings,
       eveningThresholdInitialCarry: eveningThresholdInitialCarry,
     );
@@ -8045,58 +7958,21 @@ class CalendarPage extends StatefulWidget {
     required Map<String, dynamic> visibleState,
     required Map<String, dynamic> returnState,
   }) async {
-    await _recordDetachedFlowStudioRouteState(
+    final visibleRouteState = _recordDetachedFlowStudioRouteState(
       context: navigator.context,
       parentRoute: parentRoute,
       state: visibleState,
     );
-    await _saveDetachedCalendarOverlayState(
+    final visibleOverlayState = _saveDetachedCalendarOverlayState(
       parentRoute: parentRoute,
       kind: _kCalendarOverlayKindFlowStudio,
       state: visibleState,
     );
+    final routeResult = navigator.push<T>(route);
     try {
-      return await navigator.push<T>(route);
+      return await routeResult;
     } finally {
-      if (navigator.mounted &&
-          !RestorationCoordinator
-              .instance
-              .shouldPreserveOverlayForLifecycleClose) {
-        await _recordDetachedFlowStudioRouteState(
-          context: navigator.context,
-          parentRoute: parentRoute,
-          state: returnState,
-        );
-        await _saveDetachedCalendarOverlayState(
-          parentRoute: parentRoute,
-          kind: _kCalendarOverlayKindFlowStudio,
-          state: returnState,
-        );
-      }
-    }
-  }
-
-  static Future<T?> _revealDetachedFlowStudioDetail<T>(
-    NavigatorState navigator,
-    MaatFlowDetailRevealer<T> revealDetail,
-    WidgetBuilder detailBuilder, {
-    required String parentRoute,
-    required Map<String, dynamic> visibleState,
-    required Map<String, dynamic> returnState,
-  }) async {
-    await _recordDetachedFlowStudioRouteState(
-      context: navigator.context,
-      parentRoute: parentRoute,
-      state: visibleState,
-    );
-    await _saveDetachedCalendarOverlayState(
-      parentRoute: parentRoute,
-      kind: _kCalendarOverlayKindFlowStudio,
-      state: visibleState,
-    );
-    try {
-      return await revealDetail(detailBuilder);
-    } finally {
+      await Future.wait<void>([visibleRouteState, visibleOverlayState]);
       if (navigator.mounted &&
           !RestorationCoordinator
               .instance
@@ -8162,29 +8038,22 @@ class CalendarPage extends StatefulWidget {
     }
     if (readingHouseFlow != null) {
       final mountedHost = CalendarPage._mountedState;
-      final sharedCalendarsRepo =
-          mountedHost?._sharedCalendarsRepo ??
-          SharedCalendarsRepo(Supabase.instance.client);
-      final onCalendarChanged =
-          mountedHost?._moveReadingHouseFlowToCalendar ??
-          (flow, calendar) => _moveReadingHouseFlowToCalendarHeadless(
-            flow,
-            calendar,
-            flowsRepo,
-          );
       return _pushDetachedFlowStudioRoute<_FlowStudioResult>(
         navigator,
         MaterialPageRoute<_FlowStudioResult>(
-          builder: (_) => _ReadingHouseAuthoringPage(
+          builder: (_) => _ReadingHouseAuthoringSurface(
             flow: readingHouseFlow!,
-            calendar: mountedHost?._calendarSummary(
-              readingHouseFlow.calendarId,
-            ),
-            personalCalendarId: mountedHost?._personalCalendarId,
-            sharedCalendarsRepo: sharedCalendarsRepo,
-            onCalendarChanged: onCalendarChanged,
-            onSave: handleResult,
-            resizeToAvoidBottomInset: false,
+            onPersisted: (_) async {
+              await flowsRepo.clearMyFiledFlowsCache();
+              unawaited(flowsRepo.refreshMyFiledFlows());
+              if (mountedHost?.mounted == true) {
+                await mountedHost!._requestHydration(
+                  _CalendarHydrationRequest.catalogReconcile(
+                    reason: 'reading_house_detached_persisted',
+                  ),
+                );
+              }
+            },
           ),
         ),
         parentRoute: parentRoute,
@@ -8226,38 +8095,11 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
-  static Future<_Flow> _moveReadingHouseFlowToCalendarHeadless(
-    _Flow flow,
-    SharedCalendarSummary calendar,
-    FlowsRepo flowsRepo,
-  ) async {
-    final calendarId = calendar.id.trim();
-    if (calendarId.isEmpty) {
-      throw ArgumentError.value(
-        calendar.id,
-        'calendar.id',
-        'Must not be empty.',
-      );
-    }
-    await flowsRepo.updateCalendar(id: flow.id, calendarId: calendarId);
-    await UserEventsRepo(
-      Supabase.instance.client,
-    ).updateCalendarForFlowEvents(flowId: flow.id, calendarId: calendarId);
-    await _ensureSharedExperienceForFlow(
-      flowId: flow.id,
-      calendarId: calendarId,
-      source: 'reading_house_shared_calendar_move_headless',
-    );
-    await flowsRepo.clearMyFiledFlowsCache();
-    unawaited(flowsRepo.refreshMyFiledFlows());
-    flow.calendarId = calendarId;
-    return flow;
-  }
-
-  static Widget _buildDetachedMaatFlowTemplateDetailPage({
+  static Widget _buildDetachedMaatFlowDetailSurface({
     required NavigatorState navigator,
     required _MaatFlowTemplate template,
     required FlowsRepo flowsRepo,
+    required VoidCallback onBack,
     _Flow? joinedFlow,
     VoidCallback? onClose,
   }) {
@@ -8271,11 +8113,26 @@ class CalendarPage extends StatefulWidget {
             template.key,
           );
         }();
-    return _MaatFlowTemplateDetailPage(
-      template: template,
-      joinedFlow: activeInstance,
+    final mountedState = _mountedState;
+    final sky = template.key == 'track-the-sky'
+        ? mountedState?._followSkyLiveInputs()
+        : null;
+    final calendar = maatFlowDetailUsesCalendarPreview(template.key)
+        ? mountedState?._maatFlowCalendarPreview()
+        : sky?.preview;
+    return _ActiveMaatFlowDetailSurface.fromComposition(
+      composition: resolveMaatFlowDetailComposition(
+        template: template,
+        relation: MaatFlowDetailRelation.owned,
+        intendedInstance: activeInstance,
+        calendar: calendar,
+        followSkyCandidates: sky?.candidates ?? const [],
+        followSkyMeasurementIntervals: sky?.intervals ?? const [],
+      ),
       addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
-      resizeToAvoidBottomInset: false,
+      onPersisted: (_) =>
+          _refreshDetachedReadingHouseTimeline(flowsRepo: flowsRepo),
+      onBack: onBack,
       onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
         navigator: navigator,
         template: template,
@@ -8283,35 +8140,22 @@ class CalendarPage extends StatefulWidget {
         flowsRepo: flowsRepo,
         onClose: onClose,
       ),
+      onEndFlow: _endFlowHeadless,
     );
   }
 
-  static Future<int?> _pushDetachedMaatFlowTemplateDetail(
-    NavigatorState navigator,
-    MaatFlowDetailRevealer<int?> revealDetail,
-    _MaatFlowTemplate template, {
-    _Flow? joinedFlow,
-    required String parentRoute,
-    required Map<String, dynamic> returnState,
-    required FlowsRepo flowsRepo,
-    VoidCallback? onClose,
-  }) {
-    return _revealDetachedFlowStudioDetail<int?>(
-      navigator,
-      revealDetail,
-      (_) => _buildDetachedMaatFlowTemplateDetailPage(
-        navigator: navigator,
-        template: template,
-        flowsRepo: flowsRepo,
-        joinedFlow: joinedFlow,
-        onClose: onClose,
+  static Future<void> _refreshDetachedReadingHouseTimeline({
+    FlowsRepo? flowsRepo,
+  }) async {
+    final repo = flowsRepo ?? FlowsRepo(Supabase.instance.client);
+    await repo.clearMyFiledFlowsCache();
+    unawaited(repo.refreshMyFiledFlows());
+    final mountedState = _mountedState;
+    if (mountedState?.mounted != true) return;
+    await mountedState!._requestHydration(
+      _CalendarHydrationRequest.catalogReconcile(
+        reason: 'reading_house_detail_persisted',
       ),
-      parentRoute: parentRoute,
-      visibleState: <String, dynamic>{
-        'mode': _kFlowStudioModeMaatTemplate,
-        'templateKey': template.key,
-      },
-      returnState: returnState,
     );
   }
 
@@ -8323,6 +8167,15 @@ class CalendarPage extends StatefulWidget {
     VoidCallback? onClose,
   }) async {
     _rememberJoinedMaatFlowTemplate(templateKey: template.key, flowId: flowId);
+    if (_pendingStagedFlows[flowId] == null) {
+      await _completeDetachedPersistedFlowWithDayView(
+        navigator: navigator,
+        flowId: flowId,
+        flowsRepo: flowsRepo,
+        onClose: onClose,
+      );
+      return;
+    }
     unawaited(flowsRepo.clearMyFiledFlowsCache());
     unawaited(
       flowsRepo.refreshMyFiledFlows().then((rows) {
@@ -8357,6 +8210,35 @@ class CalendarPage extends StatefulWidget {
     router?.go('/');
     final state = _mountedState;
     state?._schedulePendingStagedFlowDayViewIfAny();
+  }
+
+  static Future<void> _completeDetachedPersistedFlowWithDayView({
+    required NavigatorState navigator,
+    required int flowId,
+    required FlowsRepo flowsRepo,
+    VoidCallback? onClose,
+  }) async {
+    await flowsRepo.clearMyFiledFlowsCache();
+    final mountedState = _mountedState;
+    if (mountedState?.mounted == true) {
+      await mountedState!._requestHydration(
+        _CalendarHydrationRequest.catalogReconcile(
+          reason: 'persisted_flow_joined',
+        ),
+      );
+    }
+
+    final router = navigator.mounted ? GoRouter.of(navigator.context) : null;
+    if (onClose != null) {
+      onClose();
+    } else if (navigator.mounted) {
+      closeOrReturn(navigator.context, '/');
+    }
+    router?.go('/');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = _mountedState;
+      if (state?.mounted == true) state!._openDayViewForFlow(flowId);
+    });
   }
 
   static Widget _buildDetachedMyFlowsPage({
@@ -8433,39 +8315,10 @@ class CalendarPage extends StatefulWidget {
     required NavigatorState navigator,
     required String parentRoute,
     required FlowsRepo flowsRepo,
+    String? initialTemplateKey,
     VoidCallback? onClose,
-    _MaatFlowTemplate? initialTemplate,
   }) {
     final cachedSnapshot = _cachedDetachedMyFlowsFilingSnapshot(flowsRepo);
-    Future<int?> handleDetailResult(
-      _MaatFlowTemplate template,
-      int? importedFlowId,
-    ) async {
-      if (importedFlowId != null && importedFlowId > 0 && navigator.mounted) {
-        _rememberJoinedMaatFlowTemplate(
-          templateKey: template.key,
-          flowId: importedFlowId,
-        );
-        await flowsRepo.clearMyFiledFlowsCache();
-        if (!navigator.mounted) return importedFlowId;
-        // Day View completion is mounted-host only; detached keeps filing refresh.
-        unawaited(
-          flowsRepo.refreshMyFiledFlows().then((rows) {
-            _reconcileRememberedMaatJoinsFromLiveSnapshot(
-              _myFlowsFilingSnapshotFromRowsDetached(rows),
-            );
-          }),
-        );
-        if (navigator.canPop()) {
-          navigator.pop(importedFlowId);
-        } else {
-          Navigator.of(navigator.context, rootNavigator: true).pop();
-        }
-      }
-      return importedFlowId;
-    }
-
-    final restoredTemplate = initialTemplate;
     return _MaatFlowsListPageWithSnapshot(
       title: _kMaatFlowsDisplayTitle,
       templates: _kCoreMaatFlowTemplates,
@@ -8476,20 +8329,29 @@ class CalendarPage extends StatefulWidget {
         _reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
         return snapshot;
       },
-      onPickTemplate: (template, activeInstance, revealDetail) async {
-        final importedFlowId = await _pushDetachedMaatFlowTemplateDetail(
-          navigator,
-          revealDetail,
-          template,
-          joinedFlow: activeInstance,
-          parentRoute: parentRoute,
-          flowsRepo: flowsRepo,
-          onClose: onClose,
-          returnState: const <String, dynamic>{
-            'mode': _kFlowStudioModeMaatFlows,
-          },
+      initialTemplateKey: initialTemplateKey,
+      detailBuilder: (template, activeInstance, onBack) =>
+          _buildDetachedMaatFlowDetailSurface(
+            navigator: navigator,
+            template: template,
+            flowsRepo: flowsRepo,
+            onBack: onBack,
+            joinedFlow: activeInstance,
+            onClose: onClose,
+          ),
+      onSelectedTemplateChanged: (templateKey) {
+        unawaited(
+          _saveDetachedCalendarOverlayState(
+            parentRoute: parentRoute,
+            kind: _kCalendarOverlayKindFlowStudio,
+            state: <String, dynamic>{
+              'mode': templateKey == null
+                  ? _kFlowStudioModeMaatFlows
+                  : _kFlowStudioModeMaatTemplate,
+              if (templateKey != null) 'templateKey': templateKey,
+            },
+          ),
         );
-        return handleDetailResult(template, importedFlowId);
       },
       onCreateNew: () async {
         final edited = await _pushDetachedFlowStudioEditor(
@@ -8523,45 +8385,6 @@ class CalendarPage extends StatefulWidget {
           }
         }
       },
-      initialDetailBuilder: restoredTemplate == null
-          ? null
-          : (_) => _buildDetachedMaatFlowTemplateDetailPage(
-              navigator: navigator,
-              template: restoredTemplate,
-              flowsRepo: flowsRepo,
-              joinedFlow: cachedSnapshot == null
-                  ? null
-                  : _visibleSnapshotActiveMaatInstanceFor(
-                      _applyEndFlowVisibilityOverlay(cachedSnapshot),
-                      restoredTemplate.key,
-                    ),
-              onClose: onClose,
-            ),
-      onInitialDetailDismissed: restoredTemplate == null
-          ? null
-          : (importedFlowId) {
-              unawaited(() async {
-                if (navigator.mounted &&
-                    !RestorationCoordinator
-                        .instance
-                        .shouldPreserveOverlayForLifecycleClose) {
-                  const returnState = <String, dynamic>{
-                    'mode': _kFlowStudioModeMaatFlows,
-                  };
-                  await _recordDetachedFlowStudioRouteState(
-                    context: navigator.context,
-                    parentRoute: parentRoute,
-                    state: returnState,
-                  );
-                  await _saveDetachedCalendarOverlayState(
-                    parentRoute: parentRoute,
-                    kind: _kCalendarOverlayKindFlowStudio,
-                    state: returnState,
-                  );
-                }
-                await handleDetailResult(restoredTemplate, importedFlowId);
-              }());
-            },
     );
   }
 
@@ -8636,22 +8459,14 @@ class CalendarPage extends StatefulWidget {
 
     if (mode == _kFlowStudioModeMaatFlows ||
         mode == _kFlowStudioModeMaatTemplate) {
-      final templateKey = (restorationState['templateKey'] as String?)?.trim();
-      _MaatFlowTemplate? initialTemplate;
-      if (mode == _kFlowStudioModeMaatTemplate && templateKey != null) {
-        for (final template in _kMaatFlowTemplates) {
-          if (template.key == templateKey) {
-            initialTemplate = template;
-            break;
-          }
-        }
-      }
       return _buildDetachedMaatFlowsListPage(
         navigator: navigator,
         parentRoute: parentRoute,
         flowsRepo: flowsRepo,
+        initialTemplateKey: mode == _kFlowStudioModeMaatTemplate
+            ? (restorationState['templateKey'] as String?)
+            : null,
         onClose: onClose,
-        initialTemplate: initialTemplate,
       );
     }
 
@@ -8753,12 +8568,16 @@ class CalendarPage extends StatefulWidget {
       );
     }
 
-    if (mode == _kFlowStudioModeMaatFlows) {
+    if (mode == _kFlowStudioModeMaatFlows ||
+        mode == _kFlowStudioModeMaatTemplate) {
       final listRoute = MaterialPageRoute<int?>(
         builder: (innerCtx) => _buildDetachedMaatFlowsListPage(
           navigator: Navigator.of(innerCtx),
           parentRoute: parentRoute,
           flowsRepo: flowsRepo,
+          initialTemplateKey: mode == _kFlowStudioModeMaatTemplate
+              ? templateKey
+              : null,
           onClose: onClose,
         ),
       );
@@ -8780,41 +8599,17 @@ class CalendarPage extends StatefulWidget {
       return <Route<dynamic>>[hubRoute(), listRoute];
     }
 
-    if (mode != _kFlowStudioModeMaatTemplate ||
-        templateKey == null ||
-        templateKey.isEmpty) {
-      return <Route<dynamic>>[
-        MaterialPageRoute<dynamic>(
-          builder: (innerCtx) => _buildDetachedFlowStudioRoot(
-            innerCtx: innerCtx,
-            parentRoute: parentRoute,
-            flowsRepo: flowsRepo,
-            restorationState: restorationState,
-            onClose: onClose,
-          ),
+    return <Route<dynamic>>[
+      MaterialPageRoute<dynamic>(
+        builder: (innerCtx) => _buildDetachedFlowStudioRoot(
+          innerCtx: innerCtx,
+          parentRoute: parentRoute,
+          flowsRepo: flowsRepo,
+          restorationState: restorationState,
+          onClose: onClose,
         ),
-      ];
-    }
-
-    _MaatFlowTemplate? template;
-    for (final candidate in _kMaatFlowTemplates) {
-      if (candidate.key == templateKey) {
-        template = candidate;
-        break;
-      }
-    }
-
-    final listRoute = MaterialPageRoute<dynamic>(
-      builder: (innerCtx) => _buildDetachedMaatFlowsListPage(
-        navigator: Navigator.of(innerCtx),
-        parentRoute: parentRoute,
-        flowsRepo: flowsRepo,
-        onClose: onClose,
-        initialTemplate: template,
       ),
-    );
-    unawaited(listRoute.popped.then((_) => recordReturnToHub()));
-    return <Route<dynamic>>[hubRoute(), listRoute];
+    ];
   }
 
   static Future<void> _openDetachedFlowStudioSheet(
@@ -8853,12 +8648,10 @@ class CalendarPage extends StatefulWidget {
         },
       );
       final isTablet = _isTabletForContext(context);
-      final result = await showModalBottomSheet<_FlowStudioResult?>(
+      final result = await showEditableModalBottomSheet<_FlowStudioResult?>(
         context: context,
-        isScrollControlled: true,
         backgroundColor: Colors.transparent,
         barrierColor: Colors.black54,
-        useSafeArea: true,
         useRootNavigator: true,
         isDismissible: !isTablet,
         enableDrag: !isTablet,
@@ -8884,66 +8677,10 @@ class CalendarPage extends StatefulWidget {
             );
           }
 
-          if (isTablet) {
-            return SafeArea(
-              child: FractionallySizedBox(
-                heightFactor: 0.9,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: Material(
-                    color: Colors.black,
-                    child: Column(
-                      children: [
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white),
-                            onPressed: () => Navigator.of(outerCtx).pop(),
-                          ),
-                        ),
-                        Expanded(child: buildNavigator()),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return DraggableScrollableSheet(
-            initialChildSize: 0.8,
-            minChildSize: 0.4,
-            maxChildSize: 1.0,
-            snap: true,
-            snapSizes: const <double>[0.8, 1.0],
-            expand: false,
-            builder: (innerCtx, scrollController) {
-              return ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-                child: Material(
-                  color: Colors.black,
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 10),
-                      Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(child: buildNavigator()),
-                    ],
-                  ),
-                ),
-              );
-            },
+          return FlowStudioModalSheetHost(
+            isTablet: isTablet,
+            onClose: () => Navigator.of(outerCtx).pop(),
+            child: buildNavigator(),
           );
         },
       );
@@ -9040,12 +8777,72 @@ class CalendarPage extends StatefulWidget {
     await state._shareFlowFromEventItem(event);
   }
 
+  static Future<void> postReadingHouseSharedNote(
+    EventItem event,
+    String body,
+  ) async {
+    final flowId = event.flowId;
+    final note = body.trim();
+    if (flowId == null || note.isEmpty) {
+      throw StateError('A Reading House flow and shared note are required.');
+    }
+    final created = await ProfileRepo(
+      Supabase.instance.client,
+    ).postFlow(flowId, sharedNote: note);
+    if (created == null) {
+      throw StateError('Could not post the Reading House note.');
+    }
+  }
+
   static Future<bool> makeTodoFromEventTarget(
     DayViewSheetEventTarget target,
   ) async {
     final state = _mountedState;
     if (state == null) return false;
     return state._makeTodoFromEventTarget(target);
+  }
+
+  @visibleForTesting
+  static DayViewSheetEventTarget? Function({
+    required int flowId,
+    required int sittingNumber,
+  })?
+  debugOwnedDjedSittingEventTargetForTesting;
+
+  static DayViewSheetEventTarget? eventTargetForOwnedDjedSitting({
+    required int flowId,
+    required int sittingNumber,
+  }) {
+    final override = debugOwnedDjedSittingEventTargetForTesting;
+    if (override != null) {
+      return override(flowId: flowId, sittingNumber: sittingNumber);
+    }
+    return _mountedState?._eventTargetForOwnedDjedSitting(
+      flowId: flowId,
+      sittingNumber: sittingNumber,
+    );
+  }
+
+  static bool hasOwnedDjedSittingEventIdentity({
+    required int flowId,
+    required int sittingNumber,
+  }) =>
+      eventTargetForOwnedDjedSitting(
+        flowId: flowId,
+        sittingNumber: sittingNumber,
+      ) !=
+      null;
+
+  static Future<bool> makeTodoFromOwnedDjedSitting({
+    required int flowId,
+    required int sittingNumber,
+  }) async {
+    final target = eventTargetForOwnedDjedSitting(
+      flowId: flowId,
+      sittingNumber: sittingNumber,
+    );
+    if (target == null) return false;
+    return makeTodoFromEventTarget(target);
   }
 
   static String detailSheetCalendarButtonLabel(EventItem event) {
@@ -9904,9 +9701,6 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
       semanticLabel: 'Flow Studio',
       onClose: _closeRoute,
       onBackPressed: _handleSystemBack,
-      showRouteChrome: false,
-      heightFactor: 1,
-      topRadius: 0,
       child: Navigator(
         key: _flowStudioNavigatorKey,
         onGenerateInitialRoutes: (navigator, initial) =>
@@ -10063,18 +9857,23 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
     );
   }
 
-  Widget _buildReadingHouseAuthoringPage(_Flow flow) {
-    final mountedHost = CalendarPage._mountedState;
-    final sharedCalendarsRepo =
-        mountedHost?._sharedCalendarsRepo ??
-        SharedCalendarsRepo(Supabase.instance.client);
-    return _ReadingHouseAuthoringPage(
+  Widget _buildReadingHouseAuthoringSurface(_Flow flow) {
+    return _ReadingHouseAuthoringSurface(
       flow: flow,
-      calendar: mountedHost?._calendarSummary(flow.calendarId),
-      personalCalendarId: mountedHost?._personalCalendarId,
-      sharedCalendarsRepo: sharedCalendarsRepo,
-      onCalendarChanged: mountedHost?._moveReadingHouseFlowToCalendar,
-      onSave: _handleResult,
+      onPersisted: (_) async {
+        final mountedHost = CalendarPage._mountedState;
+        if (mountedHost?.mounted == true) {
+          await mountedHost!._requestHydration(
+            _CalendarHydrationRequest.catalogReconcile(
+              reason: 'reading_house_route_persisted',
+            ),
+          );
+          return;
+        }
+        final flowsRepo = FlowsRepo(Supabase.instance.client);
+        await flowsRepo.clearMyFiledFlowsCache();
+        unawaited(flowsRepo.refreshMyFiledFlows());
+      },
     );
   }
 
@@ -10103,7 +9902,7 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
             }
             final readingHouseFlow = snapshot.data;
             if (readingHouseFlow != null) {
-              return _buildReadingHouseAuthoringPage(readingHouseFlow);
+              return _buildReadingHouseAuthoringSurface(readingHouseFlow);
             }
             return _buildGenericFlowEditor();
           },
@@ -12806,10 +12605,8 @@ class CalendarPageState extends State<CalendarPage>
       await _saveCalendarEventDetailOverlayForTarget(initialTarget);
       if (!mounted) return;
 
-      await showModalBottomSheet(
+      await showCalendarEventDetailSheetModal(
         context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
         builder: (_) => CalendarEventDetailSheet(
           hostContext: context,
           initialTarget: initialTarget,
@@ -13135,15 +12932,13 @@ class CalendarPageState extends State<CalendarPage>
           final hubRoute = MaterialPageRoute<dynamic>(
             builder: (ctx) => _buildFlowStudioHubPage(ctx),
           );
-          final restoredTemplate =
-              mode == _kFlowStudioModeMaatTemplate &&
-                  templateKey != null &&
-                  templateKey.isNotEmpty
-              ? _maatTemplateForKey(templateKey)
-              : null;
           final listRoute = MaterialPageRoute<dynamic>(
-            builder: (ctx) =>
-                _buildMaatFlowsListPage(ctx, initialTemplate: restoredTemplate),
+            builder: (ctx) => _buildMaatFlowsListPage(
+              ctx,
+              initialTemplateKey: mode == _kFlowStudioModeMaatTemplate
+                  ? templateKey
+                  : null,
+            ),
           );
           unawaited(
             listRoute.popped.then((importedFlowId) async {
@@ -13170,7 +12965,7 @@ class CalendarPageState extends State<CalendarPage>
                 }
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (!mounted) return;
-                  _openDayViewForStagedFlow(importedFlowId);
+                  _openDayViewForFlow(importedFlowId);
                 });
                 return;
               }
@@ -13192,7 +12987,7 @@ class CalendarPageState extends State<CalendarPage>
   _MaatFlowTemplate? _maatTemplateForKey(String key) {
     final trimmed = key.trim();
     if (trimmed.isEmpty) return null;
-    for (final template in _kMaatFlowTemplates) {
+    for (final template in _kCoreMaatFlowTemplates) {
       if (template.key == trimmed) return template;
     }
     return null;
@@ -13205,46 +13000,17 @@ class CalendarPageState extends State<CalendarPage>
     required Map<String, dynamic> returnState,
     bool persistOverlay = true,
   }) async {
-    if (persistOverlay) {
-      await _saveCalendarOverlayState(
-        _kCalendarOverlayKindFlowStudio,
-        visibleState,
-      );
-    }
+    final visibleOverlayState = persistOverlay
+        ? _saveCalendarOverlayState(
+            _kCalendarOverlayKindFlowStudio,
+            visibleState,
+          )
+        : Future<void>.value();
+    final routeResult = navigator.push<T>(route);
     try {
-      return await navigator.push<T>(route);
+      return await routeResult;
     } finally {
-      if (persistOverlay &&
-          mounted &&
-          navigator.mounted &&
-          !RestorationCoordinator
-              .instance
-              .shouldPreserveOverlayForLifecycleClose) {
-        await _saveCalendarOverlayState(
-          _kCalendarOverlayKindFlowStudio,
-          returnState,
-        );
-      }
-    }
-  }
-
-  Future<T?> _revealFlowStudioDetail<T>(
-    NavigatorState navigator,
-    MaatFlowDetailRevealer<T> revealDetail,
-    WidgetBuilder detailBuilder, {
-    required Map<String, dynamic> visibleState,
-    required Map<String, dynamic> returnState,
-    bool persistOverlay = true,
-  }) async {
-    if (persistOverlay) {
-      await _saveCalendarOverlayState(
-        _kCalendarOverlayKindFlowStudio,
-        visibleState,
-      );
-    }
-    try {
-      return await revealDetail(detailBuilder);
-    } finally {
+      await visibleOverlayState;
       if (persistOverlay &&
           mounted &&
           navigator.mounted &&
@@ -13273,13 +13039,16 @@ class CalendarPageState extends State<CalendarPage>
       return _pushFlowStudioRoute<_FlowStudioResult>(
         navigator,
         MaterialPageRoute<_FlowStudioResult>(
-          builder: (_) => _ReadingHouseAuthoringPage(
+          builder: (_) => _ReadingHouseAuthoringSurface(
             flow: readingHouseFlow,
-            calendar: _calendarSummary(readingHouseFlow.calendarId),
-            personalCalendarId: _personalCalendarId,
-            sharedCalendarsRepo: _sharedCalendarsRepo,
-            onCalendarChanged: _moveReadingHouseFlowToCalendar,
-            resizeToAvoidBottomInset: persistOverlay,
+            onPersisted: (_) async {
+              if (!mounted) return;
+              await _requestHydration(
+                _CalendarHydrationRequest.catalogReconcile(
+                  reason: 'reading_house_editor_persisted',
+                ),
+              );
+            },
           ),
         ),
         visibleState: <String, dynamic>{
@@ -13364,25 +13133,30 @@ class CalendarPageState extends State<CalendarPage>
     return null;
   }
 
-  Widget _buildMaatFlowTemplateDetailPage({
+  Widget _buildMaatFlowDetailSurface({
     required _MaatFlowTemplate template,
-    required bool persistOverlay,
+    required VoidCallback onBack,
     _Flow? joinedFlow,
   }) {
     final activeInstance =
         joinedFlow ?? _activeFlowForMaatTemplate(template.key);
     final sky = template.key == 'track-the-sky' ? _followSkyLiveInputs() : null;
-    final calendarPreview = template.key == kOfferingTableFlowKey
-        ? _offeringTableCalendarPreview()
+    final usesSharedCalendarPreview = maatFlowDetailUsesCalendarPreview(
+      template.key,
+    );
+    final calendarPreview = usesSharedCalendarPreview
+        ? _maatFlowCalendarPreview()
         : sky?.preview;
-    return _MaatFlowTemplateDetailPage(
-      template: template,
-      joinedFlow: activeInstance,
-      resizeToAvoidBottomInset: persistOverlay,
-      followSkyCandidates: sky?.candidates ?? const [],
-      followSkyMeasurementIntervals: sky?.intervals ?? const [],
-      followSkyCalendarPreview:
-          calendarPreview ?? FollowSkyCalendarPreview.empty,
+    return _ActiveMaatFlowDetailSurface.fromComposition(
+      composition: resolveMaatFlowDetailComposition(
+        template: template,
+        relation: MaatFlowDetailRelation.owned,
+        intendedInstance: activeInstance,
+        calendar: calendarPreview,
+        followSkyCandidates: sky?.candidates ?? const [],
+        followSkyMeasurementIntervals: sky?.intervals ?? const [],
+      ),
+      onBack: onBack,
       onFollowSkyCourseSaved: activeInstance?.id == null
           ? null
           : (course, notes) => _saveFollowSkyCourseNotes(
@@ -13403,22 +13177,14 @@ class CalendarPageState extends State<CalendarPage>
             bool? useKemetic,
             TrackSkyTimeZone? trackSkyTimeZone,
             int? alertMinutesBefore,
-            bool? dawnDiscreetMode,
-            DawnHouseRiteLens? dawnLens,
-            bool? eveningDiscreetMode,
-            EveningThresholdRiteLens? eveningLens,
-            int? eveningFallbackMinutesAfterMidnight,
-            TheWeighingLens? theWeighingLens,
             OfferingTableLens? offeringTableLens,
             bool? offeringNoCupMode,
-            TheTendingLens? theTendingLens,
-            KeptWordLens? keptWordLens,
             CourseLens? courseLens,
             MoonReturnLens? moonReturnLens,
-            WagLens? wagLens,
             DecanWatchLens? decanWatchLens,
             OpenHandLens? openHandLens,
             DjedLens? djedLens,
+            DjedV2Configuration? djedConfiguration,
             List<ReadingHouseSitting>? readingHouseSittings,
             String? eveningThresholdInitialCarry,
           }) async {
@@ -13428,24 +13194,14 @@ class CalendarPageState extends State<CalendarPage>
               useKemetic: useKemetic ?? false,
               trackSkyTimeZone: trackSkyTimeZone,
               alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
-              dawnDiscreetMode: dawnDiscreetMode ?? false,
-              dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
-              eveningDiscreetMode: eveningDiscreetMode ?? false,
-              eveningLens: eveningLens ?? EveningThresholdRiteLens.neutral,
-              eveningFallbackMinutesAfterMidnight:
-                  eveningFallbackMinutesAfterMidnight ??
-                  kEveningThresholdDefaultFallbackMinutes,
-              theWeighingLens: theWeighingLens ?? TheWeighingLens.neutral,
               offeringTableLens: offeringTableLens ?? OfferingTableLens.neutral,
               offeringNoCupMode: offeringNoCupMode ?? false,
-              theTendingLens: theTendingLens ?? TheTendingLens.neutral,
-              keptWordLens: keptWordLens ?? KeptWordLens.neutral,
               courseLens: courseLens ?? CourseLens.neutral,
               moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
-              wagLens: wagLens ?? WagLens.neutral,
               decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
               openHandLens: openHandLens ?? OpenHandLens.neutral,
               djedLens: djedLens ?? DjedLens.neutral,
+              djedConfiguration: djedConfiguration,
               readingHouseSittings: readingHouseSittings,
               eveningThresholdInitialCarry: eveningThresholdInitialCarry,
             );
@@ -13454,31 +13210,15 @@ class CalendarPageState extends State<CalendarPage>
         flowId: flowId,
         templateKey: template.key,
       ),
-    );
-  }
-
-  Future<int?> _pushMaatFlowTemplateDetail(
-    NavigatorState navigator,
-    MaatFlowDetailRevealer<int?> revealDetail,
-    _MaatFlowTemplate template, {
-    _Flow? joinedFlow,
-    required Map<String, dynamic> returnState,
-    bool persistOverlay = true,
-  }) {
-    return _revealFlowStudioDetail<int?>(
-      navigator,
-      revealDetail,
-      (_) => _buildMaatFlowTemplateDetailPage(
-        template: template,
-        persistOverlay: persistOverlay,
-        joinedFlow: joinedFlow,
-      ),
-      visibleState: <String, dynamic>{
-        'mode': _kFlowStudioModeMaatTemplate,
-        'templateKey': template.key,
+      onPersisted: (_) async {
+        if (!mounted) return;
+        await _requestHydration(
+          _CalendarHydrationRequest.catalogReconcile(
+            reason: 'reading_house_detail_persisted',
+          ),
+        );
       },
-      returnState: returnState,
-      persistOverlay: persistOverlay,
+      onEndFlow: (flowId) => _endFlow(flowId),
     );
   }
 
@@ -13737,7 +13477,7 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     try {
-      return await showDialog<bool>(
+      return await showEditableDialog<bool>(
             context: context,
             barrierDismissible: !isSaving,
             builder: (dialogCtx) {
@@ -13945,9 +13685,6 @@ class CalendarPageState extends State<CalendarPage>
                     }
                   }
 
-                  const fieldScrollPadding =
-                      keyboardManagedTextFieldScrollPadding;
-
                   return Dialog(
                     backgroundColor: Colors.transparent,
                     insetPadding: const EdgeInsets.symmetric(
@@ -14021,7 +13758,6 @@ class CalendarPageState extends State<CalendarPage>
                                 const SizedBox(height: 8),
                                 TextField(
                                   controller: controllerTitle,
-                                  scrollPadding: fieldScrollPadding,
                                   enabled: !isSaving,
                                   style: const TextStyle(color: Colors.white),
                                   decoration: _darkInput('Title'),
@@ -14029,7 +13765,6 @@ class CalendarPageState extends State<CalendarPage>
                                 const SizedBox(height: 8),
                                 TextField(
                                   controller: controllerLocation,
-                                  scrollPadding: fieldScrollPadding,
                                   enabled: !isSaving,
                                   style: const TextStyle(color: Colors.white),
                                   decoration: _darkInput(
@@ -14040,7 +13775,6 @@ class CalendarPageState extends State<CalendarPage>
                                 const SizedBox(height: 8),
                                 TextField(
                                   controller: controllerDetail,
-                                  scrollPadding: fieldScrollPadding,
                                   enabled: !isSaving,
                                   style: const TextStyle(color: Colors.white),
                                   maxLines: 3,
@@ -15112,64 +14846,6 @@ class CalendarPageState extends State<CalendarPage>
     return _detailSheetTargetUsesCalendar(refreshed, calendarId)
         ? refreshed
         : optimisticTarget;
-  }
-
-  Future<_Flow> _moveReadingHouseFlowToCalendar(
-    _Flow flow,
-    SharedCalendarSummary calendar,
-  ) async {
-    final calendarId = calendar.id.trim();
-    if (calendarId.isEmpty) {
-      throw ArgumentError.value(
-        calendar.id,
-        'calendar.id',
-        'Must not be empty.',
-      );
-    }
-    await _flowsRepo.updateCalendar(id: flow.id, calendarId: calendarId);
-    await UserEventsRepo(
-      Supabase.instance.client,
-    ).updateCalendarForFlowEvents(flowId: flow.id, calendarId: calendarId);
-    await _ensureSharedExperienceForFlow(
-      flowId: flow.id,
-      calendarId: calendarId,
-      source: 'reading_house_shared_calendar_move',
-    );
-
-    _Flow? updated;
-    for (var i = 0; i < _flows.length; i++) {
-      final existing = _flows[i];
-      if (existing.id != flow.id) continue;
-      existing.calendarId = calendarId;
-      updated = existing;
-      break;
-    }
-    updated ??= flow..calendarId = calendarId;
-
-    final startDate = updated.start == null
-        ? null
-        : DateUtils.dateOnly(updated.start!);
-    final k = startDate == null ? null : KemeticMath.fromGregorian(startDate);
-    await _notifySharedCalendarItemAdded(
-      calendarId: calendarId,
-      itemType: 'flow',
-      itemId: updated.id.toString(),
-      itemTitle: updated.name,
-      flowId: updated.id,
-      startDate: startDate,
-      kYear: k?.kYear,
-      kMonth: k?.kMonth,
-      kDay: k?.kDay,
-    );
-    if (mounted) {
-      await _requestHydration(
-        _CalendarHydrationRequest.targeted(
-          reason: 'reading_house_shared_calendar_move',
-          intentKind: CalendarHydrationIntentKind.affectedDate,
-        ),
-      );
-    }
-    return updated;
   }
 
   Future<DayViewSheetEventTarget?> _moveReminderEventToCalendar(
@@ -16893,11 +16569,12 @@ class CalendarPageState extends State<CalendarPage>
         ),
       );
     }
-    return _MaatFlowTemplateDetailPage(
-      template: template,
-      showBackButton: false,
-      embeddedInOnboarding: true,
-      resizeToAvoidBottomInset: false,
+    return _ActiveMaatFlowDetailSurface.fromComposition(
+      composition: resolveMaatFlowDetailComposition(
+        template: template,
+        relation: MaatFlowDetailRelation.catalogPreview,
+        calendar: _maatFlowCalendarPreview(),
+      ),
       addInstance:
           ({
             required _MaatFlowTemplate template,
@@ -16905,22 +16582,14 @@ class CalendarPageState extends State<CalendarPage>
             bool? useKemetic,
             TrackSkyTimeZone? trackSkyTimeZone,
             int? alertMinutesBefore,
-            bool? dawnDiscreetMode,
-            DawnHouseRiteLens? dawnLens,
-            bool? eveningDiscreetMode,
-            EveningThresholdRiteLens? eveningLens,
-            int? eveningFallbackMinutesAfterMidnight,
-            TheWeighingLens? theWeighingLens,
             OfferingTableLens? offeringTableLens,
             bool? offeringNoCupMode,
-            TheTendingLens? theTendingLens,
-            KeptWordLens? keptWordLens,
             CourseLens? courseLens,
             MoonReturnLens? moonReturnLens,
-            WagLens? wagLens,
             DecanWatchLens? decanWatchLens,
             OpenHandLens? openHandLens,
             DjedLens? djedLens,
+            DjedV2Configuration? djedConfiguration,
             List<ReadingHouseSitting>? readingHouseSittings,
             String? eveningThresholdInitialCarry,
           }) {
@@ -16930,24 +16599,14 @@ class CalendarPageState extends State<CalendarPage>
               useKemetic: useKemetic ?? false,
               trackSkyTimeZone: trackSkyTimeZone,
               alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
-              dawnDiscreetMode: dawnDiscreetMode ?? false,
-              dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
-              eveningDiscreetMode: eveningDiscreetMode ?? false,
-              eveningLens: eveningLens ?? EveningThresholdRiteLens.neutral,
-              eveningFallbackMinutesAfterMidnight:
-                  eveningFallbackMinutesAfterMidnight ??
-                  kEveningThresholdDefaultFallbackMinutes,
-              theWeighingLens: theWeighingLens ?? TheWeighingLens.neutral,
               offeringTableLens: offeringTableLens ?? OfferingTableLens.neutral,
               offeringNoCupMode: offeringNoCupMode ?? false,
-              theTendingLens: theTendingLens ?? TheTendingLens.neutral,
-              keptWordLens: keptWordLens ?? KeptWordLens.neutral,
               courseLens: courseLens ?? CourseLens.neutral,
               moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
-              wagLens: wagLens ?? WagLens.neutral,
               decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
               openHandLens: openHandLens ?? OpenHandLens.neutral,
               djedLens: djedLens ?? DjedLens.neutral,
+              djedConfiguration: djedConfiguration,
               readingHouseSittings: readingHouseSittings,
               eveningThresholdInitialCarry: eveningThresholdInitialCarry,
             );
@@ -17496,7 +17155,7 @@ class CalendarPageState extends State<CalendarPage>
     return (ky: first.ky, km: first.km, kd: first.kd, note: first.note);
   }
 
-  void _openDayViewForStagedFlow(int flowId) {
+  void _openDayViewForFlow(int flowId) {
     final first = _firstChronologicalNoteForFlow(flowId);
     if (first == null) {
       if (mounted) {
@@ -17592,7 +17251,7 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
     CalendarPage._clearStagedFlowDayViewIntent(flowId);
-    _openDayViewForStagedFlow(flowId);
+    _openDayViewForFlow(flowId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         CalendarPage._consumeStagedFlowCompletion(flowId);
@@ -17619,6 +17278,21 @@ class CalendarPageState extends State<CalendarPage>
       flowId: flowId,
     );
     _myFlowsFilingSnapshotCache = null;
+    if (CalendarPage._pendingStagedFlows[flowId] == null) {
+      await _flowsRepo.clearMyFiledFlowsCache();
+      await _requestHydration(
+        _CalendarHydrationRequest.catalogReconcile(
+          reason: 'persisted_flow_joined',
+        ),
+      );
+      if (!mounted) return;
+      final rootNavigator = Navigator.of(context, rootNavigator: true);
+      if (rootNavigator.canPop()) rootNavigator.pop();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openDayViewForFlow(flowId);
+      });
+      return;
+    }
     unawaited(_flowsRepo.clearMyFiledFlowsCache());
     _completeMountedStagedFlowAddWithDayView(flowId);
   }
@@ -17995,12 +17669,7 @@ class CalendarPageState extends State<CalendarPage>
             return SafeArea(
               top: false,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  0,
-                  16,
-                  16 + MediaQuery.of(sheetContext).viewInsets.bottom,
-                ),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -21591,11 +21260,9 @@ class CalendarPageState extends State<CalendarPage>
     Future<void>? accountSave;
 
     try {
-      final result = await showModalBottomSheet<bool>(
+      final result = await showEditableModalBottomSheet<bool>(
         context: context,
-        isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        useSafeArea: true,
         isDismissible: true,
         enableDrag: true,
         shape: const RoundedRectangleBorder(
@@ -21611,8 +21278,6 @@ class CalendarPageState extends State<CalendarPage>
                 );
                 final canEditSelectedCalendar =
                     selectedCalendar?.canEdit ?? true;
-                const reminderFieldScrollPadding =
-                    keyboardManagedTextFieldScrollPadding;
 
                 String dateLabel(DateTime d) =>
                     '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
@@ -21632,7 +21297,6 @@ class CalendarPageState extends State<CalendarPage>
                       return TextFormField(
                         keyboardType: TextInputType.number,
                         initialValue: repeat.interval.toString(),
-                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Every N days',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21692,7 +21356,6 @@ class CalendarPageState extends State<CalendarPage>
                           repeat,
                           startLocal,
                         ).toList()..sort()).join(', '),
-                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Day of month (1-31, comma-separated)',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21716,7 +21379,6 @@ class CalendarPageState extends State<CalendarPage>
                       return TextFormField(
                         keyboardType: TextInputType.number,
                         initialValue: repeat.interval.toString(),
-                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Every N decans',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21743,7 +21405,6 @@ class CalendarPageState extends State<CalendarPage>
                           repeat,
                           startLocal,
                         ).toList()..sort()).join(', '),
-                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Day of decan (1-10, comma-separated)',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21770,7 +21431,6 @@ class CalendarPageState extends State<CalendarPage>
                           repeat,
                           startLocal,
                         ).toList()..sort()).join(', '),
-                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText:
                               'Day of Kemetic month (1-30, comma-separated)',
@@ -21844,11 +21504,7 @@ class CalendarPageState extends State<CalendarPage>
                         ),
                       ],
                     ),
-                    DaySheetTextField(
-                      controller: titleCtrl,
-                      hint: 'Title',
-                      scrollPadding: reminderFieldScrollPadding,
-                    ),
+                    DaySheetTextField(controller: titleCtrl, hint: 'Title'),
                     const SizedBox(height: 20),
                     DaySheetMetaRow(
                       label: 'Calendar',
@@ -25100,9 +24756,8 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     if (!mounted) return;
-    await showModalBottomSheet<bool>(
+    await showEditableModalBottomSheet<bool>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => ShareFlowSheet(flowId: flowId, flowTitle: flowTitle),
     );
@@ -25184,9 +24839,8 @@ class CalendarPageState extends State<CalendarPage>
     required String eventId,
     required String title,
   }) async {
-    await showModalBottomSheet<bool>(
+    await showEditableModalBottomSheet<bool>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) =>
           ShareFlowSheet(flowId: null, flowTitle: title, eventId: eventId),
@@ -25194,17 +24848,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   EventItem _noteToEventItem(_Note note) {
-    final startMin = note.allDay
-        ? 9 * 60
-        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-    final endMin = note.allDay
-        ? 17 * 60
-        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
-
-    // Prefer manual color; otherwise use resolver (handles flow color).
-    final resolvedColor = note.manualColor ?? _noteColor(note);
-
-    return EventItem(
+    return EventItem.fromTimedNote(
       id: note.id,
       clientEventId: note.clientEventId,
       calendarId: note.calendarId,
@@ -25212,23 +24856,18 @@ class CalendarPageState extends State<CalendarPage>
       title: note.title,
       detail: note.detail,
       location: note.location,
-      startMin: startMin,
-      endMin: endMin,
-      flowId: note.flowId,
-      color: resolvedColor,
-      manualColor: note.manualColor,
       allDay: note.allDay,
+      startHour: note.start?.hour,
+      startMinute: note.start?.minute,
+      endHour: note.end?.hour,
+      endMinute: note.end?.minute,
+      flowId: note.flowId,
+      color: note.manualColor ?? _noteColor(note),
+      manualColor: note.manualColor,
       category: note.category,
       isReminder: note.isReminder,
       reminderId: note.reminderId,
       behaviorPayload: note.behaviorPayload,
-      hasCanonicalSchedule: noteHasCanonicalSchedule(
-        allDay: note.allDay,
-        startHour: note.start?.hour,
-        startMinute: note.start?.minute,
-        endHour: note.end?.hour,
-        endMinute: note.end?.minute,
-      ),
     );
   }
 
@@ -27166,12 +26805,10 @@ class CalendarPageState extends State<CalendarPage>
         'flow studio sheet show requested',
         state: _calendarSheetTraceState('flowStudio', phase: 'showRequested'),
       );
-      final sheetFuture = showModalBottomSheet<_FlowStudioResult?>(
+      final sheetFuture = showEditableModalBottomSheet<_FlowStudioResult?>(
         context: context,
-        isScrollControlled: true,
         backgroundColor: Colors.transparent,
         barrierColor: Colors.black54,
-        useSafeArea: true,
         useRootNavigator: true,
         isDismissible: isTablet ? false : true,
         enableDrag: isTablet ? false : true,
@@ -27214,100 +26851,22 @@ class CalendarPageState extends State<CalendarPage>
             );
           }
 
-          if (isTablet) {
-            final navigatorKey = showCloseButton
-                ? GlobalKey<NavigatorState>()
-                : null;
-            return SafeArea(
-              child: FractionallySizedBox(
-                heightFactor: 0.9,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: Material(
-                    color: Colors.black,
-                    child: Column(
-                      children: [
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white),
-                            onPressed: () => Navigator.of(outerCtx).pop(),
-                          ),
-                        ),
-                        Expanded(
-                          child: maybeHandleSheetBack(
-                            flowStudioNavigator(key: navigatorKey),
-                            navigatorKey: navigatorKey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-
           final navigatorKey = showCloseButton
               ? GlobalKey<NavigatorState>()
               : null;
-          return DraggableScrollableSheet(
-            initialChildSize: 0.8,
-            minChildSize: 0.4,
-            maxChildSize: 1.0,
-            snap: true,
-            snapSizes: const [0.8, 1.0],
-            expand: false,
-            builder: (innerCtx, scrollController) {
-              return ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-                child: Material(
-                  color: Colors.black,
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: showCloseButton ? 52 : 22,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.white24,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            if (showCloseButton)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: IconButton(
-                                  tooltip: 'Close',
-                                  icon: const Icon(
-                                    Icons.close,
-                                    color: DaySheetTokens.silverMid,
-                                  ),
-                                  onPressed: closeOuterSheet,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: maybeHandleSheetBack(
-                          flowStudioNavigator(key: navigatorKey),
-                          navigatorKey: navigatorKey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+          return FlowStudioModalSheetHost(
+            isTablet: isTablet,
+            onClose: isTablet
+                ? () => Navigator.of(outerCtx).pop()
+                : closeOuterSheet,
+            phoneHeader: FlowStudioModalSheetHost.overlayPhoneHeader(
+              showCloseButton: showCloseButton,
+              onClose: closeOuterSheet,
+            ),
+            child: maybeHandleSheetBack(
+              flowStudioNavigator(key: navigatorKey),
+              navigatorKey: navigatorKey,
+            ),
           );
         },
       );
@@ -27377,12 +26936,10 @@ class CalendarPageState extends State<CalendarPage>
         );
         if (!mounted) return;
 
-        final result = await showModalBottomSheet<_FlowStudioResult?>(
+        final result = await showEditableModalBottomSheet<_FlowStudioResult?>(
           context: context,
-          isScrollControlled: true,
           backgroundColor: Colors.transparent,
           barrierColor: Colors.black54,
-          useSafeArea: true,
           useRootNavigator: true,
           isDismissible: !isTab,
           enableDrag: !isTab,
@@ -27509,59 +27066,34 @@ class CalendarPageState extends State<CalendarPage>
   Widget _buildMaatFlowsListPage(
     BuildContext listCtx, {
     bool persistOverlay = true,
-    _MaatFlowTemplate? initialTemplate,
+    String? initialTemplateKey,
   }) {
     final navigator = Navigator.of(listCtx);
-    Future<int?> handleDetailResult(
-      _MaatFlowTemplate template,
-      int? importedFlowId,
-    ) async {
-      if (importedFlowId != null && importedFlowId > 0 && listCtx.mounted) {
-        CalendarPage._rememberJoinedMaatFlowTemplate(
-          templateKey: template.key,
-          flowId: importedFlowId,
-        );
-        _myFlowsFilingSnapshotCache = null;
-        await _flowsRepo.clearMyFiledFlowsCache();
-        if (!listCtx.mounted) return importedFlowId;
-        // Notes already in _notes from join; hub completion opens Day View.
-        if (_firstChronologicalNoteForFlow(importedFlowId) == null &&
-            listCtx.mounted) {
-          ScaffoldMessenger.of(listCtx).showSnackBar(
-            const SnackBar(
-              content: Text('Could not open the first day of this flow.'),
-            ),
-          );
-        }
-        if (!listCtx.mounted) return importedFlowId;
-        final listNavigator = Navigator.of(listCtx);
-        if (listNavigator.canPop()) {
-          listNavigator.pop(importedFlowId);
-        } else {
-          Navigator.of(listCtx, rootNavigator: true).pop();
-        }
-      }
-      return importedFlowId;
-    }
-
-    final restoredTemplate = initialTemplate;
     return _MaatFlowsListPage(
       title: _kMaatFlowsDisplayTitle,
       templates: _kCoreMaatFlowTemplates,
       activeInstanceForKey: _activeFlowForMaatTemplate,
       progressForKey: _maatCompletionStatusForActiveInstance,
-      onPickTemplate: (tpl, activeInstance, revealDetail) async {
-        final importedFlowId = await _pushMaatFlowTemplateDetail(
-          navigator,
-          revealDetail,
-          tpl,
-          joinedFlow: activeInstance,
-          returnState: const <String, dynamic>{
-            'mode': _kFlowStudioModeMaatFlows,
-          },
-          persistOverlay: persistOverlay,
+      initialTemplateKey: initialTemplateKey,
+      detailBuilder: (template, activeInstance, onBack) =>
+          _buildMaatFlowDetailSurface(
+            template: template,
+            onBack: onBack,
+            joinedFlow: activeInstance,
+          ),
+      onSelectedTemplateChanged: (templateKey) {
+        if (!persistOverlay) return;
+        unawaited(
+          _saveCalendarOverlayState(
+            _kCalendarOverlayKindFlowStudio,
+            <String, dynamic>{
+              'mode': templateKey == null
+                  ? _kFlowStudioModeMaatFlows
+                  : _kFlowStudioModeMaatTemplate,
+              if (templateKey != null) 'templateKey': templateKey,
+            },
+          ),
         );
-        return handleDetailResult(tpl, importedFlowId);
       },
       onCreateNew: () async {
         final edited = await _pushFlowStudioEditor(
@@ -27585,30 +27117,6 @@ class CalendarPageState extends State<CalendarPage>
           }
         }
       },
-      initialDetailBuilder: restoredTemplate == null
-          ? null
-          : (_) => _buildMaatFlowTemplateDetailPage(
-              template: restoredTemplate,
-              persistOverlay: persistOverlay,
-              joinedFlow: _activeFlowForMaatTemplate(restoredTemplate.key),
-            ),
-      onInitialDetailDismissed: restoredTemplate == null
-          ? null
-          : (importedFlowId) {
-              unawaited(() async {
-                if (persistOverlay &&
-                    mounted &&
-                    !RestorationCoordinator
-                        .instance
-                        .shouldPreserveOverlayForLifecycleClose) {
-                  await _saveCalendarOverlayState(
-                    _kCalendarOverlayKindFlowStudio,
-                    const <String, dynamic>{'mode': _kFlowStudioModeMaatFlows},
-                  );
-                }
-                await handleDetailResult(restoredTemplate, importedFlowId);
-              }());
-            },
     );
   }
 
@@ -27725,7 +27233,7 @@ class CalendarPageState extends State<CalendarPage>
           }
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            _openDayViewForStagedFlow(importedFlowId);
+            _openDayViewForFlow(importedFlowId);
           });
         }());
       },
@@ -27804,26 +27312,15 @@ class CalendarPageState extends State<CalendarPage>
           'templateKey': kReadingHouseFlowKey,
         },
         rootBuilder: (innerCtx) {
-          return _ReadingHouseAuthoringPage(
+          return _ReadingHouseAuthoringSurface(
             flow: readingHouseFlow,
-            calendar: _calendarSummary(readingHouseFlow.calendarId),
-            personalCalendarId: _personalCalendarId,
-            sharedCalendarsRepo: _sharedCalendarsRepo,
-            onCalendarChanged: _moveReadingHouseFlowToCalendar,
-            onSave: (result) async {
-              await _persistFlowStudioResult(result);
-              if (mounted) {
-                await _requestHydration(
-                  _CalendarHydrationRequest.catalogReconcile(
-                    reason: 'reading_house_authoring_save',
-                  ),
-                );
-              }
-              if (!innerCtx.mounted) return;
-              final rootNavigator = Navigator.of(innerCtx, rootNavigator: true);
-              if (rootNavigator.canPop()) {
-                rootNavigator.pop();
-              }
+            onPersisted: (_) async {
+              if (!mounted) return;
+              await _requestHydration(
+                _CalendarHydrationRequest.catalogReconcile(
+                  reason: 'reading_house_direct_persisted',
+                ),
+              );
             },
           );
         },
@@ -28257,7 +27754,7 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  FollowSkyCalendarPreview _offeringTableCalendarPreview() {
+  FollowSkyCalendarPreview _maatFlowCalendarPreview() {
     final windowStart = DateUtils.dateOnly(DateTime.now());
     final windowEnd = windowStart.add(const Duration(days: 119));
     final source = _calendarPreviewSource(
@@ -28269,6 +27766,7 @@ class CalendarPageState extends State<CalendarPage>
       windowStart: windowStart,
       windowEnd: windowEnd,
       coverageComplete: true,
+      supply: CalendarPreviewSupply.loaded,
     );
   }
 
@@ -28321,6 +27819,7 @@ class CalendarPageState extends State<CalendarPage>
         candidates: candidates,
         intervals: intervals,
         coverageComplete: true,
+        supply: CalendarPreviewSupply.loaded,
       ),
     );
   }
@@ -28509,23 +28008,14 @@ class CalendarPageState extends State<CalendarPage>
     bool useKemetic = false,
     TrackSkyTimeZone? trackSkyTimeZone,
     int alertMinutesBefore = _alertNoneMinutes,
-    bool dawnDiscreetMode = false,
-    DawnHouseRiteLens dawnLens = DawnHouseRiteLens.neutral,
-    bool eveningDiscreetMode = false,
-    EveningThresholdRiteLens eveningLens = EveningThresholdRiteLens.neutral,
-    int eveningFallbackMinutesAfterMidnight =
-        kEveningThresholdDefaultFallbackMinutes,
-    TheWeighingLens theWeighingLens = TheWeighingLens.neutral,
     OfferingTableLens offeringTableLens = OfferingTableLens.neutral,
     bool offeringNoCupMode = false,
-    TheTendingLens theTendingLens = TheTendingLens.neutral,
-    KeptWordLens keptWordLens = KeptWordLens.neutral,
     CourseLens courseLens = CourseLens.neutral,
     MoonReturnLens moonReturnLens = MoonReturnLens.neutral,
-    WagLens wagLens = WagLens.neutral,
     DecanWatchLens decanWatchLens = DecanWatchLens.neutral,
     OpenHandLens openHandLens = OpenHandLens.neutral,
     DjedLens djedLens = DjedLens.neutral,
+    DjedV2Configuration? djedConfiguration,
     List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   }) async {
@@ -28537,22 +28027,14 @@ class CalendarPageState extends State<CalendarPage>
       useKemetic: useKemetic,
       trackSkyTimeZone: trackSkyTimeZone,
       alertMinutesBefore: alertMinutesBefore,
-      dawnDiscreetMode: dawnDiscreetMode,
-      dawnLens: dawnLens,
-      eveningDiscreetMode: eveningDiscreetMode,
-      eveningLens: eveningLens,
-      eveningFallbackMinutesAfterMidnight: eveningFallbackMinutesAfterMidnight,
-      theWeighingLens: theWeighingLens,
       offeringTableLens: offeringTableLens,
       offeringNoCupMode: offeringNoCupMode,
-      theTendingLens: theTendingLens,
-      keptWordLens: keptWordLens,
       courseLens: courseLens,
       moonReturnLens: moonReturnLens,
-      wagLens: wagLens,
       decanWatchLens: decanWatchLens,
       openHandLens: openHandLens,
       djedLens: djedLens,
+      djedConfiguration: djedConfiguration,
       readingHouseSittings: readingHouseSittings,
       eveningThresholdInitialCarry: eveningThresholdInitialCarry,
     );
@@ -29821,11 +29303,9 @@ class CalendarPageState extends State<CalendarPage>
 
     try {
       _calendarDebugPrint('🚀 Attempting to show modal bottom sheet...');
-      showModalBottomSheet(
+      showEditableModalBottomSheet(
         context: context,
-        isScrollControlled: true,
         backgroundColor: Colors.transparent, // ✅ More stable like Flow Studio
-        useSafeArea: true,
         // iPad/tablet: allow swipe-to-close + backdrop tap to avoid trapped sheets.
         isDismissible: true,
         enableDrag: true,
@@ -30001,8 +29481,6 @@ class CalendarPageState extends State<CalendarPage>
                 );
               }
 
-              const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
-
               void selectDaySheetTab(DaySheetTab tab) {
                 final leavingFlows =
                     activeDaySheetTab == DaySheetTab.flows &&
@@ -30103,7 +29581,6 @@ class CalendarPageState extends State<CalendarPage>
                   child: DaySheetKeyboardSafeFrame(
                     expanded: followSkyIntentionEditing,
                     scrollable: false,
-                    scrollBottomPadding: 0,
                     bottomPadding: 0,
                     horizontalPadding: 0,
                     child: DefaultTextStyle(
@@ -30401,19 +29878,16 @@ class CalendarPageState extends State<CalendarPage>
 
                         DaySheetTextField(
                           controller: controllerTitle,
-                          scrollPadding: fieldScrollPadding,
                           hint: 'Title',
                         ),
 
                         DaySheetTextField(
                           controller: controllerLocation,
-                          scrollPadding: fieldScrollPadding,
                           hint: 'Location or video call',
                         ),
 
                         DaySheetTextField(
                           controller: controllerDetail,
-                          scrollPadding: fieldScrollPadding,
                           hint: 'Details (optional)',
                           minLines: 4,
                           maxLines: 6,
@@ -31373,9 +30847,8 @@ class CalendarPageState extends State<CalendarPage>
     if (_quickAddSheetOpenOrOpening) return;
     _quickAddSheetOpenOrOpening = true;
     try {
-      await showModalBottomSheet(
+      await showEditableModalBottomSheet(
         context: context,
-        isScrollControlled: true,
         enableDrag: false,
         backgroundColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
@@ -32083,63 +31556,11 @@ class CalendarPageState extends State<CalendarPage>
     }());
   }
 
-  String? _canonicalDawnHouseRiteDetailForLoadedEvent({
-    required _Flow? flow,
-    required FlowEventRow event,
-  }) {
-    return canonicalDawnHouseRiteDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
-  }
-
-  String? _canonicalTheWeighingDetailForLoadedEvent({
-    required _Flow? flow,
-    required FlowEventRow event,
-  }) {
-    return canonicalTheWeighingDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
-  }
-
   String? _canonicalOfferingTableDetailForLoadedEvent({
     required _Flow? flow,
     required FlowEventRow event,
   }) {
     return canonicalOfferingTableDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
-  }
-
-  String? _canonicalTheTendingDetailForLoadedEvent({
-    required _Flow? flow,
-    required FlowEventRow event,
-  }) {
-    return canonicalTheTendingDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
-  }
-
-  String? _canonicalKeptWordDetailForLoadedEvent({
-    required _Flow? flow,
-    required FlowEventRow event,
-  }) {
-    return canonicalKeptWordDetailTextForEvent(
       flowName: flow?.name,
       flowNotes: flow?.notes,
       title: event.title,
@@ -32168,26 +31589,6 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  String? _canonicalWagDetailForLoadedEvent({
-    required _Flow? flow,
-    required FlowEventRow event,
-  }) {
-    int? parseYear(dynamic value) {
-      if (value is num) return value.toInt();
-      return int.tryParse(value?.toString().trim() ?? '');
-    }
-
-    final kYear = parseYear(event.behaviorPayload?['k_year']);
-    return canonicalWagDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-      nextWagDate: kYear == null ? null : wagNextFeastGregorian(kYear),
-    );
-  }
-
   String? _canonicalOpenHandDetailForLoadedEvent({
     required _Flow? flow,
     required FlowEventRow event,
@@ -32205,13 +31606,17 @@ class CalendarPageState extends State<CalendarPage>
     required _Flow? flow,
     required FlowEventRow event,
   }) {
-    return canonicalDjedDetailTextForEvent(
-      flowName: flow?.name,
-      flowNotes: flow?.notes,
-      title: event.title,
-      actionId: event.actionId,
-      behaviorPayload: event.behaviorPayload,
-    );
+    return canonicalDjedV2DetailTextForEvent(
+          actionId: event.actionId,
+          behaviorPayload: event.behaviorPayload,
+        ) ??
+        canonicalDjedDetailTextForEvent(
+          flowName: flow?.name,
+          flowNotes: flow?.notes,
+          title: event.title,
+          actionId: event.actionId,
+          behaviorPayload: event.behaviorPayload,
+        );
   }
 
   String? _canonicalReadingHouseDetailForLoadedEvent({
@@ -34234,10 +33639,9 @@ class CalendarPageState extends State<CalendarPage>
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (sheetCtx) {
-        final inset = MediaQuery.of(sheetCtx).viewInsets.bottom;
         return SafeArea(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + inset),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: SizedBox(
               height: MediaQuery.of(sheetCtx).size.height * 0.65,
               child: Column(
@@ -34948,14 +34352,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   EventItem _calendarSheetEventItemFromNote(_Note note) {
-    final startMin = note.allDay
-        ? 9 * 60
-        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-    final endMin = note.allDay
-        ? 17 * 60
-        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
-
-    return EventItem(
+    return EventItem.fromTimedNote(
       id: note.id,
       clientEventId: note.clientEventId,
       calendarId: note.calendarId,
@@ -34963,23 +34360,18 @@ class CalendarPageState extends State<CalendarPage>
       title: note.title,
       detail: note.detail,
       location: note.location,
-      startMin: startMin,
-      endMin: endMin,
+      allDay: note.allDay,
+      startHour: note.start?.hour,
+      startMinute: note.start?.minute,
+      endHour: note.end?.hour,
+      endMinute: note.end?.minute,
       flowId: note.flowId,
       color: _noteColor(note),
       manualColor: note.manualColor,
-      allDay: note.allDay,
       category: note.category,
       isReminder: note.isReminder,
       reminderId: note.reminderId,
       behaviorPayload: note.behaviorPayload,
-      hasCanonicalSchedule: noteHasCanonicalSchedule(
-        allDay: note.allDay,
-        startHour: note.start?.hour,
-        startMinute: note.start?.minute,
-        endHour: note.end?.hour,
-        endMinute: note.end?.minute,
-      ),
     );
   }
 
@@ -35228,6 +34620,44 @@ class CalendarPageState extends State<CalendarPage>
     return _calendarSheetEventIdentityKey(
       a,
     ).compareTo(_calendarSheetEventIdentityKey(b));
+  }
+
+  DayViewSheetEventTarget? _eventTargetForOwnedDjedSitting({
+    required int flowId,
+    required int sittingNumber,
+  }) {
+    DayViewSheetEventTarget? from(Map<String, List<_Note>> notes) {
+      for (final entry in notes.entries) {
+        final parts = entry.key.split('-');
+        if (parts.length != 3) continue;
+        final ky = int.tryParse(parts[0]);
+        final km = int.tryParse(parts[1]);
+        final kd = int.tryParse(parts[2]);
+        if (ky == null || km == null || kd == null) continue;
+        for (final note in entry.value) {
+          if (!calendarEventMatchesOwnedDjedSitting(
+            flowId: flowId,
+            sittingNumber: sittingNumber,
+            eventFlowId: note.flowId,
+            title: note.title,
+            actionId: note.actionId,
+            behaviorPayload: note.behaviorPayload,
+          )) {
+            continue;
+          }
+          return DayViewSheetEventTarget(
+            ky: ky,
+            km: km,
+            kd: kd,
+            event: _calendarSheetEventItemFromNote(note),
+          );
+        }
+      }
+      return null;
+    }
+
+    return from(_notes) ??
+        from(_calendarAuthoritativeNotesByDay ?? const <String, List<_Note>>{});
   }
 
   List<EventItem> _calendarSheetEventsForDay(int ky, int km, int kd) {

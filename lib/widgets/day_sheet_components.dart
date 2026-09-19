@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'keyboard_aware.dart';
+
 enum DaySheetTab { notes, reminders, flows }
 
 const List<Color> daySheetColorPalette = <Color>[
@@ -99,7 +101,6 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
     this.horizontalPadding = 22,
     this.topPadding = 10,
     this.bottomPadding = 12,
-    this.scrollBottomPadding = 180,
     this.scrollable = true,
     this.expanded = false,
   });
@@ -109,163 +110,51 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
   final double horizontalPadding;
   final double topPadding;
   final double bottomPadding;
-  final double scrollBottomPadding;
   final bool scrollable;
   final bool expanded;
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final visibleHeight = math.max(
-      0.0,
-      media.size.height - media.viewInsets.bottom,
-    );
-    final sheetHeight = expanded
-        ? visibleHeight
-        : media.size.height * maxHeightFactor;
-    final bottomInset = expanded ? media.viewInsets.bottom : 0.0;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: SizedBox(
-        key: daySheetKeyboardSafePaddingKey,
-        height: sheetHeight,
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          resizeToAvoidBottomInset: !expanded,
-          body: Container(
-            key: daySheetKeyboardSafeFrameKey,
-            decoration: const BoxDecoration(
-              color: DaySheetTokens.bg,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-              border: Border(
-                top: BorderSide(color: DaySheetTokens.hair, width: 1),
-              ),
+    final frame = SizedBox(
+      key: daySheetKeyboardSafePaddingKey,
+      height: expanded ? null : media.size.height * maxHeightFactor,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        resizeToAvoidBottomInset: false,
+        body: Container(
+          key: daySheetKeyboardSafeFrameKey,
+          decoration: const BoxDecoration(
+            color: DaySheetTokens.bg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            border: Border(
+              top: BorderSide(color: DaySheetTokens.hair, width: 1),
             ),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: horizontalPadding,
-                  right: horizontalPadding,
-                  top: topPadding,
-                  bottom: media.padding.bottom + bottomPadding,
-                ),
-                child: scrollable
-                    ? SingleChildScrollView(
-                        key: daySheetKeyboardSafeScrollViewKey,
-                        keyboardDismissBehavior:
-                            ScrollViewKeyboardDismissBehavior.onDrag,
-                        padding: EdgeInsets.only(
-                          bottom: media.padding.bottom + scrollBottomPadding,
-                        ),
-                        child: child,
-                      )
-                    : child,
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: horizontalPadding,
+                right: horizontalPadding,
+                top: topPadding,
+                bottom: media.padding.bottom + bottomPadding,
               ),
+              child: scrollable
+                  ? SingleChildScrollView(
+                      key: daySheetKeyboardSafeScrollViewKey,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: child,
+                    )
+                  : child,
             ),
           ),
         ),
       ),
     );
-  }
-}
-
-class DaySheetScaffold extends StatelessWidget {
-  const DaySheetScaffold({
-    super.key,
-    required this.height,
-    required this.keyboardInset,
-    required this.activeTab,
-    required this.accent,
-    required this.onTabSelected,
-    required this.onClose,
-    required this.body,
-    required this.fab,
-    this.onCartoucheTap,
-  });
-
-  final double height;
-  final double keyboardInset;
-  final DaySheetTab activeTab;
-  final Color accent;
-  final ValueChanged<DaySheetTab> onTabSelected;
-  final VoidCallback onClose;
-  final Widget body;
-  final Widget fab;
-  final VoidCallback? onCartoucheTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomSafe = MediaQuery.paddingOf(context).bottom;
-    final effectiveBottom = keyboardInset + bottomSafe;
-    return Container(
-      height: height,
-      decoration: const BoxDecoration(
-        color: DaySheetTokens.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-        border: Border(top: BorderSide(color: DaySheetTokens.hair, width: 1)),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: SafeArea(
-              top: false,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.only(bottom: effectiveBottom + 130),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    const _DaySheetHandle(),
-                    DaySheetTabBar(
-                      activeTab: activeTab,
-                      accent: accent,
-                      onSelected: onTabSelected,
-                    ),
-                    body,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 4,
-            right: 8,
-            child: IconButton(
-              tooltip: 'Close',
-              onPressed: onClose,
-              icon: const Icon(
-                Icons.close,
-                color: DaySheetTokens.silverMid,
-                size: 22,
-              ),
-            ),
-          ),
-          Positioned(
-            left: 22,
-            bottom: effectiveBottom + 34,
-            child: DaySheetCartouche(onTap: onCartoucheTap),
-          ),
-          Positioned(right: 22, bottom: effectiveBottom + 30, child: fab),
-        ],
-      ),
-    );
-  }
-}
-
-class _DaySheetHandle extends StatelessWidget {
-  const _DaySheetHandle();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 5,
-      decoration: BoxDecoration(
-        color: DaySheetTokens.silverLo.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(3),
-      ),
+    return KeyboardAwareEditableSurface(
+      child: expanded ? SizedBox.expand(child: frame) : frame,
     );
   }
 }
@@ -488,7 +377,6 @@ class DaySheetTextField extends StatelessWidget {
     required this.hint,
     this.minLines = 1,
     this.maxLines = 1,
-    this.scrollPadding = EdgeInsets.zero,
     this.enabled = true,
   });
 
@@ -496,7 +384,6 @@ class DaySheetTextField extends StatelessWidget {
   final String hint;
   final int minLines;
   final int maxLines;
-  final EdgeInsets scrollPadding;
   final bool enabled;
 
   @override
@@ -508,7 +395,6 @@ class DaySheetTextField extends StatelessWidget {
         enabled: enabled,
         minLines: minLines,
         maxLines: maxLines,
-        scrollPadding: scrollPadding,
         style: const TextStyle(
           fontFamily: DaySheetTokens.serif,
           fontSize: 18,

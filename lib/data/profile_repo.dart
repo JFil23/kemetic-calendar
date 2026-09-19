@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show DateUtils;
 import 'package:mobile/core/supabase_auth_retry.dart';
-import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_catalog.dart';
 import 'package:mobile/utils/detail_sanitizer.dart';
 import 'package:mobile/utils/event_cid_util.dart';
@@ -999,7 +998,7 @@ class ProfileRepo {
   }
 
   /// Create a flow post for the current user from an existing flow.
-  Future<FlowPost?> postFlow(int flowId) async {
+  Future<FlowPost?> postFlow(int flowId, {String? sharedNote}) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return null;
@@ -1027,15 +1026,7 @@ class ProfileRepo {
         final startLocal = e.startsAtUtc.toLocal();
         final endLocal = e.endsAtUtc?.toLocal();
 
-        final detail =
-            canonicalDawnHouseRiteDetailTextForEvent(
-              flowName: flow.name,
-              flowNotes: flow.notes,
-              title: e.title,
-              actionId: e.actionId,
-              behaviorPayload: e.behaviorPayload,
-            ) ??
-            cleanFlowDetail(e.detail);
+        final detail = cleanFlowDetail(e.detail);
         final location = e.location?.trim();
 
         return {
@@ -1051,6 +1042,7 @@ class ProfileRepo {
         };
       }
 
+      final normalizedSharedNote = sharedNote?.trim();
       final payload = {
         'name': flow.name,
         'color': flow.color,
@@ -1059,6 +1051,8 @@ class ProfileRepo {
         'events': events.map(eventToPayload).toList(),
         'start_date': startDate?.toIso8601String(),
         'end_date': flow.endDate?.toIso8601String(),
+        if (normalizedSharedNote != null && normalizedSharedNote.isNotEmpty)
+          'shared_note': normalizedSharedNote,
       };
 
       final inserted = await _client
@@ -1075,6 +1069,9 @@ class ProfileRepo {
             'is_hidden': flow.isHidden,
             'ai_metadata': {
               'payload': payload,
+              if (normalizedSharedNote != null &&
+                  normalizedSharedNote.isNotEmpty)
+                'shared_note': normalizedSharedNote,
               if (flow.aiMetadata != null) 'source_ai': flow.aiMetadata,
             },
           })

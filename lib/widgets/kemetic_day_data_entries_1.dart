@@ -1809,7 +1809,7 @@ Map<String, KemeticDayInfo> _buildKaHerKaIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'kaherka_1_1',
-      kemeticDate: 'Ka-ḥer-ka I, Day 1 (Day 1 of Ka-ḥer-ka)',
+      kemeticDate: 'Ka-ḥer-ka I, Day 1',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
       decanName: 'msḥtjw ("The Foreleg")',
@@ -2020,7 +2020,7 @@ Map<String, KemeticDayInfo> _buildKaHerKaIIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'kaherka_11_2',
-      kemeticDate: 'Ka-ḥer-ka II, Day 11 (Day 11 of Ka-ḥer-ka)',
+      kemeticDate: 'Ka-ḥer-ka II, Day 11',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
       decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
@@ -2235,7 +2235,7 @@ Map<String, KemeticDayInfo> _buildKaHerKaIIIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'kaherka_21_3',
-      kemeticDate: 'Ka-ḥer-ka III, Day 21 (Day 21 of Ka-ḥer-ka)',
+      kemeticDate: 'Ka-ḥer-ka III, Day 21',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
       decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
@@ -2461,7 +2461,7 @@ Map<String, KemeticDayInfo> _buildShefBedetIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'sefbedet_1_1',
-      kemeticDate: 'Šef-Bedet I, Day 1 (Day 1 of Šef-Bedet)',
+      kemeticDate: 'Šef-Bedet I, Day 1',
       season: '🌱 Peret – Emergence Season',
       month: 'Šef-Bedet ("Šf-bdt")',
       decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
@@ -2662,7 +2662,7 @@ Map<String, KemeticDayInfo> _buildShefBedetIIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'sefbedet_11_2',
-      kemeticDate: 'Šef-Bedet II, Day 11 (Day 11 of Šef-Bedet)',
+      kemeticDate: 'Šef-Bedet II, Day 11',
       season: '🌱 Peret – Emergence Season',
       month: 'Šef-Bedet ("Šf-bdt")',
       decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
@@ -2847,7 +2847,7 @@ Good tending looks past the present moment. It prepares for the weather that has
           '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
       maatPrinciple: 'Justice Keeps the Field from Bitterness',
       cosmicContext:
-          '''At the edge of two plots, elders judge a boundary stone shifted by water. No blade is drawn. No voice wins by loudness. They remember old marks, listen to both houses, and set the stone again. Justice is also fieldwork. It keeps tomorrow from being poisoned. When the stone stands again, no one has won. Two houses have been spared from teaching their children to hate a furrow.''',
+          '''At the edge of two plots, elders judge a boundary stone shifted by water. They remember old marks, listen to both houses, and set the stone again. Justice is also fieldwork. It keeps tomorrow from being poisoned. When the stone stands again, no one has won. Two houses have been spared from teaching their children to hate a furrow.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
@@ -2863,7 +2863,7 @@ Map<String, KemeticDayInfo> _buildShefBedetIIIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'sefbedet_21_3',
-      kemeticDate: 'Šef-Bedet III, Day 21 (Day 21 of Šef-Bedet)',
+      kemeticDate: 'Šef-Bedet III, Day 21',
       season: '🌱 Peret – Emergence Season',
       month: 'Šef-Bedet ("Šf-bdt")',
       decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',

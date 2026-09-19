@@ -15,6 +15,7 @@ enum MaatFlowKind {
   theOpenHand,
   theDjed,
   readingHouse,
+  theKar,
   fairHearing,
   houseOfLife,
   boundaryStone,
@@ -69,6 +70,8 @@ extension MaatFlowKindIdentity on MaatFlowKind {
         return 'the-djed';
       case MaatFlowKind.readingHouse:
         return 'the-reading-house';
+      case MaatFlowKind.theKar:
+        return 'the-kar';
       case MaatFlowKind.fairHearing:
         return 'the-fair-hearing';
       case MaatFlowKind.houseOfLife:
@@ -111,6 +114,7 @@ MaatFlowKind? resolveMaatFlowKind({
   String? flowName,
   String? flowNotes,
   String? actionId,
+  String? eventTitle,
   Map<String, dynamic>? behaviorPayload,
 }) {
   final flowKey =
@@ -137,7 +141,11 @@ MaatFlowKind? resolveMaatFlowKind({
   }
 
   final normalizedName = _normalizeName(flowName);
-  return _flowNameKinds[normalizedName];
+  final nameMatch = _flowNameKinds[normalizedName];
+  if (nameMatch != null) return nameMatch;
+
+  if (_isDjedEventTitle(eventTitle)) return MaatFlowKind.theDjed;
+  return null;
 }
 
 bool isMaatFlowReference(
@@ -145,12 +153,14 @@ bool isMaatFlowReference(
   String? flowName,
   String? flowNotes,
   String? actionId,
+  String? eventTitle,
   Map<String, dynamic>? behaviorPayload,
 }) {
   return resolveMaatFlowKind(
         flowName: flowName,
         flowNotes: flowNotes,
         actionId: actionId,
+        eventTitle: eventTitle,
         behaviorPayload: behaviorPayload,
       ) ==
       kind;
@@ -173,6 +183,7 @@ const Map<String, MaatFlowKind> _flowKeyKinds = <String, MaatFlowKind>{
   'the-open-hand': MaatFlowKind.theOpenHand,
   'the-djed': MaatFlowKind.theDjed,
   'the-reading-house': MaatFlowKind.readingHouse,
+  'the-kar': MaatFlowKind.theKar,
   'the-fair-hearing': MaatFlowKind.fairHearing,
   'the-house-of-life': MaatFlowKind.houseOfLife,
   'the-boundary-stone': MaatFlowKind.boundaryStone,
@@ -206,7 +217,10 @@ const Map<String, MaatFlowKind> _behaviorKindKinds = <String, MaatFlowKind>{
   'maat_days_outside_year': MaatFlowKind.daysOutsideTheYear,
   'maat_open_hand_event': MaatFlowKind.theOpenHand,
   'maat_djed_event': MaatFlowKind.theDjed,
+  'maat_djed_v2_event': MaatFlowKind.theDjed,
   'maat_reading_house_sitting': MaatFlowKind.readingHouse,
+  'maat_kar_scene': MaatFlowKind.theKar,
+  'maat_kar_walk': MaatFlowKind.theKar,
   'maat_fair_hearing_event': MaatFlowKind.fairHearing,
   'maat_house_of_life_event': MaatFlowKind.houseOfLife,
   'maat_boundary_stone_event': MaatFlowKind.boundaryStone,
@@ -244,7 +258,9 @@ const Map<String, MaatFlowKind> _actionIdPrefixKinds = <String, MaatFlowKind>{
   'the-days-outside-year-event-': MaatFlowKind.daysOutsideTheYear,
   'the-open-hand-event-': MaatFlowKind.theOpenHand,
   'the-djed-event-': MaatFlowKind.theDjed,
+  'the-djed-v2-': MaatFlowKind.theDjed,
   'the-reading-house-sitting-': MaatFlowKind.readingHouse,
+  'the-kar-': MaatFlowKind.theKar,
   'the-fair-hearing-event-': MaatFlowKind.fairHearing,
   'the-house-of-life-event-': MaatFlowKind.houseOfLife,
   'the-boundary-stone-event-': MaatFlowKind.boundaryStone,
@@ -287,6 +303,8 @@ const Map<String, MaatFlowKind> _flowNameKinds = <String, MaatFlowKind>{
   'the reading house': MaatFlowKind.readingHouse,
   'book club flow': MaatFlowKind.readingHouse,
   'hosted book flow': MaatFlowKind.readingHouse,
+  'the kꜣr': MaatFlowKind.theKar,
+  'the kar': MaatFlowKind.theKar,
   'the fair hearing': MaatFlowKind.fairHearing,
   'the house of life': MaatFlowKind.houseOfLife,
   'the boundary stone': MaatFlowKind.boundaryStone,
@@ -306,6 +324,17 @@ const Map<String, MaatFlowKind> _flowNameKinds = <String, MaatFlowKind>{
   'the khat': MaatFlowKind.khat,
   'the oracle': MaatFlowKind.oracle,
 };
+
+final RegExp _djedEventTitlePattern = RegExp(
+  r'^\s*Djed\s+\d{1,2}\s*:',
+  caseSensitive: false,
+);
+
+bool _isDjedEventTitle(String? eventTitle) {
+  final title = eventTitle?.trim();
+  if (title == null || title.isEmpty) return false;
+  return _djedEventTitlePattern.hasMatch(title);
+}
 
 String? _maatKeyFromNotes(String? flowNotes) {
   if (flowNotes == null || flowNotes.isEmpty) return null;

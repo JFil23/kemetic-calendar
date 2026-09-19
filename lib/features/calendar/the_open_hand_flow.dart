@@ -1,8 +1,7 @@
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-import 'dawn_house_rite_flow.dart';
-import 'evening_threshold_rite_flow.dart';
+import 'maat_solar_schedule.dart';
 import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 
@@ -14,7 +13,7 @@ const String kTheOpenHandTagline =
 const int kOpenHandDefaultMiddayHour = 11;
 const int kOpenHandDefaultMiddayMinute = 0;
 const int kOpenHandEveningFallbackMinutes =
-    kEveningThresholdDefaultFallbackMinutes + 20;
+    kMaatDefaultEveningFallbackMinutes + 20;
 
 const String kOpenHandConfidenceLabel =
     'Draws on the bread-water-clothing-boat formula across Kemetic biography and Spell 125.';
@@ -500,7 +499,7 @@ OpenHandOccurrenceSchedule openHandMorningScheduleForDate(
   TrackSkyTimeZone timezone, {
   required int durationMinutes,
 }) {
-  final base = dawnHouseRiteScheduleForDate(date, timezone);
+  final base = maatDawnScheduleForDate(date, timezone);
   final startUtc = base.startUtc.add(const Duration(minutes: 30));
   final endUtc = startUtc.add(Duration(minutes: durationMinutes));
   final location = tz.getLocation(timezone.ianaName);
@@ -558,7 +557,7 @@ OpenHandOccurrenceSchedule openHandEveningScheduleForDate(
   TrackSkyTimeZone timezone, {
   required int durationMinutes,
 }) {
-  final base = eveningThresholdScheduleForDate(
+  final base = maatSunsetScheduleForDate(
     date,
     timezone,
     fallbackMinutesAfterMidnight: kOpenHandEveningFallbackMinutes,

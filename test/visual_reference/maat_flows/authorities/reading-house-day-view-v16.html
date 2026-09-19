@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Reading House — Day View discussion sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Gentium+Plus:ital,wght@0,400;0,700;1,400&family=Noto+Sans+Egyptian+Hieroglyphs&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#020302;--sheet:#080B09;--sheet2:#0A0D0B;--bone:#E8E2D6;--gold:#D4AE43;--gold-dim:#8A7030;
+  --silver:#9E9A94;--low:#676E69;--sep:#1E2A24;--house:#3FA98A;--mint:#7FD9BC;--deep:#17362E;
+  --red:#8A2A27;--display:"Cormorant Garamond",Georgia,serif;--ui:"Gentium Plus",Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#000;color:var(--bone)}
+body{
+  display:flex;justify-content:center;align-items:flex-start;gap:22px;padding:20px 14px;
+  background:radial-gradient(110% 80% at 50% 0,#0B1712,#000 74%);font-family:var(--ui)
+}
+button,input,textarea{font:inherit}
+.eval{
+  width:178px;padding-top:14px;color:#747C76;font:12px/1.4 var(--ui)
+}
+.eval strong{display:block;margin-bottom:8px;color:#86B6A5;font-size:10px;letter-spacing:1.5px}
+.eval select{
+  width:100%;padding:8px;border-radius:8px;border:1px solid #294238;background:#07100D;color:#D9E1DC;
+  font:13px var(--ui)
+}
+.eval button{
+  width:100%;margin-top:8px;padding:8px;border-radius:8px;border:1px solid #294238;
+  background:#0A1712;color:#98C9B7;font:13px var(--ui);cursor:pointer
+}
+.eval p{margin:9px 0 0}
+.phone{
+  width:390px;height:844px;position:relative;overflow:hidden;border-radius:40px;background:#020302;
+  box-shadow:0 38px 90px rgba(0,0,0,.85),0 0 0 1px #142019
+}
+.status{
+  position:absolute;left:0;right:0;top:0;z-index:50;height:47px;padding:13px 24px 0;
+  display:flex;justify-content:space-between;color:#F3F2EE;
+  font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
+}
+
+/* -------- Day View -------- */
+.dayview{position:absolute;inset:0;background:#020302}
+.day-head{position:absolute;top:47px;left:0;right:0;height:145px;border-bottom:1px solid #0E130F;background:#020302}
+.navline{height:48px;padding:9px 18px;display:flex;align-items:center;gap:12px;color:#6C836F}
+.navline .x{font-size:24px}.navline .month{font:21px var(--display);flex:1}.navline .icons{font-size:20px;letter-spacing:8px}
+.date-strip{height:47px;display:flex;align-items:center;justify-content:center;gap:15px;color:#4F6256;font:11px var(--ui)}
+.date-strip .d{width:21px;text-align:center}.date-strip .sel{width:37px;height:37px;border:1px solid #3F7F6C;border-radius:50%;display:grid;place-items:center;color:#7FD9BC;font:18px var(--display)}
+.date-name{text-align:center;color:#63756D;font:italic 15px var(--display)}
+.timeline{position:absolute;left:0;right:0;top:192px;bottom:0}
+.hour{height:61px;border-top:1px solid #0B100D;position:relative}
+.hour span{position:absolute;left:7px;top:7px;color:#39443E;font-size:9px;letter-spacing:.6px}
+.event-block{
+  position:absolute;left:50px;right:16px;top:305px;height:61px;border:0;border-radius:10px;
+  padding:7px 70px 6px 12px;overflow:hidden;text-align:left;cursor:pointer;color:inherit;
+  background:
+    linear-gradient(90deg,rgba(3,8,6,.80),rgba(3,8,6,.46) 46%,rgba(3,8,6,.02)),
+    radial-gradient(ellipse at 84% 48%,rgba(240,210,150,.20),transparent 48%),
+    linear-gradient(154deg,#0C2119,#1E4436 54%,#0A1911);
+  box-shadow:0 7px 18px rgba(0,0,0,.55),0 0 16px rgba(127,217,188,.07);
+  transition:box-shadow .2s ease,transform .2s ease;
+  isolation:isolate
+}
+.event-block:after{
+  content:"";position:absolute;inset:0;border-radius:10px;pointer-events:none;
+  border:1px solid rgba(127,217,188,.42)
+}
+.event-block:hover{
+  transform:translateY(-1px);
+  box-shadow:0 9px 22px rgba(0,0,0,.6),0 0 22px rgba(127,217,188,.13)
+}
+.event-block:focus-visible{outline:2px solid var(--mint);outline-offset:3px}
+
+.ev-kicker{
+  position:absolute;z-index:3;left:14px;right:70px;top:9px;
+  display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font:400 7.5px/1 var(--ui);letter-spacing:1.25px;color:#9FE0C6;text-transform:uppercase
+}
+.ev-title{
+  position:absolute;z-index:3;left:14px;right:70px;top:20px;
+  display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font:600 17.5px/.96 var(--display);color:#FBF7EF
+}
+.ev-foot{
+  position:absolute;z-index:4;left:14px;right:70px;bottom:5px;
+  display:flex;align-items:center;gap:6px;margin:0
+}
+.ev-who{display:flex}
+.ev-who i{
+  width:13px;height:13px;border-radius:50%;display:grid;place-items:center;
+  font:400 7px var(--display);color:#0A1B14;
+  background:linear-gradient(150deg,#A8E6D1,#3FA98A);
+  box-shadow:0 0 0 1.5px #0E241B;margin-left:-5px;font-style:normal
+}
+.ev-who i:first-child{margin-left:0}
+.ev-said{
+  min-width:0;font:400 8.4px/1 var(--ui);color:#96B3A6;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+
+/* The roll — papyrus, rubric, lamp. */
+.roll-obj{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  width:55px;height:49px;pointer-events:none;z-index:2
+}
+.roll-obj svg{width:100%;height:100%;overflow:visible}
+.lamp{
+  animation:lamp-breathe 7.4s ease-in-out infinite;
+  transform-box:view-box;transform-origin:38px 34px
+}
+@keyframes lamp-breathe{
+  0%,100%{opacity:.58;transform:scale(.94)}
+  50%{opacity:1;transform:scale(1.06)}
+}
+.readers-mark{opacity:0}
+@media(prefers-reduced-motion:reduce){.lamp{animation:none;opacity:.85}}
+
+.tap-hint{position:absolute;left:50px;top:420px;color:#45564D;font:italic 12px var(--display)}
+
+/* -------- Shared Day View sheet -------- */
+.scrim{position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.46);opacity:0;pointer-events:none;transition:opacity .2s ease}
+.scrim.open{opacity:1;pointer-events:auto}
+.detail-sheet{
+  position:absolute;z-index:21;left:9px;right:9px;bottom:0;height:600px;
+  background:#070A08;border-radius:24px 24px 0 0;border:1px solid rgba(127,217,188,.10);border-bottom:0;
+  transform:translateY(102%);transition:transform .25s cubic-bezier(.18,.82,.3,1);
+  box-shadow:0 -20px 55px rgba(0,0,0,.68);overflow:hidden
+}
+.detail-sheet.open{transform:none}
+.sheet-chrome{
+  position:absolute;left:0;right:0;top:0;height:48px;z-index:15;background:linear-gradient(#0A0D0B 72%,rgba(10,13,11,.97))
+}
+.sheet-handle{position:absolute;left:50%;top:19px;width:41px;height:4px;transform:translateX(-50%);border-radius:4px;background:#33463E}
+.more{position:absolute;right:12px;top:9px;width:36px;height:34px;border:0;background:none;color:#68B89E;font:bold 24px/1 var(--ui);cursor:pointer}
+.sheet-footer{
+  position:absolute;left:0;right:0;bottom:0;height:72px;z-index:15;display:flex;align-items:center;justify-content:space-between;
+  padding:9px 18px 20px;background:linear-gradient(180deg,rgba(5,7,6,.84),#050706 30%);
+  border-top:1px solid rgba(127,217,188,.10)
+}
+.footer-btn{border:0;background:none;color:#79CDB0;font:700 15px var(--ui);cursor:pointer}
+.footer-btn.left:before{content:"≡✓";font-size:13px;margin-right:8px;color:#5EA78F}
+
+/* True two-stage layered scroll: same interaction model approved for Day View.
+   Stage 1: lower surface rises over the sitting hero.
+   Stage 2: once docked, its content scrolls inside that fixed surface. */
+.layer-stage{
+  position:absolute;left:10px;right:10px;top:48px;bottom:72px;z-index:4;overflow:hidden;
+  border-radius:18px 18px 0 0;background:#08100C;touch-action:none;overscroll-behavior:contain;user-select:none
+}
+.hero-layer{
+  position:absolute;inset:0;z-index:1;padding:18px 12px 24px;overflow:hidden;
+  background:
+    radial-gradient(105% 100% at 78% 8%,rgba(63,169,138,.14),transparent 56%),
+    linear-gradient(180deg,#0E1C16 0%,#09110D 60%,#070B09 100%)
+}
+
+.house-chat-room{
+  position:absolute;left:0;right:0;top:0;height:292px;z-index:1;
+  padding:16px 14px 8px;overflow:hidden;
+  background:
+    radial-gradient(100% 90% at 85% 0,rgba(63,169,138,.13),transparent 58%),
+    linear-gradient(180deg,#0D1A15 0%,#09120E 58%,#070B09 100%);
+  touch-action:pan-y;user-select:text;
+}
+.chat-room-head{
+  position:absolute;left:16px;right:16px;top:16px;height:54px;
+  display:flex;align-items:center;gap:10px;padding:1px 2px 10px;
+  border-bottom:1px solid rgba(127,217,188,.11)
+}
+.room-icon{
+  width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  border:1px solid rgba(127,217,188,.35);background:rgba(63,169,138,.09);
+  color:var(--mint);font-size:16px
+}
+.room-copy{min-width:0;flex:1}
+.room-title{display:block;font:600 19px/1 var(--display);color:#E8EEE9}
+.room-sub{display:block;margin-top:4px;color:#687B72;font:11px/1 var(--ui)}
+.room-people{display:flex;align-items:center}
+.room-avatar{
+  width:25px;height:25px;margin-left:-5px;border-radius:50%;display:grid;place-items:center;
+  border:1px solid #0A120E;background:#1A4A3A;color:#CDECE0;font:700 8px/1 var(--ui)
+}
+.room-avatar:first-child{margin-left:0}
+.room-count{margin-left:7px;color:#779188;font:10px/1 var(--ui)}
+.chat-room-stream{
+  position:absolute;left:16px;right:16px;top:80px;bottom:68px;
+  overflow-y:auto;padding:2px 2px 4px;scrollbar-width:none;
+  overscroll-behavior:contain;touch-action:pan-y;overflow-anchor:none
+}
+.chat-room-list{
+  min-height:100%;display:flex;flex-direction:column;justify-content:flex-end
+}
+.chat-room-stream::-webkit-scrollbar{display:none}
+.chat-message{
+  display:grid;grid-template-columns:30px 1fr;gap:8px;padding:6px 2px;
+  animation:message-in .23s ease-out both
+}
+@keyframes message-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.chat-avatar{
+  width:29px;height:29px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(63,169,138,.10);border:1px solid rgba(127,217,188,.18);
+  color:#8EDBBF;font:700 9px/1 var(--ui)
+}
+.chat-message-main{min-width:0}
+.chat-meta{display:flex;align-items:baseline;gap:7px;min-width:0}
+.chat-name{font:700 11px/1 var(--ui);color:#C5D0CA}
+.host-badge{padding:2px 5px;border-radius:999px;background:rgba(212,174,67,.10);color:#BFA357;font:700 7px/1 var(--ui);letter-spacing:.5px}
+.chat-time{color:#52635B;font:9px/1 var(--ui)}
+.chat-delete{margin-left:auto;border:0;background:none;color:#645C58;font-size:13px;cursor:pointer;padding:0 3px}
+.chat-body{margin:4px 0 0;color:#B8C4BE;font:13.5px/1.32 var(--ui)}
+.chat-empty{height:100%;display:grid;place-items:center;text-align:center;padding:18px;color:#68766F;font:italic 13px/1.38 var(--display)}
+.chat-lock{max-width:240px}
+.chat-lock strong{display:block;margin-bottom:5px;color:#A9B8B1;font:500 18px/1.1 var(--display)}
+.chat-room-compose{
+  position:absolute;left:16px;right:16px;bottom:10px;height:46px;
+  display:grid;grid-template-columns:1fr 36px;gap:7px;align-items:center;
+  padding-top:7px;border-top:1px solid rgba(127,217,188,.11);
+  background:linear-gradient(180deg,rgba(7,11,9,.92),#07100C 28%);z-index:5
+}
+.new-message-notice{
+  position:absolute;z-index:8;left:50%;bottom:61px;
+  transform:translateX(-50%) translateY(5px);
+  display:flex;align-items:center;gap:7px;min-height:30px;
+  padding:3px 4px 3px 11px;border-radius:999px;
+  border:1px solid rgba(127,217,188,.28);background:#0D1713;
+  box-shadow:0 6px 18px rgba(0,0,0,.36);
+  opacity:0;pointer-events:none;transition:opacity .16s ease,transform .16s ease
+}
+.new-message-notice.show{
+  opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)
+}
+.new-message-count{white-space:nowrap;color:#A8C6BA;font:600 10.5px/1 var(--ui)}
+.jump-latest{
+  width:25px;height:25px;border-radius:50%;border:0;background:#214E40;color:#D7EFE6;
+  display:grid;place-items:center;cursor:pointer;font:700 14px/1 var(--ui)
+}
+.chat-room-input{
+  width:100%;min-height:38px;max-height:64px;border:1px solid rgba(127,217,188,.17);
+  border-radius:12px;background:#07100C;color:#DCE5E0;padding:9px 10px;resize:none;
+  caret-color:var(--mint);font:13px/1.3 var(--ui);user-select:text
+}
+.chat-room-input:focus{outline:1px solid rgba(127,217,188,.46)}
+.chat-room-input::placeholder{color:#506058}
+.chat-room-send{width:36px;height:36px;border-radius:50%;border:1px solid rgba(127,217,188,.31);background:#173C30;color:#D5F0E6;font-size:16px;cursor:pointer}
+.chat-room-send:disabled{opacity:.32;cursor:default}
+
+/* lower layer */
+.practice-shell{
+  position:absolute;inset:0;z-index:7;overflow:hidden;border-radius:18px 18px 0 0;
+  background:#080B09;border-top:1px solid rgba(127,217,188,.20);
+  box-shadow:0 -15px 32px rgba(0,0,0,.64),0 -1px 0 rgba(127,217,188,.06);will-change:transform
+}
+.practice-shell:before{
+  content:"";position:absolute;z-index:4;left:50%;top:7px;transform:translateX(-50%);
+  width:38px;height:3px;border-radius:4px;background:#33463E
+}
+.practice-content{position:absolute;left:0;right:0;top:0;will-change:transform}
+.practice-layer{padding:22px 18px 30px;min-height:100%;background:linear-gradient(180deg,#0A0D0B,#070A08)}
+
+.section-card{
+  margin-top:14px;border:1px solid rgba(127,217,188,.13);border-radius:13px;background:rgba(63,169,138,.025);overflow:hidden
+}
+.section-card:first-child{margin-top:0}
+.section-head{
+  width:100%;min-height:45px;border:0;background:none;color:inherit;display:flex;align-items:center;gap:9px;
+  padding:11px 12px;text-align:left;cursor:pointer
+}
+.section-icon{width:22px;text-align:center;color:#69B89E;font-size:15px}
+.section-title{flex:1;font:700 14px/1.2 var(--ui);color:#DDE5E0}
+.section-meta{font:10px/1 var(--ui);color:#658076}
+.section-toggle{color:#58776C;font-size:17px}
+.section-body{padding:0 12px 13px}
+.section-body.collapsed{display:none}
+.section-note{margin:0;color:#7E8A84;font:12px/1.35 var(--ui)}
+
+/* Lower layer: only the four approved sitting outputs. */
+.output-block{padding:10px 0 11px;border-bottom:1px solid rgba(127,217,188,.10)}
+.output-block:first-child{padding-top:0}
+.output-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.output-title{font:500 21px/1 var(--display);color:#E7E1D8}
+.output-destination{font:700 9px/1 var(--ui);letter-spacing:1.1px;color:#5F8879;text-transform:uppercase}
+.output-destination.public{color:#A78D45}
+.output-note{margin:6px 0 10px;color:#66736D;font:11.5px/1.35 var(--ui)}
+.field{width:100%;min-height:64px;border:1px solid rgba(127,217,188,.16);border-radius:10px;background:#070A08;padding:10px;color:#DDE4E0;caret-color:#7FD9BC;font:14px/1.35 var(--ui);resize:vertical;user-select:text}
+.field:focus{outline:1px solid rgba(127,217,188,.52)}
+.output-actions{display:flex;justify-content:flex-end;margin-top:3px}
+.small-action{min-height:0;border:0;border-radius:0;background:transparent;color:#79CDB0;padding:5px 0 1px;font:500 14px/1 var(--display);cursor:pointer}
+.small-action.public{color:#C8A94F}
+.small-action:disabled{opacity:.38}
+.announcement-list{margin-bottom:9px}
+.announcement-item{padding:9px 10px;border-radius:10px;background:#080C0A;border:1px solid rgba(127,217,188,.08)}
+.announcement-meta{color:#829188;font:700 10px/1 var(--ui)}
+.announcement-body{margin:5px 0 0;color:#BBC6C0;font:13px/1.3 var(--ui)}
+
+/* completion */
+.completion-panel{margin-top:12px;padding:10px;border:1px solid rgba(127,217,188,.14);border-radius:8px;background:rgba(63,169,138,.018)}
+.completion-label{color:#669A88;font:600 9px var(--ui);letter-spacing:2px;margin-bottom:8px}
+.completion-row{display:flex;gap:8px}
+.completion-chip{flex:1;min-height:40px;border:1px solid #26372F;border-radius:8px;background:#080B09;color:#8D9791;font:500 14px var(--display);cursor:pointer}
+.completion-chip.active{background:#3FA98A;border-color:#69C9AA;color:#06100C}
+
+/* feedback */
+.feedback{
+  position:absolute;z-index:30;left:50%;bottom:82px;max-width:310px;transform:translate(-50%,8px);
+  padding:8px 11px;border-radius:999px;background:#101713;border:1px solid rgba(127,217,188,.18);
+  color:#B9C5BF;font:11px/1.25 var(--ui);opacity:0;pointer-events:none;transition:.18s ease;text-align:center
+}
+.feedback.show{opacity:1;transform:translate(-50%,0)}
+
+@media(max-width:620px){
+  body{padding:0}.eval{display:none}.phone{width:100vw;height:100vh;max-width:430px;border-radius:0}
+  .detail-sheet{height:min(600px,72vh);left:0;right:0}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- Reading House roll artwork -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="pap" x1="14%" y1="0%" x2="86%" y2="100%">
+      <stop offset="0" stop-color="#F5E9CE"/>
+      <stop offset=".38" stop-color="#DCC9A2"/>
+      <stop offset=".76" stop-color="#9C8760" stop-opacity=".96"/>
+      <stop offset="1" stop-color="#4B3E29"/>
+    </linearGradient>
+    <linearGradient id="tube" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0" stop-color="#F0E1C0"/>
+      <stop offset=".42" stop-color="#C8B189"/>
+      <stop offset=".8" stop-color="#7C6845"/>
+      <stop offset="1" stop-color="#3D3221"/>
+    </linearGradient>
+    <radialGradient id="lampg" cx="36%" cy="24%" r="64%">
+      <stop offset="0" stop-color="#FFE9BC" stop-opacity=".60"/>
+      <stop offset=".54" stop-color="#F0D296" stop-opacity=".17"/>
+      <stop offset="1" stop-color="#F0D296" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+    <clipPath id="sheetclip"><path d="M19 24 L57 24 L69 60 L7 60 Z"/></clipPath>
+
+    <g id="rollOpen">
+      <ellipse cx="38" cy="60" rx="30" ry="6" fill="#000" fill-opacity=".55" filter="url(#soft)"/>
+      <path d="M19 24 L57 24 L69 60 L7 60 Z" fill="url(#pap)"/>
+      <g clip-path="url(#sheetclip)">
+        <path d="M12 30 H66 M11 37 H67 M10 44 H68 M9 51 H69"
+              stroke="#FFF6E0" stroke-opacity=".085" stroke-width="1.1"/>
+        <path d="M23 24 L21 60 M31 24 L30 60 M39 24 L39 60 M47 24 L48 60 M55 24 L57 60"
+              stroke="#5C4C31" stroke-opacity=".10" stroke-width="1.1"/>
+        <path d="M25 32.5 H52" stroke="#A8442A" stroke-opacity=".92" stroke-width="1.9" stroke-linecap="round"/>
+        <path d="M23.6 40 H55" stroke="#2E2418" stroke-opacity=".82" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M22.6 46.5 H48" stroke="#2E2418" stroke-opacity=".70" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M21.4 53 H53" stroke="#2E2418" stroke-opacity=".52" stroke-width="1.7" stroke-linecap="round"/>
+        <g class="readers-mark">
+          <path d="M17.4 44 v6" stroke="#A8442A" stroke-width="2" stroke-linecap="round"/>
+          <path d="M16.6 44 l2 2.4" stroke="#A8442A" stroke-width="1.6" stroke-linecap="round"/>
+        </g>
+      </g>
+      <path d="M19 24 L57 24 L69 60 L7 60 Z" fill="none" stroke="#FFF1D4" stroke-opacity=".34" stroke-width=".9"/>
+      <path d="M15 14 H61 a5.5 5.5 0 0 1 0 11 H15 a5.5 5.5 0 0 1 0 -11 Z" fill="url(#tube)"/>
+      <path d="M15 15.4 H61" stroke="#FFF3D8" stroke-opacity=".5" stroke-width="1.2" stroke-linecap="round"/>
+      <ellipse cx="15" cy="19.5" rx="3.2" ry="5.5" fill="#C6AF87"/>
+      <ellipse cx="15" cy="19.5" rx="2" ry="3.5" fill="none" stroke="#6B5A3B" stroke-opacity=".7" stroke-width=".9"/>
+      <ellipse cx="15" cy="19.5" rx=".8" ry="1.5" fill="none" stroke="#6B5A3B" stroke-opacity=".5" stroke-width=".8"/>
+      <path d="M17 25 q21 3 44 0" fill="none" stroke="#3A2F1E" stroke-opacity=".45" stroke-width="1.4"/>
+      <ellipse class="lamp" cx="38" cy="34" rx="38" ry="34" fill="url(#lampg)"/>
+    </g>
+  </defs>
+</svg>
+
+<div class="eval">
+  <strong>EVALUATION ONLY</strong>
+  <select id="presenceSelect">
+    <option value="2">Company · 2 readers</option>
+    <option value="1">Company · 1 reader</option>
+    <option value="solo">Solo study</option>
+  </select>
+  <button id="injectLiveMessage" type="button">Inject live message</button>
+  <p>The real code gates House Chat at two accepted members. Inject a live message to test pinned-scroll and unread behavior.</p>
+</div>
+
+<div class="phone">
+  <div class="status"><span>7:42</span><span>▮▮▮ 5G ▰</span></div>
+
+  <div class="dayview">
+    <div class="day-head">
+      <div class="navline"><span class="x">×</span><span class="month">Rekh-Wer (Rḫ-wr)</span><span class="icons">＋𓂀</span></div>
+      <div class="date-strip"><span class="d">15</span><span class="d">16</span><span class="d">17</span><span class="sel">18</span><span class="d">19</span><span class="d">20</span><span class="d">21</span></div>
+      <div class="date-name">Rekh-Wer 18, 2026</div>
+    </div>
+    <div class="timeline">
+      <div class="hour"><span>2 PM</span></div><div class="hour"><span>3 PM</span></div><div class="hour"><span>4 PM</span></div>
+      <div class="hour"><span>5 PM</span></div><div class="hour"><span>6 PM</span></div><div class="hour"><span>7 PM</span></div>
+      <div class="hour"><span>8 PM</span></div><div class="hour"><span>9 PM</span></div>
+      <button class="event-block" id="eventBlock" type="button">
+        <span class="ev-kicker">THE READING HOUSE · SITTING 01</span>
+        <span class="ev-title">Open the Text</span>
+        <span class="ev-foot">
+          <span class="ev-who"><i>Y</i><i>M</i><i>A</i></span>
+          <span class="ev-said">You and 2 other readers</span>
+        </span>
+        <span class="roll-obj" aria-hidden="true">
+          <svg viewBox="0 0 76 68"><use href="#rollOpen"/></svg>
+        </span>
+      </button>
+      <div class="tap-hint">tap the sitting</div>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+
+  <section class="detail-sheet" id="sheet" aria-label="Reading House sitting details">
+    <div class="sheet-chrome" id="sheetChrome">
+      <div class="sheet-handle"></div>
+      <button class="more" id="moreBtn" type="button" aria-label="More">⋮</button>
+    </div>
+
+    <div class="layer-stage" id="layerStage">
+      <div class="house-chat-room" id="houseChatRoom">
+        <div class="chat-room-head">
+          <div class="room-icon">◌</div>
+          <div class="room-copy">
+            <span class="room-title">House Chat</span>
+            <span class="room-sub">Logistics and quick notes</span>
+          </div>
+          <div class="room-people" id="roomPeople">
+            <span class="room-avatar">Y</span>
+            <span class="room-avatar">AR</span>
+            <span class="room-count" id="roomCount">2 readers</span>
+          </div>
+        </div>
+        <div class="chat-room-stream" id="heroChatStream"><div class="chat-room-list" id="heroChatList"></div></div>
+        <div class="new-message-notice" id="newMessageNotice">
+          <span class="new-message-count" id="newMessageCount">1 new message</span>
+          <button class="jump-latest" id="jumpLatest" type="button" aria-label="Jump to latest">↓</button>
+        </div>
+        <div class="chat-room-compose" id="heroChatComposer">
+          <textarea class="chat-room-input" id="heroChatInput" rows="1" placeholder="Message House Chat"></textarea>
+          <button class="chat-room-send" id="heroChatSend" type="button" aria-label="Send">↑</button>
+        </div>
+      </div>
+
+      <div class="practice-shell" id="practiceShell">
+        <div class="practice-content" id="practiceContent">
+          <div class="practice-layer">
+            <section class="output-block">
+              <div class="output-head">
+                <span class="output-title">Host announcement</span>
+              </div>
+              <div class="announcement-list" id="announcementList"></div>
+              <textarea class="field" id="announcementText" rows="2" placeholder="Host announcement"></textarea>
+              <div class="output-actions">
+                <button class="small-action" id="postAnnouncement" type="button">Post announcement</button>
+              </div>
+            </section>
+
+            <section class="output-block">
+              <div class="output-head">
+                <span class="output-title">Shared note</span>
+              </div>
+              <textarea class="field" id="sharedNote" rows="2" placeholder="What do you want to share publicly?"></textarea>
+              <div class="output-actions">
+                <button class="small-action public" id="postSharedNote" type="button">Post to Feed</button>
+              </div>
+            </section>
+
+            <section class="output-block">
+              <div class="output-head">
+                <span class="output-title">Private reflection</span>
+              </div>
+              <textarea class="field" id="privateReflection" rows="3" placeholder="What did this section ask you to hold?"></textarea>
+            </section>
+
+            <section class="completion-panel">
+              <div class="completion-label">COMPLETION</div>
+              <div class="completion-row">
+                <button class="completion-chip" data-completion="Observed" type="button">Observed</button>
+                <button class="completion-chip" data-completion="Partly" type="button">Partly</button>
+                <button class="completion-chip" data-completion="Skipped" type="button">Skipped</button>
+              </div>
+            </section>
+          </div>          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div class="sheet-footer">
+      <button class="footer-btn left" id="makeTodo" type="button">Make to-do</button>
+      <button class="footer-btn" id="calendarBtn" type="button">Calendar</button>
+    </div>
+  </section>
+</div>
+
+<script>
+const eventBlock=document.getElementById('eventBlock');
+const sheet=document.getElementById('sheet');
+const scrim=document.getElementById('scrim');
+const layerStage=document.getElementById('layerStage');
+const practiceShell=document.getElementById('practiceShell');
+const practiceContent=document.getElementById('practiceContent');
+const feedback=document.getElementById('feedback');
+const houseChatRoom=document.getElementById('houseChatRoom');
+const heroChatStream=document.getElementById('heroChatStream');
+const heroChatList=document.getElementById('heroChatList');
+const heroChatComposer=document.getElementById('heroChatComposer');
+const heroChatInput=document.getElementById('heroChatInput');
+const heroChatSend=document.getElementById('heroChatSend');
+
+let presence='2';
+let completion='';
+let announcements=[];
+let chatMessages=[
+  {id:1,author:'Amina',initials:'AR',body:'Can we start fifteen minutes later?',mine:false,host:false,time:'7:18'},
+  {id:2,author:'You',initials:'Y',body:'Works for me.',mine:true,host:true,time:'7:20'},
+  {id:3,author:'Amina',initials:'AR',body:'Perfect. I’m finishing the opening section now.',mine:false,host:false,time:'7:21'}
+];
+let nextChatId=4;
+let layeredPos=0,revealDistance=0,innerMax=0;
+let layeredAnimationFrame=0,layeredAnimationToken=0;
+let feedbackTimer=0;
+
+
+
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function showFeedback(message){clearTimeout(feedbackTimer);feedback.textContent=message;feedback.classList.add('show');feedbackTimer=setTimeout(()=>feedback.classList.remove('show'),1800)}
+
+const newMessageNotice=document.getElementById('newMessageNotice');
+const newMessageCount=document.getElementById('newMessageCount');
+const jumpLatest=document.getElementById('jumpLatest');
+
+let followLive=true;
+let unreadLiveCount=0;
+let smoothJumpInProgress=false;
+const LIVE_FOLLOW_THRESHOLD=44;
+
+function isNearChatBottom(){
+  return (heroChatStream.scrollHeight-heroChatStream.scrollTop-heroChatStream.clientHeight)<=LIVE_FOLLOW_THRESHOLD;
+}
+function updateNewMessageNotice(){
+  if(unreadLiveCount<=0||followLive){
+    newMessageNotice.classList.remove('show');
+    return;
+  }
+  newMessageCount.textContent=`${unreadLiveCount} new message${unreadLiveCount===1?'':'s'}`;
+  newMessageNotice.classList.add('show');
+}
+function setLiveFollow(value){
+  followLive=Boolean(value);
+  if(followLive){
+    unreadLiveCount=0;
+    updateNewMessageNotice();
+  }
+}
+function scrollChatToLatest({smooth=false}={}){
+  setLiveFollow(true);
+  smoothJumpInProgress=smooth;
+  heroChatStream.scrollTo({top:heroChatStream.scrollHeight,behavior:smooth?'smooth':'auto'});
+  if(smooth){
+    setTimeout(()=>{
+      smoothJumpInProgress=false;
+      if(isNearChatBottom())setLiveFollow(true);
+    },520);
+  }
+}
+function chatMessageMarkup(m){
+  return `
+    <div class="chat-message" data-chat-id="${m.id}">
+      <div class="chat-avatar">${m.initials}</div>
+      <div class="chat-message-main">
+        <div class="chat-meta">
+          <span class="chat-name">${m.author}</span>${m.host?'<span class="host-badge">HOST</span>':''}<span class="chat-time">${m.time}</span>
+          ${m.mine?`<button class="chat-delete" data-delete-chat="${m.id}" type="button" aria-label="Delete message">⌫</button>`:''}
+        </div>
+        <p class="chat-body">${esc(m.body)}</p>
+      </div>
+    </div>`;
+}
+function renderHouseChat({preservePosition=false}={}){
+  const solo=presence==='solo';
+  const members=presence==='2'?2:1;
+  document.getElementById('roomCount').textContent=solo?'solo':`${members} reader${members===1?'':'s'}`;
+  document.getElementById('roomPeople').querySelectorAll('.room-avatar')[1].style.display=presence==='2'?'grid':'none';
+  const priorTop=heroChatStream.scrollTop;
+
+  if(solo){
+    heroChatList.innerHTML='<div class="chat-empty"><div class="chat-lock"><strong>House Chat</strong>Solo study keeps the sitting private.</div></div>';
+    heroChatComposer.style.display='none';newMessageNotice.classList.remove('show');return;
+  }
+  if(presence!=='2'){
+    heroChatList.innerHTML='<div class="chat-empty"><div class="chat-lock"><strong>House Chat opens when readers join.</strong>For logistics and quick notes.</div></div>';
+    heroChatComposer.style.display='none';newMessageNotice.classList.remove('show');return;
+  }
+
+  heroChatComposer.style.display='grid';
+  heroChatList.innerHTML=chatMessages.length
+    ? chatMessages.map(chatMessageMarkup).join('')
+    : '<div class="chat-empty"><div class="chat-lock"><strong>No chat messages yet.</strong>Use House Chat for logistics and quick notes.</div></div>';
+
+  requestAnimationFrame(()=>{
+    if(preservePosition&&!followLive){
+      heroChatStream.scrollTop=priorTop;
+    }else{
+      scrollChatToLatest({smooth:false});
+    }
+  });
+}
+function appendChatMessage(message,{incoming=false}={}){
+  const wasFollowing=followLive||isNearChatBottom();
+  const priorTop=heroChatStream.scrollTop;
+  chatMessages.push(message);
+
+  if(heroChatList.querySelector('.chat-empty'))heroChatList.innerHTML='';
+  const wrap=document.createElement('div');
+  wrap.innerHTML=chatMessageMarkup(message).trim();
+  heroChatList.appendChild(wrap.firstElementChild);
+
+  requestAnimationFrame(()=>{
+    if(wasFollowing){
+      scrollChatToLatest({smooth:true});
+    }else{
+      heroChatStream.scrollTop=priorTop;
+      if(incoming)unreadLiveCount+=1;
+      followLive=false;
+      updateNewMessageNotice();
+    }
+  });
+}
+function sendHouseChat(){
+  if(presence!=='2'){showFeedback('House Chat opens when readers join.');return}
+  const body=heroChatInput.value.trim();
+  if(!body){showFeedback('Add a chat message first.');return}
+
+  heroChatInput.value='';
+  setLiveFollow(true);
+  appendChatMessage({id:nextChatId++,author:'You',initials:'Y',body,mine:true,host:true,time:'now'});
+  requestAnimationFrame(()=>heroChatInput.focus());
+}
+const liveSamples=[
+  'I found the passage. Page 18 in my edition.',
+  'I can make 7:15.',
+  'Give me five minutes — almost there.',
+  'That works. I’m staying with the opening a little longer.',
+  'I’m here whenever everyone is ready.'
+];
+let liveSampleIndex=0;
+function injectIncomingMessage(){
+  if(presence!=='2'){showFeedback('Switch to Company · 2 readers to test live chat.');return}
+  appendChatMessage({
+    id:nextChatId++,author:'Amina',initials:'AR',
+    body:liveSamples[liveSampleIndex++%liveSamples.length],
+    mine:false,host:false,time:'now'
+  },{incoming:true});
+}
+
+heroChatSend.addEventListener('click',sendHouseChat);
+heroChatInput.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendHouseChat()}
+});
+heroChatStream.addEventListener('scroll',()=>{
+  if(smoothJumpInProgress)return;
+  if(isNearChatBottom()){
+    setLiveFollow(true);
+  }else{
+    followLive=false;
+    updateNewMessageNotice();
+  }
+},{passive:true});
+jumpLatest.addEventListener('click',()=>{
+  unreadLiveCount=0;
+  updateNewMessageNotice();
+  scrollChatToLatest({smooth:true});
+});
+document.getElementById('injectLiveMessage').addEventListener('click',injectIncomingMessage);
+heroChatStream.addEventListener('click',e=>{
+  const b=e.target.closest('[data-delete-chat]');if(!b)return;
+  const id=Number(b.dataset.deleteChat);
+  chatMessages=chatMessages.filter(m=>m.id!==id);
+  b.closest('.chat-message')?.remove();
+});
+houseChatRoom.addEventListener('pointerdown',e=>e.stopPropagation());
+houseChatRoom.addEventListener('wheel',e=>e.stopPropagation(),{passive:true});
+
+function openSheet(){scrim.classList.add('open');sheet.classList.add('open');resetLayeredScroll();requestAnimationFrame(()=>scrollChatToLatest({smooth:false}))}
+function closeSheet(){scrim.classList.remove('open');sheet.classList.remove('open')}
+eventBlock.addEventListener('click',openSheet);scrim.addEventListener('click',closeSheet);
+let chromeDragY=null;
+document.getElementById('sheetChrome').addEventListener('pointerdown',e=>chromeDragY=e.clientY);
+document.getElementById('sheetChrome').addEventListener('pointerup',e=>{if(chromeDragY!=null&&e.clientY-chromeDragY>55)closeSheet();chromeDragY=null});
+
+function measureLayeredScroll(){
+  const stageH=layerStage.clientHeight||480;
+  const restingGap=6;
+  const chatBottom=houseChatRoom.offsetTop+houseChatRoom.offsetHeight;
+  revealDistance=Math.max(0,Math.min(stageH-24,chatBottom+restingGap));
+  innerMax=Math.max(0,practiceContent.scrollHeight-stageH);
+  layeredPos=Math.min(layeredPos,revealDistance+innerMax);
+  applyLayeredScroll();
+}
+function applyLayeredScroll(){const reveal=Math.min(layeredPos,revealDistance);const panelY=revealDistance-reveal;const innerY=Math.max(0,layeredPos-revealDistance);practiceShell.style.transform=`translate3d(0,${panelY}px,0)`;practiceContent.style.transform=`translate3d(0,${-innerY}px,0)`}
+function setLayeredPos(next){layeredPos=Math.max(0,Math.min(Number(next)||0,revealDistance+innerMax));applyLayeredScroll()}
+function cancelLayeredAnimation(){layeredAnimationToken++;if(layeredAnimationFrame){cancelAnimationFrame(layeredAnimationFrame);layeredAnimationFrame=0}}
+function resetLayeredScroll(){cancelLayeredAnimation();layeredPos=0;requestAnimationFrame(()=>{measureLayeredScroll();setLayeredPos(0)})}
+layerStage.addEventListener('wheel',e=>{if(e.target.closest('.house-chat-room'))return;if(!sheet.classList.contains('open')||Math.abs(e.deltaY)<.1)return;e.preventDefault();cancelLayeredAnimation();measureLayeredScroll();setLayeredPos(layeredPos+e.deltaY)},{passive:false});
+let layerDrag=null;
+layerStage.addEventListener('pointerdown',e=>{if(e.target.closest('.house-chat-room'))return;if(e.button!==undefined&&e.button!==0)return;if(e.target.closest('button,input,textarea,select,label'))return;cancelLayeredAnimation();layerDrag={id:e.pointerId,y:e.clientY,pos:layeredPos,moved:false};try{layerStage.setPointerCapture(e.pointerId)}catch(_){}});
+layerStage.addEventListener('pointermove',e=>{if(!layerDrag||layerDrag.id!==e.pointerId)return;const dy=layerDrag.y-e.clientY;if(Math.abs(dy)>3)layerDrag.moved=true;if(!layerDrag.moved)return;e.preventDefault();measureLayeredScroll();setLayeredPos(layerDrag.pos+dy)});
+function endLayerDrag(e){if(!layerDrag||layerDrag.id!==e.pointerId)return;try{layerStage.releasePointerCapture(e.pointerId)}catch(_){}layerDrag=null}
+layerStage.addEventListener('pointerup',endLayerDrag);layerStage.addEventListener('pointercancel',endLayerDrag);window.addEventListener('resize',()=>requestAnimationFrame(measureLayeredScroll));
+
+document.getElementById('postSharedNote').addEventListener('click',()=>{const body=document.getElementById('sharedNote').value.trim();if(!body){showFeedback('Add a shared note first.');return}showFeedback('Shared note posted to Feed.');document.getElementById('sharedNote').value=''});
+function renderAnnouncements(){const list=document.getElementById('announcementList');if(!announcements.length){list.innerHTML='';return}const body=announcements[0];list.innerHTML=`<div class="announcement-item"><div class="announcement-meta">HOST · just now</div><p class="announcement-body">${esc(body)}</p></div>`}
+document.getElementById('postAnnouncement').addEventListener('click',()=>{const input=document.getElementById('announcementText');const body=input.value.trim();if(!body){showFeedback('Add an announcement first.');return}announcements.unshift(body);input.value='';renderAnnouncements();showFeedback('Host announcement added.');requestAnimationFrame(measureLayeredScroll)});
+document.querySelectorAll('.completion-chip').forEach(btn=>btn.addEventListener('click',()=>{
+  const next=btn.dataset.completion;
+  completion=completion===next?'':next;
+  document.querySelectorAll('.completion-chip').forEach(x=>x.classList.toggle('active',x.dataset.completion===completion));
+  if(completion==='Observed'){
+    const reflection=document.getElementById('privateReflection').value.trim();
+    showFeedback(reflection?'Observed · private reflection saved to Journal.':'Observed.');
+  }
+}));
+document.getElementById('moreBtn').addEventListener('click',()=>showFeedback('Current Day View overflow menu.'));
+document.getElementById('makeTodo').addEventListener('click',()=>showFeedback('Make to-do'));
+document.getElementById('calendarBtn').addEventListener('click',()=>showFeedback('Calendar'));
+document.getElementById('presenceSelect').addEventListener('change',e=>{
+  presence=e.target.value;
+  unreadLiveCount=0;
+  setLiveFollow(true);
+  renderHouseChat();
+  requestAnimationFrame(measureLayeredScroll);
+});
+
+renderHouseChat();renderAnnouncements();measureLayeredScroll();
+window.__readingHouseDaySheet={open:openSheet,hero:()=>setLayeredPos(0),dock:()=>{measureLayeredScroll();setLayeredPos(revealDistance)},bottom:()=>{measureLayeredScroll();setLayeredPos(revealDistance+innerMax)},state:()=>({presence,completion,layeredPos,revealDistance,innerMax})};
+</script>
+</body>
+</html>

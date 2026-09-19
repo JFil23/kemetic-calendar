@@ -1,0 +1,1834 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Kꜣr — Day View event + layered detail sheet v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Gentium+Plus:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#020202;
+  --sheet:#080B0C;
+  --sheet2:#0A0F11;
+  --bone:#E8E2D6;
+  --ivory:#D9D3C8;
+  --silver:#9E9A94;
+  --low:#676A68;
+  --sep:#172125;
+  --gold:#D4AE43;
+  --gold2:#E8C765;
+  --gold-dim:#806B34;
+  --accent:#91B7C7;
+  --accent2:#C9E3EB;
+  --deep:#16252B;
+  --accent-rgb:145,183,199;
+  --display:"Cormorant Garamond",Georgia,serif;
+  --ui:"Gentium Plus",Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#000;color:var(--bone)}
+body{
+  min-height:100vh;display:flex;align-items:flex-start;justify-content:center;gap:22px;
+  padding:18px 14px;background:radial-gradient(108% 78% at 50% 0,#0B1518,#000 75%);font-family:var(--ui)
+}
+button,textarea{font:inherit}
+.eval{
+  width:178px;padding-top:14px;color:#727876;font:12px/1.42 var(--ui)
+}
+.eval strong{display:block;margin-bottom:8px;color:#8BB5C4;font-size:10px;letter-spacing:1.5px}
+.eval select,.eval button{
+  width:100%;padding:8px;border-radius:8px;border:1px solid #23353B;background:#071014;color:#B9D6DF;
+  font:13px var(--ui)
+}
+.eval button{margin-top:8px;cursor:pointer}
+.eval p{margin:10px 0 0}
+.phone{
+  width:390px;height:844px;position:relative;overflow:hidden;border-radius:40px;background:#020202;
+  box-shadow:0 38px 90px rgba(0,0,0,.86),0 0 0 1px #10191C
+}
+.status{
+  position:absolute;left:0;right:0;top:0;z-index:70;height:26px;padding:3px 23px 0;
+  display:flex;justify-content:space-between;color:#F2F0EB;
+  font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;pointer-events:none
+}
+
+/* ---------------- Day View ---------------- */
+.dayview{position:absolute;inset:0;background:#020202;color:#80672E}
+.day-head{
+  position:absolute;left:0;right:0;top:26px;height:125px;border-bottom:1px solid #0F1010;background:#020202
+}
+.navline{height:45px;padding:7px 18px 4px;display:flex;align-items:center;gap:12px;color:#756B55}
+.navline .x{font:300 25px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#756B55}
+.navline .month{flex:1;color:#8B7B60;font:400 21px/1 var(--display)}
+.navline .icons{display:flex;align-items:center;gap:14px;color:#897B60;font:25px/1 var(--display)}
+.date-strip{
+  height:43px;display:flex;align-items:center;justify-content:center;gap:15px;color:#4F5658;font:11px/1 var(--ui)
+}
+.date-strip .d{width:21px;text-align:center}
+.date-strip .sel{
+  width:37px;height:37px;border:1px solid rgba(var(--accent-rgb),.55);border-radius:50%;
+  display:grid;place-items:center;color:var(--accent2);font:19px/1 var(--display);
+  box-shadow:0 0 0 1px rgba(var(--accent-rgb),.04) inset
+}
+.date-name{text-align:center;color:#647175;font:italic 14px/1 var(--display);padding-top:1px}
+.timeline-grid{position:absolute;left:0;right:0;top:151px;bottom:0;overflow:hidden;background:#010101}
+.hour{height:61px;border-top:1px solid #0E1010;position:relative}
+.hour span{position:absolute;left:12px;top:8px;color:#42494B;font:9px/1 var(--ui);letter-spacing:.6px}
+.simple-event{
+  position:absolute;left:43px;right:14px;height:30px;border-radius:8px;background:#0A0A09;
+  color:#C7C2B8;font:15px/30px var(--display);padding:0 14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis
+}
+.simple-event:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:8px 0 0 8px}
+.simple-event.journal{top:8px}.simple-event.journal:before{background:#62C18C}
+.simple-event.work{top:309px}.simple-event.work:before{background:#4D8FD1}
+.simple-event.lunch{top:403px}.simple-event.lunch:before{background:#B86558}
+#karBlockMount{position:absolute;left:38px;right:14px;top:76px;height:106px}
+
+/* Rich Kꜣr block: same Day View family, its own object and palette. */
+.kar-calendar-block{
+  position:relative;width:100%;height:100%;border:0;border-radius:10px;text-align:left;overflow:hidden;
+  padding:11px 92px 10px 14px;isolation:isolate;color:inherit;cursor:pointer;
+  background:
+    linear-gradient(90deg,rgba(3,7,9,.84),rgba(3,7,9,.48) 47%,rgba(3,7,9,.02)),
+    radial-gradient(ellipse at 83% 50%,rgba(var(--accent-rgb),.24),transparent 50%),
+    linear-gradient(154deg,#0A171C,#15333D 56%,#071116);
+  box-shadow:0 7px 18px rgba(0,0,0,.58),0 0 16px rgba(var(--accent-rgb),.08);
+  transition:transform .2s ease,box-shadow .2s ease
+}
+.kar-calendar-block:after{
+  content:"";position:absolute;inset:0;border-radius:10px;pointer-events:none;border:1px solid rgba(var(--accent-rgb),.42)
+}
+.kar-calendar-block:before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;z-index:2;border-radius:3px 0 0 3px;
+  background:linear-gradient(180deg,var(--accent2),var(--accent))
+}
+.kar-calendar-block:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(0,0,0,.62),0 0 22px rgba(var(--accent-rgb),.15)}
+.kar-calendar-block:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.kar-calendar-block .kicker{
+  display:block;font:400 8.2px/1 var(--ui);letter-spacing:1.45px;color:#B8D8E2;
+  text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.kar-calendar-block .title{
+  display:block;margin-top:5px;font:600 21px/1 var(--display);color:#F2EEE7;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.kar-calendar-block .support{
+  display:block;margin-top:4px;font:italic 13.5px/1.2 var(--display);color:#BFD4DB;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.kar-calendar-block .foot{display:flex;align-items:center;gap:8px;margin-top:9px}
+.kar-calendar-block .pips{display:flex;gap:4px;flex:0 0 auto}
+.kar-calendar-block .pips i{display:block;width:14px;height:3px;border-radius:2px;background:#26373D}
+.kar-calendar-block .pips i.on{background:var(--accent2);box-shadow:0 0 7px rgba(var(--accent-rgb),.46)}
+.kar-calendar-block .pips i.now{background:var(--accent);box-shadow:0 0 9px rgba(var(--accent-rgb),.62)}
+.kar-calendar-block .said{min-width:0;font:400 10.3px/1 var(--ui);color:#849AA2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kar-calendar-block .of{margin-left:auto;flex:0 0 auto;font:400 9.8px/1 var(--ui);color:#71878F;white-space:nowrap}
+.kar-obj{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:78px;height:80px;pointer-events:none}
+.kar-obj svg{width:100%;height:100%;display:block;overflow:visible}
+.kar-obj .glow{animation:kar-breathe 7.2s ease-in-out infinite;transform-box:view-box;transform-origin:42px 39px}
+@keyframes kar-breathe{0%,100%{opacity:.45;transform:scale(.94)}50%{opacity:.92;transform:scale(1.05)}}
+@media(prefers-reduced-motion:reduce){.kar-obj .glow{animation:none;opacity:.75}}
+
+.kar-calendar-block.return-state{
+  background:
+    linear-gradient(90deg,rgba(3,7,9,.88),rgba(3,7,9,.55) 56%,rgba(3,7,9,.08)),
+    radial-gradient(ellipse at 83% 50%,rgba(var(--accent-rgb),.13),transparent 50%),
+    linear-gradient(154deg,#071116,#10242B 56%,#060D10)
+}
+.kar-calendar-block.return-state .support{color:#99ADB3}
+.kar-calendar-block.walk-state{
+  --accent:#B69A4F;--accent2:#E0C77A;--accent-rgb:182,154,79;
+  background:
+    linear-gradient(90deg,rgba(7,5,2,.84),rgba(7,5,2,.48) 47%,rgba(7,5,2,.02)),
+    radial-gradient(ellipse at 83% 50%,rgba(212,174,67,.20),transparent 50%),
+    linear-gradient(154deg,#151006,#2C2411 56%,#0C0904)
+}
+
+/* ---------------- Shared layered detail sheet ---------------- */
+.scrim{
+  position:absolute;inset:0;z-index:90;background:rgba(0,0,0,.60);opacity:0;pointer-events:none;transition:opacity .18s ease
+}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{
+  position:absolute;z-index:95;left:9px;right:9px;bottom:0;height:668px;max-height:79vh;
+  border-radius:24px 24px 0 0;border:1px solid rgba(var(--accent-rgb),.12);border-bottom:0;
+  background:linear-gradient(180deg,#0B1012 0%,#080B0C 52%,#060708 100%);
+  transform:translateY(102%);transition:transform .24s cubic-bezier(.18,.82,.3,1);
+  box-shadow:0 -20px 55px rgba(0,0,0,.68);overflow:hidden;overscroll-behavior:none
+}
+.sheet.open{transform:none}
+.sheet-chrome{
+  position:absolute;left:0;right:0;top:0;height:48px;z-index:20;background:linear-gradient(#0C1113 72%,rgba(12,17,19,.97))
+}
+.sheet-handle{position:absolute;left:50%;top:19px;width:41px;height:4px;transform:translateX(-50%);border-radius:4px;background:#33444A}
+.sheet-close{position:absolute;right:12px;top:8px;width:36px;height:34px;border:0;background:transparent;color:#8CA0A6;font:22px/1 var(--ui);cursor:pointer}
+.sheet-footer{
+  position:absolute;left:0;right:0;bottom:0;height:72px;z-index:20;display:flex;align-items:center;justify-content:space-between;
+  padding:9px 18px 20px;background:linear-gradient(180deg,rgba(6,7,8,.84),#060708 30%);border-top:1px solid rgba(var(--accent-rgb),.10)
+}
+.footer-btn{border:0;background:transparent;color:#A9CFDA;font:700 15px var(--ui);cursor:pointer}
+.footer-btn.left:before{content:"≡✓";font-size:13px;margin-right:8px;color:#84B4C2}
+.layer-stage{
+  position:absolute;left:10px;right:10px;top:48px;bottom:72px;z-index:4;overflow:hidden;
+  border-radius:18px 18px 0 0;background:#081014;touch-action:none;overscroll-behavior:contain;user-select:none
+}
+.hero-layer{
+  position:absolute;inset:0;z-index:1;padding:18px 16px 22px;overflow:hidden;
+  background:
+    radial-gradient(100% 96% at 84% 8%,rgba(var(--accent-rgb),.13),transparent 56%),
+    linear-gradient(180deg,#0C171B 0%,#091114 58%,#070B0D 100%)
+}
+.sheet-meta{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
+.sheet-kicker{font:700 8.4px/1 var(--ui);letter-spacing:1.8px;color:#96BBC7;text-transform:uppercase}
+.sheet-side{text-align:right;color:#647A82;font:8px/1.5 var(--ui);letter-spacing:.65px;text-transform:uppercase}
+.sheet-title-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:8px}
+.sheet-title{font:500 29px/1 var(--display);color:#F0EAE0}
+.sheet-time{font:18px var(--display);color:#83A5B0;white-space:nowrap}
+.sheet-orient{margin:7px 0 0;color:#86959A;font:italic 12.5px/1.3 var(--display)}
+
+/* Fresh hero: same quiet Kꜣr visual language as the full detail page. */
+.fresh-hero{
+  height:100%;display:flex;flex-direction:column
+}
+.fresh-graphic{
+  flex:1;min-height:0;display:grid;place-items:center;padding:2px 0 4px
+}
+.sheet-kar-stage{
+  width:100%;height:100%;min-height:308px;position:relative;overflow:hidden;
+  border:1px solid rgba(212,174,67,.28);border-radius:20px;
+  background:#050504;
+  box-shadow:inset 0 0 0 1px rgba(212,174,67,.035)
+}
+.sheet-kar-stage:before{
+  content:"";position:absolute;inset:7px;border-radius:16px;
+  border:1px solid rgba(212,174,67,.055);pointer-events:none
+}
+.sheet-kar{
+  position:absolute;left:50%;top:27px;transform:translateX(-50%);
+  width:248px;height:225px
+}
+.sheet-kar-cornice{
+  position:absolute;left:18px;right:18px;top:0;height:31px;
+  border:1px solid #4A3B1A;border-bottom-color:#5A4820;
+  border-radius:54% 54% 8px 8px / 100% 100% 12px 12px;
+  background:linear-gradient(180deg,#0E0D09,#080806)
+}
+.sheet-kar-body{
+  position:absolute;left:28px;right:28px;top:29px;bottom:27px;
+  border:1px solid #493A1A;background:#080806
+}
+.sheet-kar-body:before,.sheet-kar-body:after{
+  content:"";position:absolute;top:17px;bottom:17px;width:29px;
+  border:1px solid #493A1A;background:#080806
+}
+.sheet-kar-body:before{left:16px}.sheet-kar-body:after{right:16px}
+.sheet-kar-door{
+  position:absolute;left:50%;top:57px;transform:translateX(-50%);
+  width:102px;height:130px;border:1px solid #493A1A;background:#050504;
+  box-shadow:inset 0 0 0 10px #050504,inset 0 0 0 11px #3E3219
+}
+.sheet-kar-door:before{
+  content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;
+  background:#342A16;opacity:.72
+}
+.sheet-kar-base{
+  position:absolute;left:10px;right:10px;bottom:0;height:29px;
+  border:1px solid #493A1A;background:#090806
+}
+
+/* Current sitting is always obvious. Previous sittings remain visible and tappable.
+   Future locations are not displayed. */
+.kar-entry-dot{
+  position:absolute;z-index:12;width:14px;height:14px;border-radius:50%;padding:0;
+  transform:translate(-50%,-50%);border:1px solid transparent;
+  background:var(--accent);opacity:0;pointer-events:none
+}
+.kar-entry-dot.current{
+  width:16px;height:16px;opacity:1;pointer-events:none;
+  background:var(--accent2);border-color:rgba(244,252,255,.84);
+  box-shadow:
+    0 0 0 6px rgba(var(--accent-rgb),.07),
+    0 0 14px rgba(var(--accent-rgb),.92),
+    0 0 28px rgba(var(--accent-rgb),.52),
+    0 0 46px rgba(var(--accent-rgb),.22);
+  animation:entry-pulse 2.7s ease-in-out infinite
+}
+.kar-entry-dot.past{
+  opacity:.76;pointer-events:auto;cursor:pointer;
+  background:var(--accent);border-color:rgba(225,244,249,.38);
+  box-shadow:0 0 9px rgba(var(--accent-rgb),.30)
+}
+.kar-entry-dot.past:focus-visible{
+  outline:2px solid var(--accent2);outline-offset:3px
+}
+@media(hover:hover) and (pointer:fine){
+  .kar-entry-dot.past:hover{transform:translate(-50%,-50%) scale(1.14)}
+}
+.kar-entry-dot.future{display:none}
+.kar-entry-dot.d1{left:50%;top:88%}
+.kar-entry-dot.d2{left:23%;top:49%}
+.kar-entry-dot.d3{left:77%;top:49%}
+.kar-entry-dot.d4{left:50%;top:12%}
+.kar-entry-dot.d5{left:83%;top:90%}
+@keyframes entry-pulse{
+  0%,100%{
+    box-shadow:
+      0 0 0 5px rgba(var(--accent-rgb),.065),
+      0 0 13px rgba(var(--accent-rgb),.76),
+      0 0 25px rgba(var(--accent-rgb),.40)
+  }
+  50%{
+    box-shadow:
+      0 0 0 8px rgba(var(--accent-rgb),.03),
+      0 0 21px rgba(var(--accent-rgb),1),
+      0 0 39px rgba(var(--accent-rgb),.58)
+  }
+}
+.sheet-kar-caption{
+  position:absolute;left:20px;right:20px;bottom:17px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  color:#62562F;font:italic 10.5px/1.18 var(--display)
+}
+.sheet-kar-caption strong{
+  color:#9A8040;font-style:normal;font-weight:400
+}
+.sheet-kar-caption .current-place{
+  color:color-mix(in srgb,var(--accent2) 68%,#78683E);
+  text-align:right
+}
+
+/* Prompt now belongs to the lower layer, immediately above Draw / Describe. */
+.prompt-bottom{
+  margin-top:14px;padding:0 1px 15px;border-bottom:1px solid rgba(var(--accent-rgb),.09);
+  font:400 18.5px/1.38 var(--display);color:#D9D2C7
+}
+.prompt-bottom p{margin:0 0 11px}
+.prompt-bottom p:last-child{margin-bottom:0}
+.prompt-bottom strong{font-weight:500;color:#F0E8DB}
+
+/* Return hero */
+.return-hero{height:100%;display:flex;flex-direction:column}
+.return-stage{flex:1;display:grid;grid-template-columns:104px 1fr;gap:16px;align-items:center;padding:8px 4px 18px}
+.return-kar svg{width:104px;height:170px;overflow:visible}
+.return-question{font:500 35px/1 var(--display);color:#EEE7DB;margin:0 0 19px}
+.return-actions{display:grid;gap:8px}
+.return-btn{
+  min-height:42px;border-radius:999px;border:1px solid rgba(var(--accent-rgb),.16);
+  background:rgba(var(--accent-rgb),.02);color:#83939A;font:500 13px/1 var(--ui);cursor:pointer
+}
+.return-btn.primary{border-color:rgba(var(--accent-rgb),.42);color:var(--accent2)}
+.return-btn.quiet{color:#636D70}
+
+/* Walk hero */
+.walk-hero{height:100%;display:flex;flex-direction:column}
+.walk-center{flex:1;display:grid;grid-template-columns:118px 1fr;gap:18px;align-items:center;padding:7px 4px 16px}
+.walk-kar svg{width:118px;height:190px;overflow:visible}
+.walk-copy h3{margin:0;font:500 31px/1 var(--display);color:#EFE6D7}
+.walk-copy p{margin:12px 0 0;font:italic 17px/1.35 var(--display);color:#A9A091}
+.begin-btn{
+  width:100%;height:44px;margin-top:17px;border-radius:999px;border:1px solid rgba(212,174,67,.38);
+  background:rgba(212,174,67,.035);color:#DCC679;font:500 16px/1 var(--display);cursor:pointer
+}
+
+/* Lower practice layer — visible as a real second surface, then docks. */
+.practice-shell{
+  position:absolute;inset:0;z-index:7;overflow:hidden;border-radius:18px 18px 0 0;
+  background:#080B0C;border-top:1px solid rgba(var(--accent-rgb),.21);
+  box-shadow:0 -15px 32px rgba(0,0,0,.64),0 -1px 0 rgba(var(--accent-rgb),.06);will-change:transform
+}
+.practice-shell:before{
+  content:"";position:absolute;z-index:4;left:50%;top:7px;transform:translateX(-50%);
+  width:38px;height:3px;border-radius:4px;background:#33444A
+}
+.practice-content{position:absolute;left:0;right:0;top:0;will-change:transform}
+.practice-layer{padding:22px 18px 32px;min-height:100%;background:linear-gradient(180deg,#0A0E0F,#07090A)}
+.layer-kicker{font:700 8px/1 var(--ui);letter-spacing:1.7px;color:#7198A4;text-transform:uppercase}
+.layer-title{margin:7px 0 0;font:500 23px/1 var(--display);color:#E9E2D7}
+.layer-note{margin:7px 0 0;color:#6D797C;font:italic 12px/1.35 var(--display)}
+
+.capture-choice{margin-top:17px;padding-top:15px;border-top:1px solid rgba(232,226,214,.07)}
+.capture-label{display:block;margin-bottom:10px;font:700 8px/1 var(--ui);letter-spacing:1.55px;color:#7198A4;text-transform:uppercase}
+.capture-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.capture-action{
+  min-height:47px;border-radius:999px;border:1px solid rgba(232,226,214,.16);
+  background:#080B0C;color:#AEB8B8;font:500 16px/1 var(--display);cursor:pointer
+}
+.capture-action.ready{border-color:rgba(var(--accent-rgb),.52);color:var(--accent2);background:rgba(var(--accent-rgb),.045)}
+.capture-action.ready:after{content:"  ✓";font:400 12px var(--ui)}
+.place-btn{
+  width:100%;height:46px;margin-top:12px;border-radius:999px;border:1px solid rgba(var(--accent-rgb),.43);
+  background:rgba(var(--accent-rgb),.045);color:var(--accent2);font:500 16px/1 var(--display);cursor:pointer
+}
+.place-btn:disabled{opacity:.28;cursor:default}
+.capture-note{margin:9px 4px 0;text-align:center;font:italic 10.5px/1.3 var(--ui);color:#5D676A}
+.course-band{margin-top:23px;padding-top:18px;border-top:1px solid rgba(var(--accent-rgb),.08);display:flex;align-items:center;gap:9px}
+.course-pips{display:flex;gap:5px;flex:1}.course-pips i{width:21px;height:3px;border-radius:99px;background:#243238}
+.course-pips i.on{background:var(--accent2)}.course-pips i.now{background:var(--accent)}
+.course-label{color:#657B82;font:8px/1 var(--ui);letter-spacing:1px;text-transform:uppercase}
+
+/* Capture pop-up: intentionally matches the full Kꜣr detail page. */
+.capture-scrim{
+  position:absolute;inset:0;z-index:108;background:rgba(0,0,0,.72);opacity:0;pointer-events:none;transition:opacity .18s ease
+}
+.capture-scrim.open{opacity:1;pointer-events:auto}
+.capture-window{
+  position:absolute;z-index:112;left:14px;right:14px;top:78px;bottom:34px;
+  border:1px solid rgba(var(--accent-rgb),.28);border-radius:22px;background:#0A0A08;
+  transform:translateY(16px);opacity:0;pointer-events:none;transition:.2s ease;overflow:hidden;
+  box-shadow:0 28px 70px rgba(0,0,0,.66)
+}
+.capture-window.open{transform:none;opacity:1;pointer-events:auto}
+.capture-window-inner{height:100%;display:flex;flex-direction:column;padding:17px 17px 16px}
+.capture-window-head{display:flex;align-items:flex-start;gap:12px}
+.capture-window-title{flex:1;min-width:0}
+.capture-window-kicker{font:400 9px/1 var(--ui);letter-spacing:1.35px;color:var(--gold-dim)}
+.capture-window-title h3{margin:5px 0 0;font:500 28px/1 var(--display);color:var(--bone)}
+.capture-window-close{width:38px;height:38px;border:0;background:none;color:#8B867D;font-size:24px;cursor:pointer}
+.capture-window-prompt{margin:14px 0 0;font:italic 15px/1.38 var(--display);color:#AFA89C}
+.capture-pane{display:none;flex:1;min-height:0;margin-top:15px}
+.capture-pane.active{display:flex;flex-direction:column}
+.describe-field{
+  flex:1;width:100%;min-height:220px;resize:none;border-radius:15px;border:1px solid rgba(232,226,214,.13);
+  background:#070706;color:#E1DBD0;padding:14px;font:400 16px/1.46 var(--ui);caret-color:var(--accent2)
+}
+.describe-field:focus{outline:1px solid rgba(var(--accent-rgb),.48)}
+.describe-field::placeholder{color:#5C5953}
+.describe-help{margin:9px 2px 0;font:italic 11px/1.35 var(--ui);color:#625E57}
+.capture-window-actions{display:grid;grid-template-columns:1fr 1.3fr;gap:9px;margin-top:14px}
+.capture-secondary,.capture-primary{height:45px;border-radius:999px;cursor:pointer}
+.capture-secondary{border:1px solid rgba(232,226,214,.14);background:transparent;color:#7D786F}
+.capture-primary{border:1px solid rgba(var(--accent-rgb),.48);background:rgba(var(--accent-rgb),.07);color:var(--accent2);font:500 16px/1 var(--display)}
+.draw-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:9px}
+.draw-tool{min-height:34px;padding:0 10px;border-radius:999px;border:1px solid rgba(232,226,214,.13);background:#070706;color:#777269;font:400 11px/1 var(--ui);cursor:pointer}
+.draw-tool.active{border-color:rgba(var(--accent-rgb),.45);color:var(--accent2)}
+.draw-swatches{display:flex;gap:7px;margin-left:auto}
+.draw-swatch{width:25px;height:25px;border-radius:50%;border:1px solid rgba(232,226,214,.18);padding:0;cursor:pointer}
+.draw-swatch.active{box-shadow:0 0 0 2px #0A0A08,0 0 0 3px var(--accent2)}
+.draw-swatch.bone{background:#E8E2D6}.draw-swatch.accent{background:var(--accent)}.draw-swatch.gold{background:#D4AE43}
+.draw-canvas-wrap{flex:1;min-height:0;border:1px solid rgba(232,226,214,.13);border-radius:15px;overflow:hidden;background:radial-gradient(78% 70% at 50% 42%,rgba(var(--accent-rgb),.04),transparent 68%),#050504}
+#drawCanvas{width:100%;height:100%;min-height:285px;display:block;touch-action:none}
+.draw-help{margin:8px 2px 0;font:italic 10.5px/1.3 var(--ui);color:#5F5A53}
+
+/* Return lower layer */
+.cue-card,.artifact-card{display:none}
+.cue-card.show,.artifact-card.show{display:block}
+.cue-card{
+  margin-top:17px;padding:16px;border-left:1px solid rgba(var(--accent-rgb),.35);
+  background:rgba(var(--accent-rgb),.028)
+}
+.cue-card span,.artifact-card>span{display:block;color:#627B84;font:700 8px/1 var(--ui);letter-spacing:1.1px;text-transform:uppercase}
+.cue-card p{margin:8px 0 0;font:italic 19px/1.34 var(--display);color:#C1B9AD}
+.cue-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}
+.small-btn{
+  min-height:40px;border-radius:999px;border:1px solid rgba(var(--accent-rgb),.18);background:#070A0B;
+  color:#7F8C90;font:12px/1 var(--ui);cursor:pointer
+}
+.small-btn.primary{border-color:rgba(var(--accent-rgb),.38);color:#B8D9E1}
+.artifact-card{margin-top:15px}
+.artifact-box{
+  margin-top:10px;min-height:168px;border:1px dashed rgba(var(--accent-rgb),.16);border-radius:14px;
+  display:grid;place-items:center;text-align:center;padding:20px;color:#667276;font:italic 12px/1.35 var(--display)
+}
+.artifact-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}
+
+/* little feedback */
+.feedback{
+  position:absolute;z-index:120;left:50%;bottom:84px;max-width:300px;transform:translate(-50%,8px);
+  padding:8px 11px;border-radius:999px;background:#101719;border:1px solid rgba(var(--accent-rgb),.18);
+  color:#B8C9CE;font:11px/1.25 var(--ui);opacity:0;pointer-events:none;transition:.18s ease;text-align:center
+}
+.feedback.show{opacity:1;transform:translate(-50%,0)}
+
+
+.entry-preview-pane{overflow:auto}
+.past-entry-card{
+  margin-top:4px;min-height:220px;padding:18px;border-radius:15px;
+  border:1px solid rgba(var(--accent-rgb),.14);
+  background:radial-gradient(90% 80% at 20% 0,rgba(var(--accent-rgb),.06),transparent 58%),#070706
+}
+.past-entry-label{
+  display:block;color:#6E8E98;font:700 8px/1 var(--ui);letter-spacing:1.25px;text-transform:uppercase
+}
+.past-entry-copy{
+  margin:18px 0 0;color:#CEC6BA;font:italic 18px/1.42 var(--display);white-space:pre-wrap
+}
+
+@media(max-width:620px){
+  body{padding:0}.eval{display:none}.phone{width:100vw;height:100dvh;max-width:430px;border-radius:0}
+  .sheet{height:min(668px,79dvh);left:0;right:0}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- v6: multi-Kꜣr Day View / persistent-object states ---------- */
+#karBlockMount2{position:absolute;left:38px;right:14px;top:190px;height:106px}
+.kar-calendar-block.second{--accent:#C78FA9;--accent2:#ECC7D8;--accent-rgb:199,143,169;background:linear-gradient(90deg,rgba(7,4,6,.84),rgba(7,4,6,.48) 47%,rgba(7,4,6,.02)),radial-gradient(ellipse at 83% 50%,rgba(199,143,169,.23),transparent 50%),linear-gradient(154deg,#190D13,#3A1D2C 56%,#12080D)}
+.kar-entry-dot.cycle{opacity:.84;pointer-events:auto;background:var(--accent);border-color:rgba(238,249,252,.42);box-shadow:0 0 10px rgba(var(--accent-rgb),.34)}
+.kar-entry-dot.history{opacity:.20;pointer-events:auto;background:transparent;border-color:rgba(212,174,67,.30);box-shadow:none}
+.kar-entry-dot.history.current{opacity:1;background:var(--accent2)}
+.kar-entry-dot.current{pointer-events:auto}.sheet-kar-caption .history-note{color:#71664B}
+.past-entry-card .history-badge{display:inline-block;margin-top:8px;color:#7D6B45;font:700 8px/1 var(--ui);letter-spacing:1.1px;text-transform:uppercase}
+.past-entry-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.past-entry-actions button{min-height:42px;border-radius:999px;border:1px solid rgba(var(--accent-rgb),.18);background:transparent;color:#8D9698;font:12px/1 var(--ui);cursor:pointer}
+.walk-screen{position:absolute;inset:0;z-index:160;background:#050504;display:none;flex-direction:column;color:#E8E2D6}.walk-screen.open{display:flex}
+.walk-screen-head{height:72px;padding:30px 19px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #171512}
+.walk-screen-kicker{font:700 8px/1 var(--ui);letter-spacing:1.5px;color:#8A7030;text-transform:uppercase}.walk-close{width:34px;height:34px;border:0;background:none;color:#8D877E;font-size:23px;cursor:pointer}
+.walk-screen-body{flex:1;display:flex;flex-direction:column;padding:22px 20px 28px}.walk-place-label{color:#806F49;font:700 8px/1 var(--ui);letter-spacing:1.4px;text-transform:uppercase}.walk-place-title{margin:8px 0 0;font:500 32px/1 var(--display);color:#ECE5DA}
+.walk-mini-kar{margin:18px 0 0;height:235px;border:1px solid rgba(212,174,67,.12);border-radius:18px;background:#070706;position:relative;display:grid;place-items:center}.walk-mini-kar .sheet-kar{top:10px;transform:translateX(-50%) scale(.88)}
+.walk-recall{margin-top:20px}.walk-recall h3{margin:0 0 14px;font:500 30px/1 var(--display);text-align:center}.walk-recall-actions{display:grid;gap:8px}
+.walk-recall-actions button,.walk-open-next{min-height:44px;border-radius:999px;border:1px solid rgba(var(--accent-rgb),.18);background:transparent;color:#8D9698;font:13px/1 var(--ui);cursor:pointer}.walk-recall-actions .strong{border-color:rgba(var(--accent-rgb),.44);color:var(--accent2)}
+.walk-open-copy{padding:18px 14px;border:1px solid rgba(232,226,214,.08);border-radius:14px;text-align:center}.walk-open-copy strong{display:block;font:500 25px/1 var(--display);color:#BBB3A7}.walk-open-copy p{margin:8px 0 0;color:#68635C;font:italic 12px/1.35 var(--ui)}.walk-open-next{width:100%;margin-top:13px}.walk-progress{margin-top:auto;padding-top:18px;color:#625E56;font:10px/1 var(--ui);text-align:center}
+
+
+/* ---------- v7: one-hour Kꜣr event blocks ----------
+   Calendar hour rows are 61px tall. Kꜣr blocks now use that exact height.
+   Detail-sheet behavior below is unchanged. */
+#karBlockMount,
+#karBlockMount2{
+  height:61px !important;
+}
+.kar-calendar-block{
+  height:61px !important;
+  padding:7px 61px 6px 12px !important;
+  border-radius:9px !important;
+}
+.kar-calendar-block .kicker{
+  font-size:7px !important;
+  letter-spacing:1.18px !important;
+}
+.kar-calendar-block .title{
+  margin-top:4px !important;
+  font-size:17px !important;
+  line-height:.96 !important;
+}
+.kar-calendar-block .support{
+  margin-top:3px !important;
+  font-size:10.5px !important;
+  line-height:1 !important;
+}
+.kar-calendar-block .foot{
+  position:absolute !important;
+  left:12px !important;
+  right:62px !important;
+  bottom:5px !important;
+  margin-top:0 !important;
+  gap:6px !important;
+}
+.kar-calendar-block .pips{
+  gap:3px !important;
+}
+.kar-calendar-block .pips i{
+  width:10px !important;
+  height:2px !important;
+}
+.kar-calendar-block .said{
+  display:none !important;
+}
+.kar-calendar-block .of{
+  font-size:8px !important;
+}
+.kar-obj{
+  right:5px !important;
+  width:52px !important;
+  height:54px !important;
+}
+
+
+/* ---------- v8: canonical one-hour placement + non-overlapping compact anatomy ----------
+   61px = one Day View hour. The event uses the same three-band compact grammar
+   as the other approved one-hour Flow blocks: kicker / title / footer. */
+#karBlockMount{
+  top:61px !important;   /* 9:00–10:00 */
+  height:61px !important;
+}
+#karBlockMount2{
+  top:183px !important;  /* 11:00–12:00 */
+  height:61px !important;
+}
+.kar-calendar-block{
+  height:61px !important;
+  padding:0 !important;
+}
+.kar-calendar-block .kicker{
+  position:absolute !important;
+  z-index:4 !important;
+  left:12px !important;
+  right:62px !important;
+  top:8px !important;
+  margin:0 !important;
+  font:400 7px/1 var(--ui) !important;
+  letter-spacing:1.18px !important;
+}
+.kar-calendar-block .title{
+  position:absolute !important;
+  z-index:4 !important;
+  left:12px !important;
+  right:62px !important;
+  top:20px !important;
+  margin:0 !important;
+  font:600 17px/.96 var(--display) !important;
+}
+.kar-calendar-block .support{
+  position:absolute !important;
+  z-index:4 !important;
+  left:12px !important;
+  bottom:7px !important;
+  width:77px !important;
+  margin:0 !important;
+  font:italic 9.5px/1 var(--display) !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+.kar-calendar-block .foot{
+  position:absolute !important;
+  z-index:4 !important;
+  left:91px !important;
+  right:62px !important;
+  bottom:7px !important;
+  height:9px !important;
+  margin:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:5px !important;
+  min-width:0 !important;
+}
+.kar-calendar-block .pips{
+  display:flex !important;
+  gap:3px !important;
+  flex:0 0 auto !important;
+}
+.kar-calendar-block .pips i{
+  width:9px !important;
+  height:2px !important;
+}
+.kar-calendar-block .said{
+  display:none !important;
+}
+.kar-calendar-block .of{
+  margin-left:auto !important;
+  min-width:0 !important;
+  font:400 7.8px/1 var(--ui) !important;
+  white-space:nowrap !important;
+}
+.kar-obj{
+  right:5px !important;
+  top:50% !important;
+  width:52px !important;
+  height:54px !important;
+}
+
+</style>
+</head>
+<body>
+
+<div class="eval">
+  <strong>EVALUATION ONLY</strong>
+  <select id="stateSelect">
+    <option value="fresh">Fresh sitting</option>
+    <option value="return">Scheduled return</option>
+    <option value="walk">Day 30 walk</option>
+  </select>
+  <select id="sittingSelect" aria-label="Preview Kꜣr sitting" style="margin-top:8px">
+    <option value="0">Sitting 01 · Threshold</option>
+    <option value="1">Sitting 02 · Left jamb</option>
+    <option value="2">Sitting 03 · Right jamb</option>
+    <option value="3">Sitting 04 · Lintel</option>
+    <option value="4">Sitting 05 · Base</option>
+  </select>
+  <button id="openEval" type="button">Open detail sheet</button>
+  <button id="dockEval" type="button">Dock lower layer</button>
+  <p>Change sittings to see the kꜣr accumulate. The current place glows; prior places stay tappable.</p>
+</div>
+
+<div class="phone" id="phone">
+  <div class="status"><span>7:12</span><span>▮▮▮ 5G ▰</span></div>
+
+  <div class="dayview">
+    <div class="day-head">
+      <div class="navline"><span class="x">×</span><span class="month">Rekh-Wer (Rḫ-wr)</span><span class="icons"><span>＋</span><span>𓂀</span></span></div>
+      <div class="date-strip"><span class="d">5</span><span class="d">6</span><span class="sel">7</span><span class="d">8</span><span class="d">9</span><span class="d">10</span><span class="d">11</span></div>
+      <div class="date-name">Rekh-Wer 7, 2026</div>
+    </div>
+
+    <div class="timeline-grid">
+      <div class="hour"><span>8 AM</span></div><div class="hour"><span>9 AM</span></div><div class="hour"><span>10 AM</span></div>
+      <div class="hour"><span>11 AM</span></div><div class="hour"><span>12 PM</span></div><div class="hour"><span>1 PM</span></div>
+      <div class="hour"><span>2 PM</span></div><div class="hour"><span>3 PM</span></div>
+      <div class="simple-event journal">journal every day</div>
+      <div id="karBlockMount"></div>
+      <div class="simple-event work">Morning work</div>
+      <div id="karBlockMount2"></div>
+      <div class="simple-event lunch">Lunch</div>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <section class="sheet" id="sheet" aria-label="The Kꜣr event detail">
+    <div class="sheet-chrome" id="sheetChrome">
+      <div class="sheet-handle"></div>
+      <button class="sheet-close" id="sheetClose" type="button" aria-label="Close">×</button>
+    </div>
+
+    <div class="layer-stage" id="layerStage">
+      <div class="hero-layer" id="heroLayer"></div>
+
+      <div class="practice-shell" id="practiceShell">
+        <div class="practice-content" id="practiceContent">
+          <div class="practice-layer" id="practiceLayer"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet-footer">
+      <button class="footer-btn left" type="button" id="makeTodo">Make to-do</button>
+      <button class="footer-btn" type="button" id="calendarBtn">Calendar</button>
+    </div>
+  </section>
+  <div class="capture-scrim" id="captureScrim"></div>
+  <section class="capture-window" id="captureWindow" role="dialog" aria-modal="true" aria-label="Save the scene">
+    <div class="capture-window-inner">
+      <div class="capture-window-head">
+        <div class="capture-window-title">
+          <div class="capture-window-kicker" id="captureKicker">DJEHUTY · THRESHOLD</div>
+          <h3 id="captureTitle">Draw what you picture</h3>
+        </div>
+        <button class="capture-window-close" id="captureClose" type="button" aria-label="Close">×</button>
+      </div>
+      <p class="capture-window-prompt" id="capturePrompt">Bad drawings welcome.</p>
+
+      <div class="capture-pane" id="tellPane">
+        <textarea class="describe-field" id="tellField" placeholder="I picture…"></textarea>
+        <p class="describe-help">Describe what you picture. No explanation needed.</p>
+        <div class="capture-window-actions">
+          <button class="capture-secondary" id="tellCancel" type="button">Cancel</button>
+          <button class="capture-primary" id="tellKeep" type="button">Save description</button>
+        </div>
+      </div>
+
+      <div class="capture-pane" id="drawPane">
+        <div class="draw-toolbar">
+          <button class="draw-tool active" id="penTool" type="button">Pen</button>
+          <button class="draw-tool" id="eraserTool" type="button">Eraser</button>
+          <button class="draw-tool" id="undoStroke" type="button">Undo</button>
+          <button class="draw-tool" id="clearDrawing" type="button">Clear</button>
+          <div class="draw-swatches" aria-label="Drawing colors">
+            <button class="draw-swatch bone active" type="button" data-color="bone" aria-label="Bone"></button>
+            <button class="draw-swatch accent" type="button" data-color="accent" aria-label="Netjer color"></button>
+            <button class="draw-swatch gold" type="button" data-color="gold" aria-label="Gold"></button>
+          </div>
+        </div>
+        <div class="draw-canvas-wrap"><canvas id="drawCanvas"></canvas></div>
+        <p class="draw-help">Bad drawings welcome.</p>
+        <div class="capture-window-actions">
+          <button class="capture-secondary" id="drawCancel" type="button">Cancel</button>
+          <button class="capture-primary" id="drawKeep" type="button">Save drawing</button>
+        </div>
+      </div>
+
+      <div class="capture-pane entry-preview-pane" id="entryPane">
+        <div class="past-entry-card">
+          <span class="past-entry-label" id="pastEntryLabel">SITTING 01 · THRESHOLD</span>
+          <p class="past-entry-copy" id="pastEntryCopy"></p>
+        </div>
+        <div class="past-entry-actions">
+          <button id="entryEdit" type="button">Make this place again</button>
+          <button id="entryClose" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="feedback" id="feedback"></div>
+
+  <section class="walk-screen" id="walkScreen" aria-label="Walk the Kꜣr">
+    <div class="walk-screen-head">
+      <span class="walk-screen-kicker" id="walkScreenKicker">THE KꜣR · DJEHUTY · DAY 30</span>
+      <button class="walk-close" id="walkScreenClose" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="walk-screen-body">
+      <span class="walk-place-label" id="walkPlaceLabel">01 · THRESHOLD</span>
+      <h2 class="walk-place-title" id="walkPlaceTitle">Threshold</h2>
+      <div class="walk-mini-kar" id="walkMiniKar"></div>
+      <div class="walk-recall" id="walkRecall">
+        <h3>Is it here?</h3>
+        <div class="walk-recall-actions">
+          <button class="strong" data-walk-outcome="recalled" type="button">It’s here</button>
+          <button data-walk-outcome="partial" type="button">I have a piece</button>
+          <button data-walk-outcome="revealed" type="button">Not yet</button>
+        </div>
+      </div>
+      <div class="walk-open-copy" id="walkOpenCopy" hidden>
+        <strong>This place is open.</strong>
+        <p>Nothing from this cycle was placed here. Earlier cycles remain behind the place, but they are not part of this walk.</p>
+        <button class="walk-open-next" id="walkOpenNext" type="button">Continue</button>
+      </div>
+      <div class="walk-progress" id="walkProgress">1 of 5</div>
+    </div>
+  </section>
+</div>
+
+<script>
+const stateSelect=document.getElementById('stateSelect');
+const sittingSelect=document.getElementById('sittingSelect');
+const blockMount=document.getElementById('karBlockMount');
+const sheet=document.getElementById('sheet');
+const scrim=document.getElementById('scrim');
+const heroLayer=document.getElementById('heroLayer');
+const practiceLayer=document.getElementById('practiceLayer');
+const layerStage=document.getElementById('layerStage');
+const practiceShell=document.getElementById('practiceShell');
+const practiceContent=document.getElementById('practiceContent');
+const feedback=document.getElementById('feedback');
+let state='fresh';
+let sittingIndex=0;
+let placed=false;
+const captureEntries=Array.from({length:5},()=>({tell:'',strokes:[]}));
+const sittingData=[
+  {
+    title:'Wisdom',
+    place:'Threshold',
+    prompt:[
+      'Picture yourself in an outfit and room that represent wisdom.',
+      'Place the one object in your hand that a wise person would carry.'
+    ],
+    support:'outfit · room · one object',
+    saved:'A dark blue robe with oversized sleeves. A circular room with windows all around it. I am holding a silver pipe that smokes upward into tiny question marks.'
+  },
+  {
+    title:'The throne',
+    place:'Left jamb',
+    prompt:[
+      'Make your wisdom object large enough to use as a throne.',
+      'Picture yourself sitting on it in the same outfit.'
+    ],
+    support:'make the object enormous',
+    saved:'The pipe is now taller than a car. Its bowl is a velvet chair and I am sitting inside it in the same robe.'
+  },
+  {
+    title:'What you figured out',
+    place:'Right jamb',
+    prompt:[
+      'Think of something you finally figured out.',
+      'Take one real object from that moment and place it in your wisdom room. Make it enormous.'
+    ],
+    support:'one real object · made enormous',
+    saved:'A giant editing keyboard fills half the room. The keys are as large as tables.'
+  },
+  {
+    title:'Inside the object',
+    place:'Lintel',
+    prompt:[
+      'Make your wisdom object transparent.',
+      'Fill it with tiny versions of things you know well.'
+    ],
+    support:'make it transparent · fill it',
+    saved:'The pipe is glass now. Tiny cameras, books, hockey sticks, calendars and maps move through the smoke chamber.'
+  },
+  {
+    title:'Ninety years old',
+    place:'Base',
+    prompt:[
+      'Picture yourself at ninety years old in the same room.',
+      'Keep the outfit and object, but show what decades of use have done to both.'
+    ],
+    support:'same room · decades later',
+    saved:'The robe is faded and repaired at the elbows. The pipe is scratched smooth where my hand has held it for years.'
+  }
+];
+function captureEntry(){return captureEntries[sittingIndex]}
+let layeredPos=0,revealDistance=0,innerMax=0;
+let layerDrag=null,animFrame=0,animToken=0;
+let feedbackTimer=0;
+let drawDraft=[],activeStroke=null,drawTool='pen',drawColorKey='bone';
+
+function showFeedback(msg){
+  clearTimeout(feedbackTimer);feedback.textContent=msg;feedback.classList.add('show');
+  feedbackTimer=setTimeout(()=>feedback.classList.remove('show'),1500);
+}
+function karSvg({walk=false,returning=false}={}){
+  const line=walk?'#CBB56A':'#6E5A28';
+  const glow=walk?'#D4AE43':'#91B7C7';
+  return `<svg viewBox="0 0 84 86" aria-hidden="true">
+    <defs>
+      <radialGradient id="kg" cx="50%" cy="48%" r="55%"><stop offset="0" stop-color="${glow}" stop-opacity="${returning?'.10':'.22'}"/><stop offset="1" stop-color="${glow}" stop-opacity="0"/></radialGradient>
+      <linearGradient id="stone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#17150D"/><stop offset=".48" stop-color="#0C0B08"/><stop offset="1" stop-color="#070706"/></linearGradient>
+    </defs>
+    <ellipse class="glow" cx="42" cy="42" rx="40" ry="39" fill="url(#kg)"/>
+    <g opacity="${returning?'.64':'.84'}">
+      <path d="M17 17 Q42 6 67 17 L64 25 H20 Z" fill="url(#stone)" stroke="${line}" stroke-opacity=".76"/>
+      <rect x="20" y="24" width="44" height="48" rx="2" fill="#080806" stroke="${line}" stroke-opacity=".72"/>
+      <rect x="29" y="34" width="26" height="31" rx="1" fill="#050504" stroke="${line}" stroke-opacity=".54"/>
+      <rect x="13" y="70" width="58" height="7" rx="2" fill="#090806" stroke="${line}" stroke-opacity=".68"/>
+      <path d="M24 28 V67 M60 28 V67" stroke="${line}" stroke-opacity=".52"/>
+    </g>
+  </svg>`;
+}
+function heroKarSvg({walk=false}={}){
+  const accent=walk?'#DCC879':'#6A5727';
+  const glow=walk?'#D4AE43':'#91B7C7';
+  return `<svg viewBox="0 0 120 190" aria-hidden="true">
+    <defs>
+      <radialGradient id="hkg" cx="50%" cy="45%" r="58%"><stop offset="0" stop-color="${glow}" stop-opacity="${walk?'.12':'.05'}"/><stop offset="1" stop-color="${glow}" stop-opacity="0"/></radialGradient>
+      <linearGradient id="hstone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#17150D"/><stop offset=".45" stop-color="#0D0C08"/><stop offset="1" stop-color="#070706"/></linearGradient>
+    </defs>
+    <ellipse cx="60" cy="91" rx="57" ry="78" fill="url(#hkg)"/>
+    <path d="M19 33 Q60 15 101 33 L96 48 H24 Z" fill="url(#hstone)" stroke="${accent}" stroke-opacity=".68"/>
+    <rect x="24" y="47" width="72" height="104" rx="3" fill="#080806" stroke="${accent}" stroke-opacity=".65"/>
+    <rect x="39" y="72" width="42" height="62" rx="2" fill="#050504" stroke="${accent}" stroke-opacity=".50"/>
+    <path d="M30 56 V143 M90 56 V143" stroke="${accent}" stroke-opacity=".55"/>
+    <rect x="13" y="149" width="94" height="12" rx="3" fill="#090806" stroke="${accent}" stroke-opacity=".62"/>
+  </svg>`;
+}
+function pipsMarkup(mode){
+  if(mode==='walk')return [0,1,2,3,4].map(()=>'<i class="on"></i>').join('');
+  return [0,1,2,3,4].map(i=>`<i class="${i<sittingIndex?'on':i===sittingIndex?'now':''}"></i>`).join('');
+}
+function blockHTML(){
+  const walk=state==='walk',ret=state==='return',d=sittingData[sittingIndex];
+  const n=String(sittingIndex+1).padStart(2,'0');
+  const title=walk?'Walk the kꜣr':ret?`Return to the ${d.place.toLowerCase()}`:d.title;
+  const support=walk?'five places · one walk':ret?'Is it here?':d.support;
+  const said=walk?'DAY 30 · INNER CHAMBER':ret?'RETURN · NO NEW ENTRY':`${n} · ${d.place.toUpperCase()}`;
+  const of=walk?'COMPLETE':ret?`PLACE ${n}`:`SITTING ${sittingIndex+1} OF 5`;
+  return `<button class="kar-calendar-block ${ret?'return-state':''} ${walk?'walk-state':''}" id="karBlock" type="button">
+    <span class="kicker">THE KꜣR · DJEHUTY${walk?'':ret?' · RETURN':` · SITTING ${n}`}</span>
+    <span class="title">${title}</span>
+    <span class="support">${support}</span>
+    <span class="foot"><span class="pips">${pipsMarkup(state)}</span><span class="said">${said}</span><span class="of">${of}</span></span>
+    <span class="kar-obj">${karSvg({walk,returning:ret})}</span>
+  </button>`;
+}
+function renderBlock(){
+  blockMount.innerHTML=blockHTML();
+  document.getElementById('karBlock').addEventListener('click',openSheet);
+}
+function freshHero(){
+  const d=sittingData[sittingIndex],n=String(sittingIndex+1).padStart(2,'0');
+  const dots=[0,1,2,3,4].map(i=>{
+    const cls=i<sittingIndex?'past':i===sittingIndex?'current':'future';
+    const disabled=i<sittingIndex?'':'disabled';
+    const label=i<sittingIndex
+      ? `Open sitting ${i+1}, ${sittingData[i].place}`
+      : i===sittingIndex
+        ? `${d.place}, current sitting`
+        : `Future place ${i+1}`;
+    return `<button class="kar-entry-dot d${i+1} ${cls}" data-entry-dot="${i}" ${disabled} type="button" aria-label="${label}"></button>`;
+  }).join('');
+
+  return `<div class="fresh-hero">
+    <div class="fresh-graphic">
+      <div class="sheet-kar-stage" aria-label="Your Kꜣr">
+        <div class="sheet-kar" aria-hidden="true">
+          <div class="sheet-kar-cornice"></div>
+          <div class="sheet-kar-body"></div>
+          <div class="sheet-kar-door"></div>
+          <div class="sheet-kar-base"></div>
+          ${dots}
+        </div>
+        <div class="sheet-kar-caption">
+          <span><strong>Your Kꜣr</strong> · ${sittingIndex} / 5 placed</span>
+          <span class="current-place">${n} · ${d.place}</span>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function freshPractice(){
+  const e=captureEntry(),d=sittingData[sittingIndex],n=String(sittingIndex+1).padStart(2,'0');
+  const hasTell=!!e.tell.trim(),hasDraw=e.strokes.length>0,hasAny=hasTell||hasDraw;
+  return `<div class="layer-kicker">DJEHUTY · SITTING ${n} · ${d.place.toUpperCase()}</div>
+    <h3 class="layer-title">${d.title}</h3>
+    <div class="prompt-bottom">${d.prompt.map((p,i)=>`<p>${p}</p>`).join('')}</div>
+    <div class="capture-choice">
+      <span class="capture-label">KEEP THE SCENE</span>
+      <div class="capture-actions">
+        <button class="capture-action ${hasDraw?'ready':''}" data-capture="draw" type="button">Draw</button>
+        <button class="capture-action ${hasTell?'ready':''}" data-capture="describe" type="button">Describe</button>
+      </div>
+      <button class="place-btn" id="placeBtn" type="button" ${hasAny?'':'disabled'}>${placed?'Placed in the kꜣr':'Place in the kꜣr'}</button>
+      <p class="capture-note">One is enough.</p>
+    </div>
+    <div class="course-band"><span class="course-pips">${[0,1,2,3,4].map(i=>`<i class="${i<sittingIndex?'on':i===sittingIndex?'now':''}"></i>`).join('')}</span><span class="course-label">${sittingIndex+1} of 5</span></div>`;
+}
+function returnHero(){
+  const d=sittingData[sittingIndex],n=String(sittingIndex+1).padStart(2,'0');
+  return `<div class="return-hero">
+    <div class="sheet-meta">
+      <div class="sheet-kicker">✦ &nbsp;THE KꜣR · DJEHUTY</div>
+      <div class="sheet-side">RETURN<br>${d.place.toUpperCase()}</div>
+    </div>
+    <div class="return-stage">
+      <div class="return-kar">${heroKarSvg()}</div>
+      <div>
+        <h2 class="return-question">Is it here?</h2>
+        <div class="return-actions">
+          <button class="return-btn primary" data-return="yes" type="button">It’s here</button>
+          <button class="return-btn" data-return="piece" type="button">I have a piece</button>
+          <button class="return-btn quiet" data-return="no" type="button">Not yet</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function returnPractice(){
+  return `<div class="layer-kicker">THE THRESHOLD</div>
+    <h3 class="layer-title">Only ask for help if you need it.</h3>
+    <p class="layer-note">The place calls first. What you saved stays hidden.</p>
+    <div class="cue-card" id="cueCard">
+      <span>A small cue</span>
+      <p id="returnCueText"></p>
+      <div class="cue-actions">
+        <button class="small-btn primary" data-cue-back type="button">It’s back</button>
+        <button class="small-btn" data-show-artifact type="button">Show me</button>
+      </div>
+    </div>
+    <div class="artifact-card" id="artifactCard">
+      <span>What you placed here</span>
+      <div class="artifact-box">Your saved drawing or description appears here.</div>
+      <div class="artifact-actions">
+        <button class="small-btn primary" data-keep-place type="button">Keep this place</button>
+        <button class="small-btn" data-make-again type="button">Make this place again</button>
+      </div>
+    </div>`;
+}
+function walkHero(){
+  return `<div class="walk-hero">
+    <div class="sheet-meta">
+      <div class="sheet-kicker">✦ &nbsp;THE KꜣR · DJEHUTY</div>
+      <div class="sheet-side">DAY 30<br>INNER CHAMBER</div>
+    </div>
+    <div class="walk-center">
+      <div class="walk-kar">${heroKarSvg({walk:true})}</div>
+      <div class="walk-copy">
+        <h3>Walk the kꜣr</h3>
+        <p>Enter at the threshold. Find the five places in order.</p>
+        <button class="begin-btn" id="beginWalk" type="button">Begin</button>
+      </div>
+    </div>
+  </div>`;
+}
+function walkPractice(){
+  return `<div class="layer-kicker">THE WALK</div>
+    <h3 class="layer-title">Five places. Nothing new to make.</h3>
+    <p class="layer-note">Beginning the walk leaves this sheet and opens the kꜣr full-screen.</p>`;
+}
+function renderSheet(){
+  if(state==='fresh'){heroLayer.innerHTML=freshHero();practiceLayer.innerHTML=freshPractice();}
+  if(state==='return'){heroLayer.innerHTML=returnHero();practiceLayer.innerHTML=returnPractice();}
+  if(state==='walk'){heroLayer.innerHTML=walkHero();practiceLayer.innerHTML=walkPractice();}
+  const cue=document.getElementById('returnCueText');
+  if(cue)cue.textContent=sittingData[sittingIndex].prompt[0];
+  bindSheetActions();
+  requestAnimationFrame(()=>{measureLayered();setLayeredPos(0);});
+}
+function bindSheetActions(){
+  heroLayer.querySelectorAll('[data-entry-dot]').forEach(btn=>btn.addEventListener('click',()=>{
+    const i=Number(btn.dataset.entryDot);
+    if(i>=sittingIndex)return;
+    openPastEntry(i);
+  }));
+  practiceLayer.querySelectorAll('[data-capture]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(btn.dataset.capture==='draw')openDrawCapture();
+    if(btn.dataset.capture==='describe')openDescribeCapture();
+  }));
+  const placeBtn=document.getElementById('placeBtn');
+  if(placeBtn)placeBtn.addEventListener('click',()=>{
+    const e=captureEntry(); if(!e.tell.trim()&&!e.strokes.length)return;
+    placed=true;placeBtn.textContent='Placed at the threshold';showFeedback('Placed at the threshold');
+  });
+  heroLayer.querySelectorAll('[data-return]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(btn.dataset.return==='yes'){closeSheet();showFeedback('Place returned');}
+    if(btn.dataset.return==='piece'){dockLayer({smooth:true,onDone:()=>document.getElementById('cueCard')?.classList.add('show')});}
+    if(btn.dataset.return==='no'){dockLayer({smooth:true,onDone:()=>document.getElementById('artifactCard')?.classList.add('show')});}
+  }));
+  practiceLayer.querySelector('[data-cue-back]')?.addEventListener('click',()=>{closeSheet();showFeedback('Place returned')});
+  practiceLayer.querySelector('[data-show-artifact]')?.addEventListener('click',()=>{
+    document.getElementById('artifactCard')?.classList.add('show');requestAnimationFrame(measureLayered);
+  });
+  practiceLayer.querySelector('[data-keep-place]')?.addEventListener('click',()=>{closeSheet();showFeedback('Place kept')});
+  practiceLayer.querySelector('[data-make-again]')?.addEventListener('click',()=>{state='fresh';stateSelect.value='fresh';renderBlock();renderSheet();dockLayer({smooth:false});});
+  document.getElementById('beginWalk')?.addEventListener('click',()=>showFeedback('Full-screen walk opens'));
+}
+function openSheet(){
+  renderSheet();scrim.classList.add('open');sheet.classList.add('open');resetLayered();
+}
+function closeSheet(){scrim.classList.remove('open');sheet.classList.remove('open')}
+document.getElementById('sheetClose').addEventListener('click',closeSheet);
+scrim.addEventListener('click',closeSheet);
+document.getElementById('openEval').addEventListener('click',openSheet);
+document.getElementById('dockEval').addEventListener('click',()=>{if(!sheet.classList.contains('open'))openSheet();setTimeout(()=>dockLayer({smooth:true}),60)});
+stateSelect.addEventListener('change',()=>{state=stateSelect.value;renderBlock();if(sheet.classList.contains('open'))renderSheet()});
+sittingSelect.addEventListener('change',()=>{sittingIndex=Number(sittingSelect.value)||0;placed=false;renderBlock();if(sheet.classList.contains('open'))renderSheet()});
+document.getElementById('makeTodo').addEventListener('click',()=>showFeedback('Make to-do'));
+document.getElementById('calendarBtn').addEventListener('click',()=>showFeedback('Calendar'));
+
+/* two-stage layered scroll */
+function measureLayered(){
+  const stageH=layerStage.clientHeight||470;
+  const peek=244;
+  revealDistance=Math.max(0,stageH-peek);
+  innerMax=Math.max(0,practiceContent.scrollHeight-stageH);
+  layeredPos=Math.min(layeredPos,revealDistance+innerMax);
+  applyLayered();
+}
+function applyLayered(){
+  const reveal=Math.min(layeredPos,revealDistance);
+  const panelY=revealDistance-reveal;
+  const innerY=Math.max(0,layeredPos-revealDistance);
+  practiceShell.style.transform=`translate3d(0,${panelY}px,0)`;
+  practiceContent.style.transform=`translate3d(0,${-innerY}px,0)`;
+}
+function setLayeredPos(v){layeredPos=Math.max(0,Math.min(Number(v)||0,revealDistance+innerMax));applyLayered()}
+function cancelAnim(){animToken++;if(animFrame){cancelAnimationFrame(animFrame);animFrame=0}}
+function ease(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function animateTo(target,{duration=600,onDone}={}){
+  measureLayered();target=Math.max(0,Math.min(target,revealDistance+innerMax));
+  const start=layeredPos,dist=Math.abs(target-start);
+  if(dist<1){setLayeredPos(target);onDone?.();return}
+  cancelAnim();const token=animToken,started=performance.now();
+  const tick=now=>{
+    if(token!==animToken)return;
+    const t=Math.min(1,(now-started)/Math.max(430,Math.min(820,duration+dist*.28)));
+    setLayeredPos(start+(target-start)*ease(t));
+    if(t<1)animFrame=requestAnimationFrame(tick);else{animFrame=0;setLayeredPos(target);onDone?.()}
+  };
+  animFrame=requestAnimationFrame(tick);
+}
+function dockLayer({smooth=true,onDone}={}){
+  measureLayered();
+  if(smooth)animateTo(revealDistance,{duration:570,onDone});else{setLayeredPos(revealDistance);onDone?.()}
+}
+function resetLayered(){cancelAnim();layeredPos=0;requestAnimationFrame(()=>{measureLayered();setLayeredPos(0)})}
+layerStage.addEventListener('wheel',e=>{
+  if(!sheet.classList.contains('open')||Math.abs(e.deltaY)<.1)return;
+  e.preventDefault();cancelAnim();measureLayered();setLayeredPos(layeredPos+e.deltaY)
+},{passive:false});
+layerStage.addEventListener('pointerdown',e=>{
+  if(e.button!==undefined&&e.button!==0)return;
+  if(e.target.closest('button,input,textarea,select,label,canvas'))return;
+  cancelAnim();layerDrag={id:e.pointerId,y:e.clientY,pos:layeredPos,moved:false};
+  try{layerStage.setPointerCapture(e.pointerId)}catch(_){}
+});
+layerStage.addEventListener('pointermove',e=>{
+  if(!layerDrag||layerDrag.id!==e.pointerId)return;
+  const dy=layerDrag.y-e.clientY;if(Math.abs(dy)>3)layerDrag.moved=true;if(!layerDrag.moved)return;
+  e.preventDefault();measureLayered();setLayeredPos(layerDrag.pos+dy)
+});
+function endDrag(e){
+  if(!layerDrag||layerDrag.id!==e.pointerId)return;
+  try{layerStage.releasePointerCapture(e.pointerId)}catch(_){}
+  layerDrag=null
+}
+layerStage.addEventListener('pointerup',endDrag);layerStage.addEventListener('pointercancel',endDrag);
+
+/* Draw / Describe capture window — same behavior as the full detail page. */
+const captureScrim=document.getElementById('captureScrim');
+const captureWindow=document.getElementById('captureWindow');
+const captureKicker=document.getElementById('captureKicker');
+const captureTitle=document.getElementById('captureTitle');
+const capturePrompt=document.getElementById('capturePrompt');
+const tellPane=document.getElementById('tellPane');
+const drawPane=document.getElementById('drawPane');
+const entryPane=document.getElementById('entryPane');
+const tellField=document.getElementById('tellField');
+const drawCanvas=document.getElementById('drawCanvas');
+const penTool=document.getElementById('penTool');
+const eraserTool=document.getElementById('eraserTool');
+
+function openCaptureWindow(){captureScrim.classList.add('open');captureWindow.classList.add('open')}
+function closeCaptureWindow(){captureScrim.classList.remove('open');captureWindow.classList.remove('open');tellPane.classList.remove('active');drawPane.classList.remove('active');entryPane.classList.remove('active')}
+document.getElementById('captureClose').addEventListener('click',closeCaptureWindow);
+captureScrim.addEventListener('click',closeCaptureWindow);
+document.getElementById('tellCancel').addEventListener('click',closeCaptureWindow);
+document.getElementById('drawCancel').addEventListener('click',closeCaptureWindow);
+
+function openPastEntry(i){
+  const d=sittingData[i];
+  captureKicker.textContent=`DJEHUTY · ${d.place.toUpperCase()}`;
+  captureTitle.textContent=d.title;
+  capturePrompt.textContent='What you placed here.';
+  document.getElementById('pastEntryLabel').textContent=`SITTING ${String(i+1).padStart(2,'0')} · ${d.place.toUpperCase()}`;
+  document.getElementById('pastEntryCopy').textContent=captureEntries[i].tell.trim() || d.saved;
+  tellPane.classList.remove('active');drawPane.classList.remove('active');entryPane.classList.add('active');
+  openCaptureWindow();
+}
+document.getElementById('entryClose').addEventListener('click',closeCaptureWindow);
+
+function openDescribeCapture(){
+  const d=sittingData[sittingIndex],e=captureEntry();
+  captureKicker.textContent=`DJEHUTY · ${d.place.toUpperCase()}`;
+  captureTitle.textContent='Describe what you picture';
+  capturePrompt.textContent='A few words or a full scene. Both count.';
+  tellField.value=e.tell;
+  entryPane.classList.remove('active');tellPane.classList.add('active');drawPane.classList.remove('active');
+  openCaptureWindow();setTimeout(()=>tellField.focus(),140);
+}
+function openDrawCapture(){
+  const d=sittingData[sittingIndex],e=captureEntry();
+  captureKicker.textContent=`DJEHUTY · ${d.place.toUpperCase()}`;
+  captureTitle.textContent='Draw what you picture';
+  capturePrompt.textContent='Bad drawings welcome.';
+  drawDraft=JSON.parse(JSON.stringify(e.strokes));
+  entryPane.classList.remove('active');tellPane.classList.remove('active');drawPane.classList.add('active');
+  openCaptureWindow();requestAnimationFrame(()=>renderDrawing(drawCanvas,drawDraft));
+}
+function refreshFreshPractice(){
+  if(state!=='fresh')return;
+  const keep=layeredPos;
+  practiceLayer.innerHTML=freshPractice();
+  bindSheetActions();
+  requestAnimationFrame(()=>{measureLayered();setLayeredPos(keep)});
+}
+document.getElementById('tellKeep').addEventListener('click',()=>{
+  captureEntry().tell=tellField.value.trim();
+  closeCaptureWindow();refreshFreshPractice();
+});
+document.getElementById('drawKeep').addEventListener('click',()=>{
+  captureEntry().strokes=JSON.parse(JSON.stringify(drawDraft));
+  closeCaptureWindow();refreshFreshPractice();
+});
+
+function colorForKey(key){
+  if(key==='accent')return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#91B7C7';
+  if(key==='gold')return '#D4AE43';
+  return '#E8E2D6';
+}
+function resizeCanvas(canvas){
+  const r=canvas.getBoundingClientRect(),dpr=Math.max(1,window.devicePixelRatio||1);
+  const w=Math.max(1,Math.round(r.width*dpr)),h=Math.max(1,Math.round(r.height*dpr));
+  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}
+}
+function renderDrawing(canvas,strokes){
+  resizeCanvas(canvas);
+  const ctx=canvas.getContext('2d'),r=canvas.getBoundingClientRect(),dpr=Math.max(1,window.devicePixelRatio||1);
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,r.width,r.height);
+  strokes.forEach(stroke=>{
+    if(!stroke.points?.length)return;
+    ctx.save();ctx.globalCompositeOperation=stroke.tool==='eraser'?'destination-out':'source-over';
+    ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
+    stroke.points.forEach((p,i)=>{const x=p.x*r.width,y=p.y*r.height;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+    ctx.stroke();ctx.restore();
+  });
+}
+function pointForEvent(e){
+  const r=drawCanvas.getBoundingClientRect();
+  return{x:Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y:Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))};
+}
+drawCanvas.addEventListener('pointerdown',e=>{
+  e.preventDefault();drawCanvas.setPointerCapture(e.pointerId);
+  activeStroke={tool:drawTool,color:colorForKey(drawColorKey),width:drawTool==='eraser'?18:3.2,points:[pointForEvent(e)]};
+  drawDraft.push(activeStroke);renderDrawing(drawCanvas,drawDraft);
+});
+drawCanvas.addEventListener('pointermove',e=>{if(!activeStroke)return;e.preventDefault();activeStroke.points.push(pointForEvent(e));renderDrawing(drawCanvas,drawDraft)});
+function endStroke(e){if(!activeStroke)return;if(e?.pointerId!=null&&drawCanvas.hasPointerCapture(e.pointerId))drawCanvas.releasePointerCapture(e.pointerId);activeStroke=null}
+drawCanvas.addEventListener('pointerup',endStroke);drawCanvas.addEventListener('pointercancel',endStroke);
+function setDrawTool(t){drawTool=t;penTool.classList.toggle('active',t==='pen');eraserTool.classList.toggle('active',t==='eraser')}
+penTool.addEventListener('click',()=>setDrawTool('pen'));eraserTool.addEventListener('click',()=>setDrawTool('eraser'));
+document.getElementById('undoStroke').addEventListener('click',()=>{drawDraft.pop();renderDrawing(drawCanvas,drawDraft)});
+document.getElementById('clearDrawing').addEventListener('click',()=>{drawDraft=[];renderDrawing(drawCanvas,drawDraft)});
+document.querySelectorAll('.draw-swatch').forEach(btn=>btn.addEventListener('click',()=>{
+  drawColorKey=btn.dataset.color;document.querySelectorAll('.draw-swatch').forEach(b=>b.classList.toggle('active',b===btn));
+  if(drawTool==='eraser')setDrawTool('pen');
+}));
+window.addEventListener('resize',()=>{
+  requestAnimationFrame(measureLayered);
+  if(drawPane.classList.contains('active'))renderDrawing(drawCanvas,drawDraft);
+});
+
+/* pull down on chrome to close */
+let chromeY=null;
+document.getElementById('sheetChrome').addEventListener('pointerdown',e=>chromeY=e.clientY);
+document.getElementById('sheetChrome').addEventListener('pointerup',e=>{if(chromeY!=null&&e.clientY-chromeY>55)closeSheet();chromeY=null});
+
+/* ---------- v6 Day View fixture: two active Kꜣru on the same day ----------
+   Each event carries its own karId + cycleId. No chooser appears in the sheet.
+*/
+const dayKarStore={
+  djehuty:{
+    id:"kar-djehuty",netjer:"Djehuty",accent:"#91B7C7",accent2:"#C9E3EB",rgb:"145,183,199",
+    currentCycle:{id:"dj-c2",sequence:2,entries:[
+      {placed:true,tell:"This cycle’s wisdom outfit is a dark suit covered in handwritten notes.",strokes:[],versions:1},
+      {placed:true,tell:"The brass key is now large enough to use as a throne.",strokes:[],versions:1},
+      {placed:true,tell:"A huge editing timeline stretches across the wisdom room.",strokes:[],versions:1},
+      {placed:false,tell:"",strokes:[],versions:0},
+      {placed:false,tell:"",strokes:[],versions:0}
+    ]},
+    history:[
+      "A blue robe, a circular room, and a silver pipe.",
+      "The silver pipe became a throne.",
+      "A giant editing keyboard filled the room.",
+      "The transparent pipe held tiny things I know well.",
+      "At ninety, the robe and pipe were worn from decades of use."
+    ],
+    sitting:3,
+    prompts:sittingData.map(x=>x.prompt),
+    titles:sittingData.map(x=>x.title),
+    places:sittingData.map(x=>x.place)
+  },
+  hetheru:{
+    id:"kar-hetheru",netjer:"Het-Heru",accent:"#C78FA9",accent2:"#ECC7D8",rgb:"199,143,169",
+    currentCycle:{id:"hh-c1",sequence:1,entries:[
+      {placed:true,tell:"I am an elephant swimming in warm water with people I love.",strokes:[],versions:1},
+      {placed:true,tell:"The song I never skip is a bright patterned outfit on the elephant.",strokes:[],versions:1},
+      {placed:false,tell:"",strokes:[],versions:0},
+      {placed:false,tell:"",strokes:[],versions:0},
+      {placed:false,tell:"",strokes:[],versions:0}
+    ]},
+    history:[null,null,null,null,null],
+    sitting:2,
+    prompts:[
+      ["Picture yourself as your favorite animal doing a thing that brings joy to your life.","You can be alone or with people."],
+      ["Turn the song you never skip into an outfit for your animal-self.","Picture yourself wearing it."],
+      ["You are sharing a meal with two of your favorite people.","Each bite you take causes something that makes you happy to appear in the room with you. What does the room look like halfway through your meal?"],
+      ["Imagine yourself floating in a lake looking up at the sky.","The clouds above you are shaped like a daydream that makes you happy. What do the clouds show?"],
+      ["Picture yourself as the netjer Het-Heru.","You are allowed to bestow joy on one person you care for. How do you do it?"]
+    ],
+    titles:["Your animal-self","Wear the song","The meal","Cloud daydream","Bestow joy"],
+    places:["Threshold","Left jamb","Right jamb","Lintel","Base"]
+  }
+};
+let activeKarKey="djehuty",manualEditTarget=null,walkFixtureMode=false;
+const secondMount=document.getElementById("karBlockMount2");
+function activeKar(){return dayKarStore[activeKarKey]}
+function setKarPalette(k){document.documentElement.style.setProperty("--accent",k.accent);document.documentElement.style.setProperty("--accent2",k.accent2);document.documentElement.style.setProperty("--accent-rgb",k.rgb)}
+function activeEntries(){return activeKar().currentCycle.entries}
+function activePlacedCount(){return activeEntries().filter(e=>e.placed).length}
+captureEntry=function(){return activeEntries()[sittingIndex]};
+function dotClassFor(i,k){const e=k.currentCycle.entries[i],hist=!!k.history[i],target=i===sittingIndex;if(target)return"current";if(e.placed)return"cycle";if(hist)return"history";return"future"}
+function dotLabelFor(i,k){const cls=dotClassFor(i,k);if(cls==="current")return`${k.places[i]}, current sitting`;if(cls==="cycle")return`${k.places[i]}, occupied this cycle`;if(cls==="history")return`${k.places[i]}, earlier cycle`;return`${k.places[i]}, open`}
+function eventPips(k){return[0,1,2,3,4].map(i=>`<i class="${k.currentCycle.entries[i].placed?"on":i===k.sitting?"now":""}"></i>`).join("")}
+function eventBlockHTML(k,{second=false}={}){
+  const n=String(k.sitting+1).padStart(2,"0"),extra=second?" second":"";
+  const isActive=(activeKarKey==="djehuty"?k.id==="kar-djehuty":k.id==="kar-hetheru");
+  const mode=isActive?state:"fresh";
+  const title=mode==="return"?`Return to the ${k.places[k.sitting].toLowerCase()}`:mode==="walk"?"Walk the kꜣr":k.titles[k.sitting];
+  const support=mode==="return"?"Is it here?":mode==="walk"?"five places · current cycle only":`${n} · ${k.places[k.sitting]}`;
+  const said=mode==="return"?"RETURN · NO NEW ENTRY":mode==="walk"?"DAY 30 · INNER CHAMBER":`${k.currentCycle.entries.filter(e=>e.placed).length} this cycle`;
+  const of=mode==="walk"?`${k.currentCycle.entries.filter(e=>e.placed).length}/5`:`SITTING ${k.sitting+1} OF 5`;
+  const cls=`kar-calendar-block${extra}${mode==="return"?" return-state":""}${mode==="walk"?" walk-state":""}`;
+  return `<button class="${cls}" data-kar-key="${k.id}" data-mode="${mode}" type="button" style="--accent:${k.accent};--accent2:${k.accent2};--accent-rgb:${k.rgb}"><span class="kicker">THE KꜣR · ${k.netjer.toUpperCase()} · CYCLE ${String(k.currentCycle.sequence).padStart(2,"0")}</span><span class="title">${title}</span><span class="support">${support}</span><span class="foot"><span class="pips">${eventPips(k)}</span><span class="said">${said}</span><span class="of">${of}</span></span><span class="kar-obj">${karSvg({walk:mode==="walk",returning:mode==="return"})}</span></button>`;
+}
+renderBlock=function(){
+  const dj=dayKarStore.djehuty,hh=dayKarStore.hetheru;
+  blockMount.innerHTML=eventBlockHTML(dj);secondMount.innerHTML=eventBlockHTML(hh,{second:true});
+  document.querySelectorAll("[data-kar-key]").forEach(btn=>btn.addEventListener("click",()=>{
+    activeKarKey=btn.dataset.karKey==="kar-hetheru"?"hetheru":"djehuty";
+    state=btn.dataset.mode||"fresh";stateSelect.value=state;
+    const k=activeKar();setKarPalette(k);sittingIndex=k.sitting;sittingSelect.value=String(sittingIndex);
+    openSheet();
+  }));
+};
+
+freshHero=function(){const k=activeKar(),n=String(sittingIndex+1).padStart(2,"0"),dots=[0,1,2,3,4].map(i=>{const cls=dotClassFor(i,k),disabled=cls==="future"?"disabled":"";return`<button class="kar-entry-dot d${i+1} ${cls}" data-entry-dot="${i}" ${disabled} type="button" aria-label="${dotLabelFor(i,k)}"></button>`}).join(""),histOnly=[0,1,2,3,4].filter(i=>!k.currentCycle.entries[i].placed&&!!k.history[i]).length;return`<div class="fresh-hero"><div class="fresh-graphic"><div class="sheet-kar-stage" aria-label="${k.netjer} kꜣr"><div class="sheet-kar" aria-hidden="true"><div class="sheet-kar-cornice"></div><div class="sheet-kar-body"></div><div class="sheet-kar-door"></div><div class="sheet-kar-base"></div>${dots}</div><div class="sheet-kar-caption"><span><strong>${k.netjer} kꜣr</strong> · Cycle ${k.currentCycle.sequence} · ${activePlacedCount()} / 5</span><span class="${histOnly?"history-note":"current-place"}">${histOnly?`${histOnly} dim place${histOnly===1?"":"s"} remember earlier cycles`:`${n} · ${k.places[sittingIndex]}`}</span></div></div></div></div>`};
+freshPractice=function(){const k=activeKar(),e=captureEntry(),n=String(sittingIndex+1).padStart(2,"0"),hasTell=!!e.tell.trim(),hasDraw=e.strokes.length>0,hasAny=hasTell||hasDraw;return`<div class="layer-kicker">${k.netjer.toUpperCase()} · CYCLE ${String(k.currentCycle.sequence).padStart(2,"0")} · SITTING ${n} · ${k.places[sittingIndex].toUpperCase()}</div><h3 class="layer-title">${k.titles[sittingIndex]}</h3><div class="prompt-bottom">${k.prompts[sittingIndex].map(p=>`<p>${p}</p>`).join("")}</div><div class="capture-choice"><span class="capture-label">KEEP THE SCENE</span><div class="capture-actions"><button class="capture-action ${hasDraw?"ready":""}" data-capture="draw" type="button">Draw</button><button class="capture-action ${hasTell?"ready":""}" data-capture="describe" type="button">Describe</button></div><button class="place-btn" id="placeBtn" type="button" ${hasAny?"":"disabled"}>Place in the kꜣr</button><p class="capture-note">One is enough.</p></div><div class="course-band"><span class="course-pips">${eventPips(k)}</span><span class="course-label">${activePlacedCount()} of 5 this cycle</span></div>`};
+
+returnHero=function(){
+  const k=activeKar(),n=String(sittingIndex+1).padStart(2,"0");
+  return `<div class="return-hero"><div class="sheet-meta"><div class="sheet-kicker">✦ &nbsp;THE KꜣR · ${k.netjer.toUpperCase()}</div><div class="sheet-side">RETURN<br>${k.places[sittingIndex].toUpperCase()}</div></div><div class="return-stage"><div class="return-kar">${heroKarSvg()}</div><div><h2 class="return-question">Is it here?</h2><div class="return-actions"><button class="return-btn primary" data-return="yes" type="button">It’s here</button><button class="return-btn" data-return="piece" type="button">I have a piece</button><button class="return-btn quiet" data-return="no" type="button">Not yet</button></div></div></div></div>`;
+};
+returnPractice=function(){
+  const k=activeKar();
+  return `<div class="layer-kicker">${k.places[sittingIndex].toUpperCase()}</div><h3 class="layer-title">Only ask for help if you need it.</h3><p class="layer-note">The place calls first. What you saved stays hidden.</p><div class="cue-card" id="cueCard"><span>A small cue</span><p id="returnCueText"></p><div class="cue-actions"><button class="small-btn primary" data-cue-back type="button">It’s back</button><button class="small-btn" data-show-artifact type="button">Show me</button></div></div><div class="artifact-card" id="artifactCard"><span>What you placed here</span><div class="artifact-box">Your saved drawing or description appears here.</div><div class="artifact-actions"><button class="small-btn primary" data-keep-place type="button">Keep this place</button><button class="small-btn" data-make-again type="button">Make this place again</button></div></div>`;
+};
+walkHero=function(){
+  const k=activeKar();
+  return `<div class="walk-hero"><div class="sheet-meta"><div class="sheet-kicker">✦ &nbsp;THE KꜣR · ${k.netjer.toUpperCase()}</div><div class="sheet-side">DAY 30<br>INNER CHAMBER</div></div><div class="walk-center"><div class="walk-kar">${heroKarSvg({walk:true})}</div><div class="walk-copy"><h3>Walk the kꜣr</h3><p>Enter at the threshold. Find the five places in order.</p><button class="begin-btn" id="beginWalk" type="button">Begin</button></div></div></div>`;
+};
+walkPractice=function(){return `<div class="layer-kicker">THE WALK</div><h3 class="layer-title">Five places. Nothing new to make.</h3><p class="layer-note">Only this cycle is walked. Dim historical places remain behind the route.</p>`;};
+
+function entrySourceAt(i){const k=activeKar(),e=k.currentCycle.entries[i];if(e.placed)return{kind:"cycle",text:e.tell||"(drawing)",cycle:k.currentCycle.sequence};if(k.history[i])return{kind:"history",text:k.history[i],cycle:Math.max(1,k.currentCycle.sequence-1)};return null}
+openPastEntry=function(i){const k=activeKar(),src=entrySourceAt(i);if(!src)return;manualEditTarget=i;captureKicker.textContent=`${k.netjer.toUpperCase()} · ${k.places[i].toUpperCase()}`;captureTitle.textContent=k.titles[i];capturePrompt.textContent=src.kind==="history"?"Earlier cycle · this place remembers.":`Cycle ${k.currentCycle.sequence} · what is stored here now.`;document.getElementById("pastEntryLabel").textContent=`${src.kind==="history"?"EARLIER CYCLE":`CYCLE ${String(src.cycle).padStart(2,"0")}`} · ${k.places[i].toUpperCase()}`;document.getElementById("pastEntryCopy").textContent=src.text;let badge=document.querySelector(".past-entry-card .history-badge");if(!badge){badge=document.createElement("span");badge.className="history-badge";document.querySelector(".past-entry-card")?.appendChild(badge)}badge.textContent=src.kind==="history"?"DIM DOT · NOT PART OF THIS CYCLE":"BRIGHT DOT · THIS CYCLE";document.getElementById("entryEdit").style.visibility=src.kind==="history"?"hidden":"visible";tellPane.classList.remove("active");drawPane.classList.remove("active");entryPane.classList.add("active");openCaptureWindow()};
+document.getElementById("entryEdit").addEventListener("click",()=>{if(manualEditTarget==null)return;sittingIndex=manualEditTarget;sittingSelect.value=String(sittingIndex);closeCaptureWindow();openDescribeCapture()});
+openDescribeCapture=function(){const k=activeKar(),e=captureEntry();captureKicker.textContent=`${k.netjer.toUpperCase()} · ${k.places[sittingIndex].toUpperCase()}`;captureTitle.textContent="Describe what you picture";capturePrompt.textContent="A few words or a full scene. Both count.";tellField.value=e.tell;entryPane.classList.remove("active");tellPane.classList.add("active");drawPane.classList.remove("active");openCaptureWindow();setTimeout(()=>tellField.focus(),140)};
+openDrawCapture=function(){const k=activeKar(),e=captureEntry();captureKicker.textContent=`${k.netjer.toUpperCase()} · ${k.places[sittingIndex].toUpperCase()}`;captureTitle.textContent="Draw what you picture";capturePrompt.textContent="Bad drawings welcome.";drawDraft=JSON.parse(JSON.stringify(e.strokes));entryPane.classList.remove("active");tellPane.classList.remove("active");drawPane.classList.add("active");openCaptureWindow();requestAnimationFrame(()=>renderDrawing(drawCanvas,drawDraft))};
+
+renderSheet=function(){const k=activeKar();setKarPalette(k);if(state==="fresh"){heroLayer.innerHTML=freshHero();practiceLayer.innerHTML=freshPractice()}if(state==="return"){heroLayer.innerHTML=returnHero();practiceLayer.innerHTML=returnPractice()}if(state==="walk"){heroLayer.innerHTML=walkHero();practiceLayer.innerHTML=walkPractice()}const cue=document.getElementById("returnCueText");if(cue)cue.textContent=k.prompts[sittingIndex][0];bindSheetActions();requestAnimationFrame(()=>{measureLayered();setLayeredPos(0)})};
+bindSheetActions=function(){
+  heroLayer.querySelectorAll("[data-entry-dot]").forEach(btn=>btn.addEventListener("click",()=>{
+    const i=Number(btn.dataset.entryDot),cls=dotClassFor(i,activeKar());
+    if(cls==="cycle"||cls==="history")openPastEntry(i);
+  }));
+  practiceLayer.querySelectorAll("[data-capture]").forEach(btn=>btn.addEventListener("click",()=>{
+    if(btn.dataset.capture==="draw")openDrawCapture();
+    if(btn.dataset.capture==="describe")openDescribeCapture();
+  }));
+  const placeBtn=document.getElementById("placeBtn");
+  if(placeBtn)placeBtn.addEventListener("click",()=>{
+    const e=captureEntry();
+    if(!e.tell.trim()&&!e.strokes.length)return;
+    e.placed=true;e.versions=(e.versions||0)+1;
+    showFeedback(`Placed at the ${activeKar().places[sittingIndex].toLowerCase()}`);
+    renderBlock();renderSheet();
+  });
+  heroLayer.querySelectorAll("[data-return]").forEach(btn=>btn.addEventListener("click",()=>{
+    if(btn.dataset.return==="yes"){closeSheet();showFeedback("Place returned");}
+    if(btn.dataset.return==="piece"){
+      dockLayer({smooth:true,onDone:()=>document.getElementById("cueCard")?.classList.add("show")});
+    }
+    if(btn.dataset.return==="no"){
+      dockLayer({smooth:true,onDone:()=>{
+        const box=document.querySelector(".artifact-box"),src=entrySourceAt(sittingIndex);
+        if(box)box.textContent=src?.text||"This place is open.";
+        document.getElementById("artifactCard")?.classList.add("show");
+      }});
+    }
+  }));
+  practiceLayer.querySelector("[data-cue-back]")?.addEventListener("click",()=>{closeSheet();showFeedback("Place returned");});
+  practiceLayer.querySelector("[data-show-artifact]")?.addEventListener("click",()=>{
+    const box=document.querySelector(".artifact-box"),src=entrySourceAt(sittingIndex);
+    if(box)box.textContent=src?.text||"This place is open.";
+    document.getElementById("artifactCard")?.classList.add("show");
+    requestAnimationFrame(measureLayered);
+  });
+  practiceLayer.querySelector("[data-keep-place]")?.addEventListener("click",()=>{closeSheet();showFeedback("Place kept");});
+  practiceLayer.querySelector("[data-make-again]")?.addEventListener("click",()=>{
+    state="fresh";stateSelect.value="fresh";renderSheet();dockLayer({smooth:false});
+  });
+  document.getElementById("beginWalk")?.addEventListener("click",openWalkScreen);
+};
+
+/* Walk fixture setup is owned by the authoritative lifecycle selector below. */
+sittingSelect.addEventListener("change",()=>{sittingIndex=Number(sittingSelect.value)||0;activeKar().sitting=sittingIndex;renderBlock();if(sheet.classList.contains("open"))renderSheet()},{capture:true});
+
+const walkScreen=document.getElementById("walkScreen"),walkScreenKicker=document.getElementById("walkScreenKicker"),walkPlaceLabel=document.getElementById("walkPlaceLabel"),walkPlaceTitle=document.getElementById("walkPlaceTitle"),walkMiniKar=document.getElementById("walkMiniKar"),walkRecall=document.getElementById("walkRecall"),walkOpenCopy=document.getElementById("walkOpenCopy"),walkProgress=document.getElementById("walkProgress");let walkIndex=0,walkResults={};
+function walkKarMarkup(k,i){const dots=[0,1,2,3,4].map(j=>{const e=k.currentCycle.entries[j],hist=!!k.history[j],cls=j===i?"current":e.placed?"cycle":hist?"history":"future";return`<span class="kar-entry-dot d${j+1} ${cls}" aria-hidden="true"></span>`}).join("");return`<div class="sheet-kar" aria-hidden="true"><div class="sheet-kar-cornice"></div><div class="sheet-kar-body"></div><div class="sheet-kar-door"></div><div class="sheet-kar-base"></div>${dots}</div>`}
+function renderWalkStep(){const k=activeKar(),i=walkIndex,e=k.currentCycle.entries[i];walkScreenKicker.textContent=`THE KꜣR · ${k.netjer.toUpperCase()} · CYCLE ${String(k.currentCycle.sequence).padStart(2,"0")}`;walkPlaceLabel.textContent=`${String(i+1).padStart(2,"0")} · ${k.places[i].toUpperCase()}`;walkPlaceTitle.textContent=k.places[i];walkMiniKar.innerHTML=walkKarMarkup(k,i);walkRecall.hidden=!e.placed;walkOpenCopy.hidden=e.placed;walkProgress.textContent=`${i+1} of 5`}
+function openWalkScreen(){closeSheet();walkIndex=0;walkResults={};walkScreen.classList.add("open");renderWalkStep()}
+function nextWalk(outcome){if(outcome)walkResults[walkIndex]=outcome;else if(!activeKar().currentCycle.entries[walkIndex].placed)walkResults[walkIndex]="open";walkIndex+=1;if(walkIndex>=5){walkScreen.classList.remove("open");showFeedback(`Walk complete · ${Object.values(walkResults).filter(x=>x==="open").length} open`);return}renderWalkStep()}
+document.querySelectorAll("[data-walk-outcome]").forEach(btn=>btn.addEventListener("click",()=>nextWalk(btn.dataset.walkOutcome)));document.getElementById("walkOpenNext").addEventListener("click",()=>nextWalk("open"));document.getElementById("walkScreenClose").addEventListener("click",()=>walkScreen.classList.remove("open"));
+
+
+/* ===================================================================
+   v9 authoritative Kꜣr lifecycle adapter
+   CSS, markup, event-block layout, and bottom-sheet layout above are untouched.
+   =================================================================== */
+const DAY_ENTRY_SOURCES=["cycle_sitting","manual_edit","return_replacement","reflection"];
+let dayLifecycleId=2000;
+const nextDayLifecycleId=prefix=>`${prefix}-${++dayLifecycleId}`;
+const dayCloneStrokes=s=>JSON.parse(JSON.stringify(s||[]));
+
+function dayEntryKind(text,strokes){
+  const t=!!(text||"").trim(),d=(strokes||[]).length>0;
+  return t&&d?"both":d?"drawing":"description";
+}
+function dayEmptyPlacement(){
+  return {placed:false,tell:"",strokes:[],version:0,activeEntryVersionId:null,versions:[]};
+}
+function daySeedPlacement(text){
+  const p=dayEmptyPlacement(),id=nextDayLifecycleId("entry");
+  const v={id,kind:"description",text,strokes:[],createdAt:"earlier",source:"cycle_sitting",supersedesId:null};
+  p.placed=true;p.tell=text;p.version=1;p.activeEntryVersionId=id;p.versions=[v];
+  return p;
+}
+function dayMakeCycle({id,sequence,status="active",entries,startedAt="",completedAt=null,scheduleAnchorAt="",walkComplete=false,walks=[]}){
+  return {id,sequence,status,entries,startedAt,completedAt,scheduleAnchorAt,walkComplete,walks};
+}
+
+/* Upgrade the existing visible fixtures in place. */
+(function upgradeDayFixtures(){
+  const dj=dayKarStore.djehuty,hh=dayKarStore.hetheru;
+
+  const djPrior=dayMakeCycle({
+    id:"dj-c1",sequence:1,status:"completed",startedAt:"2026-02-10",completedAt:"2026-03-11",
+    scheduleAnchorAt:"2026-02-10",walkComplete:true,
+    entries:[
+      daySeedPlacement("A blue robe, a circular room, and a silver pipe."),
+      daySeedPlacement("The silver pipe became a throne."),
+      daySeedPlacement("A giant editing keyboard filled the room."),
+      daySeedPlacement("The transparent pipe held tiny things I know well."),
+      daySeedPlacement("At ninety, the robe and pipe were worn from decades of use.")
+    ],walks:[]
+  });
+  const djCurrent=dayMakeCycle({
+    id:"dj-c2",sequence:2,status:"active",startedAt:"2026-05-12",scheduleAnchorAt:"2026-05-12",
+    entries:[
+      daySeedPlacement("This cycle’s wisdom outfit is a dark suit covered in handwritten notes."),
+      daySeedPlacement("The brass key is now large enough to use as a throne."),
+      daySeedPlacement("A huge editing timeline stretches across the wisdom room."),
+      dayEmptyPlacement(),dayEmptyPlacement()
+    ]
+  });
+  dj.cycles=[djPrior,djCurrent];
+  dj.activeCycleId=djCurrent.id;
+  dj.currentCycle=djCurrent; /* compatibility for unchanged renderers */
+  dj.history=djPrior.entries.map(p=>p.tell);
+  dj.privacy="private";
+
+  const hhCurrent=dayMakeCycle({
+    id:"hh-c1",sequence:1,status:"active",startedAt:"2026-08-29",scheduleAnchorAt:"2026-08-29",
+    entries:[
+      daySeedPlacement("I am an elephant swimming in warm water with people I love."),
+      daySeedPlacement("The song I never skip is a bright patterned outfit on the elephant."),
+      dayEmptyPlacement(),dayEmptyPlacement(),dayEmptyPlacement()
+    ]
+  });
+  hh.cycles=[hhCurrent];
+  hh.activeCycleId=hhCurrent.id;
+  hh.currentCycle=hhCurrent;
+  hh.history=[null,null,null,null,null];
+  hh.privacy="private";
+})();
+
+function dayActiveCycle(k=activeKar()){
+  if(!k?.activeCycleId)return null;
+  return k.cycles.find(c=>c.id===k.activeCycleId)||null;
+}
+function dayLatestCompletedCycle(k=activeKar()){
+  return [...(k?.cycles||[])].reverse().find(c=>c.status==="completed")||null;
+}
+function daySurfaceCycle(k=activeKar()){return dayActiveCycle(k)||dayLatestCompletedCycle(k)}
+function dayHistoricalPlacementAt(k,position){
+  const surface=daySurfaceCycle(k);
+  for(const c of [...(k?.cycles||[])].reverse()){
+    if(surface&&c.id===surface.id)continue;
+    const p=c.entries[position];
+    if(p?.placed)return{cycle:c,placement:p};
+  }
+  return null;
+}
+/* Day View intentionally resolves only the latest historical scene at a place.
+   Full multi-cycle history paging belongs to the full Kꜣr detail page. */
+function dayCurrentTargetIndex(k=activeKar()){
+  const c=dayActiveCycle(k);
+  if(!c)return -1;
+  return c.entries.findIndex(p=>!p.placed);
+}
+function dayPlacementCount(c){return c?c.entries.filter(p=>p.placed).length:0}
+function dayPlacementVersion(p){
+  if(!p?.activeEntryVersionId)return null;
+  return p.versions.find(v=>v.id===p.activeEntryVersionId)||p.versions.at(-1)||null;
+}
+
+/* Same write contract as the detail page. */
+function writeKarEntry({karId,cycleId,position,text="",strokes=[],source="cycle_sitting"}){
+  if(!DAY_ENTRY_SOURCES.includes(source))throw new Error("Unsupported kꜣr entry source");
+  const k=Object.values(dayKarStore).find(x=>x?.id===karId);
+  if(!k)throw new Error("Unknown kꜣr");
+  const c=k.cycles.find(x=>x.id===cycleId);
+  if(!c)throw new Error("Unknown cycle");
+  if(position<0||position>4)throw new Error("Invalid kꜣr position");
+
+  const p=c.entries[position],supersedesId=p.activeEntryVersionId||null;
+  const version={
+    id:nextDayLifecycleId("entry"),
+    kind:dayEntryKind(text,strokes),
+    text:(text||"").trim(),
+    strokes:dayCloneStrokes(strokes),
+    createdAt:"now",source,supersedesId
+  };
+  p.versions.push(version);
+  p.activeEntryVersionId=version.id;
+  p.placed=true;p.tell=version.text;p.strokes=dayCloneStrokes(version.strokes);p.version=p.versions.length;
+  return version;
+}
+
+/* Keep old rendering functions pointed at the authoritative cycle. */
+activeEntries=function(){return daySurfaceCycle(activeKar()).entries};
+activePlacedCount=function(){return dayPlacementCount(daySurfaceCycle(activeKar()))};
+
+let dayReplacementDraft=null,dayReplacementPosition=null,dayReplacementSource=null;
+const dayFreshDrafts=new Map();
+
+function dayFreshDraftKey(position=sittingIndex){
+  const k=activeKar(),cycle=daySurfaceCycle(k);
+  return `${k.id}:${cycle?.id||"new"}:${position}`;
+}
+function dayFreshDraftFor(position=sittingIndex){
+  const key=dayFreshDraftKey(position);
+  if(!dayFreshDrafts.has(key))dayFreshDrafts.set(key,{tell:"",strokes:[]});
+  return dayFreshDrafts.get(key);
+}
+captureEntry=function(){
+  if(dayReplacementDraft&&dayReplacementPosition===sittingIndex)return dayReplacementDraft;
+  return dayFreshDraftFor(sittingIndex);
+};
+
+/* A placed position is occupied even if the evaluation cursor still points at it. */
+dotClassFor=function(i,k){
+  const surface=daySurfaceCycle(k),e=surface.entries[i];
+  if(e.placed)return"cycle";
+  if(i===dayCurrentTargetIndex(k))return"current";
+  if(dayHistoricalPlacementAt(k,i))return"history";
+  return"future";
+};
+dotLabelFor=function(i,k){
+  const cls=dotClassFor(i,k);
+  if(cls==="current")return`${k.places[i]}, current target`;
+  if(cls==="cycle")return`${k.places[i]}, occupied this cycle`;
+  if(cls==="history")return`${k.places[i]}, occupied in an earlier cycle`;
+  return`${k.places[i]}, open`;
+};
+eventPips=function(k){
+  const surface=daySurfaceCycle(k),target=dayCurrentTargetIndex(k);
+  return[0,1,2,3,4].map(i=>`<i class="${surface.entries[i].placed?"on":i===target?"now":""}"></i>`).join("");
+};
+
+/* Same visual markup, now driven by real cycle history. */
+freshHero=function(){
+  const k=activeKar(),n=String(sittingIndex+1).padStart(2,"0");
+  const dots=[0,1,2,3,4].map(i=>{
+    const cls=dotClassFor(i,k),disabled=cls==="future"?"disabled":"";
+    return`<button class="kar-entry-dot d${i+1} ${cls}" data-entry-dot="${i}" ${disabled} type="button" aria-label="${dotLabelFor(i,k)}"></button>`;
+  }).join("");
+  const surface=daySurfaceCycle(k);
+  const histOnly=[0,1,2,3,4].filter(i=>!surface.entries[i].placed&&!!dayHistoricalPlacementAt(k,i)).length;
+  return`<div class="fresh-hero"><div class="fresh-graphic"><div class="sheet-kar-stage" aria-label="${k.netjer} kꜣr"><div class="sheet-kar" aria-hidden="true"><div class="sheet-kar-cornice"></div><div class="sheet-kar-body"></div><div class="sheet-kar-door"></div><div class="sheet-kar-base"></div>${dots}</div><div class="sheet-kar-caption"><span><strong>${k.netjer} kꜣr</strong> · Cycle ${surface.sequence} · ${dayPlacementCount(surface)} / 5</span><span class="${histOnly?"history-note":"current-place"}">${histOnly?`${histOnly} dim place${histOnly===1?"":"s"} remember earlier cycles`:`${n} · ${k.places[sittingIndex]}`}</span></div></div></div></div>`;
+};
+
+function entrySourceAt(i){
+  const k=activeKar(),surface=daySurfaceCycle(k),p=surface.entries[i];
+  if(p.placed){
+    const v=dayPlacementVersion(p);
+    return{kind:"cycle",text:v?.text||p.tell||"(drawing)",cycle:surface.sequence,placement:p,cycleObj:surface};
+  }
+  const h=dayHistoricalPlacementAt(k,i);
+  if(h){
+    const v=dayPlacementVersion(h.placement);
+    return{kind:"history",text:v?.text||h.placement.tell||"(drawing)",cycle:h.cycle.sequence,placement:h.placement,cycleObj:h.cycle};
+  }
+  return null;
+}
+openPastEntry=function(i){
+  const k=activeKar(),src=entrySourceAt(i);
+  if(!src)return;
+  manualEditTarget=i;
+  captureKicker.textContent=`${k.netjer.toUpperCase()} · ${k.places[i].toUpperCase()}`;
+  captureTitle.textContent=k.titles[i];
+  capturePrompt.textContent=src.kind==="history"?"Earlier cycle · this place remembers.":`Cycle ${src.cycle} · what is stored here now.`;
+  document.getElementById("pastEntryLabel").textContent=`${src.kind==="history"?"EARLIER CYCLE":`CYCLE ${String(src.cycle).padStart(2,"0")}`} · ${k.places[i].toUpperCase()}`;
+  document.getElementById("pastEntryCopy").textContent=src.text;
+  let badge=document.querySelector(".past-entry-card .history-badge");
+  if(!badge){badge=document.createElement("span");badge.className="history-badge";document.querySelector(".past-entry-card")?.appendChild(badge)}
+  badge.textContent=src.kind==="history"?"DIM DOT · NOT PART OF THIS CYCLE":"BRIGHT DOT · THIS CYCLE";
+  document.getElementById("entryEdit").style.visibility=src.kind==="history"?"hidden":"visible";
+  tellPane.classList.remove("active");drawPane.classList.remove("active");entryPane.classList.add("active");
+  openCaptureWindow();
+};
+
+function beginDayReplacement(position,source){
+  const k=activeKar(),surface=daySurfaceCycle(k),p=surface.entries[position];
+  if(!p?.placed)return false;
+  dayReplacementPosition=position;dayReplacementSource=source;
+  dayReplacementDraft={
+    placed:true,tell:p.tell||"",strokes:dayCloneStrokes(p.strokes||[]),
+    activeEntryVersionId:p.activeEntryVersionId,versions:p.versions
+  };
+  sittingIndex=position;k.sitting=position;sittingSelect.value=String(position);
+  state="fresh";stateSelect.value="fresh";
+  return true;
+}
+document.getElementById("entryEdit").addEventListener("click",e=>{
+  if(manualEditTarget==null)return;
+  e.preventDefault();e.stopImmediatePropagation();
+  if(beginDayReplacement(manualEditTarget,"manual_edit")){
+    closeCaptureWindow();renderBlock();renderSheet();dockLayer({smooth:false});
+  }
+},{capture:true});
+
+openDescribeCapture=function(){
+  const k=activeKar(),e=captureEntry();
+  captureKicker.textContent=`${k.netjer.toUpperCase()} · ${k.places[sittingIndex].toUpperCase()}`;
+  captureTitle.textContent="Describe what you picture";capturePrompt.textContent="A few words or a full scene. Both count.";
+  tellField.value=e.tell||"";
+  entryPane.classList.remove("active");tellPane.classList.add("active");drawPane.classList.remove("active");
+  openCaptureWindow();setTimeout(()=>tellField.focus(),140);
+};
+openDrawCapture=function(){
+  const k=activeKar(),e=captureEntry();
+  captureKicker.textContent=`${k.netjer.toUpperCase()} · ${k.places[sittingIndex].toUpperCase()}`;
+  captureTitle.textContent="Draw what you picture";capturePrompt.textContent="Bad drawings welcome.";
+  drawDraft=dayCloneStrokes(e.strokes||[]);
+  entryPane.classList.remove("active");tellPane.classList.remove("active");drawPane.classList.add("active");
+  openCaptureWindow();requestAnimationFrame(()=>renderDrawing(drawCanvas,drawDraft));
+};
+
+/* Capture stays visually identical; saving capture is not yet a Kꜣr write. */
+document.getElementById("tellKeep").addEventListener("click",e=>{
+  e.preventDefault();e.stopImmediatePropagation();
+  captureEntry().tell=tellField.value.trim();closeCaptureWindow();refreshFreshPractice();
+},{capture:true});
+document.getElementById("drawKeep").addEventListener("click",e=>{
+  e.preventDefault();e.stopImmediatePropagation();
+  captureEntry().strokes=dayCloneStrokes(drawDraft);closeCaptureWindow();refreshFreshPractice();
+},{capture:true});
+
+/* ---------- persisted scheduled returns ---------- */
+let dayReturnAttempt=null,dayReturnOutcome=null;
+function beginDayReturn(){
+  const k=activeKar(),cycle=daySurfaceCycle(k),p=cycle.entries[sittingIndex];
+  if(!p?.placed){dayReturnAttempt=null;return}
+  dayReturnAttempt={
+    id:nextDayLifecycleId("walk"),karId:k.id,cycleId:cycle.id,kind:"return_walk",
+    startedAt:"now",completedAt:null,
+    places:[{position:sittingIndex,entryVersionId:p.activeEntryVersionId,outcome:null}]
+  };
+  dayReturnOutcome=null;
+}
+function finishDayReturn(outcome){
+  if(!dayReturnAttempt)return;
+  dayReturnAttempt.places[0].outcome=outcome;
+  dayReturnAttempt.completedAt="now";
+  const k=Object.values(dayKarStore).find(x=>x?.id===dayReturnAttempt.karId);
+  const cycle=k?.cycles.find(c=>c.id===dayReturnAttempt.cycleId);
+  if(cycle)cycle.walks.push(dayReturnAttempt);
+  dayReturnAttempt=null;dayReturnOutcome=null;
+}
+
+/* Rebind the existing sheet controls to the object writer/Walk records. */
+bindSheetActions=function(){
+  heroLayer.querySelectorAll("[data-entry-dot]").forEach(btn=>btn.addEventListener("click",()=>{
+    const i=Number(btn.dataset.entryDot),cls=dotClassFor(i,activeKar());
+    if(cls==="cycle"||cls==="history")openPastEntry(i);
+  }));
+  practiceLayer.querySelectorAll("[data-capture]").forEach(btn=>btn.addEventListener("click",()=>{
+    if(btn.dataset.capture==="draw")openDrawCapture();
+    if(btn.dataset.capture==="describe")openDescribeCapture();
+  }));
+
+  const placeBtn=document.getElementById("placeBtn");
+  if(placeBtn)placeBtn.addEventListener("click",()=>{
+    const k=activeKar(),cycle=daySurfaceCycle(k),e=captureEntry(),placedPosition=sittingIndex;
+    if(!(e.tell||"").trim()&&!(e.strokes||[]).length)return;
+    const source=dayReplacementDraft?dayReplacementSource||"manual_edit":"cycle_sitting";
+    const freshKey=dayReplacementDraft?null:dayFreshDraftKey(placedPosition);
+    writeKarEntry({karId:k.id,cycleId:cycle.id,position:placedPosition,text:e.tell||"",strokes:e.strokes||[],source});
+    if(freshKey)dayFreshDrafts.delete(freshKey);
+    dayReplacementDraft=null;dayReplacementPosition=null;dayReplacementSource=null;
+    const next=dayCurrentTargetIndex(k);
+    if(next>=0){k.sitting=next;sittingIndex=next;sittingSelect.value=String(next)}
+    showFeedback(`Placed at the ${k.places[placedPosition].toLowerCase()}`);
+    renderBlock();renderSheet();
+  });
+
+  heroLayer.querySelectorAll("[data-return]").forEach(btn=>btn.addEventListener("click",()=>{
+    if(btn.dataset.return==="yes"){finishDayReturn("recalled");closeSheet();showFeedback("Place returned")}
+    if(btn.dataset.return==="piece"){
+      dayReturnOutcome="partial";
+      dockLayer({smooth:true,onDone:()=>document.getElementById("cueCard")?.classList.add("show")});
+    }
+    if(btn.dataset.return==="no"){
+      dayReturnOutcome="revealed";
+      dockLayer({smooth:true,onDone:()=>{
+        const box=document.querySelector(".artifact-box"),src=entrySourceAt(sittingIndex);
+        if(box)box.textContent=src?.text||"This place is open.";
+        document.getElementById("artifactCard")?.classList.add("show");
+      }});
+    }
+  }));
+  practiceLayer.querySelector("[data-cue-back]")?.addEventListener("click",()=>{finishDayReturn("partial");closeSheet();showFeedback("Place returned")});
+  practiceLayer.querySelector("[data-show-artifact]")?.addEventListener("click",()=>{
+    dayReturnOutcome="revealed";
+    const box=document.querySelector(".artifact-box"),src=entrySourceAt(sittingIndex);
+    if(box)box.textContent=src?.text||"This place is open.";
+    document.getElementById("artifactCard")?.classList.add("show");requestAnimationFrame(measureLayered);
+  });
+  practiceLayer.querySelector("[data-keep-place]")?.addEventListener("click",()=>{finishDayReturn(dayReturnOutcome||"revealed");closeSheet();showFeedback("Place kept")});
+  practiceLayer.querySelector("[data-make-again]")?.addEventListener("click",()=>{
+    finishDayReturn(dayReturnOutcome||"revealed");
+    if(beginDayReplacement(sittingIndex,"return_replacement")){renderBlock();renderSheet();dockLayer({smooth:false})}
+  });
+  document.getElementById("beginWalk")?.addEventListener("click",openWalkScreen);
+};
+
+const v9OpenSheet=openSheet;
+openSheet=function(){if(state==="return")beginDayReturn();v9OpenSheet()};
+const v9CloseSheet=closeSheet;
+closeSheet=function(){
+  v9CloseSheet();
+  if(dayReturnAttempt&&!dayReturnAttempt.completedAt){dayReturnAttempt=null;dayReturnOutcome=null}
+};
+
+/* ---------- persisted Day 30 walk ---------- */
+let dayWalkAttempt=null;
+openWalkScreen=function(){
+  const k=activeKar(),cycle=daySurfaceCycle(k);
+  closeSheet();walkIndex=0;walkResults={};
+  dayWalkAttempt={
+    id:nextDayLifecycleId("walk"),karId:k.id,cycleId:cycle.id,kind:"first_walk",
+    startedAt:"now",completedAt:null,
+    places:[0,1,2,3,4].map(i=>({
+      position:i,
+      entryVersionId:cycle.entries[i].placed?cycle.entries[i].activeEntryVersionId:null,
+      outcome:null
+    }))
+  };
+  cycle.walks.push(dayWalkAttempt);
+  walkScreen.classList.add("open");renderWalkStep();
+};
+nextWalk=function(outcome){
+  const k=activeKar(),cycle=daySurfaceCycle(k);
+  const resolved=outcome||(!cycle.entries[walkIndex].placed?"open":null);
+  if(resolved){
+    walkResults[walkIndex]=resolved;
+    if(dayWalkAttempt)dayWalkAttempt.places[walkIndex].outcome=resolved;
+  }
+  walkIndex+=1;
+  if(walkIndex>=5){
+    if(dayWalkAttempt){
+      dayWalkAttempt.completedAt="now";
+      dayWalkAttempt.places.forEach((p,i)=>{if(!cycle.entries[i].placed&&p.outcome==null)p.outcome="open"});
+    }
+    cycle.walkComplete=true;cycle.status="completed";
+    if(!cycle.completedAt)cycle.completedAt="now";
+    if(k.activeCycleId===cycle.id)k.activeCycleId=null;
+    walkScreen.classList.remove("open");
+    showFeedback(`Walk complete · ${Object.values(walkResults).filter(x=>x==="open").length} open`);
+    dayWalkAttempt=null;
+    return;
+  }
+  renderWalkStep();
+};
+walkKarMarkup=function(k,i){
+  const cycle=daySurfaceCycle(k);
+  const dots=[0,1,2,3,4].map(j=>{
+    const e=cycle.entries[j],hist=!!dayHistoricalPlacementAt(k,j);
+    const cls=j===i?"current":e.placed?"cycle":hist?"history":"future";
+    return`<span class="kar-entry-dot d${j+1} ${cls}" aria-hidden="true"></span>`;
+  }).join("");
+  return`<div class="sheet-kar" aria-hidden="true"><div class="sheet-kar-cornice"></div><div class="sheet-kar-body"></div><div class="sheet-kar-door"></div><div class="sheet-kar-base"></div>${dots}</div>`;
+};
+renderWalkStep=function(){
+  const k=activeKar(),cycle=daySurfaceCycle(k),i=walkIndex,e=cycle.entries[i];
+  walkScreenKicker.textContent=`THE KꜣR · ${k.netjer.toUpperCase()} · CYCLE ${String(cycle.sequence).padStart(2,"0")}`;
+  walkPlaceLabel.textContent=`${String(i+1).padStart(2,"0")} · ${k.places[i].toUpperCase()}`;
+  walkPlaceTitle.textContent=k.places[i];walkMiniKar.innerHTML=walkKarMarkup(k,i);
+  walkRecall.hidden=!e.placed;walkOpenCopy.hidden=e.placed;walkProgress.textContent=`${i+1} of 5`;
+};
+document.getElementById("walkScreenClose").addEventListener("click",()=>{dayWalkAttempt=null},{capture:true});
+
+/* Evaluation selectors now manipulate the authoritative object rather than
+   directly toggling placed booleans. */
+stateSelect.addEventListener("change",e=>{
+  e.stopImmediatePropagation();
+  state=stateSelect.value;
+  const k=activeKar(),cycle=daySurfaceCycle(k);
+
+  if(state==="return"&&!cycle.entries[sittingIndex]?.placed){
+    const lastPlaced=[4,3,2,1,0].find(i=>cycle.entries[i].placed);
+    if(lastPlaced!=null){sittingIndex=lastPlaced;k.sitting=lastPlaced;sittingSelect.value=String(lastPlaced)}
+  }
+
+  if(state==="walk"&&activeKarKey==="djehuty"&&!cycle.entries[4].placed){
+    writeKarEntry({
+      karId:k.id,cycleId:cycle.id,position:4,
+      text:"At ninety, my wisdom outfit is faded and my wisdom object is worn smooth from use.",
+      strokes:[],source:"cycle_sitting"
+    });
+  }
+
+  renderBlock();if(sheet.classList.contains("open"))renderSheet();
+},{capture:true});
+
+sittingSelect.addEventListener("change",e=>{
+  e.stopImmediatePropagation();
+  sittingIndex=Number(sittingSelect.value)||0;
+  activeKar().sitting=sittingIndex;
+  renderBlock();if(sheet.classList.contains("open"))renderSheet();
+},{capture:true});
+
+renderBlock();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+name: App
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  push:
+    branches:
+      - rc
+      - production
+
+jobs:
+  maat-visual-reference-capture:
+    name: Capture Ma'at visuals (${{ matrix.arch }})
+    if: >-
+      github.event_name == 'push' &&
+      contains(github.event.head_commit.message, '[capture-maat-visuals]')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: linux-x64
+            runner: ubuntu-latest
+          - arch: linux-arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      TZ: America/Los_Angeles
+    steps:
+      - name: Checkout the exact capture commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Set up pinned Flutter and Dart (x64)
+        if: matrix.arch == 'linux-x64'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.3"
+          channel: stable
+          cache: true
+
+      # Flutter publishes the 3.35.3 ARM64 host artifacts used by the tool,
+      # but not a preassembled Linux ARM64 SDK archive for setup actions.
+      # Bootstrap the exact release commit so this job still renders on the
+      # native ARM64 engine instead of relabelling an x64 capture.
+      - name: Set up pinned Flutter and Dart (ARM64)
+        if: matrix.arch == 'linux-arm64'
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "aarch64"
+          git init "$RUNNER_TEMP/flutter"
+          git -C "$RUNNER_TEMP/flutter" remote add origin https://github.com/flutter/flutter.git
+          git -C "$RUNNER_TEMP/flutter" fetch --depth 1 origin refs/tags/3.35.3:refs/tags/3.35.3
+          git -C "$RUNNER_TEMP/flutter" checkout --detach refs/tags/3.35.3
+          test "$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)" = "a402d9a4376add5bc2d6b1e33e53edaae58c07f8"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" config --no-analytics
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+
+      - name: Install exact locked dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Render exact architecture references
+        run: |
+          set -euo pipefail
+          flutter test --update-goldens \
+            test/features/calendar/authored_event_block_day_view_test.dart \
+            test/features/calendar/follow_the_sky/follow_sky_sheet_resize_test.dart \
+            test/features/calendar/maat_flow_discovery_view_test.dart \
+            test/features/calendar/offering_table_day_v8_presentation_test.dart
+
+      - name: Upload exact architecture references
+        uses: actions/upload-artifact@v4
+        with:
+          name: maat-visuals-${{ matrix.arch }}-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            test/visual_reference/maat_flows/goldens/linux
+            test/visual_reference/maat_flows/goldens/linux-x64
+
+  app-gate:
+    name: LOCK-GATE app authority and complete suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      # Calendar fixtures and approved visual baselines author civil dates in
+      # the product's Pacific reference zone. Never inherit the runner locale.
+      TZ: America/Los_Angeles
+    steps:
+      - name: Checkout the app repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # A gate attached to commit A must never race forward and test a
+          # newer branch head B. Deployment trusts this exact-SHA result.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Reject competing app authorities
+        run: |
+          set -euo pipefail
+          test ! -e .gitmodules
+          test -z "$(git ls-files --stage | awk '$1 == "160000" {print}')"
+          test "$(git worktree list --porcelain | grep -c '^worktree ')" -eq 1
+          test "$(git for-each-ref --format='%(refname:short)' refs/heads | wc -l | tr -d ' ')" -le 1
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up pinned Flutter and Dart
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.3"
+          channel: stable
+          cache: true
+
+      - name: Install exact locked dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Run deterministic release and served-artifact contracts
+        run: |
+          set -euo pipefail
+          python3 scripts/web_release_pipeline_test.py
+          python3 scripts/maat_visual_contract_test.py
+          python3 scripts/served_artifact_verifier_test.py
+          python3 -m py_compile \
+            scripts/maat_visual_contract_test.py \
+            scripts/web_release_pipeline.py \
+            scripts/web_release_pipeline_test.py \
+            scripts/served_artifact_verifier.py \
+            scripts/served_artifact_verifier_test.py
+          bash -n scripts/build_web_release.sh scripts/deploy_cloudflare_pages.sh
+          python3 -m json.tool config/web/staging.public.json >/dev/null
+          python3 -m json.tool config/web/production.public.json >/dev/null
+          python3 -m json.tool config/web/cloudflare-served-contract.v1.json >/dev/null
+          python3 -m json.tool config/web/environment-delta-contract.v1.json >/dev/null
+
+      - name: Analyze the app
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run the complete app test suite
+        run: flutter test
+
+      - name: Prove generated metadata is the only checkout mutation
+        if: always()
+        run: |
+          set -euo pipefail
+          git restore --worktree -- .flutter-plugins-dependencies
+          git diff --check
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"

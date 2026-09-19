@@ -7,7 +7,7 @@
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "e7bf8945490f6cbaff3145474440a3305dd6dd51be3ba9fcc692f798cbcfe6ca"
+      "sha256": "3e6cfb9aca75d4815c43f39f10678b81599bc77c65228a2b635bf01ab504ae50"
     },
     {
       "name": "calendar_text_styles",

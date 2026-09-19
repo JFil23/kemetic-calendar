@@ -29,8 +29,11 @@ import '../../widgets/profile_avatar.dart';
 import '../../widgets/utility_sheet_route_scaffold.dart';
 import '../calendar/calendar_page.dart' show CalendarPage;
 import '../calendar/calendar_invalidation.dart';
+import '../calendar/the_reading_house/reading_house_room_repository.dart';
 import '../calendars/shared_calendars_sheet.dart';
 import 'inbox_threading.dart';
+import 'presentation/reading_house_inbox_section.dart';
+import 'presentation/reading_house_room_sheet.dart';
 
 void _logInboxImport(String message) {
   if (kDebugMode) {
@@ -57,6 +60,8 @@ class InboxSheetRoutePage extends StatelessWidget {
       key: inboxSheetRouteKey,
       semanticLabel: 'Inbox',
       onClose: () => closeOrReturn(context, '/'),
+      heightFactor: 732 / 844,
+      topRadius: 28,
       child:
           childForTesting ??
           InboxPage(
@@ -76,6 +81,12 @@ class InboxPage extends StatefulWidget {
     this.onInboxItemsAppliedForTesting,
     this.flowLifecycleStreamForTesting,
     this.disableAuxiliarySubscriptionsForTesting = false,
+    this.readingHouseRoomsForTesting,
+    this.dmConversationsForTesting,
+    this.activityForTesting,
+    this.calendarSummarySubtitleForTesting,
+    this.pendingReadingHouseInviteForTesting,
+    this.readingHouseRoomDataSourceForTesting,
     this.sheet = false,
   });
 
@@ -91,6 +102,18 @@ class InboxPage extends StatefulWidget {
   final Stream<CalendarInvalidated>? flowLifecycleStreamForTesting;
   @visibleForTesting
   final bool disableAuxiliarySubscriptionsForTesting;
+  @visibleForTesting
+  final List<ReadingHouseInboxRoomFixture>? readingHouseRoomsForTesting;
+  @visibleForTesting
+  final List<DmConversationSummary>? dmConversationsForTesting;
+  @visibleForTesting
+  final List<InboxActivityItem>? activityForTesting;
+  @visibleForTesting
+  final String? calendarSummarySubtitleForTesting;
+  @visibleForTesting
+  final ReadingHousePendingInviteFixture? pendingReadingHouseInviteForTesting;
+  @visibleForTesting
+  final ReadingHouseRoomDataSource? readingHouseRoomDataSourceForTesting;
   final bool sheet;
 
   @override
@@ -143,18 +166,23 @@ class _InboxPageState extends State<InboxPage> {
   late final DmConversationRepo _dmConversationRepo;
   late final ShareRepo _shareRepo;
   late final SharedCalendarsRepo _sharedCalendarsRepo;
+  late final SupabaseReadingHouseRoomRepository _readingHouseRoomRepo;
   StreamSubscription<List<InboxShareItem>>? _inboxItemsSub;
   StreamSubscription<List<DmConversationSummary>>? _dmConversationsSub;
   StreamSubscription<InboxUnreadState>? _unreadStateSub;
   StreamSubscription<List<SharedCalendarSentInvite>>? _sentCalendarInvitesSub;
   StreamSubscription<List<SharedCalendarInvite>>? _incomingCalendarInvitesSub;
   StreamSubscription<CalendarInvalidated>? _flowLifecycleSub;
+  StreamSubscription<List<ReadingHouseRoomSummary>>? _readingHouseRoomsSub;
   Map<String, List<InboxShareItem>> _latestThreads = const {};
   List<InboxShareItem> _latestEventInvites = const [];
   List<InboxShareItem> _latestCalendarNotifications = const [];
   List<SharedCalendarSentInvite> _latestSentCalendarInvites = const [];
   List<SharedCalendarInvite> _latestIncomingCalendarInvites = const [];
   List<DmConversationSummary> _latestDmConversations = const [];
+  List<ReadingHouseRoomSummary> _latestReadingHouseRooms = const [];
+  ReadingHouseInboxSectionStatus _readingHouseRoomStatus =
+      ReadingHouseInboxSectionStatus.loading;
   List<_UnifiedInboxItem> _unified = const [];
   final Set<String> _optimisticReadShareIds = <String>{};
   bool _loading = true;
@@ -178,6 +206,15 @@ class _InboxPageState extends State<InboxPage> {
     _unreadState = _shareRepo.currentUnreadState;
     _inboxRepo = InboxRepo(client);
     _dmConversationRepo = DmConversationRepo(client);
+    _readingHouseRoomRepo = SupabaseReadingHouseRoomRepository(client);
+    if (widget.disableAuxiliarySubscriptionsForTesting) {
+      _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
+      _latestDmConversations =
+          widget.dmConversationsForTesting ?? const <DmConversationSummary>[];
+      _applyActivity(widget.activityForTesting ?? const <InboxActivityItem>[]);
+      _unified = _buildUnifiedItems();
+      _loading = false;
+    }
     _subscribeInboxItems();
     if (!widget.disableAuxiliarySubscriptionsForTesting) {
       unawaited(_restoreCachedUnified());
@@ -192,6 +229,21 @@ class _InboxPageState extends State<InboxPage> {
               });
             }
           });
+      _readingHouseRoomsSub = _readingHouseRoomRepo.watchSummaries().listen(
+        (rooms) {
+          if (!mounted) return;
+          setState(() {
+            _latestReadingHouseRooms = rooms;
+            _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
+          });
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          if (!mounted) return;
+          setState(() {
+            _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
+          });
+        },
+      );
       _unreadStateSub = _shareRepo.watchUnreadState().listen((state) {
         if (!mounted) {
           _unreadState = state;
@@ -220,6 +272,7 @@ class _InboxPageState extends State<InboxPage> {
                 _loading = false;
               });
             }
+            unawaited(_refreshReadingHouseRooms());
           });
     }
     final flowLifecycleStream =
@@ -230,7 +283,10 @@ class _InboxPageState extends State<InboxPage> {
           (event) =>
               event.reason == CalendarInvalidationReason.flowEndedCommitted,
         )
-        .listen((_) => unawaited(_refreshCommittedFlowState()));
+        .listen((_) {
+          unawaited(_refreshCommittedFlowState());
+          unawaited(_refreshReadingHouseRooms());
+        });
     if (!widget.disableAuxiliarySubscriptionsForTesting) {
       _refreshUnified(showLoading: false);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -286,6 +342,13 @@ class _InboxPageState extends State<InboxPage> {
           .getConversationSummaries();
     } catch (e) {
       _logInboxImport('[InboxPage] Failed to refresh DM conversations: $e');
+    }
+    try {
+      _latestReadingHouseRooms = await _readingHouseRoomRepo.listSummaries();
+      _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
+    } catch (e) {
+      _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
+      _logInboxImport('[InboxPage] Failed to refresh Reading Houses: $e');
     }
 
     if (!mounted) return;
@@ -415,6 +478,7 @@ class _InboxPageState extends State<InboxPage> {
     _sentCalendarInvitesSub?.cancel();
     _incomingCalendarInvitesSub?.cancel();
     _flowLifecycleSub?.cancel();
+    _readingHouseRoomsSub?.cancel();
     super.dispose();
   }
 
@@ -703,11 +767,116 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
+  List<ReadingHouseInboxRoomFixture> get _readingHouseRoomFixtures {
+    final visualFixtures = widget.readingHouseRoomsForTesting;
+    if (visualFixtures != null) return visualFixtures;
+    final currentUserId = _readingHouseRoomRepo.currentUserId;
+    return _latestReadingHouseRooms
+        .where((summary) => summary.active && !summary.ended)
+        .map((summary) {
+          final latestBody = summary.latestMessage?.trim();
+          final latestAuthor = summary.latestAuthorId == currentUserId
+              ? 'You'
+              : _firstNonEmpty(<String?>[
+                  summary.latestAuthorDisplayName,
+                  summary.latestAuthorHandle,
+                ]);
+          final latestMessage = latestBody == null || latestBody.isEmpty
+              ? ''
+              : latestAuthor == null
+              ? latestBody
+              : '$latestAuthor: $latestBody';
+          return ReadingHouseInboxRoomFixture(
+            calendarId: summary.identity.calendarId,
+            flowId: summary.identity.flowId,
+            houseTitle: 'The Reading House',
+            bookTitle: summary.title,
+            latestMessage: latestMessage,
+            memberInitials: summary.members
+                .map((member) {
+                  if (member.userId == currentUserId) return 'Y';
+                  return _readingHouseMemberInitials(member);
+                })
+                .take(3)
+                .toList(growable: false),
+            memberCount: summary.memberCount,
+            unreadCount: summary.unreadCount,
+            status: summary.locked
+                ? ReadingHouseInboxRoomStatus.locked
+                : latestBody == null || latestBody.isEmpty
+                ? ReadingHouseInboxRoomStatus.empty
+                : ReadingHouseInboxRoomStatus.active,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  Future<void> _refreshReadingHouseRooms() async {
+    if (mounted) {
+      setState(() {
+        _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loading;
+      });
+    }
+    try {
+      final rooms =
+          await (widget.readingHouseRoomDataSourceForTesting ??
+                  _readingHouseRoomRepo)
+              .listSummaries();
+      if (!mounted) return;
+      setState(() {
+        _latestReadingHouseRooms = rooms;
+        _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
+      });
+    }
+  }
+
+  Future<void> _openReadingHouseRoom(String calendarId, int flowId) async {
+    await ReadingHouseRoomSheet.show(
+      context,
+      identity: ReadingHouseRoomIdentity(
+        calendarId: calendarId,
+        flowId: flowId,
+      ),
+      dataSource:
+          widget.readingHouseRoomDataSourceForTesting ?? _readingHouseRoomRepo,
+    );
+    if (mounted) await _refreshReadingHouseRooms();
+  }
+
+  String _readingHouseMemberInitials(ReadingHouseRoomMember member) {
+    final label = _firstNonEmpty(<String?>[member.displayName, member.handle]);
+    if (label == null) return 'R';
+    final words = label
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .take(2);
+    return words.map((word) => word.characters.first.toUpperCase()).join();
+  }
+
+  String? _firstNonEmpty(Iterable<String?> values) {
+    for (final value in values) {
+      final trimmed = value?.trim();
+      if (trimmed != null && trimmed.isNotEmpty) return trimmed;
+    }
+    return null;
+  }
+
   Widget _buildBody() {
     const listBottomPadding = 16.0;
     final listChildren = <Widget>[
       _buildSectionLabel('Activity'),
       for (var i = 0; i < _summaryTileCount; i++) _buildSummaryTile(i),
+      ReadingHouseInboxRoomSection(
+        rooms: _readingHouseRoomFixtures,
+        status: _readingHouseRoomStatus,
+        onOpenRoom: _openReadingHouseRoom,
+        onRetry: () => unawaited(_refreshReadingHouseRooms()),
+      ),
       _buildSectionLabel('Messages', topMargin: 30),
       for (final item in _unified)
         if (item.kind == _UnifiedKind.message)
@@ -813,6 +982,9 @@ class _InboxPageState extends State<InboxPage> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        key: title == 'Invites'
+            ? const ValueKey<String>('inbox-invites-row')
+            : null,
         onTap: onTap,
         highlightColor: _gold.withValues(alpha: 0.045),
         splashColor: _gold.withValues(alpha: 0.045),
@@ -923,29 +1095,34 @@ class _InboxPageState extends State<InboxPage> {
 
   List<_UnifiedInboxItem> _buildUnifiedItems() {
     final currentUserId = _inboxRepo.currentUserId;
-    if (currentUserId == null) return const [];
+    if (currentUserId == null &&
+        !widget.disableAuxiliarySubscriptionsForTesting) {
+      return const [];
+    }
 
     final messageItems = <_UnifiedInboxItem>[];
-    _latestThreads.forEach((otherId, items) {
-      if (items.isEmpty) return;
-      final last = items.last;
-      final otherProfile = _resolveOtherProfile(last, currentUserId);
-      final hasUnread = items.any(
-        (item) =>
-            item.recipientId == currentUserId &&
-            item.isUnread &&
-            !_optimisticReadShareIds.contains(item.shareId),
-      );
-      messageItems.add(
-        _UnifiedInboxItem.message(
-          createdAt: last.createdAt,
-          otherUserId: otherId,
-          otherProfile: otherProfile,
-          items: items,
-          hasUnread: hasUnread,
-        ),
-      );
-    });
+    if (currentUserId != null) {
+      _latestThreads.forEach((otherId, items) {
+        if (items.isEmpty) return;
+        final last = items.last;
+        final otherProfile = _resolveOtherProfile(last, currentUserId);
+        final hasUnread = items.any(
+          (item) =>
+              item.recipientId == currentUserId &&
+              item.isUnread &&
+              !_optimisticReadShareIds.contains(item.shareId),
+        );
+        messageItems.add(
+          _UnifiedInboxItem.message(
+            createdAt: last.createdAt,
+            otherUserId: otherId,
+            otherProfile: otherProfile,
+            items: items,
+            hasUnread: hasUnread,
+          ),
+        );
+      });
+    }
 
     final calendarItems =
         sharedCalendarInboxThreadsFromNotifications(
@@ -1916,7 +2093,9 @@ class _InboxPageState extends State<InboxPage> {
         (latestNotification == null ||
             latestEventInvite.createdAt.isAfter(latestNotification.createdAt));
 
-    final subtitle = useSentInvite
+    final subtitle = widget.pendingReadingHouseInviteForTesting != null
+        ? 'The Reading House · waiting on you'
+        : useSentInvite
         ? '${latestSentInvite.calendarName} - waiting on ${latestSentInvite.inviteeLabel}'
         : (useIncomingInvite
               ? '${latestIncomingInvite.inviterLabel} invited you to ${latestIncomingInvite.calendarName}'
@@ -1938,7 +2117,8 @@ class _InboxPageState extends State<InboxPage> {
 
   String _calendarSummarySubtitleForNotification(InboxShareItem? notification) {
     if (notification == null) {
-      return 'Calendar invites and responses';
+      return widget.calendarSummarySubtitleForTesting ??
+          'Calendar invites and responses';
     }
 
     final calendarName = notification.calendarName ?? notification.title;
@@ -2091,16 +2271,15 @@ class _InboxPageState extends State<InboxPage> {
     }
 
     _invitesSheetOpenOrOpening = true;
-    await _saveInvitesSheetRestorationState(parentRoute: parentRoute);
+    if (!widget.disableAuxiliarySubscriptionsForTesting) {
+      await _saveInvitesSheetRestorationState(parentRoute: parentRoute);
+    }
     try {
       if (!mounted) return;
       await showModalBottomSheet(
         context: context,
-        backgroundColor: _bg,
+        backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-        ),
         builder: (sheetContext) {
           final inviteNotifications = _calendarSectionNotifications.toList();
           final eventInvites = _latestEventInvites.toList();
@@ -2113,91 +2292,161 @@ class _InboxPageState extends State<InboxPage> {
           final incomingInvites =
               _incomingCalendarInvitesWithoutNotification.toList()
                 ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
+          final readingHouseInvite = widget.pendingReadingHouseInviteForTesting;
+          final mediaHeight = MediaQuery.sizeOf(sheetContext).height * 0.78;
+          final sheetHeight = mediaHeight < 720 ? mediaHeight : 720.0;
 
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const Text(
-                    'Invites',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (sentInvites.isEmpty &&
-                      inviteResponseItems.isEmpty &&
-                      incomingInvites.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'Calendar invites and responses will appear here.',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
+          return Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: sheetHeight,
+              decoration: const BoxDecoration(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border(top: BorderSide(color: Color(0x33D4AE43))),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[
+                    Color(0xFF121009),
+                    Color(0xFF0D0B07),
+                    Color(0xFF090805),
+                  ],
+                  stops: <double>[0, 0.38, 1],
+                ),
+              ),
+              child: Stack(
+                children: <Widget>[
+                  const Positioned(
+                    top: 11,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: SizedBox(
+                        width: 42,
+                        height: 4,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xFF514D42),
+                            borderRadius: BorderRadius.all(Radius.circular(4)),
+                          ),
                         ),
                       ),
-                    )
-                  else
-                    Flexible(
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: [
-                          if (incomingInvites.isNotEmpty) ...[
-                            _calendarSheetSectionTitle('Invites for you'),
-                            const SizedBox(height: 8),
-                            for (final invite in incomingInvites)
-                              _buildIncomingCalendarInviteRow(
-                                invite,
-                                closeContext: sheetContext,
-                              ),
-                          ],
-                          if (sentInvites.isNotEmpty) ...[
-                            if (incomingInvites.isNotEmpty)
-                              const SizedBox(height: 12),
-                            _calendarSheetSectionTitle('Pending from you'),
-                            const SizedBox(height: 8),
-                            for (final invite in sentInvites)
-                              _buildSentCalendarInviteRow(
-                                invite,
-                                closeContext: sheetContext,
-                              ),
-                          ],
-                          if (inviteResponseItems.isNotEmpty) ...[
-                            if (sentInvites.isNotEmpty ||
-                                incomingInvites.isNotEmpty)
-                              const SizedBox(height: 12),
-                            _calendarSheetSectionTitle('Invites & responses'),
-                            const SizedBox(height: 8),
-                            for (final item in inviteResponseItems)
-                              item.isEvent
-                                  ? _buildEventInviteRow(
-                                      item,
-                                      closeContext: sheetContext,
-                                    )
-                                  : _buildCalendarInviteNotificationRow(
-                                      item,
-                                      closeContext: sheetContext,
-                                    ),
-                          ],
-                        ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 13,
+                    child: IconButton(
+                      key: const ValueKey<String>('inbox-invites-close'),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      icon: const Icon(Icons.close, size: 28),
+                      color: const Color(0xFFD8B23C),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
                       ),
                     ),
+                  ),
+                  const Positioned(
+                    top: 39,
+                    left: 18,
+                    right: 18,
+                    height: 57,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Text(
+                        'Invites',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFFF5E8CB),
+                          fontFamily: _serifFont,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w600,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 96,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 34),
+                      child:
+                          readingHouseInvite == null &&
+                              sentInvites.isEmpty &&
+                              inviteResponseItems.isEmpty &&
+                              incomingInvites.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Text(
+                                'Calendar invites and responses will appear here.',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                ),
+                              ),
+                            )
+                          : ListView(
+                              children: [
+                                if (readingHouseInvite != null) ...[
+                                  _calendarSheetSectionTitle('Pending'),
+                                  const SizedBox(height: 8),
+                                  ReadingHousePendingInviteCard(
+                                    invite: readingHouseInvite,
+                                    onAccept: null,
+                                    onDecline: null,
+                                  ),
+                                ],
+                                if (incomingInvites.isNotEmpty) ...[
+                                  if (readingHouseInvite != null)
+                                    const SizedBox(height: 12),
+                                  _calendarSheetSectionTitle('Pending'),
+                                  const SizedBox(height: 8),
+                                  for (final invite in incomingInvites)
+                                    _buildIncomingCalendarInviteRow(
+                                      invite,
+                                      closeContext: sheetContext,
+                                    ),
+                                ],
+                                if (sentInvites.isNotEmpty) ...[
+                                  if (incomingInvites.isNotEmpty)
+                                    const SizedBox(height: 12),
+                                  _calendarSheetSectionTitle(
+                                    'Pending from you',
+                                  ),
+                                  const SizedBox(height: 8),
+                                  for (final invite in sentInvites)
+                                    _buildSentCalendarInviteRow(
+                                      invite,
+                                      closeContext: sheetContext,
+                                    ),
+                                ],
+                                if (inviteResponseItems.isNotEmpty) ...[
+                                  if (sentInvites.isNotEmpty ||
+                                      incomingInvites.isNotEmpty)
+                                    const SizedBox(height: 12),
+                                  _calendarSheetSectionTitle(
+                                    'Invites & responses',
+                                  ),
+                                  const SizedBox(height: 8),
+                                  for (final item in inviteResponseItems)
+                                    item.isEvent
+                                        ? _buildEventInviteRow(
+                                            item,
+                                            closeContext: sheetContext,
+                                          )
+                                        : _buildCalendarInviteNotificationRow(
+                                            item,
+                                            closeContext: sheetContext,
+                                          ),
+                                ],
+                              ],
+                            ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2211,7 +2460,8 @@ class _InboxPageState extends State<InboxPage> {
             RestorationCoordinator
                 .instance
                 .shouldPreserveOverlayForLifecycleClose;
-        if (!preserveForLifecycle) {
+        if (!widget.disableAuxiliarySubscriptionsForTesting &&
+            !preserveForLifecycle) {
           await _clearInvitesSheetRestorationState();
         }
       } finally {
@@ -2221,13 +2471,18 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Widget _calendarSheetSectionTitle(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.7),
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.3,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(3, 8, 3, 10),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: Color(0xFF746F66),
+          fontFamily: _serifFont,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 2.5,
+          height: 1,
+        ),
       ),
     );
   }
@@ -2236,134 +2491,251 @@ class _InboxPageState extends State<InboxPage> {
     SharedCalendarInvite invite, {
     BuildContext? closeContext,
   }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          color: invite.color.withValues(alpha: 0.14),
-          border: Border.all(color: invite.color.withValues(alpha: 0.32)),
-        ),
-        child: Icon(Icons.person_add_alt_1_rounded, color: invite.color),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0C08),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0x21D4AE43)),
       ),
-      title: Text(
-        invite.calendarName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-        ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0x1AD4AE43),
+              border: Border.all(color: const Color(0x3DD4AE43)),
+            ),
+            child: const Text(
+              '𓉐',
+              style: TextStyle(
+                color: Color(0xFFDFB535),
+                fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                fontSize: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  invite.calendarName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFF3EEE2),
+                    fontFamily: _serifFont,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w600,
+                    height: 1.05,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${invite.inviterLabel} invited you to this calendar.',
+                  style: const TextStyle(
+                    color: Color(0xFF8F8A82),
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 13,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 9),
+                Row(
+                  children: <Widget>[
+                    TextButton(
+                      onPressed: () => unawaited(
+                        _respondToIncomingCalendarInvite(
+                          invite,
+                          accept: true,
+                          closeContext: closeContext,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF8AD9BD),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: const TextStyle(
+                          fontFamily: _serifFont,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Accept'),
+                    ),
+                    const SizedBox(width: 16),
+                    TextButton(
+                      onPressed: () => unawaited(
+                        _respondToIncomingCalendarInvite(
+                          invite,
+                          accept: false,
+                          closeContext: closeContext,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF8B7A70),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: const TextStyle(
+                          fontFamily: _serifFont,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Decline'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      subtitle: Text(
-        '${invite.inviterLabel} invited you to join this calendar',
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.7),
-          fontSize: 14,
-        ),
-      ),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: invite.color.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          'Pending',
-          style: TextStyle(
-            color: invite.color,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+    );
+  }
+
+  Future<void> _respondToIncomingCalendarInvite(
+    SharedCalendarInvite invite, {
+    required bool accept,
+    BuildContext? closeContext,
+  }) async {
+    try {
+      await _sharedCalendarsRepo.respondToInvite(
+        calendarId: invite.calendarId,
+        accept: accept,
+        invite: invite,
+      );
+      if (closeContext != null && closeContext.mounted) {
+        Navigator.of(closeContext).pop();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            accept
+                ? 'Could not accept this invite.'
+                : 'Could not decline this invite.',
           ),
         ),
-      ),
-      onTap: () async {
-        if (closeContext != null) {
-          Navigator.of(closeContext).pop();
-        }
-        await SharedCalendarsSheet.show(
-          context,
-          repo: _sharedCalendarsRepo,
-          onEventTapRequested:
-              (calendar, filedEvent, {calendarEvents = const []}) =>
-                  CalendarPage.openFiledCalendarEventFromAnyContext(
-                    context,
-                    calendar: calendar,
-                    filedEvent: filedEvent,
-                    calendarEvents: calendarEvents,
-                  ),
-        );
-      },
-    );
+      );
+    }
   }
 
   Widget _buildSentCalendarInviteRow(
     SharedCalendarSentInvite invite, {
     BuildContext? closeContext,
   }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      leading: ProfileAvatar(
-        radius: 22,
-        displayName: invite.inviteeLabel,
-        avatarUrl: invite.inviteeAvatarUrl,
-        backgroundColor: invite.color.withValues(alpha: 0.16),
-        foregroundColor: invite.color,
-      ),
-      title: Text(
-        invite.calendarName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: Text(
-        'Waiting on ${invite.inviteeLabel}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.7),
-          fontSize: 14,
-        ),
-      ),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: invite.color.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          'Pending',
-          style: TextStyle(
-            color: invite.color,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+    final invitedDate = MaterialLocalizations.of(
+      context,
+    ).formatShortDate(invite.invitedAt.toLocal());
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: () async {
+          if (closeContext != null) {
+            Navigator.of(closeContext).pop();
+          }
+          await SharedCalendarsSheet.show(
+            context,
+            repo: _sharedCalendarsRepo,
+            onEventTapRequested:
+                (calendar, filedEvent, {calendarEvents = const []}) =>
+                    CalendarPage.openFiledCalendarEventFromAnyContext(
+                      context,
+                      calendar: calendar,
+                      filedEvent: filedEvent,
+                      calendarEvents: calendarEvents,
+                    ),
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D0C08),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color(0x21D4AE43)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 50,
+                height: 50,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0x1AD4AE43),
+                  border: Border.all(color: const Color(0x3DD4AE43)),
+                ),
+                child: const Text(
+                  '𓉐',
+                  style: TextStyle(
+                    color: Color(0xFFDFB535),
+                    fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                    fontSize: 22,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      invite.calendarName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFF3EEE2),
+                        fontFamily: _serifFont,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w600,
+                        height: 1.05,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Waiting on ${invite.inviteeLabel}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF8F8A82),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 13,
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Pending · $invitedDate',
+                      style: const TextStyle(
+                        color: Color(0xFF6F746F),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 11,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      onTap: () async {
-        if (closeContext != null) {
-          Navigator.of(closeContext).pop();
-        }
-        await SharedCalendarsSheet.show(
-          context,
-          repo: _sharedCalendarsRepo,
-          onEventTapRequested:
-              (calendar, filedEvent, {calendarEvents = const []}) =>
-                  CalendarPage.openFiledCalendarEventFromAnyContext(
-                    context,
-                    calendar: calendar,
-                    filedEvent: filedEvent,
-                    calendarEvents: calendarEvents,
-                  ),
-        );
-      },
     );
   }
 
@@ -2732,7 +3104,6 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
@@ -2787,7 +3158,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                 left: 20,
                 right: 20,
                 top: 20,
-                bottom: 20 + bottomPadding,
+                bottom: 20,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

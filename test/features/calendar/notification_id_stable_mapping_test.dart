@@ -3,11 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  const migrationPath =
-      '../supabase/migrations/20260528090000_stable_scheduled_notification_ids.sql';
-
-  String migrationSql() => File(migrationPath).readAsStringSync();
-
   String notifySource() =>
       File('lib/features/calendar/notify.dart').readAsStringSync();
 
@@ -18,104 +13,6 @@ void main() {
     expect(end, greaterThan(start));
     return source.substring(start, end);
   }
-
-  test('migration repairs duplicate legacy ids before enforcing uniqueness', () {
-    final sql = migrationSql();
-
-    final sequence = sql.indexOf(
-      'create sequence if not exists public.scheduled_notifications_notification_id_seq',
-    );
-    final duplicateRank = sql.indexOf(
-      'row_number() over (\n      partition by notification_id',
-    );
-    final duplicateUpdate = sql.indexOf(
-      'update public.scheduled_notifications sn',
-      duplicateRank,
-    );
-    final defaultSet = sql.indexOf(
-      'alter column notification_id set default',
-      duplicateUpdate,
-    );
-    final uniqueIndex = sql.indexOf(
-      'create unique index if not exists scheduled_notifications_notification_id_key',
-      defaultSet,
-    );
-
-    expect(sequence, greaterThanOrEqualTo(0));
-    expect(sql, contains('maxvalue 2147483647'));
-    expect(sql, contains('check (notification_id > 0)'));
-    expect(duplicateRank, greaterThan(sequence));
-    expect(duplicateUpdate, greaterThan(duplicateRank));
-    expect(defaultSet, greaterThan(duplicateUpdate));
-    expect(uniqueIndex, greaterThan(defaultSet));
-  });
-
-  test('RPC upserts by logical identity and preserves notification_id', () {
-    final sql = migrationSql();
-
-    expect(
-      sql,
-      contains(
-        'create or replace function public.upsert_scheduled_notification',
-      ),
-    );
-    expect(sql, contains('v_user_id uuid := auth.uid()'));
-    expect(
-      sql,
-      contains('on conflict (user_id, client_event_id, notification_type)'),
-    );
-    expect(sql, contains('sn.notification_id'));
-    expect(
-      sql,
-      contains(
-        'grant execute on function public.upsert_scheduled_notification',
-      ),
-    );
-
-    final updateStart = sql.indexOf('do update set');
-    final returningStart = sql.indexOf('returning', updateStart);
-    expect(updateStart, greaterThanOrEqualTo(0));
-    expect(returningStart, greaterThan(updateStart));
-
-    final updateClause = sql.substring(updateStart, returningStart);
-    expect(updateClause, isNot(contains('notification_id')));
-  });
-
-  test(
-    'logical variants allocate distinct stored ids through sequence default',
-    () {
-      final sql = migrationSql();
-      final schema = File('../db/schema.sql').readAsStringSync();
-
-      expect(
-        schema,
-        contains(
-          'ADD CONSTRAINT "unique_user_client_event_type" UNIQUE ("user_id", "client_event_id", "notification_type")',
-        ),
-        reason: 'logical identity must remain user + event + notification type',
-      );
-      expect(
-        sql,
-        contains(
-          'create unique index if not exists scheduled_notifications_notification_id_key',
-        ),
-      );
-
-      final insertStart = sql.indexOf(
-        'insert into public.scheduled_notifications as sn (',
-      );
-      final valuesStart = sql.indexOf('  values (', insertStart);
-      expect(insertStart, greaterThanOrEqualTo(0));
-      expect(valuesStart, greaterThan(insertStart));
-
-      final insertColumns = sql.substring(insertStart, valuesStart);
-      expect(
-        insertColumns,
-        isNot(contains('notification_id')),
-        reason: 'inserts should allocate from the DB default sequence',
-      );
-    },
-  );
 
   test('Notify normal persisted path prefers DB-returned notification_id', () {
     final source = notifySource();

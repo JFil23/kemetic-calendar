@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 
 void main() {
@@ -8,7 +9,7 @@ void main() {
         .map((definition) => definition.key)
         .toList(growable: false);
 
-    expect(keys, hasLength(17));
+    expect(keys, hasLength(15));
     expect(
       keys,
       containsAll(<String>[
@@ -21,11 +22,9 @@ void main() {
         kHetHeruFlowKey,
         kTheShoreFlowKey,
         kTheAutobiographyFlowKey,
-        kFirstArrangementFlowKey,
         kLivingPatternFlowKey,
         kTrueNameFlowKey,
         kLivingTextFlowKey,
-        kClearingFlowKey,
         kWanderingFlowKey,
         kKhatFlowKey,
         kOracleFlowKey,
@@ -49,6 +48,18 @@ void main() {
       expect(definition.graphNodeSlugs, contains('maat'));
     }
   });
+
+  test(
+    'archived decan implementations are absent from the active registry',
+    () {
+      for (final kind in const <MaatFlowKind>[
+        MaatFlowKind.firstArrangement,
+        MaatFlowKind.clearing,
+      ]) {
+        expect(maatDecanFlowDefinitionForKey(kind.flowKey), isNull);
+      }
+    },
+  );
 
   test('Ma’at decan event payloads keep routing and completion metadata', () {
     final flowStart = DateTime(2026, 5, 16);
@@ -883,26 +894,6 @@ void main() {
     );
     expect(
       maatDecanFlowEventByNumber(
-        maatDecanFlowDefinitionForKey(kFirstArrangementFlowKey)!,
-        4,
-      )?.extraCompletionStatusLabels,
-      containsPair('cleared', 'Cleared'),
-    );
-    expect(
-      maatDecanFlowEventByNumber(
-        maatDecanFlowDefinitionForKey(kFirstArrangementFlowKey)!,
-        6,
-      )?.extraCompletionStatusLabels,
-      containsPair('arranged', 'Arranged'),
-    );
-    expect(
-      maatDecanFlowDefinitionForKey(
-        kFirstArrangementFlowKey,
-      )!.events.last.extraCompletionStatusLabels,
-      containsPair('maintenance_established', 'Maintenance established'),
-    );
-    expect(
-      maatDecanFlowEventByNumber(
         maatDecanFlowDefinitionForKey(kLivingPatternFlowKey)!,
         8,
       )?.extraCompletionStatusLabels,
@@ -926,13 +917,6 @@ void main() {
         kLivingTextFlowKey,
       )!.events.last.extraCompletionStatusLabels,
       containsPair('colophon_written', 'Colophon written'),
-    );
-    expect(
-      maatDecanFlowEventByNumber(
-        maatDecanFlowDefinitionForKey(kClearingFlowKey)!,
-        5,
-      )?.extraCompletionStatusLabels,
-      containsPair('from_the_clearing', 'from the clearing'),
     );
     expect(
       maatDecanFlowDefinitionForKey(
@@ -959,11 +943,9 @@ void main() {
     for (final definition in <MaatDecanFlowDefinition>[
       maatDecanFlowDefinitionForKey(kTheShoreFlowKey)!,
       maatDecanFlowDefinitionForKey(kTheAutobiographyFlowKey)!,
-      maatDecanFlowDefinitionForKey(kFirstArrangementFlowKey)!,
       maatDecanFlowDefinitionForKey(kLivingPatternFlowKey)!,
       maatDecanFlowDefinitionForKey(kTrueNameFlowKey)!,
       maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!,
-      maatDecanFlowDefinitionForKey(kClearingFlowKey)!,
       maatDecanFlowDefinitionForKey(kWanderingFlowKey)!,
       maatDecanFlowDefinitionForKey(kKhatFlowKey)!,
       maatDecanFlowDefinitionForKey(kOracleFlowKey)!,
@@ -991,13 +973,6 @@ void main() {
       maatDecanFlowDefinitionForKey(
         kTrueNameFlowKey,
       )!.events.last.requiresRealWorldAction,
-      isTrue,
-    );
-    expect(
-      maatDecanFlowEventByNumber(
-        maatDecanFlowDefinitionForKey(kClearingFlowKey)!,
-        5,
-      )!.requiresRealWorldAction,
       isTrue,
     );
     expect(
@@ -1415,99 +1390,6 @@ void main() {
     expect(issues, isEmpty);
   });
 
-  test('Clearing copy keeps action gates and optional sharing explicit', () {
-    final clearing = maatDecanFlowDefinitionForKey(kClearingFlowKey)!;
-    final event4 = maatDecanFlowEventByNumber(clearing, 4)!;
-    final event5 = maatDecanFlowEventByNumber(clearing, 5)!;
-    final event9 = maatDecanFlowEventByNumber(clearing, 9)!;
-
-    expect(event4.steps, <String>[
-      'Choose one concrete physical or procedural act that creates space before response: wait one hour, walk outside, write before sending, sleep on it, or consult the day card first.',
-      'Do not use "try to be calmer" as the act.',
-      'Write it as: Before responding to [situation], I will [specific act].',
-      'Write when you will use it and what heat situation it interrupts.',
-    ]);
-
-    expect(event5.spokenLine, 'The clearing acts without heat.');
-    expect(
-      event5.purpose,
-      'The cleared state becomes part of the record only when one real action happens before logging.',
-    );
-    expect(event5.steps, <String>[
-      'Take one real action from the cleared state before logging.',
-      'Record the situation and what the heat response would have been.',
-      'Write what you did instead and what changed.',
-    ]);
-    expect(event5.requiresRealWorldAction, isTrue);
-    expect(
-      event5.extraCompletionStatusLabels,
-      containsPair('from_the_clearing', 'from the clearing'),
-    );
-
-    expect(event9.steps, <String>[
-      'Name one person or situation that benefits from your shade.',
-      'Write the heat situation where you will continue setting yourself apart.',
-      'Record the shade you intend to provide.',
-    ]);
-    expect(event9.optionalSteps, <String>[
-      'Share only the one-line commitment.',
-    ]);
-    expect(event9.sharePromptOnComplete, isTrue);
-  });
-
-  test('Clearing words fields do not contain stage-direction wrappers', () {
-    final issues = <String>[];
-    final clearing = maatDecanFlowDefinitionForKey(kClearingFlowKey)!;
-
-    for (final event in clearing.events) {
-      for (final pattern in _clearingWordsStageDirectionPatterns) {
-        if (pattern.hasMatch(event.spokenLine)) {
-          issues.add(
-            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
-          );
-        }
-      }
-    }
-
-    expect(issues, isEmpty);
-  });
-
-  test('Clearing steps keep source-note phrases out of actions', () {
-    final issues = <String>[];
-    final clearing = maatDecanFlowDefinitionForKey(kClearingFlowKey)!;
-
-    for (final event in clearing.events) {
-      for (final step in event.steps) {
-        if (_clearingSourceNotePhrasePattern.hasMatch(step)) {
-          issues.add('Event ${event.eventNumber}: $step');
-        }
-      }
-    }
-
-    expect(issues, isEmpty);
-  });
-
-  test('Clearing optional steps do not duplicate required steps', () {
-    final issues = <String>[];
-    final clearing = maatDecanFlowDefinitionForKey(kClearingFlowKey)!;
-
-    for (final event in clearing.events) {
-      final requiredSteps = event.steps.toSet();
-      for (final step in event.steps) {
-        if (step.startsWith('Optional:')) {
-          issues.add('Event ${event.eventNumber}: $step');
-        }
-      }
-      for (final optionalStep in event.optionalSteps) {
-        if (requiredSteps.contains(optionalStep)) {
-          issues.add('Event ${event.eventNumber}: $optionalStep');
-        }
-      }
-    }
-
-    expect(issues, isEmpty);
-  });
-
   test('Wandering copy keeps closing instructions in steps', () {
     final wandering = maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
     final event1 = maatDecanFlowEventByNumber(wandering, 1)!;
@@ -1572,124 +1454,6 @@ void main() {
     final wandering = maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
 
     for (final event in wandering.events) {
-      final requiredSteps = event.steps.toSet();
-      for (final optionalStep in event.optionalSteps) {
-        if (requiredSteps.contains(optionalStep)) {
-          issues.add('Event ${event.eventNumber}: $optionalStep');
-        }
-      }
-    }
-
-    expect(issues, isEmpty);
-  });
-
-  test('First Arrangement copy keeps removal guardrails and actions explicit', () {
-    final arrangement = maatDecanFlowDefinitionForKey(
-      kFirstArrangementFlowKey,
-    )!;
-    final event4 = maatDecanFlowEventByNumber(arrangement, 4)!;
-    final event7 = maatDecanFlowEventByNumber(arrangement, 7)!;
-    final event8 = maatDecanFlowEventByNumber(arrangement, 8)!;
-    final event9 = maatDecanFlowEventByNumber(arrangement, 9)!;
-
-    expect(event4.purpose, contains('hallway pile'));
-    expect(event4.steps, <String>[
-      'Physically remove every item marked "does not belong here."',
-      'Put each item where it truly belongs, not in the hallway or a corner of the same room.',
-      'If it belongs nowhere you inhabit, discard it or release it.',
-      'Record what remains.',
-    ]);
-    expect(event4.requiresRealWorldAction, isTrue);
-    expect(
-      event4.extraCompletionStatusLabels,
-      containsPair('cleared', 'Cleared'),
-    );
-
-    expect(event7.steps, <String>[
-      'Open air into the space.',
-      'Wipe surfaces with water.',
-      'Add one intentional scent.',
-      'Record the state of the space after purification.',
-    ]);
-
-    expect(event8.steps, <String>[
-      'Use the space for its main purpose.',
-      'Do not adjust while using it.',
-      'Afterward, write what was easier.',
-      'Write what remains misaligned and what the space communicated.',
-    ]);
-
-    expect(
-      event9.purpose,
-      contains('second ten-day section returns to disorder'),
-    );
-    expect(event9.steps, <String>[
-      'Write the maintenance practice as a specific instruction: When I [enter/leave] this space each [morning/evening], I will [specific acts].',
-      'Include how the practice returns objects.',
-      'Include how the practice clears surfaces and performs one sensory act of purification.',
-      'Share only the one-sentence statement of what the space now communicates.',
-    ]);
-    expect(
-      event9.extraCompletionStatusLabels,
-      containsPair('maintenance_established', 'Maintenance established'),
-    );
-  });
-
-  test(
-    'First Arrangement words fields do not contain stage-direction wrappers',
-    () {
-      final issues = <String>[];
-      final arrangement = maatDecanFlowDefinitionForKey(
-        kFirstArrangementFlowKey,
-      )!;
-
-      for (final event in arrangement.events) {
-        for (final pattern in _firstArrangementWordsStageDirectionPatterns) {
-          if (pattern.hasMatch(event.spokenLine)) {
-            issues.add(
-              'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
-            );
-          }
-        }
-      }
-
-      expect(issues, isEmpty);
-    },
-  );
-
-  test(
-    'First Arrangement steps keep rationale out without losing guardrails',
-    () {
-      final issues = <String>[];
-      final arrangement = maatDecanFlowDefinitionForKey(
-        kFirstArrangementFlowKey,
-      )!;
-
-      for (final event in arrangement.events) {
-        for (final step in event.steps) {
-          if (_firstArrangementRationalePattern.hasMatch(step)) {
-            issues.add('Event ${event.eventNumber}: $step');
-          }
-        }
-      }
-
-      expect(issues, isEmpty);
-      expect(
-        maatDecanFlowEventByNumber(arrangement, 4)!.steps,
-        contains(
-          'Put each item where it truly belongs, not in the hallway or a corner of the same room.',
-        ),
-      );
-    },
-  );
-
-  test('First Arrangement optional steps do not duplicate required steps', () {
-    final issues = <String>[];
-    final arrangement = maatDecanFlowDefinitionForKey(
-      kFirstArrangementFlowKey,
-    )!;
-
-    for (final event in arrangement.events) {
       final requiredSteps = event.steps.toSet();
       for (final optionalStep in event.optionalSteps) {
         if (requiredSteps.contains(optionalStep)) {
@@ -2366,19 +2130,6 @@ final _hetHeruSourceNotePhrasePattern = RegExp(
   caseSensitive: false,
 );
 
-final _clearingWordsStageDirectionPatterns = <RegExp>[
-  RegExp(r'^\s*speak only\b', caseSensitive: false),
-  RegExp(r'\btrue lines\b', caseSensitive: false),
-  RegExp(r'\bif true\b', caseSensitive: false),
-  RegExp(r'\boptionally\b', caseSensitive: false),
-  RegExp(r'\bshare only\b', caseSensitive: false),
-];
-
-final _clearingSourceNotePhrasePattern = RegExp(
-  r'\b(Amenemope|source note|foliage|enclosed space|surrounded by other trees|side effect)\b',
-  caseSensitive: false,
-);
-
 final _wanderingWordsStageDirectionPatterns = <RegExp>[
   RegExp(r'^\s*before\b', caseSensitive: false),
   RegExp(r'\bthen stand\b', caseSensitive: false),
@@ -2388,18 +2139,6 @@ final _wanderingWordsStageDirectionPatterns = <RegExp>[
 
 final _wanderingRationalePhrasePattern = RegExp(
   r'\b(Pyramid Texts|source|because|provision the body needs|The provision|not a demand to stop grieving)\b',
-  caseSensitive: false,
-);
-
-final _firstArrangementWordsStageDirectionPatterns = <RegExp>[
-  RegExp(r'^\s*physically\b', caseSensitive: false),
-  RegExp(r'^\s*write\b', caseSensitive: false),
-  RegExp(r'^\s*stand\b', caseSensitive: false),
-  RegExp(r'\bdo not\b', caseSensitive: false),
-];
-
-final _firstArrangementRationalePattern = RegExp(
-  r'\b(boundary stone|Zep Tepi|Temple|source|because|does the same damage|one-time reset|without thinking about it)\b',
   caseSensitive: false,
 );
 

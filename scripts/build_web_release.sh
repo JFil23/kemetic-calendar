@@ -41,7 +41,7 @@ SOURCE_MAPS="$(
     source_maps
 )"
 
-echo "▶ Extracting the exact tracked mobile tree"
+echo "▶ Extracting the exact tracked app tree"
 git archive --format=tar HEAD | tar -xf - -C "$SOURCE_DIR"
 
 cd "$SOURCE_DIR"

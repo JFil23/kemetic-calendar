@@ -691,7 +691,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final header = _formatArchiveDate(date);
     final entryDoc = _entryToDocument(entry);
     final charCount = _getActualTextLength(entry);
-    final keyboardVisible = keyboardInsetOf(context) > 0;
+    final keyboardVisible = keyboardIsVisible(context);
     const contentBottomPadding = 16.0;
 
     return Column(

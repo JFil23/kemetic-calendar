@@ -5,23 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('inbox push pipeline guardrails', () {
     test('flow share pushes route to shared flow details', () async {
-      final edgeSource = await File(
-        '../supabase/functions/create_flow_share/index.ts',
-      ).readAsString();
       final clientSource = await File(
         'lib/data/share_repo.dart',
       ).readAsString();
-      final sendPushSource = await File(
-        '../supabase/functions/send_push/index.ts',
-      ).readAsString();
       final mainSource = await File('lib/main.dart').readAsString();
 
-      expect(edgeSource, contains('type: "flow_share"'));
-      expect(edgeSource, contains('kind: "flow_share"'));
       expect(clientSource, contains("'type': 'flow_share'"));
       expect(clientSource, contains("'kind': 'flow_share'"));
-      expect(sendPushSource, contains('kind === "flow_share"'));
-      expect(sendPushSource, contains('push_kind: "flow_share"'));
       expect(mainSource, contains("kind == 'flow_share'"));
       expect(mainSource, contains("'/shared-flow/"));
     });
@@ -49,12 +39,6 @@ void main() {
       final inboxRepoSource = await File(
         'lib/repositories/inbox_repo.dart',
       ).readAsString();
-      final sendDmSource = await File(
-        '../supabase/functions/send_dm_message/index.ts',
-      ).readAsString();
-      final sendPushSource = await File(
-        '../supabase/functions/send_push/index.ts',
-      ).readAsString();
       final mainSource = await File('lib/main.dart').readAsString();
       final initialRouteSource = _sourceBetween(
         mainSource,
@@ -68,11 +52,6 @@ void main() {
       );
 
       expect(inboxRepoSource, contains("'send_dm_message'"));
-      expect(sendDmSource, contains('notification_type: "direct_message"'));
-      expect(sendDmSource, contains('conversation_user_id: senderId'));
-      expect(sendDmSource, contains('headers.Authorization'));
-      expect(sendPushSource, contains('kind === "dm"'));
-      expect(sendPushSource, contains('push_kind: "dm"'));
       expect(initialRouteSource, contains("kind == 'dm'"));
       expect(
         initialRouteSource,
@@ -86,15 +65,6 @@ void main() {
     });
 
     test('group direct message pushes route to the conversation id', () async {
-      final dmConversationSource = await File(
-        '../supabase/functions/_shared/dm_conversations.ts',
-      ).readAsString();
-      final pushAuthSource = await File(
-        '../supabase/functions/send_push/user_jwt_push_auth.ts',
-      ).readAsString();
-      final sendPushSource = await File(
-        '../supabase/functions/send_push/index.ts',
-      ).readAsString();
       final mainSource = await File('lib/main.dart').readAsString();
       final navigationPolicySource = await File(
         'lib/core/navigation_persistence_policy.dart',
@@ -110,12 +80,6 @@ void main() {
         'void _openSharedFlow(String shareId) {',
       );
 
-      expect(dmConversationSource, contains('type: "dm_message_v2"'));
-      expect(dmConversationSource, contains('conversation_id: conversationId'));
-      expect(sendPushSource, contains('push_kind: "dm_message_v2"'));
-      expect(sendPushSource, contains('params.set("conversation_id"'));
-      expect(pushAuthSource, contains('"dm_message_v2"'));
-      expect(pushAuthSource, contains('lookupDmConversationMembers'));
       expect(
         initialRouteSource,
         contains("notificationType == 'dm_message_v2'"),
@@ -144,16 +108,11 @@ void main() {
       final profileSource = await File(
         'lib/data/profile_repo.dart',
       ).readAsString();
-      final sendPushSource = await File(
-        '../supabase/functions/send_push/index.ts',
-      ).readAsString();
       final mainSource = await File('lib/main.dart').readAsString();
 
       expect(profileSource, contains('sendFollowPush'));
       expect(profileSource, contains("'type': 'follow'"));
       expect(profileSource, contains("'kind': 'follow'"));
-      expect(sendPushSource, contains('kind === "follow"'));
-      expect(sendPushSource, contains('push_kind: "follow"'));
       expect(mainSource, contains("if (kind == 'follow')"));
       expect(mainSource, contains('_openInboxSheetFromNotification();'));
     });

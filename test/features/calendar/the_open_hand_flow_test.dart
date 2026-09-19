@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/the_open_hand_enrollment.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
@@ -269,37 +271,39 @@ void main() {
     },
   );
 
-  test('source wires template, window-only picker, join, and local store', () {
-    final calendarPage = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
-    final joinService = File(
-      'lib/features/calendar/flow_join_service.dart',
-    ).readAsStringSync();
-    final enrollmentSource = File(
-      'lib/features/calendar/the_open_hand_enrollment.dart',
-    ).readAsStringSync();
-    final detailPage = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
-    ).readAsStringSync();
-    final dayView = File(
-      'lib/features/calendar/day_view.dart',
-    ).readAsStringSync();
+  test(
+    'Open Hand is absorbed while its historical local state stays legible',
+    () {
+      final activeSource = File(
+        'lib/features/calendar/calendar_active_maat_flows.dart',
+      ).readAsStringSync();
+      final joinService = File(
+        'lib/features/calendar/flow_join_service.dart',
+      ).readAsStringSync();
+      final enrollmentSource = File(
+        'lib/features/calendar/the_open_hand_enrollment.dart',
+      ).readAsStringSync();
+      final dayView = File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync();
 
-    expect(calendarPage, contains('_MaatFlowTemplateKind.theOpenHand'));
-    expect(calendarPage, contains('joinOpenHandHeadless'));
-    expect(joinService, contains('resolveOpenHandEnrollmentWindowSafely'));
-    expect(enrollmentSource, contains('openHandNextEnrollmentWindow'));
-    expect(enrollmentSource, contains('openHandEnrollmentWindowForStartDate'));
-    expect(calendarPage, isNot(contains('openHandEnrollmentIsOpen')));
-    expect(joinService, contains('openHandClientEventId'));
-    expect(joinService, contains('stagePlannedNotesAndDeferPersist('));
-    expect(detailPage, contains('_pickOpenHandWindowDate'));
-    expect(detailPage, contains('designated decan-opening enrollment windows'));
-    expect(detailPage, contains('Add Flow'));
-    expect(detailPage, isNot(contains("'KYear ")));
-    expect(dayView, contains('TheOpenHandLocalStore'));
-  });
+      final entry = maatFlowCatalogEntry(MaatFlowKind.theOpenHand);
+      expect(entry.status, MaatFlowCatalogStatus.absorbed);
+      expect(entry.isDiscoverable, isFalse);
+      expect(entry.isJoinable, isFalse);
+      expect(entry.isCompatibilitySupported, isFalse);
+      expect(activeSource, isNot(contains('_pickOpenHandWindowDate')));
+      expect(activeSource, isNot(contains('_buildOpenHandScaffold')));
+      expect(joinService, contains('resolveOpenHandEnrollmentWindowSafely'));
+      expect(enrollmentSource, contains('openHandNextEnrollmentWindow'));
+      expect(
+        enrollmentSource,
+        contains('openHandEnrollmentWindowForStartDate'),
+      );
+      expect(joinService, contains('openHandClientEventId'));
+      expect(dayView, contains('TheOpenHandLocalStore'));
+    },
+  );
 }
 
 final _openHandWordsStageDirectionPatterns = <RegExp>[

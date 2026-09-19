@@ -34,6 +34,8 @@ import 'follow_the_sky/services/sky_instrument_data_provider.dart';
 import 'follow_the_sky/services/track_sky_materializer.dart';
 import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
+import 'maat_event_block_layout_spec.dart';
+import 'maat_flow_catalog.dart';
 import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_palette.dart';
 import 'maat_flow_response_draft_store.dart';
@@ -43,34 +45,34 @@ import 'maat_flow_response_resolver.dart';
 import 'maat_flow_visual_tokens.dart';
 import 'presentation/instrument_event_presentation_frame.dart';
 import 'track_sky_flow.dart';
-import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_flow.dart';
-import 'evening_threshold_rite_flow.dart';
-import 'the_weighing_flow.dart';
 import 'the_offering_table_flow.dart';
 import 'the_offering_table/presentation/offering_table_event_block_visual.dart';
-import 'the_offering_table/presentation/offering_table_day_presentation.dart';
+import 'the_offering_table/presentation/offering_table_day_contract.dart';
+import 'the_offering_table/presentation/offering_table_day_state.dart';
+import 'the_offering_table/presentation/offering_table_day_v8_presentation.dart';
 import 'the_offering_table_local_store.dart';
-import 'the_tending_flow.dart';
-import 'the_tending_local_store.dart';
-import 'the_kept_word_flow.dart';
-import 'the_kept_word_local_store.dart';
 import 'the_course_flow.dart';
 import 'the_course_context.dart';
 import 'moon_return_flow.dart';
-import 'the_wag_flow.dart';
-import 'the_wag_local_store.dart';
 import 'the_decan_watch_flow.dart';
 import 'the_decan_watch_local_store.dart';
-import 'the_days_outside_year_flow.dart';
-import 'the_days_outside_year_local_store.dart';
 import 'the_open_hand_flow.dart';
 import 'the_open_hand_local_store.dart';
 import 'the_djed_flow.dart';
+import 'the_djed_v2_flow.dart';
 import 'the_djed_local_store.dart';
+import 'the_djed/presentation/djed_day_presentation.dart';
+import 'the_djed/presentation/djed_day_behavior_surface.dart';
+import 'the_djed/presentation/djed_event_block_visual.dart';
 import 'the_reading_house_flow.dart';
+import 'the_reading_house/reading_house_room_repository.dart';
+import 'the_reading_house/presentation/reading_house_day_behavior_surface.dart';
+import 'the_reading_house/presentation/reading_house_day_presentation.dart';
+import 'the_reading_house/presentation/reading_house_event_block_behavior_surface.dart';
 import 'reading_house_private_margin_store.dart';
 import 'reading_house_shared_fragments_repo.dart';
+import 'the_kar/the_kar.dart';
 import 'maat_decan_flow.dart';
 import 'living_text_day_one_node_store.dart';
 import 'decan_id.dart';
@@ -100,7 +102,8 @@ export 'presentation/instrument_event_presentation_frame.dart'
     show
         CalendarEventDetailSheetCoordinator,
         DayViewBottomSheetFrame,
-        dayViewBottomSheetBackplateKey;
+        dayViewBottomSheetBackplateKey,
+        showCalendarEventDetailSheetModal;
 
 const double _kMinEventBlockHeight = 56.0;
 const double _kTimelineLabelWidth = 60.0;
@@ -239,8 +242,8 @@ CalendarEventVisualStyle _dayViewVisualForEvent(
 }) {
   return resolveCalendarEventVisualStyle(
     eventColor: event.color,
-    flowName: flow?.name,
-    flowNotes: flow?.notes,
+    flowName: flow?.name ?? event.flowName,
+    flowNotes: flow?.notes ?? event.flowNotes,
     eventTitle: event.title,
     behaviorPayload: event.behaviorPayload,
     isReminder: isReminder,
@@ -407,37 +410,6 @@ CalendarCompletionPickerStyle _dayViewCompletionPickerStyle(
     buttonVisualDensity: const VisualDensity(horizontal: -1, vertical: -1),
   );
 }
-
-const CalendarCompletionPickerStyle _offeringTableCompletionPickerStyle =
-    CalendarCompletionPickerStyle(
-      containerPadding: EdgeInsets.zero,
-      containerColor: Colors.transparent,
-      containerBorderColor: Colors.transparent,
-      containerBorderWidth: 0,
-      containerRadius: 0,
-      label: '',
-      labelColor: Colors.transparent,
-      labelFontSize: 0,
-      labelFontWeight: FontWeight.w400,
-      labelGap: 0,
-      buttonGap: 9,
-      selectedForegroundColor: Color(0xFFE8B27C),
-      selectedBackgroundColor: Color(0x21C08A52),
-      selectedBorderColor: Color(0xFFE8B27C),
-      unselectedForegroundColor: Color(0xFF9E9A94),
-      unselectedBackgroundColor: Colors.transparent,
-      unselectedBorderColor: Color(0x2EE8E2D6),
-      buttonBorderWidth: 1,
-      buttonPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      buttonRadius: 12,
-      buttonFontSize: 16.5,
-      buttonFontWeight: FontWeight.w400,
-      buttonFontFamily: _dayViewSerifFamily,
-      buttonFontFamilyFallback: _dayViewSerifFallback,
-      buttonMinimumSize: Size(0, 45),
-      buttonTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      buttonVisualDensity: VisualDensity.compact,
-    );
 
 enum _RitualCompletionFeedbackLevel { observed, partial, skipped }
 
@@ -840,33 +812,12 @@ bool _isTrackSkyFlowName(String? name) {
   return normalized == 'follow the sky' || normalized == 'track the sky';
 }
 
-bool _isDawnHouseRiteFlowName(String? name) {
-  return name?.trim().toLowerCase() == kDawnHouseRiteTitle.toLowerCase();
-}
-
 bool _isEveningThresholdFlowName(String? name) {
   return name?.trim().toLowerCase() == kEveningThresholdTitle.toLowerCase();
 }
 
-bool _isEveningThresholdRiteFlowName(String? name) {
-  return resolveMaatFlowKind(flowName: name) ==
-      MaatFlowKind.eveningThresholdRite;
-}
-
-bool _isTheWeighingFlowName(String? name) {
-  return name?.trim().toLowerCase() == kTheWeighingTitle.toLowerCase();
-}
-
 bool _isOfferingTableFlowName(String? name) {
   return name?.trim().toLowerCase() == kOfferingTableTitle.toLowerCase();
-}
-
-bool _isTheTendingFlowName(String? name) {
-  return name?.trim().toLowerCase() == kTheTendingTitle.toLowerCase();
-}
-
-bool _isKeptWordFlowName(String? name) {
-  return name?.trim().toLowerCase() == kKeptWordTitle.toLowerCase();
 }
 
 bool _isTheCourseFlowName(String? name) {
@@ -877,24 +828,63 @@ bool _isMoonReturnFlowName(String? name) {
   return name?.trim().toLowerCase() == kMoonReturnTitle.toLowerCase();
 }
 
-bool _isTheWagFlowName(String? name) {
-  return name?.trim().toLowerCase() == kTheWagTitle.toLowerCase();
-}
-
 bool _isDecanWatchFlowName(String? name) {
   return name?.trim().toLowerCase() == kDecanWatchTitle.toLowerCase();
-}
-
-bool _isDaysOutsideYearFlowName(String? name) {
-  return name?.trim().toLowerCase() == kDaysOutsideTheYearTitle.toLowerCase();
 }
 
 bool _isOpenHandFlowName(String? name) {
   return name?.trim().toLowerCase() == kTheOpenHandTitle.toLowerCase();
 }
 
-bool _isDjedFlowName(String? name) {
-  return name?.trim().toLowerCase() == kTheDjedTitle.toLowerCase();
+DjedDayVisualFixture _djedV2DayVisualFixture(
+  DjedV2Event event, {
+  Map<String, dynamic>? behaviorPayload,
+}) {
+  final supportName = behaviorPayload?['support_name']?.toString().trim();
+  return djedDayVisualFixtureForEvent(event, supportName: supportName);
+}
+
+List<DjedSupportFixture> _djedV2SupportFixtures(
+  String? flowNotes,
+  Map<String, dynamic>? behaviorPayload,
+) {
+  final configuration = djedV2ConfigurationFromNotes(flowNotes);
+  if (configuration != null) {
+    return <DjedSupportFixture>[
+      for (final support in configuration.supports)
+        DjedSupportFixture(
+          name: support.name,
+          condition: switch (support.initialCondition) {
+            DjedV2SupportCondition.holding => DjedSupportCondition.holding,
+            DjedV2SupportCondition.underPressure =>
+              DjedSupportCondition.underPressure,
+            DjedV2SupportCondition.wobbling => DjedSupportCondition.wobbling,
+          },
+        ),
+    ];
+  }
+  final activeSlot =
+      djedV2EventForEvent(behaviorPayload: behaviorPayload)?.supportSlot ?? 1;
+  final activeName = behaviorPayload?['support_name']?.toString().trim() ?? '';
+  final activeCondition = DjedV2SupportConditionX.fromKey(
+    behaviorPayload?['support_initial_condition']?.toString(),
+  );
+  return <DjedSupportFixture>[
+    for (var slot = 1; slot <= 4; slot++)
+      DjedSupportFixture(
+        name: slot == activeSlot ? activeName : '',
+        condition: slot == activeSlot
+            ? switch (activeCondition) {
+                DjedV2SupportCondition.holding => DjedSupportCondition.holding,
+                DjedV2SupportCondition.underPressure =>
+                  DjedSupportCondition.underPressure,
+                DjedV2SupportCondition.wobbling =>
+                  DjedSupportCondition.wobbling,
+                null => DjedSupportCondition.unassessed,
+              }
+            : DjedSupportCondition.unassessed,
+      ),
+  ];
 }
 
 bool _isReadingHouseFlowName(String? name) {
@@ -1100,38 +1090,16 @@ List<String> _maatGraphNodeSlugsForFlow({
   String? eventCategory,
 }) {
   switch (flowKey) {
-    case kDawnHouseRiteFlowKey:
-      return const <String>['maat', 'ra'];
     case kEveningThresholdFlowKey:
       return const <String>['maat', 'duat', 'ra'];
-    case kEveningThresholdRiteFlowKey:
-      return const <String>['maat', 'ra', 'ausar'];
-    case kTheWeighingFlowKey:
-      return const <String>['maat', 'djehuty'];
     case kOfferingTableFlowKey:
       return const <String>['maat', 'nile', 'ka'];
-    case kTheTendingFlowKey:
-      return const <String>['maat', 'heru', 'aset'];
-    case kKeptWordFlowKey:
-      return const <String>['maat', 'ptah', 'djehuty'];
     case kTheCourseFlowKey:
       return const <String>['maat', 'ra', 'khepri', 'decans'];
     case kMoonReturnFlowKey:
       return const <String>['maat', 'heru', 'djehuty'];
-    case kTheWagFlowKey:
-      return const <String>['maat', 'ausar', 'anpu', 'ren'];
     case kDecanWatchFlowKey:
       return const <String>['maat', 'nut', 'ra', 'decans'];
-    case kDaysOutsideTheYearFlowKey:
-      return const <String>[
-        'maat',
-        'epagomenal_days',
-        'ausar',
-        'heru',
-        'set',
-        'aset',
-        'nebet_het',
-      ];
     case kTheOpenHandFlowKey:
       return const <String>['maat', 'hapy', 'nile'];
     case kTheDjedFlowKey:
@@ -1156,8 +1124,6 @@ List<String> _maatGraphNodeSlugsForFlow({
       return const <String>['maat', 'djehuty', 'hapy', 'renenutet'];
     case kTheAutobiographyFlowKey:
       return const <String>['maat', 'ren', 'ka', 'djehuty'];
-    case kFirstArrangementFlowKey:
-      return const <String>['maat', 'ptah', 'anpu', 'hapy'];
     case kLivingPatternFlowKey:
       return const <String>['maat', 'ra', 'hapy', 'anpu', 'khepri'];
     case kTrueNameFlowKey:
@@ -1179,25 +1145,36 @@ List<String> _maatGraphNodeSlugsForFlow({
   return const <String>['maat'];
 }
 
-EveningThresholdRiteDay? _eveningThresholdRiteDayForTitle(String? title) {
-  final match = RegExp(
-    r'^\s*Day\s+(\d{1,2})\s*:',
-    caseSensitive: false,
-  ).firstMatch(title?.trim() ?? '');
-  final dayNumber = int.tryParse(match?.group(1) ?? '');
-  if (dayNumber == null ||
-      dayNumber < 1 ||
-      dayNumber > kEveningThresholdRiteDays.length) {
-    return null;
-  }
-  return kEveningThresholdRiteDays[dayNumber - 1];
-}
-
 _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
   EventItem event,
   FlowData? flow,
 ) {
   final flowName = flow?.name;
+  final flowKind = resolveMaatFlowKind(
+    flowName: flowName,
+    flowNotes: flow?.notes,
+    behaviorPayload: event.behaviorPayload,
+  );
+  if (flowKind != null &&
+      kArchivedCompatibilityMaatFlowKinds.contains(flowKind)) {
+    return null;
+  }
+  if (flowKind == MaatFlowKind.theKar) {
+    final stageIndex = karStageIndexFromPayload(event.behaviorPayload);
+    return _MaatFlowCompletionContext(
+      flowKey: kKarFlowKey,
+      flowTitle: kKarTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: stageIndex + 1,
+      flowDay: kKarStages[stageIndex].day,
+      sharePromptOnComplete: false,
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kKarFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
   final followSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
     event.behaviorPayload,
   )?.trim();
@@ -1217,21 +1194,6 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
       ),
     );
   }
-  if (_isDawnHouseRiteFlowName(flowName)) {
-    final day = dawnHouseRiteDayForEvent(title: event.title);
-    return _MaatFlowCompletionContext(
-      flowKey: kDawnHouseRiteFlowKey,
-      flowTitle: kDawnHouseRiteTitle,
-      eventTitle: event.title,
-      eventCategory: event.category,
-      dayNumber: day?.dayNumber,
-      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
-        flowKey: kDawnHouseRiteFlowKey,
-        eventCategory: event.category,
-      ),
-    );
-  }
-
   if (_isEveningThresholdFlowName(flowName)) {
     final thresholdEvent = eveningThresholdEventForEvent(
       title: event.title,
@@ -1249,21 +1211,6 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
       showPartly: false,
       graphNodeSlugs: _maatGraphNodeSlugsForFlow(
         flowKey: kEveningThresholdFlowKey,
-        eventCategory: event.category,
-      ),
-    );
-  }
-
-  if (_isEveningThresholdRiteFlowName(flowName)) {
-    final day = _eveningThresholdRiteDayForTitle(event.title);
-    return _MaatFlowCompletionContext(
-      flowKey: kEveningThresholdRiteFlowKey,
-      flowTitle: kEveningThresholdRiteTitle,
-      eventTitle: event.title,
-      eventCategory: event.category,
-      dayNumber: day?.dayNumber,
-      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
-        flowKey: kEveningThresholdRiteFlowKey,
         eventCategory: event.category,
       ),
     );
@@ -1303,28 +1250,6 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
     );
   }
 
-  if (_isTheWagFlowName(flowName)) {
-    final wagEvent = wagEventForEvent(title: event.title);
-    if (wagEvent == null) return null;
-    return _MaatFlowCompletionContext(
-      flowKey: kTheWagFlowKey,
-      flowTitle: kTheWagTitle,
-      eventTitle: event.title,
-      eventCategory: event.category,
-      eventNumber: wagEvent.eventNumber,
-      dayNumber: wagEvent.kemeticDay,
-      sharePromptOnComplete: wagEvent.sharePromptOnComplete,
-      shareButtonLabel: 'Share what was confirmed',
-      extraStatusLabels: wagEvent.kind == WagEventKind.feast
-          ? const <String, String>{'names_spoken': 'Names spoken'}
-          : const <String, String>{},
-      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
-        flowKey: kTheWagFlowKey,
-        eventCategory: event.category,
-      ),
-    );
-  }
-
   if (_isDecanWatchFlowName(flowName)) {
     return _MaatFlowCompletionContext(
       flowKey: kDecanWatchFlowKey,
@@ -1338,25 +1263,6 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
       },
       graphNodeSlugs: _maatGraphNodeSlugsForFlow(
         flowKey: kDecanWatchFlowKey,
-        eventCategory: event.category,
-      ),
-    );
-  }
-
-  if (_isDaysOutsideYearFlowName(flowName)) {
-    final daysEvent = daysOutsideEventForEvent(title: event.title);
-    if (daysEvent == null) return null;
-    return _MaatFlowCompletionContext(
-      flowKey: kDaysOutsideTheYearFlowKey,
-      flowTitle: kDaysOutsideTheYearTitle,
-      eventTitle: event.title,
-      eventCategory: event.category,
-      eventNumber: daysEvent.eventNumber,
-      dayNumber: daysEvent.kDay,
-      sharePromptOnComplete: daysEvent.optionalShareOnComplete,
-      shareButtonLabel: 'Share one word',
-      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
-        flowKey: kDaysOutsideTheYearFlowKey,
         eventCategory: event.category,
       ),
     );
@@ -1381,26 +1287,24 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
     );
   }
 
-  if (_isDjedFlowName(flowName)) {
-    final djedEvent = djedEventForEvent(title: event.title);
-    if (djedEvent == null) return null;
-    return _MaatFlowCompletionContext(
-      flowKey: kTheDjedFlowKey,
-      flowTitle: kTheDjedTitle,
-      eventTitle: event.title,
-      eventCategory: event.category,
-      eventNumber: djedEvent.eventNumber,
-      flowDay: djedEvent.flowDay,
-      sharePromptOnComplete: djedEvent.sharePromptOnComplete,
-      shareButtonLabel: 'Share what holds',
-      extraStatusLabels: djedEvent.physicalRaising
-          ? const <String, String>{'raised': 'Raised'}
-          : const <String, String>{},
-      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+  if (_eventMaatFlowKind(event) == MaatFlowKind.theDjed) {
+    final djedV2Event = _djedV2EventForItem(event);
+    if (djedV2Event != null) {
+      return _MaatFlowCompletionContext(
         flowKey: kTheDjedFlowKey,
+        flowTitle: kTheDjedTitle,
+        eventTitle: event.title,
         eventCategory: event.category,
-      ),
-    );
+        eventNumber: djedV2Event.eventNumber,
+        flowDay: djedV2Event.flowDay,
+        sharePromptOnComplete: false,
+        shareButtonLabel: 'Share what holds',
+        graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+          flowKey: kTheDjedFlowKey,
+          eventCategory: event.category,
+        ),
+      );
+    }
   }
 
   if (_isReadingHouseFlowName(flowName)) {
@@ -1451,24 +1355,6 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
     );
   }
 
-  if (_isTheWeighingFlowName(flowName)) {
-    final weighingEvent = theWeighingEventForEvent(title: event.title);
-    if (weighingEvent == null) return null;
-    return _MaatFlowCompletionContext(
-      flowKey: kTheWeighingFlowKey,
-      flowTitle: kTheWeighingTitle,
-      eventTitle: event.title,
-      eventCategory: event.category,
-      eventNumber: weighingEvent.eventNumber,
-      flowDay: weighingEvent.flowDay,
-      sharePromptOnComplete: weighingEvent.sharePromptOnComplete,
-      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
-        flowKey: kTheWeighingFlowKey,
-        eventCategory: event.category,
-      ),
-    );
-  }
-
   if (_isOfferingTableFlowName(flowName)) {
     final offeringDay = offeringTableDayForEvent(title: event.title);
     if (offeringDay == null) return null;
@@ -1482,49 +1368,6 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
       shareButtonLabel: 'Share what the table held',
       graphNodeSlugs: _maatGraphNodeSlugsForFlow(
         flowKey: kOfferingTableFlowKey,
-        eventCategory: event.category,
-      ),
-    );
-  }
-
-  if (_isTheTendingFlowName(flowName)) {
-    final tendingEvent = theTendingEventForEvent(title: event.title);
-    if (tendingEvent == null) return null;
-    return _MaatFlowCompletionContext(
-      flowKey: kTheTendingFlowKey,
-      flowTitle: kTheTendingTitle,
-      eventTitle: event.title,
-      eventCategory: event.category,
-      eventNumber: tendingEvent.eventNumber,
-      flowDay: tendingEvent.flowDay,
-      sharePromptOnComplete: tendingEvent.sharePromptOnComplete,
-      shareButtonLabel: 'Share what was restored',
-      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
-        flowKey: kTheTendingFlowKey,
-        eventCategory: event.category,
-      ),
-    );
-  }
-
-  if (_isKeptWordFlowName(flowName)) {
-    final keptWordEvent = keptWordEventForEvent(title: event.title);
-    if (keptWordEvent == null) return null;
-    return _MaatFlowCompletionContext(
-      flowKey: kKeptWordFlowKey,
-      flowTitle: kKeptWordTitle,
-      eventTitle: event.title,
-      eventCategory: event.category,
-      eventNumber: keptWordEvent.eventNumber,
-      flowDay: keptWordEvent.flowDay,
-      sharePromptOnComplete: keptWordEvent.sharePromptOnComplete,
-      shareButtonLabel: 'Share the kept word',
-      extraStatusLabels: keptWordEvent.eventNumber == 5
-          ? const <String, String>{
-              'conversation_pending': 'Conversation pending',
-            }
-          : const <String, String>{},
-      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
-        flowKey: kKeptWordFlowKey,
         eventCategory: event.category,
       ),
     );
@@ -1600,7 +1443,7 @@ Widget? buildDayViewMaatFlowCompletionPanel({
       event.flowId == null) {
     return null;
   }
-  final responseSpecs = resolveMaatFlowResponseSpecs(
+  final responseSpecs = resolveActiveMaatFlowResponseSpecs(
     flowKey: completion.flowKey,
     surface: MaatFlowResponseSurface.calendarSheet,
     eventKey: _maatFlowResponseEventKey(completion),
@@ -1622,134 +1465,6 @@ Widget? buildDayViewMaatFlowCompletionPanel({
     onAddReflection: onAddReflection,
     observedButtonKey: observedButtonKey,
     reloadSignal: reloadSignal,
-  );
-}
-
-Widget _buildDawnHouseRiteAccent({required bool compact, double size = 24}) {
-  final sunSize = compact ? size * 0.46 : size * 0.56;
-  return SizedBox(
-    width: size + 10,
-    height: size,
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned(
-          left: 1,
-          right: 1,
-          bottom: 7,
-          child: Container(
-            height: 1.5,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  Color(0xFFFFE7B5),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: 4,
-          bottom: 7,
-          child: Container(
-            width: sunSize,
-            height: sunSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFFFD27A),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFFC166).withValues(alpha: 0.5),
-                  blurRadius: compact ? 7 : 11,
-                  spreadRadius: compact ? 0 : 1,
-                ),
-              ],
-            ),
-          ),
-        ),
-        Positioned(
-          right: 1,
-          bottom: 0,
-          child: Container(
-            width: size + 7,
-            height: size * 0.36,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFF331E32).withValues(alpha: 0.72),
-                  const Color(0xFF130E1C).withValues(alpha: 0.92),
-                ],
-              ),
-              borderRadius: BorderRadius.vertical(
-                top: Radius.elliptical(size, size * 0.34),
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildEveningThresholdRiteAccent({
-  required bool compact,
-  double size = 24,
-}) {
-  final moonSize = compact ? size * 0.32 : size * 0.4;
-  return SizedBox(
-    width: size + 10,
-    height: size,
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned(
-          left: 4,
-          top: 4,
-          child: Container(
-            width: moonSize,
-            height: moonSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFF4EEFF).withValues(alpha: 0.94),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFAFC6FF).withValues(alpha: 0.45),
-                  blurRadius: compact ? 6 : 9,
-                ),
-              ],
-            ),
-          ),
-        ),
-        Positioned(
-          left: moonSize * 0.52 + 4,
-          top: 3,
-          child: Container(
-            width: moonSize,
-            height: moonSize,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFF111634),
-            ),
-          ),
-        ),
-        Positioned(
-          right: size * 0.16,
-          top: size * 0.18,
-          child: Container(
-            width: compact ? 2.2 : 3,
-            height: compact ? 2.2 : 3,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFF7F0FF).withValues(alpha: 0.86),
-            ),
-          ),
-        ),
-      ],
-    ),
   );
 }
 
@@ -1795,7 +1510,7 @@ class EventLayoutEngine {
   }) {
     if (events.isEmpty) return [];
 
-    final sortedEvents = [...events]..sort(_compareEventItemsBySchedule);
+    final sortedEvents = [...events]..sort(compareEventItemsBySchedule);
     final overlapGroups = _buildOverlapGroups(
       sortedEvents,
       textScale: textScale,
@@ -1836,7 +1551,7 @@ class EventLayoutEngine {
     }
 
     blocks.sort((a, b) {
-      final scheduleCmp = _compareEventItemsBySchedule(a.event, b.event);
+      final scheduleCmp = compareEventItemsBySchedule(a.event, b.event);
       if (scheduleCmp != 0) return scheduleCmp;
 
       final leftCmp = a.leftOffset.compareTo(b.leftOffset);
@@ -2081,6 +1796,8 @@ class EventItem {
   final int endMin;
   final DateTime? canonicalEnd;
   final int? flowId;
+  final String? flowName;
+  final String? flowNotes;
   final Color color;
   final Color? manualColor;
   final bool allDay;
@@ -2102,6 +1819,8 @@ class EventItem {
     required this.endMin,
     this.canonicalEnd,
     this.flowId,
+    this.flowName,
+    this.flowNotes,
     required this.color,
     this.manualColor,
     required this.allDay,
@@ -2111,6 +1830,65 @@ class EventItem {
     this.behaviorPayload,
     this.hasCanonicalSchedule = false,
   });
+
+  factory EventItem.fromTimedNote({
+    String? id,
+    String? clientEventId,
+    String? calendarId,
+    String? calendarName,
+    required String title,
+    String? detail,
+    String? location,
+    required bool allDay,
+    int? startHour,
+    int? startMinute,
+    int? endHour,
+    int? endMinute,
+    required Color color,
+    Color? manualColor,
+    int? flowId,
+    String? flowName,
+    String? flowNotes,
+    String? category,
+    bool isReminder = false,
+    String? reminderId,
+    DateTime? canonicalEnd,
+    Map<String, dynamic>? behaviorPayload,
+  }) {
+    final startMin = allDay
+        ? 9 * 60
+        : (startHour ?? 9) * 60 + (startMinute ?? 0);
+    final endMin = allDay ? 17 * 60 : (endHour ?? 17) * 60 + (endMinute ?? 0);
+    return EventItem(
+      id: id,
+      clientEventId: clientEventId,
+      calendarId: calendarId,
+      calendarName: calendarName,
+      title: title,
+      detail: detail,
+      location: location,
+      startMin: startMin,
+      endMin: endMin,
+      canonicalEnd: canonicalEnd,
+      flowId: flowId,
+      flowName: flowName,
+      flowNotes: flowNotes,
+      color: color,
+      manualColor: manualColor,
+      allDay: allDay,
+      category: category,
+      isReminder: isReminder,
+      reminderId: reminderId,
+      behaviorPayload: behaviorPayload,
+      hasCanonicalSchedule: noteHasCanonicalSchedule(
+        allDay: allDay,
+        startHour: startHour,
+        startMinute: startMinute,
+        endHour: endHour,
+        endMinute: endMinute,
+      ),
+    );
+  }
 
   @override
   String toString() {
@@ -2146,6 +1924,38 @@ class DayViewSheetEventTarget {
   });
 }
 
+enum _DayViewInstrumentKind {
+  none,
+  followSky,
+  offeringTable,
+  readingHouse,
+  djed,
+  kar,
+}
+
+class _DayViewInstrumentPresentation {
+  const _DayViewInstrumentPresentation({
+    required this.kind,
+    this.completionContext,
+    this.followSkyClientEventId,
+    this.followSkyEventId,
+    this.offeringTableDay,
+    this.readingHouseSitting,
+    this.djedEvent,
+  });
+
+  const _DayViewInstrumentPresentation.none()
+    : this(kind: _DayViewInstrumentKind.none);
+
+  final _DayViewInstrumentKind kind;
+  final _MaatFlowCompletionContext? completionContext;
+  final String? followSkyClientEventId;
+  final String? followSkyEventId;
+  final OfferingTableDay? offeringTableDay;
+  final ReadingHouseSitting? readingHouseSitting;
+  final DjedV2Event? djedEvent;
+}
+
 @visibleForTesting
 DayViewSheetEventTarget? sameDayEndFlowSuccessor({
   required DayViewSheetEventTarget target,
@@ -2153,9 +1963,9 @@ DayViewSheetEventTarget? sameDayEndFlowSuccessor({
   required int endingFlowId,
 }) {
   final ordered = events.toList(growable: false)
-    ..sort(_compareEventItemsBySchedule);
+    ..sort(compareEventItemsBySchedule);
   final targetIndex = ordered.indexWhere(
-    (candidate) => _eventsShareStableIdentity(candidate, target.event),
+    (candidate) => eventsShareStableIdentity(candidate, target.event),
   );
   if (targetIndex < 0) return null;
 
@@ -2211,6 +2021,8 @@ class CalendarEventDetailSheet extends StatefulWidget {
     this.followSkyCatalog,
     this.followSkyInstrumentProvider,
     this.followSkyNow,
+    this.karRepository,
+    this.readingHouseRoomDataSource,
     this.initialPresentation = eventWorkspacePresentationDetail,
   });
 
@@ -2278,6 +2090,8 @@ class CalendarEventDetailSheet extends StatefulWidget {
   final SkyCatalog? followSkyCatalog;
   final SkyInstrumentDataProvider? followSkyInstrumentProvider;
   final DateTime Function()? followSkyNow;
+  final KarRepository? karRepository;
+  final ReadingHouseRoomDataSource? readingHouseRoomDataSource;
   final String initialPresentation;
 
   @override
@@ -2298,10 +2112,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   bool _onboardingDetailPromptScheduled = false;
   final OfferingTableLocalStore _offeringTableLocalStore =
       const OfferingTableLocalStore();
-  final Map<({int flowId, int dayNumber}), String>
-  _offeringTableIntentionsByDay = <({int flowId, int dayNumber}), String>{};
-  final Set<({int flowId, int dayNumber})> _offeringTableLoadingIntentions =
-      <({int flowId, int dayNumber})>{};
+  final Map<({int flowId, int dayNumber}), OfferingTableDayViewState>
+  _offeringTableDayStates =
+      <({int flowId, int dayNumber}), OfferingTableDayViewState>{};
+  final Set<int> _offeringTableLoadingFlowStates = <int>{};
 
   @override
   void initState() {
@@ -2323,7 +2137,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       widget.onPresentationChanged?.call(_presentation);
     });
     _primeTrackSkyFlowDataForEvent(_currentTarget.event);
-    _primeOfferingTableIntentionForEvent(_currentTarget.event);
+    _primeOfferingTableDayStatesForEvent(_currentTarget.event);
     _followSkyCatalog = widget.followSkyCatalog;
     if (_followSkyCatalog == null) unawaited(_loadFollowSkyCatalog());
   }
@@ -2380,19 +2194,106 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
 
   FlowData? _chromeFlowForId(int? flowId) => widget.flowResolver?.call(flowId);
 
-  bool _isOfferingTableInstrumentEvent(EventItem event) {
+  _DayViewInstrumentPresentation _instrumentPresentationForTarget(
+    DayViewSheetEventTarget target, {
+    bool enabled = true,
+  }) {
+    if (!enabled ||
+        _detailSheetTargetKey(target) !=
+            _detailSheetTargetKey(_currentTarget)) {
+      return const _DayViewInstrumentPresentation.none();
+    }
+
+    final event = target.event;
     final flow = _chromeFlowForId(event.flowId);
-    return event.flowId != null &&
+    final completionContext = _maatFlowCompletionContextForEvent(event, flow);
+    final followSkyClientEventId = event.clientEventId?.trim();
+    final followSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
+      event.behaviorPayload,
+    );
+    if (completionContext != null &&
+        FollowSkyObservationRoute.matches(
+          clientEventId: followSkyClientEventId,
+          behaviorPayload: event.behaviorPayload,
+          catalog: _followSkyCatalog,
+        ) &&
+        followSkyEventId != null &&
+        followSkyEventId.isNotEmpty) {
+      return _DayViewInstrumentPresentation(
+        kind: _DayViewInstrumentKind.followSky,
+        completionContext: completionContext,
+        followSkyClientEventId: followSkyClientEventId,
+        followSkyEventId: followSkyEventId,
+      );
+    }
+
+    final flowKind = resolveMaatFlowKind(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      behaviorPayload: event.behaviorPayload,
+    );
+    final authoredFlowKind = resolveMaatFlowKind(
+      flowNotes: flow?.notes,
+      behaviorPayload: event.behaviorPayload,
+    );
+    final offeringTableDay =
         isOfferingTableFlowReference(
           flowName: flow?.name,
           flowNotes: flow?.notes,
           behaviorPayload: event.behaviorPayload,
-        ) &&
-        offeringTableDayForEvent(
-              title: event.title,
-              behaviorPayload: event.behaviorPayload,
-            ) !=
-            null;
+        )
+        ? offeringTableDayForEvent(
+            title: event.title,
+            behaviorPayload: event.behaviorPayload,
+          )
+        : null;
+    if (authoredFlowKind == MaatFlowKind.offeringTable &&
+        completionContext != null &&
+        event.flowId != null &&
+        offeringTableDay != null) {
+      return _DayViewInstrumentPresentation(
+        kind: _DayViewInstrumentKind.offeringTable,
+        completionContext: completionContext,
+        offeringTableDay: offeringTableDay,
+      );
+    }
+
+    final readingHouseSitting = authoredFlowKind == MaatFlowKind.readingHouse
+        ? readingHouseSittingForEvent(
+            title: event.title,
+            behaviorPayload: event.behaviorPayload,
+          )
+        : null;
+    if (completionContext != null &&
+        event.flowId != null &&
+        event.calendarId?.trim().isNotEmpty == true &&
+        event.clientEventId?.trim().isNotEmpty == true &&
+        readingHouseSitting != null) {
+      return _DayViewInstrumentPresentation(
+        kind: _DayViewInstrumentKind.readingHouse,
+        completionContext: completionContext,
+        readingHouseSitting: readingHouseSitting,
+      );
+    }
+
+    final djedEvent = _djedV2EventForItem(event);
+    if (authoredFlowKind == MaatFlowKind.theDjed && djedEvent != null) {
+      return _DayViewInstrumentPresentation(
+        kind: _DayViewInstrumentKind.djed,
+        completionContext: completionContext,
+        djedEvent: djedEvent,
+      );
+    }
+
+    if (completionContext != null &&
+        event.flowId != null &&
+        flowKind == MaatFlowKind.theKar) {
+      return _DayViewInstrumentPresentation(
+        kind: _DayViewInstrumentKind.kar,
+        completionContext: completionContext,
+      );
+    }
+    return const _DayViewInstrumentPresentation.none();
   }
 
   bool _isRepeatingNoteFlowId(int? flowId) {
@@ -2446,7 +2347,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   }
 
   String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
-      '${target.ky}:${target.km}:${target.kd}:${_eventIdentityKey(target.event)}';
+      '${target.ky}:${target.km}:${target.kd}:${eventItemIdentityKey(target.event)}';
 
   ({List<DayViewSheetEventTarget> pages, int currentIndex})
   _detailSheetPagesForTarget(DayViewSheetEventTarget target) {
@@ -2500,7 +2401,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         previousTarget.ky != nextTarget.ky ||
         previousTarget.km != nextTarget.km ||
         previousTarget.kd != nextTarget.kd ||
-        !_eventsShareStableIdentity(previousTarget.event, nextTarget.event);
+        !eventsShareStableIdentity(previousTarget.event, nextTarget.event);
     setState(() {
       _currentTarget = nextTarget;
       if (identityChanged) {
@@ -2512,7 +2413,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       widget.onPresentationChanged?.call(_presentation);
     }
     _primeTrackSkyFlowDataForEvent(nextTarget.event);
-    _primeOfferingTableIntentionForEvent(nextTarget.event);
+    _primeOfferingTableDayStatesForEvent(nextTarget.event);
     if (widget.onNavigateToDay != null &&
         (nextTarget.ky != previousTarget.ky ||
             nextTarget.km != previousTarget.km ||
@@ -2612,7 +2513,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     }());
   }
 
-  ({int flowId, int dayNumber})? _offeringTableIntentionKeyForEvent(
+  ({int flowId, int dayNumber})? _offeringTableDayStateKeyForEvent(
     EventItem event,
   ) {
     final flowId = event.flowId;
@@ -2633,45 +2534,77 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     return (flowId: flowId, dayNumber: day.dayNumber);
   }
 
-  void _primeOfferingTableIntentionForEvent(EventItem event) {
-    final key = _offeringTableIntentionKeyForEvent(event);
-    if (key == null ||
-        _offeringTableIntentionsByDay.containsKey(key) ||
-        !_offeringTableLoadingIntentions.add(key)) {
-      return;
-    }
+  void _primeOfferingTableDayStatesForEvent(EventItem event) {
+    final key = _offeringTableDayStateKeyForEvent(event);
+    if (key == null || !_offeringTableLoadingFlowStates.add(key.flowId)) return;
     unawaited(() async {
       try {
-        final intention = await _offeringTableLocalStore.loadIntention(
-          key.flowId,
-          key.dayNumber,
-        );
+        final loaded =
+            <({int flowId, int dayNumber}), OfferingTableDayViewState>{};
+        for (var day = 1; day <= 30; day++) {
+          final raw = await _offeringTableLocalStore.loadDayViewState(
+            key.flowId,
+            day,
+          );
+          final state = OfferingTableDayViewState.fromJson(raw);
+          if (day == key.dayNumber && state.isEmpty) {
+            final legacy = await _offeringTableLocalStore.loadIntention(
+              key.flowId,
+              day,
+            );
+            if (legacy.isNotEmpty) {
+              final contract = offeringTableDayViewContract(day);
+              final firstName = contract.moves
+                  .where((move) => move.kind == OfferingTableMoveKind.name)
+                  .firstOrNull;
+              if (firstName != null) {
+                state.words[firstName.slot ?? firstName.id] = legacy;
+              }
+            }
+          }
+          loaded[(flowId: key.flowId, dayNumber: day)] = state;
+        }
         if (!mounted) return;
-        setState(() => _offeringTableIntentionsByDay[key] = intention);
+        setState(() => _offeringTableDayStates.addAll(loaded));
       } finally {
-        _offeringTableLoadingIntentions.remove(key);
+        _offeringTableLoadingFlowStates.remove(key.flowId);
       }
     }());
   }
 
-  String _offeringTableIntentionForEvent(EventItem event) {
-    final key = _offeringTableIntentionKeyForEvent(event);
-    return key == null ? '' : (_offeringTableIntentionsByDay[key] ?? '');
+  OfferingTableDayViewState _offeringTableDayStateForEvent(EventItem event) {
+    final key = _offeringTableDayStateKeyForEvent(event);
+    return key == null
+        ? OfferingTableDayViewState()
+        : (_offeringTableDayStates[key] ?? OfferingTableDayViewState());
   }
 
-  Future<void> _saveOfferingTableIntentionForEvent(
+  Map<int, OfferingTableDayViewState> _offeringTableCourseStatesForEvent(
     EventItem event,
-    String value,
+  ) {
+    final key = _offeringTableDayStateKeyForEvent(event);
+    if (key == null) return const <int, OfferingTableDayViewState>{};
+    return <int, OfferingTableDayViewState>{
+      for (var day = 1; day <= 30; day++)
+        if (_offeringTableDayStates[(flowId: key.flowId, dayNumber: day)] !=
+            null)
+          day: _offeringTableDayStates[(flowId: key.flowId, dayNumber: day)]!,
+    };
+  }
+
+  Future<void> _saveOfferingTableDayStateForEvent(
+    EventItem event,
+    OfferingTableDayViewState state,
   ) async {
-    final key = _offeringTableIntentionKeyForEvent(event);
+    final key = _offeringTableDayStateKeyForEvent(event);
     if (key == null) return;
-    await _offeringTableLocalStore.saveIntention(
+    await _offeringTableLocalStore.saveDayViewState(
       key.flowId,
       key.dayNumber,
-      value,
+      state.isEmpty ? <String, dynamic>{} : state.toJson(),
     );
     if (!mounted) return;
-    setState(() => _offeringTableIntentionsByDay[key] = value.trim());
+    setState(() => _offeringTableDayStates[key] = state.copy());
   }
 
   TrackSkyEvent? _resolveTrackSkyEvent(
@@ -3166,7 +3099,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       eventId: event.id,
       clientEventId: event.clientEventId,
       reminderId: event.reminderId,
-      fallback: _eventIdentityKey(event),
+      fallback: eventItemIdentityKey(event),
     );
   }
 
@@ -3353,10 +3286,11 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     await _removeCompletionContinuity(target, sourceType: sourceType);
   }
 
-  Future<void> _commitFollowSkyCompletion({
+  Future<void> _commitMaatFlowCompletion({
     required DayViewSheetEventTarget target,
     required _MaatFlowCompletionContext completion,
     required CompletionStatus status,
+    Map<String, dynamic> additionalMetadata = const <String, dynamic>{},
   }) async {
     final clientEventId = target.event.clientEventId?.trim();
     final flowId = target.event.flowId;
@@ -3374,10 +3308,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final completedOnDate = DateUtils.dateOnly(
       KemeticMath.toGregorian(target.ky, target.km, target.kd),
     );
-    final metadata = completion.metadataFor(
-      status: status.maatStatusName,
-      completedOnDate: completedOnDate,
-    );
+    final metadata = <String, dynamic>{
+      ...completion.metadataFor(
+        status: status.maatStatusName,
+        completedOnDate: completedOnDate,
+      ),
+      ...additionalMetadata,
+    };
     final callback = widget.onRecordCompletion;
     if (callback != null) {
       await callback(
@@ -3407,9 +3344,25 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
     required CompletionSourceType sourceType,
+    bool compact = false,
   }) {
-    return OutlinedButton.icon(
-      style: _endButtonStyle(sheetContext),
+    final button = OutlinedButton.icon(
+      key: compact ? null : const ValueKey<String>('day-view-add-reflection'),
+      style: compact
+          ? OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: _dayGold.withValues(alpha: 0.42),
+                width: 0.7,
+              ),
+              backgroundColor: _dayGold.withValues(alpha: 0.06),
+              foregroundColor: _dayGold,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: const Size(0, 34),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(horizontal: -1, vertical: -2),
+              shape: const StadiumBorder(),
+            )
+          : _endButtonStyle(sheetContext),
       onPressed: () => unawaited(
         _openReflectionForTarget(
           routeContext: routeContext,
@@ -3418,8 +3371,50 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           sourceType: sourceType,
         ),
       ),
-      icon: KemeticGold.icon(Icons.edit_note_rounded),
+      icon: KemeticGold.icon(
+        Icons.edit_note_rounded,
+        size: compact ? 18 : null,
+      ),
       label: const Text('Add reflection'),
+    );
+    if (!compact) return button;
+    return SizedBox(
+      key: const ValueKey<String>('day-view-add-reflection-touch-target'),
+      width: 150,
+      height: 48,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          key: const ValueKey<String>('day-view-add-reflection'),
+          height: 34,
+          child: button,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventDetailReflectionAction({
+    required BuildContext rootContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    bool compact = false,
+  }) {
+    final currentEvent = target.event;
+    final flow = _chromeFlowForId(currentEvent.flowId);
+    final completionContext = _maatFlowCompletionContextForEvent(
+      currentEvent,
+      flow,
+    );
+    return _buildAddReflectionButton(
+      routeContext: rootContext,
+      sheetContext: sheetContext,
+      target: target,
+      sourceType: _completionSourceTypeForEvent(
+        currentEvent,
+        flow,
+        completionContext,
+      ),
+      compact: compact,
     );
   }
 
@@ -3436,42 +3431,27 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final bool isNutrition =
         currentEvent.detail != null && currentEvent.detail!.contains('Source:');
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
-    final bool isOfferingTable = isOfferingTableFlowReference(
+    final bool isTheCourse = _isTheCourseFlowName(flow?.name);
+    final bool isDecanWatch = _isDecanWatchFlowName(flow?.name);
+    final bool isOpenHand = _isOpenHandFlowName(flow?.name);
+    final bool isDjed = _djedV2EventForItem(currentEvent) != null;
+    final flowKind = resolveMaatFlowKind(
       flowName: flow?.name,
       flowNotes: flow?.notes,
       behaviorPayload: currentEvent.behaviorPayload,
     );
-    final bool isTheTending = _isTheTendingFlowName(flow?.name);
-    final bool isKeptWord = _isKeptWordFlowName(flow?.name);
-    final bool isTheCourse = _isTheCourseFlowName(flow?.name);
-    final bool isTheWag = _isTheWagFlowName(flow?.name);
-    final bool isDecanWatch = _isDecanWatchFlowName(flow?.name);
-    final bool isDaysOutsideYear = _isDaysOutsideYearFlowName(flow?.name);
-    final bool isOpenHand = _isOpenHandFlowName(flow?.name);
-    final bool isDjed = _isDjedFlowName(flow?.name);
-    final tendingEvent = isTheTending
-        ? theTendingEventForEvent(title: currentEvent.title)
-        : null;
-    final keptWordEvent = isKeptWord
-        ? keptWordEventForEvent(title: currentEvent.title)
-        : null;
+    final isArchivedMaatFlow =
+        flowKind != null &&
+        kArchivedCompatibilityMaatFlowKinds.contains(flowKind);
     final courseEvent = isTheCourse
         ? courseEventForEvent(title: currentEvent.title)
-        : null;
-    final wagEvent = isTheWag
-        ? wagEventForEvent(title: currentEvent.title)
-        : null;
-    final daysOutsideEvent = isDaysOutsideYear
-        ? daysOutsideEventForEvent(title: currentEvent.title)
         : null;
     final openHandEvent = isOpenHand
         ? openHandEventForEvent(title: currentEvent.title)
         : null;
-    final djedEvent = isDjed
-        ? djedEventForEvent(title: currentEvent.title)
-        : null;
-    final offeringTableDay = isOfferingTable
-        ? offeringTableDayForEvent(
+    final djedV2Event = _djedV2EventForItem(currentEvent);
+    final djedV1Event = isDjed && djedV2Event == null
+        ? djedEventForEvent(
             title: currentEvent.title,
             behaviorPayload: currentEvent.behaviorPayload,
           )
@@ -3496,14 +3476,14 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     );
     final responseSpecs = completionContext == null
         ? const <MaatFlowResponseSpec>[]
-        : resolveMaatFlowResponseSpecs(
+        : resolveActiveMaatFlowResponseSpecs(
             flowKey: completionContext.flowKey,
             surface: MaatFlowResponseSurface.calendarSheet,
             eventKey: _maatFlowResponseEventKey(completionContext),
           );
     final libraryCta = _maatLibraryCtaPayloadForEvent(currentEvent);
     final enableRitualCompletionFeedback =
-        currentEvent.flowId != null && !isNutrition;
+        currentEvent.flowId != null && !isNutrition && !isArchivedMaatFlow;
 
     final visual = _dayViewMatteDetailVisual(
       _dayViewVisualForEvent(
@@ -3534,31 +3514,16 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final sharedPracticeRoomId = sharedPracticeRoomIdFromBehaviorPayload(
       currentEvent.behaviorPayload,
     );
-    final followSkyClientEventId = currentEvent.clientEventId?.trim();
-    final followSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
-      currentEvent.behaviorPayload,
+    final instrumentPresentation = _instrumentPresentationForTarget(
+      target,
+      enabled: enableFollowSkyEngagement,
     );
-    final hasFollowSkyInstrument =
-        enableFollowSkyEngagement &&
-        _detailSheetTargetKey(target) ==
-            _detailSheetTargetKey(_currentTarget) &&
-        completionContext != null &&
-        FollowSkyObservationRoute.matches(
-          clientEventId: followSkyClientEventId,
-          behaviorPayload: currentEvent.behaviorPayload,
-          catalog: _followSkyCatalog,
-        ) &&
-        followSkyEventId != null &&
-        followSkyEventId.isNotEmpty;
-    final hasOfferingTableInstrument =
-        enableFollowSkyEngagement &&
-        _detailSheetTargetKey(target) ==
-            _detailSheetTargetKey(_currentTarget) &&
-        completionContext != null &&
-        currentEvent.flowId != null &&
-        offeringTableDay != null;
 
-    if (hasFollowSkyInstrument) {
+    if (instrumentPresentation.kind == _DayViewInstrumentKind.followSky) {
+      final followSkyClientEventId =
+          instrumentPresentation.followSkyClientEventId!;
+      final followSkyEventId = instrumentPresentation.followSkyEventId!;
+      final instrumentCompletion = instrumentPresentation.completionContext!;
       final localDate = DateUtils.dateOnly(
         KemeticMath.toGregorian(target.ky, target.km, target.kd),
       );
@@ -3569,7 +3534,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             'follow-sky-presentation:$followSkyClientEventId',
           ),
           catalog: _followSkyCatalog!,
-          clientEventId: followSkyClientEventId!,
+          clientEventId: followSkyClientEventId,
           completionIdentity: _completionIdentityForEvent(currentEvent),
           skyEventId: followSkyEventId,
           localDate: localDate,
@@ -3582,9 +3547,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           instrumentProvider: widget.followSkyInstrumentProvider,
           now: widget.followSkyNow,
           onWriteJournalResponse: widget.onWriteJournalResponse,
-          onCommitCompletion: (status) => _commitFollowSkyCompletion(
+          onCommitCompletion: (status) => _commitMaatFlowCompletion(
             target: target,
-            completion: completionContext,
+            completion: instrumentCompletion,
             status: status,
           ),
         ),
@@ -3633,7 +3598,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
 
-    if (hasOfferingTableInstrument) {
+    if (instrumentPresentation.kind == _DayViewInstrumentKind.offeringTable) {
+      final offeringTableDay = instrumentPresentation.offeringTableDay!;
       final localDate = DateUtils.dateOnly(
         KemeticMath.toGregorian(target.ky, target.km, target.kd),
       );
@@ -3641,22 +3607,195 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          child: OfferingTableDayPresentation(
+          child: OfferingTableDayV8Presentation(
             key: ValueKey<String>(
               'offering-table-presentation:${currentEvent.clientEventId ?? offeringTableDay.dayNumber}',
             ),
-            day: offeringTableDay,
+            contract: offeringTableDayViewContract(offeringTableDay.dayNumber),
             localDate: localDate,
             startMinute: currentEvent.startMin,
-            initialIntention: _offeringTableIntentionForEvent(currentEvent),
-            onSaveIntention: (value) =>
-                _saveOfferingTableIntentionForEvent(currentEvent, value),
-            lens: offeringTableLensFromNotes(flow?.notes),
-            clientEventId: currentEvent.clientEventId,
-            onWriteJournalResponse: widget.onWriteJournalResponse,
+            initialState: _offeringTableDayStateForEvent(currentEvent),
+            courseStates: _offeringTableCourseStatesForEvent(currentEvent),
+            onSaveState: (state) =>
+                _saveOfferingTableDayStateForEvent(currentEvent, state),
             completionPanel: buildMaatCompletionPanel(
               responseSpecsOverride: const <MaatFlowResponseSpec>[],
-              pickerStyleOverride: _offeringTableCompletionPickerStyle,
+              pickerStyleOverride: kMaatDayViewCompletionPickerStyle,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (instrumentPresentation.kind == _DayViewInstrumentKind.readingHouse) {
+      final readingHouseSitting = instrumentPresentation.readingHouseSitting!;
+      final instrumentCompletion = instrumentPresentation.completionContext!;
+      final calendarId = currentEvent.calendarId!.trim();
+      final flowId = currentEvent.flowId!;
+      final clientEventId = currentEvent.clientEventId!.trim();
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: ReadingHouseDayBehaviorSurface(
+            key: ValueKey<String>(
+              'reading-house-presentation:$calendarId:$flowId:$clientEventId',
+            ),
+            identity: ReadingHouseRoomIdentity(
+              calendarId: calendarId,
+              flowId: flowId,
+            ),
+            clientEventId: clientEventId,
+            eventNumber: readingHouseSitting.eventNumber,
+            completionIdentity: _completionIdentityForEvent(currentEvent),
+            roomDataSource:
+                widget.readingHouseRoomDataSource ??
+                SupabaseReadingHouseRoomRepository(Supabase.instance.client),
+            practiceRepository: ReadingHouseSharedFragmentsRepo(
+              Supabase.instance.client,
+            ),
+            solo:
+                currentEvent.behaviorPayload?['house_mode']
+                    ?.toString()
+                    .trim() ==
+                kReadingHouseSoloMode,
+            onPostSharedNote: (body) =>
+                CalendarPage.postReadingHouseSharedNote(currentEvent, body),
+            onCompletionCommit: (selected, privateValues) {
+              final status = switch (selected) {
+                ReadingHouseCompletionVisualState.observed =>
+                  CompletionStatus.observed,
+                ReadingHouseCompletionVisualState.partly =>
+                  CompletionStatus.partial,
+                ReadingHouseCompletionVisualState.skipped =>
+                  CompletionStatus.skipped,
+                ReadingHouseCompletionVisualState.none => CompletionStatus.none,
+              };
+              return _commitMaatFlowCompletion(
+                target: target,
+                completion: instrumentCompletion,
+                status: status,
+                additionalMetadata: readingHousePrivateMarginCompletionMetadata(
+                  privateValues,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    if (instrumentPresentation.kind == _DayViewInstrumentKind.djed) {
+      final activeDjedEvent = instrumentPresentation.djedEvent!;
+      final fixture = _djedV2DayVisualFixture(
+        activeDjedEvent,
+        behaviorPayload: currentEvent.behaviorPayload,
+      );
+      final flowId = currentEvent.flowId;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: flowId == null
+              ? DjedDayPresentation(
+                  fixture: fixture,
+                  supports: _djedV2SupportFixtures(
+                    flow?.notes,
+                    currentEvent.behaviorPayload,
+                  ),
+                )
+              : DjedDayBehaviorSurface(
+                  key: ValueKey<String>(
+                    'djed-v2-presentation:$flowId:${activeDjedEvent.semanticStepId}',
+                  ),
+                  flowId: flowId,
+                  event: activeDjedEvent,
+                  baseFixture: fixture,
+                  supports: _djedV2SupportFixtures(
+                    flow?.notes,
+                    currentEvent.behaviorPayload,
+                  ),
+                  onPutOnCalendar: () async {
+                    await CalendarPage.makeTodoFromEventTarget(target);
+                  },
+                  onCompletionCommit:
+                      (
+                        selected,
+                        move,
+                        result,
+                        resultNote,
+                        smallerMove,
+                        raised,
+                      ) {
+                        final completion = completionContext;
+                        if (completion == null) {
+                          return Future<void>.value();
+                        }
+                        final status = switch (selected) {
+                          DjedCompletionVisualState.observed =>
+                            CompletionStatus.observed,
+                          DjedCompletionVisualState.partly =>
+                            CompletionStatus.partial,
+                          DjedCompletionVisualState.skipped =>
+                            CompletionStatus.skipped,
+                          DjedCompletionVisualState.none =>
+                            CompletionStatus.none,
+                        };
+                        return _commitMaatFlowCompletion(
+                          target: target,
+                          completion: completion,
+                          status: status,
+                          additionalMetadata: <String, dynamic>{
+                            'djed_schema_version': kDjedV2SchemaVersion,
+                            'semantic_step_id': activeDjedEvent.semanticStepId,
+                            if (activeDjedEvent.supportSlot != null)
+                              'support_slot': activeDjedEvent.supportSlot,
+                            if (move.isNotEmpty) 'move': move,
+                            if (result != DjedResultVisualState.none)
+                              'result': switch (result) {
+                                DjedResultVisualState.helped => 'helped',
+                                DjedResultVisualState.noChange => 'no_change',
+                                DjedResultVisualState.notDone => 'not_done',
+                                DjedResultVisualState.none => null,
+                              },
+                            if (resultNote.isNotEmpty)
+                              'result_note': resultNote,
+                            if (smallerMove.isNotEmpty)
+                              'smaller_move': smallerMove,
+                            if (activeDjedEvent.finalRaising)
+                              'raising_completed': raised,
+                            if (raised) 'raising_seconds': kDjedRaisingSeconds,
+                          },
+                        );
+                      },
+                ),
+        ),
+      );
+    }
+
+    if (instrumentPresentation.kind == _DayViewInstrumentKind.kar) {
+      final instrumentCompletion = instrumentPresentation.completionContext!;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: KarDayBehaviorSurface(
+            key: ValueKey<String>(
+              'kar-presentation:${currentEvent.flowId}:${karStageIndexFromPayload(currentEvent.behaviorPayload)}',
+            ),
+            repository:
+                widget.karRepository ??
+                SupabaseKarRepository(Supabase.instance.client),
+            netjer: karNetjerFromPayload(currentEvent.behaviorPayload),
+            flowId: currentEvent.flowId!,
+            stageIndex: karStageIndexFromPayload(currentEvent.behaviorPayload),
+            completionPanel: buildMaatCompletionPanel(
+              responseSpecsOverride: const <MaatFlowResponseSpec>[],
+            ),
+            onCompletionCommit: () => _commitMaatFlowCompletion(
+              target: target,
+              completion: instrumentCompletion,
+              status: CompletionStatus.observed,
             ),
           ),
         ),
@@ -3873,37 +4012,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           const SizedBox(height: 10),
           buildMaatCompletionPanel(),
         ],
-        if (currentEvent.flowId != null &&
-            tendingEvent != null &&
-            tendingEvent.localPrompt != TheTendingLocalPromptKind.none) ...[
-          const SizedBox(height: 12),
-          _TheTendingLocalNotesPanel(
-            flowId: currentEvent.flowId!,
-            event: tendingEvent,
-          ),
-        ],
-        if (currentEvent.flowId != null &&
-            keptWordEvent != null &&
-            keptWordEvent.localPrompt != KeptWordLocalPromptKind.none) ...[
-          const SizedBox(height: 12),
-          _KeptWordLocalNotesPanel(
-            flowId: currentEvent.flowId!,
-            event: keptWordEvent,
-          ),
-        ],
-        if (currentEvent.flowId != null &&
-            wagEvent != null &&
-            wagEvent.localPrompt != WagLocalPromptKind.none) ...[
-          const SizedBox(height: 12),
-          _TheWagLocalNotesPanel(flowId: currentEvent.flowId!, event: wagEvent),
-        ],
-        if (currentEvent.flowId != null && daysOutsideEvent != null) ...[
-          const SizedBox(height: 12),
-          _DaysOutsideYearLocalNotesPanel(
-            flowId: currentEvent.flowId!,
-            event: daysOutsideEvent,
-          ),
-        ],
         if (currentEvent.flowId != null && openHandEvent != null) ...[
           const SizedBox(height: 12),
           _OpenHandLocalNotesPanel(
@@ -3911,9 +4019,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             event: openHandEvent,
           ),
         ],
-        if (currentEvent.flowId != null && djedEvent != null) ...[
+        if (currentEvent.flowId != null && djedV1Event != null) ...[
           const SizedBox(height: 12),
-          _DjedLocalNotesPanel(flowId: currentEvent.flowId!, event: djedEvent),
+          _DjedLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            event: djedV1Event,
+          ),
         ],
         if (courseEvent != null && courseContext != null) ...[
           const SizedBox(height: 12),
@@ -3946,7 +4057,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         if (hasMaatCompletionPanel && responseSpecs.isEmpty) ...[
           const SizedBox(height: 10),
           buildMaatCompletionPanel(),
-        ] else if (!hasMaatCompletionPanel) ...[
+        ] else if (!hasMaatCompletionPanel && !isArchivedMaatFlow) ...[
           const SizedBox(height: 10),
           buildCalendarCompletionPanel(),
         ],
@@ -3979,64 +4090,23 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
   }) {
-    final currentEvent = target.event;
-    final flow = _chromeFlowForId(currentEvent.flowId);
-    final completionContext = _maatFlowCompletionContextForEvent(
-      currentEvent,
-      flow,
-    );
-    final sourceType = _completionSourceTypeForEvent(
-      currentEvent,
-      flow,
-      completionContext,
-    );
-    final isFollowSkyObservation = FollowSkyObservationRoute.matches(
-      clientEventId: currentEvent.clientEventId,
-      behaviorPayload: currentEvent.behaviorPayload,
-      catalog: _followSkyCatalog,
+    final reflectionAction = _buildEventDetailReflectionAction(
+      rootContext: rootContext,
+      sheetContext: sheetContext,
+      target: target,
     );
 
     return Row(
       children: [
         const Spacer(),
-        if (!isFollowSkyObservation) ...[
-          _buildAddReflectionButton(
-            routeContext: rootContext,
-            sheetContext: sheetContext,
-            target: target,
-            sourceType: sourceType,
-          ),
-          const SizedBox(width: 8),
-        ],
+        reflectionAction,
+        const SizedBox(width: 8),
         _buildEventDetailOverflowButton(
           rootContext: rootContext,
           sheetContext: sheetContext,
           target: target,
         ),
       ],
-    );
-  }
-
-  Widget _buildEventDetailPrimaryAction({
-    required BuildContext rootContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-  }) {
-    return TextButton.icon(
-      onPressed: () async {
-        Navigator.pop(sheetContext);
-        final handled = await CalendarPage.makeTodoFromEventTarget(target);
-        if (!handled && rootContext.mounted) {
-          ScaffoldMessenger.of(
-            rootContext,
-          ).showSnackBar(const SnackBar(content: Text('Could not add to-do.')));
-        }
-      },
-      icon: KemeticGold.icon(Icons.playlist_add_check),
-      label: KemeticGold.text(
-        'Make to-do',
-        style: _goldHeaderStyle.copyWith(fontSize: 15),
-      ),
     );
   }
 
@@ -4326,53 +4396,47 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required BuildContext rootContext,
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
+    Color? actionColor,
   }) {
-    final calendarLabel = CalendarPage.detailSheetCalendarButtonLabel(
-      target.event,
-    );
+    final calendarLabel =
+        _eventMaatFlowKind(target.event) == MaatFlowKind.readingHouse
+        ? readingHouseCalendarDisplayName(
+            behaviorPayload: target.event.behaviorPayload,
+            storedCalendarName: target.event.calendarName,
+          )
+        : CalendarPage.detailSheetCalendarButtonLabel(target.event);
     final calendarEnabled = CalendarPage.canChangeDetailSheetCalendar(
       target.event,
     );
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildEventDetailPrimaryAction(
-          rootContext: rootContext,
-          sheetContext: sheetContext,
-          target: target,
-        ),
-        TextButton(
-          onPressed: calendarEnabled
-              ? () async {
-                  final updatedTarget =
-                      await CalendarPage.showDetailSheetCalendarPicker(
-                        context: sheetContext,
-                        target: target,
-                        onOptimisticTargetChanged: (optimisticTarget) {
-                          if (sheetContext.mounted) {
-                            _moveToTarget(optimisticTarget);
-                          }
-                        },
-                      );
-                  if (!sheetContext.mounted || updatedTarget == null) return;
-                  _moveToTarget(updatedTarget);
-                }
-              : null,
-          child: calendarEnabled
-              ? KemeticGold.text(
-                  calendarLabel,
-                  style: _goldHeaderStyle.copyWith(fontSize: 15),
-                )
-              : Text(
-                  calendarLabel,
-                  style: _goldHeaderStyle.copyWith(
-                    fontSize: 15,
-                    color: Colors.white24,
-                  ),
-                ),
-        ),
-      ],
+    return MaatDayViewFooterActions(
+      actionColor: actionColor,
+      calendarLabel: calendarLabel,
+      onMakeTodo: () async {
+        Navigator.pop(sheetContext);
+        final handled = await CalendarPage.makeTodoFromEventTarget(target);
+        if (!handled && rootContext.mounted) {
+          ScaffoldMessenger.of(
+            rootContext,
+          ).showSnackBar(const SnackBar(content: Text('Could not add to-do.')));
+        }
+      },
+      onCalendar: calendarEnabled
+          ? () async {
+              final updatedTarget =
+                  await CalendarPage.showDetailSheetCalendarPicker(
+                    context: sheetContext,
+                    target: target,
+                    onOptimisticTargetChanged: (optimisticTarget) {
+                      if (sheetContext.mounted) {
+                        _moveToTarget(optimisticTarget);
+                      }
+                    },
+                  );
+              if (!sheetContext.mounted || updatedTarget == null) return;
+              _moveToTarget(updatedTarget);
+            }
+          : null,
     );
   }
 
@@ -4434,42 +4498,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final hasOnboardingClosingBanner =
         _isOnboardingTargetEvent(target.event) &&
         widget.onboardingClosingBannerBuilder != null;
-    final media = MediaQuery.of(context);
-    final keyboardInset = keyboardInsetOf(context);
-    final availableSheetHeight = math.max(
-      0.0,
-      media.size.height -
-          keyboardInset -
-          media.padding.top -
-          media.padding.bottom -
-          12,
-    );
-    final activeFollowSkyInstrument = FollowSkyObservationRoute.matches(
-      clientEventId: target.event.clientEventId,
-      behaviorPayload: target.event.behaviorPayload,
-      catalog: _followSkyCatalog,
-    );
-    final activeOfferingTableInstrument = _isOfferingTableInstrumentEvent(
-      target.event,
-    );
-    final activeInstrumentPresentation =
-        activeFollowSkyInstrument || activeOfferingTableInstrument;
-    final maxSheetHeight = _isWorkspacePresentation
-        ? availableSheetHeight
-        : keyboardInset > 0
-        ? availableSheetHeight
-        : math.min(media.size.height * 0.68, 520.0);
-    final reservedChromeHeight = _isWorkspacePresentation
-        ? 24.0
-        : hasOnboardingClosingBanner
-        ? 250.0
-        : 120.0;
-    final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
-    final sheetHeight = _isWorkspacePresentation
-        ? maxPageHeight
-        : (_measuredHeights[currentKey] ?? 200.0)
-              .clamp(0.0, maxPageHeight)
-              .toDouble();
+    final instrumentPresentation = _instrumentPresentationForTarget(target);
+    final activeMaatDayViewFlow = switch (instrumentPresentation.kind) {
+      _DayViewInstrumentKind.followSky => MaatDayViewFlow.followSky,
+      _DayViewInstrumentKind.offeringTable => MaatDayViewFlow.offeringTable,
+      _DayViewInstrumentKind.readingHouse => MaatDayViewFlow.readingHouse,
+      _DayViewInstrumentKind.djed => MaatDayViewFlow.djed,
+      _DayViewInstrumentKind.kar => MaatDayViewFlow.kar,
+      _ => null,
+    };
 
     Widget buildDetailSurface() {
       if (_isWorkspacePresentation) {
@@ -4508,17 +4545,16 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
 
-    if (activeInstrumentPresentation && !_isWorkspacePresentation) {
-      return InstrumentEventSheetHost(
-        key: ValueKey<String>(
-          activeFollowSkyInstrument
-              ? 'follow-sky-resizable-sheet'
-              : 'offering-table-resizable-sheet',
+    if (activeMaatDayViewFlow != null && !_isWorkspacePresentation) {
+      final housingSpec = MaatDayViewHousingSpec.forFlow(activeMaatDayViewFlow);
+      return MaatDayViewSheetHost(
+        flow: activeMaatDayViewFlow,
+        leading: _buildEventDetailReflectionAction(
+          rootContext: widget.hostContext,
+          sheetContext: context,
+          target: target,
+          compact: true,
         ),
-        semanticLabel: activeFollowSkyInstrument
-            ? 'Resize Follow Sky sheet'
-            : 'Resize Offering Table sheet',
-        handleColor: _dayGold.withValues(alpha: 0.48),
         trailing: _buildEventDetailOverflowButton(
           rootContext: widget.hostContext,
           sheetContext: context,
@@ -4529,9 +4565,35 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           rootContext: widget.hostContext,
           sheetContext: context,
           target: target,
+          actionColor: housingSpec.footerActionColor,
         ),
       );
     }
+
+    final media = MediaQuery.of(context);
+    final keyboardVisible = keyboardIsVisible(context);
+    final availableSheetHeight = math.max(
+      0.0,
+      media.size.height - media.padding.top - media.padding.bottom - 12,
+    );
+    final maxSheetHeight = _isWorkspacePresentation
+        ? availableSheetHeight
+        : keyboardVisible
+        ? availableSheetHeight
+        : math.min(media.size.height * 0.68, 520.0);
+    final showBottomActions = !_isWorkspacePresentation && !keyboardVisible;
+    final bottomActionChromeHeight = showBottomActions ? 54.0 : 0.0;
+    final reservedChromeHeight = _isWorkspacePresentation
+        ? 24.0
+        : hasOnboardingClosingBanner
+        ? 196.0 + bottomActionChromeHeight
+        : 66.0 + bottomActionChromeHeight;
+    final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
+    final sheetHeight = _isWorkspacePresentation
+        ? maxPageHeight
+        : (_measuredHeights[currentKey] ?? 200.0)
+              .clamp(0.0, maxPageHeight)
+              .toDouble();
 
     final content = Column(
       mainAxisSize: MainAxisSize.min,
@@ -4587,7 +4649,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                     child: buildDetailSurface(),
                   ),
                 ),
-                if (!_isWorkspacePresentation) ...[
+                if (showBottomActions) ...[
                   const SizedBox(height: 8),
                   SizedBox(
                     height: 46,
@@ -4605,17 +4667,14 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       ],
     );
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardInset),
-      child: SafeArea(
-        top: false,
-        child: hasOnboardingClosingBanner
-            ? ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: availableSheetHeight),
-                child: SingleChildScrollView(child: content),
-              )
-            : content,
-      ),
+    return SafeArea(
+      top: false,
+      child: hasOnboardingClosingBanner
+          ? ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: availableSheetHeight),
+              child: SingleChildScrollView(child: content),
+            )
+          : content,
     );
   }
 
@@ -4837,26 +4896,18 @@ List<NoteData> _dedupeDayNotesForUi(List<NoteData> notes) {
 }
 
 EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
-  final startMin = note.allDay
-      ? 9 * 60
-      : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-  final endMin = note.allDay
-      ? 17 * 60
-      : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
+  final flow = note.flowId == null ? null : flowIndex[note.flowId];
 
   Color eventColor = Colors.blue;
   // Product rule: explicit per-event colors win; otherwise we fall back to the
   // owning flow's chrome color so historical/saved flow notes stay unified.
   if (note.manualColor != null) {
     eventColor = note.manualColor!;
-  } else if (note.flowId != null) {
-    final flow = flowIndex[note.flowId];
-    if (flow != null) {
-      eventColor = flow.color;
-    }
+  } else if (flow != null) {
+    eventColor = flow.color;
   }
 
-  return EventItem(
+  return EventItem.fromTimedNote(
     id: note.id,
     clientEventId: note.clientEventId,
     calendarId: note.calendarId,
@@ -4864,28 +4915,25 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
     title: note.title,
     detail: note.detail,
     location: note.location,
-    startMin: startMin,
-    endMin: endMin,
+    allDay: note.allDay,
+    startHour: note.start?.hour,
+    startMinute: note.start?.minute,
+    endHour: note.end?.hour,
+    endMinute: note.end?.minute,
     canonicalEnd: note.canonicalEnd,
     flowId: note.flowId,
+    flowName: flow?.name,
+    flowNotes: flow?.notes,
     color: eventColor,
     manualColor: note.manualColor,
-    allDay: note.allDay,
     category: note.category,
     isReminder: note.isReminder,
     reminderId: note.reminderId,
     behaviorPayload: note.behaviorPayload,
-    hasCanonicalSchedule: noteHasCanonicalSchedule(
-      allDay: note.allDay,
-      startHour: note.start?.hour,
-      startMinute: note.start?.minute,
-      endHour: note.end?.hour,
-      endMinute: note.end?.minute,
-    ),
   );
 }
 
-String _eventIdentityKey(EventItem event) {
+String eventItemIdentityKey(EventItem event) {
   final id = event.id?.trim();
   if (id != null && id.isNotEmpty) return 'id:$id';
 
@@ -4916,7 +4964,7 @@ String _eventIdentityKey(EventItem event) {
 Key dayViewOverflowVisualKey(String eventIdentity, int hour) =>
     ValueKey<String>('day_view_overflow_visual:$eventIdentity:$hour');
 
-bool _eventsShareStableIdentity(EventItem a, EventItem b) {
+bool eventsShareStableIdentity(EventItem a, EventItem b) {
   final aId = a.id?.trim();
   final bId = b.id?.trim();
   if (aId != null && aId.isNotEmpty && bId != null && bId.isNotEmpty) {
@@ -4941,7 +4989,7 @@ bool _eventsShareStableIdentity(EventItem a, EventItem b) {
     return aReminderId == bReminderId;
   }
 
-  return _eventIdentityKey(a) == _eventIdentityKey(b);
+  return eventItemIdentityKey(a) == eventItemIdentityKey(b);
 }
 
 bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
@@ -4951,6 +4999,61 @@ bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
 
 double _eventVisualTop(EventItem event) => event.startMin.toDouble();
 
+MaatFlowKind? _eventMaatFlowKind(EventItem event) {
+  return resolveMaatFlowKind(
+    flowName: event.flowName,
+    flowNotes: event.flowNotes,
+    eventTitle: event.title,
+    behaviorPayload: event.behaviorPayload,
+  );
+}
+
+DjedV2Event? _djedV2EventForItem(EventItem event) {
+  final fromPayload = djedV2EventForEvent(
+    behaviorPayload: event.behaviorPayload,
+  );
+  if (fromPayload != null) return fromPayload;
+  if (_eventMaatFlowKind(event) != MaatFlowKind.theDjed) return null;
+  return djedV2EventByNumber(_djedSittingFaceForEvent(event).number);
+}
+
+DjedSittingFixture _djedSittingFaceForEvent(EventItem event) {
+  final resolved = djedV2EventForEvent(behaviorPayload: event.behaviorPayload);
+  final fromTitle = djedEventForEvent(
+    title: event.title,
+    behaviorPayload: event.behaviorPayload,
+  );
+  final rawNumber =
+      resolved?.eventNumber ??
+      (event.behaviorPayload?['event_number'] is num
+          ? (event.behaviorPayload!['event_number'] as num).toInt()
+          : int.tryParse(
+              event.behaviorPayload?['event_number']?.toString() ?? '',
+            )) ??
+      fromTitle?.eventNumber;
+  final index = ((rawNumber ?? 1) - 1).clamp(
+    0,
+    kDjedSittingFixtures.length - 1,
+  );
+  return kDjedSittingFixtures[index];
+}
+
+OfferingTableDay _offeringTableDayFaceForEvent(EventItem event) {
+  return offeringTableDayForEvent(
+        title: event.title,
+        behaviorPayload: event.behaviorPayload,
+      ) ??
+      kOfferingTableDays.first;
+}
+
+ReadingHouseSitting _readingHouseSittingFaceForEvent(EventItem event) {
+  return readingHouseSittingForEvent(
+        title: event.title,
+        behaviorPayload: event.behaviorPayload,
+      ) ??
+      kReadingHouseSittings.first;
+}
+
 double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
   int durationMinutes = event.endMin - event.startMin;
   if (durationMinutes <= 0) {
@@ -4958,6 +5061,13 @@ double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
   }
   if (durationMinutes > 180) {
     durationMinutes = 180;
+  }
+
+  final fixedMaatHeight = MaatEventBlockLayoutSpec.forFlow(
+    _eventMaatFlowKind(event),
+  ).fixedVisualHeight;
+  if (fixedMaatHeight != null) {
+    return fixedMaatHeight;
   }
 
   if (event.isReminder) {
@@ -4979,14 +5089,14 @@ double _eventVisualEndMin(EventItem event, {double textScale = 1.0}) {
       _eventVisualHeightForLayout(event, textScale: textScale);
 }
 
-int _compareEventItemsBySchedule(EventItem a, EventItem b) {
+int compareEventItemsBySchedule(EventItem a, EventItem b) {
   final startCmp = a.startMin.compareTo(b.startMin);
   if (startCmp != 0) return startCmp;
 
   final endCmp = a.endMin.compareTo(b.endMin);
   if (endCmp != 0) return endCmp;
 
-  return _eventIdentityKey(a).compareTo(_eventIdentityKey(b));
+  return eventItemIdentityKey(a).compareTo(eventItemIdentityKey(b));
 }
 
 List<EventItem> _sortedEventsForDay({
@@ -4996,7 +5106,7 @@ List<EventItem> _sortedEventsForDay({
   final events = [
     for (final note in notes) _eventItemFromNote(note, flowIndex),
   ];
-  events.sort(_compareEventItemsBySchedule);
+  events.sort(compareEventItemsBySchedule);
   return events;
 }
 
@@ -5282,6 +5392,12 @@ class DayViewPage extends StatefulWidget {
   final VoidCallback? onDayCardRevealCoachmarkCompleted;
   final DayViewRestorationCallback? onRestorationStateChanged;
   final bool Function()? shouldPreserveEventDetailRestorationOnClose;
+  final KarRepository? karRepository;
+  final ReadingHouseRoomDataSource? readingHouseRoomDataSource;
+  final SkyCatalog? followSkyCatalog;
+  final SkyInstrumentDataProvider? followSkyInstrumentProvider;
+  final DateTime Function()? followSkyNow;
+  final DateTime Function()? clock;
 
   const DayViewPage({
     super.key,
@@ -5344,6 +5460,12 @@ class DayViewPage extends StatefulWidget {
     this.onDayCardRevealCoachmarkCompleted,
     this.onRestorationStateChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
+    this.karRepository,
+    this.readingHouseRoomDataSource,
+    this.followSkyCatalog,
+    this.followSkyInstrumentProvider,
+    this.followSkyNow,
+    this.clock,
   });
 
   @override
@@ -5721,7 +5843,7 @@ class _DayViewPageState extends State<DayViewPage> {
           '${detail.identityType}:${detail.identityValue}';
     }
     return '${target.ky}:${target.km}:${target.kd}:'
-        '${_eventIdentityKey(target.event)}';
+        '${eventItemIdentityKey(target.event)}';
   }
 
   void _handleEventDetailRequest() {
@@ -5797,7 +5919,7 @@ class _DayViewPageState extends State<DayViewPage> {
   Future<void> _jumpToToday() async {
     if (_isJumpingToToday || !_pageController.hasClients) return;
 
-    final now = DateTime.now();
+    final now = (widget.clock ?? DateTime.now)().toLocal();
     final today = KemeticMath.fromGregorian(now);
     final alreadyToday =
         _currentKy == today.kYear &&
@@ -5954,7 +6076,7 @@ class _DayViewPageState extends State<DayViewPage> {
   }) {
     final currentEvents = _eventsForKemeticDay(ky, km, kd);
     final currentIndex = currentEvents.indexWhere(
-      (candidate) => _eventsShareStableIdentity(candidate, event),
+      (candidate) => eventsShareStableIdentity(candidate, event),
     );
 
     if (currentIndex >= 0) {
@@ -6000,7 +6122,7 @@ class _DayViewPageState extends State<DayViewPage> {
     if (currentEvents.isEmpty) return target;
 
     for (final candidate in currentEvents) {
-      if (!_eventsShareStableIdentity(candidate, target.event)) continue;
+      if (!eventsShareStableIdentity(candidate, target.event)) continue;
       return DayViewSheetEventTarget(
         ky: target.ky,
         km: target.km,
@@ -6063,7 +6185,7 @@ class _DayViewPageState extends State<DayViewPage> {
         final flowIndex = _currentFlowChromeIndex();
         final activeLedgerFlowIds = _currentActiveLedgerFlowIds();
 
-        return PopScope(
+        final page = PopScope(
           canPop: true,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) {
@@ -6146,6 +6268,7 @@ class _DayViewPageState extends State<DayViewPage> {
                         currentKd: _currentKd,
                         showGregorian: _showGregorian,
                         getMonthName: widget.getMonthName,
+                        clock: widget.clock,
                         miniCalendarScrollController:
                             _miniCalendarScrollController,
                         onMiniCalendarManualScrollStart:
@@ -6321,6 +6444,14 @@ class _DayViewPageState extends State<DayViewPage> {
                                   widget.onOnboardingObservedJournalNext,
                               onboardingClosingBannerBuilder:
                                   widget.onboardingClosingBannerBuilder,
+                              karRepository: widget.karRepository,
+                              readingHouseRoomDataSource:
+                                  widget.readingHouseRoomDataSource,
+                              followSkyCatalog: widget.followSkyCatalog,
+                              followSkyInstrumentProvider:
+                                  widget.followSkyInstrumentProvider,
+                              followSkyNow: widget.followSkyNow,
+                              clock: widget.clock,
                               initialEventDetailRestorationState:
                                   _activeEventDetailRestoration,
                               onEventDetailRestorationChanged:
@@ -6354,6 +6485,7 @@ class _DayViewPageState extends State<DayViewPage> {
             ),
           ),
         );
+        return KeyboardAwareEditableSurface(child: page);
       },
     );
   }
@@ -6457,6 +6589,12 @@ class DayViewGrid extends StatefulWidget {
   })?
   resolveAdjacentEvent;
   final Future<void> Function(int ky, int km, int kd)? onNavigateToDay;
+  final KarRepository? karRepository;
+  final ReadingHouseRoomDataSource? readingHouseRoomDataSource;
+  final SkyCatalog? followSkyCatalog;
+  final SkyInstrumentDataProvider? followSkyInstrumentProvider;
+  final DateTime Function()? followSkyNow;
+  final DateTime Function()? clock;
 
   const DayViewGrid({
     super.key,
@@ -6509,6 +6647,12 @@ class DayViewGrid extends StatefulWidget {
     this.resolveCurrentEventTarget,
     this.resolveAdjacentEvent,
     this.onNavigateToDay,
+    this.karRepository,
+    this.readingHouseRoomDataSource,
+    this.followSkyCatalog,
+    this.followSkyInstrumentProvider,
+    this.followSkyNow,
+    this.clock,
   });
 
   @override
@@ -6518,6 +6662,45 @@ class DayViewGrid extends StatefulWidget {
 class _DayViewGridState extends State<DayViewGrid> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _timelineKey = GlobalKey();
+  KarRepository? _defaultKarRepository;
+  bool _resolvedDefaultKarRepository = false;
+  ReadingHouseRoomDataSource? _defaultReadingHouseRoomDataSource;
+  bool _resolvedDefaultReadingHouseRoomDataSource = false;
+
+  DateTime get _now => (widget.clock ?? DateTime.now)().toLocal();
+
+  KarRepository? get _karEventBlockRepository {
+    final supplied = widget.karRepository;
+    if (supplied != null) return supplied;
+    if (_resolvedDefaultKarRepository) return _defaultKarRepository;
+    _resolvedDefaultKarRepository = true;
+    try {
+      _defaultKarRepository = SupabaseKarRepository(Supabase.instance.client);
+    } on Object {
+      // Widget-only tests do not initialize Supabase. They still receive the
+      // correct fixed visual rather than a fabricated placement count.
+      _defaultKarRepository = null;
+    }
+    return _defaultKarRepository;
+  }
+
+  ReadingHouseRoomDataSource? get _readingHouseRoomDataSource {
+    final supplied = widget.readingHouseRoomDataSource;
+    if (supplied != null) return supplied;
+    if (_resolvedDefaultReadingHouseRoomDataSource) {
+      return _defaultReadingHouseRoomDataSource;
+    }
+    _resolvedDefaultReadingHouseRoomDataSource = true;
+    try {
+      _defaultReadingHouseRoomDataSource = SupabaseReadingHouseRoomRepository(
+        Supabase.instance.client,
+      );
+    } on Object {
+      _defaultReadingHouseRoomDataSource = null;
+    }
+    return _defaultReadingHouseRoomDataSource;
+  }
+
   BuildContext? _timelineCtx;
   int _manualScrollRevision = 0;
 
@@ -6949,7 +7132,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     // 4) Fallback: scroll to current time
-    final now = DateTime.now().toLocal();
+    final now = _now;
     final minutesSinceMidnight = now.hour * 60 + now.minute;
     final targetOffset =
         (minutesSinceMidnight * _kDayViewPixelsPerMinute) -
@@ -6974,7 +7157,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   bool _eventsMatch(EventItem a, EventItem b) {
-    return _eventsShareStableIdentity(a, b) || identical(a, b);
+    return eventsShareStableIdentity(a, b) || identical(a, b);
   }
 
   List<PositionedEventBlock> _buildDisplayBlocks(
@@ -7010,6 +7193,8 @@ class _DayViewGridState extends State<DayViewGrid> {
           startMin: startMin,
           endMin: endMin,
           flowId: dragPreview.flowId,
+          flowName: dragPreview.flowName,
+          flowNotes: dragPreview.flowNotes,
           color: dragPreview.color,
           manualColor: dragPreview.manualColor,
           allDay: dragPreview.allDay,
@@ -7137,6 +7322,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     return Object.hashAll(
       notes.map(
         (n) => Object.hash(
+          n.id,
+          n.clientEventId,
           n.title,
           n.detail,
           n.location,
@@ -7150,6 +7337,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           n.category,
           n.isReminder,
           n.reminderId,
+          n.behaviorPayload?.toString(),
         ),
       ),
     );
@@ -7678,7 +7866,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         if (startCmp != 0) return startCmp;
         final leftCmp = a.leftOffset.compareTo(b.leftOffset);
         if (leftCmp != 0) return leftCmp;
-        return _compareEventItemsBySchedule(a.event, b.event);
+        return compareEventItemsBySchedule(a.event, b.event);
       });
     final carouselGroups = <int, List<PositionedEventBlock>>{};
     final directBlocks = <PositionedEventBlock>[];
@@ -7761,7 +7949,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   Widget _buildTimelineOverlayLayer() {
-    final now = DateTime.now().toLocal();
+    final now = _now;
     return Positioned.fill(
       key: dayViewTimelineOverlayLayerKey,
       child: IgnorePointer(
@@ -8057,13 +8245,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
     final graphic = visual.graphic;
     final isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
-    final isOfferingTable =
-        graphic?.kind == CalendarEventGraphicKind.offeringTable;
-    final isDawnHouseRite =
-        graphic?.kind == CalendarEventGraphicKind.dawnHouseRite;
-    final isEveningThresholdRite =
-        graphic?.kind == CalendarEventGraphicKind.eveningThresholdRite;
-    final isTheWeighing = graphic?.kind == CalendarEventGraphicKind.theWeighing;
     final trackSkySpec = isTrackSky ? graphic : null;
 
     final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
@@ -8087,267 +8268,81 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
-    if (isOfferingTable) {
-      final offeringTableDay = offeringTableDayForEvent(
-        title: event.title,
-        behaviorPayload: event.behaviorPayload,
+    if (graphic?.kind == CalendarEventGraphicKind.offeringTable) {
+      final offeringTableDay = _offeringTableDayFaceForEvent(event);
+      final dayViewContract = offeringTableDayViewContract(
+        offeringTableDay.dayNumber,
       );
-      if (offeringTableDay != null) {
-        return OfferingTableEventBlockVisual(
-          dayNumber: offeringTableDay.dayNumber,
-          title: offeringTableDay.title,
-          prompt: offeringTableDay.eventBlockPrompt,
-          width: block.width,
-          height: height,
-          isPreview: isPreview,
-          animateRipple:
-              !isPreview &&
-              offeringTableEventIsToday(
-                ky: widget.ky,
-                km: widget.km,
-                kd: widget.kd,
-                now: DateTime.now(),
-              ),
-        );
-      }
-    }
-
-    if (isDawnHouseRite) {
-      final graphicStyle = graphic!;
-      return Container(
+      return OfferingTableEventBlockVisual(
+        dayNumber: offeringTableDay.dayNumber,
+        title: dayViewContract.title,
         width: block.width,
         height: height,
-        margin: const EdgeInsets.only(right: 4, bottom: 2),
-        decoration: BoxDecoration(
-          borderRadius: borderRadius,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.28),
-              blurRadius: kIsWeb ? 8 : 12,
-              offset: const Offset(0, 4),
+        isPreview: isPreview,
+        dayViewFace: true,
+        animateRipple:
+            !isPreview &&
+            offeringTableEventIsToday(
+              ky: widget.ky,
+              km: widget.km,
+              kd: widget.kd,
+              now: _now,
             ),
-            BoxShadow(
-              color: graphicStyle.glowColor.withValues(
-                alpha: isPreview ? 0.08 : 0.16,
-              ),
-              blurRadius: kIsWeb ? 10 : 14,
-              spreadRadius: -3,
-            ),
-          ],
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: graphicStyle.background,
-                  borderRadius: borderRadius,
-                  border: Border.all(
-                    color: graphicStyle.borderColor.withValues(
-                      alpha: isPreview ? 0.68 : 0.9,
-                    ),
-                    width: 0.9,
-                  ),
-                ),
-              ),
-            ),
-            IgnorePointer(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            const Color(0x9C090914),
-                            const Color(0x63090914),
-                            const Color(0x16090914),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.38, 0.68, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 8,
-                    top: 6,
-                    child: Opacity(
-                      opacity: isPreview ? 0.78 : 1.0,
-                      child: _buildDawnHouseRiteAccent(
-                        compact: durationMinutes < 80,
-                        size: math.min(height - 16, 25),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: 11,
-                vertical: event.isReminder ? 4 : 4,
-              ),
-              child: _buildEventTextContents(
-                event,
-                durationMinutes,
-                isPreview: isPreview,
-              ),
-            ),
-          ],
-        ),
       );
     }
 
-    if (isEveningThresholdRite) {
-      final graphicStyle = graphic!;
-      return Container(
+    if (graphic?.kind == CalendarEventGraphicKind.djed) {
+      final fixture = _djedSittingFaceForEvent(event);
+      final orientation = fixture.number == 1;
+      return DjedEventBlockVisual(
+        sittingNumber: fixture.number,
+        title: fixture.title,
+        phase: fixture.phase,
+        timeLabel: fixture.timeLabel,
+        durationLabel: fixture.durationLabel,
+        supportName:
+            event.behaviorPayload?['support_name']?.toString() ??
+            (orientation
+                ? 'name the four parts that need strengthening'
+                : null),
+        progressCopy: orientation ? 'Name the structure' : null,
+        ordinalLabel: orientation ? 'Find your footing' : null,
+        supportPipIndex: orientation ? -1 : null,
         width: block.width,
         height: height,
-        margin: const EdgeInsets.only(right: 4, bottom: 2),
-        decoration: BoxDecoration(
-          borderRadius: borderRadius,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.28),
-              blurRadius: kIsWeb ? 8 : 12,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: graphicStyle.glowColor.withValues(
-                alpha: isPreview ? 0.07 : 0.15,
-              ),
-              blurRadius: kIsWeb ? 10 : 14,
-              spreadRadius: -3,
-            ),
-          ],
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: graphicStyle.background,
-                  borderRadius: borderRadius,
-                  border: Border.all(
-                    color: graphicStyle.borderColor.withValues(
-                      alpha: isPreview ? 0.58 : 0.82,
-                    ),
-                    width: 0.9,
-                  ),
-                ),
-              ),
-            ),
-            IgnorePointer(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            const Color(0xB0030611),
-                            const Color(0x74030611),
-                            const Color(0x24030611),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.38, 0.68, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: durationMinutes < 80 ? 2 : 2.5,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            graphicStyle.accentColor.withValues(alpha: 0.08),
-                            graphicStyle.accentColor.withValues(alpha: 0.42),
-                            graphicStyle.accentSecondaryColor.withValues(
-                              alpha: 0.22,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 8,
-                    top: 6,
-                    child: Opacity(
-                      opacity: isPreview ? 0.78 : 1.0,
-                      child: _buildEveningThresholdRiteAccent(
-                        compact: durationMinutes < 80,
-                        size: math.min(height - 16, 25),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: 11,
-                vertical: event.isReminder ? 4 : 4,
-              ),
-              child: _buildEventTextContents(
-                event,
-                durationMinutes,
-                isPreview: isPreview,
-              ),
-            ),
-          ],
-        ),
       );
     }
 
-    if (isTheWeighing) {
-      final graphicStyle = graphic!;
-      return Container(
+    if (graphic?.kind == CalendarEventGraphicKind.readingHouse) {
+      final sitting = _readingHouseSittingFaceForEvent(event);
+      return ReadingHouseEventBlockBehaviorSurface(
+        identity: ReadingHouseRoomIdentity(
+          calendarId: event.calendarId?.trim() ?? '',
+          flowId: event.flowId ?? 0,
+        ),
+        dataSource: _readingHouseRoomDataSource,
+        sittingNumber: sitting.eventNumber,
+        title: sitting.title,
+        prompt: sitting.privatePrompt,
         width: block.width,
         height: height,
-        margin: const EdgeInsets.only(right: 4, bottom: 2),
-        decoration: BoxDecoration(
-          borderRadius: borderRadius,
-          gradient: graphicStyle.background,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.28),
-              blurRadius: kIsWeb ? 8 : 12,
-              spreadRadius: 0.5,
-              offset: const Offset(0, 5),
-            ),
-          ],
+      );
+    }
+
+    if (graphic?.kind == CalendarEventGraphicKind.kar) {
+      final stageIndex = karStageIndexFromPayload(event.behaviorPayload);
+      final netjer = karNetjerFromPayload(event.behaviorPayload);
+      return _KarEventBlockWithCycleState(
+        key: ValueKey<String>(
+          'kar-day-event-state:${event.flowId}:$stageIndex:${netjer.key}',
         ),
-        foregroundDecoration: BoxDecoration(
-          borderRadius: borderRadius,
-          border: Border.all(
-            color: graphicStyle.borderColor.withValues(
-              alpha: isPreview ? 0.28 : 0.52,
-            ),
-          ),
-        ),
-        clipBehavior: Clip.hardEdge,
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-        child: _buildEventTextContents(
-          event,
-          durationMinutes,
-          isPreview: isPreview,
-        ),
+        repository: _karEventBlockRepository,
+        flowId: event.flowId,
+        netjer: netjer,
+        stageIndex: stageIndex,
+        title: stageIndex == 5 ? 'Walk the kꜣr' : netjer.labels[stageIndex],
+        width: block.width,
+        height: height,
       );
     }
 
@@ -8690,7 +8685,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   bool _isToday() {
-    final now = DateTime.now().toLocal();
+    final now = _now;
     final todayK = KemeticMath.fromGregorian(now);
     return widget.ky == todayK.kYear &&
         widget.km == todayK.kMonth &&
@@ -8757,6 +8752,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         builder: (sheetContext) => CalendarEventDetailSheet(
           hostContext: rootContext,
           initialTarget: sheetTarget,
+          readingHouseRoomDataSource: _readingHouseRoomDataSource,
           flowResolver: _chromeFlowForId,
           activeLedgerFlowIds: widget.activeLedgerFlowIds,
           resolveCurrentEventTarget: widget.resolveCurrentEventTarget,
@@ -8791,6 +8787,10 @@ class _DayViewGridState extends State<DayViewGrid> {
           onOnboardingObservedJournalNext:
               widget.onOnboardingObservedJournalNext,
           onboardingClosingBannerBuilder: widget.onboardingClosingBannerBuilder,
+          followSkyCatalog: widget.followSkyCatalog,
+          followSkyInstrumentProvider: widget.followSkyInstrumentProvider,
+          followSkyNow: widget.followSkyNow,
+          karRepository: widget.karRepository,
         ),
       ).whenComplete(releaseSheet);
       if (kDebugMode) {
@@ -8805,6 +8805,102 @@ class _DayViewGridState extends State<DayViewGrid> {
       releaseSheet();
       rethrow;
     }
+  }
+}
+
+/// Connects the already-authored Kꜣr event-block visual to its persisted
+/// cycle without letting loading or repository concerns shape the layout.
+class _KarEventBlockWithCycleState extends StatefulWidget {
+  const _KarEventBlockWithCycleState({
+    super.key,
+    required this.repository,
+    required this.flowId,
+    required this.netjer,
+    required this.stageIndex,
+    required this.title,
+    required this.width,
+    required this.height,
+  });
+
+  final KarRepository? repository;
+  final int? flowId;
+  final KarNetjer netjer;
+  final int stageIndex;
+  final String title;
+  final double width;
+  final double height;
+
+  @override
+  State<_KarEventBlockWithCycleState> createState() =>
+      _KarEventBlockWithCycleStateState();
+}
+
+class _KarEventBlockWithCycleStateState
+    extends State<_KarEventBlockWithCycleState> {
+  KarCycle? _cycle;
+  int _loadSerial = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _KarEventBlockWithCycleState oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.flowId != widget.flowId ||
+        oldWidget.netjer != widget.netjer) {
+      _cycle = null;
+      unawaited(_load());
+    }
+  }
+
+  Future<void> _load() async {
+    final repository = widget.repository;
+    if (repository == null) return;
+    final serial = ++_loadSerial;
+    try {
+      final shrine = await repository.loadOrCreate(widget.netjer);
+      KarCycle? resolved;
+      final flowId = widget.flowId;
+      if (flowId != null) {
+        for (final cycle in shrine.cycles.reversed) {
+          if (cycle.flowId == flowId) {
+            resolved = cycle;
+            break;
+          }
+        }
+      }
+      resolved ??= shrine.activeCycle;
+      if (!mounted || serial != _loadSerial) return;
+      setState(() => _cycle = resolved);
+    } on Object {
+      // The event remains legible if persistence is temporarily unavailable.
+      // Crucially, it does not invent progress from the sitting number.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cycle = _cycle;
+    final placedStages = <int>{
+      for (final placement in cycle?.placements ?? const <KarPlacement>[])
+        if (placement.activeVersion != null) placement.stageIndex,
+    };
+    final stageIndex = widget.stageIndex;
+    return KarEventBlockVisual(
+      netjer: widget.netjer,
+      stageIndex: stageIndex,
+      title: widget.title,
+      width: widget.width,
+      height: widget.height,
+      placedCount: placedStages.length,
+      placedStages: placedStages,
+      cycleSequence: cycle?.sequence ?? 1,
+      returning: stageIndex < 5 && placedStages.contains(stageIndex),
+    );
   }
 }
 
@@ -9303,7 +9399,6 @@ class _DecanWatchLocalNotesPanelState
           else ...[
             TextField(
               controller: _skyController,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: 2,
               maxLines: 4,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -9314,7 +9409,6 @@ class _DecanWatchLocalNotesPanelState
             const SizedBox(height: 10),
             TextField(
               controller: _intentionController,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: 2,
               maxLines: 4,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -9880,7 +9974,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   }
 
   bool get _usesSharedInitialPromptDrafts {
-    return resolveMaatFlowInitialPromptSpec(
+    return resolveActiveMaatFlowInitialPromptSpec(
           flowKey: widget.completion.flowKey,
         ) !=
         null;
@@ -9909,7 +10003,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   }
 
   void _rememberInitialPromptDraftValue(MaatFlowResponseValue value) {
-    if (_isReadingHouseCompletion) return;
     if (!_usesSharedInitialPromptDrafts) return;
     kMaatFlowResponseDraftStore.rememberValue(
       flowKey: widget.completion.flowKey,
@@ -10700,24 +10793,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   }
 
   Future<bool> _canRecordStatus(String status) async {
-    if (widget.completion.flowKey == kKeptWordFlowKey &&
-        widget.completion.eventNumber == 5 &&
-        status == 'observed') {
-      final flowId = widget.event.flowId;
-      if (flowId == null) return true;
-      final completed = await const TheKeptWordLocalStore()
-          .loadConversationCompleted(flowId);
-      if (completed) return true;
-      if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Mark the conversation complete locally, or choose Conversation pending.',
-          ),
-        ),
-      );
-      return false;
-    }
     if (widget.completion.flowKey == kTheOpenHandFlowKey &&
         (widget.completion.eventNumber == 2 ||
             widget.completion.eventNumber == 5) &&
@@ -10933,16 +11008,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
             monthIndex: widget.km.clamp(1, 12).toInt(),
             decanInMonth: decanIndex.clamp(1, 3).toInt(),
           ),
-        });
-      } else if (widget.completion.flowKey == kDaysOutsideTheYearFlowKey) {
-        final closingKYear = widget.km == 1 && widget.kd == 1
-            ? widget.ky - 1
-            : widget.ky;
-        metadata.addAll(<String, dynamic>{
-          'closing_k_year': closingKYear,
-          'event_k_year': widget.ky,
-          'k_month': widget.km,
-          'k_day': widget.kd,
         });
       } else if (widget.completion.flowKey == kTheDjedFlowKey &&
           status == 'raised') {
@@ -11320,7 +11385,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         const SizedBox(height: 12),
         TextField(
           controller: _eveningThresholdReleaseCarryController,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           maxLines: 3,
           minLines: 2,
           onChanged: (_) => setState(() {}),
@@ -11601,7 +11665,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           controller: _readingHouseFragmentReferenceController,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.next,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('Passage or page (optional)'),
         ),
@@ -11612,7 +11675,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           maxLines: 5,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.newline,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('Fragment'),
         ),
@@ -11894,7 +11956,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
             maxLines: 4,
             textCapitalization: TextCapitalization.sentences,
             textInputAction: TextInputAction.newline,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
             style: TextStyle(color: style.selectedForegroundColor),
             decoration: decoration(),
           ),
@@ -11997,7 +12058,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           controller: _readingHouseMarginReferenceController,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.next,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('Passage, page, or link (optional)'),
         ),
@@ -12008,7 +12068,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           maxLines: 5,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.newline,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('House margin note'),
         ),
@@ -12330,7 +12389,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           maxLines: 5,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.newline,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('Host announcement'),
         ),
@@ -12736,7 +12794,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           maxLines: 4,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.newline,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration(),
         ),
@@ -13139,1031 +13196,6 @@ class _MaatFlowLibraryCtaPanelState extends State<_MaatFlowLibraryCtaPanel> {
   }
 }
 
-class _TheTendingLocalNotesPanel extends StatefulWidget {
-  const _TheTendingLocalNotesPanel({required this.flowId, required this.event});
-
-  final int flowId;
-  final TheTendingEvent event;
-
-  @override
-  State<_TheTendingLocalNotesPanel> createState() =>
-      _TheTendingLocalNotesPanelState();
-}
-
-class _TheTendingLocalNotesPanelState
-    extends State<_TheTendingLocalNotesPanel> {
-  final TextEditingController _controller = TextEditingController();
-  final TheTendingLocalStore _store = const TheTendingLocalStore();
-  bool _loading = true;
-  bool _saving = false;
-  int _careListCount = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  @override
-  void didUpdateWidget(covariant _TheTendingLocalNotesPanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.flowId != widget.flowId ||
-        oldWidget.event.localPrompt != widget.event.localPrompt) {
-      unawaited(_load());
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-    });
-    final text = await _store.loadPromptText(
-      widget.flowId,
-      widget.event.localPrompt,
-    );
-    final careList = await _store.loadCareList(widget.flowId);
-    if (!mounted) return;
-    syncTextEditingControllerText(_controller, text);
-    setState(() {
-      _careListCount = careList.length;
-      _loading = false;
-    });
-  }
-
-  Future<void> _save() async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    try {
-      await _store.savePromptText(
-        widget.flowId,
-        widget.event.localPrompt,
-        _controller.text,
-      );
-      final careList = await _store.loadCareList(widget.flowId);
-      if (!mounted) return;
-      setState(() {
-        _careListCount = careList.length;
-        _saving = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved on this device only.')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save local care notes.')),
-      );
-    }
-  }
-
-  Future<void> _clearThisPrompt() async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    await _store.savePromptText(widget.flowId, widget.event.localPrompt, '');
-    final careList = await _store.loadCareList(widget.flowId);
-    if (!mounted) return;
-    _controller.clear();
-    setState(() {
-      _careListCount = careList.length;
-      _saving = false;
-    });
-  }
-
-  int get _minLines {
-    switch (widget.event.localPrompt) {
-      case TheTendingLocalPromptKind.careInventory:
-      case TheTendingLocalPromptKind.sealSeeingStatuses:
-      case TheTendingLocalPromptKind.closePerPerson:
-        return 4;
-      case TheTendingLocalPromptKind.none:
-      case TheTendingLocalPromptKind.heardOneSentence:
-      case TheTendingLocalPromptKind.day11Commitment:
-      case TheTendingLocalPromptKind.day15Check:
-      case TheTendingLocalPromptKind.day21RepairCommit:
-      case TheTendingLocalPromptKind.day25RepairCheck:
-        return 3;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.26),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF7A6B9E).withValues(alpha: 0.55),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.event.localPrompt.label,
-            style: const TextStyle(
-              color: Color(0xFFFFD486),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Record the care note for this tending step.',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            widget.event.localPrompt.helperText,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              height: 1.35,
-            ),
-          ),
-          if (_careListCount > 0 &&
-              widget.event.localPrompt !=
-                  TheTendingLocalPromptKind.careInventory) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Care inventory: $_careListCount ${_careListCount == 1 ? 'entry' : 'entries'}',
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-          ],
-          const SizedBox(height: 10),
-          if (_loading)
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            TextField(
-              controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
-              minLines: _minLines,
-              maxLines: 8,
-              style: const TextStyle(color: Colors.white, fontSize: 13.5),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF090A0D),
-                hintText: _hintText(widget.event.localPrompt),
-                hintStyle: const TextStyle(color: Colors.white38),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.white24),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: _dayGold),
-                ),
-              ),
-            ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                  ),
-                  onPressed: _saving || _loading ? null : _clearThisPrompt,
-                  child: const Text('Clear'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _dayGold,
-                    foregroundColor: Colors.black,
-                  ),
-                  onPressed: _saving || _loading ? null : _save,
-                  child: Text(_saving ? 'Saving...' : 'Save local'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _hintText(TheTendingLocalPromptKind prompt) {
-    switch (prompt) {
-      case TheTendingLocalPromptKind.careInventory:
-        return 'Name - need\nName - need';
-      case TheTendingLocalPromptKind.heardOneSentence:
-        return 'One sentence I heard or saw...';
-      case TheTendingLocalPromptKind.sealSeeingStatuses:
-        return 'Name - tended / partial / unseen';
-      case TheTendingLocalPromptKind.day11Commitment:
-        return 'I will complete...';
-      case TheTendingLocalPromptKind.day15Check:
-        return 'Done / partial / still open...';
-      case TheTendingLocalPromptKind.day21RepairCommit:
-        return 'I missed... I will repair by...';
-      case TheTendingLocalPromptKind.day25RepairCheck:
-        return 'Repair moved / stalled / next step...';
-      case TheTendingLocalPromptKind.closePerPerson:
-        return 'Name - private closing line\nWho tended me...';
-      case TheTendingLocalPromptKind.none:
-        return '';
-    }
-  }
-}
-
-class _KeptWordLocalNotesPanel extends StatefulWidget {
-  const _KeptWordLocalNotesPanel({required this.flowId, required this.event});
-
-  final int flowId;
-  final KeptWordEvent event;
-
-  @override
-  State<_KeptWordLocalNotesPanel> createState() =>
-      _KeptWordLocalNotesPanelState();
-}
-
-class _KeptWordLocalNotesPanelState extends State<_KeptWordLocalNotesPanel> {
-  final TextEditingController _controller = TextEditingController();
-  final TheKeptWordLocalStore _store = const TheKeptWordLocalStore();
-  bool _loading = true;
-  bool _saving = false;
-  bool _conversationCompleted = false;
-  bool _conversationPaused = false;
-  int _agreementCount = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  @override
-  void didUpdateWidget(covariant _KeptWordLocalNotesPanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.flowId != widget.flowId ||
-        oldWidget.event.localPrompt != widget.event.localPrompt) {
-      unawaited(_load());
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-    });
-    final text = await _store.loadPromptText(
-      widget.flowId,
-      widget.event.localPrompt,
-    );
-    final agreements = await _store.loadAgreementInventory(widget.flowId);
-    final completed = await _store.loadConversationCompleted(widget.flowId);
-    final paused = await _store.loadConversationPaused(widget.flowId);
-    if (!mounted) return;
-    syncTextEditingControllerText(_controller, text);
-    setState(() {
-      _agreementCount = agreements.length;
-      _conversationCompleted = completed;
-      _conversationPaused = paused;
-      _loading = false;
-    });
-  }
-
-  Future<void> _save() async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    try {
-      await _store.savePromptText(
-        widget.flowId,
-        widget.event.localPrompt,
-        _controller.text,
-      );
-      final agreements = await _store.loadAgreementInventory(widget.flowId);
-      if (!mounted) return;
-      setState(() {
-        _agreementCount = agreements.length;
-        _saving = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved on this device only.')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save local household notes.')),
-      );
-    }
-  }
-
-  Future<void> _clearThisPrompt() async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    await _store.savePromptText(widget.flowId, widget.event.localPrompt, '');
-    final agreements = await _store.loadAgreementInventory(widget.flowId);
-    if (!mounted) return;
-    _controller.clear();
-    setState(() {
-      _agreementCount = agreements.length;
-      _saving = false;
-    });
-  }
-
-  Future<void> _setConversationCompleted(bool value) async {
-    setState(() {
-      _conversationCompleted = value;
-    });
-    await _store.saveConversationCompleted(widget.flowId, value);
-  }
-
-  Future<void> _setConversationPaused(bool value) async {
-    setState(() {
-      _conversationPaused = value;
-    });
-    await _store.saveConversationPaused(widget.flowId, value);
-  }
-
-  int get _minLines {
-    switch (widget.event.localPrompt) {
-      case KeptWordLocalPromptKind.agreementInventory:
-      case KeptWordLocalPromptKind.conversationRecord:
-      case KeptWordLocalPromptKind.closeInventory:
-        return 4;
-      case KeptWordLocalPromptKind.none:
-      case KeptWordLocalPromptKind.sharedRhythm:
-      case KeptWordLocalPromptKind.sealSeeingGreedCheck:
-      case KeptWordLocalPromptKind.conversationPrep:
-      case KeptWordLocalPromptKind.sealNaming:
-      case KeptWordLocalPromptKind.renewedAgreement:
-      case KeptWordLocalPromptKind.rhythmCheck:
-        return 3;
-    }
-  }
-
-  bool get _showConversationControls {
-    return widget.event.eventNumber >= 4 && widget.event.eventNumber <= 6;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.26),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF8B7355).withValues(alpha: 0.62),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.event.localPrompt.label,
-            style: const TextStyle(
-              color: Color(0xFFFFD486),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Record the household note for this step.',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            widget.event.localPrompt.helperText,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              height: 1.35,
-            ),
-          ),
-          if (_agreementCount > 0 &&
-              widget.event.localPrompt !=
-                  KeptWordLocalPromptKind.agreementInventory) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Agreement inventory: $_agreementCount ${_agreementCount == 1 ? 'entry' : 'entries'}',
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-          ],
-          if (_showConversationControls) ...[
-            const SizedBox(height: 10),
-            CheckboxListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: _conversationCompleted,
-              activeColor: _dayGold,
-              title: const Text(
-                'Conversation happened',
-                style: TextStyle(color: Colors.white, fontSize: 13),
-              ),
-              onChanged: _loading || _saving
-                  ? null
-                  : (value) =>
-                        unawaited(_setConversationCompleted(value == true)),
-            ),
-            SwitchListTile.adaptive(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: _conversationPaused,
-              activeThumbColor: _dayGold,
-              title: const Text(
-                'Pause conversation work locally',
-                style: TextStyle(color: Colors.white, fontSize: 13),
-              ),
-              subtitle: const Text(
-                'Use this if contact is unsafe, unavailable, or not possible.',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-              onChanged: _loading || _saving
-                  ? null
-                  : (value) => unawaited(_setConversationPaused(value)),
-            ),
-            if (!_conversationCompleted && widget.event.eventNumber == 5)
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Text(
-                  'The conversation from Day 11 has not been marked complete. It can still happen before the decan closes.',
-                  style: TextStyle(
-                    color: Colors.white60,
-                    fontSize: 12,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-          ],
-          const SizedBox(height: 10),
-          if (_loading)
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            TextField(
-              controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
-              minLines: _minLines,
-              maxLines: 8,
-              style: const TextStyle(color: Colors.white, fontSize: 13.5),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF090A0D),
-                hintText: _hintText(widget.event.localPrompt),
-                hintStyle: const TextStyle(color: Colors.white38),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.white24),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: _dayGold),
-                ),
-              ),
-            ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                  ),
-                  onPressed: _saving || _loading ? null : _clearThisPrompt,
-                  child: const Text('Clear'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _dayGold,
-                    foregroundColor: Colors.black,
-                  ),
-                  onPressed: _saving || _loading ? null : _save,
-                  child: Text(_saving ? 'Saving...' : 'Save local'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _hintText(KeptWordLocalPromptKind prompt) {
-    switch (prompt) {
-      case KeptWordLocalPromptKind.agreementInventory:
-        return 'Person - agreement - kept/drifted/broken';
-      case KeptWordLocalPromptKind.sharedRhythm:
-        return 'The rhythm that drifted...';
-      case KeptWordLocalPromptKind.sealSeeingGreedCheck:
-        return 'The first break to name in Decan 2...';
-      case KeptWordLocalPromptKind.conversationPrep:
-        return 'We agreed to... What has been happening is... I will speak by...';
-      case KeptWordLocalPromptKind.conversationRecord:
-        return 'What I said...\nWhat they said...\nWhat was agreed...';
-      case KeptWordLocalPromptKind.sealNaming:
-        return 'Resolved / in process / named but unresolved...';
-      case KeptWordLocalPromptKind.renewedAgreement:
-        return 'The current agreement is...';
-      case KeptWordLocalPromptKind.rhythmCheck:
-        return 'The rhythm is holding / shifted because...';
-      case KeptWordLocalPromptKind.closeInventory:
-        return 'One line now true...';
-      case KeptWordLocalPromptKind.none:
-        return '';
-    }
-  }
-}
-
-class _TheWagLocalNotesPanel extends StatefulWidget {
-  const _TheWagLocalNotesPanel({required this.flowId, required this.event});
-
-  final int flowId;
-  final WagEvent event;
-
-  @override
-  State<_TheWagLocalNotesPanel> createState() => _TheWagLocalNotesPanelState();
-}
-
-class _TheWagLocalNotesPanelState extends State<_TheWagLocalNotesPanel> {
-  final TextEditingController _controller = TextEditingController();
-  final TheWagLocalStore _store = const TheWagLocalStore();
-  bool _loading = true;
-  bool _saving = false;
-  int _ancestorCount = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  @override
-  void didUpdateWidget(covariant _TheWagLocalNotesPanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.flowId != widget.flowId ||
-        oldWidget.event.localPrompt != widget.event.localPrompt) {
-      unawaited(_load());
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-    });
-    final text = await _store.loadPromptText(
-      widget.flowId,
-      widget.event.localPrompt,
-    );
-    final ancestors = await _store.loadAncestorNames(widget.flowId);
-    if (!mounted) return;
-    syncTextEditingControllerText(_controller, text);
-    setState(() {
-      _ancestorCount = ancestors.length;
-      _loading = false;
-    });
-  }
-
-  Future<void> _save() async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    try {
-      await _store.savePromptText(
-        widget.flowId,
-        widget.event.localPrompt,
-        _controller.text,
-      );
-      final ancestors = await _store.loadAncestorNames(widget.flowId);
-      if (!mounted) return;
-      setState(() {
-        _ancestorCount = ancestors.length;
-        _saving = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved on this device only.')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save local Wag notes.')),
-      );
-    }
-  }
-
-  Future<void> _clearThisPrompt() async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    await _store.savePromptText(widget.flowId, widget.event.localPrompt, '');
-    final ancestors = await _store.loadAncestorNames(widget.flowId);
-    if (!mounted) return;
-    _controller.clear();
-    setState(() {
-      _ancestorCount = ancestors.length;
-      _saving = false;
-    });
-  }
-
-  int get _minLines {
-    switch (widget.event.localPrompt) {
-      case WagLocalPromptKind.ancestorNames:
-      case WagLocalPromptKind.extendedNames:
-      case WagLocalPromptKind.feastNames:
-      case WagLocalPromptKind.closingConfirmation:
-        return 4;
-      case WagLocalPromptKind.none:
-      case WagLocalPromptKind.tableConfirmation:
-      case WagLocalPromptKind.wagFocus:
-      case WagLocalPromptKind.vigilChecklist:
-      case WagLocalPromptKind.inheritedGift:
-      case WagLocalPromptKind.legacyLine:
-        return 3;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.26),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF9C6B4E).withValues(alpha: 0.62),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.event.localPrompt.label,
-            style: const TextStyle(
-              color: Color(0xFFFFD486),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Record the ancestor note for this procession step.',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            widget.event.localPrompt.helperText,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              height: 1.35,
-            ),
-          ),
-          if (_ancestorCount > 0 &&
-              widget.event.localPrompt != WagLocalPromptKind.ancestorNames) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Ancestor names: $_ancestorCount ${_ancestorCount == 1 ? 'entry' : 'entries'}',
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-          ],
-          const SizedBox(height: 10),
-          if (_loading)
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            TextField(
-              controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
-              minLines: _minLines,
-              maxLines: 8,
-              style: const TextStyle(color: Colors.white, fontSize: 13.5),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF090A0D),
-                hintText: _hintText(widget.event.localPrompt),
-                hintStyle: const TextStyle(color: Colors.white38),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.white24),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: _dayGold),
-                ),
-              ),
-            ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                  ),
-                  onPressed: _saving || _loading ? null : _clearThisPrompt,
-                  child: const Text('Clear'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _dayGold,
-                    foregroundColor: Colors.black,
-                  ),
-                  onPressed: _saving || _loading ? null : _save,
-                  child: Text(_saving ? 'Saving...' : 'Save local'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _hintText(WagLocalPromptKind prompt) {
-    switch (prompt) {
-      case WagLocalPromptKind.ancestorNames:
-        return 'Name\n[Name unknown] - grandmother\nPractice ancestor - craft elder';
-      case WagLocalPromptKind.extendedNames:
-        return 'Additional name\nUnknown ancestor - relationship\nMentor or elder';
-      case WagLocalPromptKind.tableConfirmation:
-        return 'List read / water set / table ready...';
-      case WagLocalPromptKind.wagFocus:
-        return 'At the Wag I most want to acknowledge...';
-      case WagLocalPromptKind.vigilChecklist:
-        return 'Water / bread or food / scent / names spoken...';
-      case WagLocalPromptKind.feastNames:
-        return 'Names spoken / full feast kept / partial offering...';
-      case WagLocalPromptKind.inheritedGift:
-        return '[Name] gave me... I carry it by...';
-      case WagLocalPromptKind.legacyLine:
-        return 'After my name, I would want them to say...';
-      case WagLocalPromptKind.closingConfirmation:
-        return 'What this cycle confirmed...';
-      case WagLocalPromptKind.none:
-        return '';
-    }
-  }
-}
-
-class _DaysOutsideYearLocalNotesPanel extends StatefulWidget {
-  const _DaysOutsideYearLocalNotesPanel({
-    required this.flowId,
-    required this.event,
-  });
-
-  final int flowId;
-  final DaysOutsideEvent event;
-
-  @override
-  State<_DaysOutsideYearLocalNotesPanel> createState() =>
-      _DaysOutsideYearLocalNotesPanelState();
-}
-
-class _DaysOutsideYearLocalNotesPanelState
-    extends State<_DaysOutsideYearLocalNotesPanel> {
-  final TextEditingController _controller = TextEditingController();
-  final DaysOutsideYearLocalStore _store = const DaysOutsideYearLocalStore();
-  bool _loading = true;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  @override
-  void didUpdateWidget(covariant _DaysOutsideYearLocalNotesPanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.flowId != widget.flowId ||
-        oldWidget.event.localPrompt != widget.event.localPrompt) {
-      unawaited(_load());
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final text = await _store.loadPromptText(
-      widget.flowId,
-      widget.event.localPrompt,
-    );
-    if (!mounted) return;
-    syncTextEditingControllerText(_controller, text);
-    setState(() => _loading = false);
-  }
-
-  Future<void> _save() async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    try {
-      await _store.savePromptText(
-        widget.flowId,
-        widget.event.localPrompt,
-        _controller.text,
-      );
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved on this device only.')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not save local year-threshold notes.'),
-        ),
-      );
-    }
-  }
-
-  Future<void> _clear() async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    await _store.savePromptText(widget.flowId, widget.event.localPrompt, '');
-    if (!mounted) return;
-    _controller.clear();
-    setState(() => _saving = false);
-  }
-
-  int get _minLines {
-    return widget.event.kind == DaysOutsideEventKind.wepRonpetOpening ? 4 : 3;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.26),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFB8A8FF).withValues(alpha: 0.5),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.event.localPrompt.label,
-            style: const TextStyle(
-              color: Color(0xFFFFD486),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Record the threshold note for this year-opening step.',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            widget.event.localPrompt.helperText,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 10),
-          if (_loading)
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            TextField(
-              controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
-              minLines: _minLines,
-              maxLines: 8,
-              style: const TextStyle(color: Colors.white, fontSize: 13.5),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF090A0D),
-                hintText: _hintText(widget.event.localPrompt),
-                hintStyle: const TextStyle(color: Colors.white38),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.white24),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: _dayGold),
-                ),
-              ),
-            ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                  ),
-                  onPressed: _saving || _loading ? null : _clear,
-                  child: const Text('Clear'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _dayGold,
-                    foregroundColor: Colors.black,
-                  ),
-                  onPressed: _saving || _loading ? null : _save,
-                  child: Text(_saving ? 'Saving...' : 'Save local'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _hintText(DaysOutsideLocalPromptKind prompt) {
-    switch (prompt) {
-      case DaysOutsideLocalPromptKind.yearCloseTriple:
-        return 'Unexpected gift...\nUngiven ask...\nCarries across...';
-      case DaysOutsideLocalPromptKind.ausarQuality:
-        return 'This needs to be gathered back...';
-      case DaysOutsideLocalPromptKind.heruWerQuality:
-        return 'I need to see this from above...';
-      case DaysOutsideLocalPromptKind.setQuality:
-        return 'This force needs direction...';
-      case DaysOutsideLocalPromptKind.asetQuality:
-        return 'This truth needs the right moment...';
-      case DaysOutsideLocalPromptKind.nebetHetQuality:
-        return 'This threshold needs witness...';
-      case DaysOutsideLocalPromptKind.wepRonpetIntention:
-        return 'Ausar - one word\nHeru Wer - one word\nSet - one word\nAset - one word\nNebet-Het - one word\nYear intention...';
-    }
-  }
-}
-
 class _OpenHandLocalNotesPanel extends StatefulWidget {
   const _OpenHandLocalNotesPanel({required this.flowId, required this.event});
 
@@ -14361,7 +13393,6 @@ class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
           else
             TextField(
               controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines:
                   widget.event.eventNumber == 4 ||
                       widget.event.eventNumber == 6 ||
@@ -14389,7 +13420,6 @@ class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
             const SizedBox(height: 10),
             TextField(
               controller: _deferredController,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
               decoration: InputDecoration(
                 filled: true,
@@ -14695,7 +13725,6 @@ class _DjedLocalNotesPanelState extends State<_DjedLocalNotesPanel> {
           else
             TextField(
               controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines:
                   widget.event.eventNumber == 1 ||
                       widget.event.eventNumber == 4 ||

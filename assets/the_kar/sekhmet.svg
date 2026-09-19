@@ -1,0 +1,51 @@
+<svg viewBox="0 0 306 408">
+  <defs>
+    <linearGradient id="skLime4" x1="8%" y1="4%" x2="92%" y2="96%">
+      <stop offset="0" stop-color="#DCC9A7"/><stop offset=".30" stop-color="#B3976D"/>
+      <stop offset=".68" stop-color="#735A3E"/><stop offset="1" stop-color="#38281C"/>
+    </linearGradient>
+    <linearGradient id="skPaint4" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0" stop-color="#B67B4B"/><stop offset=".42" stop-color="#8F5438"/>
+      <stop offset=".78" stop-color="#563326"/><stop offset="1" stop-color="#2C1E18"/>
+    </linearGradient>
+    <radialGradient id="skAura4" cx="50%" cy="42%" r="58%">
+      <stop offset="0" stop-color="#D49A74" stop-opacity=".12"/><stop offset="1" stop-color="#D49A74" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="skShadow4" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4.5"/></filter>
+  </defs>
+  <ellipse class="art-aura" cx="152" cy="180" rx="128" ry="154" fill="url(#skAura4)"/>
+  <ellipse cx="153" cy="329" rx="95" ry="13" fill="#000" fill-opacity=".58" filter="url(#skShadow4)"/>
+
+  <!-- painted limestone relief rather than turquoise/faience -->
+  <path d="M49 48 H257 V328 H49 Z" fill="url(#skLime4)" stroke="#E7D3B3" stroke-opacity=".21"/>
+  <path d="M63 63 H243 V313 H63 Z" fill="#9D825E" fill-opacity=".15" stroke="#FFF0D1" stroke-opacity=".08"/>
+  <path d="M63 102 C105 94 128 107 154 101 C185 94 209 105 242 99
+           M65 176 C101 168 132 179 161 174 C191 169 217 176 242 171
+           M69 252 C108 245 136 255 163 251 C191 247 216 252 239 248"
+        fill="none" stroke="#F0DEC1" stroke-opacity=".07" stroke-width="2.4"/>
+
+  <!-- Niuserre-era lioness-goddess tradition: rounded ears, low cranium, heavy muzzle.
+       No solar disk, uraeus, ankh, or sceptre. -->
+  <g stroke="#DDB88F" stroke-opacity=".30" stroke-width="1.05" class="art-stroke">
+    <path d="M138 88 C130 81 128 72 133 67 C140 67 146 72 149 81 Z" fill="url(#skPaint4)"/>
+    <path d="M168 82 C173 73 180 68 187 70 C190 77 186 86 178 93 Z" fill="url(#skPaint4)"/>
+    <path d="M148 78 C162 75 176 80 183 90 C190 99 189 110 183 119
+             C178 126 170 131 161 132 L147 130 C135 128 126 119 124 108
+             C122 96 130 84 148 78 Z" fill="url(#skPaint4)"/>
+    <path d="M172 98 C187 98 197 104 200 112 C194 121 181 124 166 120
+             C173 115 176 108 172 98 Z" fill="#9B5D3D"/>
+    <circle cx="163" cy="98" r="2.5" fill="#2A1C18" stroke="none"/>
+    <path d="M196 111 C188 114 181 114 173 111" fill="none" stroke="#2D1B16" stroke-opacity=".75"/>
+    <path d="M136 126 C132 144 129 162 131 183 H179 C181 160 176 140 167 125
+             C157 132 147 132 136 126 Z" fill="#4A3428" fill-opacity=".88"/>
+    <path d="M132 173 C145 164 164 164 177 174 L183 273 H126 Z" fill="#B18462"/>
+    <path d="M127 262 H182 L188 318 H121 Z" fill="#A9795A"/>
+    <path d="M136 180 C125 203 123 230 128 253 L138 250 C134 227 137 203 145 185 Z" fill="#AD7E5D"/>
+    <path d="M173 180 C184 198 190 220 189 243 L179 243 C179 221 174 202 165 185 Z" fill="#AD7E5D"/>
+  </g>
+
+  <!-- patchy pigment loss keeps it archaeological, not polished -->
+  <path d="M126 101 l12 -4 M162 145 l12 -4 M147 223 l16 -3 M123 285 l14 -2 M178 196 l7 -2"
+        stroke="#BFA47E" stroke-width="4" stroke-opacity=".42"/>
+  <path d="M83 78 l30 3 M205 72 l23 2 M82 291 l27 4" stroke="#5C4732" stroke-opacity=".18" stroke-width="3"/>
+</svg>

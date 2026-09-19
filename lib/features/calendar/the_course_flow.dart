@@ -1,8 +1,7 @@
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-import 'dawn_house_rite_flow.dart';
-import 'evening_threshold_rite_flow.dart';
+import 'maat_solar_schedule.dart';
 import 'maat_flow_identity.dart';
 import 'the_course_context.dart';
 import 'track_sky_flow.dart';
@@ -16,7 +15,7 @@ const String kTheCourseEnrollmentCopy =
 const int kTheCourseDefaultMiddayHour = 11;
 const int kTheCourseDefaultMiddayMinute = 0;
 const int kTheCourseEveningFallbackMinutes =
-    kEveningThresholdDefaultFallbackMinutes + 20;
+    kMaatDefaultEveningFallbackMinutes + 20;
 
 const String kTheCourseOverview =
     'The Course is a thirty-day time-orientation flow with nine sittings. It locates the user in the day, the decan, and the active Kemetic season, then turns that location into one fitting action instead of passive calendar reading.';
@@ -393,7 +392,7 @@ CourseOccurrenceSchedule courseDawnScheduleForDate(
   TrackSkyTimeZone timezone, {
   required int durationMinutes,
 }) {
-  final base = dawnHouseRiteScheduleForDate(date, timezone);
+  final base = maatDawnScheduleForDate(date, timezone);
   final startUtc = base.startUtc;
   final endUtc = startUtc.add(Duration(minutes: durationMinutes));
   final location = tz.getLocation(timezone.ianaName);
@@ -415,10 +414,10 @@ CourseOccurrenceSchedule courseDuskScheduleForDate(
   TrackSkyTimeZone timezone, {
   required int durationMinutes,
 }) {
-  final base = eveningThresholdScheduleForDate(
+  final base = maatSunsetScheduleForDate(
     date,
     timezone,
-    fallbackMinutesAfterMidnight: kEveningThresholdDefaultFallbackMinutes,
+    fallbackMinutesAfterMidnight: kMaatDefaultEveningFallbackMinutes,
   );
   final startUtc = base.usedFallback
       ? base.startUtc
@@ -479,7 +478,7 @@ CourseOccurrenceSchedule courseEveningScheduleForDate(
   TrackSkyTimeZone timezone, {
   required int durationMinutes,
 }) {
-  final base = eveningThresholdScheduleForDate(
+  final base = maatSunsetScheduleForDate(
     date,
     timezone,
     fallbackMinutesAfterMidnight: kTheCourseEveningFallbackMinutes,

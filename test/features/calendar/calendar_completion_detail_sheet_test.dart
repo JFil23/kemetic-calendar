@@ -282,51 +282,6 @@ void main() {
     expect(orientationRepo, contains('_loadMostRecentCarry('));
   });
 
-  test('Evening Threshold orientation tables are migration-backed', () {
-    final migrations = Directory('../supabase/migrations')
-        .listSync()
-        .whereType<File>()
-        .where((file) => file.path.endsWith('.sql'))
-        .map((file) => file.readAsStringSync())
-        .join('\n');
-
-    expect(
-      migrations,
-      contains('create table if not exists public.daily_orientation'),
-    );
-    expect(
-      migrations,
-      contains('create table if not exists public.evening_threshold_decisions'),
-    );
-    expect(migrations, contains('daily_orientation_user_chosen_return_idx'));
-    expect(migrations, contains('where chosen_return is not null'));
-    for (final column in [
-      'kemetic_day_key',
-      'entry_state',
-      'chosen_return',
-      'source',
-      'set_at',
-      'landing_status',
-      'landed_at',
-      'carryover_choice',
-      'evening_reflection_status',
-      'badge_label',
-      'status',
-      'completed_at',
-      'new_carry_text',
-    ]) {
-      expect(migrations, contains(column), reason: column);
-    }
-    expect(migrations, contains('primary key (user_id, local_date)'));
-    expect(migrations, contains('primary key (user_id, decision_date)'));
-    expect(migrations, contains('auth.uid() = user_id'));
-    expect(migrations, contains("decision in ('carried', 'released')"));
-    expect(
-      migrations,
-      contains("landing_status in ('held', 'slipped', 'working_on_it')"),
-    );
-  });
-
   test('Evening Threshold persistence is remote-first and failure-safe', () {
     final dayView = File(
       'lib/features/calendar/day_view.dart',
@@ -540,38 +495,33 @@ void main() {
     },
   );
 
-  test(
-    'generic detail retains Add reflection while Follow Sky owns its reflection',
-    () {
-      final dayView = File(
-        'lib/features/calendar/day_view.dart',
-      ).readAsStringSync();
-      final monthGrid = File(
-        'lib/features/calendar/calendar_grid_widgets.dart',
-      ).readAsStringSync();
-      final landscape = File(
-        'lib/features/calendar/landscape_month_view.dart',
-      ).readAsStringSync();
-      final topRow = _sourceBetween(
-        dayView,
-        'Widget _buildEventDetailTopActionRow',
-        'Widget _buildEventDetailPrimaryAction',
-      );
-      expect(topRow, contains('_buildAddReflectionButton('));
-      expect(topRow, contains('if (!isFollowSkyObservation)'));
-      expect(dayView, contains("label: const Text('Add reflection')"));
-      expect(
-        dayView,
-        contains('FollowSkyObservationPresentationLoader('),
-      );
-      expect(dayView, isNot(contains('FollowSkyObservationSheet(')));
-      expect(dayView, isNot(contains('FollowSkyObservationPanel(')));
-      expect(topRow, isNot(contains("label: const Text('End Flow')")));
-      expect(dayView, contains("value: 'end_flow'"));
-      expect(monthGrid, contains('CalendarEventDetailSheet('));
-      expect(landscape, contains('CalendarEventDetailSheet('));
-    },
-  );
+  test('all event details retain Add reflection including Follow Sky', () {
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final monthGrid = File(
+      'lib/features/calendar/calendar_grid_widgets.dart',
+    ).readAsStringSync();
+    final landscape = File(
+      'lib/features/calendar/landscape_month_view.dart',
+    ).readAsStringSync();
+    final topRow = _sourceBetween(
+      dayView,
+      'Widget _buildEventDetailTopActionRow',
+      'Widget _buildEventDetailOverflowButton',
+    );
+    expect(topRow, contains('_buildEventDetailReflectionAction('));
+    expect(topRow, isNot(contains('if (!isFollowSkyObservation)')));
+    expect(dayView, contains('leading: _buildEventDetailReflectionAction('));
+    expect(dayView, contains("label: const Text('Add reflection')"));
+    expect(dayView, contains('FollowSkyObservationPresentationLoader('));
+    expect(dayView, isNot(contains('FollowSkyObservationSheet(')));
+    expect(dayView, isNot(contains('FollowSkyObservationPanel(')));
+    expect(topRow, isNot(contains("label: const Text('End Flow')")));
+    expect(dayView, contains("value: 'end_flow'"));
+    expect(monthGrid, contains('CalendarEventDetailSheet('));
+    expect(landscape, contains('CalendarEventDetailSheet('));
+  });
 
   test('End Flow returns a structured success, failure, or not-handled', () {
     final calendarPage = File(

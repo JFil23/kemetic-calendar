@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -21,13 +22,12 @@ import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
-import 'package:mobile/features/calendar/maat_flow_palette.dart';
-import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/calendar_floating_shortcuts.dart';
+import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -244,6 +244,11 @@ void main() {
         'lib/features/calendar/presentation/'
         'instrument_event_presentation_frame.dart',
       ).readAsString();
+      final sharedHostState = _sourceBetween(
+        sharedHost,
+        'class _InstrumentEventSheetHostState',
+        '@immutable\nclass InstrumentEventSheetGeometry',
+      );
 
       expect(
         sharedHost,
@@ -257,11 +262,93 @@ void main() {
       expect(sharedHost, contains('isDismissible: true'));
       expect(sharedHost, contains('enableDrag: true'));
       expect(sharedHost, contains('useRootNavigator: false'));
-      expect(sharedHost, isNot(contains('child: Align(')));
-      expect(dayView, contains('InstrumentEventSheetHost('));
-      expect(dayView, contains('trailing: _buildEventDetailOverflowButton('));
+      expect(sharedHostState, isNot(contains('child: Align(')));
+      expect(dayView, contains('MaatDayViewSheetHost('));
+      expect(dayView, contains('_buildEventDetailOverflowButton('));
     },
   );
+
+  test('canonical Ma\'at Day View housing has one chrome authority', () async {
+    final dayView = await File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsString();
+    final sharedHost = await File(
+      'lib/features/calendar/presentation/'
+      'instrument_event_presentation_frame.dart',
+    ).readAsString();
+    final offering = await File(
+      'lib/features/calendar/the_offering_table/presentation/'
+      'offering_table_day_v8_presentation.dart',
+    ).readAsString();
+    final reading = await File(
+      'lib/features/calendar/the_reading_house/presentation/'
+      'reading_house_day_presentation.dart',
+    ).readAsString();
+    final djed = await File(
+      'lib/features/calendar/the_djed/presentation/'
+      'djed_day_presentation.dart',
+    ).readAsString();
+    final followSky = await File(
+      'lib/features/calendar/follow_the_sky/presentation/widgets/'
+      'follow_sky_observation_presentation.dart',
+    ).readAsString();
+    final kar = await File(
+      'lib/features/calendar/the_kar/presentation/'
+      'kar_day_behavior_surface.dart',
+    ).readAsString();
+
+    expect(dayView, contains('final activeMaatDayViewFlow = switch'));
+    expect(
+      sharedHost,
+      contains('class MaatDayViewSheetHost extends StatelessWidget'),
+      reason: 'one shared widget owns Day View sheet chrome for every flow',
+    );
+    for (final flow in <String>[
+      'followSky',
+      'offeringTable',
+      'readingHouse',
+      'djed',
+      'kar',
+    ]) {
+      expect(dayView, contains('MaatDayViewFlow.$flow'));
+    }
+    expect(sharedHost, contains('MaatDayViewFlow.offeringTable'));
+    expect(sharedHost, contains('initialExtent: .71'));
+    expect(dayView, contains('return MaatDayViewFooterActions('));
+    expect(sharedHost, contains('class MaatDayViewFooterActions'));
+    expect(sharedHost, contains('class MaatDayViewForegroundShell'));
+    expect(sharedHost, contains('class MaatDayViewForegroundContent'));
+    expect(sharedHost, contains("'maat-day-view-completion-slot'"));
+    expect(sharedHost, contains('class MaatDayViewGraphicSpace'));
+    expect(sharedHost, isNot(contains('fixedInstrumentHeight')));
+    expect(sharedHost, isNot(contains('initialLowerSheetPeek')));
+    expect(sharedHost, isNot(contains('lowerSheetOverlaysInstrument')));
+
+    expect(offering, contains('MaatDayViewGraphicSpace.revealable('));
+    expect(offering, contains('minimumForegroundPeek: 28'));
+    expect(offering, isNot(contains("width: 38")));
+    expect(reading, isNot(contains('ReadingHouseDayFooterActions')));
+    expect(reading, isNot(contains("width: 38")));
+    expect(djed, isNot(contains('DjedDayFooterActions')));
+    expect(djed, isNot(contains('DjedDayFooterChrome')));
+    for (final presentationSource in <String>[
+      followSky,
+      offering,
+      reading,
+      djed,
+      kar,
+    ]) {
+      expect(presentationSource, contains('graphicSpace:'));
+      expect(presentationSource, contains('foregroundStyle:'));
+      expect(presentationSource, contains('completion:'));
+      expect(
+        presentationSource,
+        isNot(contains('lowerSheetOverlaysInstrument:')),
+      );
+      expect(presentationSource, isNot(contains('initialLowerSheetPeek:')));
+    }
+    expect(kar, isNot(contains('class _SheetHandle')));
+  });
 
   test('End Flow successor is same-day, stable, and excludes ending flow', () {
     const targetEvent = EventItem(
@@ -539,6 +626,137 @@ void main() {
         expect(blocks.single.width, closeTo(314 * 0.8, 0.001));
       },
     );
+
+    test('Djed uses the standard single-event geometry', () {
+      const ordinaryEvent = EventItem(
+        clientEventId: 'ordinary-event',
+        title: 'Ordinary Event',
+        startMin: 10 * 60,
+        endMin: 11 * 60,
+        color: Colors.green,
+        allDay: false,
+      );
+      const djedEvent = EventItem(
+        clientEventId: 'djed-event',
+        title: 'Djed 4: Make one move',
+        startMin: 10 * 60,
+        endMin: 11 * 60,
+        flowId: 84,
+        flowName: 'The Djed',
+        flowNotes: 'maat=the-djed',
+        color: Colors.orange,
+        allDay: false,
+      );
+
+      PositionedEventBlock layout(
+        EventItem event, {
+        double singleEventWidthFactor = 0.8,
+      }) => EventLayoutEngine.layoutEventItems(
+        events: <EventItem>[event],
+        availableWidth: 314,
+        columnGap: 4,
+        textScale: 1,
+        day: 1,
+        singleEventWidthFactor: singleEventWidthFactor,
+      ).single;
+
+      final ordinaryPhone = layout(ordinaryEvent);
+      final djedPhone = layout(djedEvent);
+      expect(djedPhone.leftOffset, ordinaryPhone.leftOffset);
+      expect(djedPhone.width, closeTo(ordinaryPhone.width, 0.001));
+      expect(djedPhone.width, closeTo(251.2, 0.001));
+
+      final djedTablet = layout(djedEvent, singleEventWidthFactor: 1);
+      expect(djedTablet.leftOffset, 0);
+      expect(djedTablet.width, closeTo(314, 0.001));
+    });
+
+    test('Offering Table uses the standard single-event geometry', () {
+      const ordinaryEvent = EventItem(
+        clientEventId: 'ordinary-event',
+        title: 'Ordinary Event',
+        startMin: 10 * 60,
+        endMin: 11 * 60,
+        color: Colors.green,
+        allDay: false,
+      );
+      const offeringEvent = EventItem(
+        clientEventId: 'offering-event',
+        title: 'The Offering Table · Day 01 · The Small Supply',
+        startMin: 10 * 60,
+        endMin: 11 * 60,
+        flowId: 85,
+        flowName: 'The Offering Table',
+        flowNotes: 'maat=the-offering-table',
+        color: Colors.orange,
+        allDay: false,
+      );
+
+      PositionedEventBlock layout(
+        EventItem event, {
+        double singleEventWidthFactor = 0.8,
+      }) => EventLayoutEngine.layoutEventItems(
+        events: <EventItem>[event],
+        availableWidth: 314,
+        columnGap: 4,
+        textScale: 1,
+        day: 1,
+        singleEventWidthFactor: singleEventWidthFactor,
+      ).single;
+
+      final ordinaryPhone = layout(ordinaryEvent);
+      final offeringPhone = layout(offeringEvent);
+      expect(offeringPhone.leftOffset, ordinaryPhone.leftOffset);
+      expect(offeringPhone.width, closeTo(ordinaryPhone.width, 0.001));
+      expect(offeringPhone.width, closeTo(251.2, 0.001));
+
+      final ordinaryTablet = layout(ordinaryEvent, singleEventWidthFactor: 1);
+      final offeringTablet = layout(offeringEvent, singleEventWidthFactor: 1);
+      expect(offeringTablet.leftOffset, ordinaryTablet.leftOffset);
+      expect(offeringTablet.width, closeTo(ordinaryTablet.width, 0.001));
+      expect(offeringTablet.width, closeTo(314, 0.001));
+    });
+
+    test('Djed uses shared columns when it overlaps an ordinary event', () {
+      final blocks = EventLayoutEngine.layoutEventItems(
+        events: const <EventItem>[
+          EventItem(
+            clientEventId: 'a-djed-event',
+            title: 'Djed 4: Make one move',
+            startMin: 10 * 60,
+            endMin: 11 * 60,
+            flowId: 84,
+            flowName: 'The Djed',
+            flowNotes: 'maat=the-djed',
+            color: Colors.orange,
+            allDay: false,
+          ),
+          EventItem(
+            clientEventId: 'b-ordinary-event',
+            title: 'Ordinary Event',
+            startMin: 10 * 60,
+            endMin: 11 * 60,
+            color: Colors.green,
+            allDay: false,
+          ),
+        ],
+        availableWidth: 314,
+        columnGap: 4,
+        textScale: 1,
+        day: 1,
+      );
+
+      expect(blocks, hasLength(2));
+      expect(
+        blocks.map((block) => block.width),
+        everyElement(closeTo(155, 0.001)),
+      );
+      expect(blocks.map((block) => block.leftOffset), <double>[0, 159]);
+      expect(
+        blocks.map((block) => block.leftOffset + block.width),
+        everyElement(lessThanOrEqualTo(314)),
+      );
+    });
 
     test('tablet landscape single events can use the full timeline lane', () {
       final blocks = EventLayoutEngine.layoutEventItems(
@@ -981,97 +1199,50 @@ void main() {
       },
     );
 
-    testWidgets(
-      'Ma_at flow detail sheet uses gold section headers without duplicate labels',
-      (tester) async {
-        await _setPhoneViewport(tester);
-        final event = kTheWeighingEvents.singleWhere(
-          (event) => event.eventNumber == 9,
-        );
-        final title = theWeighingEventTitle(event);
-        final recordedStatuses = <CompletionStatus>[];
+    testWidgets('archived flow events expose no active completion controls', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      const title = 'Weighing 9: Seal the Record';
 
-        await tester.pumpWidget(
-          _DayViewHarness(
-            initialScrollOffset: 9 * 60,
-            flowIndex: const <int, FlowData>{
-              90: FlowData(
-                id: 90,
-                name: kTheWeighingTitle,
-                color: Colors.amber,
-                active: true,
-                notes: 'weighing_lens=neutral',
-              ),
-            },
-            notes: [
-              NoteData(
-                clientEventId: 'cid-the-weighing-9',
-                title: title,
-                detail: theWeighingDetailText(
-                  event,
-                  lens: TheWeighingLens.neutral,
-                ),
-                category: event.decanSection,
-                allDay: false,
-                start: const TimeOfDay(hour: 10, minute: 0),
-                end: const TimeOfDay(hour: 10, minute: 10),
-                flowId: 90,
-              ),
-            ],
-            onRecordCompletion:
-                ({
-                  required String clientEventId,
-                  required int flowId,
-                  required DateTime completedOnDate,
-                  Map<String, dynamic>? metadata,
-                }) async {
-                  recordedStatuses.add(
-                    CompletionStatusX.fromWireName(
-                      metadata?['completion_status']?.toString(),
-                    ),
-                  );
-                },
-          ),
-        );
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        const _DayViewHarness(
+          initialScrollOffset: 9 * 60,
+          flowIndex: <int, FlowData>{
+            90: FlowData(
+              id: 90,
+              name: 'The Weighing',
+              color: Colors.amber,
+              active: false,
+              notes: 'maat=the-weighing',
+            ),
+          },
+          notes: <NoteData>[
+            NoteData(
+              clientEventId: 'cid-the-weighing-9',
+              title: title,
+              detail: 'Historical record preserved.',
+              allDay: false,
+              start: TimeOfDay(hour: 10, minute: 0),
+              end: TimeOfDay(hour: 10, minute: 10),
+              flowId: 90,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        final eventSurface = find
-            .ancestor(
-              of: find.text(title).first,
-              matching: find.byType(GestureDetector),
-            )
-            .last;
-        await tester.tap(eventSurface);
-        await tester.pumpAndSettle();
+      await tester.tap(find.text(title).first);
+      await tester.pumpAndSettle();
 
-        for (final label in const <String>['PURPOSE', 'WORDS', 'STEPS']) {
-          final finder = find.text(label);
-          expect(finder, findsOneWidget);
-          final text = tester.widget<Text>(finder);
-          expect(text.style?.color, MaatFlowPalette.interiorLabel);
-          expect(text.style?.letterSpacing, 1.6);
-        }
-        expect(find.text('Purpose'), findsNothing);
-
-        final bodyFinder = find.textContaining(
-          'Speak only the truth-check lines you can speak honestly.',
-        );
-        expect(bodyFinder, findsOneWidget);
-        final bodyText = tester.widget<Text>(bodyFinder);
-        expect(bodyText.style?.color, isNot(MaatFlowPalette.interiorLabel));
-
-        expect(find.text('Observed'), findsWidgets);
-        expect(find.text('Partly'), findsWidgets);
-        expect(find.text('Skipped'), findsWidgets);
-
-        await tester.ensureVisible(find.text('Observed').last);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Observed').last);
-        await tester.pumpAndSettle();
-
-        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
-      },
-    );
+      expect(
+        find.text('Historical record preserved.', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.text('Observed'), findsNothing);
+      expect(find.text('Partly'), findsNothing);
+      expect(find.text('Skipped'), findsNothing);
+    });
 
     testWidgets('overlapping math cards remain visible as compact previews', (
       tester,
@@ -1988,6 +2159,52 @@ void main() {
         expect(sharedEvent!.clientEventId, 'cid-focus');
         expect(sharedEvent!.startMin, 13 * 60);
         expect(sharedEvent!.endMin, 14 * 60);
+      },
+    );
+
+    testWidgets(
+      'generic event detail actions stay behind the system keyboard and return after dismissal',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final keyboardVisible = ValueNotifier<bool>(false);
+        addTearDown(keyboardVisible.dispose);
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            keyboardVisibility: keyboardVisible,
+            notes: [
+              _timedNote(
+                title: 'Focus Block',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Focus Block'));
+        await tester.pumpAndSettle();
+
+        const makeTodoKey = ValueKey<String>('maat-day-view-make-todo');
+        const calendarKey = ValueKey<String>('maat-day-view-calendar');
+        expect(find.byKey(makeTodoKey), findsOneWidget);
+        expect(find.byKey(calendarKey), findsOneWidget);
+
+        keyboardVisible.value = true;
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(makeTodoKey), findsNothing);
+        expect(find.byKey(calendarKey), findsNothing);
+
+        keyboardVisible.value = false;
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(makeTodoKey), findsOneWidget);
+        expect(find.byKey(calendarKey), findsOneWidget);
+        expect(tester.takeException(), isNull);
       },
     );
 
@@ -3798,6 +4015,7 @@ class _DayViewHarness extends StatelessWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.keyboardVisibility,
   });
 
   final List<NoteData> notes;
@@ -3815,10 +4033,27 @@ class _DayViewHarness extends StatelessWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final ValueListenable<bool>? keyboardVisibility;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      builder: keyboardVisibility == null
+          ? null
+          : (context, navigator) => ValueListenableBuilder<bool>(
+              valueListenable: keyboardVisibility!,
+              child: navigator,
+              builder: (context, visible, navigatorChild) =>
+                  KemeticKeyboardScope(
+                    isCustomKeyboardVisible: false,
+                    customKeyboardInset: 0,
+                    systemKeyboardInset: visible ? 300 : 0,
+                    visibleTop: 0,
+                    visibleBottom: visible ? 544 : 844,
+                    isSystemKeyboardVisible: visible,
+                    child: navigatorChild!,
+                  ),
+            ),
       home: Scaffold(
         body: DayViewGrid(
           ky: 1,

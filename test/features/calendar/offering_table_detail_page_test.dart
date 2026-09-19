@@ -9,10 +9,12 @@ import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/calendar_event_visual_style.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
-import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
-import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_contract.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_state.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_v8_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
@@ -21,16 +23,17 @@ import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart';
-import 'package:mobile/widgets/kemetic_date_picker.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const _captureVisualCheckpoint = bool.fromEnvironment(
-  'CAPTURE_OFFERING_TABLE_VISUAL_CHECKPOINT',
-);
+import '../../support/maat_flow_visual_test_fonts.dart';
+import '../../support/maat_flow_visual_goldens.dart';
+
 const _visualCaptureSurfaceKey = ValueKey<String>(
   'offering-table-visual-capture-surface',
 );
+final _goldenRoot = maatFlowVisualGoldenRoot;
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -79,9 +82,12 @@ void main() {
       OfferingTableDetailTokens.heroAsset,
     );
 
-    expect(find.byType(OfferingTableDetailPage), findsOneWidget);
+    expect(find.byType(OfferingTableDetailSurface), findsOneWidget);
     expect(find.byType(MaatFlowDetailShell), findsOneWidget);
-    expect(find.byType(MaatFlowDetailHero), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('offering-table-hero')),
+      findsOneWidget,
+    );
     expect(heroAsset.lengthInBytes, greaterThan(0));
     final hero = find.byKey(const ValueKey<String>('offering-table-hero'));
     final heroImage = find.descendant(
@@ -95,7 +101,10 @@ void main() {
     );
     expect(find.text('The Offering\nTable'), findsOneWidget);
     expect(find.text(kOfferingTableTagline), findsOneWidget);
-    expect(find.text(kOfferingTableGlyph), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('offering-table-hero-glyph')),
+      findsOneWidget,
+    );
     expect(find.text('Carry this table'), findsOneWidget);
   });
 
@@ -116,8 +125,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final detail = tester.widget<OfferingTableDetailPage>(
-      find.byType(OfferingTableDetailPage),
+    final detail = tester.widget<OfferingTableDetailSurface>(
+      find.byType(OfferingTableDetailSurface),
     );
     expect(detail.joinedFlowId, 957);
     expect(detail.joinedStartDate, start);
@@ -130,36 +139,29 @@ void main() {
     );
   });
 
-  testWidgets('default preview begins tomorrow with the approved intro copy', (
-    tester,
-  ) async {
-    final expectedStart = defaultOfferingTableStartDate(
-      TrackSkyTimeZone.pacific,
-    );
-    await _pumpPage(tester, size: const Size(390, 844));
+  testWidgets(
+    'default preview begins tomorrow with the approved first morning',
+    (tester) async {
+      final expectedStart = defaultOfferingTableStartDate(
+        TrackSkyTimeZone.pacific,
+      );
+      await _pumpPage(tester, size: const Size(390, 844));
 
-    expect(
-      find.text(
-        'Provision begins with the most basic need. Tomorrow you practice noticing yours before the day takes over.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('WHAT NEEDS FEEDING?'), findsOneWidget);
-    expect(
-      find.text('Name one need you have been putting off'),
-      findsOneWidget,
-    );
-    expect(find.text('Name the need…'), findsOneWidget);
-    expect(find.text('START DATE'), findsOneWidget);
-    expect(
-      find.byKey(
-        ValueKey<String>(
-          'offering-table-calendar-ring-${_dateKey(expectedStart)}',
+      expect(find.text('YOUR FIRST MORNING'), findsOneWidget);
+      expect(find.text('WHAT ARE YOU RUNNING LOW ON?'), findsOneWidget);
+      expect(find.text('Medication, groceries, soap…'), findsOneWidget);
+      expect(find.text('The Small Supply'), findsOneWidget);
+      expect(find.text('START DATE'), findsOneWidget);
+      expect(
+        find.byKey(
+          ValueKey<String>(
+            'offering-table-calendar-ring-${_dateKey(expectedStart)}',
+          ),
         ),
-      ),
-      findsOneWidget,
-    );
-  });
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('intro timing says Today for an explicit same-day start', (
     tester,
@@ -169,12 +171,7 @@ void main() {
     );
     await _pumpPage(tester, size: const Size(390, 844), start: today);
 
-    expect(
-      find.text(
-        'Provision begins with the most basic need. Today you practice noticing yours before the day takes over.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('YOUR FIRST MORNING'), findsOneWidget);
   });
 
   testWidgets('start-date label moves the entire preview and Carry date', (
@@ -244,23 +241,169 @@ void main() {
     );
     expect(_calendarRings(), findsNWidgets(30));
     expect(find.text('START DATE'), findsOneWidget);
-    expect(
-      find.text(
-        'Provision begins with the most basic need. On ${_monthDay(selected)} you practice noticing yours before the day takes over.',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('offering-table-preview-day-1')),
-        matching: find.text(gregorianDateLabel(selected)),
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('YOUR FIRST MORNING'), findsOneWidget);
+    expect(find.textContaining(gregorianDateLabel(selected)), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey<String>('offering-table-join')));
     await tester.pumpAndSettle();
     expect(joinedDate, selected);
+  });
+
+  testWidgets('local-midnight resume rebases an uncarried preview and Carry', (
+    tester,
+  ) async {
+    var nowUtc = DateTime.utc(2026, 9, 3, 6, 59);
+    DateTime? carriedStart;
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      clock: () => nowUtc,
+      onJoin:
+          ({
+            required startDate,
+            required timezone,
+            required lens,
+            required noCupMode,
+          }) async {
+            carriedStart = startDate;
+            return 9026;
+          },
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-03',
+        ),
+      ),
+      findsOneWidget,
+    );
+
+    nowUtc = DateTime.utc(2026, 9, 3, 7, 1);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-04',
+        ),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('offering-table-join')));
+    await tester.pumpAndSettle();
+    expect(carriedStart, DateTime(2026, 9, 4));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    Supabase.instance.client.auth.stopAutoRefresh();
+    await tester.pump();
+  });
+
+  testWidgets('a carried Offering Table remains fixed after local midnight', (
+    tester,
+  ) async {
+    var nowUtc = DateTime.utc(2026, 9, 3, 6, 59);
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      joinedFlowId: 9027,
+      joinedStartDate: DateTime(2026, 9, 3),
+      clock: () => nowUtc,
+    );
+
+    nowUtc = DateTime.utc(2026, 9, 3, 7, 1);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-03',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-04',
+        ),
+      ),
+      findsNothing,
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    Supabase.instance.client.auth.stopAutoRefresh();
+    await tester.pump();
+  });
+
+  testWidgets('a manually selected start survives midnight and Carry', (
+    tester,
+  ) async {
+    var nowUtc = DateTime.utc(2026, 9, 2, 18);
+    DateTime? carriedStart;
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      clock: () => nowUtc,
+      onJoin:
+          ({
+            required startDate,
+            required timezone,
+            required lens,
+            required noCupMode,
+          }) async {
+            carriedStart = startDate;
+            return 9030;
+          },
+    );
+
+    final startControl = find.byKey(
+      const ValueKey<String>(
+        'offering-table-calendar-top-label-control-2026-09-03',
+      ),
+    );
+    await tester.ensureVisible(startControl);
+    await tester.pumpAndSettle();
+    await tester.tap(startControl);
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const ValueKey<String>('stone-register-wheel-day')),
+      const Offset(0, -StoneRegisterDatePickerTheme.rowHeight),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-04',
+        ),
+      ),
+      findsOneWidget,
+    );
+
+    nowUtc = DateTime.utc(2026, 9, 4, 8);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-04',
+        ),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('offering-table-join')));
+    await tester.pumpAndSettle();
+    expect(carriedStart, DateTime(2026, 9, 4));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    Supabase.instance.client.auth.stopAutoRefresh();
+    await tester.pump();
   });
 
   testWidgets(
@@ -548,7 +691,7 @@ void main() {
   );
 
   testWidgets(
-    'calendar, initial entry, and date previews follow the approved order',
+    'ritual-first preview supersedes the legacy calendar-first contract',
     (tester) async {
       const size = Size(390, 844);
       final start = DateTime(2026, 9, 3);
@@ -559,505 +702,231 @@ void main() {
         calendarPreview: _calendarPreview(start),
       );
 
-      final calendar = find.byKey(
-        const ValueKey<String>('offering-table-thirty-day-calendar'),
-      );
-      final initialEntry = find.byKey(
-        const ValueKey<String>('offering-table-initial-entry'),
-      );
-      final firstPreview = find.byKey(
-        const ValueKey<String>('offering-table-preview-day-1'),
-      );
-
-      expect(calendar, findsOneWidget);
-      expect(find.text('Here is your table.'), findsOneWidget);
-      expect(find.text('For the next thirty days.'), findsOneWidget);
-      expect(initialEntry, findsOneWidget);
-      expect(find.text('HOW THE TABLE WORKS'), findsOneWidget);
-      expect(find.text('WHAT NEEDS FEEDING?'), findsOneWidget);
-      expect(
-        find.text('Name one need you have been putting off'),
-        findsOneWidget,
-      );
-      expect(find.text('Name the need…'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('offering-table-initial-input')),
-        findsOneWidget,
-      );
-      expect(firstPreview, findsOneWidget);
-      expect(find.text('START DATE'), findsOneWidget);
-      final semantics = tester.ensureSemantics();
-      final startDateControl = find.byKey(
-        ValueKey<String>(
-          'offering-table-calendar-top-label-control-${_dateKey(start)}',
-        ),
-      );
-      expect(tester.getSemantics(startDateControl).label, 'Change start date');
-      semantics.dispose();
-
-      expect(
-        tester.getTopLeft(calendar).dy,
-        lessThan(tester.getTopLeft(initialEntry).dy),
-      );
-      expect(
-        tester.getTopLeft(initialEntry).dy,
-        lessThan(tester.getTopLeft(firstPreview).dy),
-      );
-
-      for (final offset in const <int>[0, 14, 29]) {
-        final date = start.add(Duration(days: offset));
-        final dateKey = _dateKey(date);
-        expect(
-          find.byKey(ValueKey<String>('offering-table-calendar-day-$dateKey')),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(ValueKey<String>('offering-table-calendar-ring-$dateKey')),
-          findsOneWidget,
-        );
-        expect(
-          _ringBorderColor(tester, 'offering-table-calendar-ring-$dateKey'),
-          OfferingTableDetailTokens.warmGold,
-        );
-      }
-
-      expect(_previewDayCards(), findsNWidgets(5));
-      expect(
-        find.byKey(const ValueKey<String>('offering-table-preview-day-6')),
-        findsNothing,
-      );
-      expect(find.text('Day 1: The First Water'), findsOneWidget);
-      expect(find.text('7:30 AM'), findsNWidgets(5));
-      expect(find.byType(OfferingTableEventBlockVisual), findsNWidgets(5));
-      expect(find.byType(MaatFlowPreviewEventRow), findsNWidgets(3));
-      expect(find.text('VIEW PRACTICE'), findsNWidgets(5));
-      for (final day in kOfferingTableDays.take(5)) {
-        expect(find.text('“${day.eventBlockPrompt}”'), findsOneWidget);
-        final badge = find.byKey(
-          ValueKey<String>('offering-table-preview-event-${day.dayNumber}'),
-        );
-        expect(tester.widget<GestureDetector>(badge).onTap, isNotNull);
-        expect(
-          find.byKey(
-            ValueKey<String>('offering-table-preview-chevron-${day.dayNumber}'),
-          ),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(
-            ValueKey<String>(
-              'offering-table-preview-affordance-${day.dayNumber}',
-            ),
-          ),
-          findsOneWidget,
-        );
-      }
-      expect(find.text('Morning workout'), findsOneWidget);
-      expect(find.text('Evening journal'), findsOneWidget);
-      expect(find.text('Lunch meeting'), findsOneWidget);
-
-      final workout = find.descendant(
-        of: firstPreview,
-        matching: find.text('Morning workout'),
-      );
-      final offering = find.descendant(
-        of: firstPreview,
-        matching: find.text('Day 1: The First Water'),
-      );
-      final journal = find.descendant(
-        of: firstPreview,
-        matching: find.text('Evening journal'),
-      );
-      expect(
-        tester.getTopLeft(workout).dy,
-        lessThan(tester.getTopLeft(offering).dy),
-      );
-      expect(
-        tester.getTopLeft(offering).dy,
-        lessThan(tester.getTopLeft(journal).dy),
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(
-            const ValueKey<String>('offering-table-preview-day-2'),
-          ),
-          matching: find.text('Day 2: The Cup Before the Noise'),
-        ),
-        findsOneWidget,
-      );
-
-      final firstDateKey = _dateKey(start);
-      expect(
-        _dotColor(tester, 'offering-table-calendar-dot-$firstDateKey-0'),
-        const Color(0xFF4E7A46),
-      );
-      expect(
-        _dotColor(tester, 'offering-table-calendar-dot-$firstDateKey-1'),
-        const Color(0xFF3B5D82),
-      );
-      expect(
-        find.byKey(
-          ValueKey<String>('offering-table-calendar-dot-$firstDateKey-2'),
-        ),
-        findsNothing,
-      );
-      final thirdDateKey = _dateKey(start.add(const Duration(days: 2)));
-      expect(
-        find.byKey(
-          ValueKey<String>('offering-table-calendar-dot-$thirdDateKey-0'),
-        ),
-        findsNothing,
-      );
-
-      final firstBadge = find.byKey(
+      final firstMorning = find.text('YOUR FIRST MORNING');
+      final featured = find.byKey(
         const ValueKey<String>('offering-table-preview-event-1'),
       );
-      await tester.drag(
-        find.byKey(const ValueKey<String>('offering-table-scroll')),
-        const Offset(0, -1000),
+      final runningLow = find.text('WHAT ARE YOU RUNNING LOW ON?');
+      final ritualCalendar = find.byKey(
+        const ValueKey<String>('offering-table-thirty-day-calendar'),
       );
-      await tester.pumpAndSettle();
-      await tester.tap(firstBadge);
-      await tester.pumpAndSettle();
-
-      var daySheet = find.byType(OfferingTablePreviewDaySheet);
-      expect(daySheet, findsOneWidget);
+      expect(firstMorning, findsOneWidget);
+      expect(featured, findsOneWidget);
+      expect(runningLow, findsOneWidget);
+      expect(ritualCalendar, findsOneWidget);
       expect(
-        find.descendant(
-          of: daySheet,
-          matching: find.textContaining(
-            'DAY 01 OF 30 · PERSONAL TABLE',
-            findRichText: true,
-          ),
-        ),
-        findsOneWidget,
+        tester.getTopLeft(firstMorning).dy,
+        lessThan(tester.getTopLeft(featured).dy),
       );
       expect(
-        find.descendant(of: daySheet, matching: find.text('The First Water')),
-        findsOneWidget,
+        tester.getTopLeft(featured).dy,
+        lessThan(tester.getTopLeft(runningLow).dy),
       );
       expect(
-        find.descendant(
-          of: daySheet,
-          matching: find.text(
-            offeringTablePracticePresentation(kOfferingTableDays.first).why,
-          ),
-        ),
-        findsOneWidget,
+        tester.getTopLeft(runningLow).dy,
+        lessThan(tester.getTopLeft(ritualCalendar).dy),
       );
       expect(
-        find.descendant(
-          of: daySheet,
-          matching: find.text(
-            offeringTablePracticePresentation(
-              kOfferingTableDays.first,
-            ).instruction,
-          ),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: daySheet, matching: find.text('WHY THIS DAY')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: daySheet, matching: find.text('YOUR MOVE')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: daySheet, matching: find.text('CLOSE THE RITUAL')),
-        findsOneWidget,
-      );
-      for (final step in offeringTablePracticePresentation(
-        kOfferingTableDays.first,
-      ).steps) {
-        expect(
-          find.descendant(of: daySheet, matching: find.text(step)),
-          findsOneWidget,
-        );
-      }
-      expect(find.text('Drink the water.'), findsOneWidget);
-      expect(
-        find.text('Provision returns to life through you.'),
-        findsOneWidget,
-      );
-      expect(find.text('COMPLETION'), findsNothing);
-      for (final choice in const <String>['Observed', 'Partly', 'Skipped']) {
-        expect(
-          find.descendant(of: daySheet, matching: find.text(choice)),
-          findsNothing,
-        );
-      }
-      expect(
-        find.byKey(const ValueKey<String>('offering-table-cup-hero')),
-        findsNothing,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('offering-table-intention-drag')),
-        findsNothing,
-      );
-      expect(find.text('THE NEED YOU NAMED'), findsNothing);
-      expect(
-        find.byKey(
-          const ValueKey<String>('offering-table-preview-sheet-close'),
-        ),
-        findsOneWidget,
-      );
-      for (final oldLabel in const <String>[
-        'PURPOSE',
-        'WATER',
-        'WORDS',
-        'PROVISION',
-        'OPTIONAL',
-        'DRINK',
-      ]) {
-        expect(
-          find.descendant(of: daySheet, matching: find.text(oldLabel)),
-          findsNothing,
-        );
-      }
-      expect(
-        find.descendant(
-          of: daySheet,
-          matching: find.text(kOfferingTableDays.first.sourceNote!),
-        ),
-        findsNothing,
-      );
-      tester
-          .widget<InkWell>(
-            find.byKey(
-              const ValueKey<String>(
-                'offering-table-preview-sheet-context-toggle',
-              ),
-            ),
-          )
-          .onTap!();
-      await tester.pumpAndSettle();
-      expect(
-        find.descendant(
-          of: daySheet,
-          matching: find.text(kOfferingTableDays.first.sourceNote!),
-        ),
-        findsOneWidget,
-      );
-      tester
-          .widget<IconButton>(
-            find.byKey(
-              const ValueKey<String>('offering-table-preview-sheet-close'),
-            ),
-          )
-          .onPressed!();
-      await tester.pumpAndSettle();
-      expect(find.byType(OfferingTablePreviewDaySheet), findsNothing);
-
-      expect(find.text('THE FIRST PRACTICE'), findsNothing);
-      expect(find.text('SET YOUR TABLE'), findsNothing);
-      expect(find.text('THE FIRST FIVE DAYS'), findsNothing);
-      expect(find.text('LENS'), findsNothing);
-      expect(find.text('Use the cup you’re already holding'), findsNothing);
-      expect(find.text('Begin reflection'), findsNothing);
-
-      await tester.ensureVisible(
         find.byKey(const ValueKey<String>('offering-table-initial-input')),
-      );
-      await tester.enterText(
-        find.byKey(const ValueKey<String>('offering-table-initial-input')),
-        'Water and rest',
-      );
-      expect(find.text('Water and rest'), findsOneWidget);
-
-      final showAll = find.byKey(
-        const ValueKey<String>('offering-table-show-all'),
-      );
-      tester.widget<InkWell>(showAll).onTap!();
-      await tester.pumpAndSettle();
-
-      expect(_previewDayCards(), findsNWidgets(5));
-      expect(
-        find.byKey(const ValueKey<String>('offering-table-preview-day-30')),
-        findsNothing,
-      );
-      expect(find.byType(OfferingTableEventBlockVisual), findsNWidgets(5));
-      expect(_compactDayRows(), findsNWidgets(25));
-      expect(
-        find.byKey(const ValueKey<String>('offering-table-all-day-30')),
-        findsOneWidget,
-      );
-
-      final sixthRow = find.byKey(
-        const ValueKey<String>('offering-table-all-day-6'),
-      );
-      await tester.drag(
-        find.byKey(const ValueKey<String>('offering-table-scroll')),
-        const Offset(0, -1200),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(sixthRow);
-      await tester.pumpAndSettle();
-
-      daySheet = find.byType(OfferingTablePreviewDaySheet);
-      final sixthDay = kOfferingTableDays[5];
-      expect(daySheet, findsOneWidget);
-      expect(
-        find.descendant(
-          of: daySheet,
-          matching: find.textContaining(
-            'DAY 06 OF 30 · PERSONAL TABLE',
-            findRichText: true,
-          ),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: daySheet, matching: find.text('The Small Supply')),
-        findsOneWidget,
-      );
-      await tester.drag(
-        find.byKey(
-          const ValueKey<String>('offering-table-preview-sheet-scroll'),
-        ),
-        const Offset(0, -360),
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.descendant(
-          of: daySheet,
-          matching: find.text(sixthDay.provisionAct),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: daySheet,
-          matching: find.textContaining(
-            'Tue · Sep 8, 2026 · 7:30 AM',
-            findRichText: true,
-          ),
-        ),
-        findsOneWidget,
-      );
-      tester
-          .widget<IconButton>(
-            find.byKey(
-              const ValueKey<String>('offering-table-preview-sheet-close'),
-            ),
-          )
-          .onPressed!();
-      await tester.pumpAndSettle();
-      expect(find.byType(OfferingTablePreviewDaySheet), findsNothing);
-
-      for (final day in kOfferingTableDays.take(5)) {
-        final date = start.add(Duration(days: day.dayNumber - 1));
-        final kemetic = KemeticMath.fromGregorian(date);
-        final month = getMonthById(kemetic.kMonth);
-        final card = find.byKey(
-          ValueKey<String>('offering-table-preview-day-${day.dayNumber}'),
-        );
-        expect(
-          find.descendant(
-            of: card,
-            matching: find.text('${month.displayShort} ${kemetic.kDay}'),
-          ),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(
-            of: card,
-            matching: find.text(gregorianDateLabel(date)),
-          ),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(of: card, matching: find.text('7:30 AM')),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(
-            of: card,
-            matching: find.text(offeringTableEventTitle(day)),
-          ),
-          findsOneWidget,
-        );
-      }
-
-      final day30 = kOfferingTableDays.last;
-      final day30Date = start.add(const Duration(days: 29));
-      final compact30 = find.byKey(
-        const ValueKey<String>('offering-table-all-day-30'),
-      );
-      expect(
-        find.descendant(of: compact30, matching: find.text(day30.title)),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: compact30,
-          matching: find.textContaining(
-            '${day30Date.day}, ${day30Date.year} · 7:30 AM',
-          ),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: compact30, matching: find.text(day30.section)),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(const ValueKey<String>('offering-table-join')),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);
     },
   );
 
+  testWidgets(
+    'shows five offering blocks before expanding only offerings 6 through 30',
+    (tester) async {
+      await _pumpPage(
+        tester,
+        size: const Size(390, 844),
+        start: DateTime(2026, 9, 3),
+        calendarPreview: _calendarPreview(DateTime(2026, 9, 3)),
+      );
+
+      for (var day = 1; day <= 5; day += 1) {
+        final event = find.byKey(
+          ValueKey<String>('offering-table-preview-event-$day'),
+        );
+        expect(event, findsOneWidget);
+        expect(tester.widget<GestureDetector>(event).onTap, isNotNull);
+      }
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-default-offerings')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey<String>('offering-table-remaining-offerings'),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-all-day-6')),
+        findsNothing,
+      );
+
+      final showAll = find.byKey(
+        const ValueKey<String>('offering-table-show-all'),
+      );
+      expect(
+        tester
+            .getBottomRight(
+              find.byKey(
+                const ValueKey<String>('offering-table-preview-event-5'),
+              ),
+            )
+            .dy,
+        lessThan(tester.getTopLeft(showAll).dy),
+      );
+      await Scrollable.ensureVisible(
+        tester.element(showAll),
+        alignment: 0.5,
+        duration: Duration.zero,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(showAll);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('offering-table-remaining-offerings'),
+        ),
+        findsOneWidget,
+      );
+      for (var day = 6; day <= 30; day += 1) {
+        expect(
+          find.byKey(ValueKey<String>('offering-table-all-day-$day')),
+          findsOneWidget,
+        );
+      }
+      expect(find.text('Show first 5 offerings'), findsOneWidget);
+      expect(
+        tester
+            .getBottomRight(
+              find.byKey(const ValueKey<String>('offering-table-show-fewer')),
+            )
+            .dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.byKey(const ValueKey<String>('offering-table-all-day-6')),
+              )
+              .dy,
+        ),
+      );
+
+      final fifthOffering = find.byKey(
+        const ValueKey<String>('offering-table-preview-event-5'),
+      );
+      await Scrollable.ensureVisible(
+        tester.element(fifthOffering),
+        alignment: 0.5,
+        duration: Duration.zero,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(fifthOffering);
+      await tester.pumpAndSettle();
+      expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('ritual-first detail follows the supplied v7 order', (
+    tester,
+  ) async {
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      start: DateTime(2026, 9, 4),
+      showBackButton: true,
+      topPadding: 52,
+    );
+
+    final firstMorning = find.text('YOUR FIRST MORNING');
+    final featured = find.byKey(
+      const ValueKey<String>('offering-table-preview-event-1'),
+    );
+    final runningLow = find.text('WHAT ARE YOU RUNNING LOW ON?');
+    final calendar = find.byKey(
+      const ValueKey<String>('offering-table-thirty-day-calendar'),
+    );
+    expect(firstMorning, findsOneWidget);
+    expect(featured, findsOneWidget);
+    expect(find.text('The Small Supply'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: featured,
+        matching: find.text('“check one thing before it runs out”'),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: featured, matching: find.text('7:30 AM')),
+      findsNothing,
+    );
+    expect(runningLow, findsOneWidget);
+    expect(calendar, findsOneWidget);
+    expect(
+      tester.getTopLeft(firstMorning).dy,
+      lessThan(tester.getTopLeft(featured).dy),
+    );
+    expect(
+      tester.getTopLeft(featured).dy,
+      lessThan(tester.getTopLeft(runningLow).dy),
+    );
+    expect(
+      tester.getTopLeft(runningLow).dy,
+      lessThan(tester.getTopLeft(calendar).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('canonical presentation uses the unique daily prompt authority', (
     tester,
   ) async {
     const size = Size(390, 844);
-    final day5Prompt = offeringTablePracticePresentation(
-      kOfferingTableDays[4],
-    ).previewSummary;
-    final day11Prompt = offeringTablePracticePresentation(
-      kOfferingTableDays[10],
-    ).previewSummary;
-    final day21Prompt = offeringTablePracticePresentation(
-      kOfferingTableDays[20],
-    ).previewSummary;
+    final day5Prompt = offeringTableDayViewContract(5).instruction;
+    final day11Prompt = offeringTableDayViewContract(11).instruction;
+    final day21Prompt = offeringTableDayViewContract(21).instruction;
     expect(day5Prompt, isNot(day11Prompt));
     expect(day11Prompt, isNot(day21Prompt));
 
     await _pumpDaySheet(tester, size: size, dayNumber: 5);
     await _revealOfferingPresentationBody(tester);
-    expect(find.text('PERSONAL TABLE · DAY 5'), findsWidgets);
-    expect(find.text(day5Prompt), findsOneWidget);
+    expect(find.text('PERSONAL TABLE · DAY 05'), findsWidgets);
+    expect(find.text(day5Prompt), findsWidgets);
     expect(
       find.text(
         '${offeringTablePracticePresentation(kOfferingTableDays[4]).steps.length} steps',
       ),
-      findsOneWidget,
+      findsNothing,
     );
 
     await _pumpDaySheet(tester, size: size, dayNumber: 11);
     await _revealOfferingPresentationBody(tester);
-    expect(find.text('HOUSEHOLD TABLE · DAY 1'), findsWidgets);
-    expect(find.text(day11Prompt), findsOneWidget);
+    expect(find.text('HOUSEHOLD TABLE · DAY 11'), findsWidgets);
+    expect(find.text(day11Prompt), findsWidgets);
     expect(
       find.text(
         '${offeringTablePracticePresentation(kOfferingTableDays[10]).steps.length} steps',
       ),
-      findsOneWidget,
+      findsNothing,
     );
 
     await _pumpDaySheet(tester, size: size, dayNumber: 21);
     await _revealOfferingPresentationBody(tester);
-    expect(find.text('FLOWING TABLE · DAY 1'), findsWidgets);
-    expect(find.text(day21Prompt), findsOneWidget);
+    expect(find.text('FLOWING TABLE · DAY 21'), findsWidgets);
+    expect(find.text(day21Prompt), findsWidgets);
     expect(
       find.text(
         '${offeringTablePracticePresentation(kOfferingTableDays[20]).steps.length} steps',
       ),
-      findsOneWidget,
+      findsNothing,
     );
     expect(tester.takeException(), isNull);
   });
@@ -1079,11 +948,17 @@ void main() {
       final firstBadge = find.byKey(
         const ValueKey<String>('offering-table-preview-event-1'),
       );
+      await Scrollable.ensureVisible(
+        tester.element(firstBadge),
+        alignment: 0.45,
+        duration: Duration.zero,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(firstBadge);
       await tester.pumpAndSettle();
 
       expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
-      expect(find.byType(OfferingTableDayPresentation), findsNothing);
+      expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
       expect(
         find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')),
         findsOneWidget,
@@ -1105,7 +980,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(OfferingTablePreviewDaySheet), findsNothing);
-      expect(find.byType(OfferingTableDetailPage), findsOneWidget);
+      expect(find.byType(OfferingTableDetailSurface), findsOneWidget);
       expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
 
       await tester.tap(firstBadge);
@@ -1118,7 +993,45 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(OfferingTablePreviewDaySheet), findsNothing);
-      expect(find.byType(OfferingTableDetailPage), findsOneWidget);
+      expect(find.byType(OfferingTableDetailSurface), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'detail ritual field stays above the system keyboard with one inset owner',
+    (tester) async {
+      await _pumpPage(
+        tester,
+        size: const Size(390, 844),
+        start: DateTime(2026, 9, 3),
+      );
+      final firstEvent = find.byKey(
+        const ValueKey<String>('offering-table-preview-event-1'),
+      );
+      await tester.ensureVisible(firstEvent);
+      await tester.tap(firstEvent);
+      await tester.pumpAndSettle();
+
+      final field = find.byKey(
+        const ValueKey<String>('offering-table-preview-practice-field'),
+      );
+      await tester.tap(field);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(editableModalSystemInsetOwnerKey), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: field,
+          matching: find.byType(KeyboardAwareEditableSurface),
+        ),
+        findsOneWidget,
+      );
+      expect(MediaQuery.viewInsetsOf(tester.element(field)).bottom, 0);
+      expect(tester.getRect(field).bottom, lessThanOrEqualTo(844 - 300));
+      expect(tester.testTextInput.isVisible, isTrue);
+      expect(tester.takeException(), isNull);
     },
   );
 
@@ -1144,16 +1057,20 @@ void main() {
         findsOneWidget,
       );
       expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isTrue);
-      expect(find.text('Reflect'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-day-01-instrument')),
+        findsOneWidget,
+      );
+      expect(find.text('Reflect'), findsNothing);
 
       await tester.tapAt(const Offset(195, 100));
       await tester.pumpAndSettle();
-      expect(find.byType(OfferingTableDayPresentation), findsNothing);
+      expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
       expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
 
       await tester.tap(offeringBlocksIn(eventLayer).first);
       await tester.pumpAndSettle();
-      expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
+      expect(find.byType(OfferingTableDayV8Presentation), findsOneWidget);
 
       await tester.tapAt(const Offset(195, 100));
       await tester.pumpAndSettle();
@@ -1161,14 +1078,10 @@ void main() {
 
       await tester.tap(offeringBlocksIn(eventLayer).last);
       await tester.pumpAndSettle();
-      expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
+      expect(find.byType(OfferingTableDayV8Presentation), findsOneWidget);
       expect(
-        find.text(
-          offeringTablePracticePresentation(
-            kOfferingTableDays[1],
-          ).previewSummary,
-        ),
-        findsOneWidget,
+        find.text(offeringTableDayViewContract(2).orientation),
+        findsWidgets,
       );
     },
   );
@@ -1225,6 +1138,7 @@ void main() {
   for (final fixture in const <({String name, Size size})>[
     (name: 'normal iPhone', size: Size(390, 844)),
     (name: 'narrow', size: Size(320, 700)),
+    (name: 'large', size: Size(430, 932)),
   ]) {
     testWidgets('${fixture.name} page and day sheet remain scroll-safe', (
       tester,
@@ -1256,12 +1170,12 @@ void main() {
       );
 
       expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
-      expect(find.byType(OfferingTableDayPresentation), findsNothing);
+      expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
       final sheetRect = tester.getRect(
         find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')),
       );
-      expect(sheetRect.height, closeTo(fixture.size.height * 0.82, 0.5));
-      expect(sheetRect.top, closeTo(fixture.size.height * 0.18, 0.5));
+      expect(sheetRect.height, closeTo(fixture.size.height * 0.88, 0.5));
+      expect(sheetRect.top, closeTo(fixture.size.height * 0.12, 0.5));
       final sheetScroll = find.byKey(
         const ValueKey<String>('offering-table-preview-sheet-scroll'),
       );
@@ -1269,7 +1183,14 @@ void main() {
         of: sheetScroll,
         matching: find.byType(Scrollable),
       );
-      final before = tester.state<ScrollableState>(scrollable).position.pixels;
+      final before = tester
+          .state<ScrollableState>(scrollable.first)
+          .position
+          .pixels;
+      final maxBefore = tester
+          .state<ScrollableState>(scrollable.first)
+          .position
+          .maxScrollExtent;
       await tester.drag(sheetScroll, const Offset(0, -500));
       await tester.pumpAndSettle();
       final scrollError = tester.takeException();
@@ -1280,8 +1201,15 @@ void main() {
             ? scrollError.toStringDeep()
             : 'The event sheet must remain bounded while scrolling.',
       );
-      final after = tester.state<ScrollableState>(scrollable).position.pixels;
-      expect(after, greaterThan(before));
+      final after = tester
+          .state<ScrollableState>(scrollable.first)
+          .position
+          .pixels;
+      if (maxBefore > 0) {
+        expect(after, greaterThan(before));
+      } else {
+        expect(after, 0);
+      }
       expect(find.text('Back to the table'), findsOneWidget);
       expect(find.text('COMPLETION'), findsNothing);
       expect(find.text('Observed'), findsNothing);
@@ -1291,10 +1219,9 @@ void main() {
     });
   }
 
-  testWidgets('captures the flow-detail preview sheet visual checkpoint', (
+  testWidgets('matches the locked Offering Table detail and ritual sheet', (
     tester,
   ) async {
-    if (!_captureVisualCheckpoint) return;
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -1302,63 +1229,80 @@ void main() {
     });
     await _loadOfferingVisualFonts();
 
-    for (final fixture in const <({String name, Size size})>[
-      (name: '390', size: Size(390, 844)),
-      (name: '320', size: Size(320, 700)),
-    ]) {
-      await _pumpPage(tester, size: fixture.size, start: DateTime(2026, 9, 3));
-      await tester.drag(
-        find.byKey(const ValueKey<String>('offering-table-scroll')),
-        const Offset(0, -1000),
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      start: DateTime(2026, 9, 4),
+      showBackButton: true,
+      topPadding: 52,
+    );
+    await tester.runAsync(() async {
+      await precacheImage(
+        const AssetImage(OfferingTableDetailTokens.heroAsset),
+        tester.element(find.byType(OfferingTableDetailSurface)),
       );
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('offering-table-preview-event-1')),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
-      debugPrint(
-        'OFFERING_PREVIEW_SHEET_${fixture.name} '
-        '${tester.getRect(find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')))}',
-      );
-      debugPrint(
-        'OFFERING_PREVIEW_MEDIA_${fixture.name} '
-        '${MediaQuery.sizeOf(tester.element(find.byType(OfferingTablePreviewDaySheet)))}',
-      );
+    });
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile('$_goldenRoot/offering-table-detail-390x844.png'),
+    );
+    final previewEvent = find.byKey(
+      const ValueKey<String>('offering-table-preview-event-1'),
+    );
+    await tester.ensureVisible(previewEvent);
+    await tester.tap(previewEvent);
+    await tester.pumpAndSettle();
+    expect(find.byType(OfferingTablePreviewDaySheet), findsOneWidget);
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-detail-ritual-sheet-390x844.png',
+      ),
+    );
 
-      await expectLater(
-        find.byKey(_visualCaptureSurfaceKey),
-        matchesGoldenFile(
-          '/tmp/offering-table-flutter-preview-sheet-${fixture.name}.png',
-        ),
-      );
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('offering-table-preview-sheet-context-toggle'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-detail-ritual-body-390x844.png',
+      ),
+    );
 
-      if (fixture.name == '390') {
-        await tester.drag(
-          find.byKey(
-            const ValueKey<String>('offering-table-preview-sheet-scroll'),
-          ),
-          const Offset(0, -620),
-        );
-        await tester.pumpAndSettle();
-        await expectLater(
-          find.byKey(_visualCaptureSurfaceKey),
-          matchesGoldenFile(
-            '/tmp/offering-table-flutter-preview-sheet-390-body.png',
-          ),
-        );
-      }
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
-    }
+    await tester.enterText(
+      find.byKey(
+        const ValueKey<String>('offering-table-preview-practice-field'),
+      ),
+      'medication',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('offering-table-preview-move-2')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('offering-table-preview-move-3')),
+    );
+    await tester.pumpAndSettle();
+    final returned = find.byKey(
+      const ValueKey<String>('offering-table-preview-provision-returned'),
+    );
+    expect(returned, findsOneWidget);
+    await tester.ensureVisible(returned);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-detail-ritual-complete-390x844.png',
+      ),
+    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('captures the static Offering Table visual checkpoint', (
-    tester,
-  ) async {
-    if (!_captureVisualCheckpoint) return;
+  testWidgets('matches the canonical Ma\'at Day View housing', (tester) async {
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -1366,83 +1310,149 @@ void main() {
     });
     await _loadOfferingVisualFonts();
 
-    for (final fixture in const <({String name, Size size})>[
-      (name: '390', size: Size(390, 844)),
-      (name: '320', size: Size(320, 700)),
-    ]) {
-      await _pumpStaticOfferingDayView(tester, size: fixture.size);
-      final eventBlock = find.byType(OfferingTableEventBlockVisual).first;
-      expect(eventBlock, findsOneWidget);
-      final rect = tester.getRect(eventBlock);
-      debugPrint(
-        'OFFERING_EVENT_RECT_${fixture.name} '
-        '${rect.left},${rect.top},${rect.width},${rect.height}',
-      );
-      await expectLater(
-        find.byKey(_visualCaptureSurfaceKey),
-        matchesGoldenFile(
-          '/tmp/offering-table-flutter-day-view-${fixture.name}.png',
-        ),
-      );
+    await _pumpStaticOfferingDayView(tester, size: const Size(390, 844));
+    final eventBlock = find.byType(OfferingTableEventBlockVisual).first;
+    expect(eventBlock, findsOneWidget);
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile('$_goldenRoot/offering-table-day-view-390x844.png'),
+    );
 
-      await tester.tap(eventBlock);
-      await tester.pumpAndSettle();
-      expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
-      final media = MediaQuery.of(
-        tester.element(find.byType(OfferingTableDayPresentation)),
-      );
-      debugPrint(
-        'OFFERING_MEDIA_${fixture.name} '
-        'size=${media.size} padding=${media.padding} '
-        'insets=${media.viewInsets}',
-      );
-      debugPrint(
-        'OFFERING_SHEET_${fixture.name} '
-        '${tester.getRect(find.byKey(const ValueKey<String>('offering-table-resizable-sheet')))}',
-      );
-      debugPrint(
-        'OFFERING_PRESENTATION_${fixture.name} '
-        '${tester.getRect(find.byType(OfferingTableDayPresentation))}',
-      );
+    await tester.tap(eventBlock);
+    await tester.pumpAndSettle();
+    expect(find.byType(OfferingTableDayV8Presentation), findsOneWidget);
+    final reflectionButton = find.byKey(
+      const ValueKey<String>('day-view-add-reflection'),
+    );
+    expect(reflectionButton, findsOneWidget);
+    expect(tester.getSize(reflectionButton).height, 34);
+    expect(
+      tester
+          .getSize(
+            find.byKey(
+              const ValueKey<String>('day-view-add-reflection-touch-target'),
+            ),
+          )
+          .height,
+      48,
+    );
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-day-sheet-initial-390x844.png',
+      ),
+    );
 
-      await expectLater(
-        find.byKey(_visualCaptureSurfaceKey),
-        matchesGoldenFile(
-          '/tmp/offering-table-flutter-day-sheet-${fixture.name}-initial.png',
-        ),
-      );
+    final outerSheet = find.byKey(
+      const ValueKey<String>('offering-table-resizable-sheet'),
+    );
+    final outerSheetBefore = tester.getRect(outerSheet);
+    final outerBackplateBefore = tester.getRect(
+      find.byKey(dayViewBottomSheetBackplateKey),
+    );
+    expect(
+      outerBackplateBefore.top,
+      closeTo(253.28, 1),
+      reason:
+          'The shared Ma\'at Day View housing allocates Offering Table its approved .71 extent.',
+    );
+    final outerHandle = tester.getRect(
+      find.byKey(const ValueKey<String>('instrument-sheet-handle-mark')),
+    );
+    expect(
+      outerHandle.top - outerBackplateBefore.top,
+      closeTo(22, 1),
+      reason: 'The shared housing centers the 4px handle in its 48px top bar.',
+    );
+    await _dragOfferingForeground(tester, const Offset(0, -565));
+    await tester.pumpAndSettle();
+    final outerAfterInnerRaise = tester.getRect(outerSheet);
+    expect(outerAfterInnerRaise.top, closeTo(outerSheetBefore.top, .5));
+    expect(outerAfterInnerRaise.height, closeTo(outerSheetBefore.height, .5));
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-day-sheet-raised-390x844.png',
+      ),
+    );
+    await tester.drag(
+      find.byKey(const ValueKey<String>('offering-table-presentation-body')),
+      const Offset(0, -682),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-day-sheet-body-390x844.png',
+      ),
+    );
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('offering-table-day-sheet-context-toggle'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'The supplies that run out do so silently. This rite catches one while the correction is still small.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(offeringTableDayViewContract(1).instruction),
+      findsWidgets,
+    );
+    await expectLater(
+      find.byKey(_visualCaptureSurfaceKey),
+      matchesGoldenFile(
+        '$_goldenRoot/offering-table-day-sheet-context-390x844.png',
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
-      if (fixture.name == '390') {
-        await tester.drag(
-          find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
-          const Offset(0, -500),
-        );
-        await tester.pumpAndSettle();
-        await expectLater(
-          find.byKey(_visualCaptureSurfaceKey),
-          matchesGoldenFile(
-            '/tmp/offering-table-flutter-day-sheet-390-expanded.png',
-          ),
-        );
-        await tester.drag(
+  testWidgets('Offering Table reset restores the authored blank ritual state', (
+    tester,
+  ) async {
+    await _pumpDaySheet(tester, size: const Size(390, 844), dayNumber: 1);
+
+    await _dragOfferingForeground(tester, const Offset(0, -1100));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('offering-table-field-supply')),
+      'medication',
+    );
+    tester
+        .widget<InkWell>(
           find.byKey(
-            const ValueKey<String>('offering-table-presentation-body'),
+            const ValueKey<String>('offering-table-day-sheet-context-toggle'),
           ),
-          const Offset(0, -500),
-        );
-        await tester.pumpAndSettle();
-        await expectLater(
-          find.byKey(_visualCaptureSurfaceKey),
-          matchesGoldenFile(
-            '/tmp/offering-table-flutter-day-sheet-390-body.png',
-          ),
-        );
-      }
+        )
+        .onTap!();
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'The supplies that run out do so silently. This rite catches one while the correction is still small.',
+      ),
+      findsOneWidget,
+    );
+    tester
+        .widget<TextButton>(
+          find.byKey(const ValueKey<String>('offering-table-day-reset')),
+        )
+        .onPressed!();
+    await tester.pumpAndSettle();
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
-      CalendarEventDetailSheetCoordinator.debugResetForTests();
-    }
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('offering-table-field-supply')),
+    );
+    expect(field.controller?.text, isEmpty);
+    expect(
+      find.text(
+        'The supplies that run out do so silently. This rite catches one while the correction is still small.',
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -1466,9 +1476,12 @@ Future<void> _pumpPage(
   DateTime? joinedStartDate,
   List<DateTime> joinedScheduleDates = const <DateTime>[],
   TrackSkyTimeZone timezone = TrackSkyTimeZone.pacific,
+  MaatFlowClock? clock,
   OfferingTableJoinCallback? onJoin,
   OfferingTableLocalStore localStore = const OfferingTableLocalStore(),
   FollowSkyCalendarPreview calendarPreview = FollowSkyCalendarPreview.empty,
+  bool showBackButton = false,
+  double topPadding = 0,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -1481,23 +1494,32 @@ Future<void> _pumpPage(
       key: _visualCaptureSurfaceKey,
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: OfferingTableDetailPage(
-          timezone: timezone,
-          calendarPreview: calendarPreview,
-          initialStartDate: start,
-          joinedFlowId: joinedFlowId,
-          joinedStartDate: joinedStartDate,
-          joinedScheduleDates: joinedScheduleDates,
-          showBackButton: false,
-          localStore: localStore,
-          onJoin:
-              onJoin ??
-              ({
-                required startDate,
-                required timezone,
-                required lens,
-                required noCupMode,
-              }) async => 1,
+        home: MediaQuery(
+          data: MediaQueryData(
+            size: size,
+            padding: EdgeInsets.only(top: topPadding),
+            viewPadding: EdgeInsets.only(top: topPadding),
+          ),
+          child: OfferingTableDetailSurface(
+            timezone: timezone,
+            clock: clock,
+            presentDayIanaTimeZone: timezone.ianaName,
+            calendarPreview: calendarPreview,
+            initialStartDate: start,
+            joinedFlowId: joinedFlowId,
+            joinedStartDate: joinedStartDate,
+            joinedScheduleDates: joinedScheduleDates,
+            onBack: showBackButton ? () {} : null,
+            localStore: localStore,
+            onJoin:
+                onJoin ??
+                ({
+                  required startDate,
+                  required timezone,
+                  required lens,
+                  required noCupMode,
+                }) async => 1,
+          ),
         ),
       ),
     ),
@@ -1530,14 +1552,15 @@ Future<void> _pumpDaySheet(
         backgroundColor: OfferingTableDetailTokens.pageBackground,
         body: Align(
           alignment: Alignment.bottomCenter,
-          child: OfferingTableDayPresentation(
-            day: day,
+          child: OfferingTableDayV8Presentation(
+            contract: offeringTableDayViewContract(day.dayNumber),
             localDate: date,
             startMinute:
                 kOfferingTableDefaultHour * 60 + kOfferingTableDefaultMinute,
-            initialIntention: 'Protect my sleep.',
-            lens: OfferingTableLens.neutral,
-            persistResponses: false,
+            initialState: OfferingTableDayViewState(
+              words: const <String, String>{'supply': 'Protect my sleep.'},
+            ),
+            onSaveState: (_) async {},
             completionPanel: const Text('Completion fixture'),
           ),
         ),
@@ -1548,34 +1571,26 @@ Future<void> _pumpDaySheet(
 }
 
 Future<void> _revealOfferingPresentationBody(WidgetTester tester) async {
-  await tester.drag(
-    find.byKey(const ValueKey<String>('offering-table-presentation-body')),
-    const Offset(0, -360),
-  );
+  await _dragOfferingForeground(tester, const Offset(0, -360));
   await tester.pumpAndSettle();
 }
 
+Future<void> _dragOfferingForeground(WidgetTester tester, Offset offset) async {
+  final lowerSheet = find.byKey(
+    const ValueKey<String>('offering-table-layered-practice-sheet'),
+  );
+  final lowerRect = tester.getRect(lowerSheet);
+  final presentation = tester.getRect(
+    find.byKey(const ValueKey<String>('offering-table-day-presentation-v8')),
+  );
+  await tester.dragFrom(
+    Offset(presentation.center.dx, lowerRect.top + 12),
+    offset,
+  );
+}
+
 Future<void> _loadOfferingVisualFonts() async {
-  final gentium = FontLoader('GentiumPlus')
-    ..addFont(rootBundle.load('ios/Runner/Fonts/GentiumPlus-Regular.ttf'))
-    ..addFont(rootBundle.load('ios/Runner/Fonts/GentiumPlus-Bold.ttf'));
-  final cormorant = FontLoader('CormorantGaramond')
-    ..addFont(rootBundle.load('ios/Runner/Fonts/CormorantGaramond-Regular.ttf'))
-    ..addFont(rootBundle.load('ios/Runner/Fonts/CormorantGaramond-Italic.ttf'))
-    ..addFont(rootBundle.load('ios/Runner/Fonts/CormorantGaramond-Medium.ttf'))
-    ..addFont(
-      rootBundle.load('ios/Runner/Fonts/CormorantGaramond-MediumItalic.ttf'),
-    )
-    ..addFont(
-      rootBundle.load('ios/Runner/Fonts/CormorantGaramond-SemiBold.ttf'),
-    );
-  final materialIcons = FontLoader('MaterialIcons')
-    ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-  await Future.wait(<Future<void>>[
-    gentium.load(),
-    cormorant.load(),
-    materialIcons.load(),
-  ]);
+  await loadMaatFlowVisualTestFonts();
 }
 
 Future<void> _pumpStaticOfferingDayView(
@@ -1584,38 +1599,41 @@ Future<void> _pumpStaticOfferingDayView(
 }) async {
   const flowId = 701;
   tester.view.physicalSize = size;
-  await const OfferingTableLocalStore().saveIntention(
-    flowId,
-    1,
-    'Protect my sleep.',
-  );
+  await const OfferingTableLocalStore().saveIntention(flowId, 1, '');
   final day = kOfferingTableDays.first;
   await tester.pumpWidget(
     RepaintBoundary(
       key: _visualCaptureSurfaceKey,
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,
         theme: AppTheme.dark,
-        home: Scaffold(
-          body: DayViewGrid(
-            ky: 1,
-            km: 1,
-            kd: 1,
-            notes: <NoteData>[
-              NoteData(
-                clientEventId: 'offering-table-static-visual',
-                title: offeringTableEventTitle(day),
-                allDay: false,
-                start: const TimeOfDay(hour: 7, minute: 30),
-                end: const TimeOfDay(hour: 8, minute: 30),
-                flowId: flowId,
-                behaviorPayload: <String, dynamic>{
-                  'kind': 'maat_offering_table_day',
-                  'flow_key': kOfferingTableFlowKey,
-                  'day': 1,
-                },
-              ),
-            ],
+        home: MediaQuery(
+          data: MediaQueryData(
+            size: size,
+            padding: const EdgeInsets.only(top: 47),
+          ),
+          child: DayViewPage(
+            initialKy: 2,
+            initialKm: 6,
+            initialKd: 13,
             showGregorian: false,
+            getMonthName: (_) => 'Rekh-Wer (Rḫ-wr)',
+            notesForDay: (ky, km, kd) => <NoteData>[
+              if (ky == 2 && km == 6 && kd == 13)
+                NoteData(
+                  clientEventId: 'offering-table-static-visual',
+                  title: offeringTableEventTitle(day),
+                  allDay: false,
+                  start: const TimeOfDay(hour: 7, minute: 30),
+                  end: const TimeOfDay(hour: 8, minute: 30),
+                  flowId: flowId,
+                  behaviorPayload: <String, dynamic>{
+                    'kind': 'maat_offering_table_day',
+                    'flow_key': kOfferingTableFlowKey,
+                    'day': 1,
+                  },
+                ),
+            ],
             flowIndex: const <int, FlowData>{
               flowId: FlowData(
                 id: flowId,
@@ -1626,7 +1644,7 @@ Future<void> _pumpStaticOfferingDayView(
               ),
             },
             activeLedgerFlowIds: const <int>{flowId},
-            initialScrollOffset: 6 * 60,
+            initialFirstVisibleMinute: 6 * 60,
           ),
         ),
       ),
@@ -1691,34 +1709,11 @@ Future<void> _pumpOfferingDayViewInteraction(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Finder _previewDayCards() => find.byWidgetPredicate((widget) {
-  final key = widget.key;
-  return key is ValueKey<String> &&
-      key.value.startsWith('offering-table-preview-day-');
-});
-
-Finder _compactDayRows() => find.byWidgetPredicate((widget) {
-  final key = widget.key;
-  return key is ValueKey<String> &&
-      key.value.startsWith('offering-table-all-day-');
-});
-
 Finder _calendarRings() => find.byWidgetPredicate((widget) {
   final key = widget.key;
   return key is ValueKey<String> &&
       key.value.startsWith('offering-table-calendar-ring-');
 });
-
-Color? _dotColor(WidgetTester tester, String key) {
-  final container = tester.widget<Container>(find.byKey(ValueKey<String>(key)));
-  return (container.decoration as BoxDecoration).color;
-}
-
-Color? _ringBorderColor(WidgetTester tester, String key) {
-  final container = tester.widget<Container>(find.byKey(ValueKey<String>(key)));
-  final decoration = container.decoration as BoxDecoration;
-  return (decoration.border as Border).top.color;
-}
 
 FollowSkyCalendarPreview _calendarPreview(DateTime start) {
   final secondDay = start.add(const Duration(days: 1));
@@ -1761,21 +1756,3 @@ String _dateKey(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-'
     '${date.month.toString().padLeft(2, '0')}-'
     '${date.day.toString().padLeft(2, '0')}';
-
-String _monthDay(DateTime date) {
-  const months = <String>[
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${months[date.month - 1]} ${date.day}';
-}

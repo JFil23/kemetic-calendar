@@ -717,7 +717,7 @@ void main() {
   });
 
   test(
-    'steady and broad observed decans recommend Ma_at Flow continuation',
+    'steady observations continue active flows while breadth uses the library',
     () {
       final steadyFacts = MaatFlowDecanFactCollector.snapshotFromCompletions(
         completions: <MaatFlowDecanCompletion>[
@@ -777,9 +777,9 @@ void main() {
       expect(steady?.output.recommendation.key, 'track-the-sky');
       expect(
         broad?.output.recommendation.type,
-        CompositionRecommendationType.flow,
+        CompositionRecommendationType.library,
       );
-      expect(broad?.output.recommendation.key, 'the-weighing');
+      expect(broad?.output.recommendation.key, 'keeping-the-measure');
     },
   );
 

@@ -9,6 +9,8 @@ import '../features/calendar/calendar_hydration_diagnostics.dart';
 import '../utils/flow_visibility.dart';
 
 const _kFlows = 'flows';
+const _kFiledFlowsRpc = 'get_my_filed_flows_v1';
+const _kHeldReadingHousesRpc = 'get_my_held_reading_houses_v1';
 
 typedef FlowEventCounts = ({Map<int, int> total, Map<int, int> remaining});
 
@@ -28,6 +30,43 @@ DateTime? _savedAtFallbackForRow(Map<String, dynamic> row) {
   final isSaved = (row['is_saved'] as bool?) ?? false;
   if (!isSaved) return null;
   return _parseDateTime(row['updated_at']) ?? _parseDateTime(row['created_at']);
+}
+
+List<Map<String, dynamic>> _rpcFlowRows(dynamic response) => switch (response) {
+  List<dynamic>() =>
+    response
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false),
+  Map() => <Map<String, dynamic>>[Map<String, dynamic>.from(response)],
+  _ => const <Map<String, dynamic>>[],
+};
+
+List<Map<String, dynamic>> _mergeFiledFlowRows(
+  Iterable<Map<String, dynamic>> filedRows,
+  Iterable<Map<String, dynamic>> heldReadingHouseRows, {
+  int? limit,
+}) {
+  final byId = <int, Map<String, dynamic>>{};
+  for (final row in <Map<String, dynamic>>[
+    ...filedRows,
+    ...heldReadingHouseRows,
+  ]) {
+    final id = (row['id'] as num?)?.toInt();
+    if (id == null) continue;
+    byId[id] = row;
+  }
+  final merged = byId.values.toList(growable: false)
+    ..sort((a, b) {
+      final byCreatedAt = (_parseDateTime(b['created_at']) ?? DateTime(0))
+          .compareTo(_parseDateTime(a['created_at']) ?? DateTime(0));
+      if (byCreatedAt != 0) return byCreatedAt;
+      return ((b['id'] as num?)?.toInt() ?? 0).compareTo(
+        (a['id'] as num?)?.toInt() ?? 0,
+      );
+    });
+  if (limit == null || limit < 0 || merged.length <= limit) return merged;
+  return merged.take(limit).toList(growable: false);
 }
 
 bool _isUuid(String? v) {
@@ -231,7 +270,7 @@ class FlowsRepo {
   FlowsRepo(this._client);
   final SupabaseClient _client;
 
-  static const _kFiledFlowsCacheKeyPrefix = 'flow_filing:client:v1';
+  static const _kFiledFlowsCacheKeyPrefix = 'flow_filing:client:v2';
   static final Map<String, List<FlowRow>> _filedFlowsMemoryCache = {};
   static final Map<String, int> _filedFlowsCacheGenerations = <String, int>{};
 
@@ -377,7 +416,7 @@ class FlowsRepo {
     Map<int, int> totalEventCounts = const {},
     Map<int, int> remainingEventCounts = const {},
   }) {
-    return buildFlowLedger<FlowRow>(
+    final computed = buildFlowLedger<FlowRow>(
       flows: flows,
       idOf: (flow) => flow.id,
       activeOf: (flow) => flow.active,
@@ -389,6 +428,29 @@ class FlowsRepo {
       useRemainingEventCount: true,
       totalEventCounts: totalEventCounts,
       remainingEventCounts: remainingEventCounts,
+    );
+    // Filed-flow RPCs are the lifecycle authority. In particular, the new
+    // client deliberately files a held unscheduled Reading House with zero
+    // events, which the generic event-count classifier cannot infer.
+    return FlowLedger<FlowRow>(
+      List<FlowLedgerEntry<FlowRow>>.unmodifiable(
+        computed.entries.map((entry) {
+          final flow = entry.flow;
+          final bucket = flow.visibleInActiveList
+              ? FlowLedgerBucket.active
+              : flow.visibleInSavedList
+              ? FlowLedgerBucket.savedTemplate
+              : entry.bucket;
+          return FlowLedgerEntry<FlowRow>(
+            flow: flow,
+            bucket: bucket,
+            visibleInActiveList: flow.visibleInActiveList,
+            visibleInSavedList: flow.visibleInSavedList,
+            totalEventCount: entry.totalEventCount,
+            remainingEventCount: entry.remainingEventCount,
+          );
+        }),
+      ),
     );
   }
 
@@ -417,19 +479,28 @@ class FlowsRepo {
     if (user == null) return const [];
     final cacheGeneration = _filedFlowsCacheGenerations[user.id] ?? 0;
 
-    final rpcResponse = await _client.rpc(
-      'get_my_filed_flows_v1',
+    final filedResponse = await _client.rpc(
+      _kFiledFlowsRpc,
       params: {'p_limit': limit},
     );
-    final rows = switch (rpcResponse) {
-      List<dynamic>() => rpcResponse,
-      Map() => <dynamic>[rpcResponse],
-      _ => const <dynamic>[],
-    };
-    final inflated = await _inflateFlowRows(
-      rows.cast<Map<String, dynamic>>(),
-      userId: user.id,
+    var heldReadingHouseRows = const <Map<String, dynamic>>[];
+    try {
+      final supplementResponse = await _client.rpc(
+        _kHeldReadingHousesRpc,
+        params: {'p_limit': limit},
+      );
+      heldReadingHouseRows = _rpcFlowRows(supplementResponse);
+    } catch (e) {
+      // The unchanged v1 result remains a complete compatibility fallback
+      // until the additive Reading House migration is present.
+      _log('held Reading House filing supplement unavailable: $e');
+    }
+    final rows = _mergeFiledFlowRows(
+      _rpcFlowRows(filedResponse),
+      heldReadingHouseRows,
+      limit: limit,
     );
+    final inflated = await _inflateFlowRows(rows, userId: user.id);
     unawaited(
       _cacheFiledFlows(
         userId: user.id,

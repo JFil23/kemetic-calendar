@@ -200,67 +200,69 @@ void main() {
   );
 
   test(
-    'dashboard location adapter ignores detail YouTube in favor of Vimeo',
+    'dashboard uses full EventResourceSource so detail YouTube wins over Vimeo location',
     () {
       const vimeo = 'https://vimeo.com/123456789';
       const youtube = 'https://www.youtube.com/watch?v=abc123';
-      expect(
-        resolveEventResource(
-          const EventResourceSource(detail: youtube, location: vimeo),
-        )?.target,
-        youtube,
+      final resource = resolveEventResource(
+        const EventResourceSource(detail: youtube, location: vimeo),
       );
-      final resource = resolveEventResourceForDashboard(vimeo);
-      expect(resource?.target, vimeo);
-      expect(eventResourceDashboardLabel(resource!), 'Open Link');
-    },
-  );
-
-  test(
-    'dashboard location adapter keeps YouTube location over payload URL',
-    () {
-      const youtube = 'https://www.youtube.com/watch?v=abc123';
-      const other = 'https://docs.example.com/notes';
-      expect(
-        resolveEventResource(
-          const EventResourceSource(
-            behaviorPayload: {'url': other},
-            location: youtube,
-          ),
-        )?.target,
-        other,
-      );
-      final resource = resolveEventResourceForDashboard(youtube);
       expect(resource?.target, youtube);
       expect(eventResourceDashboardLabel(resource!), 'Watch on YouTube');
     },
   );
 
-  test('dashboard has no external CTA when location is absent', () {
-    const youtube = 'https://www.youtube.com/watch?v=abc123';
-    expect(
-      resolveEventResource(
+  test(
+    'dashboard uses full EventResourceSource so payload URL wins over YouTube location',
+    () {
+      const youtube = 'https://www.youtube.com/watch?v=abc123';
+      const other = 'https://docs.example.com/notes';
+      final resource = resolveEventResource(
+        const EventResourceSource(
+          behaviorPayload: {'url': other},
+          location: youtube,
+        ),
+      );
+      expect(resource?.target, other);
+      expect(eventResourceDashboardLabel(resource!), 'Open Link');
+    },
+  );
+
+  test(
+    'dashboard still has an external CTA when only payload/detail exist',
+    () {
+      const youtube = 'https://www.youtube.com/watch?v=abc123';
+      final resource = resolveEventResource(
         const EventResourceSource(
           behaviorPayload: {'url': youtube},
           detail: 'Watch https://www.youtube.com/watch?v=abc123',
         ),
-      )?.target,
-      youtube,
-    );
-    expect(resolveEventResourceForDashboard(null), isNull);
-    expect(resolveEventResourceForDashboard(''), isNull);
-    expect(resolveEventResourceForDashboard('   '), isNull);
-  });
+      );
+      expect(resource?.target, youtube);
+      expect(eventResourceDashboardLabel(resource!), 'Watch on YouTube');
+      expect(resolveEventResource(const EventResourceSource()), isNull);
+      expect(
+        resolveEventResource(const EventResourceSource(location: '')),
+        isNull,
+      );
+      expect(
+        resolveEventResource(const EventResourceSource(location: '   ')),
+        isNull,
+      );
+    },
+  );
 
   test('normalized location token containing youtu keeps Watch on YouTube', () {
     const token = 'https://media.example.net/clip.youtu';
-    final resource = resolveEventResourceForDashboard(token);
+    final resource = resolveEventResource(
+      const EventResourceSource(location: token),
+    );
     expect(resource?.target, token);
     expect(eventResourceDashboardLabel(resource!), 'Watch on YouTube');
     expect(eventResourceDashboardTokenLooksLikeYouTube(token), isTrue);
   });
 
-  test('flow dashboard uses a location-only compatibility adapter', () {
+  test('flow dashboard uses the shared EventResourceSource', () {
     final source = File(
       'lib/features/calendar/calendar_flow_pages.dart',
     ).readAsStringSync();
@@ -268,32 +270,21 @@ void main() {
       source.indexOf('_FlowDayContent _contentForDashboardDay('),
       source.indexOf('Widget _buildDashboardBody({'),
     );
-    expect(
-      dashboard,
-      contains('resolveEventResourceForDashboard(event.location)'),
-    );
+    expect(dashboard, contains('resolveEventResource('));
+    expect(dashboard, contains('EventResourceSource('));
+    expect(dashboard, contains('behaviorPayload: event.behaviorPayload'));
+    expect(dashboard, contains('detail: event.detail'));
+    expect(dashboard, contains('location: event.location'));
     expect(dashboard, contains('eventResourceDashboardLabel(resource)'));
-    expect(
-      dashboard,
-      isNot(contains('behaviorPayload: event.behaviorPayload')),
-    );
-    expect(dashboard, isNot(contains('detail: event.detail')));
     expect(dashboard, isNot(contains("contains('youtu')")));
     expect(source, isNot(contains("contains('youtu')")));
     expect(source, contains('_launchExternalPreviewTarget(content.location!)'));
+    expect(source, isNot(contains('resolveEventResourceForDashboard')));
 
     final adapter = File(
       'lib/features/calendar/event_resource.dart',
     ).readAsStringSync();
-    final dashboardResolver = adapter.substring(
-      adapter.indexOf(
-        'EventResource? resolveEventResourceForDashboard(String? location) {',
-      ),
-      adapter.indexOf('bool eventResourceCameFromLocation('),
-    );
-    expect(dashboardResolver, contains('behaviorPayload: null'));
-    expect(dashboardResolver, contains('detail: null'));
-    expect(dashboardResolver, contains('location: location'));
+    expect(adapter, isNot(contains('resolveEventResourceForDashboard')));
   });
 
   test('Day View no longer owns resource-search precedence', () {

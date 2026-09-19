@@ -13,21 +13,18 @@ Flutter mobile app for Kemetic date-based planning, recurring flows, journaling,
 ## Local development
 
 ```bash
-cd mobile
 scripts/run_dev.sh
 ```
 
 Target a specific device:
 
 ```bash
-cd mobile
 scripts/run_dev.sh <device>
 ```
 
 Validate env files before running or building:
 
 ```bash
-cd mobile
 scripts/verify_env.sh
 scripts/verify_env.sh env/prod.json
 ```
@@ -44,8 +41,9 @@ The inputs are `config/web/staging.public.json` and
 configuration. Ambient `APP_*`, Supabase/Firebase client values, build IDs,
 source-map flags, manifest identity, and site URL overrides are rejected.
 
-The builder verifies the clean parent/mobile pairing, binds the exact source
-trees, config, builder, lockfile, and toolchain into `version.json`, and emits a
+The builder verifies the clean app-only checkout and exact remote lane commit,
+then binds the source tree, config, builder, lockfile, and toolchain into
+`version.json` and emits a
 deterministic archive under `dist/web-releases/`. The build runs from a clean
 Git extraction, preserves a raw-output hash receipt, and explicitly excludes
 Flutter's `.last_build_id` from the deployment payload because it is
@@ -58,7 +56,6 @@ backend data isolation.
 Validate release identity and Firebase/deep-link alignment before submission:
 
 ```bash
-cd mobile
 scripts/verify_release_config.sh
 scripts/verify_release_config.sh --strict-signing
 ```
@@ -66,7 +63,6 @@ scripts/verify_release_config.sh --strict-signing
 Validate mobile deep-link entrypoints on a simulator/device:
 
 ```bash
-cd mobile
 scripts/validate_deep_links.sh android
 scripts/validate_deep_links.sh ios
 ```
@@ -77,7 +73,6 @@ Use the guarded helper scripts so release builds receive the expected Supabase
 config and reject placeholder identity/signing before producing store artifacts:
 
 ```bash
-cd mobile
 scripts/build_android_release.sh
 scripts/build_ios_release.sh
 scripts/build_web_release.sh production
@@ -92,7 +87,6 @@ The iOS helper script wraps the same production defines and synchronizes the
 Firebase plist before building:
 
 ```bash
-cd mobile
 scripts/build_ios_release.sh
 ```
 
@@ -101,7 +95,6 @@ release helper refuses to build when the keystore file is missing, still uses
 example values, or points at a missing keystore. Start from:
 
 ```bash
-cd mobile
 cp android/key.properties.example android/key.properties
 ```
 
@@ -125,9 +118,9 @@ upload keystore path.
 - Keep `kemet.app://login-callback` allowlisted in Supabase auth redirects.
 - Keep `maat.app/.well-known/assetlinks.json` and `maat.app/.well-known/apple-app-site-association` live for Android App Links and iOS Universal Links.
 - `scripts/deploy_cloudflare_pages.sh` accepts an already-built release
-  directory, the explicitly authorized archive SHA-256, a Pages project, and an
-  optional preview branch. It verifies and uploads that exact artifact without
-  rebuilding.
+  directory, the explicitly authorized archive SHA-256, and the named
+  `staging` or `production` lane. It verifies and uploads that exact artifact
+  to the lane's fixed Pages project without rebuilding.
 - The deploy helper pins its Wrangler version. Updating it is a reviewed
   build-pipeline change.
 - Commit example env files only; keep real env JSON files and production secrets out of git.

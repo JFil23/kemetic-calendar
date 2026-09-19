@@ -21,7 +21,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(
+        home: FollowSkyDetailSurface(
           initialCatalog: catalog,
           now: DateTime.utc(2026, 9, 1, 12),
         ),
@@ -41,7 +41,7 @@ void main() {
   testWidgets('joined state shows in-your-calendar dock', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(
+        home: FollowSkyDetailSurface(
           isJoined: true,
           initialCatalog: catalog,
           now: DateTime.utc(2026, 9, 1, 12),

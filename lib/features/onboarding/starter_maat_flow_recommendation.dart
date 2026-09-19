@@ -46,6 +46,7 @@ class StarterMaatFlowKeys {
   static final String theTending = MaatFlowKind.theTending.flowKey;
   static final String keptWord = MaatFlowKind.keptWord.flowKey;
   static final String readingHouse = MaatFlowKind.readingHouse.flowKey;
+  static final String theDjed = MaatFlowKind.theDjed.flowKey;
 }
 
 class StarterFlowRecommendationService {
@@ -95,6 +96,12 @@ class StarterFlowRecommendationService {
     description: 'Build a steady practice of reading and remembering.',
   );
 
+  static final StarterMaatFlow theDjed = StarterMaatFlow(
+    templateKey: StarterMaatFlowKeys.theDjed,
+    title: 'The Djed',
+    description: 'Name what holds you up and strengthen it one move at a time.',
+  );
+
   List<StarterMaatFlow> recommend({
     required FirstRhythmGoal goal,
     required RhythmTimePreference timePreference,
@@ -103,7 +110,7 @@ class StarterFlowRecommendationService {
     final recommendations = <StarterMaatFlow>[];
 
     void add(StarterMaatFlow flow, {bool prominent = false}) {
-      if (!isCoreMaatFlowKey(flow.templateKey)) return;
+      if (!isMaatFlowNewJoinAllowed(flow.templateKey)) return;
       if (recommendations.any((item) => item.templateKey == flow.templateKey)) {
         return;
       }
@@ -115,33 +122,28 @@ class StarterFlowRecommendationService {
         add(followTheSky);
         break;
       case FirstRhythmGoal.buildDailyDiscipline:
-        if (timePreference == RhythmTimePreference.dawn) {
-          add(dawnHouseRite, prominent: true);
-          add(keptWord);
-        } else {
-          add(dawnHouseRite);
-          add(keptWord);
-        }
+        add(theDjed, prominent: true);
+        add(followTheSky);
         break;
       case FirstRhythmGoal.reflectAndJournal:
-        add(theWeighing);
-        add(keptWord);
+        add(theDjed);
+        add(readingHouse);
         break;
       case FirstRhythmGoal.careForTheBody:
         add(offeringTable);
-        add(theTending);
+        add(followTheSky);
         break;
       case FirstRhythmGoal.studyAndRemember:
         add(readingHouse);
-        add(keptWord);
+        add(theDjed);
         break;
     }
 
     if (timePreference == RhythmTimePreference.dawn &&
         !recommendations.any(
-          (flow) => flow.templateKey == StarterMaatFlowKeys.dawnHouseRite,
+          (flow) => flow.templateKey == StarterMaatFlowKeys.followTheSky,
         )) {
-      add(dawnHouseRite, prominent: true);
+      add(followTheSky, prominent: true);
     }
 
     return recommendations.take(3).toList(growable: false);

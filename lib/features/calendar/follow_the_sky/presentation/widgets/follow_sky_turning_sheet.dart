@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/widgets/day_sheet_components.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../../domain/sky_observing_night.dart';
 import '../../../maat_flow_visual_tokens.dart';
@@ -14,9 +15,8 @@ Future<void> showFollowSkyTurningSheet({
   required ValueChanged<String> onSetIntention,
 }) {
   final controller = TextEditingController(text: initialIntention);
-  return showModalBottomSheet<void>(
+  return showEditableModalBottomSheet<void>(
     context: context,
-    isScrollControlled: true,
     useRootNavigator: true,
     backgroundColor: FollowSkyV11Tokens.sheetBg,
     shape: const RoundedRectangleBorder(
@@ -24,13 +24,8 @@ Future<void> showFollowSkyTurningSheet({
       side: BorderSide(color: Color(0xFF2A2518)),
     ),
     builder: (ctx) {
-      return Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          12,
-          20,
-          20 + MediaQuery.viewInsetsOf(ctx).bottom,
-        ),
+      final content = Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,6 +126,7 @@ Future<void> showFollowSkyTurningSheet({
           ),
         ),
       );
+      return KeyboardAwareEditableSurface(child: content);
     },
   );
 }

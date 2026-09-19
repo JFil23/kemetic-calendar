@@ -1,206 +1,31 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
-import 'package:mobile/features/calendar/track_sky_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_resolver.dart';
 
 void main() {
-  test('schedules a three minute Pacific sunset occurrence', () {
-    final schedule = eveningThresholdScheduleForDate(
-      DateTime(2026, 6, 1),
-      TrackSkyTimeZone.pacific,
-    );
+  test('The Closing is recognized only as read-only archive history', () {
+    const kind = MaatFlowKind.eveningThresholdRite;
+    expect(kind.flowKey, 'evening-threshold-rite');
+    expect(resolveMaatFlowKind(flowName: 'The Closing'), kind);
+    expect(isMaatFlowDiscoverableKind(kind), isFalse);
+    expect(isMaatFlowNewJoinAllowedKind(kind), isFalse);
+    expect(isMaatFlowCompatibilitySupportedKind(kind), isTrue);
+    expect(maatFlowCatalogEntry(kind).status, MaatFlowCatalogStatus.archived);
+    expect(archivedMaatFlowTitle(kind), 'The Closing');
+    expect(archivedMaatFlowGlyph(kind), '𓊌');
 
-    expect(schedule.startLocal.year, 2026);
-    expect(schedule.startLocal.month, 6);
-    expect(schedule.startLocal.day, 1);
-    expect(schedule.startLocal.hour, inInclusiveRange(19, 21));
+    final context = MaatFlowTemporalContext.fromInstant(
+      nowUtc: DateTime.utc(2026, 9, 6),
+      ianaTimeZone: 'UTC',
+    );
     expect(
-      schedule.endUtc.difference(schedule.startUtc),
-      const Duration(minutes: 3),
-    );
-    expect(schedule.usedFallback, isFalse);
-  });
-
-  test('default start date advances after the current evening has passed', () {
-    final beforeEvening = defaultEveningThresholdRiteStartDate(
-      TrackSkyTimeZone.pacific,
-      now: DateTime.utc(2026, 6, 2, 1),
-    );
-    final afterEvening = defaultEveningThresholdRiteStartDate(
-      TrackSkyTimeZone.pacific,
-      now: DateTime.utc(2026, 6, 2, 5),
-    );
-
-    expect(beforeEvening, DateTime(2026, 6, 1));
-    expect(afterEvening, DateTime(2026, 6, 2));
-  });
-
-  test('discreet detail removes visible ritual language', () {
-    final detail = eveningThresholdRiteDetailText(
-      kEveningThresholdRiteDays[27],
-      discreet: true,
-      lens: EveningThresholdRiteLens.hiddenRenewal,
-    );
-
-    expect(detail.toLowerCase(), isNot(contains('offering')));
-    expect(detail.toLowerCase(), isNot(contains('altar')));
-    expect(detail.toLowerCase(), isNot(contains('flame')));
-    expect(detail.toLowerCase(), isNot(contains('incense')));
-    expect(detail.toLowerCase(), isNot(contains("ma'at")));
-    expect(detail, contains('Quiet line'));
-    expect(detail, contains('sign of gratitude'));
-    expect(detail, contains('Let quiet restore'));
-  });
-
-  test('detail text keeps only readable rite sections', () {
-    final detail = eveningThresholdRiteDetailText(
-      kEveningThresholdRiteDays.first,
-      discreet: false,
-      lens: EveningThresholdRiteLens.neutral,
-    );
-
-    expect(detail, isNot(contains('Cycle:')));
-    expect(detail, isNot(contains('Completion:')));
-    expect(
-      detail,
-      contains(
-        'Purpose\nThe evening has no official start time. This rite marks one deliberately.',
+      () => const MaatFlowTemporalResolver().resolve(
+        kind: kind,
+        context: context,
       ),
+      throwsUnsupportedError,
     );
-    expect(detail, contains('Action\nPause near a window'));
-    expect(detail, contains('Words\n"'));
-    expect(detail, contains('Evening act\nClose one open loop'));
-  });
-
-  test('copy guards keep Evening safety gates and quiet lines clear', () {
-    final lampAndShadow = kEveningThresholdRiteDays[17];
-
-    expect(lampAndShadow.dayNumber, 18);
-    expect(lampAndShadow.title, 'Lamp and Shadow');
-    expect(
-      lampAndShadow.eveningAct,
-      'If it can safely wait, let one thing remain unfinished without anxiety.',
-    );
-    expect(lampAndShadow.eveningAct, startsWith('If it can safely wait'));
-    expect(lampAndShadow.eveningAct, isNot(contains('without anxiety, if')));
-    expect(
-      lampAndShadow.purpose,
-      'Not every task needs completion today. This rite names what can rest in darkness without becoming abandoned.',
-    );
-    expect(
-      lampAndShadow.words,
-      'Light has done its work. Shadow now teaches rest, protection, and renewal.',
-    );
-    expect(lampAndShadow.words, isNot(contains('If it can safely wait')));
-  });
-
-  test('builds thirty JSON-safe evening event payloads', () {
-    final startDate = DateTime(2026, 6, 1);
-    final starts = <DateTime>{};
-
-    for (var i = 0; i < kEveningThresholdRiteDays.length; i++) {
-      final day = kEveningThresholdRiteDays[i];
-      final schedule = eveningThresholdScheduleForDate(
-        startDate.add(Duration(days: i)),
-        TrackSkyTimeZone.eastern,
-        fallbackMinutesAfterMidnight: 21 * 60,
-      );
-      final payload = eveningThresholdRiteBehaviorPayload(
-        day: day,
-        schedule: schedule,
-        discreet: i.isEven,
-        lens: EveningThresholdRiteLens.protection,
-      );
-
-      expect(jsonDecode(jsonEncode(payload)), isA<Map<String, dynamic>>());
-      expect(payload['burden'], 'low');
-      expect(payload['completion_options'], hasLength(3));
-      expect(payload['missed_event_rule'], 'expire_quietly');
-      expect(
-        payload['schedule'],
-        containsPair('fallback', 'user_selected_evening_time'),
-      );
-      starts.add(schedule.startUtc);
-    }
-
-    expect(kEveningThresholdRiteDays, hasLength(30));
-    expect(starts, hasLength(30));
-  });
-
-  test('payload keeps evening scheduler and transform keys stable', () {
-    final schedule = eveningThresholdScheduleForDate(
-      DateTime(2026, 6, 18),
-      TrackSkyTimeZone.central,
-      fallbackMinutesAfterMidnight: 21 * 60,
-    );
-    final payload = eveningThresholdRiteBehaviorPayload(
-      day: kEveningThresholdRiteDays[17],
-      schedule: schedule,
-      discreet: true,
-      lens: EveningThresholdRiteLens.hiddenRenewal,
-    );
-
-    expect(payload['kind'], 'maat_evening_threshold_rite_day');
-    expect(payload['flow_key'], kEveningThresholdRiteFlowKey);
-    expect(payload['day'], 18);
-    expect(payload['duration_minutes'], kEveningThresholdRiteDurationMinutes);
-    expect(payload['burden'], 'low');
-    expect(payload['completion_options'], <String>[
-      'observed',
-      'partly_observed',
-      'skipped',
-    ]);
-    expect(payload['missed_event_rule'], 'expire_quietly');
-    expect(payload['discreet_mode'], isTrue);
-    expect(payload['lens'], EveningThresholdRiteLens.hiddenRenewal.key);
-
-    final schedulePayload = payload['schedule'] as Map<String, dynamic>;
-    expect(schedulePayload['type'], 'local_sunset_plus_20_minutes');
-    expect(schedulePayload['fallback'], 'user_selected_evening_time');
-    expect(schedulePayload['timezone'], TrackSkyTimeZone.central.key);
-    expect(schedulePayload['iana_timezone'], TrackSkyTimeZone.central.ianaName);
-    expect(schedulePayload['fallback_minutes_after_midnight'], 21 * 60);
-  });
-
-  test('purpose copy checkpoints match the upgraded thirty-evening rite', () {
-    expect(
-      kEveningThresholdRiteDays[0].purpose,
-      'The evening has no official start time. This rite marks one deliberately.',
-    );
-    expect(
-      kEveningThresholdRiteDays[9].purpose,
-      'What pattern appeared across the first ten closings? The recalibration asks before the next ten begin.',
-    );
-    expect(
-      kEveningThresholdRiteDays[19].purpose,
-      'Ten evenings of household attention. What did the house give back? What does it still need?',
-    );
-    expect(
-      kEveningThresholdRiteDays[29].purpose,
-      'Thirty evenings of deliberate closing. The practice is not finished — it is established. This rite marks what changed.',
-    );
-  });
-
-  test('shared headless join stages Evening events before persistence', () {
-    final source = File(
-      'lib/features/calendar/flow_join_service.dart',
-    ).readAsStringSync();
-    final methodStart = source.indexOf(
-      'Future<FlowJoinResult> joinEveningThresholdRiteHeadless({',
-    );
-    expect(methodStart, isNonNegative);
-    final methodEnd = source.indexOf(
-      'Future<FlowJoinResult> joinEveningThresholdHeadless({',
-      methodStart,
-    );
-    expect(methodEnd, isNonNegative);
-    final method = source.substring(methodStart, methodEnd);
-
-    expect(method, contains('_eveningThresholdRiteDays'));
-    expect(method, contains('await _upsertEventRow('));
-    expect(method, contains('stagePlannedNotesAndDeferPersist('));
-    expect(method, isNot(contains('await _repo.upsertManyDeterministic')));
   });
 }

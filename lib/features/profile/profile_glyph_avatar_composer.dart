@@ -81,7 +81,6 @@ class _ProfileGlyphAvatarComposerSheetState
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final phraseGlyphs = profileGlyphPhraseGlyphs(_selectedGlyphIds);
     final phraseMeaning = profileGlyphPhraseMeaning(_selectedGlyphIds);
     final avatarHeaderExtent = phraseMeaning.isNotEmpty ? 224.0 : 176.0;
@@ -89,7 +88,7 @@ class _ProfileGlyphAvatarComposerSheetState
     return SafeArea(
       top: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomInset),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

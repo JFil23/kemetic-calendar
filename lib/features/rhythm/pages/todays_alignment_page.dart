@@ -1987,7 +1987,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     if (index < 0 || index >= _notes.length) return;
     final original = _notes[index];
     final controller = TextEditingController(text: original.text);
-    final updatedText = await showDialog<String>(
+    final updatedText = await showEditableDialog<String>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -1995,7 +1995,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           title: const Text('Edit note', style: TextStyle(color: Colors.white)),
           content: TextField(
             controller: controller,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
             maxLines: 4,
             minLines: 2,
             autofocus: false,
@@ -2251,7 +2250,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       width: width,
       child: TextField(
         controller: controller,
-        scrollPadding: keyboardManagedTextFieldScrollPadding,
         style: RhythmTheme.subheading,
         decoration: InputDecoration(
           hintText: hintText,

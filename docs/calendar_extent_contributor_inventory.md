@@ -215,6 +215,21 @@ extent equation:
 
 The original completeness trace and equations therefore remain exhaustive.
 
+## 2026-09-05 inactive month-surface re-audit
+
+The four-flow coordinator extraction left `_MonthCard.framedSurface` with no
+callers. Its constructor default was always `false`, so the framed font sizes,
+card fill, border, clipping, and decorative gradient could not participate in
+the rendered calendar or any section extent. The inactive parameter and its
+private constants were removed, and each live branch was collapsed to the
+existing `false` value.
+
+The two current `_MonthCard` construction sites still use the same main title,
+season, and decan sizes; the same transparent card surface; and the same outer
+padding, inner padding, row heights, and day-chip equations. No contributor was
+added or removed from the live extent model, so the closed list and equations
+above remain exhaustive.
+
 ## 2026-08-21 day-number header and compact-height re-audit
 
 The day-number hierarchy change modifies one extent term: compact day chips

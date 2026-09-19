@@ -42,7 +42,8 @@ void main() {
     expect(source, isNot(contains('onCommitStartTime')));
     expect(source, contains('FollowSkyObservationPresentationLoader('));
     expect(source, contains('onWriteJournalResponse'));
-    expect(source, contains('_commitFollowSkyCompletion('));
+    expect(source, contains('_commitMaatFlowCompletion('));
+    expect(source, contains('onCommitCompletion: (status) =>'));
   });
 
   testWidgets('presentation starts on the HTML mockup hierarchy', (
@@ -298,7 +299,7 @@ void main() {
     );
 
     final foreground = find.byKey(
-      const ValueKey<String>('follow-sky-foreground-layer'),
+      const ValueKey<String>('follow-sky-static-lower-sheet'),
     );
     final presentationBody = find.byKey(
       const ValueKey<String>('follow-sky-presentation-body'),

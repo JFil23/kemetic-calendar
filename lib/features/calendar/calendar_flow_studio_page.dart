@@ -1368,20 +1368,15 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   final TextEditingController _overviewCtrl = TextEditingController();
 
   Future<void> _openOverviewEditor() async {
-    await showModalBottomSheet(
+    await showEditableModalBottomSheet(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (sheetCtx) {
         final media = MediaQuery.of(sheetCtx);
-        final keyboardInset = widget.resizeToAvoidBottomInset
-            ? MediaQuery.viewInsetsOf(sheetCtx).bottom
-            : 0.0;
-        return Padding(
-          padding: EdgeInsets.only(bottom: keyboardInset),
+        return KeyboardAwareEditableSurface(
           child: SafeArea(
             top: false,
             child: ConstrainedBox(
@@ -1412,7 +1407,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                     const SizedBox(height: 8),
                     TextField(
                       controller: _overviewCtrl,
-                      scrollPadding: keyboardManagedTextFieldScrollPadding,
                       style: const TextStyle(color: Colors.white),
                       maxLines: 10,
                       decoration: _darkInput(
@@ -1646,7 +1640,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   Widget _notesEditorsPanel() {
     final groups = _buildEditorGroups();
-    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
     if (groups.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -1694,14 +1687,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                         const SizedBox(height: 8),
                         TextField(
                           controller: draft.titleCtrl,
-                          scrollPadding: fieldScrollPadding,
                           style: const TextStyle(color: Colors.white),
                           decoration: _darkInput('Title'),
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: draft.locationCtrl,
-                          scrollPadding: fieldScrollPadding,
                           style: const TextStyle(color: Colors.white),
                           decoration: _darkInput(
                             'Location or Video Call',
@@ -1711,7 +1702,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                         const SizedBox(height: 8),
                         TextField(
                           controller: draft.detailCtrl,
-                          scrollPadding: fieldScrollPadding,
                           style: const TextStyle(color: Colors.white),
                           maxLines: 3,
                           decoration: _darkInput('Details (optional)'),
@@ -1781,15 +1771,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   Future<void> _showAIGenerationModal() async {
     final seedManualRange = _shouldSeedAiGenerationModalWithManualRange;
     final seedCurrentStart = seedManualRange || _dateRangeEditedInCurrentEditor;
-    final result = await showModalBottomSheet<AIFlowGenerationResponse>(
+    final result = await showEditableModalBottomSheet<AIFlowGenerationResponse>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AIFlowGenerationModal(
         initialStartDate: seedCurrentStart ? _startDate : null,
         initialEndDate: seedManualRange ? _endDate : null,
         initialDateRangeIsManual: seedManualRange,
-        manageKeyboardInset: widget.resizeToAvoidBottomInset,
       ),
     );
 
@@ -2126,9 +2114,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     List<_Flow> filtered = List.of(widget.existingFlows)
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-    await showModalBottomSheet(
+    await showEditableModalBottomSheet(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -2151,11 +2138,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
             final media = MediaQuery.of(sheetCtx);
-            final keyboardInset = widget.resizeToAvoidBottomInset
-                ? MediaQuery.viewInsetsOf(sheetCtx).bottom
-                : 0.0;
-            return Padding(
-              padding: EdgeInsets.only(bottom: keyboardInset),
+            return KeyboardAwareEditableSurface(
               child: SafeArea(
                 top: false,
                 child: ConstrainedBox(
@@ -2187,7 +2170,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                         const SizedBox(height: 8),
                         TextField(
                           controller: searchCtrl,
-                          scrollPadding: keyboardManagedTextFieldScrollPadding,
                           style: const TextStyle(color: Colors.white),
                           decoration: _darkInput(
                             'Search flows',
@@ -4642,7 +4624,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       22,
       AppBottomInsets.contentBottomPadding(context),
     );
-    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
     final tone = _FlowStudioTone.resolve(_activeStudioColor);
     final studioChrome = Color.alphaBlend(
       tone.softenedAccent.withValues(alpha: 0.16),
@@ -4803,7 +4784,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             const SizedBox(height: 18),
             TextField(
               controller: _nameCtrl,
-              scrollPadding: fieldScrollPadding,
               style: const TextStyle(
                 color: Color(0xFFF2E4C5),
                 fontSize: 38,
@@ -4839,7 +4819,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
               height: 86,
               child: TextField(
                 controller: _overviewCtrl,
-                scrollPadding: fieldScrollPadding,
                 style: const TextStyle(
                   color: Color(0xFFE8E1D5),
                   fontSize: 16,
@@ -5007,7 +4986,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
               height: 176,
               child: TextField(
                 controller: _composePromptCtrl,
-                scrollPadding: fieldScrollPadding,
                 expands: true,
                 maxLines: null,
                 minLines: null,

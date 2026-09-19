@@ -218,9 +218,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final pageTitle = _isCreatingProfile ? 'Create Profile' : 'Edit Profile';
     final saveLabel = _isCreatingProfile ? 'Create' : 'Save';
     const formPadding = EdgeInsets.all(24);
-    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
-
-    return PopScope(
+    final page = PopScope(
       canPop: !widget.requireCompletion,
       child: Scaffold(
         backgroundColor: const Color(0xFF000000),
@@ -410,7 +408,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       // Display Name
                       TextFormField(
                         controller: _displayNameController,
-                        scrollPadding: fieldScrollPadding,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: 'Display Name',
@@ -436,7 +433,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       // Handle
                       TextFormField(
                         controller: _handleController,
-                        scrollPadding: fieldScrollPadding,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: 'Handle',
@@ -495,7 +491,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       // Bio
                       TextFormField(
                         controller: _bioController,
-                        scrollPadding: fieldScrollPadding,
                         style: const TextStyle(color: Colors.white),
                         maxLines: 3,
                         maxLength: 160,
@@ -520,7 +515,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       // Location
                       TextFormField(
                         controller: _locationController,
-                        scrollPadding: fieldScrollPadding,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: 'Location (optional)',
@@ -602,5 +596,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
       ),
     );
+    return KeyboardAwareEditableSurface(child: page);
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../shared/glossy_text.dart';
+import 'keyboard_aware.dart';
 
 const Key utilitySheetRouteBackdropKey = Key(
   'utilitySheetRouteScaffold.backdrop',
@@ -159,62 +160,67 @@ class _UtilitySheetRouteScaffoldState extends State<UtilitySheetRouteScaffold> {
                           ),
                           child: Material(
                             color: Colors.black,
-                            child: widget.showRouteChrome
-                                ? Column(
-                                    children: [
-                                      GestureDetector(
-                                        key: utilitySheetRouteDragHandleKey,
-                                        behavior: HitTestBehavior.translucent,
-                                        onVerticalDragStart: _handleDragStart,
-                                        onVerticalDragUpdate: _handleDragUpdate,
-                                        onVerticalDragEnd: _handleDragEnd,
-                                        onVerticalDragCancel: _handleDragCancel,
-                                        child: SizedBox(
-                                          height: 44,
-                                          child: Stack(
-                                            children: [
-                                              Align(
-                                                alignment: Alignment.topCenter,
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        top: 10,
+                            child: KeyboardAwareEditableSurface(
+                              child: widget.showRouteChrome
+                                  ? Column(
+                                      children: [
+                                        GestureDetector(
+                                          key: utilitySheetRouteDragHandleKey,
+                                          behavior: HitTestBehavior.translucent,
+                                          onVerticalDragStart: _handleDragStart,
+                                          onVerticalDragUpdate:
+                                              _handleDragUpdate,
+                                          onVerticalDragEnd: _handleDragEnd,
+                                          onVerticalDragCancel:
+                                              _handleDragCancel,
+                                          child: SizedBox(
+                                            height: 44,
+                                            child: Stack(
+                                              children: [
+                                                Align(
+                                                  alignment:
+                                                      Alignment.topCenter,
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          top: 10,
+                                                        ),
+                                                    child: Container(
+                                                      width: 42,
+                                                      height: 4,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white24,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              2,
+                                                            ),
                                                       ),
-                                                  child: Container(
-                                                    width: 42,
-                                                    height: 4,
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.white24,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            2,
-                                                          ),
                                                     ),
                                                   ),
                                                 ),
-                                              ),
-                                              Align(
-                                                alignment:
-                                                    Alignment.centerRight,
-                                                child: IconButton(
-                                                  key:
-                                                      utilitySheetRouteCloseButtonKey,
-                                                  tooltip:
-                                                      'Close ${widget.semanticLabel}',
-                                                  onPressed: _requestClose,
-                                                  icon: KemeticGold.icon(
-                                                    Icons.close,
+                                                Align(
+                                                  alignment:
+                                                      Alignment.centerRight,
+                                                  child: IconButton(
+                                                    key:
+                                                        utilitySheetRouteCloseButtonKey,
+                                                    tooltip:
+                                                        'Close ${widget.semanticLabel}',
+                                                    onPressed: _requestClose,
+                                                    icon: KemeticGold.icon(
+                                                      Icons.close,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      Expanded(child: widget.child),
-                                    ],
-                                  )
-                                : widget.child,
+                                        Expanded(child: widget.child),
+                                      ],
+                                    )
+                                  : widget.child,
+                            ),
                           ),
                         ),
                       ),

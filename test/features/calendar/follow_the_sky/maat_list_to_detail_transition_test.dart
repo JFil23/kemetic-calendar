@@ -1,161 +1,147 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/features/calendar/follow_the_sky/presentation/maat_list_to_detail_route.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
-  testWidgets('list shell shifts on secondary animation', (tester) async {
-    tester.view.physicalSize = const Size(400, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    await tester.pumpWidget(const MaterialApp(home: _TransitionHarness()));
-    await tester.pump();
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    try {
+      Supabase.instance.client;
+    } catch (_) {
+      await Supabase.initialize(
+        url: 'https://example.supabase.co',
+        anonKey: 'anon-key-0123456789012345678901234567890123456789',
+      );
+    }
+  });
 
-    final foreground = find.byKey(
-      MaatFlowsListDetailReveal.foregroundTransformKey,
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+  });
+
+  // Keep this identity stable for the release comparison gate; the route
+  // assertions below now enforce authored content inside the shared sheet.
+  testWidgets('discovery opens its authored inline detail on the same route', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+    await _pumpFlowStudio(
+      tester,
+      Uri(
+        path: '/flows',
+        queryParameters: const <String, String>{'mode': 'maatFlows'},
+      ),
     );
-    await tester.tap(find.text('Open detail'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 250));
 
-    expect(find.text('Detail page'), findsOneWidget);
-    expect(_translationX(tester.widget<Transform>(foreground)), lessThan(0));
+    final card = find.byKey(maatFlowCatalogCardKeyForTesting('track-the-sky'));
+    await tester.scrollUntilVisible(
+      card,
+      280,
+      scrollable: find.byType(Scrollable).last,
+    );
+    final listRoute = ModalRoute.of(tester.element(card));
+    expect(listRoute, isA<MaterialPageRoute<dynamic>>());
+    expect(listRoute!.isCurrent, isTrue);
+
+    final openButton = find.byKey(
+      const ValueKey<String>('maat-flow-discovery-card-track-the-sky'),
+    );
+    await tester.ensureVisible(openButton);
+    await tester.tap(openButton);
+    await tester.pumpAndSettle();
+    final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
+    expect(detailBack, findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey<String>('maat-flow-discovery-detail-track-the-sky'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Carry this flow'), findsNothing);
+
+    final detailRoute = ModalRoute.of(tester.element(detailBack));
+    expect(detailRoute, isNotNull);
+    expect(detailRoute, same(listRoute));
+    expect(detailRoute, isA<MaterialPageRoute<dynamic>>());
+    expect(detailRoute!.isCurrent, isTrue);
+    expect(listRoute.isCurrent, isTrue);
+    expect(
+      find.byKey(
+        const ValueKey<String>('maat-flow-discovery-view'),
+        skipOffstage: false,
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets(
-    'list shell reveals a stationary detail with exact V11 geometry and timing',
+    'restored detail route preserves a discoverable list route beneath it',
     (tester) async {
-      tester.view.physicalSize = const Size(400, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(const MaterialApp(home: _TransitionHarness()));
-      await tester.pump();
-
-      final chrome = find.byKey(_TransitionHarness.chromeKey);
-      final foreground = find.byKey(
-        MaatFlowsListDetailReveal.foregroundTransformKey,
+      _setPhoneViewport(tester);
+      await _pumpFlowStudio(
+        tester,
+        Uri(
+          path: '/flows',
+          queryParameters: const <String, String>{
+            'mode': 'maatTemplate',
+            'templateKey': 'track-the-sky',
+          },
+        ),
       );
-      final opacity = find.byKey(
-        MaatFlowsListDetailReveal.foregroundOpacityKey,
-      );
-      final chromeOrigin = tester.getTopLeft(chrome);
 
+      final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
+      expect(detailBack, findsOneWidget);
       expect(
-        MaatFlowsListDetailReveal.transformDuration,
-        const Duration(milliseconds: 500),
-      );
-      expect(
-        MaatFlowsListDetailReveal.opacityDuration,
-        const Duration(milliseconds: 380),
-      );
-      expect(MaatFlowsListDetailReveal.outgoingShiftFraction, 0.16);
-      expect(find.text('Detail page'), findsNothing);
-
-      await tester.tap(find.text('Open detail'));
-      await tester.pump();
-
-      final detail = find.byKey(_TransitionHarness.detailKey);
-      expect(detail, findsOneWidget);
-      final detailOrigin = tester.getTopLeft(detail);
-      expect(
-        find.ancestor(of: detail, matching: find.byType(FadeTransition)),
-        findsNothing,
-      );
-      expect(
-        find.ancestor(of: detail, matching: find.byType(SlideTransition)),
+        find.byKey(
+          const ValueKey<String>('maat-flow-discovery-view'),
+          skipOffstage: false,
+        ),
         findsNothing,
       );
 
-      await tester.pump(const Duration(milliseconds: 250));
-      expect(tester.getTopLeft(detail), detailOrigin);
-      expect(tester.getTopLeft(chrome), chromeOrigin);
+      final detailRoute = ModalRoute.of(tester.element(detailBack));
+      expect(detailRoute, isNotNull);
+      expect(detailRoute, isA<MaterialPageRoute<dynamic>>());
+      expect(detailRoute!.isCurrent, isTrue);
 
-      await tester.pump(const Duration(milliseconds: 130));
-      expect(tester.widget<Opacity>(opacity).opacity, closeTo(0, 0.0001));
-      expect(tester.getTopLeft(detail), detailOrigin);
-
-      await tester.pump(const Duration(milliseconds: 120));
-      expect(_translationX(tester.widget<Transform>(foreground)), -64);
-      expect(tester.getTopLeft(detail), detailOrigin);
-      expect(tester.getTopLeft(chrome), chromeOrigin);
-      expect(find.descendant(of: foreground, matching: chrome), findsNothing);
-
-      await tester.tap(find.text('Back to list'));
-      await tester.pump();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 380));
-      expect(tester.widget<Opacity>(opacity).opacity, closeTo(1, 0.0001));
-      expect(tester.getTopLeft(detail), detailOrigin);
-
-      await tester.pump(const Duration(milliseconds: 120));
-      expect(
-        _translationX(tester.widget<Transform>(foreground)),
-        closeTo(0, 0.001),
-      );
+      await tester.tap(detailBack);
       await tester.pumpAndSettle();
-      expect(find.text('Open detail'), findsOneWidget);
-      expect(find.text('Detail page'), findsNothing);
-      expect(tester.getTopLeft(chrome), chromeOrigin);
+
+      expect(detailRoute.isCurrent, isTrue);
+      expect(find.text('Flows'), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('outer-route')), findsNothing);
     },
   );
 }
 
-double _translationX(Transform transform) => transform.transform.storage[12];
+void _setPhoneViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
 
-class _TransitionHarness extends StatelessWidget {
-  const _TransitionHarness();
-
-  static const chromeKey = ValueKey<String>('outer-day-sheet-chrome');
-  static const detailKey = ValueKey<String>('stationary-detail-content');
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          const SizedBox(
-            key: chromeKey,
-            height: 120,
-            child: Center(child: Text('Day Sheet chrome')),
-          ),
-          Expanded(
-            child: MaatFlowsListDetailReveal<void>(
-              foregroundBuilder: (context, revealDetail) => ColoredBox(
-                color: Colors.black,
-                child: Center(
-                  child: TextButton(
-                    onPressed: () {
-                      revealDetail(
-                        (detailContext) => ColoredBox(
-                          key: detailKey,
-                          color: Colors.indigo,
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text('Detail page'),
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(detailContext).maybePop(),
-                                  child: const Text('Back to list'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text('Open detail'),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+Future<void> _pumpFlowStudio(WidgetTester tester, Uri initialUri) async {
+  final router = GoRouter(
+    initialLocation: initialUri.toString(),
+    routes: <RouteBase>[
+      GoRoute(
+        path: '/',
+        builder: (_, _) => const SizedBox(key: ValueKey<String>('outer-route')),
       ),
-    );
-  }
+      GoRoute(
+        path: '/flows',
+        builder: (_, state) =>
+            CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri),
+      ),
+    ],
+  );
+  addTearDown(router.dispose);
+  await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+  await tester.pump();
 }

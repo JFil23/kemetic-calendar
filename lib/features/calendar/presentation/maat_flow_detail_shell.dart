@@ -2,7 +2,78 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/navigation_fallback.dart';
+import '../../../widgets/keyboard_aware.dart';
 import '../maat_flow_visual_tokens.dart';
+
+const String kMaatFlowsListRoute = '/flows?mode=maatFlows';
+
+void popMaatFlowDetailOrGo(
+  BuildContext context, {
+  String fallbackLocation = kMaatFlowsListRoute,
+}) {
+  final navigator = Navigator.maybeOf(context);
+  if (navigator != null && navigator.canPop()) {
+    navigator.pop();
+    return;
+  }
+  popOrGo(context, fallbackLocation);
+}
+
+/// The authored 34 px circular back control shared by Ma'at detail pages.
+///
+/// Keeping this chrome in one authority prevents each flow from drifting while
+/// still allowing the flow palette to own its color.
+class MaatFlowDetailBackButton extends StatelessWidget {
+  const MaatFlowDetailBackButton({
+    super.key,
+    required this.color,
+    required this.onPressed,
+    this.backgroundColor = const Color(0x73000000),
+    this.borderColor,
+    this.size = 34,
+    this.iconSize = 20,
+    this.tooltip = 'Back',
+    this.icon = Icons.arrow_back,
+  });
+
+  final Color color;
+  final Color backgroundColor;
+  final Color? borderColor;
+  final double size;
+  final double iconSize;
+  final VoidCallback onPressed;
+  final String tooltip;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: backgroundColor,
+          shape: CircleBorder(
+            side: BorderSide(
+              color: borderColor ?? color.withValues(alpha: 0.28),
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onPressed,
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Icon(icon, color: color, size: iconSize),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Flow-owned colors applied to the shared Ma'at detail geometry.
 class MaatFlowDetailTheme {
@@ -53,6 +124,8 @@ class MaatFlowDetailShell extends StatefulWidget {
     this.scrollKey = const ValueKey<String>('maat-flow-detail-scroll'),
     this.heroLayerKey,
     this.sheetKey,
+    this.referenceHeroHeight = MaatFlowDetailGeometry.heroHeight,
+    this.referenceSheetOverlap = MaatFlowDetailGeometry.sheetOverlap,
   });
 
   final MaatFlowDetailTheme theme;
@@ -63,6 +136,8 @@ class MaatFlowDetailShell extends StatefulWidget {
   final Key scrollKey;
   final Key? heroLayerKey;
   final Key? sheetKey;
+  final double referenceHeroHeight;
+  final double referenceSheetOverlap;
 
   @override
   State<MaatFlowDetailShell> createState() => _MaatFlowDetailShellState();
@@ -93,19 +168,21 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
 
   @override
   Widget build(BuildContext context) {
+    final showBottomDock =
+        widget.bottomDock != null && !keyboardIsVisible(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final widthScaledHero =
-            MaatFlowDetailGeometry.heroHeight *
+            widget.referenceHeroHeight *
             (width / MaatFlowDetailGeometry.referenceWidth);
         final heightScaledHero =
             constraints.maxHeight *
-            (MaatFlowDetailGeometry.heroHeight /
+            (widget.referenceHeroHeight /
                 MaatFlowDetailGeometry.referenceHeight);
         final heroHeight = math.min(widthScaledHero, heightScaledHero);
         final overlap =
-            MaatFlowDetailGeometry.sheetOverlap *
+            widget.referenceSheetOverlap *
             (width / MaatFlowDetailGeometry.referenceWidth);
         final parallax =
             _scrollOffset * MaatFlowDetailGeometry.heroParallaxFactor;
@@ -157,7 +234,7 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
                   ),
                 ],
               ),
-              if (widget.bottomDock != null)
+              if (showBottomDock)
                 Positioned(
                   left: 0,
                   right: 0,
@@ -183,9 +260,23 @@ class MaatFlowDetailHero extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.glyphKey,
+    this.glyphContent,
+    this.glyphOffset = Offset.zero,
     this.glyphGradient,
     this.glyphBorder,
     this.glyphGlow,
+    this.contentBottom = 72,
+    this.contentLeft = 24,
+    this.contentRight = 24,
+    this.glyphToTitleSpacing = 16,
+    this.titleFontSize = 48,
+    this.titleHeight = 1,
+    this.titleLetterSpacing = -0.48,
+    this.subtitleSpacing = 10,
+    this.subtitleWidth = 250,
+    this.subtitleFontSize = 19,
+    this.subtitleColor,
+    this.subtitleHeight = 1.2,
   });
 
   final MaatFlowDetailTheme theme;
@@ -194,9 +285,23 @@ class MaatFlowDetailHero extends StatelessWidget {
   final String title;
   final String subtitle;
   final Key? glyphKey;
+  final Widget? glyphContent;
+  final Offset glyphOffset;
   final Gradient? glyphGradient;
   final Color? glyphBorder;
   final Color? glyphGlow;
+  final double contentBottom;
+  final double contentLeft;
+  final double contentRight;
+  final double glyphToTitleSpacing;
+  final double titleFontSize;
+  final double titleHeight;
+  final double titleLetterSpacing;
+  final double subtitleSpacing;
+  final double subtitleWidth;
+  final double subtitleFontSize;
+  final Color? subtitleColor;
+  final double subtitleHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -213,65 +318,70 @@ class MaatFlowDetailHero extends StatelessWidget {
             children: [
               background,
               Positioned(
-                left: 24,
-                right: 24,
-                bottom: 72,
+                left: contentLeft,
+                right: contentRight,
+                bottom: contentBottom,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient:
-                            glyphGradient ??
-                            RadialGradient(
-                              center: const Alignment(-0.24, -0.44),
-                              radius: 0.9,
-                              colors: [
-                                theme.accent.withValues(alpha: 0.82),
-                                theme.sheetBackground.withValues(alpha: 0.96),
-                                theme.pageBackground,
-                              ],
-                            ),
-                        border: Border.all(
-                          color:
-                              glyphBorder ??
-                              theme.accent.withValues(alpha: 0.30),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (glyphGlow ?? theme.glow).withValues(
-                              alpha: 0.13,
-                            ),
-                            blurRadius: 26,
+                    Transform.translate(
+                      offset: glyphOffset,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient:
+                              glyphGradient ??
+                              RadialGradient(
+                                center: const Alignment(-0.24, -0.44),
+                                radius: 0.9,
+                                colors: [
+                                  theme.accent.withValues(alpha: 0.82),
+                                  theme.sheetBackground.withValues(alpha: 0.96),
+                                  theme.pageBackground,
+                                ],
+                              ),
+                          border: Border.all(
+                            color:
+                                glyphBorder ??
+                                theme.accent.withValues(alpha: 0.30),
                           ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        glyph,
-                        key: glyphKey,
-                        style: TextStyle(
-                          color: theme.glow,
-                          fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-                          fontSize: 29,
-                          height: 1,
+                          boxShadow: [
+                            BoxShadow(
+                              color: (glyphGlow ?? theme.glow).withValues(
+                                alpha: 0.13,
+                              ),
+                              blurRadius: 26,
+                            ),
+                          ],
                         ),
+                        alignment: Alignment.center,
+                        child: glyphContent == null
+                            ? Text(
+                                glyph,
+                                key: glyphKey,
+                                style: TextStyle(
+                                  color: theme.glow,
+                                  fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                                  fontSize: 29,
+                                  height: 1,
+                                ),
+                              )
+                            : KeyedSubtree(key: glyphKey, child: glyphContent!),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: glyphToTitleSpacing),
                     Text(
                       title,
                       style: TextStyle(
                         color: theme.accent,
                         fontFamily: MaatFlowListTokens.fontFamily,
                         fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                        fontSize: 48 * titleScale,
+                        fontSize: titleFontSize * titleScale,
                         fontWeight: FontWeight.w500,
-                        height: 1,
-                        letterSpacing: -0.48 * titleScale,
+                        height: titleHeight,
+                        letterSpacing: titleLetterSpacing * titleScale,
                         shadows: const [
                           Shadow(
                             color: Color(0xB8000000),
@@ -281,29 +391,31 @@ class MaatFlowDetailHero extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: 250,
-                      child: Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: theme.primaryText,
-                          fontFamily: MaatFlowListTokens.fontFamily,
-                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w300,
-                          fontStyle: FontStyle.italic,
-                          height: 1.2,
-                          shadows: const [
-                            Shadow(
-                              color: Color(0xC7000000),
-                              blurRadius: 8,
-                              offset: Offset(0, 1),
-                            ),
-                          ],
+                    if (subtitle.isNotEmpty) ...[
+                      SizedBox(height: subtitleSpacing),
+                      SizedBox(
+                        width: subtitleWidth,
+                        child: Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: subtitleColor ?? theme.primaryText,
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                            fontSize: subtitleFontSize,
+                            fontWeight: FontWeight.w300,
+                            fontStyle: FontStyle.italic,
+                            height: subtitleHeight,
+                            shadows: const [
+                              Shadow(
+                                color: Color(0xC7000000),
+                                blurRadius: 8,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -329,6 +441,8 @@ class MaatFlowDetailDock extends StatelessWidget {
     required this.joinedNote,
     required this.actionKey,
     required this.joinedKey,
+    this.onJoinedPressed,
+    this.showNote = true,
   });
 
   final MaatFlowDetailTheme theme;
@@ -341,6 +455,8 @@ class MaatFlowDetailDock extends StatelessWidget {
   final String joinedNote;
   final Key actionKey;
   final Key joinedKey;
+  final VoidCallback? onJoinedPressed;
+  final bool showNote;
 
   @override
   Widget build(BuildContext context) {
@@ -368,9 +484,7 @@ class MaatFlowDetailDock extends StatelessWidget {
                   key: joined ? joinedKey : actionKey,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.pageBackground,
-                    foregroundColor: joined
-                        ? theme.secondaryText
-                        : theme.accent,
+                    foregroundColor: joined ? theme.secondaryText : theme.glow,
                     disabledBackgroundColor: theme.pageBackground,
                     disabledForegroundColor: theme.secondaryText,
                     shape: RoundedRectangleBorder(
@@ -384,7 +498,11 @@ class MaatFlowDetailDock extends StatelessWidget {
                     ),
                     elevation: 0,
                   ),
-                  onPressed: joined || busy ? null : onPressed,
+                  onPressed: busy
+                      ? null
+                      : joined
+                      ? onJoinedPressed
+                      : onPressed,
                   child: busy
                       ? SizedBox(
                           width: 18,
@@ -408,18 +526,20 @@ class MaatFlowDetailDock extends StatelessWidget {
                         ),
                 ),
               ),
-              const SizedBox(height: 11),
-              Text(
-                joined ? joinedNote : actionNote,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: theme.secondaryText,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w300,
+              if (showNote) ...<Widget>[
+                const SizedBox(height: 9),
+                Text(
+                  joined ? joinedNote : actionNote,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: theme.secondaryText,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w300,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

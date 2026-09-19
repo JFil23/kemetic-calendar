@@ -12,7 +12,7 @@ void main() {
         ).readAsString();
         final plannerContent = _sourceBetween(
           source,
-          'Widget _plannerContent({bool embedded = false})',
+          'Widget _plannerContent({bool embedded = false, bool sheet = false})',
           'PreferredSizeWidget _buildAppBar()',
         );
 

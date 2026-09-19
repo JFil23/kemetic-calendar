@@ -80,7 +80,6 @@ class KemeticMonth {
 
 /// Public normalization function for matching
 /// Strips diacritics, collapses separators, handles precomposed characters
-@visibleForTesting
 String normalizeForMatch(String s) {
   final t = s.toLowerCase().trim();
 

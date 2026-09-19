@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "viewport": {
+    "device_pixel_ratio": 1,
+    "height": 844,
+    "width": 390
+  },
+  "flows": [
+    {
+      "id": "follow_sky",
+      "initial_extent": 0.58,
+      "authority": {
+        "kind": "approved_flutter_reference",
+        "files": [
+          {
+            "path": "test/visual_reference/maat_flows/goldens/maat-day-housing-follow-sky-lowered-390x844.png",
+            "sha256": "f092f2527b4516ccca9dcfa01ab93e76465df510655de0662cc58ffa0b6999da"
+          },
+          {
+            "path": "test/visual_reference/maat_flows/goldens/maat-day-housing-follow-sky-raised-390x844.png",
+            "sha256": "a6d062e99c751717d8ae7c0eb897c03718089f2500ab7900078340c3ef0a4f21"
+          }
+        ]
+      },
+      "required_housing_goldens": [
+        "maat-day-housing-follow-sky-lowered-390x844.png",
+        "maat-day-housing-follow-sky-raised-390x844.png"
+      ]
+    },
+    {
+      "id": "offering_table",
+      "initial_extent": 0.71,
+      "authority": {
+        "kind": "html_plus_explicit_overrides",
+        "files": [
+          {
+            "path": "test/visual_reference/maat_flows/authorities/offering-table-day-view-bottom-detail-sheet-layered-v8.html",
+            "sha256": "20e3619a6905c2e1d124da7a14def6f911107c79a89bf8da055ab361815a7bdb"
+          }
+        ]
+      },
+      "required_housing_goldens": [
+        "offering-table-day-sheet-initial-390x844.png",
+        "offering-table-day-sheet-raised-390x844.png"
+      ]
+    },
+    {
+      "id": "reading_house",
+      "initial_extent": 0.58,
+      "authority": {
+        "kind": "html_plus_explicit_overrides",
+        "files": [
+          {
+            "path": "test/visual_reference/maat_flows/authorities/reading-house-day-view-v16.html",
+            "sha256": "ba77134ddcd137d9fd79d450dd04b2cef8650e579dabb8d1df9baad8e14cdb0c"
+          }
+        ]
+      },
+      "required_housing_goldens": [
+        "maat-day-housing-reading-house-lowered-390x844.png",
+        "maat-day-housing-reading-house-raised-390x844.png"
+      ]
+    },
+    {
+      "id": "djed",
+      "initial_extent": 0.58,
+      "authority": {
+        "kind": "html_plus_explicit_overrides",
+        "files": [
+          {
+            "path": "test/visual_reference/maat_flows/authorities/djed-day-view-amber-v8-exact-eventblock.html",
+            "sha256": "fa203d52bedadb5c261485df6e9a77ad8294fe7531781ac7473bfafbcb380308"
+          }
+        ]
+      },
+      "required_housing_goldens": [
+        "djed-day-sheet-390x844.png",
+        "djed-day-sheet-practice-raised-production-390x844.png"
+      ]
+    },
+    {
+      "id": "kar",
+      "initial_extent": 0.71,
+      "authority": {
+        "kind": "html_plus_explicit_overrides",
+        "files": [
+          {
+            "path": "test/visual_reference/maat_flows/authorities/the-kar-day-view-behaviors-v10-lifecycle-clean.html",
+            "sha256": "e694f1003b89f1a822454bb3d156e0f8a179ec6fab4fb02a16059015941c7604"
+          }
+        ]
+      },
+      "required_housing_goldens": [
+        "maat-day-housing-kar-lowered-390x844.png",
+        "maat-day-housing-kar-raised-390x844.png"
+      ]
+    }
+  ],
+  "platform_directories": [
+    "test/visual_reference/maat_flows/goldens",
+    "test/visual_reference/maat_flows/goldens/linux",
+    "test/visual_reference/maat_flows/goldens/linux-x64"
+  ]
+}

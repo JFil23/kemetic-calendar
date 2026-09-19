@@ -1,20 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
-import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/moon_return_astronomy.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/the_course_flow.dart';
-import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_scheduler.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
-import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
-import 'package:mobile/features/calendar/the_tending_flow.dart';
-import 'package:mobile/features/calendar/the_wag_flow.dart';
-import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 
 void main() {
@@ -49,32 +42,6 @@ void main() {
           ),
         ).detailText,
       ),
-      for (final day in kDawnHouseRiteDays)
-        (
-          flow: kDawnHouseRiteFlowKey,
-          event: 'day-${day.dayNumber}',
-          detail: dawnHouseRiteDetailText(
-            day,
-            discreet: false,
-            lens: DawnHouseRiteLens.neutral,
-          ),
-        ),
-      for (final day in kEveningThresholdRiteDays)
-        (
-          flow: kEveningThresholdRiteFlowKey,
-          event: 'day-${day.dayNumber}',
-          detail: eveningThresholdRiteDetailText(
-            day,
-            discreet: false,
-            lens: EveningThresholdRiteLens.neutral,
-          ),
-        ),
-      for (final event in kTheWeighingEvents)
-        (
-          flow: kTheWeighingFlowKey,
-          event: 'event-${event.eventNumber}',
-          detail: theWeighingDetailText(event, lens: TheWeighingLens.neutral),
-        ),
       for (final day in kOfferingTableDays)
         (
           flow: kOfferingTableFlowKey,
@@ -84,18 +51,6 @@ void main() {
             lens: OfferingTableLens.neutral,
             noCupMode: false,
           ),
-        ),
-      for (final event in kTheTendingEvents)
-        (
-          flow: kTheTendingFlowKey,
-          event: 'event-${event.eventNumber}',
-          detail: theTendingDetailText(event, lens: TheTendingLens.neutral),
-        ),
-      for (final event in kKeptWordEvents)
-        (
-          flow: kKeptWordFlowKey,
-          event: 'event-${event.eventNumber}',
-          detail: keptWordDetailText(event, lens: KeptWordLens.neutral),
         ),
       for (final event in kTheCourseEvents)
         (
@@ -119,12 +74,6 @@ void main() {
             lens: MoonReturnLens.neutral,
           ),
         ),
-      for (final event in kWagEvents)
-        (
-          flow: kTheWagFlowKey,
-          event: 'event-${event.eventNumber}',
-          detail: wagDetailText(event, lens: WagLens.neutral),
-        ),
       (
         flow: kDecanWatchFlowKey,
         event: 'sample',
@@ -138,16 +87,6 @@ void main() {
           lens: DecanWatchLens.neutral,
         ),
       ),
-      for (final event in kDaysOutsideEvents)
-        (
-          flow: kDaysOutsideTheYearFlowKey,
-          event: 'event-${event.eventNumber}',
-          detail: daysOutsideDetailText(
-            event,
-            closingKYear: 2,
-            variant: DaysOutsideCopyVariant.standard,
-          ),
-        ),
       for (final event in kOpenHandEvents)
         (
           flow: kTheOpenHandFlowKey,

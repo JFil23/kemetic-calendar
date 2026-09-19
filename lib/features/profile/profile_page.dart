@@ -1227,14 +1227,13 @@ class _ProfilePageState extends State<ProfilePage>
   Future<void> _requestJoinCommonsPractice(CommonsPracticeRoom room) async {
     if (_commonsJoiningRoomIds.contains(room.id)) return;
     final controller = TextEditingController();
-    final message = await showDialog<String?>(
+    final message = await showEditableDialog<String?>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF0D0D0F),
         title: const Text('Ask to join', style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: controller,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           maxLines: 3,
           maxLength: 500,
           style: const TextStyle(color: Colors.white),
@@ -1860,7 +1859,7 @@ class _ProfilePageState extends State<ProfilePage>
             statusBarColor: Colors.transparent,
           );
 
-    return Scaffold(
+    final page = Scaffold(
       backgroundColor: const Color(0xFF000000),
       extendBodyBehindAppBar: showBackdrop && !_feedRevealed,
       appBar: AppBar(
@@ -1972,6 +1971,7 @@ class _ProfilePageState extends State<ProfilePage>
         ],
       ),
     );
+    return KeyboardAwareEditableSurface(child: page);
   }
 
   Widget _profileSkeletonBar({
@@ -4114,7 +4114,6 @@ class _ProfilePageState extends State<ProfilePage>
         children: [
           TextField(
             controller: _commonsAnswerController,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
             enabled: !_commonsAnswerSaving,
             minLines: 3,
             maxLines: 5,
@@ -6141,6 +6140,7 @@ class _ProfilePageState extends State<ProfilePage>
   }) {
     final title = cleanFlowTitle(post.name);
     final overview = cleanFlowOverview(post.notes);
+    final sharedNote = post.sharedNote;
     final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
     final headerContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -6205,6 +6205,20 @@ class _ProfilePageState extends State<ProfilePage>
             ),
           ],
         ),
+        if (sharedNote != null) ...[
+          const SizedBox(height: 16),
+          Text(
+            sharedNote,
+            maxLines: inPager ? 5 : 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.92),
+              fontSize: 16,
+              fontStyle: FontStyle.italic,
+              height: 1.28,
+            ),
+          ),
+        ],
         if (overview.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text(

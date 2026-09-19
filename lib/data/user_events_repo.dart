@@ -2629,7 +2629,8 @@ class UserEventsRepo {
         flowKey == 'the-decan-watch' ||
         flowKey == 'the-days-outside-the-year' ||
         flowKey == 'the-open-hand' ||
-        flowKey == 'the-djed') {
+        flowKey == 'the-djed' ||
+        flowKey == 'the-kar') {
       return true;
     }
     final graph = metadata['knowledge_graph'];
@@ -2714,6 +2715,8 @@ class UserEventsRepo {
     String? calendarId,
     DateTime? startDate,
     DateTime? endDate,
+    bool clearStartDate = false,
+    bool clearEndDate = false,
     String? notes,
     required String rules,
     bool isHidden = false,
@@ -2742,8 +2745,16 @@ class UserEventsRepo {
       'rules': jsonDecode(rules),
       'is_hidden': isHidden,
     };
-    if (startDate != null) payload['start_date'] = startDate.toIso8601String();
-    if (endDate != null) payload['end_date'] = endDate.toIso8601String();
+    if (clearStartDate) {
+      payload['start_date'] = null;
+    } else if (startDate != null) {
+      payload['start_date'] = startDate.toIso8601String();
+    }
+    if (clearEndDate) {
+      payload['end_date'] = null;
+    } else if (endDate != null) {
+      payload['end_date'] = endDate.toIso8601String();
+    }
     if (notes != null) payload['notes'] = notes;
     if (isSaved != null) payload['is_saved'] = isSaved;
     if (_isUuid(shareId)) payload['share_id'] = shareId;

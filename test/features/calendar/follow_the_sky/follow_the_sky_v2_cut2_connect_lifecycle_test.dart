@@ -181,7 +181,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(
+        home: FollowSkyDetailSurface(
           isJoined: true,
           initialCatalog: catalog,
           existingFlowNotes: codec.encode(linked),
@@ -211,7 +211,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: FollowSkyDetailPage(
+        home: FollowSkyDetailSurface(
           isJoined: true,
           initialCatalog: catalog,
           existingFlowNotes: codec.encode(unlinked),

@@ -8,6 +8,7 @@ import 'package:mobile/features/calendar/calendar_page.dart' show CalendarPage;
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -264,9 +265,8 @@ Future<void> _openAiFlowModal(
             return Center(
               child: ElevatedButton(
                 onPressed: () {
-                  showModalBottomSheet<void>(
+                  showEditableModalBottomSheet<void>(
                     context: context,
-                    isScrollControlled: true,
                     backgroundColor: Colors.transparent,
                     builder: (_) => AIFlowGenerationModal(
                       initialStartDate: initialStartDate,

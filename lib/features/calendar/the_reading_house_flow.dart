@@ -3,6 +3,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'maat_flow_identity.dart';
 import 'maat_flow_response_models.dart';
+import 'maat_flow_temporal_policy.dart';
 import 'track_sky_flow.dart';
 
 const String kReadingHouseFlowKey = 'the-reading-house';
@@ -32,6 +33,7 @@ const String kReadingHouseDefaultQuestion =
 const String kReadingHouseDefaultMode = 'company';
 const String kReadingHouseSoloMode = 'solo';
 const String kReadingHouseDefaultState = 'draft_house';
+const String kReadingHouseHeldState = 'held_house';
 const String kReadingHouseSittingSourceStarterDefault = 'starter_default';
 const String kReadingHouseSittingSourceHostAuthored = 'host_authored';
 const String kReadingHouseHostAuthoringPhaseFuture = 'future';
@@ -51,6 +53,32 @@ const int kReadingHouseCompanyMemberThreshold = 2;
 const int kReadingHouseDefaultHour = 19;
 const int kReadingHouseDefaultMinute = 0;
 const int kReadingHouseDefaultDurationMinutes = 60;
+const String kReadingHouseMetadataKey = 'reading_house';
+const int kReadingHouseMetadataVersion = 1;
+
+String readingHouseCalendarNameForBook(String bookTitle) {
+  final clean = bookTitle.trim();
+  return clean.isEmpty ? kReadingHouseDefaultBookTitle : clean;
+}
+
+String readingHouseCalendarDisplayName({
+  Map<String, dynamic>? behaviorPayload,
+  String? storedCalendarName,
+}) {
+  final bookTitle = behaviorPayload?['book_title']?.toString().trim();
+  if (bookTitle != null && bookTitle.isNotEmpty) return bookTitle;
+
+  final stored = storedCalendarName?.trim();
+  if (stored != null && stored.isNotEmpty) {
+    const legacyPrefix = 'Reading House · ';
+    if (stored.startsWith(legacyPrefix)) {
+      final withoutPrefix = stored.substring(legacyPrefix.length).trim();
+      if (withoutPrefix.isNotEmpty) return withoutPrefix;
+    }
+    if (stored != kReadingHouseTitle) return stored;
+  }
+  return kReadingHouseDefaultBookTitle;
+}
 
 const String kReadingHouseOverview =
     'The Reading House\n\n'
@@ -92,6 +120,22 @@ class ReadingHousePlan {
   }
 
   bool get isSolo => normalizedMode == kReadingHouseSoloMode;
+
+  bool get isHeld => state.trim().toLowerCase() == kReadingHouseHeldState;
+
+  ReadingHousePlan copyWith({
+    String? bookTitle,
+    String? editionNote,
+    String? houseQuestion,
+    String? mode,
+    String? state,
+  }) => ReadingHousePlan(
+    bookTitle: bookTitle ?? this.bookTitle,
+    editionNote: editionNote ?? this.editionNote,
+    houseQuestion: houseQuestion ?? this.houseQuestion,
+    mode: mode ?? this.mode,
+    state: state ?? this.state,
+  );
 }
 
 String readingHouseHouseStateFor({
@@ -333,13 +377,13 @@ const List<ReadingHouseSitting> kReadingHouseSittings = <ReadingHouseSitting>[
     section: 'Opening section',
     theme: 'What is the text asking you to carry?',
     privatePrompt:
-        'Before company shapes the reading, what is this opening asking you to hold privately?',
+        'Before anyone else shapes the reading, what is this opening asking you to hold?',
     hostNote:
         'Begin with your own encounter. The house can receive a fragment later.',
   ),
   ReadingHouseSitting(
     eventNumber: 2,
-    flowDay: 7,
+    flowDay: 11,
     title: 'Hold the Middle',
     section: 'Middle section',
     theme: 'Where does the book change your measure?',
@@ -348,19 +392,19 @@ const List<ReadingHouseSitting> kReadingHouseSittings = <ReadingHouseSitting>[
   ),
   ReadingHouseSitting(
     eventNumber: 3,
-    flowDay: 14,
+    flowDay: 21,
     title: 'Seal the Reading',
     section: 'Closing section',
     theme: 'What fragment should the house keep?',
     privatePrompt:
-        'Mark what remains after the book closes: sentence, question, practice, or passage.',
+        'When the book closes, what remains: a sentence, a question, a practice, or a passage?',
     hostNote: 'Choose one fragment privately. Shared surfaces come later.',
   ),
 ];
 
 int readingHouseDefaultFlowDayForIndex(int index) {
   if (index <= 0) return 1;
-  return index * 7;
+  return index * 10 + 1;
 }
 
 List<ReadingHouseSitting> readingHouseStarterSittingsForAuthoring() {
@@ -459,15 +503,10 @@ DateTime defaultReadingHouseStartDate(
   TrackSkyTimeZone timezone, {
   DateTime? now,
 }) {
-  final nowLocal = readingHouseNowInZone(timezone, now: now);
-  final today = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
-  final start = readingHouseScheduleForDate(
-    kReadingHouseSittings.first,
-    today,
-    timezone,
-  ).startLocal;
-  if (!start.isBefore(nowLocal)) return today;
-  return today.add(const Duration(days: 1));
+  return MaatFlowTemporalContext.fromInstant(
+    nowUtc: now ?? maatFlowSystemClock(),
+    ianaTimeZone: timezone.ianaName,
+  ).localDateAfter(3);
 }
 
 DateTime readingHouseNowInZone(TrackSkyTimeZone timezone, {DateTime? now}) {
@@ -543,6 +582,20 @@ ReadingHouseOccurrenceSchedule readingHouseScheduleForSitting(
   );
 }
 
+List<DateTime> readingHouseResolvedStarterDates(
+  DateTime firstStart,
+  Iterable<ReadingHouseSitting> sittings,
+) {
+  final first = DateTime(firstStart.year, firstStart.month, firstStart.day);
+  return List<DateTime>.unmodifiable(<DateTime>[
+    for (final sitting in sittings)
+      if (sitting.scheduledDate case final date?)
+        DateTime(date.year, date.month, date.day)
+      else
+        DateTime(first.year, first.month, first.day + sitting.flowDay - 1),
+  ]);
+}
+
 String readingHouseSittingTitle(ReadingHouseSitting sitting) {
   return 'Reading House ${sitting.eventNumber}: ${sitting.title}';
 }
@@ -601,6 +654,26 @@ ReadingHousePlan readingHousePlanFromFlowNotes(
   );
 }
 
+TrackSkyTimeZone readingHouseTimeZoneFromFlowNotes(String? notes) {
+  if (notes != null && notes.isNotEmpty) {
+    for (final token in notes.split(';')) {
+      final trimmed = token.trim().toLowerCase();
+      if (!trimmed.startsWith('reading_house_tz=')) continue;
+      switch (trimmed.substring('reading_house_tz='.length)) {
+        case 'pacific':
+          return TrackSkyTimeZone.pacific;
+        case 'mountain':
+          return TrackSkyTimeZone.mountain;
+        case 'central':
+          return TrackSkyTimeZone.central;
+        case 'eastern':
+          return TrackSkyTimeZone.eastern;
+      }
+    }
+  }
+  return detectTrackSkyTimeZone();
+}
+
 List<String> readingHouseFlowNoteTokens(ReadingHousePlan plan) {
   String enc(String value) => Uri.encodeComponent(value.trim());
   return <String>[
@@ -613,6 +686,159 @@ List<String> readingHouseFlowNoteTokens(ReadingHousePlan plan) {
     if (plan.houseQuestion.trim().isNotEmpty)
       'reading_house_question=${enc(plan.houseQuestion)}',
   ];
+}
+
+Map<String, dynamic> readingHouseMetadata({
+  required ReadingHousePlan plan,
+  required List<ReadingHouseSitting> sittings,
+  required bool openDoors,
+}) => <String, dynamic>{
+  'version': kReadingHouseMetadataVersion,
+  'book_title': plan.bookTitle.trim(),
+  'edition_note': plan.editionNote.trim(),
+  'house_question': plan.houseQuestion.trim(),
+  'mode': plan.normalizedMode,
+  'state': plan.state.trim(),
+  'open_doors': openDoors,
+  'sittings': <Map<String, dynamic>>[
+    for (final sitting in normalizeReadingHouseSittingOrder(sittings))
+      <String, dynamic>{
+        'event_number': sitting.eventNumber,
+        'flow_day': sitting.flowDay,
+        'title': sitting.title,
+        'section': sitting.section,
+        'theme': sitting.theme,
+        'private_prompt': sitting.privatePrompt,
+        'host_note': sitting.hostNote,
+        'share_prompt_on_complete': sitting.sharePromptOnComplete,
+        'sitting_source': sitting.sittingSource,
+        'host_editable': sitting.hostEditable,
+        'host_authoring_phase': sitting.hostAuthoringPhase,
+        if (sitting.scheduledDate != null)
+          'scheduled_date': sitting.scheduledDate!.toIso8601String(),
+        'hour': sitting.hour,
+        'minute': sitting.minute,
+      },
+  ],
+};
+
+Map<String, dynamic>? _readingHouseMetadataMap(
+  Map<String, dynamic>? aiMetadata,
+) {
+  final value = aiMetadata?[kReadingHouseMetadataKey];
+  return value is Map ? Map<String, dynamic>.from(value) : null;
+}
+
+ReadingHousePlan readingHousePlanFromMetadata(
+  Map<String, dynamic>? aiMetadata, {
+  ReadingHousePlan fallback = const ReadingHousePlan(),
+}) {
+  final data = _readingHouseMetadataMap(aiMetadata);
+  if (data == null) return fallback;
+  String value(String key, String fallbackValue) =>
+      data[key]?.toString() ?? fallbackValue;
+  return ReadingHousePlan(
+    bookTitle: value('book_title', fallback.bookTitle),
+    editionNote: value('edition_note', fallback.editionNote),
+    houseQuestion: value('house_question', fallback.houseQuestion),
+    mode: value('mode', fallback.mode),
+    state: value('state', fallback.state),
+  );
+}
+
+bool readingHouseOpenDoorsFromMetadata(
+  Map<String, dynamic>? aiMetadata, {
+  bool fallback = false,
+}) {
+  final value = _readingHouseMetadataMap(aiMetadata)?['open_doors'];
+  if (value is bool) return value;
+  if (value == null) return fallback;
+  return value.toString().trim().toLowerCase() == 'true';
+}
+
+List<ReadingHouseSitting> readingHouseSittingsFromMetadata(
+  Map<String, dynamic>? aiMetadata, {
+  List<ReadingHouseSitting> fallback = kReadingHouseSittings,
+}) {
+  final raw = _readingHouseMetadataMap(aiMetadata)?['sittings'];
+  if (raw is! List) return List<ReadingHouseSitting>.of(fallback);
+
+  int integer(Map<String, dynamic> row, String key, int fallbackValue) {
+    final value = row[key];
+    return value is num
+        ? value.toInt()
+        : int.tryParse(value?.toString() ?? '') ?? fallbackValue;
+  }
+
+  bool boolean(Map<String, dynamic> row, String key, bool fallbackValue) {
+    final value = row[key];
+    if (value is bool) return value;
+    if (value == null) return fallbackValue;
+    return value.toString().trim().toLowerCase() == 'true';
+  }
+
+  String text(Map<String, dynamic> row, String key, String fallbackValue) =>
+      row[key]?.toString() ?? fallbackValue;
+  DateTime? date(Object? value) {
+    final parsed = DateTime.tryParse(value?.toString() ?? '');
+    return parsed == null
+        ? null
+        : DateTime(parsed.year, parsed.month, parsed.day);
+  }
+
+  final result = <ReadingHouseSitting>[];
+  for (var index = 0; index < raw.length; index++) {
+    final value = raw[index];
+    if (value is! Map) continue;
+    final row = Map<String, dynamic>.from(value);
+    final donor = index < fallback.length ? fallback[index] : null;
+    final number = integer(row, 'event_number', index + 1);
+    result.add(
+      ReadingHouseSitting(
+        eventNumber: number,
+        flowDay: integer(
+          row,
+          'flow_day',
+          donor?.flowDay ?? readingHouseDefaultFlowDayForIndex(index),
+        ),
+        title: text(row, 'title', donor?.title ?? 'Sitting $number'),
+        section: text(row, 'section', donor?.section ?? ''),
+        theme: text(row, 'theme', donor?.theme ?? ''),
+        privatePrompt: text(row, 'private_prompt', donor?.privatePrompt ?? ''),
+        hostNote: text(row, 'host_note', donor?.hostNote ?? ''),
+        sharePromptOnComplete: boolean(
+          row,
+          'share_prompt_on_complete',
+          donor?.sharePromptOnComplete ?? false,
+        ),
+        sittingSource: text(
+          row,
+          'sitting_source',
+          donor?.sittingSource ?? kReadingHouseSittingSourceHostAuthored,
+        ),
+        hostEditable: boolean(
+          row,
+          'host_editable',
+          donor?.hostEditable ?? true,
+        ),
+        hostAuthoringPhase: text(
+          row,
+          'host_authoring_phase',
+          donor?.hostAuthoringPhase ?? kReadingHouseHostAuthoringPhaseEnabled,
+        ),
+        scheduledDate: date(row['scheduled_date']),
+        hour: integer(row, 'hour', donor?.hour ?? kReadingHouseDefaultHour),
+        minute: integer(
+          row,
+          'minute',
+          donor?.minute ?? kReadingHouseDefaultMinute,
+        ),
+      ),
+    );
+  }
+  return result.isEmpty
+      ? List<ReadingHouseSitting>.of(fallback)
+      : normalizeReadingHouseSittingOrder(result);
 }
 
 ReadingHouseSitting? readingHouseSittingForEvent({

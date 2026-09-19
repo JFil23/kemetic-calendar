@@ -157,9 +157,7 @@ const List<String> _monthNames = <String>[
 String? _resolveMyFlowMaatCategoryLabel(MaatFlowKind kind) {
   final template = _myFlowMaatTemplateFor(kind);
   if (template == null) return null;
-  final category = _MaatFlowSubtitleParts.parse(
-    template.subtitle,
-  ).category.trim();
+  final category = template.subtitle.split('·').first.trim();
   return category.isEmpty ? null : category;
 }
 

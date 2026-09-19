@@ -10,7 +10,6 @@ import 'package:uuid/uuid.dart';
 import '../core/kemetic_converter.dart';
 import 'share_models.dart';
 import 'user_events_repo.dart';
-import '../features/calendar/dawn_house_rite_flow.dart';
 import '../features/calendar/maat_flow_catalog.dart';
 import '../telemetry/telemetry.dart';
 import '../utils/event_cid_util.dart';
@@ -1467,15 +1466,7 @@ class ShareRepo {
           final allDay = _parseBoolishValue(row['all_day']);
           final actionId = _cleanNullableString(row['action_id']);
           final behaviorPayload = _asBehaviorPayload(row['behavior_payload']);
-          final detail =
-              canonicalDawnHouseRiteDetailTextForEvent(
-                flowName: flowName,
-                flowNotes: flowNotes,
-                title: _cleanNullableString(row['title']),
-                actionId: actionId,
-                behaviorPayload: behaviorPayload,
-              ) ??
-              _cleanNullableString(row['detail']);
+          final detail = _cleanNullableString(row['detail']);
           final offsetDays = firstStartsAtUtc != null && startUtc != null
               ? ((startUtc.millisecondsSinceEpoch -
                             firstStartsAtUtc.millisecondsSinceEpoch) /

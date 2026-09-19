@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../shared/glossy_text.dart';
+import 'keyboard_aware.dart';
 
 const Key calendarFloatingShortcutsKey = ValueKey<String>(
   'calendar-floating-shortcuts',
@@ -51,7 +52,7 @@ class CalendarFloatingShortcutsLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final keyboardVisible = media.viewInsets.bottom > 0;
+    final keyboardVisible = keyboardIsVisible(context);
 
     return Stack(
       fit: StackFit.expand,

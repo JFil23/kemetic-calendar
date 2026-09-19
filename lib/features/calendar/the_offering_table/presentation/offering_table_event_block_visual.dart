@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 
 const Duration kOfferingTableRippleCycle = Duration(milliseconds: 5400);
 const Duration kOfferingTableRipplePhaseSeparation = Duration(
@@ -22,32 +23,30 @@ OfferingTableBlockStage offeringTableBlockStageForDay(int dayNumber) {
 /// Offering Table event-card face shared by its calendar surfaces.
 ///
 /// Day View remains the interaction authority. This widget only presents the
-/// canonical day title and authored prompt.
+/// canonical day identity and title.
 class OfferingTableEventBlockVisual extends StatelessWidget {
   const OfferingTableEventBlockVisual({
     super.key,
     required this.dayNumber,
     required this.title,
-    required this.prompt,
     required this.height,
     this.width,
     this.isPreview = false,
     this.overlay,
     this.opacity = 1,
-    this.dashedBorder = false,
+    this.dayViewFace = false,
     this.visualState,
     this.animateRipple = false,
-  }) : assert(prompt != '');
+  });
 
   final int dayNumber;
   final String title;
-  final String prompt;
   final double height;
   final double? width;
   final bool isPreview;
   final Widget? overlay;
   final double opacity;
-  final bool dashedBorder;
+  final bool dayViewFace;
   final bool animateRipple;
 
   /// Presentation-only fixture seam. Day View intentionally leaves this null
@@ -66,7 +65,8 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = resolvedVisualState;
     final isTall = height >= 70;
-    final radius = BorderRadius.circular(8);
+    final compactDayView = dayViewFace && !isTall;
+    final radius = BorderRadius.circular(MaatEventBlockBorderTokens.radius);
     final face = Container(
       width: width,
       height: height,
@@ -76,21 +76,23 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(
-              alpha: isPreview
+              alpha: dayViewFace
+                  ? 0.50
+                  : isPreview
                   ? 0.34
                   : (state == OfferingTableBlockVisualState.received
                         ? 0.50
                         : 0.55),
             ),
-            blurRadius: kIsWeb ? 12 : 18,
+            blurRadius: dayViewFace ? 14 : (kIsWeb ? 12 : 18),
             offset: const Offset(0, 6),
           ),
           if (state != OfferingTableBlockVisualState.received)
             BoxShadow(
-              color: const Color(
-                0xFFD29660,
-              ).withValues(alpha: isPreview ? 0.08 : 0.14),
-              blurRadius: kIsWeb ? 12 : 16,
+              color: const Color(0xFFD29660).withValues(
+                alpha: dayViewFace ? 0.08 : (isPreview ? 0.08 : 0.14),
+              ),
+              blurRadius: dayViewFace ? 12 : (kIsWeb ? 12 : 16),
             ),
         ],
       ),
@@ -99,44 +101,91 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _OfferingTableCardSurface(dayNumber: dayNumber, state: state),
+            _OfferingTableCardSurface(
+              dayNumber: dayNumber,
+              state: state,
+              dayViewFace: dayViewFace,
+            ),
             Positioned(
-              left: isTall ? 13 : 12,
-              top: isTall ? 9 : 5,
-              right: isTall ? 70 : 60,
-              bottom: isTall ? 8 : 4,
+              left: dayViewFace
+                  ? 12
+                  : isTall
+                  ? 13
+                  : 12,
+              top: compactDayView
+                  ? 3
+                  : dayViewFace
+                  ? 10
+                  : isTall
+                  ? 9
+                  : 5,
+              right: compactDayView
+                  ? 60
+                  : dayViewFace
+                  ? 72
+                  : isTall
+                  ? 70
+                  : 60,
+              bottom: compactDayView
+                  ? 10
+                  : dayViewFace
+                  ? 8
+                  : isTall
+                  ? 8
+                  : 4,
               child: _OfferingTableCardText(
                 dayNumber: dayNumber,
                 title: title,
-                prompt: prompt,
                 state: state,
                 tall: isTall,
+                dayViewFace: dayViewFace,
               ),
             ),
             Positioned(
-              right: isTall ? 10 : 8,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Opacity(
-                  opacity: isPreview ? 0.82 : 1,
-                  child: OfferingTableCupVisual(
-                    stage: stage,
-                    state: state,
-                    tall: isTall,
-                    animateRipple: animateRipple,
-                  ),
-                ),
-              ),
+              right: compactDayView
+                  ? 6
+                  : dayViewFace || isTall
+                  ? 10
+                  : 8,
+              top: compactDayView
+                  ? 0
+                  : dayViewFace
+                  ? 19
+                  : 0,
+              bottom: compactDayView
+                  ? 0
+                  : dayViewFace
+                  ? null
+                  : 0,
+              child: dayViewFace
+                  ? Center(
+                      child: Opacity(
+                        opacity: 0.86,
+                        child: OfferingTableCupVisual(
+                          stage: stage,
+                          state: state,
+                          tall: true,
+                          dayViewFace: true,
+                          animateRipple: animateRipple,
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: Opacity(
+                        opacity: isPreview ? 0.82 : 1,
+                        child: OfferingTableCupVisual(
+                          stage: stage,
+                          state: state,
+                          tall: isTall,
+                          animateRipple: animateRipple,
+                        ),
+                      ),
+                    ),
             ),
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
-                  painter: _OfferingTableBorderPainter(
-                    dashed: dashedBorder,
-                    preview: isPreview,
-                    received: state == OfferingTableBlockVisualState.received,
-                  ),
+                  painter: const _OfferingTableBorderPainter(),
                 ),
               ),
             ),
@@ -155,10 +204,12 @@ class _OfferingTableCardSurface extends StatelessWidget {
   const _OfferingTableCardSurface({
     required this.dayNumber,
     required this.state,
+    this.dayViewFace = false,
   });
 
   final int dayNumber;
   final OfferingTableBlockVisualState state;
+  final bool dayViewFace;
 
   @override
   Widget build(BuildContext context) {
@@ -177,39 +228,48 @@ class _OfferingTableCardSurface extends StatelessWidget {
                       Color(0xFF3C2617),
                       Color(0xFF150D07),
                     ]
+                  : dayViewFace
+                  ? const [
+                      Color(0xFF20130A),
+                      Color(0xFF694227),
+                      Color(0xFF22150C),
+                    ]
                   : const [
                       Color(0xFF20130A),
                       Color(0xFF6A4327),
                       Color(0xFF22150C),
                     ],
-              stops: const [0, 0.52, 1],
+              stops: dayViewFace ? const [0, 0.54, 1] : const [0, 0.52, 1],
             ),
           ),
         ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: const Alignment(-0.92, -1.45),
-              radius: 1.8,
-              colors: [
-                const Color(
-                  0xFFFFD8A8,
-                ).withValues(alpha: received ? 0.10 : 0.26),
-                Colors.transparent,
-              ],
-              stops: const [0, 0.62],
+        if (!dayViewFace)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(-0.92, -1.45),
+                radius: 1.8,
+                colors: [
+                  const Color(
+                    0xFFFFD8A8,
+                  ).withValues(alpha: received ? 0.10 : 0.26),
+                  Colors.transparent,
+                ],
+                stops: const [0, 0.62],
+              ),
             ),
           ),
-        ),
         if (!received)
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: const Alignment(0.76, 0.10),
-                radius: 0.84,
+                radius: dayViewFace ? 0.78 : 0.84,
                 colors: [
                   const Color(0xFF96D6CE).withValues(
-                    alpha: state == OfferingTableBlockVisualState.empty
+                    alpha: dayViewFace
+                        ? 0.13
+                        : state == OfferingTableBlockVisualState.empty
                         ? 0.025
                         : 0.13,
                   ),
@@ -218,25 +278,34 @@ class _OfferingTableCardSurface extends StatelessWidget {
               ),
             ),
           ),
-        Positioned.fill(
-          child: IgnorePointer(
-            child: CustomPaint(
-              painter: _OfferingTableSpecklePainter(seed: dayNumber),
+        if (!dayViewFace)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _OfferingTableSpecklePainter(seed: dayNumber),
+              ),
             ),
           ),
-        ),
-        const DecoratedBox(
+        DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [
-                Color(0xC20A0603),
-                Color(0x8A0A0603),
-                Color(0x0F0A0603),
-                Colors.transparent,
-              ],
-              stops: [0, 0.34, 0.64, 1],
+              colors: dayViewFace
+                  ? const [
+                      Color(0xC20A0603),
+                      Color(0x7A0A0603),
+                      Color(0x0A0A0603),
+                    ]
+                  : const [
+                      Color(0xC20A0603),
+                      Color(0x8A0A0603),
+                      Color(0x0F0A0603),
+                      Colors.transparent,
+                    ],
+              stops: dayViewFace
+                  ? const [0, 0.48, 1]
+                  : const [0, 0.34, 0.64, 1],
             ),
           ),
         ),
@@ -249,57 +318,68 @@ class _OfferingTableCardText extends StatelessWidget {
   const _OfferingTableCardText({
     required this.dayNumber,
     required this.title,
-    required this.prompt,
     required this.state,
     required this.tall,
+    this.dayViewFace = false,
   });
 
   final int dayNumber;
   final String title;
-  final String prompt;
   final OfferingTableBlockVisualState state;
   final bool tall;
+  final bool dayViewFace;
 
   @override
   Widget build(BuildContext context) {
     final eyebrow =
         'THE OFFERING TABLE · DAY ${dayNumber.toString().padLeft(2, '0')}';
     final received = state == OfferingTableBlockVisualState.received;
-    final promptText = '“${prompt.trim()}”';
+    final compactDayView = dayViewFace && !tall;
+    final kickerStyle = TextStyle(
+      color: dayViewFace ? const Color(0xFFF0CC6A) : Colors.white,
+      fontFamily: 'GentiumPlus',
+      fontFamilyFallback: const ['Georgia', 'serif'],
+      fontSize: dayViewFace ? 8 : 9.5,
+      fontWeight: FontWeight.w700,
+      letterSpacing: dayViewFace ? 1.3 : 1.4,
+      height: dayViewFace ? 1 : 1.2,
+    );
+    final kicker = Text(
+      eyebrow,
+      key: const ValueKey<String>('offering-table-block-eyebrow'),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      softWrap: false,
+      style: kickerStyle,
+    );
     return ClipRect(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ShaderMask(
-            blendMode: BlendMode.srcIn,
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [
-                Color(0xFFFFF1BF),
-                Color(0xFFF8DA79),
-                Color(0xFFFFF8D9),
-                Color(0xFFF1CE67),
-              ],
-              stops: [0, 0.34, 0.66, 1],
-            ).createShader(bounds),
-            child: Text(
-              eyebrow,
-              key: const ValueKey<String>('offering-table-block-eyebrow'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              softWrap: false,
-              style: const TextStyle(
-                color: Colors.white,
-                fontFamily: 'GentiumPlus',
-                fontFamilyFallback: ['Georgia', 'serif'],
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.4,
-                height: 1.2,
-              ),
+          if (dayViewFace)
+            kicker
+          else
+            ShaderMask(
+              blendMode: BlendMode.srcIn,
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [
+                  Color(0xFFFFF1BF),
+                  Color(0xFFF8DA79),
+                  Color(0xFFFFF8D9),
+                  Color(0xFFF1CE67),
+                ],
+                stops: [0, 0.34, 0.66, 1],
+              ).createShader(bounds),
+              child: kicker,
             ),
+          SizedBox(
+            height: compactDayView
+                ? 1
+                : dayViewFace
+                ? 4
+                : (tall ? 2 : 1),
           ),
-          SizedBox(height: tall ? 2 : 1),
           Text(
             title,
             key: const ValueKey<String>('offering-table-block-title'),
@@ -309,40 +389,31 @@ class _OfferingTableCardText extends StatelessWidget {
             style: TextStyle(
               color: received
                   ? const Color(0xFFD9CBBA)
-                  : const Color(0xFFFFF6F1),
+                  : Color(dayViewFace ? 0xFFFFF4ED : 0xFFFFF6F1),
               fontFamily: 'CormorantGaramond',
               fontFamilyFallback: const ['GentiumPlus', 'Georgia', 'serif'],
-              fontSize: tall ? 17 : 15.5,
+              fontSize: dayViewFace
+                  ? compactDayView
+                        ? 17
+                        : 18
+                  : tall
+                  ? 17
+                  : 15.5,
               fontWeight: FontWeight.w600,
-              letterSpacing: 0.1,
-              height: 1.15,
-              shadows: const [
-                Shadow(color: Color(0x73FFFFFF), offset: Offset(-0.3, -0.3)),
-                Shadow(color: Color(0x73040201), offset: Offset(0.5, 0.7)),
-              ],
-            ),
-          ),
-          if (tall) const SizedBox(height: 1),
-          Text(
-            promptText,
-            key: const ValueKey<String>('offering-table-block-teaser'),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            softWrap: false,
-            style: TextStyle(
-              color: received
-                  ? const Color(0xFFB08D63)
-                  : const Color(0xFFF6D6B2),
-              fontFamily: 'CormorantGaramond',
-              fontFamilyFallback: const ['GentiumPlus', 'Georgia', 'serif'],
-              fontSize: tall ? 15 : 14,
-              fontWeight: FontWeight.w500,
-              fontStyle: FontStyle.italic,
-              letterSpacing: 0.25,
-              height: 1.2,
-              shadows: const [
-                Shadow(color: Color(0x80040201), offset: Offset(0.5, 0.7)),
-              ],
+              letterSpacing: dayViewFace ? 0 : 0.1,
+              height: dayViewFace ? 1.05 : 1.15,
+              shadows: dayViewFace
+                  ? const <Shadow>[]
+                  : const [
+                      Shadow(
+                        color: Color(0x73FFFFFF),
+                        offset: Offset(-0.3, -0.3),
+                      ),
+                      Shadow(
+                        color: Color(0x73040201),
+                        offset: Offset(0.5, 0.7),
+                      ),
+                    ],
             ),
           ),
         ],
@@ -358,20 +429,27 @@ class OfferingTableCupVisual extends StatelessWidget {
     required this.state,
     required this.tall,
     this.animateRipple = false,
+    this.dayViewFace = false,
   });
 
   final OfferingTableBlockStage stage;
   final OfferingTableBlockVisualState state;
   final bool tall;
   final bool animateRipple;
+  final bool dayViewFace;
 
   @override
   Widget build(BuildContext context) {
-    final size = tall ? const Size(58, 60) : const Size(48, 50);
+    final size = dayViewFace
+        ? const Size(48, 45)
+        : tall
+        ? const Size(58, 60)
+        : const Size(48, 50);
     return ExcludeSemantics(
       child: SizedBox.fromSize(
         size: size,
         child: RepaintBoundary(
+          key: const ValueKey<String>('offering-table-cup-ripple-boundary'),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -677,10 +755,14 @@ class _OfferingTableRippleLoopState extends State<_OfferingTableRippleLoop>
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: OfferingTableRipplePainter(
-        visible: widget.visible,
-        animation: _shouldAnimate ? _controller : null,
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) => CustomPaint(
+        willChange: _shouldAnimate,
+        painter: OfferingTableRipplePainter(
+          visible: widget.visible,
+          phase: _shouldAnimate ? _controller.value : null,
+        ),
       ),
     );
   }
@@ -693,27 +775,29 @@ class _OfferingTableRippleLoopState extends State<_OfferingTableRippleLoop>
   final normalizedPhase = phase.clamp(0.0, 1.0).toDouble();
   const curve = Cubic(0.25, 0.72, 0.4, 1);
   final scale = 0.3 + (0.7 * curve.transform(normalizedPhase));
+  // The authored SVG uses its easing curve for scale and a separate linear
+  // opacity animation. Keeping opacity linear is what makes the loop legible
+  // at the standard one-hour Day View card size.
   final opacity = normalizedPhase <= 0.18
-      ? 0.6 * curve.transform(normalizedPhase / 0.18)
-      : 0.6 * (1 - curve.transform((normalizedPhase - 0.18) / (1 - 0.18)));
+      ? 0.6 * (normalizedPhase / 0.18)
+      : 0.6 * (1 - ((normalizedPhase - 0.18) / (1 - 0.18)));
   return (scale: scale, opacity: opacity);
 }
 
 @visibleForTesting
 class OfferingTableRipplePainter extends CustomPainter {
-  const OfferingTableRipplePainter({required this.visible, this.animation})
-    : super(repaint: animation);
+  const OfferingTableRipplePainter({required this.visible, this.phase});
 
   final bool visible;
-  final Animation<double>? animation;
+  final double? phase;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (!visible) return;
     canvas.save();
     canvas.scale(size.width / 56, size.height / 52);
-    final driver = animation;
-    final rings = driver == null
+    final animationPhase = phase;
+    final rings = animationPhase == null
         ? const <({double scale, double opacity})>[
             (scale: 0.42, opacity: 0.18),
             (scale: 0.68, opacity: 0.13),
@@ -721,7 +805,8 @@ class OfferingTableRipplePainter extends CustomPainter {
           ]
         : List<({double scale, double opacity})>.generate(3, (index) {
             final phase =
-                (driver.value - (index * _offeringTableRipplePhaseOffset)) % 1;
+                (animationPhase - (index * _offeringTableRipplePhaseOffset)) %
+                1;
             return offeringTableRippleFrameForPhase(phase);
           }, growable: false);
     for (final ring in rings) {
@@ -733,7 +818,11 @@ class OfferingTableRipplePainter extends CustomPainter {
         ),
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 0.85
+          // Keep the authored 0.85 logical-pixel stroke after the approved
+          // Day View badge was reduced from the HTML's 56-wide SVG stage.
+          ..strokeWidth = animationPhase == null
+              ? 0.85
+              : 0.85 * (56 / size.width)
           ..color = const Color(0xFFEBFDF8).withValues(alpha: ring.opacity),
       );
     }
@@ -742,8 +831,7 @@ class OfferingTableRipplePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant OfferingTableRipplePainter oldDelegate) {
-    return oldDelegate.visible != visible ||
-        !identical(oldDelegate.animation, animation);
+    return oldDelegate.visible != visible || oldDelegate.phase != phase;
   }
 }
 
@@ -777,15 +865,7 @@ class _OfferingTableSpecklePainter extends CustomPainter {
 }
 
 class _OfferingTableBorderPainter extends CustomPainter {
-  const _OfferingTableBorderPainter({
-    required this.dashed,
-    required this.preview,
-    required this.received,
-  });
-
-  final bool dashed;
-  final bool preview;
-  final bool received;
+  const _OfferingTableBorderPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -794,33 +874,17 @@ class _OfferingTableBorderPainter extends CustomPainter {
       ..addRRect(
         RRect.fromRectAndRadius(
           rect.deflate(0.55),
-          const Radius.circular(7.45),
+          const Radius.circular(MaatEventBlockBorderTokens.radius - 0.55),
         ),
       );
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = dashed ? 1.2 : 0.9
-      ..color = const Color(
-        0xFFF6E4C9,
-      ).withValues(alpha: received ? 0.36 : (preview ? 0.58 : 0.78));
-    if (!dashed) {
-      canvas.drawPath(path, paint);
-      return;
-    }
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final end = math.min(distance + 4, metric.length);
-        canvas.drawPath(metric.extractPath(distance, end), paint);
-        distance += 7;
-      }
-    }
+      ..strokeWidth = MaatEventBlockBorderTokens.width
+      ..color = MaatEventBlockBorderTokens.color;
+    canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _OfferingTableBorderPainter oldDelegate) {
-    return oldDelegate.dashed != dashed ||
-        oldDelegate.preview != preview ||
-        oldDelegate.received != received;
-  }
+  bool shouldRepaint(covariant _OfferingTableBorderPainter oldDelegate) =>
+      false;
 }

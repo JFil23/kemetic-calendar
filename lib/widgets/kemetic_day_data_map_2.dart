@@ -98,7 +98,7 @@ This is how Kemet stayed standing for millennia: each cycle did not just end —
   // 🌿 REKH-WER I — DAYS 1–10  (First Decan - rs-ḥr)
   // ==========================================================
   'rekhwer_1_1': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer I, Day 1 (Day 1 of Rekh-Wer)',
+    kemeticDate: 'Rekh-Wer I, Day 1',
     season: '🌱 Peret – Emergence Season',
     month: 'Rekh-Wer ("Rḫ-wr")',
     decanName: 'knmw ("Khnum")',
@@ -172,7 +172,7 @@ Good help arrives early and quietly. It answers the need while the one who has i
         '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
     maatPrinciple: 'Skill Is Pressure Guided by Understanding',
     cosmicContext:
-        '''In the potter\'s yard, households wait for jars. A young helper, hurried by the line, pulls the wall up too fast, and the clay folds. The potter begins again, slower. The vessels they wait for have to hold.
+        '''In the potter's yard, households wait for jars. A young helper, hurried by the line, pulls the wall up too fast, and the clay folds. The potter begins again, slower. The vessels they wait for have to hold.
 
 Force alone does not shape a thing; it collapses it. Skill is the same pressure, guided by what the clay can take.''',
     decanFlow: _rekhWerOverrideIFlowRows,
@@ -216,7 +216,7 @@ What feeds many cannot be ruled by the hungriest mouth. It is shaped by the heat
         '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
     maatPrinciple: 'A Loose Word Becomes a Wound When No One Asks What Is True',
     cosmicContext:
-        '''In the market shade, someone says the Kemite\'s strong rows must mean he took more than his turn. An older woman asks who saw it. No one did. Without a witness the story loses shape before it becomes a weapon.
+        '''In the market shade, someone says the Kemite's strong rows must mean he took more than his turn. An older woman asks who saw it. No one did. Without a witness the story loses shape before it becomes a weapon.
 
 A loose word hardens into a wound only when no one asks if it is true. The question stops it.''',
     decanFlow: _rekhWerOverrideIFlowRows,
@@ -283,7 +283,7 @@ Joy is right to look ahead. Wisdom holds the promise back until the house can be
         '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
     maatPrinciple: 'A Clean Limit Protects Better Than a Generous Lie',
     cosmicContext:
-        '''A cousin asks the Kemite to pledge more help than he can safely give. The easy thing would be to promise it all. Instead he names what he can truly do, because a promise too large becomes tomorrow\'s broken word.
+        '''A cousin asks the Kemite to pledge more help than he can safely give. The easy thing would be to promise it all. Instead he names what he can truly do, because a promise too large becomes tomorrow's broken word.
 
 A clean limit protects the bond better than a generous lie. The honest no holds where the yes would crack.''',
     decanFlow: _rekhWerOverrideIFlowRows,
@@ -305,7 +305,7 @@ A clean limit protects the bond better than a generous lie. The honest no holds 
     maatPrinciple:
         'What Is Unfinished Must Be Guarded From the Stories Built Around It',
     cosmicContext:
-        '''By evening the field is everywhere but the field — in well-talk, cut portions, quiet loans, a stopped rumor, the oven\'s timing, marriage talk, a measured promise. The grain is not ready, yet the village has begun living toward it.
+        '''By evening the field is everywhere but the field — in well-talk, cut portions, quiet loans, a stopped rumor, the oven's timing, marriage talk, a measured promise. The grain is not ready, yet the village has begun living toward it.
 
 What is unfinished must be protected from the stories built on it. The expectation must not outrun the work.''',
     decanFlow: _rekhWerOverrideIFlowRows,
@@ -322,7 +322,7 @@ What is unfinished must be protected from the stories built on it. The expectati
   // 🌿 REKH-WER II — DAYS 11–20  (Second Decan - ḥry-ib rꜣ)
   // ==========================================================
   'rekhwer_11_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 11 (Day 11 of Rekh-Wer)',
+    kemeticDate: 'Rekh-Wer II, Day 11',
     season: '🌱 Peret – Emergence Season',
     month: 'Rekh-Wer ("Rḫ-wr")',
     decanName: 'ḥry-ib knmw ("Heart of Khnum")',
@@ -395,7 +395,7 @@ Not all that multiplies is strength. Discernment counts what can actually hold, 
         '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
     maatPrinciple: 'Guidance Becomes Trustworthy Through Repeated Seeing',
     cosmicContext:
-        '''From the temple court, a watcher tracks ḥry-ib knmw across several nights. One clear sighting is not enough: haze, horizon, the eye\'s angle can mislead. The star\'s true place is known by return, not a single glance.
+        '''From the temple court, a watcher tracks ḥry-ib knmw across several nights. One clear sighting is not enough: haze, horizon, the eye's angle can mislead. The star's true place is known by return, not a single glance.
 
 What guides reliably is seen again and again. A single look deceives; the pattern, returned to, tells the truth.''',
     decanFlow: _rekhWerOverrideIIFlowRows,
@@ -532,7 +532,7 @@ Correction aimed only at the mistake teaches nothing. Aimed at the person, when 
         '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
     maatPrinciple: 'When the Heart Governs the Hand, What Is Formed Can Hold',
     cosmicContext:
-        '''By the decan\'s close the village is not louder, but more careful. Measures re-counted, a wound bound, bent stems judged, a quarrel cooled, a boy taught. The crop still only grows — yet the people shaping it are shaped in turn.
+        '''By the decan's close the village is not louder, but more careful. Measures re-counted, a wound bound, bent stems judged, a quarrel cooled, a boy taught. The crop still only grows — yet the people shaping it are shaped in turn.
 
 What is formed under a governing heart holds. Pressure judged before it is applied makes a thing that lasts.''',
     decanFlow: _rekhWerOverrideIIFlowRows,
@@ -549,7 +549,7 @@ What is formed under a governing heart holds. Pressure judged before it is appli
   // 🌿 REKH-WER III — DAYS 21–30  (Third Decan - msḥtjw)
   // ==========================================================
   'rekhwer_21_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 21 (Day 21 of Rekh-Wer)',
+    kemeticDate: 'Rekh-Wer III, Day 21',
     season: '🌱 Peret – Emergence Season',
     month: 'Rekh-Wer ("Rḫ-wr")',
     decanName: 'sbꜣ knmw ("Star of Khnum")',

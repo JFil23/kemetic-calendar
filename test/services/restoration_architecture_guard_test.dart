@@ -323,47 +323,52 @@ void main() {
         'GestureDetector(',
       ])).where(_isFeatureOrCorePath).toList(growable: false);
 
-      expect(
-        matches,
-        unorderedEquals(<String>[
-          'lib/core/pinch_gesture_surface.dart',
-          'lib/features/calendar/calendar_flow_pages.dart',
-          'lib/features/calendar/calendar_flow_studio_page.dart',
-          'lib/features/calendar/calendar_grid_widgets.dart',
-          'lib/features/calendar/calendar_maat_flows.dart',
-          'lib/features/calendar/calendar_month_detail.dart',
-          'lib/features/calendar/calendar_page.dart',
-          'lib/features/calendar/day_view.dart',
-          'lib/features/calendar/day_view_chrome.dart',
-          'lib/features/calendar/follow_the_sky/presentation/widgets/follow_sky_observation_presentation.dart',
-          'lib/features/calendar/follow_the_sky/presentation/widgets/follow_sky_preview_calendar.dart',
-          'lib/features/calendar/landscape_month_view.dart',
-          'lib/features/calendars/shared_calendars_sheet.dart',
-          'lib/features/inbox/inbox_conversation_page.dart',
-          'lib/features/inbox/inbox_page.dart',
-          'lib/features/journal/journal_archive_page.dart',
-          'lib/features/journal/journal_event_badge.dart',
-          'lib/features/journal/journal_overlay.dart',
-          'lib/features/journal/journal_v2_toolbar.dart',
-          'lib/features/maat_guidance/maat_guidance_floating_card.dart',
-          'lib/features/nodes/kemetic_node_reader_page.dart',
-          'lib/features/nodes/library_canon_entry.dart',
-          'lib/features/onboarding/calendar_month_coachmark.dart',
-          'lib/features/onboarding/calendar_toggle_coachmark.dart',
-          'lib/features/onboarding/guided_onboarding_overlay.dart',
-          'lib/features/onboarding/onboarding_overlay.dart',
-          'lib/features/profile/flow_post_detail_page.dart',
-          'lib/features/profile/flow_post_engagement_row.dart',
-          'lib/features/profile/profile_page.dart',
-          'lib/features/rhythm/pages/commitment_tracker_page.dart',
-          'lib/features/rhythm/pages/todays_alignment_page.dart',
-          'lib/features/rhythm/widgets/planner/planner_notes_section.dart',
-          'lib/features/rhythm/widgets/planner/planner_nutrition_section.dart',
-          'lib/features/rhythm/widgets/planner/planner_todo_section.dart',
-          'lib/features/rhythm/widgets/rhythm_state_button.dart',
-          'lib/features/settings/settings_page.dart',
-        ]),
-      );
+      final expectedMatches = <String>[
+        'lib/core/pinch_gesture_surface.dart',
+        'lib/features/calendar/calendar_flow_pages.dart',
+        'lib/features/calendar/calendar_flow_studio_page.dart',
+        'lib/features/calendar/calendar_grid_widgets.dart',
+        'lib/features/calendar/calendar_month_detail.dart',
+        'lib/features/calendar/calendar_page.dart',
+        'lib/features/calendar/day_view.dart',
+        'lib/features/calendar/day_view_chrome.dart',
+        'lib/features/calendar/follow_the_sky/presentation/widgets/follow_sky_observation_presentation.dart',
+        'lib/features/calendar/follow_the_sky/presentation/widgets/follow_sky_preview_calendar.dart',
+        'lib/features/calendar/presentation/instrument_event_presentation_frame.dart',
+        'lib/features/calendar/presentation/maat_flow_thirty_day_calendar.dart',
+        'lib/features/calendar/the_kar/presentation/kar_capture_editor.dart',
+        'lib/features/calendar/the_kar/presentation/kar_detail_surface.dart',
+        'lib/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart',
+        'lib/features/calendar/the_reading_house/presentation/reading_house_day_presentation.dart',
+        'lib/features/calendar/the_reading_house/presentation/reading_house_detail_page.dart',
+        'lib/features/calendar/landscape_month_view.dart',
+        'lib/features/calendars/shared_calendars_sheet.dart',
+        'lib/features/inbox/inbox_conversation_page.dart',
+        'lib/features/inbox/inbox_page.dart',
+        'lib/features/journal/journal_archive_page.dart',
+        'lib/features/journal/journal_event_badge.dart',
+        'lib/features/journal/journal_overlay.dart',
+        'lib/features/journal/journal_v2_toolbar.dart',
+        'lib/features/maat_guidance/maat_guidance_floating_card.dart',
+        'lib/features/nodes/kemetic_node_reader_page.dart',
+        'lib/features/nodes/library_canon_entry.dart',
+        'lib/features/onboarding/calendar_month_coachmark.dart',
+        'lib/features/onboarding/calendar_toggle_coachmark.dart',
+        'lib/features/onboarding/guided_onboarding_overlay.dart',
+        'lib/features/onboarding/onboarding_overlay.dart',
+        'lib/features/profile/flow_post_detail_page.dart',
+        'lib/features/profile/flow_post_engagement_row.dart',
+        'lib/features/profile/profile_page.dart',
+        'lib/features/rhythm/pages/commitment_tracker_page.dart',
+        'lib/features/rhythm/pages/todays_alignment_page.dart',
+        'lib/features/rhythm/widgets/planner/planner_notes_section.dart',
+        'lib/features/rhythm/widgets/planner/planner_nutrition_section.dart',
+        'lib/features/rhythm/widgets/planner/planner_todo_section.dart',
+        'lib/features/rhythm/widgets/rhythm_state_button.dart',
+        'lib/features/settings/settings_page.dart',
+      ];
+
+      expect(matches, unorderedEquals(expectedMatches));
 
       final calendar = await File(
         'lib/features/calendar/calendar_page.dart',
@@ -1063,19 +1068,21 @@ void main() {
       );
 
       expect(rootRestore, contains('initialRoutesBuilder'));
-      expect(rootRestore, contains('hubRoute, listRoute'));
-      expect(rootRestore, contains('initialTemplate: restoredTemplate'));
-      expect(rootRestore, isNot(contains('detailRoute')));
-      expect(rootRestore, isNot(contains('FollowSkyDetailPageRoute')));
+      expect(rootRestore, contains('[hubRoute, listRoute]'));
+      expect(rootRestore, contains('initialTemplateKey:'));
+      expect(rootRestore, contains('? templateKey'));
+      expect(rootRestore, isNot(contains('_maatFlowDetailSheetRoute')));
+      expect(rootRestore, isNot(contains('FollowSkyDetailSurfaceRoute')));
       expect(rootRouteSeed, isNot(contains('addPostFrameCallback')));
       expect(
         rootRestore,
-        contains('_openDayViewForStagedFlow(importedFlowId)'),
+        contains('_openDayViewForFlow(importedFlowId)'),
       );
       expect(detachedRestore, contains('onReturnToHub'));
-      expect(detachedRestore, contains('hubRoute(), listRoute'));
-      expect(detachedRestore, contains('initialTemplate: template'));
-      expect(detachedRestore, isNot(contains('detailRoute')));
+      expect(detachedRestore, contains('[hubRoute(), listRoute]'));
+      expect(detachedRestore, contains('initialTemplateKey:'));
+      expect(detachedRestore, contains('? templateKey'));
+      expect(detachedRestore, isNot(contains('_maatFlowDetailSheetRoute')));
       expect(detachedRestore, isNot(contains('addPostFrameCallback')));
     });
 

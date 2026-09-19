@@ -5,9 +5,9 @@ import 'maat_flow_identity.dart';
 enum CalendarEventGraphicKind {
   trackSky,
   offeringTable,
-  dawnHouseRite,
-  eveningThresholdRite,
-  theWeighing,
+  djed,
+  readingHouse,
+  kar,
 }
 
 enum CalendarTrackSkyCardKind {
@@ -185,42 +185,6 @@ const Gradient _trackSkyFlowGoldGloss = LinearGradient(
     Color(0xFFF1CE67),
   ],
   stops: [0.0, 0.34, 0.66, 1.0],
-);
-
-const Gradient _dawnHouseRiteFlowGloss = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [
-    Color(0xFFFFE8B8),
-    Color(0xFFF3A55E),
-    Color(0xFFFFF3D6),
-    Color(0xFFE98E52),
-  ],
-  stops: [0.0, 0.34, 0.66, 1.0],
-);
-
-const Gradient _theWeighingFlowGloss = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [
-    Color(0xFFF5E8CB),
-    Color(0xFFB8A88A),
-    Color(0xFFFFF8E8),
-    Color(0xFF8D7C5F),
-  ],
-  stops: [0.0, 0.34, 0.66, 1.0],
-);
-
-const Gradient _eveningThresholdRiteFlowGloss = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [
-    Color(0xFFF4EEFF),
-    Color(0xFFB9C7FF),
-    Color(0xFFFFE7A8),
-    Color(0xFF7FE0D4),
-  ],
-  stops: [0.0, 0.38, 0.62, 1.0],
 );
 
 Color _mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
@@ -443,14 +407,15 @@ CalendarEventGraphicStyle? _graphicStyleForEvent({
   final kind = resolveMaatFlowKind(
     flowName: flowName,
     flowNotes: flowNotes,
+    eventTitle: eventTitle,
     behaviorPayload: behaviorPayload,
   );
   return switch (kind) {
     MaatFlowKind.trackSky => _trackSkyGraphicStyleForTitle(eventTitle ?? ''),
     MaatFlowKind.offeringTable => _offeringTableGraphicStyle,
-    MaatFlowKind.dawnHouseRite => _dawnHouseRiteGraphicStyle,
-    MaatFlowKind.eveningThresholdRite => _eveningThresholdRiteGraphicStyle,
-    MaatFlowKind.theWeighing => _theWeighingGraphicStyle,
+    MaatFlowKind.theDjed => _djedGraphicStyle,
+    MaatFlowKind.readingHouse => _readingHouseGraphicStyle,
+    MaatFlowKind.theKar => _karGraphicStyle,
     _ => null,
   };
 }
@@ -461,16 +426,16 @@ CalendarEventVisualStyle _graphicVisualStyle(
   final base = switch (graphic.kind) {
     CalendarEventGraphicKind.trackSky => const Color(0xFF05070F),
     CalendarEventGraphicKind.offeringTable => const Color(0xFF0A0603),
-    CalendarEventGraphicKind.dawnHouseRite => const Color(0xFF120D14),
-    CalendarEventGraphicKind.eveningThresholdRite => const Color(0xFF030611),
-    CalendarEventGraphicKind.theWeighing => const Color(0xFF111213),
+    CalendarEventGraphicKind.djed => const Color(0xFF150B04),
+    CalendarEventGraphicKind.readingHouse => const Color(0xFF0A1911),
+    CalendarEventGraphicKind.kar => const Color(0xFF070706),
   };
   final lowWash = switch (graphic.kind) {
     CalendarEventGraphicKind.trackSky => _mix(graphic.accentColor, base, 0.42),
     CalendarEventGraphicKind.offeringTable => const Color(0xFF6B4027),
-    CalendarEventGraphicKind.dawnHouseRite => const Color(0xFF3A315D),
-    CalendarEventGraphicKind.eveningThresholdRite => const Color(0xFF193248),
-    CalendarEventGraphicKind.theWeighing => const Color(0xFF5D5241),
+    CalendarEventGraphicKind.djed => const Color(0xFF3A1F0E),
+    CalendarEventGraphicKind.readingHouse => const Color(0xFF1E4436),
+    CalendarEventGraphicKind.kar => const Color(0xFF16252B),
   };
   final body = _mix(graphic.detailColor, _dayViewWarmStone, 0.28);
   final support = _mix(graphic.detailColor, graphic.accentColor, 0.34);
@@ -544,77 +509,59 @@ const CalendarEventGraphicStyle _offeringTableGraphicStyle =
       glowColor: Color(0xFFC08A52),
     );
 
-const CalendarEventGraphicStyle _dawnHouseRiteGraphicStyle =
-    CalendarEventGraphicStyle(
-      kind: CalendarEventGraphicKind.dawnHouseRite,
-      background: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFF12152C),
-          Color(0xFF3A315D),
-          Color(0xFFB56A6E),
-          Color(0xFFF2B45F),
-        ],
-        stops: [0.0, 0.38, 0.76, 1.0],
-      ),
-      flowLabelGradient: _dawnHouseRiteFlowGloss,
-      borderColor: Color(0xFFFFD08A),
-      accentColor: Color(0xFFEFA25C),
-      accentSecondaryColor: Color(0xFFFFF3D6),
-      titleColor: Color(0xFFFFF6E3),
-      labelColor: Color(0xFFFFE8B8),
-      detailColor: Color(0xFFFFD8A8),
-      glowColor: Color(0xFFFFB765),
-    );
+const CalendarEventGraphicStyle _djedGraphicStyle = CalendarEventGraphicStyle(
+  kind: CalendarEventGraphicKind.djed,
+  background: LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF1E120A), Color(0xFF3A1F0E), Color(0xFF150B04)],
+    stops: [0, 0.56, 1],
+  ),
+  flowLabelGradient: _trackSkyFlowGoldGloss,
+  borderColor: Color(0xFFE0873C),
+  accentColor: Color(0xFFF5B963),
+  accentSecondaryColor: Color(0xFFE0873C),
+  titleColor: Color(0xFFF3EADF),
+  labelColor: Color(0xFFEDB874),
+  detailColor: Color(0xFFE8B98A),
+  glowColor: Color(0xFFF5B963),
+);
 
-const CalendarEventGraphicStyle _theWeighingGraphicStyle =
+const CalendarEventGraphicStyle _readingHouseGraphicStyle =
     CalendarEventGraphicStyle(
-      kind: CalendarEventGraphicKind.theWeighing,
+      kind: CalendarEventGraphicKind.readingHouse,
       background: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          Color(0xFF111213),
-          Color(0xFF2C2A25),
-          Color(0xFF5D5241),
-          Color(0xFFB8A88A),
-        ],
-        stops: [0.0, 0.42, 0.78, 1.0],
+        colors: [Color(0xFF0C2119), Color(0xFF1E4436), Color(0xFF0A1911)],
+        stops: [0, 0.54, 1],
       ),
-      flowLabelGradient: _theWeighingFlowGloss,
-      borderColor: Color(0xFFF5E8CB),
-      accentColor: Color(0xFFB8A88A),
-      accentSecondaryColor: Color(0xFFFFF8E8),
-      titleColor: Color(0xFFFFF8E8),
-      labelColor: Color(0xFFF5E8CB),
-      detailColor: Color(0xFFCDBF9F),
-      glowColor: Color(0xFFF5E8CB),
+      flowLabelGradient: _trackSkyFlowGoldGloss,
+      borderColor: Color(0xFF7FD9BC),
+      accentColor: Color(0xFF9FE0C6),
+      accentSecondaryColor: Color(0xFF3FA98A),
+      titleColor: Color(0xFFFBF7EF),
+      labelColor: Color(0xFF9FE0C6),
+      detailColor: Color(0xFFD8D2C8),
+      glowColor: Color(0xFFF0D296),
     );
 
-const CalendarEventGraphicStyle _eveningThresholdRiteGraphicStyle =
-    CalendarEventGraphicStyle(
-      kind: CalendarEventGraphicKind.eveningThresholdRite,
-      background: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFF030611),
-          Color(0xFF111634),
-          Color(0xFF193248),
-          Color(0xFF2B254E),
-        ],
-        stops: [0.0, 0.36, 0.7, 1.0],
-      ),
-      flowLabelGradient: _eveningThresholdRiteFlowGloss,
-      borderColor: Color(0xFF7FE0D4),
-      accentColor: Color(0xFF7FE0D4),
-      accentSecondaryColor: Color(0xFFFFE4A3),
-      titleColor: Color(0xFFF2F0FF),
-      labelColor: Color(0xFFF4EEFF),
-      detailColor: Color(0xFFDDEAFF),
-      glowColor: Color(0xFF66D7CF),
-    );
+const CalendarEventGraphicStyle _karGraphicStyle = CalendarEventGraphicStyle(
+  kind: CalendarEventGraphicKind.kar,
+  background: LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: <Color>[Color(0xFF17150D), Color(0xFF0C0B08), Color(0xFF070706)],
+  ),
+  flowLabelGradient: _trackSkyFlowGoldGloss,
+  borderColor: Color(0xFF725D2B),
+  accentColor: Color(0xFF91B7C7),
+  accentSecondaryColor: Color(0xFFC9E3EB),
+  titleColor: Color(0xFFF2EEE5),
+  labelColor: Color(0xFFD4AE43),
+  detailColor: Color(0xFFC9C2B7),
+  glowColor: Color(0xFF91B7C7),
+);
 
 CalendarTrackSkyCardKind _trackSkyCardKindForTitle(String title) {
   if (title.contains('solar eclipse') || title.contains('ring of fire')) {

@@ -272,12 +272,7 @@ class _JournalOverlayState extends State<JournalOverlay>
         SnackBar(
           content: const Text('Select text first, then tap Link Insight.'),
           behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            MediaQuery.of(context).viewInsets.bottom + 120,
-          ),
+          margin: EdgeInsets.fromLTRB(16, 0, 16, 120),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -625,19 +620,22 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   @override
   Widget build(BuildContext context) {
-    _keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    _keyboardVisible = keyboardIsVisible(context);
     final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
     final isFullPage = widget.presentationMode == JournalPresentationMode.page;
 
     // Show archive if requested
     if (_showingArchive) {
-      return JournalArchivePage(
+      final archive = JournalArchivePage(
         repo: JournalRepo(Supabase.instance.client),
         controller: widget.controller,
         isPortrait: widget.isPortrait,
         onClose: _closeArchive, // FIXED: Add callback to close archive
         resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       );
+      return isFullPage
+          ? archive
+          : KeyboardAwareEditableSurface(child: archive);
     }
 
     return LayoutBuilder(
@@ -653,7 +651,7 @@ class _JournalOverlayState extends State<JournalOverlay>
           return _buildJournalPageSkin(showJournalToolbar: showJournalToolbar);
         }
 
-        return SizedBox.expand(
+        final overlay = SizedBox.expand(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: _close,
@@ -728,6 +726,7 @@ class _JournalOverlayState extends State<JournalOverlay>
             ),
           ),
         );
+        return KeyboardAwareEditableSurface(child: overlay);
       },
     );
   }
@@ -984,7 +983,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   Widget _buildJournalSkinScrollContent({required bool showJournalToolbar}) {
-    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final keyboardVisible = keyboardIsVisible(context);
     final badgeHeight = keyboardVisible ? 88.0 : 252.0;
 
     return Column(
@@ -1179,7 +1178,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   Widget _buildEditor() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+        final keyboardVisible = keyboardIsVisible(context);
         final editorPadding = keyboardVisible
             ? const EdgeInsets.fromLTRB(16, 8, 16, 8)
             : const EdgeInsets.all(16);
@@ -1322,7 +1321,6 @@ class _JournalOverlayState extends State<JournalOverlay>
       controller: _textController,
       focusNode: _focusNode,
       scrollController: _scrollController,
-      scrollPadding: keyboardManagedTextFieldScrollPadding,
       maxLines: null,
       expands: true,
       textAlignVertical: TextAlignVertical.top,

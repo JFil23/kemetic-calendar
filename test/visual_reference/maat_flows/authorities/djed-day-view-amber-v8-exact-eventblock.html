@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Djed — Day View canonical amber mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Gentium+Plus:ital,wght@0,400;0,700;1,400&family=Noto+Sans+Egyptian+Hieroglyphs&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#050504;--sheet:#090806;--bone:#E8E2D6;--ivory:#D8D0C3;
+  --gold:#D4AE43;--gold2:#E7C66C;--gold3:#F0C96A;--gold-dim:#8A7030;
+  --amber:#C78B2A;--amber-deep:#5D3A0C;--ember:#B96D4B;--silver:#9E9A94;--low:#6A6660;--sep:#2A2419;
+  --display:"Cormorant Garamond",Georgia,serif;--ui:"Gentium Plus",Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#000;color:var(--bone)}
+body{font-family:var(--ui);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:14px;padding:16px;background:radial-gradient(100% 78% at 50% 0,#171108,#000 76%)}
+button,input{font:inherit}
+.fixture-bar{width:min(760px,100%);display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;color:#8F8572;font:11px/1 var(--ui)}
+.fixture-bar strong{color:#BDA56C;font-weight:500;margin-right:4px}
+.fixture-btn{width:28px;height:28px;border-radius:50%;border:1px solid rgba(212,174,67,.22);background:#080704;color:#7E735E;cursor:pointer}
+.fixture-btn.on{border-color:rgba(231,198,108,.72);background:rgba(212,174,67,.09);color:var(--gold2)}
+.phone{width:390px;height:844px;position:relative;overflow:hidden;border-radius:40px;background:#050504;box-shadow:0 34px 86px rgba(0,0,0,.86),0 0 0 1px #17130c}
+.status{position:absolute;left:0;right:0;top:0;height:45px;z-index:70;padding:12px 23px 0;display:flex;justify-content:space-between;font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f0eee8;pointer-events:none}
+.day-view{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none;padding:56px 18px 120px;background:linear-gradient(180deg,#080704,#050504 34%)}
+.day-view::-webkit-scrollbar{display:none}
+.day-top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:25px}
+.day-kicker{color:#806A35;font:700 8.5px/1 var(--ui);letter-spacing:1.6px}
+.day-title{margin:5px 0 0;color:#F0EBE1;font:500 34px/1 var(--display)}
+.day-sub{margin:4px 0 0;color:#777168;font:italic 13px/1.2 var(--display)}
+.day-glyph{color:#A67D25;font:36px/1 "Noto Sans Egyptian Hieroglyphs","Segoe UI Historic",serif;opacity:.7}
+.timeline{position:relative;padding-left:53px}
+.timeline:before{content:"";position:absolute;left:36px;top:4px;bottom:0;width:1px;background:linear-gradient(180deg,rgba(212,174,67,.18),rgba(212,174,67,.04))}
+.day-event{position:relative;margin-bottom:22px}
+.time{position:absolute;left:-53px;top:3px;width:42px;text-align:right;color:#736F68;font:10px/1 var(--ui);font-variant-numeric:tabular-nums}
+.dot{position:absolute;left:-20px;top:9px;width:7px;height:7px;border-radius:50%;background:#3A3935;box-shadow:0 0 0 4px #050504}
+.day-event.djed .dot{background:var(--gold);box-shadow:0 0 0 4px #050504,0 0 10px rgba(212,174,67,.26)}
+.plain-card{min-height:55px;padding:7px 0 10px;border-bottom:1px solid #171512}
+.plain-title{color:#AAA59C;font:15px/1.15 var(--display)}
+.plain-note{margin-top:4px;color:#5E5B56;font:10px/1.25 var(--ui)}
+
+/* Canonical Djed event block, recolored only */
+.djed-calendar-block{position:relative;width:100%;height:112px;border:0;border-radius:12px;overflow:hidden;padding:13px 84px 11px 14px;text-align:left;color:inherit;cursor:pointer;background:radial-gradient(88% 150% at 88% 50%,rgba(231,198,108,.16),transparent 61%),linear-gradient(115deg,#110C05 0%,#281A08 48%,#100B04 100%);box-shadow:0 8px 18px rgba(0,0,0,.40),0 0 16px rgba(212,174,67,.035)}
+.djed-calendar-block:after{content:"";position:absolute;inset:0;border-radius:12px;pointer-events:none;border:1px solid rgba(212,174,67,.46)}
+.djed-calendar-block:before{content:"𓊽";position:absolute;right:18px;top:19px;color:#D1A83F;font:40px/1 "Noto Sans Egyptian Hieroglyphs","Segoe UI Historic",serif;opacity:.55}
+.djed-calendar-block:focus-visible{outline:2px solid var(--gold2);outline-offset:3px}
+.djed-block-eyebrow{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#D5AE4B;font:700 8.5px/1 var(--ui);letter-spacing:1.35px}
+.djed-block-title{display:-webkit-box;margin-top:6px;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;color:#F2EEE6;font:600 19px/1.02 var(--display)}
+.djed-block-meta{display:block;margin-top:7px;color:#A79672;font:italic 12px/1 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-block-phase{position:absolute;left:14px;bottom:10px;color:#98752F;font:600 8px/1 var(--ui);letter-spacing:1px}
+.djed-view-practice{position:absolute;right:14px;bottom:10px;color:#D9B759;font:600 8px/1 var(--ui);letter-spacing:1.05px}
+
+.bottom-fade{position:absolute;left:0;right:0;bottom:0;height:110px;z-index:40;pointer-events:none;background:linear-gradient(180deg,transparent,#050504 80%)}
+
+/* Canonical layered detail sheet / scroll behavior */
+.modal-scrim{position:absolute;inset:0;z-index:90;background:rgba(0,0,0,.60);opacity:0;pointer-events:none;transition:opacity .18s ease}.modal-scrim.open{opacity:1;pointer-events:auto}
+.modal-sheet{position:absolute;z-index:95;left:0;right:0;bottom:0;height:86%;border-radius:24px 24px 0 0;border:1px solid rgba(212,174,67,.26);border-bottom:0;background:linear-gradient(180deg,#0D0B08,#080805 42%,#060604);transform:translateY(102%);transition:transform .22s ease;overflow:hidden;overscroll-behavior:none}
+.modal-sheet.open{transform:none}
+.modal-inner{position:relative;height:100%;overflow:hidden;display:flex;flex-direction:column}
+.modal-static{position:relative;flex:0 0 auto;padding:13px 20px 0;overflow:hidden}
+.modal-scroll{position:relative;z-index:4;flex:1 1 auto;min-height:0;margin-top:-5px;overflow-y:auto;overflow-x:hidden;padding:0 20px 34px;border-radius:24px 24px 0 0;border-top:1px solid rgba(212,174,67,.27);background:linear-gradient(180deg,#0D0A06 0%,#090805 18%,#060604 100%);box-shadow:0 -18px 38px rgba(0,0,0,.44);scrollbar-width:none;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.modal-scroll::-webkit-scrollbar{display:none}
+.modal-scroll-handle{position:sticky;z-index:8;top:0;height:28px;margin:0 -20px 4px;background:linear-gradient(180deg,rgba(13,10,6,.99),rgba(13,10,6,.93),rgba(13,10,6,0));display:flex;justify-content:center;align-items:flex-start;padding-top:9px;pointer-events:none}
+.modal-scroll-handle:after{content:"";display:block;width:42px;height:4px;border-radius:99px;background:#3A3429}
+.modal-chrome{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:34px}
+.modal-handle{width:42px;height:4px;border-radius:99px;background:#3A3429}
+.modal-close{justify-self:end;border:0;background:none;color:var(--silver);font-size:24px;width:36px;height:36px;cursor:pointer}
+.modal-kicker{margin-top:9px;color:var(--gold-dim);font:600 9px/1 var(--ui);letter-spacing:1.55px}
+.modal-title{margin:8px 0 0;color:var(--gold2);font:500 29px/1 var(--display)}
+.modal-when{margin:6px 0 0;color:#77736D;font:11px/1.2 var(--ui)}
+.modal-context{margin:12px 0 0;padding:10px 0 10px 13px;border-left:2px solid rgba(212,174,67,.48);color:#BEB7AB;font:italic 14.5px/1.35 var(--display)}
+.modal-context strong{display:block;margin-bottom:5px;color:#9A8039;font:700 8px/1 var(--ui);letter-spacing:1.35px;font-style:normal}
+.djed-stage.orientation .sheet-support{opacity:.78}
+.djed-stage{position:relative;margin:13px -5px 0;height:214px;border-radius:14px;overflow:hidden;background:radial-gradient(78% 72% at 50% 86%,rgba(212,174,67,.085),transparent 64%)}
+.djed-stage.raising{background:radial-gradient(58% 78% at 50% 54%,rgba(240,201,106,.18),transparent 68%)}
+.stage-ground{position:absolute;left:17px;right:17px;bottom:27px;height:1px;background:rgba(212,174,67,.18)}
+.djed-stage svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.stage-angle{position:absolute;right:10px;bottom:8px;color:#6C6049;font:9px/1 var(--ui);letter-spacing:1.05px}
+.sheet-support{cursor:pointer;opacity:.34;transition:opacity .18s ease}.sheet-support.selected{opacity:1}.sheet-support rect{transition:stroke .18s ease,filter .18s ease}.sheet-support.selected rect:not(.bar-gone){stroke:#F0C96A;stroke-width:1.35;filter:drop-shadow(0 0 4px rgba(240,201,106,.28))}.sheet-support.selected .bar-gone{stroke:#857659}
+.bar-solid{fill:url(#gSolid)}.bar-press{fill:url(#gPress)}.bar-wob{fill:url(#gWob)}.bar-neutral{fill:url(#gNeutral)}.bar-gone{fill:none;stroke:#4A4436;stroke-width:1;stroke-dasharray:4 4}
+.sheet-bar-label{font-family:var(--display);font-size:10.5px;fill:#25190B;pointer-events:none}.sheet-bar-label.out{fill:#8E8878}
+.rope{fill:none;stroke:#7A6A46;stroke-width:1.5;stroke-dasharray:3 4}.ghost-pillar{opacity:.15}.raise-glow{fill:url(#raiseGlow)}
+.focus-card{margin:5px 0 0;padding:12px 0 0;border-top:1px solid rgba(212,174,67,.08)}
+.focus-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.focus-name{min-width:0;color:#E8E2D6;font:600 22px/1 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.focus-state{flex:0 0 auto;color:#9B8248;font:700 9px/1 var(--ui);letter-spacing:1.05px}
+.choice{border:1px solid rgba(212,174,67,.20);border-radius:999px;background:transparent;color:#827C70;padding:6px 10px;font:11px/1 var(--ui);cursor:pointer}.choice.on{border-color:rgba(212,174,67,.66);background:rgba(212,174,67,.08);color:#E4D4AB}.choice.ember.on{border-color:var(--ember);background:rgba(185,109,75,.10);color:#E6B699}
+.decision{margin:14px 0 0;padding:14px 14px 13px;border-radius:15px;border:1px solid rgba(212,174,67,.20);background:linear-gradient(145deg,#100C06,#090805)}
+.decision-label{display:block;color:#9B8248;font:700 8.5px/1 var(--ui);letter-spacing:1.3px}.decision-question{margin:7px 0 0;color:#E9E4DB;font:500 22px/1.08 var(--display)}
+.decision-input{width:100%;margin-top:11px;padding:8px 0 9px;border:0;border-bottom:1px solid rgba(212,174,67,.28);background:transparent;color:#E0D3B6;caret-color:var(--gold2);font:italic 17px/1.25 var(--display)}.decision-input::placeholder{color:#544A38}.decision-input:focus{outline:0;border-bottom-color:rgba(231,198,108,.75)}
+.decision-note{margin-top:9px;color:#756B58;font:11.5px/1.35 var(--ui)}.decision-options{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.next-row{display:flex;align-items:center;gap:18px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(212,174,67,.10)}
+.next-primary,.next-secondary,.next-tertiary{border:0;background:none;cursor:pointer;padding:5px 0;font:500 16px/1 var(--display)}.next-primary{color:var(--gold2)}.next-secondary{color:#C9912F}.next-tertiary{margin-left:auto;color:#655D50;font-size:12px}
+.next-status{margin-top:11px;display:flex;align-items:center;gap:8px;color:#9B895F;font:11px/1.3 var(--ui)}.next-status i{width:6px;height:6px;border-radius:50%;background:var(--gold2);box-shadow:0 0 8px rgba(231,198,108,.32)}.next-status.calendar i{background:var(--gold);box-shadow:0 0 8px rgba(212,174,67,.34)}
+.schedule-quick{display:none;margin-top:11px;padding-top:10px;border-top:1px solid rgba(212,174,67,.12)}.schedule-quick.open{display:block}.schedule-label{color:#71674D;font:700 8px/1 var(--ui);letter-spacing:1.25px}.schedule-choices{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.schedule-choice{border:1px solid rgba(212,174,67,.22);border-radius:999px;background:transparent;color:#8B8374;padding:6px 9px;font:10.5px/1 var(--ui);cursor:pointer}.schedule-choice:hover,.schedule-choice:focus-visible{border-color:rgba(212,174,67,.56);color:#D8C99E;outline:0}
+.raise-panel{margin:14px 0 2px;padding:15px 14px 13px;border:1px solid rgba(212,174,67,.30);border-radius:15px;background:radial-gradient(110% 150% at 0 100%,rgba(212,174,67,.07),transparent 58%),#0A0A07}.raise-panel .decision-label{color:#9A8039}.raise-panel .decision-question{color:#E9E4DB}.raise-button{width:100%;height:42px;margin-top:12px;border-radius:999px;border:1px solid rgba(212,174,67,.48);background:rgba(212,174,67,.04);color:var(--gold2);font:500 16px/1 var(--display);cursor:pointer}.raise-time{margin-top:8px;text-align:center;color:#83775E;font:12px/1 var(--ui);font-variant-numeric:tabular-nums}.raise-time strong{color:var(--gold2);font-weight:500}
+.stage-progress{position:absolute;left:11px;bottom:8px;color:var(--gold2);font:700 8px/1 var(--ui);letter-spacing:1.1px}.djed-stage.has-move .pillar-live{filter:drop-shadow(0 0 7px rgba(212,174,67,.12))}.raise-running .pillar-live{transition:transform 30s linear!important;transform:rotate(0deg)!important}
+.source-toggle{width:100%;margin-top:17px;padding:13px 0;border:0;border-top:1px solid var(--sep);background:none;color:#8A8378;text-align:left;font:italic 14px/1 var(--display);cursor:pointer;display:flex;justify-content:space-between}.source-body{display:none;color:#74766F;font:13.5px/1.4 var(--display);padding:0 0 8px}.source-body.open{display:block}.modal-back{margin-top:18px;border:0;background:none;color:var(--gold2);padding:6px 0;font:italic 15px var(--display);cursor:pointer}
+@media(max-width:430px){body{padding:0}.fixture-bar{display:none}.phone{width:100vw;height:100dvh;border-radius:0;max-width:430px}.modal-sheet{height:min(86dvh,720px)}}
+@media(max-height:720px){.djed-stage{height:184px}.modal-context{font-size:13.5px;line-height:1.28;margin-top:9px;padding-top:8px;padding-bottom:8px}.modal-title{font-size:27px}.modal-kicker{margin-top:5px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}.raise-running .pillar-live{transition:none!important;transform:rotate(0deg)!important}}
+
+/* v5: screenshot-faithful Djed event block + shared two-stage Day View sheet behavior */
+.djed-calendar-block{
+  position:relative;width:100%;height:106px;border:1px solid rgba(171,83,24,.84);border-radius:11px;overflow:hidden;
+  padding:14px 108px 12px 14px;text-align:left;color:inherit;cursor:pointer;
+  background:
+    radial-gradient(78% 130% at 84% 51%,rgba(238,144,48,.24),transparent 52%),
+    linear-gradient(105deg,#130904 0%,#351707 44%,#642D10 76%,#2A1206 100%);
+  box-shadow:0 8px 20px rgba(0,0,0,.46),inset 4px 0 0 #E4A63A,0 0 16px rgba(196,106,31,.07);
+}
+.djed-calendar-block:after{content:"";position:absolute;inset:0;border:0;border-radius:11px;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(231,142,48,.08)}
+.djed-calendar-block:before{display:none}
+.djed-block-eyebrow{display:block;color:#F1BA53;font:700 8px/1 var(--ui);letter-spacing:1.65px;text-transform:uppercase;white-space:nowrap}
+.djed-block-title{display:block;margin-top:7px;color:#F3EADF;font:600 21px/.98 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-block-meta{display:block;margin-top:5px;color:#EAB575;font:italic 13px/1.05 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-block-footer{position:absolute;left:14px;right:12px;bottom:10px;height:12px;display:flex;align-items:center;gap:10px;min-width:0}
+.djed-progress-bars{display:flex;gap:5px;flex:0 0 auto}
+.djed-progress-bars i{display:block;width:16px;height:3px;border-radius:99px;background:#51321A}
+.djed-progress-bars i.done{background:#F2B94C;box-shadow:0 0 7px rgba(242,185,76,.20)}
+.djed-progress-bars i.current{background:#D8762A}
+.djed-progress-copy{min-width:0;color:#C8B396;font:11px/1 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-progress-count{margin-left:auto;flex:0 0 auto;color:#B4A283;font:10.5px/1 var(--ui);white-space:nowrap}
+.djed-mini{position:absolute;right:-3px;top:-1px;width:116px;height:108px;pointer-events:none}
+.djed-mini svg{width:100%;height:100%;display:block;overflow:visible}
+.djed-mini .halo{fill:url(#miniHalo)}
+.djed-mini .mini-shaft{fill:url(#miniShaft);filter:drop-shadow(0 0 5px rgba(241,151,55,.26))}
+.djed-mini .mini-bar{fill:url(#miniBar);filter:drop-shadow(0 0 4px rgba(244,172,79,.25))}
+.djed-mini .mini-base{fill:#9B571D}
+.djed-calendar-block:hover{border-color:rgba(221,128,42,.92)}
+.djed-calendar-block:focus-visible{outline:2px solid #F0B148;outline-offset:3px}
+
+/* Shared Day View two-stage sheet: lower practice layer rides over a stationary hero,
+   then docks and scrolls internally. */
+.modal-sheet{
+  left:9px;right:9px;height:590px;max-height:70vh;border-radius:24px 24px 0 0;
+  border:1px solid rgba(212,174,67,.10);border-bottom:0;
+  background:linear-gradient(180deg,#0D0906 0%,#090604 48%,#070503 100%);
+  box-shadow:0 -20px 55px rgba(0,0,0,.66);
+  overflow:hidden;overscroll-behavior:none;
+}
+.modal-inner{position:relative;height:100%;overflow:hidden;display:block}
+.sheet-chrome{
+  position:absolute;left:0;right:0;top:0;height:48px;z-index:20;
+  background:linear-gradient(#0D0906 72%,rgba(13,9,6,.97));
+}
+.sheet-handle{position:absolute;left:50%;top:19px;width:41px;height:4px;transform:translateX(-50%);border-radius:4px;background:#72571E}
+.sheet-close{position:absolute;right:12px;top:8px;width:36px;height:34px;border:0;background:transparent;color:#B9A883;font:22px/1 var(--ui);cursor:pointer}
+.sheet-footer{
+  position:absolute;left:0;right:0;bottom:0;height:72px;z-index:20;display:flex;align-items:center;justify-content:space-between;
+  padding:9px 18px 20px;background:linear-gradient(180deg,rgba(7,5,3,.84),#070503 30%);
+  border-top:1px solid rgba(212,174,67,.10);
+}
+.footer-btn{border:0;background:transparent;color:#D9B45D;font:700 15px var(--ui);cursor:pointer}
+.footer-btn.left:before{content:"≡✓";font-size:13px;margin-right:8px;color:#D6AA36}
+.layer-stage{
+  position:absolute;left:10px;right:10px;top:48px;bottom:72px;z-index:4;
+  overflow:hidden;border-radius:18px 18px 0 0;background:#0C0805;
+  touch-action:none;overscroll-behavior:contain;user-select:none;
+}
+.hero-layer{
+  position:absolute;inset:0;z-index:1;padding:18px 20px 24px;overflow:hidden;
+  background:
+    radial-gradient(120% 105% at 64% 15%,rgba(145,82,29,.16),transparent 52%),
+    radial-gradient(90% 90% at 15% 0%,rgba(115,70,30,.14),transparent 62%),
+    linear-gradient(180deg,#120C07 0%,#0C0906 100%);
+}
+.hero-layer .modal-kicker{margin-top:0}
+.hero-layer .modal-context{max-height:74px;overflow:hidden}
+.hero-layer .djed-stage{height:230px;margin-top:12px}
+.practice-shell{
+  position:absolute;inset:0;z-index:7;overflow:hidden;border-radius:18px 18px 0 0;
+  background:#090604;border-top:1px solid rgba(212,174,67,.21);
+  box-shadow:0 -15px 32px rgba(0,0,0,.62),0 -1px 0 rgba(212,174,67,.06);
+  will-change:transform;
+}
+.practice-shell:before{
+  content:"";position:absolute;z-index:3;left:50%;top:7px;transform:translateX(-50%);
+  width:38px;height:3px;border-radius:4px;background:#4E3B1B;opacity:.86;
+}
+.practice-content{position:absolute;left:0;right:0;top:0;will-change:transform}
+.practice-layer{padding:24px 20px 34px;min-height:100%;background:linear-gradient(180deg,#0B0805 0%,#080604 100%)}
+.practice-layer .focus-card{margin-top:0}.practice-layer .focus-head{align-items:flex-start}.practice-layer .focus-name{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.02;padding-right:8px}
+.practice-layer .modal-back{margin-bottom:18px}
+.completion-panel{margin-top:22px;padding:10px;border:1px solid rgba(212,174,67,.16);border-radius:8px;background:rgba(212,174,67,.025)}
+.completion-label{color:#A88135;font:600 9px var(--ui);letter-spacing:2px;margin-bottom:8px}
+.completion-row{display:flex;gap:8px}
+.completion-chip{flex:1;min-height:40px;border:1px solid #3E2E1C;border-radius:8px;background:#0D0906;color:#9F9383;font:500 14px var(--display);cursor:pointer}
+.completion-chip.active{background:#D4AE43;border-color:#E0B958;color:#160F08;box-shadow:0 0 12px rgba(212,174,67,.14)}
+@media(max-width:430px){
+  .modal-sheet{height:min(590px,70dvh);left:0;right:0}
+}
+@media(max-height:720px){
+  .hero-layer .djed-stage{height:205px}
+  .hero-layer .modal-context{font-size:13px;line-height:1.25;max-height:66px}
+}
+
+
+
+/* v7 — canonical calendar Day View + screenshot-faithful Djed event block.
+   Detail-sheet visuals/mechanics below are intentionally untouched. */
+.status{
+  height:26px;padding:2px 23px 0;align-items:flex-start;
+  font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.day-view{
+  position:absolute;inset:0;overflow:hidden;padding:0;
+  background:#020202;color:#80672E;
+}
+.day-head{
+  position:absolute;left:0;right:0;top:26px;height:125px;
+  border-bottom:1px solid #100E0A;background:#020202;
+}
+.navline{
+  height:45px;padding:7px 18px 4px;display:flex;align-items:center;gap:12px;color:#846B35;
+}
+.navline .x{font:300 25px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#8B7138}
+.navline .month{flex:1;color:#8C7441;font:400 21px/1 var(--display)}
+.navline .icons{display:flex;align-items:center;gap:14px;color:#91763A;font:25px/1 var(--display)}
+.navline .eye{font:28px/1 "Noto Sans Egyptian Hieroglyphs","Segoe UI Historic",serif;transform:translateY(1px)}
+.date-strip{
+  height:43px;display:flex;align-items:center;justify-content:center;gap:15px;
+  color:#5E4D2D;font:11px/1 var(--ui);
+}
+.date-strip .d{width:21px;text-align:center}
+.date-strip .sel{
+  width:37px;height:37px;border:1px solid #A36519;border-radius:50%;display:grid;place-items:center;
+  color:#E0A33C;font:19px/1 var(--display);box-shadow:0 0 0 1px rgba(210,125,32,.05) inset;
+}
+.date-name{text-align:center;color:#78613A;font:italic 14px/1 var(--display);padding-top:1px}
+.timeline-grid{position:absolute;left:0;right:0;top:151px;bottom:0;overflow:hidden;background:#010101}
+.hour{height:61px;border-top:1px solid #100F0B;position:relative}
+.hour span{position:absolute;left:12px;top:8px;color:#4E4638;font:9px/1 var(--ui);letter-spacing:.6px}
+.simple-event{
+  position:absolute;left:43px;right:14px;height:30px;border-radius:8px;background:#0B0B09;
+  color:#D0C8BA;font:15px/30px var(--display);padding:0 14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+}
+.simple-event:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:8px 0 0 8px}
+.simple-event.journal{top:8px}.simple-event.journal:before{background:#62C18C}
+.simple-event.bits{top:251px}.simple-event.bits:before{background:#4D8FD1}
+.simple-event.spider{top:342px}.simple-event.spider:before{background:#D6625C}
+#djedBlockMount{position:absolute;left:43px;right:14px;top:72px;height:104px}
+.djed-calendar-block{
+  position:relative;width:100%;height:100%;border:1px solid #8C4B18;border-left:4px solid #F0B448;
+  border-radius:10px;overflow:hidden;padding:14px 104px 10px 12px;text-align:left;color:inherit;cursor:pointer;
+  background:
+    radial-gradient(76% 128% at 87% 50%,rgba(222,119,39,.23),rgba(222,119,39,.07) 42%,transparent 68%),
+    linear-gradient(96deg,#170A04 0%,#3B1809 47%,#53240D 75%,#321508 100%);
+  box-shadow:0 7px 15px rgba(0,0,0,.46),0 0 11px rgba(222,119,39,.05),inset 0 0 0 1px rgba(240,180,72,.035);
+}
+.djed-calendar-block:after{content:"";position:absolute;inset:0;border:0;border-radius:10px;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(240,160,56,.07)}
+.djed-calendar-block:before{display:none}
+.djed-block-eyebrow{display:block;color:#F0B74E;font:700 7.8px/1 var(--ui);letter-spacing:1.55px;text-transform:uppercase;white-space:nowrap}
+.djed-block-title{display:block;margin-top:7px;color:#F1E9DE;font:600 21px/.98 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-block-meta{display:block;margin-top:5px;color:#E7B273;font:italic 13.5px/1.05 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-block-footer{position:absolute;left:12px;right:11px;bottom:11px;height:12px;display:flex;align-items:center;gap:9px;min-width:0;padding-right:3px}
+.djed-progress-bars{display:flex;gap:5px;flex:0 0 auto}
+.djed-progress-bars i{display:block;width:15px;height:3px;border-radius:99px;background:#4C301B}
+.djed-progress-bars i.done{background:#F0B949;box-shadow:0 0 6px rgba(240,185,73,.18)}
+.djed-progress-bars i.current{background:#D87429;box-shadow:0 0 5px rgba(216,116,41,.12)}
+.djed-progress-copy{min-width:0;color:#C8B497;font:10.5px/1 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-progress-count{margin-left:auto;flex:0 0 auto;color:#B8A487;font:10px/1 var(--ui);white-space:nowrap}
+.djed-mini{position:absolute;right:-6px;top:2px;width:118px;height:118px;pointer-events:none}
+.djed-mini svg{width:100%;height:100%;display:block;overflow:visible}
+.djed-mini .halo{fill:url(#miniHalo)}
+.djed-mini .mini-shaft{fill:url(#miniShaft);filter:drop-shadow(0 0 5px rgba(242,150,54,.34))}
+.djed-mini .mini-bar{fill:url(#miniBar);filter:drop-shadow(0 0 4px rgba(250,177,79,.31))}
+.djed-mini .mini-base{fill:url(#miniBase);filter:drop-shadow(0 0 4px rgba(215,111,36,.20))}
+.djed-calendar-block:hover{border-color:#A85C1E;border-left-color:#F5BF54}
+.djed-calendar-block:focus-visible{outline:2px solid #F0B148;outline-offset:3px}
+@media(max-width:430px){
+  .day-head{top:26px}.timeline-grid{top:151px}
+}
+
+
+
+/* v8 — event block copied directly from djed-day-block-and-sheets (1).html.
+   Day View and detail sheet are intentionally unchanged. */
+#djedBlockMount{position:absolute;left:38px;right:14px;top:74px;height:106px}
+.djed-calendar-block{
+  position:relative;width:100%;height:100%;border:0;border-radius:10px;text-align:left;overflow:hidden;
+  padding:11px 82px 10px 14px;isolation:isolate;color:inherit;cursor:pointer;
+  background:
+    linear-gradient(90deg,rgba(6,4,2,.82),rgba(6,4,2,.46) 46%,rgba(6,4,2,.02)),
+    radial-gradient(ellipse at 83% 50%,rgba(224,135,60,.26),transparent 50%),
+    linear-gradient(154deg,#1E120A,#3A1F0E 56%,#150B04);
+  box-shadow:0 7px 18px rgba(0,0,0,.58),0 0 16px rgba(224,135,60,.08);
+  transition:transform .2s ease,box-shadow .2s ease;
+}
+.djed-calendar-block:after{content:"";position:absolute;inset:0;border-radius:10px;pointer-events:none;border:1px solid rgba(224,135,60,.44);box-shadow:none}
+.djed-calendar-block:before{content:"";display:block;position:absolute;left:0;top:0;bottom:0;width:3px;z-index:2;border-radius:3px 0 0 3px;background:linear-gradient(180deg,#F5B963,#B4552A)}
+.djed-calendar-block:hover{transform:translateY(-1px);border-color:transparent;box-shadow:0 9px 22px rgba(0,0,0,.62),0 0 22px rgba(224,135,60,.16)}
+.djed-calendar-block:focus-visible{outline:2px solid #E0873C;outline-offset:3px}
+.djed-calendar-block .kicker{display:block;font:400 8.5px/1 var(--ui);letter-spacing:1.5px;color:#EDB874;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-calendar-block .title{display:block;margin-top:5px;font:600 21px/1 var(--display);color:#F2EADD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-calendar-block .support{display:block;margin-top:4px;font:italic 14px/1.2 var(--display);color:#E8B98A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-calendar-block .foot{display:flex;align-items:center;gap:9px;margin-top:9px}
+.djed-calendar-block .pips{display:flex;gap:4px;flex:0 0 auto}
+.djed-calendar-block .pips i{display:block;width:15px;height:3px;border-radius:2px;background:#493322}
+.djed-calendar-block .pips i.on{background:#F5B963;box-shadow:0 0 7px rgba(245,185,99,.5)}
+.djed-calendar-block .pips i.now{background:#E0873C;box-shadow:0 0 9px rgba(224,135,60,.7)}
+.djed-calendar-block .said{min-width:0;font:400 10.5px/1 var(--ui);color:#B0977B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djed-calendar-block .of{margin-left:auto;flex:0 0 auto;font:400 10px/1 var(--ui);color:#9A8365;letter-spacing:.3px;white-space:nowrap}
+.djed-calendar-block .djed-obj{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:74px;pointer-events:none}
+.djed-calendar-block .djed-obj svg{width:100%;height:100%;overflow:visible;display:block}
+.djed-calendar-block .emberglow{animation:emberEvent 8.2s ease-in-out infinite;transform-box:view-box;transform-origin:35px 38px}
+@keyframes emberEvent{0%,100%{opacity:.55;transform:scale(.94)}50%{opacity:1;transform:scale(1.05)}}
+@media(prefers-reduced-motion:reduce){.djed-calendar-block .emberglow{animation:none;opacity:.82}}
+</style>
+</head>
+<body>
+<div class="fixture-bar"><strong>Fixture only · sitting</strong><span id="fixtureButtons"></span></div>
+<div class="phone" id="phone">
+  <div class="status"><span>7:12</span><span>▮▮▮ 5G ▰</span></div>
+  <div class="day-view" id="dayView">
+    <div class="day-head">
+      <div class="navline">
+        <span class="x">×</span>
+        <span class="month">Rekh-Wer (Rḫ-wr)</span>
+        <span class="icons"><span>＋</span><span class="eye">𓂀</span></span>
+      </div>
+      <div class="date-strip"><span class="d">25</span><span class="d">26</span><span class="d">27</span><span class="sel">28</span><span class="d">29</span><span class="d">30</span><span class="d">1</span></div>
+      <div class="date-name">Rekh-Wer 28, 2026</div>
+    </div>
+    <div class="timeline-grid">
+      <div class="hour"><span>6 AM</span></div>
+      <div class="hour"><span>7 AM</span></div>
+      <div class="hour"><span>8 AM</span></div>
+      <div class="hour"><span>9 AM</span></div>
+      <div class="hour"><span>10 AM</span></div>
+      <div class="hour"><span>11 AM</span></div>
+      <div class="hour"><span>12 PM</span></div>
+      <div class="simple-event journal">journal every day</div>
+      <div id="djedBlockMount"></div>
+      <div class="simple-event bits">Bits and Operations</div>
+      <div class="simple-event spider">The Spider's Shortcut</div>
+    </div>
+  </div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="gSolid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F4E4B2"/><stop offset=".54" stop-color="#D2AE63"/><stop offset="1" stop-color="#8D662B"/></linearGradient>
+      <linearGradient id="gPress" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EBCBAD"/><stop offset=".54" stop-color="#C58D61"/><stop offset="1" stop-color="#7D4D32"/></linearGradient>
+      <linearGradient id="gWob" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E4C782"/><stop offset=".5" stop-color="#B28A42"/><stop offset="1" stop-color="#695021"/></linearGradient>
+      <linearGradient id="gNeutral" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D9C99D"/><stop offset=".54" stop-color="#AC8C50"/><stop offset="1" stop-color="#705129"/></linearGradient>
+      <linearGradient id="gShaftSheet" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6B4E24"/><stop offset=".42" stop-color="#D4AE43"/><stop offset=".7" stop-color="#8B652F"/><stop offset="1" stop-color="#4C3518"/></linearGradient>
+      <radialGradient id="raiseGlow" cx="50%" cy="42%" r="55%"><stop offset="0" stop-color="#F0C96A" stop-opacity=".34"/><stop offset="1" stop-color="#F0C96A" stop-opacity="0"/></radialGradient>
+    </defs>
+  </svg>
+  <div class="modal-scrim" id="modalScrim"></div>
+  <section class="modal-sheet" id="modalSheet" aria-hidden="true"><div class="modal-inner" id="modalInner"></div></section>
+</div>
+<script>
+const events=[
+ {n:1,day:1,phase:'ORIENTATION',title:'Set your footing',when:'Dawn + 30 min',dur:'5 min',context:'You do not have to fix everything at once. For each support: make one small move, then return and see what happened.',source:'The first sitting establishes the method before any single beam becomes the work.'},
+ {n:2,day:5,phase:'SUPPORT 01',title:'Make one move',when:'11:00 local',dur:'5 min',context:'You do not have to solve this. Find one useful part that is fully in your hands.',source:'A small controllable action is the unit of work. The goal is a real attempt, not a perfect solution.'},
+ {n:3,day:9,phase:'SUPPORT 01',title:'Read the result',when:'Dawn + 30 min',dur:'5 min',context:'Come back to the move you chose. Read what actually happened before deciding anything else.',source:'The second sitting is verification: use reality as information, not as a verdict.'},
+ {n:4,day:11,phase:'SUPPORT 02',title:'Make one move',when:'Dawn + 30 min',dur:'5 min',context:'Same method, new beam. One useful move. Small enough to complete before you return.',source:'Repeating the same method lowers the cognitive cost while the life problem changes.'},
+ {n:5,day:15,phase:'SUPPORT 02',title:'Read the result',when:'11:00 local',dur:'5 min',context:'The work already happened outside the app. This sitting only asks what the move taught you.',source:'A useful result can be improvement, information, or a smaller retry.'},
+ {n:6,day:19,phase:'SUPPORT 03',title:'Make one move',when:'Sunset + 30 min',dur:'5 min',context:'You know the pattern now: find the part you can move, keep it small, put it in time.',source:'The repeated structure is intentional: capability grows through doing the method again.'},
+ {n:7,day:21,phase:'SUPPORT 03',title:'Read the result',when:'Dawn + 30 min',dur:'5 min',context:'Look at the result, not the intention. What happened is enough to tell you what comes next.',source:'Verification keeps the flow grounded in lived evidence instead of aspiration.'},
+ {n:8,day:25,phase:'SUPPORT 04',title:'Make one move',when:'11:00 local',dur:'5 min',context:'Last beam. Do not make the move bigger because it is last. Small and doable still wins.',source:'The fourth beam uses the exact same process: controllable action first, interpretation later.'},
+ {n:9,day:29,phase:'SUPPORT 04',title:'Read the result',when:'Dawn + 30 min',dur:'10–15 min',context:'Read the last result. Then stand and raise the whole structure.',source:'The final raising closes four cycles of deliberate action and return to reality.'}
+];
+const supportFixtures=[
+ {i:0,name:'support 01',state:'neutral',visible:true},
+ {i:1,name:'the weekly call with my sister',state:'neutral',visible:true},
+ {i:2,name:'support 03',state:'neutral',visible:true},
+ {i:3,name:'support 04',state:'neutral',visible:true}
+];
+const scrim=document.getElementById('modalScrim'),sheet=document.getElementById('modalSheet'),inner=document.getElementById('modalInner');
+const blockMount=document.getElementById('djedBlockMount');
+const sheetAngles={1:-74,2:-66,3:-56,4:-42,5:-32,6:-24,7:-16,8:-8,9:0};
+const angleLabels={1:'LYING · NOT YET RAISED',2:'NAMED · STILL LOW',3:'INVENTORY HELD',4:'UNDER LOAD · 42°',5:'ENGAGEMENT · 32°',6:'AFTER THE BATTLE · 24°',7:'PREPARING TO RAISE · 16°',8:'NEAR UPRIGHT · 8°',9:'UPRIGHT'};
+const postBattle={};
+const courseState={actions:{}};
+function actionState(eventNumber){if(!courseState.actions[eventNumber])courseState.actions[eventNumber]={raised:false};return courseState.actions[eventNumber];}
+let selectedSheetSupport=-1,raisingTimer=null,currentEvent=events[0];
+function supportSnapshot(){return supportFixtures.filter(x=>x.visible).map(x=>({...x}));}
+function escSvg(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function clipLabel(s){const v=String(s);return v.length>20?v.slice(0,19)+'…':v}
+function effectiveSheetState(s,e){const pb=postBattle[s.i];if(e.n>=6){if(pb==='released'||pb==='no_longer_load_bearing')return 'gone';if(pb==='more_solid')return 'solid';if(pb==='needs_more')return 'wobble';if(pb==='unchanged')return s.state;}return s.state;}
+function supportStateLabel(s,e){const pb=e.n>=6?postBattle[s.i]:null;if(pb==='released')return 'released';if(pb==='no_longer_load_bearing')return 'no longer load-bearing';if(pb==='more_solid')return 'more solid';if(pb==='needs_more')return 'needs more';if(pb==='unchanged')return 'unchanged';const st=effectiveSheetState(s,e);if(st==='pressure')return 'under pressure';if(st==='wobble')return 'wobbling';if(st==='solid')return 'holding';if(st==='gone')return 'released';return st;}
+function barClass(state){if(state==='solid')return'bar-solid';if(state==='pressure')return'bar-press';if(state==='wobble')return'bar-wob';if(state==='gone')return'bar-gone';return'bar-neutral';}
+function pillarInner(e,{ghost=false,angleOverride=null}={}){const supports=supportSnapshot();const angle=angleOverride??sheetAngles[e.n]??0;const ys=[28,46,64,82];const widths=[142,136,130,122];const bars=supports.map((s,j)=>{const slot=supports.length-1-j;const state=effectiveSheetState(s,e),y=ys[slot]??(28+slot*18),w=widths[slot]??118,x=200-w/2;const n=String(s.i+1).padStart(2,'0');const baseLabel=`${n} · ${clipLabel(s.name)}`;const label=state==='gone'?`${baseLabel} · released`:baseLabel;return `<g class="sheet-support${s.i===selectedSheetSupport&&!ghost?' selected':''}" data-sheet-support="${s.i}"><rect x="${x}" y="${y}" width="${w}" height="13" rx="6.5" class="${barClass(state)}"/><text class="sheet-bar-label${state==='gone'?' out':''}" x="200" y="${y+9.5}" text-anchor="middle">${escSvg(label)}</text></g>`;}).join('');return `<g class="${ghost?'ghost-pillar':'pillar-live'}" style="transform-box:view-box;transform-origin:200px 186px;transform:rotate(${angle}deg)"><rect x="170" y="176" width="60" height="12" rx="5" fill="url(#gShaftSheet)"/><rect x="192" y="88" width="16" height="92" rx="7" fill="url(#gShaftSheet)"/>${bars}<rect x="150" y="8" width="100" height="11" rx="5.5" fill="url(#gShaftSheet)"/></g>`;}
+function stageExtra(e){if(e.n===4||e.n===5){return `<path class="rope" d="M198 100 L74 181"/><path class="rope" d="M198 100 L318 181"/>`;}return '';}
+function pillarStage(e){const ghost=(e.n===7||e.n===8)?pillarInner(e,{ghost:true,angleOverride:-74}):'';const glow=e.n===9?'<ellipse class="raise-glow" cx="200" cy="112" rx="118" ry="102"/>':'';const a=actionState(e.n);const moveLabel=a.raised?'RAISED':a.status==='done'?'MOVE MADE':a.status==='scheduled'?'ON CALENDAR':a.status==='moving'?'IN MOTION':'';return `<div class="djed-stage${e.n===1?' orientation':''}${e.n===9?' raising':''}${moveLabel?' has-move':''}" id="djedStage"><div class="stage-ground"></div><svg viewBox="0 0 390 214">${glow}${ghost}${stageExtra(e)}${pillarInner(e)}</svg>${moveLabel?`<span class="stage-progress">${moveLabel}</span>`:''}<span class="stage-angle">${a.raised?'UPRIGHT':angleLabels[e.n]}</span></div>`;}
+function selectedSupport(){if(selectedSheetSupport<0)return null;return supportSnapshot().find(x=>x.i===selectedSheetSupport)||null;}
+function focusCard(e){if(e.n===1){return `<div class="focus-card"><div class="focus-head"><strong class="focus-name">Four supports</strong><span class="focus-state">ONE AT A TIME</span></div></div>`;}const s=selectedSupport();if(!s)return '';return `<div class="focus-card"><div class="focus-head"><strong class="focus-name">${s.name}</strong><span class="focus-state">${supportStateLabel(s,e).toUpperCase()}</span></div></div>`;}
+const flowDecisionState={};
+function decisionState(eventNumber){if(!flowDecisionState[eventNumber])flowDecisionState[eventNumber]={a:'',b:'',choice:'',status:'',when:'',scheduleOpen:false,completionStatus:''};return flowDecisionState[eventNumber];}
+const defaults={1:{a:''},2:{a:'',b:''},3:{choice:'',a:''},4:{a:'',b:''},5:{choice:'',a:''},6:{choice:'',a:''},7:{a:''},8:{a:''},9:{a:''}};
+function seedDecision(e){const d=decisionState(e.n),def=defaults[e.n]||{};if(!d.a&&def.a)d.a=def.a;if(!d.b&&def.b)d.b=def.b;if(!d.choice&&def.choice)d.choice=def.choice;return d;}
+function choiceButtons(items,current,key='decision-choice'){return `<div class="decision-options">${items.map(([id,label,cls=''])=>`<button class="choice ${cls} ${current===id?'on':''}" data-${key}="${id}" type="button">${label}</button>`).join('')}</div>`;}
+function questionSurface(e){
+  const d=seedDecision(e);const s=selectedSupport();
+  if(e.n===1){const choices=[['clear','clear one space'],['prepare','prepare something you need'],['outside','step outside'],['move','move for 10 minutes'],['reach','reach out to someone']];const status=d.status==='done'?'MOVE MADE':d.status==='scheduled'?`ON CALENDAR · ${d.when}`:d.status==='moving'?'IN MOTION':'';return `<div class="decision" id="decisionCard"><span class="decision-label">START SMALL</span><h3 class="decision-question">Pick one ten-minute reset.</h3>${choiceButtons(choices,d.choice)}<div class="decision-note">Small is the point. Start by giving yourself one quick piece of control.</div><div class="next-row"><button class="next-primary" data-next-primary type="button">${d.status==='moving'||d.status==='scheduled'?'Mark done':'Do today'}</button><button class="next-secondary" data-next-calendar type="button">Put on calendar</button>${d.status?'<button class="next-tertiary" data-next-reset type="button">reset</button>':''}</div>${status?`<div class="next-status${d.status==='scheduled'?' calendar':''}"><i></i><span>${status}</span></div>`:''}<div class="schedule-quick${d.scheduleOpen?' open':''}"><span class="schedule-label">CHOOSE A TIME</span><div class="schedule-choices">${['Later today','Tomorrow morning','Before sunset'].map(t=>`<button class="schedule-choice" data-time-choice="${t}" type="button">${t}</button>`).join('')}</div></div></div>`;}
+  const isPlan=[2,4,6,8].includes(e.n),isReview=[3,5,7,9].includes(e.n);
+  if(isPlan){if(!s)return '';const status=d.status==='done'?'MOVE MADE':d.status==='scheduled'?`ON CALENDAR · ${d.when}`:d.status==='moving'?'IN MOTION':'';return `<div class="decision" id="decisionCard"><span class="decision-label">ONE SMALL MOVE</span><h3 class="decision-question">What is one useful thing you can do that is fully in your hands?</h3><input class="decision-input" data-decision-a value="${d.a.replace(/"/g,'&quot;')}" placeholder="send one message · make one call · take one step · practice for 10 minutes"><div class="decision-note">Keep it small enough to finish before you return.</div><div class="next-row"><button class="next-primary" data-next-primary type="button">${d.status==='moving'||d.status==='scheduled'?'Mark done':'Do today'}</button><button class="next-secondary" data-next-calendar type="button">Put on calendar</button>${d.status?'<button class="next-tertiary" data-next-reset type="button">reset</button>':''}</div>${status?`<div class="next-status${d.status==='scheduled'?' calendar':''}"><i></i><span>${status}</span></div>`:''}<div class="schedule-quick${d.scheduleOpen?' open':''}"><span class="schedule-label">CHOOSE A TIME</span><div class="schedule-choices">${['Later today','Tomorrow','Before the next sitting'].map(t=>`<button class="schedule-choice" data-time-choice="${t}" type="button">${t}</button>`).join('')}</div></div></div>`;}
+  if(isReview){if(!s)return '';const plan=decisionState(e.n-1);const act=plan.a||'The move you chose last sitting';const helped=d.choice==='helped',noChange=d.choice==='no_change',missed=d.choice==='missed';const status=d.status==='done'?'BEAM CLOSED':d.status==='scheduled'?`ON CALENDAR · ${d.when}`:d.status==='moving'?'IN MOTION':'';return `<div class="decision" id="decisionCard"><span class="decision-label">THE MOVE</span><h3 class="decision-question">${act}</h3><div class="decision-note">What happened?</div>${choiceButtons([['helped','It helped'],['no_change','No change'],['missed',"I didn't do it",'ember']],d.choice)}${helped?`<h3 class="decision-question" style="margin-top:14px">What worked?</h3><input class="decision-input" data-decision-a value="${d.a.replace(/"/g,'&quot;')}" placeholder="the part worth repeating">`:''}${noChange?`<h3 class="decision-question" style="margin-top:14px">What did you learn?</h3><input class="decision-input" data-decision-a value="${d.a.replace(/"/g,'&quot;')}" placeholder="one thing you know now">`:''}${missed?`<h3 class="decision-question" style="margin-top:14px">What got in the way?</h3><input class="decision-input" data-decision-a value="${d.a.replace(/"/g,'&quot;')}" placeholder="the thing that blocked it"><h3 class="decision-question" style="margin-top:14px">Make the move smaller.</h3><input class="decision-input" data-decision-b value="${d.b.replace(/"/g,'&quot;')}" placeholder="a version you could do today">`:''}${d.choice?`<div class="next-row"><button class="next-primary" data-next-primary type="button">${missed?(d.status==='moving'||d.status==='scheduled'?'Mark done':'Do smaller today'):(d.status==='done'?'Beam closed':'Close this beam')}</button>${missed?'<button class="next-secondary" data-next-calendar type="button">Put smaller on calendar</button>':''}${d.status?'<button class="next-tertiary" data-next-reset type="button">reset</button>':''}</div>`:''}${status?`<div class="next-status${d.status==='scheduled'?' calendar':''}"><i></i><span>${status}</span></div>`:''}${missed?`<div class="schedule-quick${d.scheduleOpen?' open':''}"><span class="schedule-label">CHOOSE A TIME</span><div class="schedule-choices">${['Later today','Tomorrow','Before the next support'].map(t=>`<button class="schedule-choice" data-time-choice="${t}" type="button">${t}</button>`).join('')}</div></div>`:''}</div>`;}
+  return '';
+}
+function raiseSurface(e){if(e.n!==9)return '';const d=decisionState(9);if(!d.choice)return '';if(actionState(9).raised){return `<div class="raise-panel"><span class="decision-label">UPRIGHT</span><h3 class="decision-question">Four beams. Four attempts. One method you can use again.</h3><div class="decision-note">Find the part that is in your hands. Make one small move. Return and read the result.</div></div>`;}return `<div class="raise-panel" id="raisePanel"><span class="decision-label">THE RAISING</span><h3 class="decision-question">Stand. Raise the whole structure.</h3><button class="raise-button" id="raiseButton" type="button">Begin 30-second raising</button><div class="raise-time">Hold with the pillar · <strong id="raiseTime">30</strong>s</div></div>`;}
+
+let layeredPos=0,revealDistance=0,innerMax=0,layerDrag=null;
+let layeredAnimationFrame=0,layeredAnimationToken=0;
+
+function layeredEls(){
+  return {
+    stage:inner.querySelector('#layerStage'),
+    shell:inner.querySelector('#practiceShell'),
+    content:inner.querySelector('#practiceContent')
+  };
+}
+function measureLayeredScroll(){
+  const {stage,content}=layeredEls();if(!stage||!content)return;
+  const stageH=stage.clientHeight||470,peek=30;
+  revealDistance=Math.max(0,stageH-peek);
+  innerMax=Math.max(0,content.scrollHeight-stageH);
+  layeredPos=Math.min(layeredPos,revealDistance+innerMax);
+  applyLayeredScroll();
+}
+function applyLayeredScroll(){
+  const {stage,shell,content}=layeredEls();if(!stage||!shell||!content)return;
+  const reveal=Math.min(layeredPos,revealDistance);
+  const panelY=revealDistance-reveal;
+  const innerY=Math.max(0,layeredPos-revealDistance);
+  shell.style.transform=`translate3d(0,${panelY}px,0)`;
+  content.style.transform=`translate3d(0,${-innerY}px,0)`;
+  stage.dataset.phase=layeredPos<revealDistance?'reveal':'inner';
+}
+function setLayeredPos(next){
+  layeredPos=Math.max(0,Math.min(Number(next)||0,revealDistance+innerMax));
+  applyLayeredScroll();
+}
+function cancelLayeredAnimation(){
+  layeredAnimationToken++;
+  if(layeredAnimationFrame){cancelAnimationFrame(layeredAnimationFrame);layeredAnimationFrame=0;}
+}
+function easeLayered(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function animateLayeredPos(target,{duration=600,onDone}={}){
+  measureLayeredScroll();
+  target=Math.max(0,Math.min(Number(target)||0,revealDistance+innerMax));
+  const start=layeredPos,distance=Math.abs(target-start);
+  if(distance<1){setLayeredPos(target);onDone?.();return;}
+  cancelLayeredAnimation();const token=layeredAnimationToken,started=performance.now();
+  const scaled=Math.max(430,Math.min(820,duration+distance*.28));
+  const tick=now=>{
+    if(token!==layeredAnimationToken)return;
+    const t=Math.min(1,(now-started)/scaled);
+    setLayeredPos(start+(target-start)*easeLayered(t));
+    if(t<1)layeredAnimationFrame=requestAnimationFrame(tick);
+    else{layeredAnimationFrame=0;setLayeredPos(target);onDone?.();}
+  };
+  layeredAnimationFrame=requestAnimationFrame(tick);
+}
+function resetLayeredScroll(){
+  cancelLayeredAnimation();layeredPos=0;
+  requestAnimationFrame(()=>{measureLayeredScroll();setLayeredPos(0);});
+}
+function bindLayeredScroll(){
+  const {stage}=layeredEls();if(!stage)return;
+  stage.addEventListener('wheel',ev=>{
+    if(!sheet.classList.contains('open')||Math.abs(ev.deltaY)<.1)return;
+    ev.preventDefault();cancelLayeredAnimation();measureLayeredScroll();setLayeredPos(layeredPos+ev.deltaY);
+  },{passive:false});
+  stage.addEventListener('pointerdown',ev=>{
+    if(ev.button!==undefined&&ev.button!==0)return;
+    if(ev.target.closest('button,input,textarea,select,label'))return;
+    cancelLayeredAnimation();
+    layerDrag={id:ev.pointerId,y:ev.clientY,pos:layeredPos,moved:false};
+    try{stage.setPointerCapture(ev.pointerId)}catch(_){}
+  });
+  stage.addEventListener('pointermove',ev=>{
+    if(!layerDrag||layerDrag.id!==ev.pointerId)return;
+    const dy=layerDrag.y-ev.clientY;
+    if(Math.abs(dy)>3)layerDrag.moved=true;
+    if(!layerDrag.moved)return;
+    ev.preventDefault();measureLayeredScroll();setLayeredPos(layerDrag.pos+dy);
+  });
+  const finish=ev=>{
+    if(!layerDrag||layerDrag.id!==ev.pointerId)return;
+    try{stage.releasePointerCapture(ev.pointerId)}catch(_){}
+    layerDrag=null;
+  };
+  stage.addEventListener('pointerup',finish);stage.addEventListener('pointercancel',finish);
+}
+function renderOpenSheet(e){
+  inner.innerHTML=`<div class="sheet-chrome" id="sheetChrome"><div class="sheet-handle"></div><button class="sheet-close" type="button" aria-label="Close">×</button></div>
+  <div class="layer-stage" id="layerStage">
+    <div class="hero-layer" id="heroLayer">
+      <div class="modal-kicker">SITTING ${String(e.n).padStart(2,'0')} · DAY ${e.day} · ${e.phase}</div>
+      <h2 class="modal-title">${e.title}</h2>
+      <p class="modal-when">${e.when} · ${e.dur}</p>
+      <div class="modal-context"><strong>TODAY</strong>${e.context}</div>
+      ${pillarStage(e)}
+    </div>
+    <div class="practice-shell" id="practiceShell">
+      <div class="practice-content" id="practiceContent">
+        <div class="practice-layer">
+          ${focusCard(e)}
+          ${e.n===9?`${questionSurface(e)}${raiseSurface(e)}`:`${raiseSurface(e)}${questionSurface(e)}`}
+          <button class="source-toggle" type="button"><span>Why this belongs at the Djed</span><span>+</span></button>
+          <div class="source-body">${e.source}</div>
+          <div class="completion-panel" data-completion-panel>
+            <div class="completion-label">COMPLETION</div>
+            <div class="completion-row">
+              <button class="completion-chip ${decisionState(e.n).completionStatus==='Observed'?'active':''}" type="button" data-completion-status="Observed">Observed</button>
+              <button class="completion-chip ${decisionState(e.n).completionStatus==='Partly'?'active':''}" type="button" data-completion-status="Partly">Partly</button>
+              <button class="completion-chip ${decisionState(e.n).completionStatus==='Skipped'?'active':''}" type="button" data-completion-status="Skipped">Skipped</button>
+            </div>
+          </div>
+          <button class="modal-back" type="button">Back to Day View</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sheet-footer"><button class="footer-btn left" type="button" data-footer-todo>Make to-do</button><button class="footer-btn" type="button" data-footer-calendar>Calendar</button></div>`;
+
+  inner.querySelector('.sheet-close').onclick=closeModal;
+  inner.querySelector('.modal-back').onclick=closeModal;
+  inner.querySelector('.source-toggle').onclick=ev=>{
+    const b=inner.querySelector('.source-body'),open=b.classList.toggle('open');
+    ev.currentTarget.lastElementChild.textContent=open?'–':'+';
+    requestAnimationFrame(measureLayeredScroll);
+  };
+  inner.querySelector('[data-footer-todo]')?.addEventListener('click',()=>{});
+  inner.querySelector('[data-footer-calendar]')?.addEventListener('click',()=>{});
+  inner.querySelectorAll('[data-completion-status]').forEach(btn=>btn.addEventListener('click',ev2=>{
+    ev2.stopPropagation();
+    const d=decisionState(e.n),next=btn.dataset.completionStatus||'';
+    d.completionStatus=d.completionStatus===next?'':next;
+    renderOpenSheet(e);
+  }));
+
+  inner.querySelectorAll('[data-decision-choice]').forEach(btn=>btn.addEventListener('click',()=>{decisionState(e.n).choice=btn.dataset.decisionChoice;renderOpenSheet(e);}));
+  inner.querySelectorAll('[data-decision-a]').forEach(input=>input.addEventListener('input',()=>{decisionState(e.n).a=input.value;}));
+  inner.querySelectorAll('[data-decision-b]').forEach(input=>input.addEventListener('input',()=>{decisionState(e.n).b=input.value;}));
+  const nextPrimary=inner.querySelector('[data-next-primary]');
+  if(nextPrimary)nextPrimary.onclick=()=>{const d=decisionState(e.n);const isPlan=e.n===1||[2,4,6,8].includes(e.n);const isMissedReview=[3,5,7,9].includes(e.n)&&d.choice==='missed';if(isPlan||isMissedReview){d.status=(d.status==='moving'||d.status==='scheduled')?'done':'moving';}else{d.status='done';}d.scheduleOpen=false;renderOpenSheet(e);};
+  const nextCalendar=inner.querySelector('[data-next-calendar]');
+  if(nextCalendar)nextCalendar.onclick=()=>{const d=decisionState(e.n);d.scheduleOpen=!d.scheduleOpen;renderOpenSheet(e);};
+  inner.querySelectorAll('[data-time-choice]').forEach(btn=>btn.addEventListener('click',()=>{const d=decisionState(e.n);d.when=btn.dataset.timeChoice;d.status='scheduled';d.scheduleOpen=false;renderOpenSheet(e);}));
+  const reset=inner.querySelector('[data-next-reset]');
+  if(reset)reset.onclick=()=>{const keepChoice=decisionState(e.n).choice;flowDecisionState[e.n]={a:'',b:'',choice:keepChoice,status:'',when:'',scheduleOpen:false,completionStatus:''};renderOpenSheet(e);};
+  const raiseButton=inner.querySelector('#raiseButton');
+  if(raiseButton)raiseButton.onclick=()=>{const stage=inner.querySelector('#djedStage'),livePillar=inner.querySelector('.pillar-live'),time=inner.querySelector('#raiseTime');if(!stage||!livePillar||!time)return;clearInterval(raisingTimer);stage.classList.add('raise-running');requestAnimationFrame(()=>{livePillar.style.transform='rotate(0deg)'});let remaining=30;raiseButton.disabled=true;raiseButton.textContent='Raising…';raisingTimer=setInterval(()=>{remaining-=1;time.textContent=String(Math.max(0,remaining));if(remaining<=0){clearInterval(raisingTimer);raisingTimer=null;actionState(9).raised=true;setTimeout(()=>renderOpenSheet(e),420);}},1000);};
+
+  bindLayeredScroll();
+  requestAnimationFrame(()=>{measureLayeredScroll();applyLayeredScroll();});
+}
+function openEvent(n){const e=events.find(x=>x.n===Number(n));if(!e)return;const supportBySitting={2:0,3:0,4:1,5:1,6:2,7:2,8:3,9:3};selectedSheetSupport=e.n===1?-1:supportBySitting[e.n];layeredPos=0;renderOpenSheet(e);scrim.classList.add('open');sheet.classList.add('open');sheet.setAttribute('aria-hidden','false');resetLayeredScroll();}
+function closeModal(){clearInterval(raisingTimer);raisingTimer=null;scrim.classList.remove('open');sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');}
+function eventSupportIndex(e){return e.n===1?-1:({2:0,3:0,4:1,5:1,6:2,7:2,8:3,9:3}[e.n]??-1);}
+function eventSupportOrdinal(e){const i=eventSupportIndex(e);return i<0?'':`${['First','Second','Third','Fourth'][i]} of four`;}
+function eventSupportName(e){
+  const i=eventSupportIndex(e);
+  if(i<0)return 'name the four parts that need strengthening';
+  const s=supportFixtures.find(x=>x.i===i);
+  return s?.name||`support ${String(i+1).padStart(2,'0')}`;
+}
+function eventProgressBars(e){
+  const i=eventSupportIndex(e);
+  return [0,1,2,3].map(j=>`<i class="${i<0?'':j<i?'on':j===i?'now':''}"></i>`).join('');
+}
+function miniDjedSvg(e){
+  const angle=e.n===9?0:(sheetAngles[e.n]??-42);
+  const id=`ev${e.n}`;
+  return `<svg viewBox="0 0 70 74" aria-hidden="true">
+    <defs>
+      <linearGradient id="${id}-shaft" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7A4418"/><stop offset=".38" stop-color="#E9A253"/><stop offset=".68" stop-color="#B4682C"/><stop offset="1" stop-color="#4E2A10"/></linearGradient>
+      <linearGradient id="${id}-barLit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBDCA4"/><stop offset=".5" stop-color="#E0873C"/><stop offset="1" stop-color="#8A4418"/></linearGradient>
+      <radialGradient id="${id}-glow2" cx="50%" cy="44%" r="56%"><stop offset="0" stop-color="#F5B963" stop-opacity=".40"/><stop offset="1" stop-color="#E0873C" stop-opacity="0"/></radialGradient>
+    </defs>
+    <ellipse class="emberglow" cx="35" cy="38" rx="36" ry="36" fill="url(#${id}-glow2)"/>
+    <g transform="translate(35 62) rotate(${angle}) scale(.42)">
+      <rect x="-30" y="86" width="60" height="12" rx="5" fill="url(#${id}-shaft)"/>
+      <rect x="-8" y="-6" width="16" height="94" rx="7" fill="url(#${id}-shaft)"/>
+      <rect x="-40" y="-64" width="80" height="12" rx="6" fill="url(#${id}-barLit)"/>
+      <rect x="-40" y="-48" width="80" height="12" rx="6" fill="url(#${id}-barLit)"/>
+      <rect x="-40" y="-32" width="80" height="12" rx="6" fill="url(#${id}-barLit)"/>
+      <rect x="-40" y="-16" width="80" height="12" rx="6" fill="url(#${id}-barLit)"/>
+      <rect x="-24" y="-78" width="48" height="10" rx="5" fill="url(#${id}-shaft)"/>
+    </g>
+  </svg>`;
+}
+function blockHTML(e){
+  const i=eventSupportIndex(e),phase=i<0?'ORIENTATION':`SUPPORT ${String(i+1).padStart(2,'0')}`;
+  const said=e.n===1?'Name the structure':e.title==='Read the result'?'Return and read it':'One small thing today';
+  return `<button class="djed-calendar-block" id="djedBlock" type="button">
+    <span class="kicker">The Djed · ${phase}</span>
+    <span class="title">${e.title}</span>
+    <span class="support">${eventSupportName(e)}</span>
+    <span class="foot">
+      <span class="pips">${eventProgressBars(e)}</span>
+      <span class="said">${said}</span>
+      <span class="of">${i<0?'Find your footing':eventSupportOrdinal(e)}</span>
+    </span>
+    <span class="djed-obj" aria-hidden="true">${miniDjedSvg(e)}</span>
+  </button>`;
+}
+function updateFixture(n){
+  currentEvent=events.find(e=>e.n===Number(n))||events[0];
+  document.querySelectorAll('.fixture-btn').forEach(b=>b.classList.toggle('on',Number(b.dataset.n)===currentEvent.n));
+  blockMount.innerHTML=blockHTML(currentEvent);
+  document.getElementById('djedBlock').onclick=()=>openEvent(currentEvent.n);
+  if(sheet.classList.contains('open'))openEvent(currentEvent.n);
+}
+document.getElementById('fixtureButtons').innerHTML=events.map(e=>`<button class="fixture-btn" data-n="${e.n}" type="button">${e.n}</button>`).join('');document.querySelectorAll('.fixture-btn').forEach(btn=>btn.onclick=()=>updateFixture(btn.dataset.n));scrim.addEventListener('click',closeModal);updateFixture(4);
+window.addEventListener('resize',()=>requestAnimationFrame(measureLayeredScroll));
+</script>
+</body>
+</html>

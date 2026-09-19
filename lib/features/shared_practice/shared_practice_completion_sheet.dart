@@ -27,10 +27,8 @@ Future<bool> showSharedPracticeCompletionSheet({
   final status = initialStatus == CompletionStatus.none
       ? CompletionStatus.observed
       : initialStatus;
-  final result = await showModalBottomSheet<bool>(
+  final result = await showEditableModalBottomSheet<bool>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (sheetContext) => SharedPracticeCompletionSheet(
       roomId: roomId,
@@ -127,8 +125,7 @@ class _SharedPracticeCompletionSheetState
   Widget build(BuildContext context) {
     final title = widget.stepTitle?.trim();
     final media = MediaQuery.of(context);
-    return Padding(
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+    return KeyboardAwareEditableSurface(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
         child: DecoratedBox(
@@ -232,7 +229,6 @@ class _SharedPracticeCompletionSheetState
                   TextField(
                     controller: _noteController,
                     enabled: !_saving,
-                    scrollPadding: keyboardManagedTextFieldScrollPadding,
                     minLines: 3,
                     maxLines: 5,
                     style: const TextStyle(

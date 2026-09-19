@@ -36,7 +36,7 @@ void main() {
       final saveNote = _sourceBetween(
         dialog,
         'Future<void> saveNote()',
-        'const fieldScrollPadding =',
+        'return Dialog(',
       );
       expect(saveNote, contains('_saveSingleNoteOnly'));
       expect(saveNote, contains('selYear: selYear'));

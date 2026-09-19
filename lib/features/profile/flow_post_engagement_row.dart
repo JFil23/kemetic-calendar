@@ -389,10 +389,9 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
       return;
     }
 
-    await showModalBottomSheet<void>(
+    await showEditableModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF0D0D0F),
-      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -1082,12 +1081,9 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final keyboardInset = media.viewInsets.bottom;
-    final heightFactor = keyboardInset > 0 ? 0.72 : 0.46;
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardInset),
+    return KeyboardAwareEditableSurface(
       child: SizedBox(
-        height: media.size.height * heightFactor,
+        height: media.size.height * 0.46,
         child: SafeArea(
           top: false,
           child: SizedBox.expand(
@@ -1471,7 +1467,6 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                 focusNode: _commentFocusNode,
                 maxLines: 3,
                 maxLength: 150,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: replyTarget == null

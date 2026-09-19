@@ -1,13 +1,31 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
-import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_contract.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_state.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_v8_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../support/maat_flow_visual_test_fonts.dart';
+
+const _allDaySheetCaptureKey = ValueKey<String>(
+  'offering-table-all-day-sheet-capture',
+);
+const _captureAllDaySheets = bool.fromEnvironment(
+  'CAPTURE_OFFERING_TABLE_ALL_DAY_SHEETS',
+);
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -24,8 +42,21 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    const appLinksMessages = MethodChannel('com.llfbandit.app_links/messages');
+    const appLinksEvents = MethodChannel('com.llfbandit.app_links/events');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(appLinksMessages, (_) async => null);
+    messenger.setMockMethodCallHandler(appLinksEvents, (_) async {
+      scheduleMicrotask(
+        () =>
+            messenger.handlePlatformMessage(appLinksEvents.name, null, (_) {}),
+      );
+      return null;
+    });
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await _ensureSupabaseInitialized();
+    await loadMaatFlowVisualTestFonts();
   });
 
   setUp(() {
@@ -34,47 +65,49 @@ void main() {
   });
   tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
 
-  testWidgets(
-    'Offering block uses authored prompt while detail retains private need',
-    (tester) async {
-      final day = kOfferingTableDays[2];
-      await _pumpDayView(
-        tester,
-        flowId: 71,
-        day: day,
-        initialIntention: 'Protect my sleep.',
-      );
+  testWidgets('Offering block omits prompt while detail retains private need', (
+    tester,
+  ) async {
+    final day = kOfferingTableDays[2];
+    await _pumpDayView(
+      tester,
+      flowId: 71,
+      day: day,
+      initialIntention: 'Protect my sleep.',
+    );
 
-      expect(find.text('THE OFFERING TABLE · DAY 03'), findsOneWidget);
-      expect(find.text(day.title), findsWidgets);
-      expect(find.text('“eat before the day starts”'), findsOneWidget);
-      expect(find.textContaining('Protect my sleep.'), findsNothing);
-      final block = tester.widget<OfferingTableEventBlockVisual>(
-        find.byType(OfferingTableEventBlockVisual),
-      );
-      expect(block.prompt, day.eventBlockPrompt);
-      expect(block.stage, OfferingTableBlockStage.personal);
-      expect(block.resolvedVisualState, OfferingTableBlockVisualState.named);
-      expect(
-        tester.getSize(find.byType(OfferingTableCupVisual)),
-        const Size(48, 50),
-      );
+    expect(find.text('THE OFFERING TABLE · DAY 03'), findsOneWidget);
+    expect(find.text(day.title), findsWidgets);
+    expect(find.text('“put real food within reach”'), findsNothing);
+    expect(find.textContaining('Protect my sleep.'), findsNothing);
+    final blockFinder = find.byType(OfferingTableEventBlockVisual);
+    expect(
+      find.descendant(of: blockFinder, matching: find.text('7:30 AM')),
+      findsNothing,
+    );
+    final block = tester.widget<OfferingTableEventBlockVisual>(blockFinder);
+    expect(block.stage, OfferingTableBlockStage.personal);
+    expect(block.resolvedVisualState, OfferingTableBlockVisualState.named);
+    expect(
+      tester.getSize(find.byType(OfferingTableCupVisual)),
+      const Size(48, 45),
+    );
+    expect(block.height, 60);
 
-      await tester.tap(find.byType(OfferingTableEventBlockVisual));
-      await tester.pumpAndSettle();
+    await tester.tap(blockFinder);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Protect my sleep.'), findsWidgets);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.text('Protect my sleep.'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
 
-  testWidgets('Offering block remains authored when no private need exists', (
+  testWidgets('Offering block omits prompt when no private need exists', (
     tester,
   ) async {
     await _pumpDayView(tester, flowId: 72);
 
     expect(find.text(kOfferingTableDays.first.title), findsWidgets);
-    expect(find.text('“name what needs to be fed”'), findsOneWidget);
+    expect(find.text('“check one thing before it runs out”'), findsNothing);
     expect(find.textContaining('No need was named'), findsNothing);
     final block = tester.widget<OfferingTableEventBlockVisual>(
       find.byType(OfferingTableEventBlockVisual),
@@ -83,42 +116,240 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('each Offering event edits and restores only its own intention', (
+  testWidgets(
+    'incomplete Offering identity cannot select instrument chrome without instrument content',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: const Scaffold(
+            body: DayViewGrid(
+              ky: 1,
+              km: 1,
+              kd: 1,
+              notes: <NoteData>[
+                NoteData(
+                  clientEventId: 'incomplete-offering-event',
+                  title: 'The Offering Table · Day 01 · The Small Supply',
+                  allDay: false,
+                  start: TimeOfDay(hour: 7, minute: 30),
+                  end: TimeOfDay(hour: 8, minute: 30),
+                  behaviorPayload: <String, dynamic>{
+                    'kind': 'maat_offering_table_day',
+                    'flow_key': kOfferingTableFlowKey,
+                    'day': 1,
+                  },
+                ),
+              ],
+              showGregorian: false,
+              flowIndex: <int, FlowData>{},
+              initialScrollOffset: 360,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(OfferingTableEventBlockVisual), findsOneWidget);
+
+      await tester.tap(find.byType(OfferingTableEventBlockVisual));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-resizable-sheet')),
+        findsNothing,
+      );
+      expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
+      expect(find.byType(CalendarEventDetailSheet), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a user-created lookalike name cannot enter canonical Ma\'at housing',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: const Scaffold(
+            body: DayViewGrid(
+              ky: 1,
+              km: 1,
+              kd: 1,
+              notes: <NoteData>[
+                NoteData(
+                  clientEventId: 'user-created-offering-lookalike',
+                  title: 'The Offering Table · Day 01 · The Small Supply',
+                  allDay: false,
+                  start: TimeOfDay(hour: 7, minute: 30),
+                  end: TimeOfDay(hour: 8, minute: 30),
+                  flowId: 9010,
+                ),
+              ],
+              showGregorian: false,
+              flowIndex: <int, FlowData>{
+                9010: FlowData(
+                  id: 9010,
+                  name: 'The Offering Table',
+                  color: Color(0xFFC99A3D),
+                  active: true,
+                  notes: 'mode=gregorian;custom_flow=1',
+                ),
+              },
+              activeLedgerFlowIds: <int>{9010},
+              initialScrollOffset: 360,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(OfferingTableEventBlockVisual));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-resizable-sheet')),
+        findsNothing,
+      );
+      expect(find.byType(OfferingTableDayV8Presentation), findsNothing);
+      expect(find.byType(CalendarEventDetailSheet), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Offering block uses the standard lane alone and when overlapping',
+    (tester) async {
+      await _pumpDayView(tester, flowId: 73);
+
+      var blockRect = tester.getRect(
+        find.byType(OfferingTableEventBlockVisual),
+      );
+      var block = tester.widget<OfferingTableEventBlockVisual>(
+        find.byType(OfferingTableEventBlockVisual),
+      );
+      expect(blockRect.left, closeTo(60, .1));
+      expect(block.width, closeTo(251.2, .1));
+      expect(blockRect.width, closeTo(255.2, .1));
+      expect(block.height, 60);
+      expect(blockRect.height, 62);
+
+      await _pumpDayView(
+        tester,
+        flowId: 73,
+        additionalNotes: const <NoteData>[
+          NoteData(
+            clientEventId: 'ordinary-overlap',
+            title: 'Ordinary overlap',
+            allDay: false,
+            start: TimeOfDay(hour: 7, minute: 45),
+            end: TimeOfDay(hour: 8, minute: 45),
+            manualColor: Color(0xFF62C18C),
+          ),
+        ],
+      );
+
+      blockRect = tester.getRect(find.byType(OfferingTableEventBlockVisual));
+      block = tester.widget<OfferingTableEventBlockVisual>(
+        find.byType(OfferingTableEventBlockVisual),
+      );
+      expect(blockRect.left, closeTo(60, .1));
+      expect(block.width, closeTo(155, .1));
+      expect(blockRect.width, closeTo(159, .1));
+      expect(block.height, 60);
+      expect(blockRect.height, 62);
+      expect(find.text('Ordinary overlap'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'each Offering event edits and restores only its Day View state',
+    (tester) async {
+      const flowId = 75;
+      const store = OfferingTableLocalStore();
+      await store.saveIntention(flowId, 1, 'Protect my sleep.');
+      final dayTwo = kOfferingTableDays[1];
+
+      await _pumpDayView(tester, flowId: flowId, day: dayTwo);
+      await tester.tap(find.byType(OfferingTableEventBlockVisual));
+      await tester.pumpAndSettle();
+
+      final field = find.byKey(
+        const ValueKey<String>('offering-table-field-input'),
+      );
+      expect(tester.widget<TextField>(field).controller?.text, isEmpty);
+      expect(find.text('What matters to me.'), findsNothing);
+      expect(
+        find.text('No need was named when this table was carried.'),
+        findsNothing,
+      );
+
+      await tester.enterText(field, 'Call my mother.');
+      await tester.pump(const Duration(milliseconds: 400));
+      final saved = OfferingTableDayViewState.fromJson(
+        await store.loadDayViewState(flowId, 2),
+      );
+      expect(saved.words['input'], 'Call my mother.');
+
+      await tester.tapAt(const Offset(195, 100));
+      await tester.pumpAndSettle();
+      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
+
+      await _pumpDayView(tester, flowId: flowId, day: dayTwo);
+      await tester.tap(find.byType(OfferingTableEventBlockVisual));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(field).controller?.text,
+        'Call my mother.',
+      );
+      expect(await store.loadIntention(flowId, 1), 'Protect my sleep.');
+      expect(await store.loadDayViewState(flowId, 3), isEmpty);
+    },
+  );
+
+  testWidgets('Day 30 fields clear the keyboard in the real Day View sheet', (
     tester,
   ) async {
-    const flowId = 75;
-    const store = OfferingTableLocalStore();
-    await store.saveIntention(flowId, 1, 'Protect my sleep.');
-    final dayTwo = kOfferingTableDays[1];
-
-    await _pumpDayView(tester, flowId: flowId, day: dayTwo);
+    await _pumpDayView(tester, flowId: 76, day: kOfferingTableDays[29]);
     await tester.tap(find.byType(OfferingTableEventBlockVisual));
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
+      const Offset(0, -320),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('offering-table-day-30-move-shortfall'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     final field = find.byKey(
-      const ValueKey<String>('offering-table-intention-field'),
+      const ValueKey<String>('offering-table-field-shortfall'),
     );
-    expect(tester.widget<TextField>(field).controller?.text, isEmpty);
-    expect(find.text('What matters to me.'), findsNothing);
-    expect(
-      find.text('No need was named when this table was carried.'),
-      findsNothing,
-    );
-
-    await tester.enterText(field, 'Call my mother.');
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(await store.loadIntention(flowId, 2), 'Call my mother.');
-
-    await tester.tapAt(const Offset(195, 100));
+    expect(tester.widget<TextField>(field).focusNode?.hasFocus, isTrue);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
     await tester.pumpAndSettle();
-    expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
 
-    await _pumpDayView(tester, flowId: flowId, day: dayTwo);
-    await tester.tap(find.byType(OfferingTableEventBlockVisual));
-    await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(field).controller?.text, 'Call my mother.');
-    expect(await store.loadIntention(flowId, 1), 'Protect my sleep.');
-    expect(await store.loadIntention(flowId, 3), isEmpty);
+    expect(find.byKey(editableModalSystemInsetOwnerKey), findsOneWidget);
+    expect(MediaQuery.viewInsetsOf(tester.element(field)).bottom, 0);
+    expect(tester.getRect(field).bottom, lessThanOrEqualTo(544));
+    expect(tester.testTextInput.isVisible, isTrue);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -143,18 +374,15 @@ void main() {
         height: 56,
         dayNumber: 23,
         title: 'The River Unblocked',
-        prompt: 'move one delayed thing downstream',
         isPreview: true,
       );
 
       expect(find.text('THE OFFERING TABLE · DAY 23'), findsOneWidget);
       expect(find.text('The River Unblocked'), findsOneWidget);
-      expect(find.text('“move one delayed thing downstream”'), findsOneWidget);
-      final promptText = tester.widget<Text>(
+      expect(
         find.byKey(const ValueKey<String>('offering-table-block-teaser')),
+        findsNothing,
       );
-      expect(promptText.maxLines, 1);
-      expect(promptText.overflow, TextOverflow.ellipsis);
       expect(
         tester.getSize(find.byType(OfferingTableCupVisual)),
         const Size(48, 50),
@@ -163,7 +391,7 @@ void main() {
         find.byType(OfferingTableEventBlockVisual),
       );
       expect(preview.isPreview, isTrue);
-      expect(preview.dashedBorder, isTrue);
+      expect(preview.dayViewFace, isFalse);
       expect(preview.stage, OfferingTableBlockStage.flowing);
       expect(tester.takeException(), isNull);
 
@@ -173,7 +401,6 @@ void main() {
         height: 74,
         dayNumber: 14,
         title: 'The Waiting Bowl',
-        prompt: 'refill what has been waiting',
         visualState: OfferingTableBlockVisualState.received,
       );
 
@@ -193,74 +420,16 @@ void main() {
     },
   );
 
-  test('ripple eligibility is today only, independent of event time', () {
-    final beforeEvent = DateTime(2026, 8, 29, 6, 0);
-    final afterEvent = DateTime(2026, 8, 29, 22, 0);
-    final today = KemeticMath.fromGregorian(beforeEvent);
-    final yesterday = KemeticMath.fromGregorian(
-      beforeEvent.subtract(const Duration(days: 1)),
-    );
-    final tomorrow = KemeticMath.fromGregorian(
-      beforeEvent.add(const Duration(days: 1)),
-    );
-
-    bool isToday({
-      required int ky,
-      required int km,
-      required int kd,
-      required DateTime now,
-    }) => offeringTableEventIsToday(ky: ky, km: km, kd: kd, now: now);
-
-    expect(
-      isToday(
-        ky: today.kYear,
-        km: today.kMonth,
-        kd: today.kDay,
-        now: beforeEvent,
-      ),
-      isTrue,
-    );
-    expect(
-      isToday(
-        ky: today.kYear,
-        km: today.kMonth,
-        kd: today.kDay,
-        now: afterEvent,
-      ),
-      isTrue,
-    );
-    expect(
-      isToday(
-        ky: yesterday.kYear,
-        km: yesterday.kMonth,
-        kd: yesterday.kDay,
-        now: beforeEvent,
-      ),
-      isFalse,
-    );
-    expect(
-      isToday(
-        ky: tomorrow.kYear,
-        km: tomorrow.kMonth,
-        kd: tomorrow.kDay,
-        now: beforeEvent,
-      ),
-      isFalse,
-    );
-    expect(kOfferingTableRippleCycle, const Duration(milliseconds: 5400));
-    expect(
-      kOfferingTableRipplePhaseSeparation,
-      const Duration(milliseconds: 1800),
-    );
-  });
-
-  testWidgets('Day View marks today true and past or future false', (
+  testWidgets('Day View animates only today\'s Offering occurrence', (
     tester,
   ) async {
-    final now = DateTime.now();
+    final now = DateTime(2026, 8, 29, 8);
     final today = KemeticMath.fromGregorian(now);
     final past = KemeticMath.fromGregorian(
       now.subtract(const Duration(days: 3)),
+    );
+    final tomorrow = KemeticMath.fromGregorian(
+      now.add(const Duration(days: 1)),
     );
     final future = KemeticMath.fromGregorian(now.add(const Duration(days: 3)));
 
@@ -268,8 +437,9 @@ void main() {
       required int ky,
       required int km,
       required int kd,
+      required DateTime clock,
     }) async {
-      await _pumpRippleDayView(tester, ky: ky, km: km, kd: kd);
+      await _pumpRippleDayView(tester, ky: ky, km: km, kd: kd, clock: clock);
       return tester
           .widget<OfferingTableEventBlockVisual>(
             find.byType(OfferingTableEventBlockVisual),
@@ -278,16 +448,105 @@ void main() {
     }
 
     expect(
-      await render(ky: today.kYear, km: today.kMonth, kd: today.kDay),
+      await render(
+        ky: today.kYear,
+        km: today.kMonth,
+        kd: today.kDay,
+        clock: now,
+      ),
+      isTrue,
+    );
+    final liveRipple = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<OfferingTableRipplePainter>()
+        .single;
+    expect(liveRipple.phase, isNotNull);
+    final livePhase = liveRipple.phase;
+    final rippleBoundary = find.byKey(
+      const ValueKey<String>('offering-table-cup-ripple-boundary'),
+    );
+    final firstFrame = await _captureRenderedFrame(tester, rippleBoundary);
+    await tester.pump(const Duration(milliseconds: 300));
+    final advancedRipple = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<OfferingTableRipplePainter>()
+        .single;
+    expect(advancedRipple.phase, isNot(livePhase));
+    final advancedFrame = await _captureRenderedFrame(tester, rippleBoundary);
+    expect(
+      advancedFrame,
+      isNot(orderedEquals(firstFrame)),
+      reason: 'The upcoming Offering card must visibly change between frames.',
+    );
+    expect(
+      await render(
+        ky: today.kYear,
+        km: today.kMonth,
+        kd: today.kDay,
+        clock: now,
+      ),
+      isTrue,
+      reason: 'Today\'s card keeps its loop after the 7:30 AM scheduled time.',
+    );
+    expect(
+      await render(
+        ky: tomorrow.kYear,
+        km: tomorrow.kMonth,
+        kd: tomorrow.kDay,
+        clock: DateTime(2026, 8, 29, 8),
+      ),
+      isFalse,
+    );
+    expect(
+      await render(ky: past.kYear, km: past.kMonth, kd: past.kDay, clock: now),
+      isFalse,
+    );
+    expect(
+      await render(
+        ky: future.kYear,
+        km: future.kMonth,
+        kd: future.kDay,
+        clock: now,
+      ),
+      isFalse,
+    );
+    expect(kOfferingTableRippleCycle, const Duration(milliseconds: 5400));
+    expect(
+      kOfferingTableRipplePhaseSeparation,
+      const Duration(milliseconds: 1800),
+    );
+
+    final justBeforeMidnight = DateTime(2026, 8, 29, 23, 59, 59);
+    final midnight = DateTime(2026, 8, 30);
+    expect(
+      await render(
+        ky: today.kYear,
+        km: today.kMonth,
+        kd: today.kDay,
+        clock: justBeforeMidnight,
+      ),
       isTrue,
     );
     expect(
-      await render(ky: past.kYear, km: past.kMonth, kd: past.kDay),
+      await render(
+        ky: today.kYear,
+        km: today.kMonth,
+        kd: today.kDay,
+        clock: midnight,
+      ),
       isFalse,
     );
     expect(
-      await render(ky: future.kYear, km: future.kMonth, kd: future.kDay),
-      isFalse,
+      await render(
+        ky: tomorrow.kYear,
+        km: tomorrow.kMonth,
+        kd: tomorrow.kDay,
+        clock: midnight,
+      ),
+      isTrue,
+      reason: 'At local midnight the next Kemetic day owns the loop.',
     );
   });
 
@@ -305,7 +564,6 @@ void main() {
         height: 58,
         dayNumber: 3,
         title: 'Bread Enough',
-        prompt: 'eat before the day starts',
         visualState: state,
         animateRipple: animateRipple,
         mediaQueryData: mediaQueryData,
@@ -319,51 +577,59 @@ void main() {
 
     final animated = await pumpState(OfferingTableBlockVisualState.named);
     expect(animated.visible, isTrue);
-    expect(animated.animation, isA<AnimationController>());
-    final controller = animated.animation!;
-    final initialValue = controller.value;
+    expect(animated.phase, isNotNull);
+    final initialValue = animated.phase;
     await tester.pump(const Duration(milliseconds: 300));
-    expect(controller.value, isNot(initialValue));
+    final advanced = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<OfferingTableRipplePainter>()
+        .single;
+    expect(advanced.phase, isNot(initialValue));
 
     final empty = await pumpState(OfferingTableBlockVisualState.empty);
     expect(empty.visible, isFalse);
-    expect(empty.animation, isNull);
+    expect(empty.phase, isNull);
 
     final received = await pumpState(OfferingTableBlockVisualState.received);
     expect(received.visible, isFalse);
-    expect(received.animation, isNull);
+    expect(received.phase, isNull);
 
     final reducedMotion = await pumpState(
       OfferingTableBlockVisualState.named,
       mediaQueryData: const MediaQueryData(disableAnimations: true),
     );
     expect(reducedMotion.visible, isTrue);
-    expect(reducedMotion.animation, isNull);
+    expect(reducedMotion.phase, isNull);
 
     final pastOrFuture = await pumpState(
       OfferingTableBlockVisualState.named,
       animateRipple: false,
     );
     expect(pastOrFuture.visible, isTrue);
-    expect(pastOrFuture.animation, isNull);
+    expect(pastOrFuture.phase, isNull);
   });
 
   test('ripple frames match the approved pulse envelope', () {
     final start = offeringTableRippleFrameForPhase(0);
     final peak = offeringTableRippleFrameForPhase(0.18);
     final middle = offeringTableRippleFrameForPhase(0.5);
+    final halfRise = offeringTableRippleFrameForPhase(0.09);
+    final halfFall = offeringTableRippleFrameForPhase(0.59);
     final end = offeringTableRippleFrameForPhase(1);
 
     expect(start.scale, closeTo(0.3, 0.0001));
     expect(start.opacity, closeTo(0, 0.0001));
     expect(peak.opacity, closeTo(0.6, 0.0001));
+    expect(halfRise.opacity, closeTo(0.3, 0.0001));
+    expect(halfFall.opacity, closeTo(0.3, 0.0001));
     expect(middle.scale, greaterThan(peak.scale));
     expect(middle.opacity, lessThan(peak.opacity));
     expect(end.scale, closeTo(1, 0.0001));
     expect(end.opacity, closeTo(0, 0.0001));
   });
 
-  testWidgets('Day View renders the canonical closing water checkbox', (
+  testWidgets('Day View preserves the exact authored checklist', (
     tester,
   ) async {
     final day = kOfferingTableDays[2];
@@ -377,50 +643,443 @@ void main() {
     await tester.tap(find.byType(OfferingTableEventBlockVisual));
     await tester.pumpAndSettle();
 
-    expect(find.text('4 steps'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-day-03-step-4')),
-      findsOneWidget,
-    );
-    expect(find.text('Drink water.'), findsOneWidget);
-  });
-
-  testWidgets('Day View Reflect writes through the shared Journal authority', (
-    tester,
-  ) async {
-    final blocks = <MaatJournalResponseBlock>[];
-    await _pumpDayView(
-      tester,
-      flowId: 73,
-      initialIntention: 'Protect my sleep.',
-      onWriteJournalResponse: (block) async => blocks.add(block),
-    );
-
-    await tester.tap(find.byType(OfferingTableEventBlockVisual));
-    await tester.pumpAndSettle();
     await tester.drag(
-      find.byKey(const ValueKey<String>('offering-table-presentation-body')),
-      const Offset(0, -1200),
+      find.byKey(const ValueKey<String>('follow-sky-sheet-resize-handle')),
+      const Offset(0, -320),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Reflect'));
-    await tester.pumpAndSettle();
 
-    final field = find.byKey(
-      const ValueKey<String>('offering-table-reflection-field'),
+    expect(find.text('2 steps'), findsNothing);
+    final placeMove = find.byKey(
+      const ValueKey<String>('offering-table-day-03-move-place'),
     );
-    await tester.ensureVisible(field);
-    await tester.enterText(field, 'I made room for rest before work.');
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pumpAndSettle();
+    expect(placeMove, findsOneWidget);
+    expect(find.text('Drink water.'), findsNothing);
 
-    expect(blocks, hasLength(1));
-    expect(blocks.single.text, 'I made room for rest before work.');
+    await tester.tap(placeMove);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    final persisted = await const OfferingTableLocalStore().loadDayViewState(
+      74,
+      day.dayNumber,
+    );
     expect(
-      blocks.single.sourceId,
-      'maat_response:the-offering-table:cid:offering-table-event-73:offering-table-reflection',
+      (persisted['actions'] as Map<String, dynamic>)['place'],
+      isTrue,
+      reason: 'the exposed fixed checklist remains interactive',
     );
   });
+
+  testWidgets(
+    'all thirty Day View graphic checklists stay fixed while the foreground moves',
+    (tester) async {
+      // Authority: the approved Offering Table Day View interaction and the
+      // pre-v8 Day 1 behavior define the painted instrument and its interactive
+      // checklist as one fixed hero composition. Only the foreground practice
+      // layer scrolls. Outer-host resizing is a separate operation.
+      for (final contract in kOfferingTableDayViewContracts) {
+        CalendarEventDetailSheetCoordinator.debugResetForTests();
+        final flowId = 1200 + contract.day;
+        final restored = _completedState(contract);
+        await _pumpDayView(
+          tester,
+          flowId: flowId,
+          day: kOfferingTableDays[contract.day - 1],
+          initialDayState: restored,
+        );
+        await tester.tap(find.byType(OfferingTableEventBlockVisual));
+        await tester.pumpAndSettle();
+
+        final outerSheet = find.byKey(
+          const ValueKey<String>('offering-table-resizable-sheet'),
+        );
+        final fixedHero = find.byKey(
+          const ValueKey<String>('offering-table-fixed-hero'),
+        );
+        final instrument = find.byKey(
+          ValueKey<String>(
+            'offering-table-day-${contract.day.toString().padLeft(2, '0')}-instrument',
+          ),
+        );
+        final lowerSheet = find.byKey(
+          const ValueKey<String>('offering-table-layered-practice-sheet'),
+        );
+        final moveFinders = <OfferingTableMoveContract, Finder>{
+          for (final move in contract.moves)
+            move: find.byKey(
+              ValueKey<String>(
+                'offering-table-day-${contract.day.toString().padLeft(2, '0')}-move-${move.id}',
+              ),
+            ),
+        };
+
+        final outerBefore = tester.getRect(outerSheet);
+        final heroBefore = tester.getRect(fixedHero);
+        final instrumentBefore = tester.getRect(instrument);
+        final movesBefore = <OfferingTableMoveContract, Rect>{
+          for (final entry in moveFinders.entries)
+            entry.key: tester.getRect(entry.value),
+        };
+        final lowerBefore = tester.getRect(lowerSheet);
+
+        await tester.dragFrom(
+          Offset(outerBefore.center.dx, lowerBefore.top + 12),
+          const Offset(0, -220),
+        );
+        await tester.pumpAndSettle();
+
+        final outerRaised = tester.getRect(outerSheet);
+        final lowerRaised = tester.getRect(lowerSheet);
+        _expectRectClose(
+          outerRaised,
+          outerBefore,
+          reason: 'day ${contract.day} outer host stays fixed',
+        );
+        _expectRectClose(
+          tester.getRect(fixedHero),
+          heroBefore,
+          reason: 'day ${contract.day} hero stays fixed',
+        );
+        _expectRectClose(
+          tester.getRect(instrument),
+          instrumentBefore,
+          reason: 'day ${contract.day} graphic stays fixed',
+        );
+        expect(
+          lowerRaised.top,
+          lessThan(lowerBefore.top - 100),
+          reason: 'day ${contract.day} foreground moves independently',
+        );
+        for (final entry in moveFinders.entries) {
+          final raisedRect = tester.getRect(entry.value);
+          final beforeRect = movesBefore[entry.key]!;
+          _expectRectClose(
+            raisedRect.shift(Offset(-outerRaised.left, -outerRaised.top)),
+            beforeRect.shift(Offset(-outerBefore.left, -outerBefore.top)),
+            reason:
+                'day ${contract.day}, move ${entry.key.id} stays fixed to the sheet',
+          );
+          _expectOffsetClose(
+            raisedRect.center - tester.getRect(instrument).center,
+            beforeRect.center - instrumentBefore.center,
+            reason:
+                'day ${contract.day}, move ${entry.key.id} stays fixed to the graphic',
+          );
+        }
+
+        final shieldMove = contract.moves.lastWhere(
+          (move) =>
+              move.kind != OfferingTableMoveKind.name &&
+              move.kind != OfferingTableMoveKind.pick,
+        );
+        final coveredPoint = movesBefore[shieldMove]!.center;
+        expect(
+          lowerRaised.top,
+          lessThan(coveredPoint.dy),
+          reason: 'day ${contract.day} test control is covered by foreground',
+        );
+        await tester.tapAt(coveredPoint);
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
+        expect(
+          await const OfferingTableLocalStore().loadDayViewState(
+            flowId,
+            contract.day,
+          ),
+          restored.toJson(),
+          reason:
+              'day ${contract.day} covered hero controls cannot receive taps',
+        );
+
+        await tester.dragFrom(
+          Offset(outerRaised.center.dx, lowerRaised.top + 12),
+          const Offset(0, 1200),
+        );
+        await tester.pumpAndSettle();
+        _expectRectClose(
+          tester.getRect(outerSheet),
+          outerBefore,
+          reason: 'day ${contract.day} outer host remains fixed after lowering',
+        );
+        _expectRectClose(
+          tester.getRect(instrument),
+          instrumentBefore,
+          reason: 'day ${contract.day} graphic returns unchanged',
+        );
+        for (final entry in moveFinders.entries) {
+          _expectRectClose(
+            tester.getRect(entry.value),
+            movesBefore[entry.key]!,
+            reason:
+                'day ${contract.day}, move ${entry.key.id} returns unchanged',
+          );
+        }
+        expect(tester.takeException(), isNull, reason: 'day ${contract.day}');
+      }
+    },
+  );
+
+  testWidgets(
+    'Offering outer resize is independent from foreground scrolling',
+    (tester) async {
+      await _pumpDayView(tester, flowId: 1199);
+      await tester.tap(find.byType(OfferingTableEventBlockVisual));
+      await tester.pumpAndSettle();
+
+      final outerSheet = find.byKey(
+        const ValueKey<String>('offering-table-resizable-sheet'),
+      );
+      final lowerSheet = find.byKey(
+        const ValueKey<String>('offering-table-layered-practice-sheet'),
+      );
+      final presentation = find.byKey(
+        const ValueKey<String>('offering-table-day-presentation-v8'),
+      );
+      final handle = find.byKey(
+        const ValueKey<String>('follow-sky-sheet-resize-handle'),
+      );
+      final outerBefore = tester.getRect(outerSheet);
+      final heroStopBefore =
+          tester.getRect(lowerSheet).top - tester.getRect(presentation).top;
+
+      await tester.drag(handle, const Offset(0, -120));
+      await tester.pumpAndSettle();
+
+      final outerAfter = tester.getRect(outerSheet);
+      expect(outerAfter.height, greaterThan(outerBefore.height + 90));
+      expect(outerAfter.bottom, closeTo(outerBefore.bottom, .1));
+      expect(
+        tester.getRect(lowerSheet).top - tester.getRect(presentation).top,
+        closeTo(heroStopBefore, .5),
+        reason: 'outer resizing preserves the authored fixed hero height',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Offering Day 30 outer resize reveals its full variable-height hero',
+    (tester) async {
+      await _pumpDayView(tester, flowId: 1198, day: kOfferingTableDays[29]);
+      await tester.tap(find.byType(OfferingTableEventBlockVisual));
+      await tester.pumpAndSettle();
+
+      final presentation = find.byKey(
+        const ValueKey<String>('offering-table-day-presentation-v8'),
+      );
+      final fixedHero = find.byKey(
+        const ValueKey<String>('offering-table-fixed-hero'),
+      );
+      final checklist = find.byKey(
+        const ValueKey<String>('offering-table-fixed-checklist'),
+      );
+      final lowerSheet = find.byKey(
+        const ValueKey<String>('offering-table-layered-practice-sheet'),
+      );
+      final handle = find.byKey(
+        const ValueKey<String>('follow-sky-sheet-resize-handle'),
+      );
+      final heroHeight = tester.getRect(fixedHero).height;
+      final initialForegroundTop =
+          tester.getRect(lowerSheet).top - tester.getRect(presentation).top;
+
+      expect(initialForegroundTop, lessThan(heroHeight));
+
+      await tester.drag(handle, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+
+      final presentationRect = tester.getRect(presentation);
+      final heroAfter = tester.getRect(fixedHero);
+      final foregroundAfter = tester.getRect(lowerSheet);
+      expect(heroAfter.height, closeTo(heroHeight, .1));
+      expect(
+        foregroundAfter.top - presentationRect.top,
+        closeTo(heroHeight, .5),
+      );
+      expect(
+        tester.getRect(checklist).bottom,
+        lessThanOrEqualTo(foregroundAfter.top),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'all thirty actual Day View sheets restore and traverse lowered, raised, and expanded states',
+    (tester) async {
+      for (final contract in kOfferingTableDayViewContracts) {
+        CalendarEventDetailSheetCoordinator.debugResetForTests();
+        final restored = _completedState(contract);
+        await _pumpDayView(
+          tester,
+          flowId: 900 + contract.day,
+          day: kOfferingTableDays[contract.day - 1],
+          initialDayState: restored,
+        );
+        await tester.tap(find.byType(OfferingTableEventBlockVisual));
+        await tester.pumpAndSettle();
+
+        final presentation = tester.widget<OfferingTableDayV8Presentation>(
+          find.byType(OfferingTableDayV8Presentation),
+        );
+        expect(
+          presentation.initialState.toJson(),
+          restored.toJson(),
+          reason: 'day ${contract.day} restored state',
+        );
+        expect(
+          presentation.initialState.dayComplete(
+            contract,
+            now: DateTime(2026, 9, 4, 8),
+          ),
+          isTrue,
+          reason: 'day ${contract.day} completion',
+        );
+
+        final outerSheet = find.byKey(
+          const ValueKey<String>('offering-table-resizable-sheet'),
+        );
+        final lowerSheet = find.byKey(
+          const ValueKey<String>('offering-table-layered-practice-sheet'),
+        );
+        final outerBefore = tester.getRect(outerSheet);
+        final lowerBefore = tester.getRect(lowerSheet);
+        expect(
+          outerBefore.height,
+          closeTo((844 - 12) * .71 + 8, 2),
+          reason: 'day ${contract.day} initial extent',
+        );
+        for (final move in contract.moves) {
+          expect(
+            find.byKey(
+              ValueKey<String>(
+                'offering-table-day-${contract.day.toString().padLeft(2, '0')}-move-${move.id}',
+              ),
+            ),
+            findsOneWidget,
+            reason: 'day ${contract.day}, move ${move.id}',
+          );
+        }
+        if (_captureAllDaySheets) {
+          await expectLater(
+            find.byKey(_allDaySheetCaptureKey),
+            matchesGoldenFile(
+              '/tmp/offering-table-day-${contract.day.toString().padLeft(2, '0')}-lowered.png',
+            ),
+          );
+        }
+
+        await tester.dragFrom(
+          Offset(outerBefore.center.dx, lowerBefore.top + 12),
+          const Offset(0, -565),
+        );
+        await tester.pumpAndSettle();
+        final outerRaised = tester.getRect(outerSheet);
+        final lowerRaised = tester.getRect(lowerSheet);
+        expect(outerRaised, outerBefore, reason: 'day ${contract.day} host');
+        expect(
+          lowerRaised.top,
+          lessThan(lowerBefore.top - 250),
+          reason: 'day ${contract.day} foreground raises over the hero',
+        );
+        if (_captureAllDaySheets) {
+          await expectLater(
+            find.byKey(_allDaySheetCaptureKey),
+            matchesGoldenFile(
+              '/tmp/offering-table-day-${contract.day.toString().padLeft(2, '0')}-raised.png',
+            ),
+          );
+        }
+
+        final contextToggle = find.byKey(
+          const ValueKey<String>('offering-table-day-sheet-context-toggle'),
+        );
+        tester.widget<InkWell>(contextToggle).onTap!();
+        await tester.pumpAndSettle();
+        expect(
+          find.text(contract.context),
+          findsOneWidget,
+          reason: 'day ${contract.day} expanded context',
+        );
+        expect(
+          find.text(contract.instruction),
+          findsWidgets,
+          reason: 'day ${contract.day} expanded instruction',
+        );
+        final contextText = find.text(contract.context);
+        await tester.ensureVisible(contextText);
+        await tester.pumpAndSettle();
+        expect(
+          tester.getRect(contextText).bottom,
+          lessThan(tester.getRect(find.text('Make to-do')).top),
+          reason: 'day ${contract.day} expanded context clears fixed actions',
+        );
+        if (_captureAllDaySheets) {
+          await expectLater(
+            find.byKey(_allDaySheetCaptureKey),
+            matchesGoldenFile(
+              '/tmp/offering-table-day-${contract.day.toString().padLeft(2, '0')}-expanded.png',
+            ),
+          );
+        }
+
+        await tester.drag(
+          find.byKey(
+            const ValueKey<String>('offering-table-presentation-body'),
+          ),
+          const Offset(0, 1200),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          tester.getRect(lowerSheet).top,
+          greaterThan(lowerRaised.top + 200),
+          reason: 'day ${contract.day} foreground lowers again',
+        );
+        expect(tester.takeException(), isNull, reason: 'day ${contract.day}');
+      }
+    },
+  );
+}
+
+void _expectRectClose(Rect actual, Rect expected, {required String reason}) {
+  expect(actual.left, closeTo(expected.left, .1), reason: '$reason left');
+  expect(actual.top, closeTo(expected.top, .1), reason: '$reason top');
+  expect(actual.width, closeTo(expected.width, .1), reason: '$reason width');
+  expect(actual.height, closeTo(expected.height, .1), reason: '$reason height');
+}
+
+void _expectOffsetClose(
+  Offset actual,
+  Offset expected, {
+  required String reason,
+}) {
+  expect(actual.dx, closeTo(expected.dx, .1), reason: '$reason dx');
+  expect(actual.dy, closeTo(expected.dy, .1), reason: '$reason dy');
+}
+
+OfferingTableDayViewState _completedState(OfferingTableDayContract contract) {
+  final state = OfferingTableDayViewState();
+  for (final move in contract.moves) {
+    if (contract.day == 8 && move.id == 'schedule') continue;
+    switch (move.kind) {
+      case OfferingTableMoveKind.name:
+        state.words[move.slot ?? move.id] =
+            move.fieldLabel?.toLowerCase() ?? 'authored value';
+      case OfferingTableMoveKind.pick:
+        state.picks[move.id] = move.options.first;
+      case OfferingTableMoveKind.timer:
+        state.timers[move.id] = OfferingTableTimerState(
+          elapsedMilliseconds: move.completeUnderTarget
+              ? 1000
+              : (move.targetSeconds ?? 0) * 1000,
+        );
+      case OfferingTableMoveKind.tap:
+      case OfferingTableMoveKind.drink:
+      case OfferingTableMoveKind.truth:
+        state.actions[move.id] = true;
+    }
+  }
+  return state;
 }
 
 Future<void> _pumpStaticBlock(
@@ -429,7 +1088,6 @@ Future<void> _pumpStaticBlock(
   required double height,
   required int dayNumber,
   required String title,
-  required String prompt,
   bool isPreview = false,
   OfferingTableBlockVisualState? visualState,
   bool animateRipple = false,
@@ -446,11 +1104,10 @@ Future<void> _pumpStaticBlock(
             child: OfferingTableEventBlockVisual(
               dayNumber: dayNumber,
               title: title,
-              prompt: prompt,
               width: width,
               height: height,
               isPreview: isPreview,
-              dashedBorder: isPreview,
+              dayViewFace: height >= 88 && height <= 94,
               visualState: visualState,
               animateRipple: animateRipple,
             ),
@@ -467,6 +1124,7 @@ Future<void> _pumpRippleDayView(
   required int ky,
   required int km,
   required int kd,
+  required DateTime clock,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -509,6 +1167,7 @@ Future<void> _pumpRippleDayView(
           },
           activeLedgerFlowIds: const <int>{80},
           initialScrollOffset: 6 * 60,
+          clock: () => clock,
         ),
       ),
     ),
@@ -521,7 +1180,8 @@ Future<void> _pumpDayView(
   required int flowId,
   OfferingTableDay? day,
   String? initialIntention,
-  MaatJournalResponseBlockWriter? onWriteJournalResponse,
+  OfferingTableDayViewState? initialDayState,
+  List<NoteData> additionalNotes = const <NoteData>[],
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -536,44 +1196,71 @@ Future<void> _pumpDayView(
       initialIntention,
     );
   }
+  if (initialDayState != null) {
+    await const OfferingTableLocalStore().saveDayViewState(
+      flowId,
+      resolvedDay.dayNumber,
+      initialDayState.toJson(),
+    );
+  }
   await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: DayViewGrid(
-          ky: 1,
-          km: 1,
-          kd: 1,
-          notes: <NoteData>[
-            NoteData(
-              clientEventId: 'offering-table-event-$flowId',
-              title: offeringTableEventTitle(resolvedDay),
-              allDay: false,
-              start: const TimeOfDay(hour: 7, minute: 30),
-              end: const TimeOfDay(hour: 8, minute: 30),
-              flowId: flowId,
-              behaviorPayload: <String, dynamic>{
-                'kind': 'maat_offering_table_day',
-                'flow_key': kOfferingTableFlowKey,
-                'day': resolvedDay.dayNumber,
-              },
-            ),
-          ],
-          showGregorian: false,
-          flowIndex: <int, FlowData>{
-            flowId: FlowData(
-              id: flowId,
-              name: kOfferingTableTitle,
-              color: const Color(0xFFC99A3D),
-              active: true,
-              notes: 'mode=gregorian;maat=$kOfferingTableFlowKey',
-            ),
-          },
-          activeLedgerFlowIds: <int>{flowId},
-          initialScrollOffset: 6 * 60,
-          onWriteJournalResponse: onWriteJournalResponse,
+    RepaintBoundary(
+      key: _allDaySheetCaptureKey,
+      child: MaterialApp(
+        key: ValueKey<String>('offering-table-day-view-app-$flowId'),
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark,
+        home: Scaffold(
+          body: DayViewGrid(
+            ky: 1,
+            km: 1,
+            kd: 1,
+            notes: <NoteData>[
+              NoteData(
+                clientEventId: 'offering-table-event-$flowId',
+                title: offeringTableEventTitle(resolvedDay),
+                allDay: false,
+                start: const TimeOfDay(hour: 7, minute: 30),
+                end: const TimeOfDay(hour: 8, minute: 30),
+                flowId: flowId,
+                behaviorPayload: <String, dynamic>{
+                  'kind': 'maat_offering_table_day',
+                  'flow_key': kOfferingTableFlowKey,
+                  'day': resolvedDay.dayNumber,
+                },
+              ),
+              ...additionalNotes,
+            ],
+            showGregorian: false,
+            flowIndex: <int, FlowData>{
+              flowId: FlowData(
+                id: flowId,
+                name: kOfferingTableTitle,
+                color: const Color(0xFFC99A3D),
+                active: true,
+                notes: 'mode=gregorian;maat=$kOfferingTableFlowKey',
+              ),
+            },
+            activeLedgerFlowIds: <int>{flowId},
+            initialScrollOffset: 6 * 60,
+          ),
         ),
       ),
     ),
   );
   await tester.pumpAndSettle();
+}
+
+Future<Uint8List> _captureRenderedFrame(
+  WidgetTester tester,
+  Finder boundaryFinder,
+) async {
+  final boundary = tester.renderObject<RenderRepaintBoundary>(boundaryFinder);
+  final bytes = await tester.runAsync(() async {
+    final image = await boundary.toImage(pixelRatio: 1);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    return data!.buffer.asUint8List();
+  });
+  return bytes!;
 }

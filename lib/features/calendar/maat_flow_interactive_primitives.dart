@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/utils/text_editing_controller_sync.dart';
-import 'package:mobile/widgets/keyboard_aware.dart';
 
 import 'calendar_completion.dart';
 import 'maat_flow_response_models.dart';
@@ -44,7 +43,6 @@ class FlowEnrollmentInputField extends StatelessWidget {
     final theme = Theme.of(context);
     return TextField(
       controller: controller,
-      scrollPadding: keyboardManagedTextFieldScrollPadding,
       enabled: enabled,
       autofocus: autofocus,
       maxLength: maxCharacters,
@@ -385,7 +383,6 @@ class _MaatFlowResponseFieldState extends State<_MaatFlowResponseField> {
           controller: _textController,
           minLines: spec.kind == MaatFlowResponseKind.text ? 1 : 2,
           maxLines: spec.kind == MaatFlowResponseKind.text ? 1 : 5,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: const TextStyle(color: Colors.white, fontSize: 13),
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(

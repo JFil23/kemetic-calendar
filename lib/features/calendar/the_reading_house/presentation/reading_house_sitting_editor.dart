@@ -1,0 +1,493 @@
+import 'package:flutter/material.dart';
+import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
+import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/features/calendar/the_reading_house_flow.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
+import 'package:mobile/widgets/maat_flow_date_picker.dart';
+
+/// Shared Reading House sheet chrome from the authored detail-page modals.
+///
+/// Both the handle and the visible control collapse the active nested sheet so
+/// editors never trap the reader away from the underlying detail page.
+class ReadingHouseSheetChrome extends StatelessWidget {
+  const ReadingHouseSheetChrome({
+    super.key,
+    required this.onCollapse,
+    this.collapseKey,
+    this.handleColor = const Color(0xFF33463E),
+    this.iconColor = const Color(0xFF9E9A94),
+  });
+
+  final VoidCallback onCollapse;
+  final Key? collapseKey;
+  final Color handleColor;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: Row(
+        children: <Widget>[
+          const Spacer(),
+          Semantics(
+            button: true,
+            label: 'Collapse sheet',
+            onTap: onCollapse,
+            child: ExcludeSemantics(
+              child: InkWell(
+                key: const ValueKey<String>('reading-house-sheet-handle'),
+                onTap: onCollapse,
+                borderRadius: BorderRadius.circular(22),
+                excludeFromSemantics: true,
+                child: SizedBox(
+                  width: 54,
+                  height: 44,
+                  child: Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: handleColor,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                key: collapseKey,
+                tooltip: 'Collapse sheet',
+                onPressed: onCollapse,
+                icon: Icon(Icons.keyboard_arrow_down, color: iconColor),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ReadingHouseSittingEditorSheet extends StatefulWidget {
+  const ReadingHouseSittingEditorSheet({
+    super.key,
+    required this.sitting,
+    required this.initialDate,
+    required this.initialTime,
+    required this.flowDayForDate,
+    required this.accentColor,
+    required this.borderColor,
+    this.onSave,
+  });
+
+  final ReadingHouseSitting sitting;
+  final DateTime initialDate;
+  final TimeOfDay initialTime;
+  final int Function(DateTime date) flowDayForDate;
+  final Color accentColor;
+  final Color borderColor;
+  final Future<bool> Function(ReadingHouseSitting sitting)? onSave;
+
+  static Future<ReadingHouseSitting?> show(
+    BuildContext context, {
+    required ReadingHouseSitting sitting,
+    required DateTime initialDate,
+    required TimeOfDay initialTime,
+    required int Function(DateTime date) flowDayForDate,
+    required Color accentColor,
+    required Color borderColor,
+    Future<bool> Function(ReadingHouseSitting sitting)? onSave,
+  }) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    try {
+      return await showEditableModalBottomSheet<ReadingHouseSitting>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (_) => ReadingHouseSittingEditorSheet(
+          sitting: sitting,
+          initialDate: initialDate,
+          initialTime: initialTime,
+          flowDayForDate: flowDayForDate,
+          accentColor: accentColor,
+          borderColor: borderColor,
+          onSave: onSave,
+        ),
+      );
+    } finally {
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
+  }
+
+  @override
+  State<ReadingHouseSittingEditorSheet> createState() =>
+      _ReadingHouseSittingEditorSheetState();
+}
+
+class _ReadingHouseSittingEditorSheetState
+    extends State<ReadingHouseSittingEditorSheet> {
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _sectionCtrl;
+  late final TextEditingController _themeCtrl;
+  late final TextEditingController _promptCtrl;
+  late final TextEditingController _noteCtrl;
+  late final FocusScopeNode _focusScope;
+  late final FocusNode _titleFocus;
+  late final FocusNode _sectionFocus;
+  late final FocusNode _themeFocus;
+  late final FocusNode _promptFocus;
+  late final FocusNode _noteFocus;
+  late DateTime _scheduledDate;
+  late TimeOfDay _scheduledTime;
+  late bool _placementChosen;
+  bool _saving = false;
+  bool _saveFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final sitting = widget.sitting;
+    _titleCtrl = TextEditingController(text: sitting.title);
+    _sectionCtrl = TextEditingController(text: sitting.section);
+    _themeCtrl = TextEditingController(text: sitting.theme);
+    _promptCtrl = TextEditingController(text: sitting.privatePrompt);
+    _noteCtrl = TextEditingController(text: sitting.hostNote);
+    _focusScope = FocusScopeNode(debugLabel: 'reading-house-sitting-editor');
+    _titleFocus = FocusNode(debugLabel: 'reading-house-sitting-title');
+    _sectionFocus = FocusNode(debugLabel: 'reading-house-sitting-section');
+    _themeFocus = FocusNode(debugLabel: 'reading-house-sitting-theme');
+    _promptFocus = FocusNode(debugLabel: 'reading-house-sitting-prompt');
+    _noteFocus = FocusNode(debugLabel: 'reading-house-sitting-note');
+    _scheduledDate = DateTime(
+      widget.initialDate.year,
+      widget.initialDate.month,
+      widget.initialDate.day,
+    );
+    _scheduledTime = widget.initialTime;
+    _placementChosen = sitting.scheduledDate != null;
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _sectionCtrl.dispose();
+    _themeCtrl.dispose();
+    _promptCtrl.dispose();
+    _noteCtrl.dispose();
+    _titleFocus.dispose();
+    _sectionFocus.dispose();
+    _themeFocus.dispose();
+    _promptFocus.dispose();
+    _noteFocus.dispose();
+    _focusScope.dispose();
+    super.dispose();
+  }
+
+  void _releaseFocus() {
+    _focusScope.unfocus(disposition: UnfocusDisposition.scope);
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  String _dateLabel(DateTime date) {
+    final k = KemeticMath.fromGregorian(date);
+    final month = getMonthById(k.kMonth).displayFull;
+    final gregorian =
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.day.toString().padLeft(2, '0')}/'
+        '${date.year}';
+    return '$month ${k.kDay} · $gregorian';
+  }
+
+  Future<void> _pickDate() async {
+    _releaseFocus();
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    final picked = await MaatFlowDatePicker.show(
+      context: context,
+      initialDate: _scheduledDate,
+      initialMode: MaatFlowDatePickerMode.kemetic,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _scheduledDate = DateUtils.dateOnly(picked.date);
+      _placementChosen = true;
+    });
+  }
+
+  Future<void> _pickTime() async {
+    _releaseFocus();
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _scheduledTime,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _scheduledTime = picked;
+      _placementChosen = true;
+    });
+  }
+
+  InputDecoration _fieldDecoration(String label, {String? hintText}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hintText,
+      labelStyle: const TextStyle(color: Color(0xFF9C9086)),
+      hintStyle: const TextStyle(color: Color(0xFF7E746B)),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(
+          color: widget.accentColor.withValues(alpha: 0.28),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: widget.accentColor),
+      ),
+    );
+  }
+
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    required FocusNode focusNode,
+    int maxLines = 1,
+    Key? key,
+    String? hintText,
+  }) {
+    return TextField(
+      key: key,
+      controller: controller,
+      focusNode: focusNode,
+      maxLines: maxLines,
+      textCapitalization: TextCapitalization.sentences,
+      textInputAction: maxLines == 1
+          ? TextInputAction.next
+          : TextInputAction.newline,
+      style: const TextStyle(color: Color(0xFFE8D9C3)),
+      decoration: _fieldDecoration(label, hintText: hintText),
+    );
+  }
+
+  String _trimmedOrFallback(TextEditingController controller, String fallback) {
+    final trimmed = controller.text.trim();
+    return trimmed.isEmpty ? fallback : trimmed;
+  }
+
+  Future<void> _saveDraft() async {
+    if (_saving) return;
+    _releaseFocus();
+    final sitting = widget.sitting;
+    final edited = sitting
+        .copyWith(
+          title: _trimmedOrFallback(_titleCtrl, sitting.title),
+          section: _trimmedOrFallback(_sectionCtrl, sitting.section),
+          theme: _trimmedOrFallback(_themeCtrl, sitting.theme),
+          privatePrompt: _trimmedOrFallback(_promptCtrl, sitting.privatePrompt),
+          hostNote: _noteCtrl.text.trim(),
+          scheduledDate: _placementChosen ? _scheduledDate : null,
+          flowDay: _placementChosen
+              ? widget.flowDayForDate(_scheduledDate)
+              : sitting.flowDay,
+          hour: _scheduledTime.hour,
+          minute: _scheduledTime.minute,
+        )
+        .asHostAuthored();
+    final onSave = widget.onSave;
+    if (onSave == null) {
+      Navigator.of(context).pop(edited);
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _saveFailed = false;
+    });
+    final saved = await onSave(edited);
+    if (!mounted) return;
+    if (saved) {
+      Navigator.of(context).pop(edited);
+      return;
+    }
+    setState(() {
+      _saving = false;
+      _saveFailed = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    return KeyboardAwareEditableSurface(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 18,
+          right: 18,
+          bottom: media.padding.bottom + 18,
+        ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFF090907),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: widget.borderColor),
+          ),
+          child: FocusScope(
+            node: _focusScope,
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ReadingHouseSheetChrome(
+                    collapseKey: const ValueKey<String>(
+                      'reading-house-sitting-sheet-collapse',
+                    ),
+                    onCollapse: () => Navigator.of(context).pop(),
+                    handleColor: widget.accentColor.withValues(alpha: 0.48),
+                  ),
+                  Text(
+                    'Edit sitting',
+                    style: TextStyle(
+                      color: widget.accentColor,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _field(
+                    'Sitting title',
+                    _titleCtrl,
+                    focusNode: _titleFocus,
+                    hintText: 'Name this sitting...',
+                    key: const ValueKey<String>(
+                      'reading_house_sitting_title_field',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    'Section',
+                    _sectionCtrl,
+                    focusNode: _sectionFocus,
+                    hintText: 'Chapters, pages, maxims, or passage...',
+                    key: const ValueKey<String>(
+                      'reading_house_sitting_section_field',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    'Theme',
+                    _themeCtrl,
+                    focusNode: _themeFocus,
+                    maxLines: 2,
+                    hintText: 'What should the house hold while reading?',
+                    key: const ValueKey<String>(
+                      'reading_house_sitting_theme_field',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    'Private prompt',
+                    _promptCtrl,
+                    focusNode: _promptFocus,
+                    maxLines: 3,
+                    hintText:
+                        'What should each reader sit with before sharing?',
+                    key: const ValueKey<String>(
+                      'reading_house_sitting_private_prompt_field',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    'Host note',
+                    _noteCtrl,
+                    focusNode: _noteFocus,
+                    maxLines: 2,
+                    hintText: 'Optional note, passage to watch, or context...',
+                    key: const ValueKey<String>(
+                      'reading_house_sitting_host_note_field',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      OutlinedButton.icon(
+                        key: const ValueKey<String>(
+                          'reading_house_sitting_date_button',
+                        ),
+                        onPressed: _pickDate,
+                        icon: const Icon(Icons.calendar_today),
+                        label: Text(
+                          _placementChosen
+                              ? _dateLabel(_scheduledDate)
+                              : 'Choose date',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: widget.accentColor,
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        key: const ValueKey<String>(
+                          'reading_house_sitting_time_button',
+                        ),
+                        onPressed: _pickTime,
+                        icon: const Icon(Icons.schedule),
+                        label: Text(
+                          MaterialLocalizations.of(
+                            context,
+                          ).formatTimeOfDay(_scheduledTime),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: widget.accentColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  if (_saveFailed) ...[
+                    Text(
+                      'That sitting could not be saved. Your edits are still here.',
+                      key: const ValueKey<String>(
+                        'reading_house_sitting_save_error',
+                      ),
+                      style: TextStyle(
+                        color: widget.accentColor,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      key: const ValueKey<String>(
+                        'reading_house_sitting_save_button',
+                      ),
+                      onPressed: _saving ? null : _saveDraft,
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.check),
+                      label: Text(_saving ? 'Saving…' : 'Save Sitting'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

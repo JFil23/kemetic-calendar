@@ -1194,11 +1194,9 @@ class _EventsTab extends StatelessWidget {
   }
 
   bool _isMaatFlow(_MonthEvent event) {
-    final flow = event.flowName?.trim().toLowerCase();
-    if (flow == null || flow.isEmpty) return false;
-    return flow == kDawnHouseRiteTitle.toLowerCase() ||
-        resolveMaatFlowKind(flowName: flow) ==
-            MaatFlowKind.eveningThresholdRite;
+    final kind = resolveMaatFlowKind(flowName: event.flowName);
+    return kind == MaatFlowKind.dawnHouseRite ||
+        kind == MaatFlowKind.eveningThresholdRite;
   }
 
   String _purposePreview(String? detail) {

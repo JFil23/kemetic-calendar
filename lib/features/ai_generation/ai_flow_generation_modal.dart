@@ -188,14 +188,12 @@ class AIFlowGenerationModal extends StatefulWidget {
     this.initialStartDate,
     this.initialEndDate,
     this.initialDateRangeIsManual = false,
-    this.manageKeyboardInset = true,
     this.generateFlowForTesting,
   });
 
   final DateTime? initialStartDate;
   final DateTime? initialEndDate;
   final bool initialDateRangeIsManual;
-  final bool manageKeyboardInset;
   final AIFlowGenerateCallback? generateFlowForTesting;
 
   @override
@@ -680,13 +678,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final closedHeight = media.size.height * 0.85;
-    final keyboardInset = widget.manageKeyboardInset
-        ? MediaQuery.viewInsetsOf(context).bottom
-        : 0.0;
-    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardInset),
+    return KeyboardAwareEditableSurface(
       child: Container(
         key: aiFlowGenerationModalFrameKey,
         height: closedHeight,
@@ -753,7 +745,6 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _descriptionController,
-                        scrollPadding: fieldScrollPadding,
                         minLines: 5,
                         maxLines: 18,
                         keyboardType: TextInputType.multiline,

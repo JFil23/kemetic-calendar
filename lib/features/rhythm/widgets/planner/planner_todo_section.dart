@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:mobile/widgets/keyboard_aware.dart';
-
 import 'planner_hairline_rule.dart';
 import 'planner_pager_dots.dart';
 import 'planner_pill_button.dart';
@@ -91,7 +89,6 @@ class PlannerTodoSection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
             child: TextField(
               controller: commitmentInputController,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               style: PlannerVisualTokens.inputText,
               decoration: InputDecoration(
                 hintText: 'Name a commitment to move today',

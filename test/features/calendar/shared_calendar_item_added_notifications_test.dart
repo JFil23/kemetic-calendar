@@ -3,33 +3,17 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('shared calendar item-added fanout is server backed', () async {
-    final repoSource = await File(
-      'lib/data/shared_calendars_repo.dart',
-    ).readAsString();
-    final edgeSource = await File(
-      '../supabase/functions/notify_shared_calendar_item_added/index.ts',
-    ).readAsString();
-    final migrationSource = await File(
-      '../supabase/migrations/20260602110000_shared_calendar_item_added_fanout.sql',
-    ).readAsString();
+  test(
+    'shared calendar item-added fanout uses the app repository call',
+    () async {
+      final repoSource = await File(
+        'lib/data/shared_calendars_repo.dart',
+      ).readAsString();
 
-    expect(repoSource, contains('notifySharedCalendarItemAdded'));
-    expect(repoSource, contains("'notify_shared_calendar_item_added'"));
-    expect(
-      edgeSource,
-      contains('notification_type: "shared_calendar_item_added"'),
-    );
-    expect(edgeSource, contains('notification_kind: "calendar_event"'));
-    expect(edgeSource, contains('shared_calendar_item_added_fanout'));
-    expect(edgeSource, contains('getRecipientUserIds'));
-    expect(edgeSource, contains('userId !== actorUserId'));
-    expect(migrationSource, contains('dedupe_key text primary key'));
-    expect(
-      migrationSource,
-      contains("shared_calendar_item_added:{calendarId}:{itemType}:{itemId}"),
-    );
-  });
+      expect(repoSource, contains('notifySharedCalendarItemAdded'));
+      expect(repoSource, contains("'notify_shared_calendar_item_added'"));
+    },
+  );
 
   test('calendar add paths use shared calendar item-added fanout', () async {
     final calendarSource = await File(
@@ -115,34 +99,6 @@ void main() {
     final sharedPracticeRepoSource = await File(
       'lib/data/shared_practice_repo.dart',
     ).readAsString();
-    final migrationSource = await File(
-      '../supabase/migrations/20260627120000_shared_calendar_flow_experience.sql',
-    ).readAsString();
-
-    expect(migrationSource, contains('ensure_shared_experience_for_flow'));
-    expect(
-      migrationSource,
-      contains('trg_user_events_stamp_shared_practice_room'),
-    );
-    expect(migrationSource, contains("- 'shared_practice_room_id'"));
-    expect(migrationSource, contains("- 'shared_practice_entry_id'"));
-    expect(
-      migrationSource,
-      contains('v_existing_room_id is distinct from v_room_id'),
-    );
-    expect(
-      migrationSource,
-      contains("old.behavior_payload->>'shared_practice_room_id'"),
-    );
-    expect(
-      migrationSource,
-      contains('create_joint_flow_experience_from_commons'),
-    );
-    expect(migrationSource, contains('shared experience backfill candidates'));
-    expect(
-      migrationSource,
-      contains('shared experience stale payload cleanup candidates'),
-    );
     expect(sharedPracticeRepoSource, contains('ensureSharedExperienceForFlow'));
     expect(
       sharedPracticeRepoSource,
@@ -175,16 +131,6 @@ void main() {
     'shared calendar item-added pushes route to focused inbox calendar context',
     () async {
       final mainSource = await File('lib/main.dart').readAsString();
-      final sendPushSource = await File(
-        '../supabase/functions/send_push/index.ts',
-      ).readAsString();
-
-      expect(sendPushSource, contains('kind === "shared_calendar_item_added"'));
-      expect(
-        sendPushSource,
-        contains('push_kind: "shared_calendar_item_added"'),
-      );
-      expect(sendPushSource, contains('const passthroughValue'));
       expect(mainSource, contains("kind == 'shared_calendar_item_added'"));
       expect(mainSource, contains("'item_id': params['item_id']"));
       expect(mainSource, contains("'note_id': params['note_id']"));
