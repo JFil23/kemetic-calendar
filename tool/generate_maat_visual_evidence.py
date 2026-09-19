@@ -298,7 +298,7 @@ def main() -> None:
             },
             {
                 "golden": "maat-flow-discovery-djed-390x844.png",
-                "reason": "The approved four-flow product adds Djed, but the supplied Discovery HTML contains only the other three cards.",
+                "reason": "The approved five-flow product includes Djed, but the supplied Discovery HTML contains only the original three cards.",
             },
             {
                 "golden": "djed-day-released-filled-390x720.png",
@@ -341,7 +341,7 @@ def main() -> None:
     lines.extend(
         [
             "",
-            "Six additional goldens cover product states the HTML does not author as one capture: Djed's mixed support-condition palette, its approved fourth Discovery card, Reading House locked/ended rooms, Inbox room multiplicity, and a redundant component-frame capture of Djed's authored raised state. They are supplemental regression contracts, not mockup-fidelity evidence.",
+            "Eighteen additional goldens cover product states the HTML does not author as one capture: approved Djed overrides and detail states, Reading House one-reader/ended and Inbox multiplicity states, the complete five-flow Discovery state, lowered/raised shared Day View housing states for Follow the Sky, Kꜣr, and Reading House, and Offering Table's complete 30-day instrument matrices. They are supplemental regression contracts, not mockup-fidelity evidence.",
             "",
         ]
     )
