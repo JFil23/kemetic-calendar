@@ -180,7 +180,11 @@ class _InboxPageState extends State<InboxPage> {
   List<InboxShareItem> _latestEventInvites = const [];
   List<InboxShareItem> _latestCalendarNotifications = const [];
   List<SharedCalendarSentInvite> _latestSentCalendarInvites = const [];
-  List<SharedCalendarInvite> _latestIncomingCalendarInvites = const [];
+  final ValueNotifier<List<SharedCalendarInvite>>
+  _incomingCalendarInvitesListenable =
+      ValueNotifier<List<SharedCalendarInvite>>(const []);
+  List<SharedCalendarInvite> get _latestIncomingCalendarInvites =>
+      _incomingCalendarInvitesListenable.value;
   List<DmConversationSummary> _latestDmConversations = const [];
   List<ReadingHouseRoomSummary> _latestReadingHouseRooms = const [];
   ReadingHouseInboxSectionStatus _readingHouseRoomStatus =
@@ -274,7 +278,7 @@ class _InboxPageState extends State<InboxPage> {
       _incomingCalendarInvitesSub = incomingCalendarInvitesStream.listen((
         invites,
       ) {
-        _latestIncomingCalendarInvites = invites;
+        _applyIncomingCalendarInvites(invites);
         if (mounted) {
           setState(() {
             _unified = _buildUnifiedItems();
@@ -429,7 +433,7 @@ class _InboxPageState extends State<InboxPage> {
       _latestSentCalendarInvites = sentInvites;
     }
     if (incomingInvites != null) {
-      _latestIncomingCalendarInvites = incomingInvites;
+      _applyIncomingCalendarInvites(incomingInvites);
     }
 
     setState(() {
@@ -490,6 +494,7 @@ class _InboxPageState extends State<InboxPage> {
     _incomingCalendarInvitesSub?.cancel();
     _flowLifecycleSub?.cancel();
     _readingHouseRoomsSub?.cancel();
+    _incomingCalendarInvitesListenable.dispose();
     super.dispose();
   }
 
@@ -1897,18 +1902,21 @@ class _InboxPageState extends State<InboxPage> {
   bool _isReadingHouseInvite(SharedCalendarInvite invite) =>
       invite.sourceFlowKey == kReadingHouseFlowKey;
 
-  List<SharedCalendarInvite> get _readingHouseIncomingInvites =>
-      _latestIncomingCalendarInvites
-          .where(_isReadingHouseInvite)
-          .toList(growable: false);
-
-  List<SharedCalendarInvite> get _genericIncomingCalendarInvites =>
-      _latestIncomingCalendarInvites
-          .where((invite) => !_isReadingHouseInvite(invite))
-          .toList(growable: false);
+  void _applyIncomingCalendarInvites(List<SharedCalendarInvite> invites) {
+    final next = List<SharedCalendarInvite>.unmodifiable(invites);
+    _incomingCalendarInvitesListenable.value = next;
+  }
 
   List<InboxShareItem> get _calendarNotificationsWithoutPendingMembership {
-    final pendingCalendarIds = _latestIncomingCalendarInvites
+    return _calendarNotificationsWithoutPendingMembershipFor(
+      _latestIncomingCalendarInvites,
+    );
+  }
+
+  List<InboxShareItem> _calendarNotificationsWithoutPendingMembershipFor(
+    List<SharedCalendarInvite> incomingInvites,
+  ) {
+    final pendingCalendarIds = incomingInvites
         .map((invite) => invite.calendarId.trim())
         .where((id) => id.isNotEmpty)
         .toSet();
@@ -2311,18 +2319,8 @@ class _InboxPageState extends State<InboxPage> {
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
         builder: (sheetContext) {
-          final inviteNotifications =
-              _calendarNotificationsWithoutPendingMembership.toList();
           final eventInvites = _latestEventInvites.toList();
-          final inviteResponseItems = <InboxShareItem>[
-            ...eventInvites,
-            ...inviteNotifications,
-          ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           final sentInvites = _latestSentCalendarInvites.toList()
-            ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
-          final incomingInvites = _genericIncomingCalendarInvites.toList()
-            ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
-          final readingHouseInvites = _readingHouseIncomingInvites.toList()
             ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
           final mediaHeight = MediaQuery.sizeOf(sheetContext).height * 0.78;
           final sheetHeight = mediaHeight < 720 ? mediaHeight : 720.0;
@@ -2406,12 +2404,36 @@ class _InboxPageState extends State<InboxPage> {
                     bottom: 0,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(18, 0, 18, 34),
-                      child:
-                          readingHouseInvites.isEmpty &&
+                      child: ValueListenableBuilder<List<SharedCalendarInvite>>(
+                        valueListenable: _incomingCalendarInvitesListenable,
+                        builder: (context, allIncomingInvites, child) {
+                          final readingHouseInvites =
+                              allIncomingInvites
+                                  .where(_isReadingHouseInvite)
+                                  .toList()
+                                ..sort(
+                                  (a, b) => b.invitedAt.compareTo(a.invitedAt),
+                                );
+                          final incomingInvites =
+                              allIncomingInvites
+                                  .where(
+                                    (invite) => !_isReadingHouseInvite(invite),
+                                  )
+                                  .toList()
+                                ..sort(
+                                  (a, b) => b.invitedAt.compareTo(a.invitedAt),
+                                );
+                          final inviteResponseItems = <InboxShareItem>[
+                            ...eventInvites,
+                            ..._calendarNotificationsWithoutPendingMembershipFor(
+                              allIncomingInvites,
+                            ),
+                          ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                          if (readingHouseInvites.isEmpty &&
                               sentInvites.isEmpty &&
                               inviteResponseItems.isEmpty &&
-                              incomingInvites.isEmpty
-                          ? Padding(
+                              incomingInvites.isEmpty) {
+                            return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Text(
                                 'Calendar invites and responses will appear here.',
@@ -2419,78 +2441,79 @@ class _InboxPageState extends State<InboxPage> {
                                   color: Colors.white.withValues(alpha: 0.7),
                                 ),
                               ),
-                            )
-                          : ListView(
-                              children: [
-                                if (readingHouseInvites.isNotEmpty) ...[
-                                  _calendarSheetSectionTitle('Pending'),
-                                  const SizedBox(height: 8),
-                                  for (final invite in readingHouseInvites)
-                                    ReadingHousePendingInviteCard(
-                                      invite: invite,
-                                      onAccept: () => unawaited(
-                                        _respondToIncomingCalendarInvite(
-                                          invite,
-                                          accept: true,
-                                          closeContext: sheetContext,
-                                        ),
-                                      ),
-                                      onDecline: () => unawaited(
-                                        _respondToIncomingCalendarInvite(
-                                          invite,
-                                          accept: false,
-                                          closeContext: sheetContext,
-                                        ),
+                            );
+                          }
+                          return ListView(
+                            children: [
+                              if (readingHouseInvites.isNotEmpty) ...[
+                                _calendarSheetSectionTitle('Pending'),
+                                const SizedBox(height: 8),
+                                for (final invite in readingHouseInvites)
+                                  ReadingHousePendingInviteCard(
+                                    invite: invite,
+                                    onAccept: () => unawaited(
+                                      _respondToIncomingCalendarInvite(
+                                        invite,
+                                        accept: true,
+                                        closeContext: sheetContext,
                                       ),
                                     ),
-                                ],
-                                if (incomingInvites.isNotEmpty) ...[
-                                  if (readingHouseInvites.isNotEmpty)
-                                    const SizedBox(height: 12),
-                                  _calendarSheetSectionTitle('Pending'),
-                                  const SizedBox(height: 8),
-                                  for (final invite in incomingInvites)
-                                    _buildIncomingCalendarInviteRow(
-                                      invite,
-                                      closeContext: sheetContext,
+                                    onDecline: () => unawaited(
+                                      _respondToIncomingCalendarInvite(
+                                        invite,
+                                        accept: false,
+                                        closeContext: sheetContext,
+                                      ),
                                     ),
-                                ],
-                                if (sentInvites.isNotEmpty) ...[
-                                  if (readingHouseInvites.isNotEmpty ||
-                                      incomingInvites.isNotEmpty)
-                                    const SizedBox(height: 12),
-                                  _calendarSheetSectionTitle(
-                                    'Pending from you',
                                   ),
-                                  const SizedBox(height: 8),
-                                  for (final invite in sentInvites)
-                                    _buildSentCalendarInviteRow(
-                                      invite,
-                                      closeContext: sheetContext,
-                                    ),
-                                ],
-                                if (inviteResponseItems.isNotEmpty) ...[
-                                  if (readingHouseInvites.isNotEmpty ||
-                                      sentInvites.isNotEmpty ||
-                                      incomingInvites.isNotEmpty)
-                                    const SizedBox(height: 12),
-                                  _calendarSheetSectionTitle(
-                                    'Invites & responses',
-                                  ),
-                                  const SizedBox(height: 8),
-                                  for (final item in inviteResponseItems)
-                                    item.isEvent
-                                        ? _buildEventInviteRow(
-                                            item,
-                                            closeContext: sheetContext,
-                                          )
-                                        : _buildCalendarInviteNotificationRow(
-                                            item,
-                                            closeContext: sheetContext,
-                                          ),
-                                ],
                               ],
-                            ),
+                              if (incomingInvites.isNotEmpty) ...[
+                                if (readingHouseInvites.isNotEmpty)
+                                  const SizedBox(height: 12),
+                                _calendarSheetSectionTitle('Pending'),
+                                const SizedBox(height: 8),
+                                for (final invite in incomingInvites)
+                                  _buildIncomingCalendarInviteRow(
+                                    invite,
+                                    closeContext: sheetContext,
+                                  ),
+                              ],
+                              if (sentInvites.isNotEmpty) ...[
+                                if (readingHouseInvites.isNotEmpty ||
+                                    incomingInvites.isNotEmpty)
+                                  const SizedBox(height: 12),
+                                _calendarSheetSectionTitle('Pending from you'),
+                                const SizedBox(height: 8),
+                                for (final invite in sentInvites)
+                                  _buildSentCalendarInviteRow(
+                                    invite,
+                                    closeContext: sheetContext,
+                                  ),
+                              ],
+                              if (inviteResponseItems.isNotEmpty) ...[
+                                if (readingHouseInvites.isNotEmpty ||
+                                    sentInvites.isNotEmpty ||
+                                    incomingInvites.isNotEmpty)
+                                  const SizedBox(height: 12),
+                                _calendarSheetSectionTitle(
+                                  'Invites & responses',
+                                ),
+                                const SizedBox(height: 8),
+                                for (final item in inviteResponseItems)
+                                  item.isEvent
+                                      ? _buildEventInviteRow(
+                                          item,
+                                          closeContext: sheetContext,
+                                        )
+                                      : _buildCalendarInviteNotificationRow(
+                                          item,
+                                          closeContext: sheetContext,
+                                        ),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ],

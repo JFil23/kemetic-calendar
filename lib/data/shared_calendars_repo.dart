@@ -769,6 +769,7 @@ class SharedCalendarsRepo {
     required String calendarId,
     required String userId,
     SharedCalendarRole role = SharedCalendarRole.editor,
+    int? sourceFlowId,
     String? calendarName,
     int? calendarColorValue,
   }) async {
@@ -780,6 +781,8 @@ class SharedCalendarsRepo {
         'p_calendar_id': trimmedCalendarId,
         'p_user_id': trimmedUserId,
         'p_role': role.name,
+        if (sourceFlowId != null && sourceFlowId > 0)
+          'p_source_flow_id': sourceFlowId,
       },
     );
 

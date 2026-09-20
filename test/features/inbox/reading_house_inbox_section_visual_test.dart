@@ -311,6 +311,13 @@ void main() {
         incomingInvitesStream: invites.stream,
       );
 
+      await tester.tap(find.byKey(const ValueKey<String>('inbox-invites-row')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Calendar invites and responses will appear here.'),
+        findsOneWidget,
+      );
+
       inboxItems.add(<InboxShareItem>[
         InboxShareItem(
           shareId: 'pending-house-notification',
@@ -329,10 +336,6 @@ void main() {
         ),
       ]);
       invites.add(<SharedCalendarInvite>[_pendingReadingHouseInvite]);
-      await tester.pumpAndSettle();
-
-      expect(find.text('The Reading House · waiting on you'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey<String>('inbox-invites-row')));
       await tester.pumpAndSettle();
 
       expect(

@@ -450,6 +450,7 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       calendarId: calendarId,
       userId: reader.userId,
       role: SharedCalendarRole.viewer,
+      sourceFlowId: flowId,
       calendarName: _sharedCalendarName(house.plan.displayBookTitle),
       calendarColorValue: 0x3FA98A,
     );

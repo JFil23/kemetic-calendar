@@ -1190,6 +1190,7 @@ void main() {
       '  @override\n  Future<List<SharedCalendarMember>> refreshMembers',
     );
     expect(invite, contains('inviteUser('));
+    expect(invite, contains('sourceFlowId: flowId'));
     expect(invite, contains('return SharedCalendarMember('));
     expect(invite, isNot(contains('load(')));
     expect(invite, isNot(contains('listMembers(')));
