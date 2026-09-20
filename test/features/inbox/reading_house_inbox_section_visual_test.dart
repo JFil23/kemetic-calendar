@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -458,24 +459,76 @@ void main() {
     expect(find.textContaining('ended'), findsNothing);
   });
 
-  testWidgets('loading and error remain dedicated room-section states', (
-    tester,
-  ) async {
-    for (final state in const <ReadingHouseInboxSectionStatus>[
-      ReadingHouseInboxSectionStatus.loading,
-      ReadingHouseInboxSectionStatus.error,
-    ]) {
+  testWidgets(
+    'room loading is visually silent so Inbox rows never jump before invite acceptance',
+    (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: ReadingHouseInboxRoomSection(
-            rooms: const <ReadingHouseInboxRoomFixture>[],
-            status: state,
+        const MaterialApp(
+          home: Column(
+            children: <Widget>[
+              ReadingHouseInboxRoomSection(
+                rooms: <ReadingHouseInboxRoomFixture>[],
+                status: ReadingHouseInboxSectionStatus.loading,
+              ),
+              Text('MESSAGES'),
+            ],
           ),
         ),
       );
+
+      final loading = find.byKey(
+        const ValueKey<String>('reading-house-inbox-loading'),
+      );
+      expect(loading, findsOneWidget);
+      expect(tester.getSize(loading), Size.zero);
+      expect(find.text('Loading Reading Houses…'), findsNothing);
+      expect(find.text('MESSAGES'), findsOneWidget);
       expect(tester.takeException(), isNull);
-    }
+    },
+  );
+
+  testWidgets('room load failure remains an actionable section state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ReadingHouseInboxRoomSection(
+          rooms: <ReadingHouseInboxRoomFixture>[],
+          status: ReadingHouseInboxSectionStatus.error,
+        ),
+      ),
+    );
+
+    expect(find.text('Reading Houses could not load.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
+
+  test(
+    'room summary stream exclusively owns invite membership transitions',
+    () {
+      final inboxSource = File(
+        'lib/features/inbox/inbox_page.dart',
+      ).readAsStringSync();
+      final inviteListener = inboxSource.substring(
+        inboxSource.indexOf('incomingCalendarInvitesStream.listen'),
+        inboxSource.indexOf('final flowLifecycleStream'),
+      );
+      expect(inviteListener, isNot(contains('_refreshReadingHouseRooms')));
+
+      final roomRepoSource = File(
+        'lib/features/calendar/the_reading_house/'
+        'reading_house_room_repository.dart',
+      ).readAsStringSync();
+      final summaryWatcher = roomRepoSource.substring(
+        roomRepoSource.indexOf(
+          'Stream<List<ReadingHouseRoomSummary>> watchSummaries()',
+        ),
+        roomRepoSource.indexOf('void _requireIdentity'),
+      );
+      expect(summaryWatcher, contains("table: 'shared_calendar_members'"));
+      expect(summaryWatcher, contains("column: 'user_id'"));
+    },
+  );
 
   for (final fixture
       in <(String, Size, double, List<ReadingHouseInboxRoomFixture>, bool)>[

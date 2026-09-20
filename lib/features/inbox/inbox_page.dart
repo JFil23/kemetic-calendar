@@ -188,7 +188,7 @@ class _InboxPageState extends State<InboxPage> {
   List<DmConversationSummary> _latestDmConversations = const [];
   List<ReadingHouseRoomSummary> _latestReadingHouseRooms = const [];
   ReadingHouseInboxSectionStatus _readingHouseRoomStatus =
-      ReadingHouseInboxSectionStatus.loading;
+      ReadingHouseInboxSectionStatus.loaded;
   List<_UnifiedInboxItem> _unified = const [];
   final Set<String> _optimisticReadShareIds = <String>{};
   bool _loading = true;
@@ -235,21 +235,23 @@ class _InboxPageState extends State<InboxPage> {
               });
             }
           });
-      _readingHouseRoomsSub = _readingHouseRoomRepo.watchSummaries().listen(
-        (rooms) {
-          if (!mounted) return;
-          setState(() {
-            _latestReadingHouseRooms = rooms;
-            _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
-          });
-        },
-        onError: (Object error, StackTrace stackTrace) {
-          if (!mounted) return;
-          setState(() {
-            _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
-          });
-        },
-      );
+      _readingHouseRoomsSub = _readingHouseRoomDataSource
+          .watchSummaries()
+          .listen(
+            (rooms) {
+              if (!mounted) return;
+              setState(() {
+                _latestReadingHouseRooms = rooms;
+                _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
+              });
+            },
+            onError: (Object error, StackTrace stackTrace) {
+              if (!mounted) return;
+              setState(() {
+                _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
+              });
+            },
+          );
       _unreadStateSub = _shareRepo.watchUnreadState().listen((state) {
         if (!mounted) {
           _unreadState = state;
@@ -284,9 +286,6 @@ class _InboxPageState extends State<InboxPage> {
             _unified = _buildUnifiedItems();
             _loading = false;
           });
-        }
-        if (!widget.disableAuxiliarySubscriptionsForTesting) {
-          unawaited(_refreshReadingHouseRooms());
         }
       });
     }
@@ -359,7 +358,8 @@ class _InboxPageState extends State<InboxPage> {
       _logInboxImport('[InboxPage] Failed to refresh DM conversations: $e');
     }
     try {
-      _latestReadingHouseRooms = await _readingHouseRoomRepo.listSummaries();
+      _latestReadingHouseRooms = await _readingHouseRoomDataSource
+          .listSummaries();
       _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
     } catch (e) {
       _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
@@ -827,17 +827,17 @@ class _InboxPageState extends State<InboxPage> {
         .toList(growable: false);
   }
 
-  Future<void> _refreshReadingHouseRooms() async {
-    if (mounted) {
+  ReadingHouseRoomDataSource get _readingHouseRoomDataSource =>
+      widget.readingHouseRoomDataSourceForTesting ?? _readingHouseRoomRepo;
+
+  Future<void> _refreshReadingHouseRooms({bool showLoading = false}) async {
+    if (showLoading && mounted) {
       setState(() {
         _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loading;
       });
     }
     try {
-      final rooms =
-          await (widget.readingHouseRoomDataSourceForTesting ??
-                  _readingHouseRoomRepo)
-              .listSummaries();
+      final rooms = await _readingHouseRoomDataSource.listSummaries();
       if (!mounted) return;
       setState(() {
         _latestReadingHouseRooms = rooms;
@@ -891,7 +891,7 @@ class _InboxPageState extends State<InboxPage> {
         rooms: _readingHouseRoomFixtures,
         status: _readingHouseRoomStatus,
         onOpenRoom: _openReadingHouseRoom,
-        onRetry: () => unawaited(_refreshReadingHouseRooms()),
+        onRetry: () => unawaited(_refreshReadingHouseRooms(showLoading: true)),
       ),
       _buildSectionLabel('Messages', topMargin: 30),
       for (final item in _unified)

@@ -95,10 +95,8 @@ class ReadingHouseInboxRoomSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (status == ReadingHouseInboxSectionStatus.loading) {
-      return const _SectionNotice(
+      return const SizedBox.shrink(
         key: ValueKey<String>('reading-house-inbox-loading'),
-        label: 'Loading Reading Houses…',
-        loading: true,
       );
     }
     if (status == ReadingHouseInboxSectionStatus.error) {
@@ -485,13 +483,11 @@ class _SectionNotice extends StatelessWidget {
   const _SectionNotice({
     super.key,
     required this.label,
-    this.loading = false,
     this.actionLabel,
     this.onAction,
   });
 
   final String label;
-  final bool loading;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -502,17 +498,6 @@ class _SectionNotice extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Row(
         children: <Widget>[
-          if (loading) ...<Widget>[
-            const SizedBox(
-              width: 17,
-              height: 17,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.4,
-                color: ReadingHouseInboxTokens.mint,
-              ),
-            ),
-            const SizedBox(width: 11),
-          ],
           Expanded(
             child: Text(
               label,

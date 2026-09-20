@@ -394,7 +394,8 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
 
   @override
   Stream<List<ReadingHouseRoomSummary>> watchSummaries() {
-    if (currentUserId == null) {
+    final userId = currentUserId;
+    if (userId == null) {
       return Stream<List<ReadingHouseRoomSummary>>.value(
         const <ReadingHouseRoomSummary>[],
       );
@@ -471,9 +472,37 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
       }
     };
 
+    final membershipChannel =
+        _client.channel(
+            'reading_house_membership_${userId}_${++_channelSerial}',
+          )
+          ..onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'shared_calendar_members',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) => scheduleRefresh(),
+          )
+          ..subscribe((status, [error]) {
+            switch (status) {
+              case RealtimeSubscribeStatus.subscribed:
+              case RealtimeSubscribeStatus.channelError:
+              case RealtimeSubscribeStatus.timedOut:
+                scheduleRefresh();
+                break;
+              case RealtimeSubscribeStatus.closed:
+                break;
+            }
+          });
+
     unawaited(refresh());
     controller.onCancel = () async {
       debounce?.cancel();
+      await membershipChannel.unsubscribe();
       await Future.wait<void>(
         roomChannels.values.map((channel) => channel.unsubscribe()),
       );
