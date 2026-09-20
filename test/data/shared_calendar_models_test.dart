@@ -3,6 +3,40 @@ import 'package:mobile/data/birthday_calendar.dart';
 import 'package:mobile/data/shared_calendar_models.dart';
 
 void main() {
+  test('pending invite keeps canonical source-flow identity in cache', () {
+    final invite = SharedCalendarInvite.fromRow(<String, dynamic>{
+      'calendar_id': 'house-calendar',
+      'calendar_name': 'The Odyssey',
+      'calendar_color': 0x3FA98A,
+      'role': 'viewer',
+      'invited_at': '2026-09-19T12:00:00Z',
+      'source_flow_id': 104,
+      'source_flow_key': 'the-reading-house',
+      'source_book_title': 'The Odyssey',
+    });
+
+    expect(invite.sourceFlowId, 104);
+    expect(invite.sourceFlowKey, 'the-reading-house');
+    expect(invite.sourceBookLabel, 'The Odyssey');
+    expect(invite.toCacheJson(), containsPair('source_flow_id', 104));
+    expect(
+      invite.toCacheJson(),
+      containsPair('source_flow_key', 'the-reading-house'),
+    );
+  });
+
+  test('pending invite strips the legacy Reading House display prefix', () {
+    final invite = SharedCalendarInvite(
+      calendarId: 'legacy-house-calendar',
+      calendarName: 'Reading House · catcher in the rye',
+      calendarColorValue: 0x3FA98A,
+      role: SharedCalendarRole.viewer,
+      invitedAt: DateTime.utc(2026, 9, 19),
+    );
+
+    expect(invite.sourceBookLabel, 'catcher in the rye');
+  });
+
   group('SharedCalendarSummary permissions', () {
     test('owner can manage membership and see pending invites', () {
       final calendar = _summary(

@@ -29,6 +29,7 @@ import '../../widgets/profile_avatar.dart';
 import '../../widgets/utility_sheet_route_scaffold.dart';
 import '../calendar/calendar_page.dart' show CalendarPage;
 import '../calendar/calendar_invalidation.dart';
+import '../calendar/the_reading_house_flow.dart' show kReadingHouseFlowKey;
 import '../calendar/the_reading_house/reading_house_room_repository.dart';
 import '../calendars/shared_calendars_sheet.dart';
 import 'inbox_threading.dart';
@@ -85,7 +86,7 @@ class InboxPage extends StatefulWidget {
     this.dmConversationsForTesting,
     this.activityForTesting,
     this.calendarSummarySubtitleForTesting,
-    this.pendingReadingHouseInviteForTesting,
+    this.incomingCalendarInvitesStreamForTesting,
     this.readingHouseRoomDataSourceForTesting,
     this.sheet = false,
   });
@@ -111,7 +112,8 @@ class InboxPage extends StatefulWidget {
   @visibleForTesting
   final String? calendarSummarySubtitleForTesting;
   @visibleForTesting
-  final ReadingHousePendingInviteFixture? pendingReadingHouseInviteForTesting;
+  final Stream<List<SharedCalendarInvite>>?
+  incomingCalendarInvitesStreamForTesting;
   @visibleForTesting
   final ReadingHouseRoomDataSource? readingHouseRoomDataSourceForTesting;
   final bool sheet;
@@ -262,18 +264,27 @@ class _InboxPageState extends State<InboxPage> {
               });
             }
           });
-      _incomingCalendarInvitesSub = _sharedCalendarsRepo
-          .watchPendingInvites()
-          .listen((invites) {
-            _latestIncomingCalendarInvites = invites;
-            if (mounted) {
-              setState(() {
-                _unified = _buildUnifiedItems();
-                _loading = false;
-              });
-            }
-            unawaited(_refreshReadingHouseRooms());
+    }
+    final incomingCalendarInvitesStream =
+        widget.incomingCalendarInvitesStreamForTesting ??
+        (!widget.disableAuxiliarySubscriptionsForTesting
+            ? _sharedCalendarsRepo.watchPendingInvites()
+            : null);
+    if (incomingCalendarInvitesStream != null) {
+      _incomingCalendarInvitesSub = incomingCalendarInvitesStream.listen((
+        invites,
+      ) {
+        _latestIncomingCalendarInvites = invites;
+        if (mounted) {
+          setState(() {
+            _unified = _buildUnifiedItems();
+            _loading = false;
           });
+        }
+        if (!widget.disableAuxiliarySubscriptionsForTesting) {
+          unawaited(_refreshReadingHouseRooms());
+        }
+      });
     }
     final flowLifecycleStream =
         widget.flowLifecycleStreamForTesting ??
@@ -1883,21 +1894,37 @@ class _InboxPageState extends State<InboxPage> {
           )
           .toList(growable: false);
 
-  List<SharedCalendarInvite> get _incomingCalendarInvitesWithoutNotification {
-    final notifiedCalendarIds = _calendarSectionNotifications
-        .where((item) => item.isCalendarInviteNotification)
-        .map((item) => item.payloadId.trim())
+  bool _isReadingHouseInvite(SharedCalendarInvite invite) =>
+      invite.sourceFlowKey == kReadingHouseFlowKey;
+
+  List<SharedCalendarInvite> get _readingHouseIncomingInvites =>
+      _latestIncomingCalendarInvites
+          .where(_isReadingHouseInvite)
+          .toList(growable: false);
+
+  List<SharedCalendarInvite> get _genericIncomingCalendarInvites =>
+      _latestIncomingCalendarInvites
+          .where((invite) => !_isReadingHouseInvite(invite))
+          .toList(growable: false);
+
+  List<InboxShareItem> get _calendarNotificationsWithoutPendingMembership {
+    final pendingCalendarIds = _latestIncomingCalendarInvites
+        .map((invite) => invite.calendarId.trim())
         .where((id) => id.isNotEmpty)
         .toSet();
-    return _latestIncomingCalendarInvites
-        .where((invite) => !notifiedCalendarIds.contains(invite.calendarId))
+    return _calendarSectionNotifications
+        .where(
+          (item) =>
+              !item.isCalendarInviteNotification ||
+              !pendingCalendarIds.contains(item.payloadId.trim()),
+        )
         .toList(growable: false);
   }
 
   bool get _hasUnreadCalendar =>
       _calendarSectionNotifications.any(_isUnreadInboxItem) ||
       _latestEventInvites.any(_isUnreadInboxItem) ||
-      _incomingCalendarInvitesWithoutNotification.isNotEmpty;
+      _latestIncomingCalendarInvites.isNotEmpty;
 
   Widget _buildSummaryTile(int index) {
     final tiles = <Widget>[
@@ -2039,9 +2066,11 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Widget _buildCalendarSummaryTile() {
-    final latestNotification = _calendarSectionNotifications.isEmpty
+    final calendarNotifications =
+        _calendarNotificationsWithoutPendingMembership;
+    final latestNotification = calendarNotifications.isEmpty
         ? null
-        : _calendarSectionNotifications.reduce(
+        : calendarNotifications.reduce(
             (left, right) =>
                 right.createdAt.isAfter(left.createdAt) ? right : left,
           );
@@ -2057,7 +2086,7 @@ class _InboxPageState extends State<InboxPage> {
             (left, right) =>
                 right.invitedAt.isAfter(left.invitedAt) ? right : left,
           );
-    final incomingInvites = _incomingCalendarInvitesWithoutNotification;
+    final incomingInvites = _latestIncomingCalendarInvites;
     final latestIncomingInvite = incomingInvites.isEmpty
         ? null
         : incomingInvites.reduce(
@@ -2093,7 +2122,8 @@ class _InboxPageState extends State<InboxPage> {
         (latestNotification == null ||
             latestEventInvite.createdAt.isAfter(latestNotification.createdAt));
 
-    final subtitle = widget.pendingReadingHouseInviteForTesting != null
+    final subtitle =
+        useIncomingInvite && _isReadingHouseInvite(latestIncomingInvite)
         ? 'The Reading House · waiting on you'
         : useSentInvite
         ? '${latestSentInvite.calendarName} - waiting on ${latestSentInvite.inviteeLabel}'
@@ -2281,7 +2311,8 @@ class _InboxPageState extends State<InboxPage> {
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
         builder: (sheetContext) {
-          final inviteNotifications = _calendarSectionNotifications.toList();
+          final inviteNotifications =
+              _calendarNotificationsWithoutPendingMembership.toList();
           final eventInvites = _latestEventInvites.toList();
           final inviteResponseItems = <InboxShareItem>[
             ...eventInvites,
@@ -2289,10 +2320,10 @@ class _InboxPageState extends State<InboxPage> {
           ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           final sentInvites = _latestSentCalendarInvites.toList()
             ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
-          final incomingInvites =
-              _incomingCalendarInvitesWithoutNotification.toList()
-                ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
-          final readingHouseInvite = widget.pendingReadingHouseInviteForTesting;
+          final incomingInvites = _genericIncomingCalendarInvites.toList()
+            ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
+          final readingHouseInvites = _readingHouseIncomingInvites.toList()
+            ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
           final mediaHeight = MediaQuery.sizeOf(sheetContext).height * 0.78;
           final sheetHeight = mediaHeight < 720 ? mediaHeight : 720.0;
 
@@ -2376,7 +2407,7 @@ class _InboxPageState extends State<InboxPage> {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(18, 0, 18, 34),
                       child:
-                          readingHouseInvite == null &&
+                          readingHouseInvites.isEmpty &&
                               sentInvites.isEmpty &&
                               inviteResponseItems.isEmpty &&
                               incomingInvites.isEmpty
@@ -2391,17 +2422,30 @@ class _InboxPageState extends State<InboxPage> {
                             )
                           : ListView(
                               children: [
-                                if (readingHouseInvite != null) ...[
+                                if (readingHouseInvites.isNotEmpty) ...[
                                   _calendarSheetSectionTitle('Pending'),
                                   const SizedBox(height: 8),
-                                  ReadingHousePendingInviteCard(
-                                    invite: readingHouseInvite,
-                                    onAccept: null,
-                                    onDecline: null,
-                                  ),
+                                  for (final invite in readingHouseInvites)
+                                    ReadingHousePendingInviteCard(
+                                      invite: invite,
+                                      onAccept: () => unawaited(
+                                        _respondToIncomingCalendarInvite(
+                                          invite,
+                                          accept: true,
+                                          closeContext: sheetContext,
+                                        ),
+                                      ),
+                                      onDecline: () => unawaited(
+                                        _respondToIncomingCalendarInvite(
+                                          invite,
+                                          accept: false,
+                                          closeContext: sheetContext,
+                                        ),
+                                      ),
+                                    ),
                                 ],
                                 if (incomingInvites.isNotEmpty) ...[
-                                  if (readingHouseInvite != null)
+                                  if (readingHouseInvites.isNotEmpty)
                                     const SizedBox(height: 12),
                                   _calendarSheetSectionTitle('Pending'),
                                   const SizedBox(height: 8),
@@ -2412,7 +2456,8 @@ class _InboxPageState extends State<InboxPage> {
                                     ),
                                 ],
                                 if (sentInvites.isNotEmpty) ...[
-                                  if (incomingInvites.isNotEmpty)
+                                  if (readingHouseInvites.isNotEmpty ||
+                                      incomingInvites.isNotEmpty)
                                     const SizedBox(height: 12),
                                   _calendarSheetSectionTitle(
                                     'Pending from you',
@@ -2425,7 +2470,8 @@ class _InboxPageState extends State<InboxPage> {
                                     ),
                                 ],
                                 if (inviteResponseItems.isNotEmpty) ...[
-                                  if (sentInvites.isNotEmpty ||
+                                  if (readingHouseInvites.isNotEmpty ||
+                                      sentInvites.isNotEmpty ||
                                       incomingInvites.isNotEmpty)
                                     const SizedBox(height: 12),
                                   _calendarSheetSectionTitle(

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/data/share_models.dart';
 import 'package:mobile/data/share_repo.dart';
+import 'package:mobile/data/shared_calendar_models.dart';
 import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/features/calendar/the_reading_house/reading_house_room_repository.dart';
 import 'package:mobile/features/inbox/conversation_user.dart';
@@ -24,6 +25,21 @@ const _captureReadingHouseInboxVisuals = bool.fromEnvironment(
 final _goldenRoot = maatFlowVisualGoldenRoot;
 const _captureKey = ValueKey<String>('reading-house-inbox-visual-capture');
 final _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+
+final _pendingReadingHouseInvite = SharedCalendarInvite(
+  calendarId: 'pending-house-calendar',
+  calendarName: 'The Odyssey',
+  calendarColorValue: 0x3FA98A,
+  role: SharedCalendarRole.viewer,
+  invitedAt: DateTime.utc(2026, 9, 4, 7, 15),
+  invitedBy: 'amina',
+  inviterDisplayName: 'Amina',
+  inviteDirection: 'incoming',
+  filingLifecycle: 'pending',
+  sourceFlowId: 104,
+  sourceFlowKey: 'the-reading-house',
+  sourceBookTitle: 'The Odyssey',
+);
 
 class _VisualRoomDataSource implements ReadingHouseRoomDataSource {
   const _VisualRoomDataSource({this.summaries});
@@ -203,6 +219,8 @@ void main() {
           kReadingHouseInboxRoomVisualFixture,
         ],
     bool showPendingInvite = false,
+    Stream<List<InboxShareItem>>? inboxItemsStream,
+    Stream<List<SharedCalendarInvite>>? incomingInvitesStream,
     ReadingHouseRoomDataSource roomDataSource = const _VisualRoomDataSource(),
     Stream<CalendarInvalidated> flowLifecycleStream = const Stream.empty(),
   }) async {
@@ -229,6 +247,7 @@ void main() {
               childForTesting: InboxPage(
                 sheet: true,
                 inboxItemsStreamForTesting:
+                    inboxItemsStream ??
                     const Stream<List<InboxShareItem>>.empty()
                         .asBroadcastStream(),
                 flowLifecycleStreamForTesting: flowLifecycleStream,
@@ -255,9 +274,13 @@ void main() {
                   ),
                 ],
                 calendarSummarySubtitleForTesting: 'No pending invites',
-                pendingReadingHouseInviteForTesting: showPendingInvite
-                    ? kReadingHousePendingInviteFixture
-                    : null,
+                incomingCalendarInvitesStreamForTesting:
+                    incomingInvitesStream ??
+                    Stream<List<SharedCalendarInvite>>.value(
+                      showPendingInvite
+                          ? <SharedCalendarInvite>[_pendingReadingHouseInvite]
+                          : const <SharedCalendarInvite>[],
+                    ),
                 readingHouseRoomDataSourceForTesting: roomDataSource,
               ),
             ),
@@ -273,6 +296,71 @@ void main() {
       expect(find.text('PENDING'), findsOneWidget);
     }
   }
+
+  testWidgets(
+    'real pending-invite stream reveals the Reading House card without reopening Inbox',
+    (tester) async {
+      final invites = StreamController<List<SharedCalendarInvite>>.broadcast();
+      final inboxItems = StreamController<List<InboxShareItem>>.broadcast();
+      addTearDown(invites.close);
+      addTearDown(inboxItems.close);
+      await pumpPage(
+        tester,
+        size: const Size(390, 844),
+        inboxItemsStream: inboxItems.stream,
+        incomingInvitesStream: invites.stream,
+      );
+
+      inboxItems.add(<InboxShareItem>[
+        InboxShareItem(
+          shareId: 'pending-house-notification',
+          kind: InboxShareKind.calendar,
+          recipientId: 'reader-a',
+          senderId: 'amina',
+          senderName: 'Amina',
+          payloadId: 'pending-house-calendar',
+          title: 'The Odyssey',
+          createdAt: DateTime.utc(2026, 9, 4, 7, 15, 1),
+          payloadJson: const <String, dynamic>{
+            'notification_kind': 'calendar_invite',
+            'calendar_id': 'pending-house-calendar',
+            'calendar_name': 'The Odyssey',
+          },
+        ),
+      ]);
+      invites.add(<SharedCalendarInvite>[_pendingReadingHouseInvite]);
+      await tester.pumpAndSettle();
+
+      expect(find.text('The Reading House · waiting on you'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey<String>('inbox-invites-row')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('reading-house-pending-invite')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Amina invited you to read'), findsOneWidget);
+      expect(find.textContaining('invited you to this calendar'), findsNothing);
+      expect(
+        tester
+            .widget<TextButton>(
+              find.byKey(const ValueKey<String>('reading-house-invite-accept')),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      expect(
+        tester
+            .widget<TextButton>(
+              find.byKey(
+                const ValueKey<String>('reading-house-invite-decline'),
+              ),
+            )
+            .onPressed,
+        isNotNull,
+      );
+    },
+  );
 
   testWidgets('actual Inbox route places each House above Messages', (
     tester,

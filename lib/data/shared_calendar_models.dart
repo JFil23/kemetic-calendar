@@ -266,6 +266,9 @@ class SharedCalendarInvite {
     this.inviterDisplayName,
     this.inviteDirection,
     this.filingLifecycle,
+    this.sourceFlowId,
+    this.sourceFlowKey,
+    this.sourceBookTitle,
   });
 
   final String calendarId;
@@ -278,6 +281,9 @@ class SharedCalendarInvite {
   final String? inviterDisplayName;
   final String? inviteDirection;
   final String? filingLifecycle;
+  final int? sourceFlowId;
+  final String? sourceFlowKey;
+  final String? sourceBookTitle;
 
   factory SharedCalendarInvite.fromRow(Map<String, dynamic> row) {
     return SharedCalendarInvite(
@@ -293,6 +299,9 @@ class SharedCalendarInvite {
       inviterDisplayName: (row['inviter_display_name'] as String?)?.trim(),
       inviteDirection: (row['invite_direction'] as String?)?.trim(),
       filingLifecycle: (row['lifecycle'] as String?)?.trim(),
+      sourceFlowId: (row['source_flow_id'] as num?)?.toInt(),
+      sourceFlowKey: _cleanString(row['source_flow_key']),
+      sourceBookTitle: _cleanString(row['source_book_title']),
     );
   }
 
@@ -308,6 +317,9 @@ class SharedCalendarInvite {
       'inviter_display_name': inviterDisplayName,
       'invite_direction': inviteDirection,
       'lifecycle': filingLifecycle,
+      'source_flow_id': sourceFlowId,
+      'source_flow_key': sourceFlowKey,
+      'source_book_title': sourceBookTitle,
     };
   }
 
@@ -319,6 +331,17 @@ class SharedCalendarInvite {
     final handle = inviterHandle?.trim();
     if (handle != null && handle.isNotEmpty) return '@$handle';
     return 'Someone';
+  }
+
+  String get sourceBookLabel {
+    final sourceTitle = sourceBookTitle?.trim();
+    if (sourceTitle != null && sourceTitle.isNotEmpty) return sourceTitle;
+    const legacyPrefix = 'Reading House · ';
+    if (calendarName.startsWith(legacyPrefix)) {
+      final legacyTitle = calendarName.substring(legacyPrefix.length).trim();
+      if (legacyTitle.isNotEmpty) return legacyTitle;
+    }
+    return calendarName;
   }
 }
 

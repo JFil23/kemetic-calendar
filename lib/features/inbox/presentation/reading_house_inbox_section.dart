@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/data/shared_calendar_models.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 
 enum ReadingHouseInboxRoomStatus { active, locked, empty }
@@ -28,21 +29,6 @@ class ReadingHouseInboxRoomFixture {
   final int memberCount;
   final int unreadCount;
   final ReadingHouseInboxRoomStatus status;
-}
-
-@immutable
-class ReadingHousePendingInviteFixture {
-  const ReadingHousePendingInviteFixture({
-    required this.calendarId,
-    required this.flowId,
-    required this.inviterName,
-    required this.bookTitle,
-  });
-
-  final String calendarId;
-  final int flowId;
-  final String inviterName;
-  final String bookTitle;
 }
 
 typedef ReadingHouseInboxRoomOpen =
@@ -75,14 +61,6 @@ kReadingHouseInboxMultipleRoomVisualFixtures = <ReadingHouseInboxRoomFixture>[
     status: ReadingHouseInboxRoomStatus.locked,
   ),
 ];
-
-const ReadingHousePendingInviteFixture kReadingHousePendingInviteFixture =
-    ReadingHousePendingInviteFixture(
-      calendarId: 'pending-house-calendar',
-      flowId: 104,
-      inviterName: 'Amina',
-      bookTitle: 'The Odyssey',
-    );
 
 abstract final class ReadingHouseInboxTokens {
   static const Color page = Color(0xFF0E0B07);
@@ -327,7 +305,7 @@ class ReadingHousePendingInviteCard extends StatelessWidget {
     this.onDecline,
   });
 
-  final ReadingHousePendingInviteFixture invite;
+  final SharedCalendarInvite invite;
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
 
@@ -385,10 +363,10 @@ class ReadingHousePendingInviteCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text.rich(
                   TextSpan(
-                    text: '${invite.inviterName} invited you to read ',
+                    text: '${invite.inviterLabel} invited you to read ',
                     children: <InlineSpan>[
                       TextSpan(
-                        text: invite.bookTitle,
+                        text: invite.sourceBookLabel,
                         style: const TextStyle(fontStyle: FontStyle.italic),
                       ),
                     ],
