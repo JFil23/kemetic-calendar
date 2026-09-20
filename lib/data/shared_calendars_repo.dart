@@ -531,12 +531,93 @@ class SharedCalendarsRepo {
     );
   }
 
-  Stream<List<SharedCalendarSentInvite>> watchSentPendingInvites() {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null || uid.isEmpty) {
-      return Stream.value(const <SharedCalendarSentInvite>[]);
+  /// Keeps a repository-owned realtime stream bound to the authenticated
+  /// account, including when Supabase restores that account after the caller
+  /// has already subscribed.
+  ///
+  /// Inbox can mount before `currentUser` is restored on a web cold start.
+  /// Returning a one-shot empty stream in that state permanently loses the
+  /// later authenticated subscription, so auth changes must replace the
+  /// account-scoped realtime stream rather than end it.
+  Stream<T> _watchAuthenticated<T>({
+    required T signedOutValue,
+    required Stream<T> Function(String userId) watchForUser,
+  }) {
+    late final StreamController<T> controller;
+    StreamSubscription<AuthState>? authSubscription;
+    StreamSubscription<T>? accountSubscription;
+    String? targetUserId;
+    var hasTarget = false;
+    var bindGeneration = 0;
+
+    Future<void> bind(String? rawUserId) async {
+      final trimmedUserId = rawUserId?.trim();
+      final nextUserId = trimmedUserId == null || trimmedUserId.isEmpty
+          ? null
+          : trimmedUserId;
+      if (hasTarget && targetUserId == nextUserId) return;
+
+      hasTarget = true;
+      targetUserId = nextUserId;
+      final generation = ++bindGeneration;
+      final previous = accountSubscription;
+      accountSubscription = null;
+      if (previous != null) {
+        await previous.cancel();
+      }
+      if (controller.isClosed || generation != bindGeneration) return;
+
+      if (nextUserId == null) {
+        controller.add(signedOutValue);
+        return;
+      }
+
+      accountSubscription = watchForUser(nextUserId).listen(
+        (value) {
+          if (!controller.isClosed && generation == bindGeneration) {
+            controller.add(value);
+          }
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          if (!controller.isClosed && generation == bindGeneration) {
+            controller.addError(error, stackTrace);
+          }
+        },
+      );
     }
 
+    controller = StreamController<T>(
+      onListen: () {
+        authSubscription = _client.auth.onAuthStateChange.listen(
+          (state) => unawaited(bind(state.session?.user.id)),
+          onError: (Object error, StackTrace stackTrace) {
+            if (!controller.isClosed) {
+              controller.addError(error, stackTrace);
+            }
+          },
+        );
+        unawaited(bind(_client.auth.currentUser?.id));
+      },
+      onCancel: () async {
+        bindGeneration += 1;
+        await authSubscription?.cancel();
+        await accountSubscription?.cancel();
+        await controller.close();
+      },
+    );
+    return controller.stream;
+  }
+
+  Stream<List<SharedCalendarSentInvite>> watchSentPendingInvites() {
+    return _watchAuthenticated<List<SharedCalendarSentInvite>>(
+      signedOutValue: const <SharedCalendarSentInvite>[],
+      watchForUser: _watchSentPendingInvitesForUser,
+    );
+  }
+
+  Stream<List<SharedCalendarSentInvite>> _watchSentPendingInvitesForUser(
+    String uid,
+  ) {
     final controller = StreamController<List<SharedCalendarSentInvite>>();
     final channelName =
         'shared_calendar_sent_invites_${uid}_${DateTime.now().microsecondsSinceEpoch}';
@@ -635,11 +716,13 @@ class SharedCalendarsRepo {
   }
 
   Stream<List<SharedCalendarInvite>> watchPendingInvites() {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null || uid.isEmpty) {
-      return Stream.value(const <SharedCalendarInvite>[]);
-    }
+    return _watchAuthenticated<List<SharedCalendarInvite>>(
+      signedOutValue: const <SharedCalendarInvite>[],
+      watchForUser: _watchPendingInvitesForUser,
+    );
+  }
 
+  Stream<List<SharedCalendarInvite>> _watchPendingInvitesForUser(String uid) {
     final controller = StreamController<List<SharedCalendarInvite>>();
     final channelName =
         'shared_calendar_pending_invites_${uid}_${DateTime.now().microsecondsSinceEpoch}';
