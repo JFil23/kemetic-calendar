@@ -383,6 +383,7 @@ class _FlowStudioDraft {
   final bool isAIGeneratedFlow;
   final int flowAlertMinutesBefore;
   final bool flowAlertMixed;
+  final FlowAppearance appearance;
 
   const _FlowStudioDraft({
     required this.editingFlowId,
@@ -417,6 +418,7 @@ class _FlowStudioDraft {
     required this.isAIGeneratedFlow,
     required this.flowAlertMinutesBefore,
     required this.flowAlertMixed,
+    this.appearance = FlowAppearance.empty,
   });
 
   Map<String, dynamic> toJson() {
@@ -466,6 +468,7 @@ class _FlowStudioDraft {
       'isAIGeneratedFlow': isAIGeneratedFlow,
       'flowAlertMinutesBefore': flowAlertMinutesBefore,
       'flowAlertMixed': flowAlertMixed,
+      'appearance': appearance.toJsonOrNull(),
     };
   }
 
@@ -536,6 +539,7 @@ class _FlowStudioDraft {
           (json['flowAlertMinutesBefore'] as num?)?.toInt() ??
           _alertNoneMinutes,
       flowAlertMixed: json['flowAlertMixed'] == true,
+      appearance: FlowAppearance.fromJson(json['appearance']),
     );
   }
 }
@@ -581,6 +585,7 @@ class ImportFlowData {
   final int? rootFlowId;
   final String? originType;
   final Map<String, dynamic>? aiMetadata;
+  final FlowAppearance appearance;
   const ImportFlowData({
     required this.share,
     required this.name,
@@ -597,6 +602,7 @@ class ImportFlowData {
     this.rootFlowId,
     this.originType,
     this.aiMetadata,
+    this.appearance = FlowAppearance.empty,
   });
 }
 

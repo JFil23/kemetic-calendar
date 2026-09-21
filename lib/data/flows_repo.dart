@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/calendar/calendar_hydration_diagnostics.dart';
 import '../utils/flow_visibility.dart';
+import 'flow_appearance.dart';
 
 const _kFlows = 'flows';
 const _kFiledFlowsRpc = 'get_my_filed_flows_v1';
@@ -90,6 +91,7 @@ class FlowRow {
   final String? notes;
   final List<dynamic> rules; // store your _FlowRule list as JSON-serializable
   final Map<String, dynamic>? aiMetadata;
+  final FlowAppearance appearance;
   final bool isHidden;
   final bool isReminder;
   final String? reminderUuid;
@@ -119,6 +121,7 @@ class FlowRow {
     required this.notes,
     required this.rules,
     this.aiMetadata,
+    this.appearance = FlowAppearance.empty,
     this.isHidden = false,
     this.isReminder = false,
     this.reminderUuid,
@@ -183,6 +186,7 @@ class FlowRow {
       aiMetadata: r['ai_metadata'] != null
           ? Map<String, dynamic>.from(r['ai_metadata'] as Map)
           : null,
+      appearance: FlowAppearance.fromJson(r['appearance']),
     );
   }
 
@@ -197,6 +201,8 @@ class FlowRow {
     'end_date': endDate?.toIso8601String(),
     'notes': notes,
     'rules': rules,
+    if (appearance.toJsonOrNull() != null)
+      'appearance': appearance.toJsonOrNull(),
     'is_hidden': isHidden,
     'is_reminder': isReminder,
     'reminder_uuid': reminderUuid,
@@ -212,6 +218,7 @@ class FlowRow {
     'end_date': endDate?.toIso8601String(),
     'notes': notes,
     'rules': rules,
+    'appearance': appearance.toJsonOrNull(),
     'is_hidden': isHidden,
     'is_reminder': isReminder,
     'reminder_uuid': reminderUuid,
@@ -230,6 +237,7 @@ class FlowRow {
     'notes': notes,
     'rules': rules,
     'ai_metadata': aiMetadata,
+    'appearance': appearance.toJsonOrNull(),
     'is_hidden': isHidden,
     'is_reminder': isReminder,
     'reminder_uuid': reminderUuid,
@@ -398,6 +406,32 @@ class FlowsRepo {
       userId: userId,
       flowIds: savedFlowIds,
     );
+    final flowIds = rows
+        .map((row) => (row['id'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet();
+    final appearancesByFlowId = <int, FlowAppearance>{};
+    if (flowIds.isNotEmpty) {
+      try {
+        final appearanceRows =
+            await _client
+                    .from(_kFlows)
+                    .select('id, appearance')
+                    .inFilter('id', flowIds.toList(growable: false))
+                as List<dynamic>;
+        for (final raw in appearanceRows.whereType<Map>()) {
+          final row = Map<String, dynamic>.from(raw);
+          final id = (row['id'] as num?)?.toInt();
+          if (id != null) {
+            appearancesByFlowId[id] = FlowAppearance.fromJson(
+              row['appearance'],
+            );
+          }
+        }
+      } catch (error) {
+        _log('appearance enrichment unavailable: $error');
+      }
+    }
 
     return rows
         .map((row) {
@@ -406,6 +440,10 @@ class FlowsRepo {
           final savedAt =
               savedAtByFlowId[flowId] ?? _savedAtFallbackForRow(enriched);
           enriched['saved_at'] = savedAt?.toIso8601String();
+          final appearance = appearancesByFlowId[flowId];
+          if (appearance != null) {
+            enriched['appearance'] = appearance.toJsonOrNull();
+          }
           return FlowRow.fromRow(enriched);
         })
         .toList(growable: false);
@@ -620,6 +658,7 @@ class FlowsRepo {
     List<dynamic>? rulesJson,
     bool isReminder = false,
     String? reminderUuid,
+    FlowAppearance? appearance,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -636,6 +675,7 @@ class FlowsRepo {
       'rules': rulesJson ?? <dynamic>[],
       'is_hidden': isHidden,
       'is_reminder': isReminder,
+      if (appearance != null) 'appearance': appearance.toJsonOrNull(),
     };
     if (startDate != null) {
       payload['start_date'] = startDate.toUtc().toIso8601String();
@@ -676,6 +716,7 @@ class FlowsRepo {
     required List<dynamic> rulesJson,
     bool isReminder = false,
     String? reminderUuid,
+    FlowAppearance? appearance,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) throw StateError('No user session.');
@@ -693,6 +734,7 @@ class FlowsRepo {
       'is_hidden': isHidden,
       'is_reminder': isReminder,
       'reminder_uuid': reminderUuid,
+      if (appearance != null) 'appearance': appearance.toJsonOrNull(),
     };
     _log('insert → $payload');
     final row = await _client.from(_kFlows).insert(payload).select().single();
@@ -713,6 +755,7 @@ class FlowsRepo {
     required List<dynamic> rulesJson,
     bool isReminder = false,
     String? reminderUuid,
+    FlowAppearance? appearance,
   }) async {
     final patch = {
       if (calendarId != null) 'calendar_id': calendarId,
@@ -725,6 +768,7 @@ class FlowsRepo {
       'rules': rulesJson,
       'is_reminder': isReminder,
       'reminder_uuid': reminderUuid,
+      if (appearance != null) 'appearance': appearance.toJsonOrNull(),
     };
     _log('update($id) → $patch');
     await _client.from(_kFlows).update(patch).eq('id', id);

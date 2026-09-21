@@ -9,6 +9,7 @@ import '../features/calendar/notify.dart';
 import '../features/calendar/end_flow_diagnostics.dart';
 import '../telemetry/telemetry.dart';
 import '../utils/flow_filter_engine.dart';
+import 'flow_appearance.dart';
 
 const _kTable = 'user_events';
 const _kReadableEventsTable = 'user_event_filing_items_client';
@@ -2730,6 +2731,7 @@ class UserEventsRepo {
     String? originGenerationId,
     int? rootFlowId,
     Map<String, dynamic>? aiMetadata,
+    FlowAppearance? appearance,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -2786,6 +2788,9 @@ class UserEventsRepo {
     }
     if (aiMetadata != null) {
       payload['ai_metadata'] = aiMetadata;
+    }
+    if (appearance != null) {
+      payload['appearance'] = appearance.toJsonOrNull();
     }
 
     try {
@@ -2861,6 +2866,7 @@ class UserEventsRepo {
         bool isHidden,
         bool isReminder,
         String? reminderUuid,
+        FlowAppearance appearance,
       })
     >
   >
@@ -2905,7 +2911,7 @@ class UserEventsRepo {
           .select(
             'id,user_id,calendar_id,name,color,active,is_saved,start_date,'
             'end_date,notes,rules,share_id,created_at,updated_at,is_hidden,'
-            'is_reminder,reminder_uuid',
+            'is_reminder,reminder_uuid,appearance',
           )
           .order('created_at', ascending: false);
 
@@ -2982,6 +2988,7 @@ class UserEventsRepo {
           isHidden: (row['is_hidden'] as bool?) ?? false,
           isReminder: (row['is_reminder'] as bool?) ?? false,
           reminderUuid: row['reminder_uuid'] as String?,
+          appearance: FlowAppearance.fromJson(row['appearance']),
         );
       }).toList();
       diagnostics.recordPostProcessing(

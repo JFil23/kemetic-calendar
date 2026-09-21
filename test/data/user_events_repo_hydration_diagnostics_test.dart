@@ -265,7 +265,7 @@ void main() {
         select,
         'id,user_id,calendar_id,name,color,active,is_saved,start_date,'
         'end_date,notes,rules,share_id,created_at,updated_at,is_hidden,'
-        'is_reminder,reminder_uuid',
+        'is_reminder,reminder_uuid,appearance',
       );
       expect(select, contains('notes'));
       expect(select, contains('rules'));

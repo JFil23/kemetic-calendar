@@ -847,6 +847,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       rootFlowId: template.id,
       isReminder: template.isReminder,
       reminderUuid: template.reminderUuid,
+      appearance: template.appearance,
     );
     if (newId <= 0) {
       throw StateError('Saved flow import returned invalid flow id $newId.');
@@ -867,6 +868,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       isHidden: false,
       isReminder: template.isReminder,
       reminderUuid: template.reminderUuid,
+      appearance: template.appearance,
     );
     final writes = <PlannedNoteWrite>[];
     for (final e in events) {
@@ -1690,6 +1692,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     final bottomPadding = AppBottomInsets.contentBottomPadding(context) + 196;
     final isTrackSky =
         meta.maatKey == 'track-the-sky' || _isTrackSkyFlowName(flow.name);
+    final hasUserAppearance = meta.maatKey == null && !flow.appearance.isEmpty;
+    final appearanceAccent = flow.appearance.accentArgb == null
+        ? palette.accent
+        : Color(flow.appearance.accentArgb!);
 
     if (loading && events.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: _gold));
@@ -1708,6 +1714,18 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       key: PageStorageKey('flow-dashboard-${flow.id}-${widget.mode.name}'),
       padding: EdgeInsets.fromLTRB(30, 28, 30, bottomPadding),
       children: [
+        if (hasUserAppearance) ...[
+          UserFlowAppearanceHero(
+            key: const ValueKey('user-flow-detail-appearance'),
+            appearance: flow.appearance,
+            accent: appearanceAccent,
+            height: 300,
+            completedOccurrences: metrics.completedEventCount,
+            totalOccurrences: total,
+            showProgressFooter: true,
+          ),
+          const SizedBox(height: 24),
+        ],
         _buildDashboardTitleArea(
           flow: flow,
           overview: displayOverview,
@@ -3059,7 +3077,6 @@ class _MyFlowDayContentCard extends StatelessWidget {
     final washOpacity = isInline ? 0.11 : 0.16;
     final borderOpacity = isInline ? 0.14 : 0.20;
     final titleSize = isInline ? 30.0 : 33.0;
-
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),

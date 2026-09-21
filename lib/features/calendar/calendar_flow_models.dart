@@ -173,6 +173,7 @@ class _Flow {
   bool isHidden; // Client-only flag for UI filtering (repeating notes)
   bool isReminder; // Flag for reminder-backed flows
   String? reminderUuid;
+  FlowAppearance appearance;
   _Flow({
     required this.id,
     this.calendarId,
@@ -189,6 +190,7 @@ class _Flow {
     this.isHidden = false, // Default to visible
     this.isReminder = false,
     this.reminderUuid,
+    this.appearance = FlowAppearance.empty,
   });
 }
 

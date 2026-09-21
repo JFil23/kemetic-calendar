@@ -21,6 +21,8 @@ import 'profile_feed_item_model.dart';
 import 'flows_repo.dart';
 import 'user_events_repo.dart';
 import 'flow_post_comment_model.dart';
+import 'flow_appearance.dart';
+import 'flow_appearance_store.dart';
 
 class ProfileAvatarGlyphsUnavailable implements Exception {
   const ProfileAvatarGlyphsUnavailable();
@@ -1048,6 +1050,7 @@ class ProfileRepo {
         'color': flow.color,
         'notes': flow.notes,
         'rules': flow.rules,
+        'appearance': flow.appearance.toJsonOrNull(),
         'events': events.map(eventToPayload).toList(),
         'start_date': startDate?.toIso8601String(),
         'end_date': flow.endDate?.toIso8601String(),
@@ -1240,6 +1243,24 @@ class ProfileRepo {
 
       final userEventsRepo = UserEventsRepo(_client);
       final rulesString = jsonEncode(post.rules);
+      final sourceAppearance = FlowAppearance.fromJson(
+        post.payloadJson?['appearance'],
+      );
+      var importedAppearance = sourceAppearance;
+      if (sourceAppearance.hasImage) {
+        try {
+          final ownedPath = await FlowAppearanceStore(
+            _client,
+          ).materializeOwnedCopy(sourceAppearance.imageObjectPath);
+          importedAppearance = sourceAppearance.copyWith(
+            imageObjectPath: ownedPath,
+            clearImage: ownedPath == null,
+          );
+        } catch (error) {
+          _log('[ProfileRepo] appearance image copy failed: $error');
+          importedAppearance = sourceAppearance.copyWith(clearImage: true);
+        }
+      }
       final newId = await userEventsRepo.upsertFlow(
         name: post.name,
         color: post.color,
@@ -1256,6 +1277,7 @@ class ProfileRepo {
         originType: 'profile_import',
         originFlowId: post.sourceFlowId,
         rootFlowId: post.sourceFlowId,
+        appearance: importedAppearance,
       );
 
       try {

@@ -152,6 +152,9 @@ void main() {
               ),
             ],
             '/rest/v1/rpc/get_my_held_reading_houses_v1': const <Object?>[],
+            '/rest/v1/flows': <Object?>[
+              <String, Object?>{'id': 7, 'appearance': null},
+            ],
           },
         );
         final client = SupabaseClient(
@@ -167,16 +170,14 @@ void main() {
           expect(rows, hasLength(1));
           expect(rows.single.id, 7);
           expect(rows.single.remainingLiveEventCount, 4);
-          expect(
-            httpClient.lastRequestPath,
-            '/rest/v1/rpc/get_my_held_reading_houses_v1',
-          );
+          expect(httpClient.lastRequestPath, '/rest/v1/flows');
           expect(httpClient.lastRequestBody, <String, Object?>{'p_limit': 10});
           expect(httpClient.requestPaths, <String>[
             '/rest/v1/rpc/get_my_filed_flows_v1',
             '/rest/v1/rpc/get_my_held_reading_houses_v1',
+            '/rest/v1/flows',
           ]);
-          expect(httpClient.requestCount, 2);
+          expect(httpClient.requestCount, 3);
         } finally {
           client.dispose();
         }
@@ -287,7 +288,7 @@ void main() {
 
           expect(rows, hasLength(1));
           expect(rows.single.id, 7);
-          expect(httpClient.requestCount, 2);
+          expect(httpClient.requestCount, 3);
         } finally {
           client.dispose();
         }

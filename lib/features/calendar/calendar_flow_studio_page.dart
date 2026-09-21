@@ -342,6 +342,15 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   bool _flowAlertMixed = false;
   String? _selectedCalendarId;
 
+  // Optional visual identity for user-created flows only. This state is never
+  // read by, or routed through, a Ma'at presentation owner.
+  FlowAppearance _appearance = FlowAppearance.empty;
+  Uint8List? _pendingAppearanceImageBytes;
+  String? _pendingAppearanceImageName;
+  bool _appearanceImageBusy = false;
+  final TextEditingController _flowSignLabelCtrl = TextEditingController();
+  int _appearancePreviewIndex = 0;
+
   // analytics
   int _originalEventCount = 0; // Store count of AI-generated events
 
@@ -491,6 +500,135 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   Color get _activeStudioColor =>
       _studioMode == _FlowStudioMode.build ? _buildColor : _composeColor;
+
+  FlowAppearance get _studioAppearance => FlowAppearance(
+    imageObjectPath: _appearance.imageObjectPath,
+    signKind: _appearance.signKind,
+    signLabel: _flowSignLabelCtrl.text.trim().isEmpty
+        ? null
+        : _flowSignLabelCtrl.text.trim(),
+    accentArgb: _appearance.accentArgb,
+  );
+
+  Color get _appearanceAccent => _appearance.accentArgb == null
+      ? _activeStudioColor
+      : Color(_appearance.accentArgb!);
+
+  bool get _hasAppearanceImage =>
+      _pendingAppearanceImageBytes != null || _appearance.hasImage;
+
+  Future<Color?> _extractAppearanceAccent(Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(
+        bytes,
+        targetWidth: 48,
+        targetHeight: 48,
+      );
+      final frame = await codec.getNextFrame();
+      final data = await frame.image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
+      frame.image.dispose();
+      codec.dispose();
+      if (data == null) return null;
+      final rgba = data.buffer.asUint8List();
+      var bestScore = -1.0;
+      Color? best;
+      for (var i = 0; i + 3 < rgba.length; i += 16) {
+        final color = Color.fromARGB(255, rgba[i], rgba[i + 1], rgba[i + 2]);
+        final hsl = HSLColor.fromColor(color);
+        if (hsl.lightness < 0.16 || hsl.lightness > 0.88) continue;
+        final score =
+            hsl.saturation * 0.72 + (1 - (hsl.lightness - 0.52).abs()) * 0.28;
+        if (score > bestScore) {
+          bestScore = score;
+          best = hsl
+              .withSaturation(hsl.saturation.clamp(0.42, 0.72))
+              .withLightness(hsl.lightness.clamp(0.42, 0.58))
+              .toColor();
+        }
+      }
+      return best;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _pickAppearanceImage() async {
+    if (_appearanceImageBusy) return;
+    setState(() => _appearanceImageBusy = true);
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 90,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+      final accent = await _extractAppearanceAccent(bytes);
+      if (!mounted) return;
+      setState(() {
+        _pendingAppearanceImageBytes = bytes;
+        _pendingAppearanceImageName = picked.name;
+        _appearance = _appearance.copyWith(accentArgb: accent?.toARGB32());
+      });
+      _schedulePersistentDraftSave();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not use that image: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _appearanceImageBusy = false);
+    }
+  }
+
+  void _removeAppearanceImage() {
+    setState(() {
+      _pendingAppearanceImageBytes = null;
+      _pendingAppearanceImageName = null;
+      _appearance = _appearance.copyWith(
+        clearImage: true,
+        clearAccent: !_appearance.hasSign,
+      );
+    });
+    _schedulePersistentDraftSave();
+  }
+
+  Future<FlowAppearance> _materializeAppearanceForSave() async {
+    var result = _studioAppearance;
+    try {
+      final store = FlowAppearanceStore(Supabase.instance.client);
+      if (_pendingAppearanceImageBytes != null) {
+        final path = await store.uploadOwnedImage(
+          bytes: _pendingAppearanceImageBytes!,
+          filename: _pendingAppearanceImageName ?? 'flow-image.jpg',
+        );
+        result = result.copyWith(imageObjectPath: path);
+      } else if (widget.importData != null && result.hasImage) {
+        final path = await store.materializeOwnedCopy(result.imageObjectPath);
+        result = result.copyWith(imageObjectPath: path);
+      }
+      _appearance = result;
+      _pendingAppearanceImageBytes = null;
+      _pendingAppearanceImageName = null;
+      return result;
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'The flow was saved without the optional image. You can add it again later.',
+            ),
+          ),
+        );
+      }
+      return result.copyWith(clearImage: true);
+    }
+  }
 
   double get _activeStudioHue => _studioMode == _FlowStudioMode.build
       ? _buildHue
@@ -689,7 +827,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         _draftsByDay.isNotEmpty ||
         _draftsByPattern.isNotEmpty ||
         _startDate != null ||
-        _endDate != null;
+        _endDate != null ||
+        !_studioAppearance.isEmpty ||
+        _pendingAppearanceImageBytes != null;
+
+    final appearance = _studioAppearance;
 
     if (!hasContent) return null;
 
@@ -735,6 +877,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       isAIGeneratedFlow: _isAIGeneratedFlow,
       flowAlertMinutesBefore: _flowAlertMinutesBefore,
       flowAlertMixed: _flowAlertMixed,
+      appearance: appearance,
     );
   }
 
@@ -758,6 +901,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           notes: '',
           isHidden: draft.editingIsHidden,
           shareId: null,
+          appearance: draft.appearance,
         );
       } else {
         _editing = null;
@@ -865,6 +1009,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _isAIGeneratedFlow = draft.isAIGeneratedFlow;
       _flowAlertMinutesBefore = draft.flowAlertMinutesBefore;
       _flowAlertMixed = draft.flowAlertMixed;
+      _appearance = draft.appearance;
+      _pendingAppearanceImageBytes = null;
+      _pendingAppearanceImageName = null;
+      _flowSignLabelCtrl.text = draft.appearance.signLabel ?? '';
 
       _syncReady = true;
       _rebuildSpans();
@@ -903,6 +1051,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     _nameCtrl.addListener(_schedulePersistentDraftSave);
     _overviewCtrl.addListener(_schedulePersistentDraftSave);
     _composePromptCtrl.addListener(_schedulePersistentDraftSave);
+    _flowSignLabelCtrl.addListener(_schedulePersistentDraftSave);
   }
 
   void _markFlowEditorVisible() {
@@ -2041,6 +2190,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       shareId: widget.importData?.share.shareId,
       isHidden:
           _editing?.isHidden ?? false, // Preserve hidden status if editing
+      appearance: await _materializeAppearanceForSave(),
     );
 
     final originFlowId =
@@ -2337,6 +2487,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _draftsByPattern.clear();
 
       _overviewCtrl.text = '';
+      _appearance = FlowAppearance.empty;
+      _pendingAppearanceImageBytes = null;
+      _pendingAppearanceImageName = null;
+      _flowSignLabelCtrl.clear();
 
       _syncReady = false; // prevent any sync during wipe/reset
       _rebuildSpans(); // clears spans; no sync happens
@@ -2364,6 +2518,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _active = f.active;
       _studioMode = _FlowStudioMode.build;
       _setBuildExactColor(f.color);
+      _appearance = f.appearance;
+      _pendingAppearanceImageBytes = null;
+      _pendingAppearanceImageName = null;
+      _flowSignLabelCtrl.text = f.appearance.signLabel ?? '';
 
       _startDate = f.start == null ? null : _dateOnly(f.start!);
       _endDate = f.end == null ? null : _dateOnly(f.end!);
@@ -2459,6 +2617,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         isHidden: flow.isHidden, // Preserve hidden flag if present
         isReminder: flow.isReminder,
         reminderUuid: flow.reminderUuid,
+        appearance: flow.appearance,
       );
 
       // 3. Fetch events for this flow
@@ -2547,6 +2706,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           _active = flowObj.active;
           _studioMode = _FlowStudioMode.build;
           _setBuildExactColor(flowObj.color);
+          _appearance = flowObj.appearance;
+          _flowSignLabelCtrl.text = flowObj.appearance.signLabel ?? '';
 
           _overviewCtrl.text = _effectiveOverview(flowObj.notes, meta.overview);
 
@@ -2602,6 +2763,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         _active = flowObj.active;
         _studioMode = _FlowStudioMode.build;
         _setBuildExactColor(flowObj.color);
+        _appearance = flowObj.appearance;
+        _flowSignLabelCtrl.text = flowObj.appearance.signLabel ?? '';
 
         // Overview
         _overviewCtrl.text = _effectiveOverview(flowObj.notes, meta.overview);
@@ -2736,6 +2899,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         rules: rules,
         shareId: null,
         isHidden: false,
+        appearance: flowRow.appearance,
       );
 
       _editing = f;
@@ -2781,6 +2945,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       rules: rules,
       shareId: null,
       isHidden: false,
+      appearance: flowRow.appearance,
     );
 
     // 5️⃣ Decode notes meta (overview, kemetic flag, split)
@@ -3134,6 +3299,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _selectedCalendarId = data.calendarId ?? _defaultCalendarId();
       _studioMode = _FlowStudioMode.build;
       _setBuildExactColor(Color(data.color));
+      _appearance = data.appearance;
+      _pendingAppearanceImageBytes = null;
+      _pendingAppearanceImageName = null;
+      _flowSignLabelCtrl.text = data.appearance.signLabel ?? '';
 
       _startDate = data.suggestedStartDate != null
           ? _dateOnly(data.suggestedStartDate!)
@@ -3436,10 +3605,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _nameCtrl.removeListener(_schedulePersistentDraftSave);
       _overviewCtrl.removeListener(_schedulePersistentDraftSave);
       _composePromptCtrl.removeListener(_schedulePersistentDraftSave);
+      _flowSignLabelCtrl.removeListener(_schedulePersistentDraftSave);
     }
     _nameCtrl.dispose();
     _overviewCtrl.dispose();
     _composePromptCtrl.dispose();
+    _flowSignLabelCtrl.dispose();
     for (final dayList in _draftsByDay.values) {
       for (final d in dayList) {
         d.dispose();
@@ -3618,6 +3789,537 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         _colorReadoutCard(tone, color, hue),
       ],
     );
+  }
+
+  Widget _appearancePreviewSection(_FlowStudioTone tone) {
+    final name = _nameCtrl.text.trim().isEmpty
+        ? 'Your flow'
+        : _nameCtrl.text.trim();
+    final appearance = _studioAppearance;
+    final accent = _appearanceAccent;
+    final hasVisual = _hasAppearanceImage || appearance.hasSign;
+
+    const previewLabels = ['Timeline', 'Day sheet', 'Detail'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _studioSectionLabel('Live preview'),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF050403),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: tone.fieldBorder),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                child: Row(
+                  children: [
+                    for (var index = 0; index < previewLabels.length; index++)
+                      Expanded(
+                        child: InkWell(
+                          key: ValueKey('flow-studio-preview-tab-$index'),
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () =>
+                              setState(() => _appearancePreviewIndex = index),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            height: 34,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: _appearancePreviewIndex == index
+                                  ? accent.withValues(alpha: 0.13)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: _appearancePreviewIndex == index
+                                    ? accent.withValues(alpha: 0.55)
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            child: Text(
+                              previewLabels[index],
+                              style: TextStyle(
+                                color: _appearancePreviewIndex == index
+                                    ? const Color(0xFFE8D9C3)
+                                    : const Color(0xFF776B5B),
+                                fontFamily: 'GentiumPlus',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: SizedBox(
+                  height: 128,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 160),
+                    child: switch (_appearancePreviewIndex) {
+                      0 => _studioTimelineAppearancePreview(
+                        name: name,
+                        appearance: appearance,
+                        accent: accent,
+                        hasVisual: hasVisual,
+                      ),
+                      1 => _studioDaySheetAppearancePreview(
+                        name: name,
+                        appearance: appearance,
+                        accent: accent,
+                        hasVisual: hasVisual,
+                      ),
+                      _ => _studioDetailAppearancePreview(
+                        name: name,
+                        appearance: appearance,
+                        accent: accent,
+                        hasVisual: hasVisual,
+                      ),
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _studioPreviewHero({
+    required FlowAppearance appearance,
+    required Color accent,
+    required bool hasVisual,
+    required double height,
+    required String emptyLabel,
+    bool showProgressFooter = false,
+  }) {
+    if (hasVisual) {
+      return UserFlowAppearanceHero(
+        appearance: appearance,
+        accent: accent,
+        localImageBytes: _pendingAppearanceImageBytes,
+        height: height,
+        compact: true,
+        completedOccurrences: 11,
+        totalOccurrences: 28,
+        showProgressFooter: showProgressFooter,
+      );
+    }
+    return Container(
+      height: height,
+      width: double.infinity,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFF080705),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF241C11)),
+      ),
+      child: Text(
+        emptyLabel,
+        style: const TextStyle(
+          color: Color(0xFF766A5A),
+          fontFamily: 'GentiumPlus',
+          fontSize: 15,
+          fontStyle: FontStyle.italic,
+        ),
+      ),
+    );
+  }
+
+  Widget _studioTimelineAppearancePreview({
+    required String name,
+    required FlowAppearance appearance,
+    required Color accent,
+    required bool hasVisual,
+  }) {
+    return Align(
+      key: const ValueKey('flow-studio-timeline-preview'),
+      child: Container(
+        height: 60,
+        padding: const EdgeInsets.fromLTRB(0, 8, 10, 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0B0906),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: accent.withValues(alpha: 0.28)),
+        ),
+        child: Row(
+          children: [
+            Container(width: 3, color: accent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFEFE6D8),
+                  fontFamily: 'GentiumPlus',
+                  fontSize: 19,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (hasVisual) ...[
+              const SizedBox(width: 8),
+              UserFlowAppearanceBadge(
+                appearance: appearance,
+                accent: accent,
+                localImageBytes: _pendingAppearanceImageBytes,
+                size: 40,
+                completedOccurrences: 11,
+                totalOccurrences: 28,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _studioDaySheetAppearancePreview({
+    required String name,
+    required FlowAppearance appearance,
+    required Color accent,
+    required bool hasVisual,
+  }) {
+    return ClipRRect(
+      key: const ValueKey('flow-studio-day-sheet-preview'),
+      borderRadius: BorderRadius.circular(10),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _studioPreviewHero(
+            appearance: appearance,
+            accent: accent,
+            hasVisual: hasVisual,
+            height: 128,
+            emptyLabel: 'Current user-flow sheet',
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+              decoration: const BoxDecoration(
+                color: Color(0xEE090704),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(13)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFE8D9C3),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '11 OF 28',
+                    style: TextStyle(
+                      color: accent.withValues(alpha: 0.92),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _studioDetailAppearancePreview({
+    required String name,
+    required FlowAppearance appearance,
+    required Color accent,
+    required bool hasVisual,
+  }) {
+    return ClipRRect(
+      key: const ValueKey('flow-studio-detail-preview'),
+      borderRadius: BorderRadius.circular(10),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _studioPreviewHero(
+            appearance: appearance,
+            accent: accent,
+            hasVisual: hasVisual,
+            height: 128,
+            emptyLabel: name,
+          ),
+          Positioned(
+            left: 10,
+            right: 10,
+            bottom: 7,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 9),
+              decoration: BoxDecoration(
+                color: const Color(0xE60A0805),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: accent.withValues(alpha: 0.28)),
+              ),
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFE8D9C3),
+                  fontFamily: 'GentiumPlus',
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _appearanceControls(_FlowStudioTone tone) {
+    final appearance = _studioAppearance;
+    final hasImage = _hasAppearanceImage;
+    final signLabel = appearance.signKind == null
+        ? 'None'
+        : _flowSignDisplayName(appearance.signKind!);
+
+    Widget row({
+      required String title,
+      required String value,
+      required VoidCallback onTap,
+      required Widget leading,
+      required String actionLabel,
+      Key? key,
+    }) {
+      return InkWell(
+        key: key,
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 62),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF050403),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: tone.fieldBorder),
+          ),
+          child: Row(
+            children: [
+              leading,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Color(0xFFE8D9C3),
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 19,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF776B5B),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                actionLabel,
+                style: TextStyle(
+                  color: _appearanceAccent.withValues(alpha: 0.92),
+                  fontFamily: 'GentiumPlus',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        row(
+          key: const ValueKey('flow-studio-image-row'),
+          title: 'Image',
+          value: hasImage
+              ? 'Auto-cropped · darkened · grain'
+              : 'Optional · choose a photo',
+          actionLabel: hasImage ? 'Change' : 'Choose',
+          leading: SizedBox(
+            width: 72,
+            height: 48,
+            child: hasImage
+                ? UserFlowAppearanceHero(
+                    appearance: _studioAppearance.copyWith(clearSign: true),
+                    accent: _appearanceAccent,
+                    localImageBytes: _pendingAppearanceImageBytes,
+                    height: 48,
+                    compact: true,
+                  )
+                : DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0A0805),
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: tone.fieldBorder),
+                    ),
+                    child: const Icon(
+                      Icons.image_outlined,
+                      color: Color(0xFF776B5B),
+                      size: 22,
+                    ),
+                  ),
+          ),
+          onTap: () => unawaited(_pickAppearanceImage()),
+        ),
+        if (hasImage) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              TextButton(
+                onPressed: _removeAppearanceImage,
+                child: const Text('Remove image'),
+              ),
+              const Spacer(),
+              if (_appearance.accentArgb != null)
+                TextButton(
+                  key: const ValueKey('flow-studio-apply-image-accent'),
+                  onPressed: () =>
+                      setState(() => _setBuildExactColor(_appearanceAccent)),
+                  child: const Text('Use image accent'),
+                ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 12),
+        row(
+          key: const ValueKey('flow-studio-flow-sign-row'),
+          title: 'Merkhet',
+          value: appearance.signKind == null
+              ? 'Optional · choose how this flow is measured'
+              : appearance.signLabel?.trim().isNotEmpty == true
+              ? '${appearance.signLabel!.trim()} · $signLabel'
+              : '$signLabel · ${_flowSignMeasureName(appearance.signKind!)}',
+          actionLabel: appearance.signKind == null ? 'Choose' : 'Change',
+          leading: SizedBox(
+            width: 52,
+            height: 48,
+            child: appearance.signKind == null
+                ? DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0A0805),
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: tone.fieldBorder),
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome_outlined,
+                      color: Color(0xFF776B5B),
+                      size: 20,
+                    ),
+                  )
+                : FlowSignVisual(
+                    kind: appearance.signKind!,
+                    color: _appearanceAccent,
+                    compact: true,
+                    completedOccurrences: 11,
+                    totalOccurrences: 28,
+                  ),
+          ),
+          onTap: () => unawaited(_showFlowSignPicker()),
+        ),
+      ],
+    );
+  }
+
+  String _flowSignDisplayName(FlowSignKind kind) => switch (kind) {
+    FlowSignKind.palmCount => 'Palm Count',
+    FlowSignKind.shen => 'Shen Cycle',
+    FlowSignKind.gatheringVessel => 'Gathering Vessel',
+    FlowSignKind.riverPath => 'River Path',
+    FlowSignKind.papyrus => 'Papyrus Growth',
+    FlowSignKind.kheper => 'Kheper',
+  };
+
+  String _flowSignMeasureName(FlowSignKind kind) => switch (kind) {
+    FlowSignKind.palmCount => 'completed occurrences',
+    FlowSignKind.shen => 'whole-cycle completion',
+    FlowSignKind.gatheringVessel => 'accumulated progress',
+    FlowSignKind.riverPath => 'distance through the flow',
+    FlowSignKind.papyrus => 'progress as growth',
+    FlowSignKind.kheper => 'transformation stages',
+  };
+
+  String _flowSignMeasurementDescription(FlowSignKind kind) => switch (kind) {
+    FlowSignKind.palmCount => 'Counts completed occurrences.',
+    FlowSignKind.shen => 'Shows completion of the whole cycle.',
+    FlowSignKind.gatheringVessel => 'Shows accumulated progress by filling.',
+    FlowSignKind.riverPath => 'Shows distance through the flow.',
+    FlowSignKind.papyrus => 'Shows progress as growth.',
+    FlowSignKind.kheper => 'Shows stages of transformation/change.',
+  };
+
+  Future<void> _showFlowSignPicker() async {
+    final chosen = await showModalBottomSheet<_FlowSignSelection>(
+      context: context,
+      backgroundColor: const Color(0xFF080705),
+      isScrollControlled: true,
+      builder: (sheetContext) => _FlowSignPickerSheet(
+        accent: _appearanceAccent,
+        initialKind: _appearance.signKind,
+        initialLabel: _flowSignLabelCtrl.text,
+        displayNameFor: _flowSignDisplayName,
+        descriptionFor: _flowSignMeasurementDescription,
+      ),
+    );
+    if (!mounted || chosen == null) return;
+    setState(() {
+      if (chosen.kind == null) {
+        _appearance = _appearance.copyWith(
+          clearSign: true,
+          clearSignLabel: true,
+          clearAccent: !_hasAppearanceImage,
+        );
+        _flowSignLabelCtrl.clear();
+      } else {
+        _appearance = _appearance.copyWith(
+          signKind: chosen.kind,
+          accentArgb: _appearance.accentArgb ?? _activeStudioColor.toARGB32(),
+        );
+        _flowSignLabelCtrl.text = chosen.label.trim();
+      }
+    });
+    _schedulePersistentDraftSave();
   }
 
   Widget _colorReadoutCard(_FlowStudioTone tone, Color color, double hue) {
@@ -4784,6 +5486,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             const SizedBox(height: 18),
             TextField(
               controller: _nameCtrl,
+              onChanged: (_) => setState(() {}),
               style: const TextStyle(
                 color: Color(0xFFF2E4C5),
                 fontSize: 38,
@@ -4812,6 +5515,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
               const SizedBox(height: 24),
             ],
             _colorStudioSection(tone),
+            const SizedBox(height: 34),
+            _appearancePreviewSection(tone),
+            const SizedBox(height: 24),
+            _appearanceControls(tone),
             const SizedBox(height: 34),
             _studioSectionLabel('Overview'),
             const SizedBox(height: 12),
@@ -5067,6 +5774,211 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _FlowSignSelection {
+  const _FlowSignSelection({required this.kind, required this.label});
+
+  final FlowSignKind? kind;
+  final String label;
+}
+
+class _FlowSignPickerSheet extends StatefulWidget {
+  const _FlowSignPickerSheet({
+    required this.accent,
+    required this.initialKind,
+    required this.initialLabel,
+    required this.displayNameFor,
+    required this.descriptionFor,
+  });
+
+  final Color accent;
+  final FlowSignKind? initialKind;
+  final String initialLabel;
+  final String Function(FlowSignKind kind) displayNameFor;
+  final String Function(FlowSignKind kind) descriptionFor;
+
+  @override
+  State<_FlowSignPickerSheet> createState() => _FlowSignPickerSheetState();
+}
+
+class _FlowSignPickerSheetState extends State<_FlowSignPickerSheet> {
+  late FlowSignKind? _kind;
+  late final TextEditingController _labelController;
+
+  @override
+  void initState() {
+    super.initState();
+    _kind = widget.initialKind;
+    _labelController = TextEditingController(text: widget.initialLabel);
+  }
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(20, 18, 20, 24 + bottomInset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Choose a Merkhet',
+              style: TextStyle(
+                color: Color(0xFFF0D46E),
+                fontFamily: 'GentiumPlus',
+                fontSize: 25,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              _kind == null
+                  ? 'Choose how this flow measures progress.'
+                  : widget.descriptionFor(_kind!),
+              key: const ValueKey('flow-studio-merkhet-description'),
+              style: const TextStyle(
+                color: Color(0xFF8F8270),
+                fontFamily: 'GentiumPlus',
+                fontSize: 15,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(height: 16),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 0.92,
+              children: [
+                _selectionTile(kind: null, label: 'None'),
+                for (final kind in FlowSignKind.values)
+                  _selectionTile(
+                    kind: kind,
+                    label: widget.displayNameFor(kind),
+                  ),
+              ],
+            ),
+            if (_kind != null) ...[
+              const SizedBox(height: 16),
+              TextField(
+                key: const ValueKey('flow-studio-flow-sign-label'),
+                controller: _labelController,
+                maxLength: 28,
+                style: const TextStyle(
+                  color: Color(0xFFE8D9C3),
+                  fontFamily: 'GentiumPlus',
+                  fontSize: 17,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Merkhet inscription (optional)',
+                  hintText: 'Word or short phrase',
+                  hintStyle: const TextStyle(color: Color(0xFF665D50)),
+                  counterStyle: const TextStyle(color: Color(0xFF665D50)),
+                  filled: true,
+                  fillColor: const Color(0xFF050403),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF2D2417)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: widget.accent),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    key: const ValueKey('flow-studio-use-sign'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: widget.accent.withValues(alpha: 0.2),
+                      foregroundColor: const Color(0xFFE8D9C3),
+                      side: BorderSide(color: widget.accent),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(
+                      _FlowSignSelection(
+                        kind: _kind,
+                        label: _kind == null ? '' : _labelController.text,
+                      ),
+                    ),
+                    child: const Text('Use Merkhet'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _selectionTile({required FlowSignKind? kind, required String label}) {
+    final selected = _kind == kind;
+    return InkWell(
+      key: ValueKey(
+        kind == null ? 'flow-sign-none' : 'flow-sign-${kind.wireName}',
+      ),
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => setState(() => _kind = kind),
+      child: Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0B0906),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? widget.accent : const Color(0xFF2D2417),
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: kind == null
+                  ? Icon(
+                      Icons.block_outlined,
+                      color: selected ? widget.accent : const Color(0xFF776B5B),
+                    )
+                  : FlowSignVisual(
+                      kind: kind,
+                      color: widget.accent,
+                      compact: true,
+                      completedOccurrences: 11,
+                      totalOccurrences: 28,
+                    ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: const TextStyle(color: Color(0xFFB7AAA0), fontSize: 11),
+            ),
+          ],
+        ),
       ),
     );
   }

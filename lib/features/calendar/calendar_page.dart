@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'dart:ui' show FramePhase, FrameTiming;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,9 @@ import '../../data/birthday_calendar.dart';
 import '../../data/calendar_occurrence_exclusions_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
+import '../../data/flow_appearance.dart';
+import '../../data/flow_appearance_store.dart';
+import 'presentation/user_flow_appearance_visual.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
 import '../../data/shared_practice_repo.dart';
@@ -23,6 +27,7 @@ import 'package:mobile/utils/calendar_event_markers.dart';
 import 'package:mobile/utils/flow_filter_engine.dart';
 import 'package:mobile/utils/flow_visibility.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import 'landscape_month_view.dart';
@@ -4334,6 +4339,7 @@ class _CalendarWarmStateStore {
       isHidden: flow.isHidden,
       isReminder: flow.isReminder,
       reminderUuid: flow.reminderUuid,
+      appearance: flow.appearance,
     );
   }
 }
@@ -4986,6 +4992,7 @@ class CalendarPage extends StatefulWidget {
     bool previewAsTemplate = false,
     FlowDetailActionPolicy? actionPolicy,
     bool showFlowOptions = false,
+    FlowAppearance appearance = FlowAppearance.empty,
   }) {
     final syntheticId = flowId ?? _syntheticFlowIdForSnapshot(name, eventsJson);
     final flow = _Flow(
@@ -4999,6 +5006,7 @@ class CalendarPage extends StatefulWidget {
       start: startDate?.toLocal(),
       end: endDate?.toLocal(),
       notes: notes,
+      appearance: appearance,
     );
 
     final events = _canonicalFlowDetailEventsFromSnapshot(
@@ -6208,6 +6216,7 @@ class CalendarPage extends StatefulWidget {
         isHidden: (json['isHidden'] as bool?) ?? false,
         isReminder: (json['isReminder'] as bool?) ?? false,
         reminderUuid: json['reminderUuid'] as String?,
+        appearance: FlowAppearance.fromJson(json['appearance']),
       );
     } catch (_) {
       return null;
@@ -7185,6 +7194,7 @@ class CalendarPage extends StatefulWidget {
       isHidden: row.isHidden,
       isReminder: row.isReminder,
       reminderUuid: row.reminderUuid,
+      appearance: row.appearance,
     );
   }
 
@@ -7231,6 +7241,7 @@ class CalendarPage extends StatefulWidget {
     isHidden: flow.isHidden,
     isReminder: flow.isReminder,
     reminderUuid: flow.reminderUuid,
+    appearance: flow.appearance,
   );
 
   static _MyFlowsFilingSnapshot _applyEndFlowVisibilityOverlay(
@@ -9129,6 +9140,7 @@ class CalendarPage extends StatefulWidget {
       isHidden: source.isHidden,
       isReminder: source.isReminder,
       reminderUuid: source.reminderUuid,
+      appearance: source.appearance,
     );
   }
 
@@ -9434,6 +9446,25 @@ class CalendarPage extends StatefulWidget {
         _mountedState?._personalCalendarId ??
         await _loadHeadlessPersonalCalendarId();
     final repo = UserEventsRepo(Supabase.instance.client);
+    var importedAppearance = data.appearance;
+    if (importedAppearance.hasImage) {
+      try {
+        final ownedPath = await FlowAppearanceStore(
+          Supabase.instance.client,
+        ).materializeOwnedCopy(importedAppearance.imageObjectPath);
+        importedAppearance = importedAppearance.copyWith(
+          imageObjectPath: ownedPath,
+          clearImage: ownedPath == null,
+        );
+      } catch (error) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[SharedFlowImport] appearance image copy failed: $error',
+          );
+        }
+        importedAppearance = importedAppearance.copyWith(clearImage: true);
+      }
+    }
     final savedId = await repo.upsertFlow(
       name: data.name,
       color: data.color,
@@ -9451,6 +9482,7 @@ class CalendarPage extends StatefulWidget {
       originGenerationId: data.generationId,
       rootFlowId: data.rootFlowId,
       aiMetadata: data.aiMetadata,
+      appearance: importedAppearance,
     );
     final localFlow = _Flow(
       id: savedId,
@@ -9464,6 +9496,7 @@ class CalendarPage extends StatefulWidget {
       end: endDate,
       notes: data.notes,
       shareId: data.share.shareId,
+      appearance: importedAppearance,
     );
 
     final writes = rawEvents.isNotEmpty
@@ -10878,6 +10911,7 @@ class CalendarPageState extends State<CalendarPage>
       'isHidden': flow.isHidden,
       'isReminder': flow.isReminder,
       'reminderUuid': flow.reminderUuid,
+      'appearance': flow.appearance.toJsonOrNull(),
     };
   }
 
@@ -10914,6 +10948,7 @@ class CalendarPageState extends State<CalendarPage>
         isHidden: (json['isHidden'] as bool?) ?? false,
         isReminder: (json['isReminder'] as bool?) ?? false,
         reminderUuid: json['reminderUuid'] as String?,
+        appearance: FlowAppearance.fromJson(json['appearance']),
       );
     } catch (_) {
       return null;
@@ -22392,6 +22427,10 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   FlowData _flowDataFromFlow(_Flow flow) {
+    final total = _flowTotalEventCounts[flow.id] ?? 0;
+    final remaining = (_flowRemainingEventCounts[flow.id] ?? total)
+        .clamp(0, total)
+        .toInt();
     return FlowData(
       id: flow.id,
       name: flow.name,
@@ -22400,6 +22439,9 @@ class CalendarPageState extends State<CalendarPage>
       notes: flow.notes,
       isHidden: flow.isHidden,
       isReminder: flow.isReminder,
+      appearance: flow.appearance,
+      totalOccurrenceCount: total,
+      completedOccurrenceCount: total - remaining,
     );
   }
 
@@ -25539,6 +25581,7 @@ class CalendarPageState extends State<CalendarPage>
         shareId: flow.shareId,
         isReminder: flow.isReminder,
         reminderUuid: flow.reminderUuid,
+        appearance: flow.appearance,
       );
 
       // Keep nextFlowId monotonic with server ids
@@ -25560,6 +25603,7 @@ class CalendarPageState extends State<CalendarPage>
         isHidden: flow.isHidden,
         isReminder: flow.isReminder,
         reminderUuid: flow.reminderUuid,
+        appearance: flow.appearance,
       );
 
       _flows.add(persisted);
@@ -25652,6 +25696,7 @@ class CalendarPageState extends State<CalendarPage>
           savedAt: f.savedAt,
           isReminder: f.isReminder,
           reminderUuid: f.reminderUuid,
+          appearance: f.appearance,
         );
       }
       setState(() {});
@@ -25680,6 +25725,7 @@ class CalendarPageState extends State<CalendarPage>
             shareId: flow.shareId,
             isReminder: flow.isReminder,
             reminderUuid: flow.reminderUuid,
+            appearance: flow.appearance,
           );
           if (kDebugMode) {
             _calendarDebugPrint(
@@ -28076,6 +28122,7 @@ class CalendarPageState extends State<CalendarPage>
             isHidden: existingFlow.isHidden,
             isReminder: existingFlow.isReminder,
             reminderUuid: existingFlow.reminderUuid,
+            appearance: existingFlow.appearance,
           );
     final removed = _removeCalendarNotesWhere(
       (_, note) => note.flowId == flowId,
@@ -31718,6 +31765,7 @@ class CalendarPageState extends State<CalendarPage>
       isHidden: row.isHidden,
       isReminder: row.isReminder,
       reminderUuid: row.reminderUuid,
+      appearance: row.appearance,
     );
   }
 
@@ -31848,6 +31896,7 @@ class CalendarPageState extends State<CalendarPage>
     if (oldFlow.startDate != newFlow.start) return false;
     if (oldFlow.endDate != newFlow.end) return false;
     if (!_rulesEqual(oldFlow.rules, newFlow.rules)) return false;
+    if (oldFlow.appearance != newFlow.appearance) return false;
     return oldFlow.color != newFlow.color.toARGB32();
   }
 
@@ -32024,6 +32073,7 @@ class CalendarPageState extends State<CalendarPage>
         originGenerationId: r.originGenerationId,
         rootFlowId: r.rootFlowId,
         aiMetadata: r.aiMetadata,
+        appearance: r.savedFlow!.appearance,
       );
 
       saved = CalendarPage._savedFlowForStudioResult(r.savedFlow!, savedId);

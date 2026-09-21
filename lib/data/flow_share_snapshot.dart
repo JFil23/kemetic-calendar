@@ -1,6 +1,8 @@
 // lib/data/flow_share_snapshot.dart
 // Typed models for flow share payload_json snapshots
 
+import 'flow_appearance.dart';
+
 class FlowShareEventSnapshot {
   final int offsetDays;
   final String title;
@@ -47,6 +49,7 @@ class FlowSharePayload {
   final String? notes;
   final List<dynamic> rules; // keep loose for now
   final List<FlowShareEventSnapshot> events;
+  final FlowAppearance appearance;
 
   FlowSharePayload({
     required this.name,
@@ -54,6 +57,7 @@ class FlowSharePayload {
     this.notes,
     required this.rules,
     required this.events,
+    this.appearance = FlowAppearance.empty,
   });
 
   factory FlowSharePayload.fromJson(Map<String, dynamic> json) {
@@ -68,6 +72,7 @@ class FlowSharePayload {
       events: eventsJson
           .map((e) => FlowShareEventSnapshot.fromJson(e))
           .toList(),
+      appearance: FlowAppearance.fromJson(json['appearance']),
     );
   }
 }

@@ -10,6 +10,8 @@ import 'package:uuid/uuid.dart';
 import '../core/kemetic_converter.dart';
 import 'share_models.dart';
 import 'user_events_repo.dart';
+import 'flow_appearance.dart';
+import 'flow_appearance_store.dart';
 import '../features/calendar/maat_flow_catalog.dart';
 import '../telemetry/telemetry.dart';
 import '../utils/event_cid_util.dart';
@@ -809,7 +811,7 @@ class ShareRepo {
 
     final rawFlow = await _client
         .from('flows')
-        .select('id, name, color, notes, rules, user_id')
+        .select('id, name, color, notes, rules, appearance, user_id')
         .eq('id', flowId)
         .maybeSingle();
     final flowRow = rawFlow is Map<String, dynamic> ? rawFlow : null;
@@ -1377,7 +1379,7 @@ class ShareRepo {
     final rawFlow = await _client
         .from('flows')
         .select(
-          'id, name, color, notes, rules, start_date, end_date, is_hidden, is_reminder, reminder_uuid, origin_flow_id, root_flow_id',
+          'id, name, color, notes, rules, appearance, start_date, end_date, is_hidden, is_reminder, reminder_uuid, origin_flow_id, root_flow_id',
         )
         .eq('id', sourceFlowId)
         .maybeSingle();
@@ -1420,6 +1422,7 @@ class ShareRepo {
       'color': _parseIntValue(flowRow['color']) ?? 0x004DD0E1,
       'notes': _cleanNullableString(flowRow['notes']),
       'rules': (flowRow['rules'] as List?) ?? const <dynamic>[],
+      'appearance': flowRow['appearance'],
       'start_date': flowRow['start_date'],
       'end_date': flowRow['end_date'],
       'is_hidden': _parseBoolishValue(flowRow['is_hidden']),
@@ -1495,6 +1498,7 @@ class ShareRepo {
       'color': _parseIntValue(flowRow['color']) ?? 0x004DD0E1,
       'notes': flowNotes,
       'rules': (flowRow['rules'] as List?) ?? const <dynamic>[],
+      'appearance': flowRow['appearance'],
       'events': eventSnapshots,
     };
   }
@@ -2104,6 +2108,7 @@ class ShareRepo {
     final existingActive = (existing?['active'] as bool?) ?? true;
     final existingHidden = (existing?['is_hidden'] as bool?) ?? false;
     final matchedByShareId = existing?['_matched_by_share_id'] == true;
+    final existingAppearance = FlowAppearance.fromJson(existing?['appearance']);
 
     // Recipient-owned lifecycle state wins over the sender snapshot. If the
     // invitee already ended or hid their imported copy, do not resurrect it on
@@ -2174,6 +2179,26 @@ class ShareRepo {
         events: sourceEvents,
       );
     }
+    var importedAppearance = existingAppearance;
+    if (importedAppearance.isEmpty) {
+      final sourceAppearance = FlowAppearance.fromJson(
+        sourceFlow['appearance'],
+      );
+      if (!sourceAppearance.isEmpty) {
+        try {
+          final ownedImagePath = await FlowAppearanceStore(
+            _client,
+          ).materializeOwnedCopy(sourceAppearance.imageObjectPath);
+          importedAppearance = sourceAppearance.copyWith(
+            imageObjectPath: ownedImagePath,
+            clearImage: ownedImagePath == null,
+          );
+        } catch (error) {
+          _log('[ShareRepo] appearance image copy failed: $error');
+          importedAppearance = sourceAppearance.copyWith(clearImage: true);
+        }
+      }
+    }
     final targetFlowId = await repo.upsertFlow(
       id: existingFlowId,
       name: name,
@@ -2194,6 +2219,7 @@ class ShareRepo {
       // flow_shares FK. Reuse origin_generation_id as an opaque event_share id.
       originGenerationId: shareId,
       rootFlowId: _parseIntValue(sourceFlow['root_flow_id']) ?? sourceFlowId,
+      appearance: importedAppearance,
     );
 
     await repo.deleteByFlowId(
@@ -2262,7 +2288,7 @@ class ShareRepo {
   }) async {
     final byShareId = await _client
         .from('flows')
-        .select('id, reminder_uuid, active, is_hidden, end_date')
+        .select('id, reminder_uuid, active, is_hidden, end_date, appearance')
         .eq('user_id', userId)
         .eq('origin_type', 'share_import')
         .eq('origin_generation_id', shareId)
@@ -2275,7 +2301,7 @@ class ShareRepo {
 
     final legacy = await _client
         .from('flows')
-        .select('id, reminder_uuid, active, is_hidden, end_date')
+        .select('id, reminder_uuid, active, is_hidden, end_date, appearance')
         .eq('user_id', userId)
         .eq('origin_type', 'share_import')
         .eq('origin_flow_id', sourceFlowId)

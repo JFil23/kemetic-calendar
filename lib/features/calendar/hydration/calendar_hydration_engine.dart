@@ -319,6 +319,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
             isHidden: derivedHidden,
             isReminder: f.isReminder,
             reminderUuid: f.reminderUuid,
+            appearance: f.appearance,
           );
           newFlows.add(flow);
           // 🔍 DEBUG: Log what color came from database for ALL custom flows

@@ -29,7 +29,8 @@
       "shareId": null,
       "isHidden": false,
       "isReminder": false,
-      "reminderUuid": null
+      "reminderUuid": null,
+      "appearance": null
     },
     {
       "id": 9002,
@@ -58,7 +59,8 @@
       "shareId": null,
       "isHidden": false,
       "isReminder": false,
-      "reminderUuid": null
+      "reminderUuid": null,
+      "appearance": null
     },
     {
       "id": 9003,
@@ -75,7 +77,8 @@
       "shareId": null,
       "isHidden": false,
       "isReminder": false,
-      "reminderUuid": null
+      "reminderUuid": null,
+      "appearance": null
     },
     {
       "id": 9004,
@@ -104,7 +107,8 @@
       "shareId": null,
       "isHidden": false,
       "isReminder": false,
-      "reminderUuid": null
+      "reminderUuid": null,
+      "appearance": null
     },
     {
       "id": 9005,
@@ -121,7 +125,8 @@
       "shareId": null,
       "isHidden": false,
       "isReminder": false,
-      "reminderUuid": null
+      "reminderUuid": null,
+      "appearance": null
     }
   ],
   "notes": {

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../data/user_events_repo.dart';
+import '../../../data/flow_appearance.dart';
 import '../../../utils/flow_filter_engine.dart';
 import '../calendar_hydration_diagnostics.dart';
 import 'calendar_hydration_models.dart';
@@ -24,6 +25,7 @@ class CalendarHydrationCatalogEntry {
     required this.isHidden,
     required this.isReminder,
     required this.reminderUuid,
+    this.appearance = FlowAppearance.empty,
   });
 
   final int id;
@@ -42,6 +44,7 @@ class CalendarHydrationCatalogEntry {
   final bool isHidden;
   final bool isReminder;
   final String? reminderUuid;
+  final FlowAppearance appearance;
 
   CalendarCatalogFingerprintRow get fingerprintRow =>
       CalendarCatalogFingerprintRow(
@@ -60,6 +63,7 @@ class CalendarHydrationCatalogEntry {
         isHidden: isHidden,
         isReminder: isReminder,
         reminderUuid: reminderUuid,
+        appearance: appearance,
       );
 }
 
@@ -159,6 +163,7 @@ class CalendarHydrationRepository {
                   isHidden: row.isHidden,
                   isReminder: row.isReminder,
                   reminderUuid: row.reminderUuid,
+                  appearance: row.appearance,
                 ),
               )
               .toList(growable: false),

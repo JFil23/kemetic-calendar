@@ -11,6 +11,7 @@ import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/flows_repo.dart';
 import '../../data/user_events_repo.dart';
+import '../../data/flow_appearance.dart';
 import '../../repositories/inbox_repo.dart';
 import '../../utils/detail_sanitizer.dart';
 import '../../shared/glossy_text.dart' show KemeticGold;
@@ -230,6 +231,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       endDate: row.endDate,
       active: row.active,
       isSaved: row.isSaved,
+      appearance: row.appearance,
       share: null,
     );
   }
@@ -278,6 +280,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         endDate: null,
         active: importedFlowId != null,
         isSaved: importedFlowId == null,
+        appearance: payload.appearance,
         share: share,
       );
     }
@@ -323,6 +326,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       endDate: _parsePayloadDate(payloadMap['end_date']),
       active: importedFlowId != null,
       isSaved: importedFlowId == null,
+      appearance: FlowAppearance.fromJson(payloadMap['appearance']),
       share: share,
     );
   }
@@ -346,6 +350,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       endDate: _parsePayloadDate(payload['end_date']),
       active: false,
       isSaved: true,
+      appearance: FlowAppearance.fromJson(payload['appearance']),
       share: null,
     );
   }
@@ -483,6 +488,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           originFlowId: originFlowId,
           rootFlowId: originFlowId,
           originType: 'share_import',
+          appearance: FlowAppearance.fromJson(payload['appearance']),
         ),
         completeAdd: (flowId) {
           unawaited(() async {
@@ -593,6 +599,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           previewAsTemplate: !data.isImported,
           actionPolicy: actionPolicy,
           showFlowOptions: false,
+          appearance: data.appearance,
         );
       },
     );
@@ -613,6 +620,7 @@ class _SharedFlowData {
   final DateTime? endDate;
   final bool active;
   final bool isSaved;
+  final FlowAppearance appearance;
   final InboxShareItem? share;
 
   _SharedFlowData({
@@ -628,6 +636,7 @@ class _SharedFlowData {
     required this.endDate,
     required this.active,
     required this.isSaved,
+    this.appearance = FlowAppearance.empty,
     required this.share,
   });
 }

@@ -13,6 +13,8 @@ import 'package:mobile/services/ai_flow_generation_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+const _captureUserFlowStudio = bool.fromEnvironment('CAPTURE_USER_FLOW_STUDIO');
+
 Future<void> _ensureSupabaseInitialized() async {
   try {
     Supabase.instance.client;
@@ -40,6 +42,127 @@ void main() {
 
   tearDown(() async {
     AIFlowGenerationService.debugFlowStudioOverride = null;
+  });
+
+  testWidgets('user-flow Studio shows live previews and optional appearance', (
+    tester,
+  ) async {
+    _useMobilePortraitSurface(tester);
+    final draft = _buildDraft(
+      name: 'Study the Duat',
+      startDate: DateTime(2026, 9, 20),
+      endDate: DateTime(2026, 10, 20),
+    );
+    draft['appearance'] = <String, Object?>{
+      'version': 1,
+      'sign_kind': 'papyrus',
+      'sign_label': 'Study',
+      'accent_argb': 0xFF6F93A8,
+    };
+
+    await _openFlowStudio(tester, initialDraftJson: draft);
+    await _scrollStudioTo(tester, find.text('LIVE PREVIEW'));
+
+    expect(find.text('LIVE PREVIEW'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('flow-studio-timeline-preview')),
+      findsOneWidget,
+    );
+    if (_captureUserFlowStudio) {
+      await expectLater(
+        find.byKey(const ValueKey('flow-studio-timeline-preview')),
+        matchesGoldenFile('/tmp/user-flow-studio-timeline.png'),
+      );
+    }
+    expect(
+      find.byKey(const ValueKey('flow-studio-day-sheet-preview')),
+      findsNothing,
+    );
+    await tester.tap(find.byKey(const ValueKey('flow-studio-preview-tab-1')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('flow-studio-day-sheet-preview')),
+      findsOneWidget,
+    );
+    if (_captureUserFlowStudio) {
+      await expectLater(
+        find.byKey(const ValueKey('flow-studio-day-sheet-preview')),
+        matchesGoldenFile('/tmp/user-flow-studio-day-sheet.png'),
+      );
+    }
+    await tester.tap(find.byKey(const ValueKey('flow-studio-preview-tab-2')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('flow-studio-detail-preview')),
+      findsOneWidget,
+    );
+    if (_captureUserFlowStudio) {
+      await expectLater(
+        find.byKey(const ValueKey('flow-studio-detail-preview')),
+        matchesGoldenFile('/tmp/user-flow-studio-detail.png'),
+      );
+    }
+    expect(find.byKey(const ValueKey('flow-studio-image-row')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('flow-studio-flow-sign-row')),
+      findsOneWidget,
+    );
+    expect(find.text('Merkhet'), findsOneWidget);
+    expect(find.text('Flow Sign'), findsNothing);
+    expect(find.textContaining('Study'), findsWidgets);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('flow-studio-flow-sign-row')),
+    );
+    await tester.pump();
+    if (_captureUserFlowStudio) {
+      await expectLater(
+        find.byType(Overlay).first,
+        matchesGoldenFile('/tmp/user-flow-studio-controls.png'),
+      );
+    }
+    await tester.tap(find.byKey(const ValueKey('flow-studio-flow-sign-row')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('flow-studio-flow-sign-label')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('flow-sign-none')), findsOneWidget);
+    expect(find.byKey(const ValueKey('flow-studio-use-sign')), findsOneWidget);
+    expect(find.text('Choose a Merkhet'), findsOneWidget);
+    expect(find.text('Palm Count'), findsOneWidget);
+    expect(find.text('Shen Cycle'), findsOneWidget);
+    expect(find.text('Gathering Vessel'), findsOneWidget);
+    expect(find.text('River Path'), findsOneWidget);
+    expect(find.text('Papyrus Growth'), findsOneWidget);
+    expect(find.text('Kheper'), findsOneWidget);
+    final merkhetDefinitions = <String, String>{
+      'palm_count': 'Counts completed occurrences.',
+      'shen': 'Shows completion of the whole cycle.',
+      'gathering_vessel': 'Shows accumulated progress by filling.',
+      'river_path': 'Shows distance through the flow.',
+      'papyrus': 'Shows progress as growth.',
+      'kheper': 'Shows stages of transformation/change.',
+    };
+    for (final entry in merkhetDefinitions.entries) {
+      await tester.tap(find.byKey(ValueKey('flow-sign-${entry.key}')));
+      await tester.pump();
+      final description = tester.widget<Text>(
+        find.byKey(const ValueKey('flow-studio-merkhet-description')),
+      );
+      expect(description.data, entry.value);
+    }
+    expect(find.text('Use Merkhet'), findsOneWidget);
+    if (_captureUserFlowStudio) {
+      await expectLater(
+        find.byType(Overlay).first,
+        matchesGoldenFile('/tmp/user-flow-studio-sign-picker.png'),
+      );
+    }
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    await _closeFlowStudio(tester);
   });
 
   testWidgets('single day deselect removes the visible editor', (tester) async {
@@ -370,6 +493,7 @@ void main() {
       final draft = _buildDraft(startDate: start, endDate: end);
       await _openFlowStudio(tester, initialDraftJson: draft);
 
+      await _scrollStudioTo(tester, find.text(_dateLabel(start)));
       expect(find.text(_dateLabel(start)), findsOneWidget);
       expect(find.text(_dateLabel(end)), findsOneWidget);
 
@@ -520,7 +644,7 @@ void main() {
     await _pumpFlowStudio(tester);
     expect(find.text('Save'), findsOneWidget);
     expect(find.text('Save Flow'), findsOneWidget);
-    expect(find.text('Practice Piano'), findsOneWidget);
+    _expectNameFieldValue(tester, 'Practice Piano');
     expect(find.text('2026-06-13'), findsOneWidget);
     expect(find.text('2026-06-22'), findsOneWidget);
 
@@ -572,7 +696,7 @@ void main() {
     await _pumpFlowStudio(tester, const Duration(milliseconds: 1200));
 
     expect(find.text('Save'), findsOneWidget);
-    expect(find.text('Piano Practice'), findsOneWidget);
+    _expectNameFieldValue(tester, 'Piano Practice');
     expect(find.text('Notes for selection'), findsOneWidget);
     expect(_editorTitleFields(), findsNWidgets(2));
     expect(find.text('Five-finger pattern'), findsOneWidget);
@@ -604,7 +728,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('flow-studio-shape-cta')));
       await _pumpFlowStudio(tester, const Duration(milliseconds: 1200));
-      expect(find.text('Spanish Conjugation Practice'), findsOneWidget);
+      _expectNameFieldValue(tester, 'Spanish Conjugation Practice');
 
       await tester.tap(find.text('Save').first);
       await _pumpFlowStudio(tester);
@@ -730,7 +854,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(saveAttempts, 1);
     expect(find.text('Flow Studio'), findsOneWidget);
-    expect(find.text('Spanish Conjugation Practice'), findsOneWidget);
+    _expectNameFieldValue(tester, 'Spanish Conjugation Practice');
     expect(find.textContaining('planned note insert failed'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
 
@@ -1104,15 +1228,30 @@ Future<void> _closeFlowStudio(WidgetTester tester) async {
 
 Future<void> _tapChip(WidgetTester tester, String label) async {
   final chip = find.widgetWithText(FilterChip, label).first;
+  await tester.ensureVisible(chip);
+  await tester.pump();
   await tester.tap(chip, warnIfMissed: false);
   await _pumpFlowStudio(tester);
 }
 
+Future<void> _scrollStudioTo(WidgetTester tester, Finder finder) async {
+  await tester.scrollUntilVisible(
+    finder,
+    420,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pump();
+}
+
+void _expectNameFieldValue(WidgetTester tester, String expected) {
+  final field = tester.widget<TextField>(_nameField());
+  expect(field.controller?.text, expected);
+}
+
 Future<void> _tapOutlinedDateButton(WidgetTester tester, String label) async {
   final button = find.widgetWithText(OutlinedButton, label);
+  await _scrollStudioTo(tester, button.first);
   expect(button, findsAtLeastNWidgets(1));
-  await tester.ensureVisible(button.first);
-  await tester.pump();
   await tester.tap(button.first, warnIfMissed: false);
   await tester.pumpAndSettle();
 }

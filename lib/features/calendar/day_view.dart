@@ -85,6 +85,8 @@ import '../../widgets/calendar_floating_shortcuts.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../data/user_events_repo.dart';
+import '../../data/flow_appearance.dart';
+import 'presentation/user_flow_appearance_visual.dart';
 import '../../data/shared_practice_models.dart';
 import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
@@ -1693,6 +1695,9 @@ class FlowData {
   final String? notes;
   final bool isHidden;
   final bool isReminder;
+  final FlowAppearance appearance;
+  final int totalOccurrenceCount;
+  final int completedOccurrenceCount;
 
   const FlowData({
     required this.id,
@@ -1702,6 +1707,9 @@ class FlowData {
     this.notes,
     this.isHidden = false,
     this.isReminder = false,
+    this.appearance = FlowAppearance.empty,
+    this.totalOccurrenceCount = 0,
+    this.completedOccurrenceCount = 0,
   });
 }
 
@@ -3518,6 +3526,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       target,
       enabled: enableFollowSkyEngagement,
     );
+    final hasUserAppearance =
+        flow != null && !isMaatFlow && !flow.appearance.isEmpty;
 
     if (instrumentPresentation.kind == _DayViewInstrumentKind.followSky) {
       final followSkyClientEventId =
@@ -4068,19 +4078,103 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       ],
     );
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: DayViewRitualCompletionFeedbackCard._withVisual(
-        enabled: enableRitualCompletionFeedback,
-        visual: visual,
-        child: scrollable
+    Widget buildUserAppearanceHero() {
+      return UserFlowAppearanceHero(
+        key: const ValueKey('user-flow-day-sheet-fixed-appearance'),
+        appearance: flow!.appearance,
+        accent: flow.appearance.accentArgb == null
+            ? flow.color
+            : Color(flow.appearance.accentArgb!),
+        height: 140,
+        completedOccurrences: flow.completedOccurrenceCount,
+        totalOccurrences: flow.totalOccurrenceCount,
+        showProgressFooter: true,
+      );
+    }
+
+    Widget buildUserAppearanceForeground() {
+      return Container(
+        key: const ValueKey('user-flow-day-sheet-foreground'),
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(17, 16, 17, 34),
+        decoration: BoxDecoration(
+          color: visual.base,
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              visual.washLeft.withValues(alpha: 0.40),
+              visual.washMid.withValues(alpha: 0.34),
+              visual.washMid.withValues(alpha: 0.29),
+              visual.washMid.withValues(alpha: 0.25),
+            ],
+            stops: const [0.0, 0.48, 0.82, 1.0],
+          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          border: Border(top: BorderSide(color: visual.border, width: 0.6)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.48),
+              blurRadius: 18,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: body,
+      );
+    }
+
+    Widget buildDetailContent() {
+      if (!hasUserAppearance) {
+        return scrollable
             ? SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 child: body,
               )
-            : body,
+            : body;
+      }
+
+      if (!scrollable) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            buildUserAppearanceHero(),
+            buildUserAppearanceForeground(),
+          ],
+        );
+      }
+
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Align(
+            alignment: Alignment.topCenter,
+            child: buildUserAppearanceHero(),
+          ),
+          SingleChildScrollView(
+            key: const ValueKey('user-flow-day-sheet-foreground-scroll'),
+            physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 136),
+                buildUserAppearanceForeground(),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: DayViewRitualCompletionFeedbackCard._withVisual(
+        enabled: enableRitualCompletionFeedback,
+        visual: visual,
+        child: buildDetailContent(),
       ),
     );
   }
@@ -8323,6 +8417,16 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
+    final customAppearance =
+        flow != null &&
+            _maatFlowCompletionContextForEvent(event, flow) == null &&
+            !flow.appearance.isEmpty
+        ? flow.appearance
+        : null;
+    final customAccent = customAppearance?.accentArgb == null
+        ? flow?.color ?? visual.source
+        : Color(customAppearance!.accentArgb!);
+
     return Container(
       width: block.width,
       height: height,
@@ -8386,7 +8490,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             padding: EdgeInsets.fromLTRB(
               event.isReminder ? 9 : 10,
               event.isReminder ? 4 : 4,
-              6,
+              customAppearance == null ? 6 : 56,
               4,
             ),
             child: _buildEventTextContents(
@@ -8395,6 +8499,19 @@ class _DayViewGridState extends State<DayViewGrid> {
               isPreview: isPreview,
             ),
           ),
+          if (customAppearance != null)
+            Positioned(
+              right: 9,
+              top: (height - 40) / 2,
+              child: UserFlowAppearanceBadge(
+                key: const ValueKey('user-flow-timeline-appearance'),
+                appearance: customAppearance,
+                accent: customAccent,
+                size: 40,
+                completedOccurrences: flow?.completedOccurrenceCount ?? 0,
+                totalOccurrences: flow?.totalOccurrenceCount ?? 0,
+              ),
+            ),
         ],
       ),
     );

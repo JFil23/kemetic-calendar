@@ -459,6 +459,12 @@ void main() {
       expect(flowPayload['root_flow_id'], 321);
       expect(flowPayload['start_date'], startsWith('2026-08-03'));
       expect(flowPayload['end_date'], startsWith('2026-08-12'));
+      expect(flowPayload['appearance'], <String, Object?>{
+        'version': 1,
+        'sign_kind': 'papyrus',
+        'sign_label': 'Study',
+        'accent_argb': 0xFF6F93A8,
+      });
 
       final savePayload = result.saveUpserts.single;
       expect(savePayload['user_id'], ownerUserId);
@@ -625,6 +631,12 @@ FlowPost _profileFlowPost() {
     startDate: DateTime(2026, 7, 1),
     endDate: DateTime(2026, 7, 10),
     payloadJson: const {
+      'appearance': {
+        'version': 1,
+        'sign_kind': 'papyrus',
+        'sign_label': 'Study',
+        'accent_argb': 0xFF6F93A8,
+      },
       'events': [
         {
           'offset_days': 2,

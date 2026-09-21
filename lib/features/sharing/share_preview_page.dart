@@ -8,6 +8,7 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../calendar/calendar_page.dart';
 import '../../data/share_repo.dart';
 import '../../data/share_models.dart';
+import '../../data/flow_appearance.dart';
 
 class SharePreviewPage extends StatefulWidget {
   final String shareId;
@@ -280,6 +281,7 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
           'notes': _nullableString(flow['notes']),
         'rules': rules,
         if (events.isNotEmpty) 'events': events,
+        if (flow['appearance'] is Map) 'appearance': flow['appearance'],
       },
     );
 
@@ -295,6 +297,7 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
       originFlowId: originFlowId,
       rootFlowId: originFlowId,
       originType: 'share_import',
+      appearance: FlowAppearance.fromJson(flow['appearance']),
     );
   }
 

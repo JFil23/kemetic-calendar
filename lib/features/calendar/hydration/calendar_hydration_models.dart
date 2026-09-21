@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../data/flow_appearance.dart';
+
 /// The user-visible authority of the calendar's current viewport.
 ///
 /// This value is derived from cache/catalog/coverage state. It is not a
@@ -119,6 +121,7 @@ class CalendarCatalogFingerprintRow {
     required this.isHidden,
     required this.isReminder,
     required this.reminderUuid,
+    this.appearance = FlowAppearance.empty,
   });
 
   final int id;
@@ -136,6 +139,7 @@ class CalendarCatalogFingerprintRow {
   final bool isHidden;
   final bool isReminder;
   final String? reminderUuid;
+  final FlowAppearance appearance;
 
   Map<String, Object?> toCanonicalMap() => <String, Object?>{
     'id': id,
@@ -153,10 +157,11 @@ class CalendarCatalogFingerprintRow {
     'isHidden': isHidden,
     'isReminder': isReminder,
     'reminderUuid': reminderUuid,
+    'appearance': appearance.toJsonOrNull(),
   };
 }
 
-const String calendarCatalogFingerprintVersion = 'calendar-catalog-v1';
+const String calendarCatalogFingerprintVersion = 'calendar-catalog-v2';
 
 /// Versioned SHA-256 fingerprint. Never use Dart's process-local [hashCode]
 /// for a persisted authority identity.

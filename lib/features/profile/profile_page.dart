@@ -17,6 +17,7 @@ import '../../data/commons_repo.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../data/flow_post_model.dart';
+import '../../data/flow_appearance.dart';
 import '../../data/insight_post_model.dart';
 import '../../data/profile_feed_item_model.dart';
 import '../../data/shared_practice_models.dart';
@@ -30,6 +31,7 @@ import '../../widgets/keyboard_aware.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
+import '../calendar/presentation/user_flow_appearance_visual.dart';
 import '../calendar/calendar_invalidation.dart';
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
@@ -4887,7 +4889,10 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildFeedFlowTile(ProfileFeedItem item) {
     final post = item.flowPost!;
-    final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
+    final appearance = FlowAppearance.fromJson(post.payloadJson?['appearance']);
+    final accent = appearance.accentArgb == null
+        ? Color(0xFF000000 | (post.color & 0x00FFFFFF))
+        : Color(appearance.accentArgb!);
     final title = cleanFlowTitle(post.name);
     final label = _ownsPost(post)
         ? 'Your Flow'
@@ -4982,6 +4987,16 @@ class _ProfilePageState extends State<ProfilePage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (!appearance.isEmpty) ...[
+                      UserFlowAppearanceHero(
+                        key: const ValueKey('profile-flow-appearance'),
+                        appearance: appearance,
+                        accent: accent,
+                        height: 150,
+                        compact: true,
+                      ),
+                      const SizedBox(height: 14),
+                    ],
                     _profileGoldTextWidget(
                       title.isEmpty ? 'Untitled Flow' : title,
                       maxLines: 6,
@@ -5405,7 +5420,10 @@ class _ProfilePageState extends State<ProfilePage>
     bool embeddedInCommonsDiscover = false,
     VoidCallback? onOpenInForYou,
   }) {
-    final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
+    final appearance = FlowAppearance.fromJson(post.payloadJson?['appearance']);
+    final accent = appearance.accentArgb == null
+        ? Color(0xFF000000 | (post.color & 0x00FFFFFF))
+        : Color(appearance.accentArgb!);
     final title = cleanFlowTitle(post.name);
     final meta = notesDecode(post.notes);
     final overview = cleanFlowOverview(
@@ -5456,6 +5474,15 @@ class _ProfilePageState extends State<ProfilePage>
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (!appearance.isEmpty) ...[
+            UserFlowAppearanceHero(
+              key: const ValueKey('expanded-profile-flow-appearance'),
+              appearance: appearance,
+              accent: accent,
+              height: 220,
+            ),
+            const SizedBox(height: 18),
+          ],
           _buildExpandedFeedAuthorRow(
             userId: post.userId,
             displayName: post.authorLabel,

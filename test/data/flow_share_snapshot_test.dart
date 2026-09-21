@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flow_share_snapshot.dart';
+import 'package:mobile/data/flow_appearance.dart';
 import 'package:mobile/data/share_models.dart';
 
 void main() {
@@ -9,6 +10,13 @@ void main() {
         'name': 'Morning Flow',
         'color': 0xFF123456,
         'notes': 'Start with water',
+        'appearance': {
+          'version': 1,
+          'image_object_path': 'sender/morning.webp',
+          'sign_kind': 'shen',
+          'sign_label': 'Return',
+          'accent_argb': 0xFF6F93A8,
+        },
         'rules': [
           {
             'kind': 'weekly',
@@ -36,6 +44,15 @@ void main() {
       expect(payload.name, 'Morning Flow');
       expect(payload.color, 0xFF123456);
       expect(payload.notes, 'Start with water');
+      expect(
+        payload.appearance,
+        const FlowAppearance(
+          imageObjectPath: 'sender/morning.webp',
+          signKind: FlowSignKind.shen,
+          signLabel: 'Return',
+          accentArgb: 0xFF6F93A8,
+        ),
+      );
       expect(payload.rules, hasLength(1));
       expect(payload.events, hasLength(2));
 

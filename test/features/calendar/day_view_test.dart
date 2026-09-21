@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/data/flow_appearance.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
     show
@@ -30,6 +31,10 @@ import 'package:mobile/widgets/calendar_floating_shortcuts.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+const _captureUserFlowAppearance = bool.fromEnvironment(
+  'CAPTURE_USER_FLOW_APPEARANCE',
+);
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -213,6 +218,86 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Delete test'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'user-flow appearance keeps a fixed stage behind the scrolling foreground',
+    (tester) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          flowIndex: const <int, FlowData>{
+            77: FlowData(
+              id: 77,
+              name: 'Study the Duat',
+              color: Color(0xFF6F93A8),
+              active: true,
+              appearance: FlowAppearance(
+                signKind: FlowSignKind.papyrus,
+                signLabel: 'Study',
+                accentArgb: 0xFF6F93A8,
+              ),
+              totalOccurrenceCount: 12,
+              completedOccurrenceCount: 3,
+            ),
+          },
+          notes: <NoteData>[
+            _timedNote(
+              clientEventId: 'custom-flow-appearance',
+              title: 'Read one passage',
+              startHour: 10,
+              startMinute: 0,
+              endHour: 11,
+              endMinute: 0,
+              flowId: 77,
+              detail:
+                  'Read slowly enough to notice what changes in the passage. '
+                  'Name the image that stays with you. Return to the opening '
+                  'line, compare it with the ending, and record the connection '
+                  'you want to carry into the next occurrence.',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final badge = find.byKey(const ValueKey('user-flow-timeline-appearance'));
+      expect(badge, findsOneWidget);
+      expect(tester.getSize(badge), const Size.square(40));
+
+      await tester.tap(find.text('Read one passage'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BottomSheet), findsOneWidget);
+      final hero = find.byKey(
+        const ValueKey('user-flow-day-sheet-fixed-appearance'),
+      );
+      final foreground = find.byKey(
+        const ValueKey('user-flow-day-sheet-foreground'),
+      );
+      final foregroundScroll = find.byKey(
+        const ValueKey('user-flow-day-sheet-foreground-scroll'),
+      );
+      expect(hero, findsOneWidget);
+      expect(foreground, findsOneWidget);
+      expect(foregroundScroll, findsOneWidget);
+      expect(find.text('3 OF 12'), findsOneWidget);
+      if (_captureUserFlowAppearance) {
+        await expectLater(
+          find.byType(Overlay).first,
+          matchesGoldenFile('/tmp/user-flow-day-sheet.png'),
+        );
+      }
+
+      final heroTopBefore = tester.getTopLeft(hero).dy;
+      final foregroundTopBefore = tester.getTopLeft(foreground).dy;
+      await tester.drag(foregroundScroll, const Offset(0, -120));
+      await tester.pumpAndSettle();
+
+      expect(tester.getTopLeft(hero).dy, closeTo(heroTopBefore, 0.01));
+      expect(tester.getTopLeft(foreground).dy, lessThan(foregroundTopBefore));
     },
   );
 
@@ -3772,6 +3857,7 @@ NoteData _timedNote({
   required int endHour,
   required int endMinute,
   int? flowId,
+  String? detail,
   Map<String, dynamic>? behaviorPayload,
 }) {
   return NoteData(
@@ -3782,6 +3868,7 @@ NoteData _timedNote({
     start: TimeOfDay(hour: startHour, minute: startMinute),
     end: TimeOfDay(hour: endHour, minute: endMinute),
     flowId: flowId,
+    detail: detail,
     behaviorPayload: behaviorPayload,
   );
 }

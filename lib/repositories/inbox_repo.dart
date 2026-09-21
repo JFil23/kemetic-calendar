@@ -11,6 +11,8 @@ import 'dart:convert';
 import '../data/share_models.dart';
 import '../data/share_repo.dart';
 import '../data/user_events_repo.dart';
+import '../data/flow_appearance.dart';
+import '../data/flow_appearance_store.dart';
 import '../features/calendar/calendar_page.dart' show CalendarPage, KemeticMath;
 import '../features/calendar/maat_flow_catalog.dart';
 import '../telemetry/telemetry.dart';
@@ -634,6 +636,24 @@ class InboxRepo {
         flowKey: payloadJson['flow_key']?.toString(),
         events: payloadJson['events'] as List<dynamic>? ?? const <dynamic>[],
       );
+      final sourceAppearance = FlowAppearance.fromJson(
+        payloadJson['appearance'],
+      );
+      var importedAppearance = sourceAppearance;
+      if (sourceAppearance.hasImage) {
+        try {
+          final ownedPath = await FlowAppearanceStore(
+            _client,
+          ).materializeOwnedCopy(sourceAppearance.imageObjectPath);
+          importedAppearance = sourceAppearance.copyWith(
+            imageObjectPath: ownedPath,
+            clearImage: ownedPath == null,
+          );
+        } catch (error) {
+          _log('[InboxRepo] appearance image copy failed: $error');
+          importedAppearance = sourceAppearance.copyWith(clearImage: true);
+        }
+      }
       final flowId = await userEventsRepo.upsertFlow(
         name: name,
         color: color,
@@ -645,6 +665,7 @@ class InboxRepo {
         originShareId: share.shareId,
         originFlowId: originFlowId,
         rootFlowId: originFlowId,
+        appearance: importedAppearance,
       );
 
       _log('[InboxRepo] ✓ Flow created with ID: $flowId');
