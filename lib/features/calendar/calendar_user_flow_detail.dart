@@ -1151,7 +1151,7 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
         theme: theme,
         joined: false,
         busy: false,
-        onPressed: () => widget.onEdit(flow),
+        onPressed: () => unawaited(_editAndRefreshFlow(flow)),
         actionLabel: 'Manage flow',
         actionNote: '',
         joinedLabel: 'Manage flow',
@@ -1177,7 +1177,7 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
         if (value == 'journal') {
           await _handleAddFlowToJournal(flow, events);
         } else if (value == 'edit') {
-          widget.onEdit(flow);
+          await _editAndRefreshFlow(flow);
         } else if (value == 'share') {
           _FlowPreviewPageState._openShareSheet(context, flow);
         } else if (value == 'save') {

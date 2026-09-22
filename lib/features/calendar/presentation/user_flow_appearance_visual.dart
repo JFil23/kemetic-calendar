@@ -271,19 +271,19 @@ class _FlowImageLayer extends StatelessWidget {
     if (bytes != null) return Image.memory(bytes, fit: BoxFit.cover);
     final path = objectPath?.trim();
     if (path == null || path.isEmpty) return const SizedBox.shrink();
-    return FutureBuilder<String>(
-      future: FlowAppearanceStore(Supabase.instance.client).signedUrl(path),
+    final store = FlowAppearanceStore(Supabase.instance.client);
+    final cachedBytes = store.cachedImageBytes(path);
+    if (cachedBytes != null) {
+      return Image.memory(cachedBytes, fit: BoxFit.cover);
+    }
+    return FutureBuilder<Uint8List>(
+      future: store.imageBytes(path),
       builder: (context, snapshot) {
-        final url = snapshot.data;
-        if (url == null) {
+        final hydratedBytes = snapshot.data;
+        if (hydratedBytes == null) {
           return ColoredBox(color: accent.withValues(alpha: 0.12));
         }
-        return Image.network(
-          url,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) =>
-              ColoredBox(color: accent.withValues(alpha: 0.12)),
-        );
+        return Image.memory(hydratedBytes, fit: BoxFit.cover);
       },
     );
   }

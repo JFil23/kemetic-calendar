@@ -108,4 +108,50 @@ void main() {
     );
     expect(find.text('Practice 6'), findsOneWidget);
   });
+
+  testWidgets('saved appearance replaces the open detail snapshot', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    var refreshCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: buildMyFlowDetailPreviewForTesting(
+          appearance: FlowAppearance.empty,
+          onRefreshAppearance: () async {
+            refreshCount += 1;
+            return const FlowAppearance(
+              signKind: FlowSignKind.palmCount,
+              signLabel: 'completed occurrences',
+              accentArgb: 0xFF6F93A8,
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final detailHero = find.byKey(
+      const ValueKey<String>('user-flow-detail-appearance'),
+    );
+    Finder heroSign() => find.descendant(
+      of: detailHero,
+      matching: find.byKey(
+        const ValueKey<String>('user-flow-appearance-sign-layer'),
+      ),
+    );
+    expect(heroSign(), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey<String>('user-flow-manage')));
+    await tester.pumpAndSettle();
+
+    expect(refreshCount, 1);
+    expect(heroSign(), findsOneWidget);
+  });
 }

@@ -1028,7 +1028,19 @@ void main() {
       'static Future<int?> _persistFlowStudioResultHeadless',
       'static Future<({int flowId, bool didStageEvents})?> importFlowFromShare',
     );
-    expect(headlessPersistBody, contains('isSaved: f.isSaved'));
+    expect(headlessPersistBody, contains('flow: f'));
+    expect(
+      headlessPersistBody,
+      contains('CalendarPage._upsertFlowStudioDefinition('),
+    );
+    expect(persistBody, contains('CalendarPage._upsertFlowStudioDefinition('));
+
+    final sharedDefinitionPersist = _sliceBetween(
+      calendar,
+      'static Future<int> _upsertFlowStudioDefinition',
+      'static bool _didStageFlowStudioEvents',
+    );
+    expect(sharedDefinitionPersist, contains('appearance: flow.appearance'));
   });
 }
 

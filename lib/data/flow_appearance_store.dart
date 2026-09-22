@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,8 +9,80 @@ class FlowAppearanceStore {
 
   static const bucket = 'flow-appearance-images';
   static const _uuid = Uuid();
+  static const _maxCachedImages = 8;
+  static final LinkedHashMap<String, _FlowAppearanceImageCacheEntry>
+  _imageCache = LinkedHashMap<String, _FlowAppearanceImageCacheEntry>();
+
+  static Future<Uint8List> Function(SupabaseClient client, String objectPath)?
+  debugDownloadImageForTesting;
 
   final SupabaseClient _client;
+
+  String _cacheKey(String objectPath) =>
+      '${_client.auth.currentUser?.id ?? 'anonymous'}::$objectPath';
+
+  _FlowAppearanceImageCacheEntry? _touchCachedEntry(String objectPath) {
+    final key = _cacheKey(objectPath);
+    final entry = _imageCache.remove(key);
+    if (entry != null) _imageCache[key] = entry;
+    return entry;
+  }
+
+  void _storeCachedEntry(
+    String objectPath,
+    _FlowAppearanceImageCacheEntry entry,
+  ) {
+    final key = _cacheKey(objectPath);
+    _imageCache
+      ..remove(key)
+      ..[key] = entry;
+    while (_imageCache.length > _maxCachedImages) {
+      _imageCache.remove(_imageCache.keys.first);
+    }
+  }
+
+  Uint8List? cachedImageBytes(String objectPath) =>
+      _touchCachedEntry(objectPath)?.bytes;
+
+  Future<Uint8List> imageBytes(String objectPath) {
+    final cached = _touchCachedEntry(objectPath);
+    if (cached?.bytes != null) return Future<Uint8List>.value(cached!.bytes!);
+    if (cached?.future != null) return cached!.future!;
+
+    final entry = _FlowAppearanceImageCacheEntry();
+    Future<Uint8List> load() async {
+      try {
+        final override = debugDownloadImageForTesting;
+        final bytes = override == null
+            ? await _client.storage.from(bucket).download(objectPath)
+            : await override(_client, objectPath);
+        if (identical(_imageCache[_cacheKey(objectPath)], entry)) {
+          entry
+            ..bytes = bytes
+            ..future = null;
+          _touchCachedEntry(objectPath);
+        }
+        return bytes;
+      } catch (_) {
+        final key = _cacheKey(objectPath);
+        if (identical(_imageCache[key], entry)) _imageCache.remove(key);
+        rethrow;
+      }
+    }
+
+    entry.future = load();
+    _storeCachedEntry(objectPath, entry);
+    return entry.future!;
+  }
+
+  void rememberImageBytes(String objectPath, Uint8List bytes) {
+    _storeCachedEntry(objectPath, _FlowAppearanceImageCacheEntry(bytes: bytes));
+  }
+
+  static void debugResetImageCacheForTesting() {
+    _imageCache.clear();
+    debugDownloadImageForTesting = null;
+  }
 
   Future<String> uploadOwnedImage({
     required Uint8List bytes,
@@ -31,19 +104,16 @@ class FlowAppearanceStore {
           bytes,
           fileOptions: FileOptions(contentType: mime, upsert: false),
         );
+    rememberImageBytes(path, bytes);
     return path;
   }
-
-  Future<String> signedUrl(String objectPath) => _client.storage
-      .from(bucket)
-      .createSignedUrl(objectPath, const Duration(hours: 1).inSeconds);
 
   Future<String?> materializeOwnedCopy(String? sourcePath) async {
     final path = sourcePath?.trim();
     final userId = _client.auth.currentUser?.id;
     if (path == null || path.isEmpty || userId == null) return path;
     if (path.startsWith('$userId/')) return path;
-    final bytes = await _client.storage.from(bucket).download(path);
+    final bytes = await imageBytes(path);
     final extension = path.split('.').last.toLowerCase();
     final safeExtension = {'jpg', 'jpeg', 'png', 'webp'}.contains(extension)
         ? extension
@@ -59,6 +129,7 @@ class FlowAppearanceStore {
             upsert: false,
           ),
         );
+    rememberImageBytes(ownedPath, bytes);
     return ownedPath;
   }
 
@@ -79,4 +150,11 @@ class FlowAppearanceStore {
     }
     return 'image/jpeg';
   }
+}
+
+class _FlowAppearanceImageCacheEntry {
+  _FlowAppearanceImageCacheEntry({this.bytes});
+
+  Uint8List? bytes;
+  Future<Uint8List>? future;
 }

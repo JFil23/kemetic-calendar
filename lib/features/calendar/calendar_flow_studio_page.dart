@@ -2432,6 +2432,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           onEdit: (flow) {
             _loadFlowForEdit(flow);
             Navigator.of(context).pop();
+            return null;
           },
           completeAdd: (_) {},
           onAppendToJournal: null,

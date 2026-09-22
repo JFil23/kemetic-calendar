@@ -1,15 +1,36 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flow_appearance.dart';
+import 'package:mobile/data/flow_appearance_store.dart';
 import 'package:mobile/features/calendar/presentation/user_flow_appearance_visual.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   const accent = Color(0xFF6F93A8);
   final imageBytes = base64Decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
   );
+
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    try {
+      Supabase.instance.client;
+    } catch (_) {
+      await Supabase.initialize(
+        url: 'https://example.supabase.co',
+        anonKey: 'anon-key-0123456789012345678901234567890123456789',
+      );
+    }
+  });
+
+  setUp(FlowAppearanceStore.debugResetImageCacheForTesting);
+  tearDown(FlowAppearanceStore.debugResetImageCacheForTesting);
 
   Future<void> pumpHero(
     WidgetTester tester, {
@@ -105,6 +126,37 @@ void main() {
     expect(
       find.byKey(const ValueKey('user-flow-appearance-sign-layer')),
       findsNothing,
+    );
+  });
+
+  testWidgets('persisted image hydration is shared across rebuilds', (
+    tester,
+  ) async {
+    final download = Completer<Uint8List>();
+    var downloadCount = 0;
+    FlowAppearanceStore.debugDownloadImageForTesting = (_, path) {
+      expect(path, 'owner/flow-image.jpg');
+      downloadCount += 1;
+      return download.future;
+    };
+    const appearance = FlowAppearance(
+      imageObjectPath: 'owner/flow-image.jpg',
+      accentArgb: 0xFF6F93A8,
+    );
+
+    await pumpHero(tester, appearance: appearance);
+    await pumpHero(tester, appearance: appearance);
+
+    expect(downloadCount, 1);
+    download.complete(imageBytes);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('user-flow-appearance-image-layer')),
+        matching: find.byType(Image),
+      ),
+      findsOneWidget,
     );
   });
 

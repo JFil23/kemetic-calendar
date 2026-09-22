@@ -5042,7 +5042,7 @@ class CalendarPage extends StatefulWidget {
       getDecanLabel: (km, di) =>
           (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
       fmt: _formatDetachedGregorian,
-      onEdit: (_) {},
+      onEdit: (_) => null,
       completeAdd: (_) {},
       onAppendToJournal: null,
       onEndMaatFlow: null,
@@ -9154,6 +9154,34 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  static Future<int> _upsertFlowStudioDefinition({
+    required UserEventsRepo repo,
+    required _Flow flow,
+    required _FlowStudioResult result,
+    required String rulesJson,
+  }) {
+    return repo.upsertFlow(
+      id: flow.id > 0 ? flow.id : null,
+      name: flow.name,
+      color: flow.color.toARGB32(),
+      active: flow.active,
+      calendarId: flow.calendarId,
+      startDate: flow.start,
+      endDate: flow.end,
+      notes: flow.notes,
+      rules: rulesJson,
+      isHidden: flow.isHidden,
+      isSaved: flow.isSaved,
+      originType: result.originType,
+      originFlowId: result.originFlowId,
+      originShareId: result.originShareId ?? flow.shareId,
+      originGenerationId: result.originGenerationId,
+      rootFlowId: result.rootFlowId,
+      aiMetadata: result.aiMetadata,
+      appearance: flow.appearance,
+    );
+  }
+
   static bool _didStageFlowStudioEvents(_FlowStudioResult result) =>
       result.plannedNotes.isNotEmpty;
 
@@ -9196,24 +9224,11 @@ class CalendarPage extends StatefulWidget {
       f.rules.map(CalendarPageState.ruleToJson).toList(),
     );
 
-    final savedId = await userEventsRepo.upsertFlow(
-      id: f.id > 0 ? f.id : null,
-      name: f.name,
-      color: f.color.toARGB32(),
-      active: f.active,
-      calendarId: f.calendarId,
-      startDate: f.start,
-      endDate: f.end,
-      notes: f.notes,
-      rules: rulesJson,
-      isHidden: f.isHidden,
-      isSaved: f.isSaved,
-      originType: r.originType,
-      originFlowId: r.originFlowId,
-      originShareId: r.originShareId ?? f.shareId,
-      originGenerationId: r.originGenerationId,
-      rootFlowId: r.rootFlowId,
-      aiMetadata: r.aiMetadata,
+    final savedId = await CalendarPage._upsertFlowStudioDefinition(
+      repo: userEventsRepo,
+      flow: f,
+      result: r,
+      rulesJson: rulesJson,
     );
 
     final localFlow = _savedFlowForStudioResult(f, savedId);
@@ -27553,26 +27568,49 @@ class CalendarPageState extends State<CalendarPage>
           fmt: (d) => d == null
               ? '--'
               : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
-          onEdit: (flow) {
-            unawaited(() async {
-              final edited = await _pushFlowStudioEditor(
-                Navigator.of(innerCtx),
-                editFlowId: flow.id,
-                returnState: const <String, dynamic>{
-                  'mode': _kFlowStudioModeMyFlows,
-                },
-              );
-              await _saveCalendarOverlayState(
-                _kCalendarOverlayKindFlowStudio,
-                const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
-              );
-              if (edited != null) await _persistFlowStudioResult(edited);
-              await _requestHydration(
-                _CalendarHydrationRequest.catalogReconcile(
-                  reason: 'flow_editor_returned',
-                ),
-              );
-            }());
+          onEdit: (flow) async {
+            final edited = await _pushFlowStudioEditor(
+              Navigator.of(innerCtx),
+              editFlowId: flow.id,
+              returnState: const <String, dynamic>{
+                'mode': _kFlowStudioModeMyFlows,
+              },
+            );
+            await _saveCalendarOverlayState(
+              _kCalendarOverlayKindFlowStudio,
+              const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
+            );
+            if (edited != null) await _persistFlowStudioResult(edited);
+            await _requestHydration(
+              _CalendarHydrationRequest.catalogReconcile(
+                reason: 'flow_editor_returned',
+              ),
+            );
+            if (!mounted) return null;
+            _Flow? refreshed;
+            for (final candidate in _flows) {
+              if (candidate.id == flow.id) {
+                refreshed = candidate;
+                break;
+              }
+            }
+            if (refreshed == null) return null;
+            final filingSnapshot = _myFlowsFilingSnapshotCache;
+            final refreshedMetrics = filingSnapshot == null
+                ? (metricsByFlow[flow.id] ??
+                      const _FlowPreviewMetrics(
+                        totalEventCount: 0,
+                        remainingEventCount: 0,
+                        completedEventCount: 0,
+                      ))
+                : _FlowPreviewMetrics.fromSnapshot(
+                    flow: refreshed,
+                    snapshot: filingSnapshot,
+                  );
+            return _FlowPreviewRefresh(
+              flow: refreshed,
+              metrics: refreshedMetrics,
+            );
           },
           completeAdd: _completeMountedStagedFlowAddWithDayView,
           onAppendToJournal: _appendToJournalAndRefresh,
@@ -32085,25 +32123,11 @@ class CalendarPageState extends State<CalendarPage>
           ? jsonEncode([])
           : jsonEncode(r.savedFlow!.rules.map(ruleToJson).toList());
 
-      final savedId = await repo.upsertFlow(
-        id: r.savedFlow!.id > 0 ? r.savedFlow!.id : null,
-        name: r.savedFlow!.name,
-        color: r.savedFlow!.color.toARGB32(),
-        active: r.savedFlow!.active,
-        calendarId: r.savedFlow!.calendarId,
-        startDate: r.savedFlow!.start,
-        endDate: r.savedFlow!.end,
-        notes: r.savedFlow!.notes,
-        rules: rulesJson,
-        isHidden: r.savedFlow!.isHidden,
-        isSaved: r.savedFlow!.isSaved,
-        originType: r.originType,
-        originFlowId: r.originFlowId,
-        originShareId: r.originShareId ?? r.savedFlow!.shareId,
-        originGenerationId: r.originGenerationId,
-        rootFlowId: r.rootFlowId,
-        aiMetadata: r.aiMetadata,
-        appearance: r.savedFlow!.appearance,
+      final savedId = await CalendarPage._upsertFlowStudioDefinition(
+        repo: repo,
+        flow: r.savedFlow!,
+        result: r,
+        rulesJson: rulesJson,
       );
 
       saved = CalendarPage._savedFlowForStudioResult(r.savedFlow!, savedId);

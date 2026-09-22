@@ -353,6 +353,18 @@ class _FlowPreviewMetrics {
   }
 }
 
+class _FlowPreviewRefresh {
+  const _FlowPreviewRefresh({
+    required this.flow,
+    required this.metrics,
+    this.reloadEvents = true,
+  });
+
+  final _Flow flow;
+  final _FlowPreviewMetrics metrics;
+  final bool reloadEvents;
+}
+
 class _FlowDashboardDay {
   const _FlowDashboardDay({
     required this.key,
@@ -435,7 +447,7 @@ class _FlowPreviewPage extends StatefulWidget {
   final DateTime? nowForTesting;
   final String Function(int km, int di) getDecanLabel;
   final String Function(DateTime? g) fmt;
-  final void Function(_Flow flow) onEdit;
+  final FutureOr<_FlowPreviewRefresh?> Function(_Flow flow) onEdit;
   final FlowAddCompletion completeAdd;
   final Future<void> Function(String text)? onAppendToJournal;
 
@@ -450,6 +462,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   UserEventsRepo? _userEventsRepo;
 
   late final List<_Flow> _flowSequence;
+  late final Map<int, _FlowPreviewMetrics> _metricsByFlow;
   late int _currentIndex;
   late final PageController _pageController;
 
@@ -476,6 +489,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   void initState() {
     super.initState();
     _flowSequence = (widget.flowSequence ?? [widget.flow]).toList();
+    _metricsByFlow = Map<int, _FlowPreviewMetrics>.from(widget.metricsByFlow);
     if (_flowSequence.isEmpty) {
       _flowSequence.add(widget.flow);
     } else if (!_flowSequence.any((f) => f.id == widget.flow.id)) {
@@ -542,6 +556,37 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   void _updateUserFlowDetail(VoidCallback update) {
     if (!mounted) return;
     setState(update);
+  }
+
+  Future<void> _editAndRefreshFlow(_Flow flow) async {
+    final refresh = await widget.onEdit(flow);
+    if (!mounted || refresh == null) return;
+
+    final flowIndex = _flowSequence.indexWhere(
+      (candidate) => candidate.id == refresh.flow.id,
+    );
+    setState(() {
+      if (flowIndex >= 0) {
+        _flowSequence[flowIndex] = refresh.flow;
+      } else {
+        _flowSequence.add(refresh.flow);
+      }
+      _metricsByFlow[refresh.flow.id] = refresh.metrics;
+      if (refresh.reloadEvents) {
+        _eventsByFlow.remove(refresh.flow.id);
+        _eventsErrorByFlow.remove(refresh.flow.id);
+      }
+      _resetDashboardExpansion();
+    });
+
+    if (refresh.reloadEvents) {
+      await _loadEventsFor(refresh.flow);
+    } else {
+      _seedDashboardExpansion(
+        refresh.flow,
+        _eventsByFlow[refresh.flow.id] ?? const <FlowEventRow>[],
+      );
+    }
   }
 
   void _scheduleUserFlowDayBoundaryRefresh() {
@@ -1676,7 +1721,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   }
 
   _FlowPreviewMetrics _metricsForFlow(_Flow flow, List<FlowEventRow> events) {
-    final metrics = widget.metricsByFlow[flow.id];
+    final metrics = _metricsByFlow[flow.id];
     if (metrics != null) return metrics;
     return _FlowPreviewMetrics(
       totalEventCount: events.length,
@@ -2544,7 +2589,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                           currentEvents,
                         );
                       } else if (value == 'edit') {
-                        widget.onEdit(currentFlow);
+                        await _editAndRefreshFlow(currentFlow);
                       } else if (value == 'share') {
                         _openShareSheet(context, currentFlow);
                       } else if (value == 'save') {
@@ -2762,7 +2807,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       child: _buildDashboardCtaButton(
         label: 'Manage Flow',
         palette: palette,
-        onPressed: () => widget.onEdit(flow),
+        onPressed: () => unawaited(_editAndRefreshFlow(flow)),
         icon: Icons.tune,
       ),
     );
@@ -4132,6 +4177,26 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     }
   }
 
+  Future<_FlowPreviewRefresh?> _editFlowAndReload(_Flow flow) async {
+    await _runAndReload(() => widget.onEditFlow(flow.id));
+    if (!mounted) return null;
+    _Flow? refreshed;
+    for (final candidate in _currentSnapshot.flows) {
+      if (candidate.id == flow.id) {
+        refreshed = candidate;
+        break;
+      }
+    }
+    if (refreshed == null) return null;
+    return _FlowPreviewRefresh(
+      flow: refreshed,
+      metrics: _FlowPreviewMetrics.fromSnapshot(
+        flow: refreshed,
+        snapshot: _currentSnapshot,
+      ),
+    );
+  }
+
   Future<EndFlowOutcome> _endFlowAndReconcile(int flowId) {
     final existing = _endFlowReconciliations[flowId];
     if (existing != null) return existing;
@@ -4239,8 +4304,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
           getDecanLabel: (km, di) =>
               (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
           fmt: widget.fmtGregorian,
-          onEdit: (flow) =>
-              unawaited(_runAndReload(() => widget.onEditFlow(flow.id))),
+          onEdit: _editFlowAndReload,
           completeAdd: widget.completeAdd,
           onAppendToJournal: widget.onAppendToJournal,
           calendarPreviewForWindow: widget.calendarPreviewForWindow,
@@ -4653,6 +4717,7 @@ Widget buildMyFlowDetailPreviewForTesting({
   FollowSkyCalendarPreview? calendarPreview,
   DateTime? nowOverride,
   VoidCallback? onManageFlow,
+  Future<FlowAppearance> Function()? onRefreshAppearance,
   Key? previewKey,
 }) {
   final now = DateUtils.dateOnly(nowOverride ?? DateTime.now());
@@ -4792,6 +4857,20 @@ Widget buildMyFlowDetailPreviewForTesting({
     );
   }
 
+  _FlowPreviewMetrics previewMetricsFor(_Flow previewFlow) {
+    final previewEvents = allEventsByFlow[previewFlow.id] ?? const [];
+    final remaining = saved
+        ? previewEvents.length
+        : math.min(3, previewEvents.length);
+    return _FlowPreviewMetrics(
+      totalEventCount: previewEvents.length,
+      remainingEventCount: remaining,
+      completedEventCount: saved
+          ? 0
+          : math.max(0, previewEvents.length - remaining),
+    );
+  }
+
   return _FlowPreviewPage(
     key: previewKey,
     flow: flow,
@@ -4801,25 +4880,41 @@ Widget buildMyFlowDetailPreviewForTesting({
         : (saved ? _FlowPreviewMode.saved : _FlowPreviewMode.active),
     metricsByFlow: <int, _FlowPreviewMetrics>{
       for (final previewFlow in previewFlows)
-        previewFlow.id: _FlowPreviewMetrics(
-          totalEventCount: allEventsByFlow[previewFlow.id]!.length,
-          remainingEventCount: saved
-              ? allEventsByFlow[previewFlow.id]!.length
-              : math.min(3, allEventsByFlow[previewFlow.id]!.length),
-          completedEventCount: saved
-              ? 0
-              : math.max(
-                  0,
-                  allEventsByFlow[previewFlow.id]!.length -
-                      math.min(3, allEventsByFlow[previewFlow.id]!.length),
-                ),
-        ),
+        previewFlow.id: previewMetricsFor(previewFlow),
     },
     initialEventsByFlow: allEventsByFlow,
     getDecanLabel: (km, di) =>
         (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
     fmt: _formatMyFlowsPreviewGregorian,
-    onEdit: (_) => onManageFlow?.call(),
+    onEdit: (currentFlow) async {
+      onManageFlow?.call();
+      final refreshAppearance = onRefreshAppearance;
+      if (refreshAppearance == null) return null;
+      final updatedAppearance = await refreshAppearance();
+      final updatedFlow = _Flow(
+        id: currentFlow.id,
+        calendarId: currentFlow.calendarId,
+        name: currentFlow.name,
+        color: currentFlow.color,
+        active: currentFlow.active,
+        isSaved: currentFlow.isSaved,
+        savedAt: currentFlow.savedAt,
+        rules: List<FlowRule>.from(currentFlow.rules),
+        start: currentFlow.start,
+        end: currentFlow.end,
+        notes: currentFlow.notes,
+        shareId: currentFlow.shareId,
+        isHidden: currentFlow.isHidden,
+        isReminder: currentFlow.isReminder,
+        reminderUuid: currentFlow.reminderUuid,
+        appearance: updatedAppearance,
+      );
+      return _FlowPreviewRefresh(
+        flow: updatedFlow,
+        metrics: previewMetricsFor(currentFlow),
+        reloadEvents: false,
+      );
+    },
     completeAdd: (_) {},
     onAppendToJournal: null,
     onEndMaatFlow: null,
