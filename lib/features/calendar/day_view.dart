@@ -2128,6 +2128,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       <String, int>{};
   final Map<String, int> _userFlowMerkhetAnimationRevisions = <String, int>{};
   final Map<String, int> _userFlowMerkhetAnimationFrom = <String, int>{};
+  final Map<String, ScrollController> _userFlowForegroundScrollControllers =
+      <String, ScrollController>{};
 
   @override
   void initState() {
@@ -2176,6 +2178,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       GuidedOnboardingController.instance.clear();
     }
     _pageController.dispose();
+    for (final controller in _userFlowForegroundScrollControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -2209,6 +2214,33 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             (_userFlowMerkhetAnimationRevisions[identity] ?? 0) + 1;
       }
     });
+    if (current == CompletionStatus.observed) {
+      _revealUserFlowMerkhet(identity);
+    }
+  }
+
+  ScrollController _userFlowForegroundScrollController(String identity) {
+    return _userFlowForegroundScrollControllers.putIfAbsent(
+      identity,
+      ScrollController.new,
+    );
+  }
+
+  void _revealUserFlowMerkhet(String identity) {
+    if (!mounted) return;
+    final controller = _userFlowForegroundScrollControllers[identity];
+    if (controller == null || !controller.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      controller.jumpTo(0);
+      return;
+    }
+    unawaited(
+      controller.animateTo(
+        0,
+        duration: const Duration(milliseconds: 360),
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 
   Widget _buildDetailPageSizeTransition({
@@ -4205,6 +4237,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           ),
           SingleChildScrollView(
             key: const ValueKey('user-flow-day-sheet-foreground-scroll'),
+            controller: _userFlowForegroundScrollController(completionIdentity),
             physics: const BouncingScrollPhysics(),
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             child: Column(

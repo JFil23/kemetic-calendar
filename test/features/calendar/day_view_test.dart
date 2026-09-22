@@ -313,17 +313,30 @@ void main() {
 
       expect(tester.getTopLeft(hero).dy, closeTo(heroTopBefore, 0.01));
       expect(tester.getTopLeft(foreground).dy, lessThan(foregroundTopBefore));
+      final foregroundScrollable = find.descendant(
+        of: foregroundScroll,
+        matching: find.byType(Scrollable),
+      );
+      final foregroundPosition = tester
+          .state<ScrollableState>(foregroundScrollable)
+          .position;
+      final raisedOffset = foregroundPosition.pixels;
+      expect(raisedOffset, greaterThan(0));
 
       await tester.tap(find.text('Observed').last);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 10));
+      await tester.pump(const Duration(milliseconds: 180));
 
       expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
       expect(find.text('2 OF 88'), findsOneWidget);
+      expect(foregroundPosition.pixels, lessThan(raisedOffset));
       expect(
         find.byKey(const ValueKey('user-flow-merkhet-animation-papyrus-1')),
         findsOneWidget,
       );
+      expect(tester.hasRunningAnimations, isTrue);
+      await tester.pump(const Duration(milliseconds: 260));
+      expect(foregroundPosition.pixels, 0);
       expect(tester.hasRunningAnimations, isTrue);
       await tester.pumpAndSettle();
     },
