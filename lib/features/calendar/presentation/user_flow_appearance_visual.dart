@@ -315,7 +315,9 @@ class _FlowSignVisualState extends State<FlowSignVisual>
       ),
       animation: _controller,
       builder: (context, _) {
-        final animationValue = Curves.easeOutCubic.transform(_controller.value);
+        final animationValue = Curves.easeInOutCubic.transform(
+          _controller.value,
+        );
         final from =
             (widget.animationFromCompletedOccurrences ??
                     widget.completedOccurrences)

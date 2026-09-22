@@ -1201,6 +1201,92 @@ void main() {
     },
   );
 
+  testWidgets(
+    'remote completion remains successful when its local mirror fails',
+    (tester) async {
+      final persisted = <CompletionStatus>[];
+      final continuity = <CompletionStatus>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarEventCompletionPanel(
+              identity: 'cid:remote-authority',
+              sourceType: CompletionSourceType.userFlow,
+              localStore: const _FailingCompletionLocalStore(),
+              loadStatus: () async => CompletionStatus.none,
+              onRecordStatus: (_) async {},
+              onCreateContinuity: (status) async => continuity.add(status),
+              onStatusPersisted: (_, current) => persisted.add(current),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pumpAndSettle();
+
+      expect(persisted, <CompletionStatus>[CompletionStatus.observed]);
+      expect(continuity, <CompletionStatus>[CompletionStatus.observed]);
+      expect(find.text('Could not record completion.'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'remote completion remains successful when continuity mirror fails',
+    (tester) async {
+      final persisted = <CompletionStatus>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarEventCompletionPanel(
+              identity: 'cid:continuity-mirror',
+              sourceType: CompletionSourceType.userFlow,
+              loadStatus: () async => CompletionStatus.none,
+              onRecordStatus: (_) async {},
+              onCreateContinuity: (_) => Future<void>.error(
+                StateError('continuity mirror unavailable'),
+              ),
+              onStatusPersisted: (_, current) => persisted.add(current),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pumpAndSettle();
+
+      expect(persisted, <CompletionStatus>[CompletionStatus.observed]);
+      expect(find.text('Could not record completion.'), findsNothing);
+    },
+  );
+
+  test(
+    'completion accounting cannot veto a persisted user-flow completion',
+    () {
+      final calendarPage = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final recordCompletion = _sourceBetween(
+        calendarPage,
+        'Future<void> _recordEventCompletion({',
+        'Future<void> _refreshCompletionAccountingBestEffort()',
+      );
+
+      expect(
+        recordCompletion,
+        contains('unawaited(_refreshCompletionAccountingBestEffort())'),
+      );
+      expect(
+        recordCompletion,
+        isNot(contains('await _refreshHydrationAccounting()')),
+      );
+    },
+  );
+
   test(
     'detail opening remains a real transient sheet for notification search and shared taps',
     () {
@@ -1301,4 +1387,14 @@ String _sourceBetween(String source, String startMarker, String endMarker) {
   final end = source.indexOf(endMarker, start + startMarker.length);
   expect(end, isNonNegative, reason: 'missing end marker: $endMarker');
   return source.substring(start, end);
+}
+
+class _FailingCompletionLocalStore extends CalendarCompletionLocalStore {
+  const _FailingCompletionLocalStore();
+
+  @override
+  Future<void> save({
+    required String identity,
+    required CompletionStatus status,
+  }) => Future<void>.error(StateError('local mirror unavailable'));
 }

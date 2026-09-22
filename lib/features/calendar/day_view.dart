@@ -2237,8 +2237,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     unawaited(
       controller.animateTo(
         0,
-        duration: const Duration(milliseconds: 360),
-        curve: Curves.easeOutCubic,
+        duration: const Duration(milliseconds: 640),
+        curve: Curves.easeInOutCubic,
       ),
     );
   }

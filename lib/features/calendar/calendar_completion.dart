@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -520,6 +521,10 @@ class _CalendarEventCompletionPanelState
     final previous = _status;
     setState(() => _saving = true);
     _scheduleCompletionFeedback(status);
+
+    final hasRemoteAuthority = status == CompletionStatus.none
+        ? widget.onClearStatus != null || widget.onRecordStatus != null
+        : widget.onRecordStatus != null;
     try {
       if (status == CompletionStatus.none) {
         if (widget.onClearStatus != null) {
@@ -530,9 +535,9 @@ class _CalendarEventCompletionPanelState
       } else {
         await widget.onRecordStatus?.call(status);
       }
-      await widget.localStore.save(identity: widget.identity, status: status);
-      if (status.createsJournalContinuity) {
-        await widget.onCreateContinuity?.call(status);
+
+      if (!hasRemoteAuthority) {
+        await widget.localStore.save(identity: widget.identity, status: status);
       }
       if (!mounted) return;
       setState(() {
@@ -540,13 +545,39 @@ class _CalendarEventCompletionPanelState
         _saving = false;
       });
       widget.onStatusPersisted?.call(previous, status);
-    } catch (_) {
+    } catch (error, stackTrace) {
       _cancelCompletionFeedback();
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         const SnackBar(content: Text('Could not record completion.')),
       );
+      if (kDebugMode) {
+        debugPrint('Calendar completion persistence failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+      return;
+    }
+
+    if (hasRemoteAuthority) {
+      try {
+        await widget.localStore.save(identity: widget.identity, status: status);
+      } catch (error, stackTrace) {
+        if (kDebugMode) {
+          debugPrint('Calendar completion local mirror failed: $error');
+          debugPrintStack(stackTrace: stackTrace);
+        }
+      }
+    }
+    if (status.createsJournalContinuity) {
+      try {
+        await widget.onCreateContinuity?.call(status);
+      } catch (error, stackTrace) {
+        if (kDebugMode) {
+          debugPrint('Calendar completion continuity mirror failed: $error');
+          debugPrintStack(stackTrace: stackTrace);
+        }
+      }
     }
   }
 

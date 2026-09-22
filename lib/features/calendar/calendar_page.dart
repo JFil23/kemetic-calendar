@@ -28942,7 +28942,7 @@ class CalendarPageState extends State<CalendarPage>
         metadata: metadata,
       );
       if (metadata?['source_type'] == CompletionSourceType.userFlow.wireName) {
-        await _refreshHydrationAccounting();
+        unawaited(_refreshCompletionAccountingBestEffort());
       }
       if (resolveMaatFlowKind(behaviorPayload: metadata) ==
           MaatFlowKind.decanWatch) {
@@ -28953,6 +28953,20 @@ class CalendarPageState extends State<CalendarPage>
         _calendarDebugPrint('[DayView] recordEventCompletion failed: $e');
       }
       rethrow;
+    }
+  }
+
+  Future<void> _refreshCompletionAccountingBestEffort() async {
+    try {
+      await _refreshHydrationAccounting();
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[DayView] completion accounting refresh failed after persistence: '
+          '$error',
+        );
+        _calendarDebugPrint('$stackTrace');
+      }
     }
   }
 

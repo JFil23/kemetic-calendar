@@ -330,17 +330,114 @@ void main() {
       expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
       expect(find.text('2 OF 88'), findsOneWidget);
       expect(foregroundPosition.pixels, lessThan(raisedOffset));
+      expect(foregroundPosition.pixels, greaterThan(0));
       expect(
         find.byKey(const ValueKey('user-flow-merkhet-animation-papyrus-1')),
         findsOneWidget,
       );
       expect(tester.hasRunningAnimations, isTrue);
       await tester.pump(const Duration(milliseconds: 260));
-      expect(foregroundPosition.pixels, 0);
+      expect(foregroundPosition.pixels, greaterThan(0));
+      expect(tester.hasRunningAnimations, isTrue);
+      await tester.pump(const Duration(milliseconds: 240));
+      expect(foregroundPosition.pixels, closeTo(0, 0.01));
       expect(tester.hasRunningAnimations, isTrue);
       await tester.pumpAndSettle();
     },
   );
+
+  for (final kind in FlowSignKind.values) {
+    testWidgets(
+      '${kind.name} completion advances and reveals the fixed Day View hero',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final flowId = 170 + kind.index;
+        final title = 'Measure ${kind.name}';
+        final recordedStatuses = <CompletionStatus>[];
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            flowIndex: <int, FlowData>{
+              flowId: FlowData(
+                id: flowId,
+                name: 'Universal Merkhet route',
+                color: const Color(0xFF6F93A8),
+                active: true,
+                appearance: FlowAppearance(
+                  signKind: kind,
+                  accentArgb: 0xFF6F93A8,
+                ),
+                totalOccurrenceCount: 12,
+                completedOccurrenceCount: 1,
+              ),
+            },
+            notes: <NoteData>[
+              _timedNote(
+                clientEventId: 'universal-merkhet-${kind.wireName}',
+                title: title,
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+                flowId: flowId,
+                detail: 'A route-level completion contract for every Merkhet.',
+              ),
+            ],
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString(),
+                    ),
+                  );
+                },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text(title));
+        await tester.pumpAndSettle();
+
+        final foregroundScroll = find.byKey(
+          const ValueKey('user-flow-day-sheet-foreground-scroll'),
+        );
+        final foregroundScrollable = find.descendant(
+          of: foregroundScroll,
+          matching: find.byType(Scrollable),
+        );
+        final foregroundPosition = tester
+            .state<ScrollableState>(foregroundScrollable)
+            .position;
+        await tester.drag(foregroundScroll, const Offset(0, -300));
+        await tester.pumpAndSettle();
+        final raisedOffset = foregroundPosition.pixels;
+        expect(raisedOffset, greaterThan(0));
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 180));
+
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+        expect(find.text('2 OF 12'), findsOneWidget);
+        expect(foregroundPosition.pixels, inExclusiveRange(0, raisedOffset));
+        expect(
+          find.byKey(
+            ValueKey<String>('user-flow-merkhet-animation-${kind.name}-1'),
+          ),
+          findsOneWidget,
+        );
+
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(foregroundPosition.pixels, closeTo(0, 0.01));
+        await tester.pumpAndSettle();
+      },
+    );
+  }
 
   test(
     'Day View timeline does not render a false empty state while hydrating',
