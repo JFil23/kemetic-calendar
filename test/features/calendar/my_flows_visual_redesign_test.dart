@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_detail_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -133,6 +134,22 @@ void main() {
     expect(opened, <int>[1, 3]);
   });
 
+  testWidgets(
+    'active Ma’at cards reuse the canonical discovery detail surface',
+    (tester) async {
+      await _pumpMyFlows(tester);
+
+      await tester.tap(find.text('Follow the sky'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FollowSkyDetailSurface), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('user-flow-detail-surface-2')),
+        findsNothing,
+      );
+    },
+  );
+
   testWidgets('My Flows plus button remains delegated', (tester) async {
     var createCount = 0;
     await _pumpMyFlows(
@@ -246,23 +263,24 @@ void main() {
     final endResult = Completer<EndFlowOutcome>();
     await _pumpMyFlows(
       tester,
+      includeUnresolvedMaatFlow: true,
       onEndFlow: (flowId) {
-        expect(flowId, 2);
+        expect(flowId, 4);
         return endResult.future;
       },
     );
 
-    await tester.tap(find.text('Follow the sky'));
+    await tester.tap(find.text('Mystery Maat'));
     await tester.pumpAndSettle();
     expect(find.text('End Flow'), findsOneWidget);
 
     await tester.tap(find.text('End Flow'));
     await tester.pumpAndSettle();
-    expect(find.text('Follow the sky'), findsNothing);
+    expect(find.text('Mystery Maat'), findsNothing);
 
-    endResult.complete(_failedEndFlowOutcome('failed-2'));
+    endResult.complete(_failedEndFlowOutcome('failed-4'));
     await tester.pumpAndSettle();
-    expect(find.text('Follow the sky'), findsOneWidget);
+    expect(find.text('Mystery Maat'), findsOneWidget);
     expect(
       find.textContaining('Could not end this flow right now.'),
       findsOneWidget,
@@ -275,6 +293,7 @@ void main() {
   ) async {
     await _pumpMyFlows(
       tester,
+      includeUnresolvedMaatFlow: true,
       onEndFlow: (_) async => EndFlowOutcome.failure(
         operationId: 'session-not-ready',
         failureKind: EndFlowFailureKind.sessionNotReady,
@@ -283,7 +302,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Follow the sky'));
+    await tester.tap(find.text('Mystery Maat'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('End Flow'));
     await tester.pumpAndSettle();
@@ -301,8 +320,8 @@ void main() {
     addTearDown(
       () => EndFlowAuthReadiness.instance.debugSetReadyForTesting(true),
     );
-    await _pumpMyFlows(tester);
-    await tester.tap(find.text('Follow the sky'));
+    await _pumpMyFlows(tester, includeUnresolvedMaatFlow: true);
+    await tester.tap(find.text('Mystery Maat'));
     await tester.pumpAndSettle();
     expect(find.text('End Flow'), findsOneWidget);
 
@@ -319,7 +338,7 @@ void main() {
     'failed End Flow restores only its target and preserves a concurrent commit',
     (tester) async {
       final completions = <int, Completer<EndFlowOutcome>>{
-        2: Completer<EndFlowOutcome>(),
+        4: Completer<EndFlowOutcome>(),
         8: Completer<EndFlowOutcome>(),
       };
       final committedFlowIds = <int>{};
@@ -327,6 +346,7 @@ void main() {
 
       await _pumpMyFlows(
         tester,
+        includeUnresolvedMaatFlow: true,
         includeSecondActiveMaatFlow: true,
         filingInactiveFlowIdsForTesting: filingInactiveFlowIds,
         onEndFlow: (flowId) async {
@@ -341,7 +361,7 @@ void main() {
         },
       );
 
-      await tester.tap(find.text('Follow the sky'));
+      await tester.tap(find.text('Mystery Maat'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('End Flow'));
       await tester.tap(find.text('End Flow'));
@@ -356,20 +376,20 @@ void main() {
       await tester.tap(archivedEnd);
       await tester.pumpAndSettle();
 
-      expect(find.text('Follow the sky'), findsNothing);
+      expect(find.text('Mystery Maat'), findsNothing);
       expect(find.text('Dawn House Rite'), findsNothing);
 
       completions[8]!.complete(
         EndFlowOutcome.success(operationId: 'success-8'),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Follow the sky'), findsNothing);
+      expect(find.text('Mystery Maat'), findsNothing);
       expect(find.text('Dawn House Rite'), findsNothing);
 
-      completions[2]!.complete(_failedEndFlowOutcome('failed-2-concurrent'));
+      completions[4]!.complete(_failedEndFlowOutcome('failed-4-concurrent'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Follow the sky'), findsOneWidget);
+      expect(find.text('Mystery Maat'), findsOneWidget);
       expect(find.text('Dawn House Rite'), findsNothing);
       expect(
         find.textContaining('Could not end this flow right now.'),

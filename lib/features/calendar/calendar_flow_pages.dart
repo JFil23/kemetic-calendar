@@ -4086,6 +4086,43 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
       return;
     }
 
+    final maatKind = resolveMaatFlowKind(
+      flowName: flow.name,
+      flowNotes: flow.notes,
+    );
+    if (mode == _FlowPreviewMode.active &&
+        maatKind != null &&
+        kDiscoverableMaatFlowKinds.contains(maatKind)) {
+      final template = _kCoreMaatFlowTemplates.firstWhere(
+        (candidate) => candidate.key == maatKind.flowKey,
+      );
+      final calendarState = CalendarPage._mountedState;
+      final Widget detail;
+      if (calendarState?.mounted == true) {
+        detail = Builder(
+          builder: (routeContext) => calendarState!._buildMaatFlowDetailSurface(
+            template: template,
+            joinedFlow: flow,
+            onBack: () => unawaited(Navigator.of(routeContext).maybePop()),
+          ),
+        );
+      } else {
+        detail = CalendarPage.buildCanonicalMaatFlowDetail(
+          name: flow.name,
+          notes: flow.notes,
+          relation: MaatFlowDetailRelation.owned,
+          intendedFlowId: flow.id,
+          intendedStart: flow.start,
+          intendedEnd: flow.end,
+        )!;
+      }
+      await Navigator.of(
+        context,
+      ).push<void>(MaterialPageRoute<void>(builder: (_) => detail));
+      if (mounted) await _reloadFiledFlows();
+      return;
+    }
+
     final importedFlowId = await Navigator.of(context).push<int?>(
       MaterialPageRoute(
         builder: (_) => _FlowPreviewPage(

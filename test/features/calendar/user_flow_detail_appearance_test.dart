@@ -45,6 +45,7 @@ void main() {
           'end_time': '09:00',
         },
     ];
+    final today = DateUtils.dateOnly(DateTime.now());
 
     await tester.pumpWidget(
       MaterialApp(
@@ -54,7 +55,7 @@ void main() {
           flowId: 77,
           notes: '{"overview":"Read with attention."}',
           eventsJson: events,
-          startDate: DateTime(2026, 9, 20),
+          startDate: today,
           appearance: const FlowAppearance(
             signKind: FlowSignKind.papyrus,
             signLabel: 'Study',
