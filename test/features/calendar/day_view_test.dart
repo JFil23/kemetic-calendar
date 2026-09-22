@@ -240,8 +240,8 @@ void main() {
                 signLabel: 'Study',
                 accentArgb: 0xFF6F93A8,
               ),
-              totalOccurrenceCount: 12,
-              completedOccurrenceCount: 3,
+              totalOccurrenceCount: 88,
+              completedOccurrenceCount: 1,
             ),
           },
           notes: <NoteData>[
@@ -298,7 +298,7 @@ void main() {
       expect(foreground, findsOneWidget);
       expect(foregroundScroll, findsOneWidget);
       expect(tester.getSize(hero).height, 190);
-      expect(find.text('3 OF 12'), findsOneWidget);
+      expect(find.text('1 OF 88'), findsOneWidget);
       if (_captureUserFlowAppearance) {
         await expectLater(
           find.byType(Overlay).first,
@@ -319,7 +319,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 10));
 
       expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
-      expect(find.text('4 OF 12'), findsOneWidget);
+      expect(find.text('2 OF 88'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('user-flow-merkhet-animation-papyrus-1')),
         findsOneWidget,

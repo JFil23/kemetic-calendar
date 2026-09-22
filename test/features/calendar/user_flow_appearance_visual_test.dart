@@ -186,7 +186,7 @@ void main() {
     );
     expect(
       tester.widget<FlowSignVisual>(find.byType(FlowSignVisual)).size,
-      116,
+      136,
     );
 
     await pumpHero(
@@ -305,6 +305,37 @@ void main() {
 
     expect(find.text('completed occurrences'), findsOneWidget);
     expect(find.text('4 OF 12'), findsOneWidget);
+  });
+
+  test('an unhydrated Merkhet never presents completed progress', () {
+    expect(
+      resolveUserFlowMerkhetProgress(
+        completedOccurrences: 0,
+        totalOccurrences: 0,
+      ),
+      0,
+    );
+  });
+
+  test('Palm Count counts long-flow occurrences as whole marks', () {
+    expect(
+      resolvePalmCountLitMarks(completedOccurrences: 1, displayedMarkCount: 30),
+      1,
+    );
+    expect(
+      resolvePalmCountLitMarks(
+        completedOccurrences: 30,
+        displayedMarkCount: 30,
+      ),
+      30,
+    );
+    expect(
+      resolvePalmCountLitMarks(
+        completedOccurrences: 31,
+        displayedMarkCount: 30,
+      ),
+      1,
+    );
   });
 
   for (final kind in FlowSignKind.values) {

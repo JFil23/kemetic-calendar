@@ -9,6 +9,26 @@ import '../../../data/flow_appearance_store.dart';
 
 enum UserFlowAppearanceSurface { standard, fullDetail, daySheet, timelineBadge }
 
+@visibleForTesting
+double resolveUserFlowMerkhetProgress({
+  required double completedOccurrences,
+  required int totalOccurrences,
+}) {
+  if (totalOccurrences <= 0 || completedOccurrences <= 0) return 0;
+  return (completedOccurrences / totalOccurrences).clamp(0.0, 1.0);
+}
+
+@visibleForTesting
+double resolvePalmCountLitMarks({
+  required double completedOccurrences,
+  required int displayedMarkCount,
+}) {
+  if (completedOccurrences <= 0 || displayedMarkCount <= 0) return 0;
+  final position = completedOccurrences % displayedMarkCount;
+  if (position == 0) return displayedMarkCount.toDouble();
+  return position;
+}
+
 class UserFlowAppearanceHero extends StatelessWidget {
   const UserFlowAppearanceHero({
     super.key,
@@ -51,7 +71,7 @@ class UserFlowAppearanceHero extends StatelessWidget {
     };
     final signSize = switch (surface) {
       UserFlowAppearanceSurface.fullDetail => math.min(152.0, height * 0.54),
-      UserFlowAppearanceSurface.daySheet => math.min(116.0, height * 0.62),
+      UserFlowAppearanceSurface.daySheet => math.min(136.0, height * 0.72),
       UserFlowAppearanceSurface.timelineBadge => math.min(31.0, height * 0.78),
       UserFlowAppearanceSurface.standard => compact ? 31.0 : 78.0,
     };
@@ -258,7 +278,7 @@ class FlowSignVisual extends StatefulWidget {
 
 class _FlowSignVisualState extends State<FlowSignVisual>
     with SingleTickerProviderStateMixin {
-  static const _duration = Duration(milliseconds: 720);
+  static const _duration = Duration(milliseconds: 1000);
   late final AnimationController _controller;
 
   @override
@@ -418,8 +438,10 @@ class _FlowSignPainter extends CustomPainter {
   final double pulse;
 
   double get _progress {
-    if (totalOccurrences <= 0) return 0;
-    return (completedOccurrences / totalOccurrences).clamp(0.0, 1.0);
+    return resolveUserFlowMerkhetProgress(
+      completedOccurrences: completedOccurrences,
+      totalOccurrences: totalOccurrences,
+    );
   }
 
   Paint _glowPaint(double width) => Paint()
@@ -443,9 +465,10 @@ class _FlowSignPainter extends CustomPainter {
     switch (kind) {
       case FlowSignKind.palmCount:
         final count = totalOccurrences > 0 ? totalOccurrences.clamp(1, 30) : 4;
-        final completed = totalOccurrences > 0
-            ? _progress * count
-            : count.toDouble();
+        final completed = resolvePalmCountLitMarks(
+          completedOccurrences: completedOccurrences,
+          displayedMarkCount: count,
+        );
         final columns = count <= 7 ? count : 7;
         final rows = (count / columns).ceil();
         final xGap = w * 0.62 / math.max(1, columns - 1);
@@ -482,9 +505,7 @@ class _FlowSignPainter extends CustomPainter {
           ..strokeWidth = p.strokeWidth
           ..strokeCap = StrokeCap.round;
         canvas.drawOval(ring, dim);
-        final sweep = totalOccurrences > 0
-            ? math.pi * 2 * _progress
-            : math.pi * 2;
+        final sweep = math.pi * 2 * _progress;
         if (pulse > 0 && sweep > 0) {
           canvas.drawArc(
             ring,
@@ -495,6 +516,20 @@ class _FlowSignPainter extends CustomPainter {
           );
         }
         canvas.drawArc(ring, -math.pi / 2, sweep, false, p);
+        if (sweep > 0) {
+          final angle = -math.pi / 2 + sweep;
+          final tip = Offset(
+            ring.center.dx + ring.width / 2 * math.cos(angle),
+            ring.center.dy + ring.height / 2 * math.sin(angle),
+          );
+          canvas.drawCircle(
+            tip,
+            math.max(1.8, size.width * (0.022 + pulse * 0.018)),
+            Paint()
+              ..color = color.withValues(alpha: 0.86)
+              ..style = PaintingStyle.fill,
+          );
+        }
         canvas.drawLine(
           Offset(w * 0.35, h * 0.78),
           Offset(w * 0.65, h * 0.78),
@@ -544,8 +579,8 @@ class _FlowSignPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = p.strokeWidth
           ..strokeCap = StrokeCap.round;
-        canvas.drawPath(path, totalOccurrences > 0 ? dim : p);
-        if (totalOccurrences > 0) {
+        canvas.drawPath(path, dim);
+        if (_progress > 0) {
           for (final metric in path.computeMetrics()) {
             final traveled = metric.length * _progress;
             final revealed = metric.extractPath(0, traveled);
@@ -560,9 +595,12 @@ class _FlowSignPainter extends CustomPainter {
         }
       case FlowSignKind.papyrus:
         final stalks = const [-0.25, -0.12, 0.0, 0.12, 0.25];
-        final growth = totalOccurrences > 0
-            ? _progress * stalks.length
-            : stalks.length.toDouble();
+        final growth = _progress * stalks.length;
+        final guide = Paint()
+          ..color = color.withValues(alpha: 0.2)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = p.strokeWidth
+          ..strokeCap = StrokeCap.round;
         for (var i = 0; i < stalks.length; i++) {
           final dx = stalks[i];
           final stalkGrowth = (growth - i).clamp(0.0, 1.0);
@@ -574,6 +612,7 @@ class _FlowSignPainter extends CustomPainter {
           final base = Offset(w * (0.5 + dx * 0.22), h * 0.78);
           final tip = Offset(w * (0.5 + dx), h * 0.15);
           final grownTip = Offset.lerp(base, tip, stalkGrowth)!;
+          canvas.drawLine(base, tip, guide);
           if (pulse > 0 && i == math.max(0, growth.ceil() - 1)) {
             canvas.drawLine(
               base,
@@ -589,9 +628,7 @@ class _FlowSignPainter extends CustomPainter {
           p,
         );
       case FlowSignKind.kheper:
-        final stage = totalOccurrences <= 0
-            ? 4
-            : (_progress * 4).ceil().clamp(0, 4);
+        final stage = (_progress * 4).ceil().clamp(0, 4);
         final activeStage = math.max(1, stage);
         final guide = Paint()
           ..color = color.withValues(alpha: 0.18)

@@ -2194,9 +2194,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         flow.completedOccurrenceCount;
     final wasCounted = previous != CompletionStatus.none;
     final isCounted = current != CompletionStatus.none;
+    final countCeiling = flow.totalOccurrenceCount > 0
+        ? flow.totalOccurrenceCount
+        : displayedCount + (isCounted ? 1 : 0);
     final nextCount =
         (displayedCount + (isCounted ? 1 : 0) - (wasCounted ? 1 : 0))
-            .clamp(0, flow.totalOccurrenceCount)
+            .clamp(0, countCeiling)
             .toInt();
     setState(() {
       _userFlowCompletedOccurrenceOverrides[identity] = nextCount;
@@ -3557,6 +3560,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     );
     final hasUserAppearance =
         flow != null && !isMaatFlow && !flow.appearance.isEmpty;
+    final hasUserMerkhet =
+        flow != null && !isMaatFlow && flow.appearance.hasSign;
     final completionIdentity = _completionIdentityForEvent(currentEvent);
 
     if (instrumentPresentation.kind == _DayViewInstrumentKind.followSky) {
@@ -3886,7 +3891,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               ? (status) =>
                     playDayViewRitualCompletionFeedback(feedbackContext, status)
               : null,
-          onStatusPersisted: hasUserAppearance
+          onStatusPersisted: hasUserMerkhet
               ? (previous, current) => _handleUserFlowCompletionPersisted(
                   identity: completionIdentity,
                   flow: flow,
