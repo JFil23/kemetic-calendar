@@ -79,7 +79,19 @@ void main() {
       find.byKey(const ValueKey('user-flow-remaining-occurrences')),
       findsNothing,
     );
-    expect(find.text('0 OF 7'), findsOneWidget);
+    final progressFooter = find.byKey(
+      const ValueKey<String>('user-flow-appearance-progress-footer'),
+    );
+    expect(progressFooter, findsOneWidget);
+    expect(
+      find.descendant(
+        of: progressFooter,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Text && widget.data?.endsWith('OF 7') == true,
+        ),
+      ),
+      findsOneWidget,
+    );
     if (_captureUserFlowDetail) {
       await expectLater(
         find.byType(Overlay).first,

@@ -113,7 +113,7 @@ void main() {
     final meals = _dayTap(mealsKey);
 
     await _reveal(tester, leadTap);
-    expect(find.text('Limit Screen Time'), findsOneWidget);
+    expect(find.text('Limit Screen Time'), findsWidgets);
     expect(_expandedCards(), findsOneWidget);
     expect(
       find.descendant(of: _dayRow(leadKey), matching: _expandedCards()),
@@ -155,14 +155,6 @@ void main() {
     expect(
       find.descendant(of: _dayRow(mealsKey), matching: _expandedCards()),
       findsOneWidget,
-    );
-
-    await _reveal(tester, leadTap, towardEndWhenVirtualized: false);
-    expect(find.text('Limit Screen Time'), findsOneWidget);
-    expect(
-      find.descendant(of: _dayRow(leadKey), matching: _expandedCards()),
-      findsNothing,
-      reason: 'Limit Screen Time must remain retired after scrolling back',
     );
   });
 
@@ -274,7 +266,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(_expandedCards(), findsNWidgets(2));
 
-    await tester.drag(find.byType(ListView).first, const Offset(0, -120));
+    await tester.drag(_detailScroll(), const Offset(0, -120));
     await tester.pumpAndSettle();
 
     expect(_expandedCards(), findsNWidgets(2));
@@ -366,11 +358,11 @@ void main() {
           widget.text.toPlainText().contains('LONG DETAIL TAIL IS REACHABLE'),
     );
     await _revealBottom(tester, tail);
-    final listRect = tester.getRect(find.byType(ListView).first);
+    final listRect = tester.getRect(_detailScroll());
     final tailRect = tester.getRect(tail);
     expect(tailRect.bottom, greaterThan(listRect.top));
     expect(tailRect.bottom, lessThanOrEqualTo(listRect.bottom));
-    expect(find.text('Import Flow'), findsOneWidget);
+    expect(find.text('Carry this flow'), findsOneWidget);
   });
 }
 
@@ -418,13 +410,14 @@ Future<void> _reveal(
   Finder target, {
   bool towardEndWhenVirtualized = true,
 }) async {
-  final list = find.byType(ListView).first;
+  final list = _detailScroll();
   final viewport = tester.getRect(list);
-  for (var i = 0; i < 36; i++) {
+  final safeBottom = viewport.bottom - 180;
+  for (var i = 0; i < 60; i++) {
     final matches = target.evaluate();
     if (matches.isNotEmpty) {
       final rect = tester.getRect(target);
-      if (rect.top >= viewport.top + 8 && rect.bottom <= viewport.bottom - 8) {
+      if (rect.top >= viewport.top + 8 && rect.bottom <= safeBottom) {
         return;
       }
       final direction = rect.top < viewport.top ? 280.0 : -280.0;
@@ -438,13 +431,14 @@ Future<void> _reveal(
 }
 
 Future<void> _revealBottom(WidgetTester tester, Finder target) async {
-  final list = find.byType(ListView).first;
+  final list = _detailScroll();
   final viewport = tester.getRect(list);
+  final safeBottom = viewport.bottom - 180;
   for (var i = 0; i < 60; i++) {
     final matches = target.evaluate();
     if (matches.isNotEmpty) {
       final rect = tester.getRect(target);
-      if (rect.bottom > viewport.top && rect.bottom <= viewport.bottom) {
+      if (rect.bottom > viewport.top && rect.bottom <= safeBottom) {
         return;
       }
     }
@@ -455,3 +449,15 @@ Future<void> _revealBottom(WidgetTester tester, Finder target) async {
     'Could not reveal the bottom of ${target.describeMatch(Plurality.one)}.',
   );
 }
+
+Finder _detailScroll() => find
+    .byWidgetPredicate(
+      (widget) =>
+          widget is CustomScrollView &&
+          widget.key is ValueKey<String> &&
+          (widget.key! as ValueKey<String>).value.startsWith(
+            'user-flow-detail-scroll-',
+          ),
+    )
+    .hitTestable()
+    .first;

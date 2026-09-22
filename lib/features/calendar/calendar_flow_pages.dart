@@ -4,6 +4,9 @@ enum _FlowPreviewMode { legacy, active, saved }
 
 enum _MyFlowDayCardVariant { liveHero, savedLead, expandedInline }
 
+typedef _CalendarPreviewForWindow =
+    FollowSkyCalendarPreview Function(DateTime windowStart, DateTime windowEnd);
+
 enum FlowDetailSource {
   flowStudio,
   myFlows,
@@ -412,6 +415,9 @@ class _FlowPreviewPage extends StatefulWidget {
     this.actionPolicy,
     this.showFlowOptions = true,
     this.useMySavedExpansionParity = false,
+    this.appearanceImageBytesForTesting,
+    this.calendarPreviewForWindow,
+    this.nowForTesting,
     super.key,
   });
 
@@ -424,6 +430,9 @@ class _FlowPreviewPage extends StatefulWidget {
   final FlowDetailActionPolicy? actionPolicy;
   final bool showFlowOptions;
   final bool useMySavedExpansionParity;
+  final Uint8List? appearanceImageBytesForTesting;
+  final _CalendarPreviewForWindow? calendarPreviewForWindow;
+  final DateTime? nowForTesting;
   final String Function(int km, int di) getDecanLabel;
   final String Function(DateTime? g) fmt;
   final void Function(_Flow flow) onEdit;
@@ -453,6 +462,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   int? _dashboardExpansionFlowId;
   final Map<String, GlobalKey> _dashboardDayBlockKeys = <String, GlobalKey>{};
   final Map<String, GlobalKey> _dashboardDayDetailKeys = <String, GlobalKey>{};
+  final Set<int> _showPastScheduleFlowIds = <int>{};
+  final Set<int> _showLaterScheduleFlowIds = <int>{};
+  Timer? _userFlowDayBoundaryTimer;
   DateTime? _selectedStartForSaved;
   bool _isImportingSaved = false;
   final Set<int> _endingFlowIds = <int>{};
@@ -486,11 +498,13 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       initialFlow,
       _eventsByFlow[initialFlow.id] ?? const <FlowEventRow>[],
     );
+    _scheduleUserFlowDayBoundaryRefresh();
     _loadEventsFor(_flowSequence[_currentIndex]);
   }
 
   @override
   void dispose() {
+    _userFlowDayBoundaryTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -509,6 +523,12 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         _eventsByFlow[flow.id] ?? const <FlowEventRow>[],
       );
     }
+    if (oldWidget.flow.id != widget.flow.id ||
+        oldWidget.useMySavedExpansionParity !=
+            widget.useMySavedExpansionParity ||
+        oldWidget.nowForTesting != widget.nowForTesting) {
+      _scheduleUserFlowDayBoundaryRefresh();
+    }
   }
 
   void _resetDashboardExpansion() {
@@ -517,6 +537,37 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     _dashboardExpansionFlowId = null;
     _dashboardDayBlockKeys.clear();
     _dashboardDayDetailKeys.clear();
+  }
+
+  void _updateUserFlowDetail(VoidCallback update) {
+    if (!mounted) return;
+    setState(update);
+  }
+
+  void _scheduleUserFlowDayBoundaryRefresh() {
+    _userFlowDayBoundaryTimer?.cancel();
+    _userFlowDayBoundaryTimer = null;
+    if (!widget.useMySavedExpansionParity || widget.nowForTesting != null) {
+      return;
+    }
+    final flow = _flowSequence[_currentIndex];
+    if (!_usesUserFlowDetailSurface(
+      flow,
+      _metaFor(flow),
+      _reminderRuleFromFlow(flow),
+    )) {
+      return;
+    }
+    final now = DateTime.now();
+    final nextDay = DateTime(now.year, now.month, now.day + 1);
+    _userFlowDayBoundaryTimer = Timer(
+      nextDay.difference(now) + const Duration(milliseconds: 100),
+      () {
+        if (!mounted) return;
+        setState(() {});
+        _scheduleUserFlowDayBoundaryRefresh();
+      },
+    );
   }
 
   void _seedDashboardExpansion(_Flow flow, List<FlowEventRow> events) {
@@ -763,7 +814,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   }
 
   DateTime _savedDefaultStart(_Flow flow) {
-    final today = DateUtils.dateOnly(DateTime.now());
+    final today = DateUtils.dateOnly(widget.nowForTesting ?? DateTime.now());
     final start = flow.start;
     if (start == null) return today;
     final normalized = DateUtils.dateOnly(start);
@@ -780,6 +831,18 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     );
     if (picked != null && mounted) {
       setState(() => _selectedStartForSaved = DateUtils.dateOnly(picked));
+    }
+  }
+
+  Future<void> _pickUserFlowDetailStart(_Flow flow) async {
+    final picked = await MaatFlowDatePicker.show(
+      context: context,
+      initialDate: _savedDisplayStart(flow),
+      initialMode: MaatFlowDatePickerMode.kemetic,
+    );
+    if (picked != null && mounted) {
+      final date = DateUtils.dateOnly(picked.date);
+      setState(() => _selectedStartForSaved = date);
     }
   }
 
@@ -1566,7 +1629,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
 
   int _resolveCurrentDashboardIndex(List<_FlowDashboardDay> days) {
     if (days.isEmpty) return 0;
-    final today = DateUtils.dateOnly(DateTime.now());
+    final today = DateUtils.dateOnly(widget.nowForTesting ?? DateTime.now());
     for (var i = 0; i < days.length; i++) {
       if (DateUtils.isSameDay(DateUtils.dateOnly(days[i].localStart), today)) {
         return i;
@@ -2002,14 +2065,19 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   }) {
     return Row(
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Color.lerp(palette.accent, MaatFlowListTokens.gold, 0.28),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 4.0,
-            height: 1,
+        Flexible(
+          fit: FlexFit.loose,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Color.lerp(palette.accent, MaatFlowListTokens.gold, 0.28),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 4.0,
+              height: 1,
+            ),
           ),
         ),
         const SizedBox(width: 20),
@@ -2361,169 +2429,192 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
     final currentReminderRule = _reminderRuleFromFlow(currentFlow);
     final usesDashboard = _usesDashboardBody(currentFlow, currentReminderRule);
+    final usesUserFlowDetail = _usesUserFlowDetailSurface(
+      currentFlow,
+      currentMeta,
+      currentReminderRule,
+    );
     final isMaatInstance = currentMeta.maatKey != null;
 
     return Scaffold(
       backgroundColor: usesDashboard ? MaatFlowListTokens.pageBg : _bg,
-      appBar: AppBar(
-        backgroundColor: usesDashboard
-            ? MaatFlowListTokens.pageBg
-            : Colors.black,
-        foregroundColor: usesDashboard ? MaatFlowListTokens.gold : Colors.white,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.transparent,
-        elevation: usesDashboard ? 0 : 0.5,
-        centerTitle: usesDashboard,
-        toolbarHeight: usesDashboard ? 64 : null,
-        iconTheme: IconThemeData(
-          color: usesDashboard ? MaatFlowListTokens.gold : Colors.white,
-        ),
-        title: Text(
-          usesDashboard ? 'My Flows' : 'Flow',
-          style: TextStyle(
-            color: usesDashboard ? MaatFlowListTokens.gold : Colors.white,
-            fontFamily: usesDashboard ? MaatFlowListTokens.fontFamily : null,
-            fontFamilyFallback: usesDashboard
-                ? MaatFlowListTokens.fontFallback
-                : null,
-            fontSize: usesDashboard ? 25 : null,
-            fontWeight: usesDashboard ? FontWeight.w500 : null,
-            height: usesDashboard ? 1 : null,
-          ),
-        ),
-        actions: [
-          if (isMaatInstance && widget.onEndMaatFlow != null)
-            ValueListenableBuilder<bool>(
-              valueListenable: EndFlowAuthReadiness.instance.listenable,
-              builder: (context, sessionReady, _) => sessionReady
-                  ? OutlinedButton(
-                      style: withExpandedTouchTargets(
-                        context,
-                        OutlinedButton.styleFrom(
-                          foregroundColor: _gold,
-                          side: const BorderSide(color: _gold, width: 1.2),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 11,
-                            vertical: 7,
-                          ),
-                          minimumSize: const Size(0, 35),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: const VisualDensity(
-                            horizontal: -1,
-                            vertical: -1,
-                          ),
+      appBar: usesUserFlowDetail
+          ? null
+          : AppBar(
+              backgroundColor: usesDashboard
+                  ? MaatFlowListTokens.pageBg
+                  : Colors.black,
+              foregroundColor: usesDashboard
+                  ? MaatFlowListTokens.gold
+                  : Colors.white,
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              elevation: usesDashboard ? 0 : 0.5,
+              centerTitle: usesDashboard,
+              toolbarHeight: usesDashboard ? 64 : null,
+              iconTheme: IconThemeData(
+                color: usesDashboard ? MaatFlowListTokens.gold : Colors.white,
+              ),
+              title: Text(
+                usesDashboard ? 'My Flows' : 'Flow',
+                style: TextStyle(
+                  color: usesDashboard ? MaatFlowListTokens.gold : Colors.white,
+                  fontFamily: usesDashboard
+                      ? MaatFlowListTokens.fontFamily
+                      : null,
+                  fontFamilyFallback: usesDashboard
+                      ? MaatFlowListTokens.fontFallback
+                      : null,
+                  fontSize: usesDashboard ? 25 : null,
+                  fontWeight: usesDashboard ? FontWeight.w500 : null,
+                  height: usesDashboard ? 1 : null,
+                ),
+              ),
+              actions: [
+                if (isMaatInstance && widget.onEndMaatFlow != null)
+                  ValueListenableBuilder<bool>(
+                    valueListenable: EndFlowAuthReadiness.instance.listenable,
+                    builder: (context, sessionReady, _) => sessionReady
+                        ? OutlinedButton(
+                            style: withExpandedTouchTargets(
+                              context,
+                              OutlinedButton.styleFrom(
+                                foregroundColor: _gold,
+                                side: const BorderSide(
+                                  color: _gold,
+                                  width: 1.2,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 11,
+                                  vertical: 7,
+                                ),
+                                minimumSize: const Size(0, 35),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: const VisualDensity(
+                                  horizontal: -1,
+                                  vertical: -1,
+                                ),
+                              ),
+                            ),
+                            onPressed: _endingFlowIds.contains(currentFlow.id)
+                                ? null
+                                : () async {
+                                    final onEndMaatFlow = widget.onEndMaatFlow;
+                                    if (onEndMaatFlow == null) return;
+                                    final navigator = Navigator.of(context);
+                                    setState(
+                                      () => _endingFlowIds.add(currentFlow.id),
+                                    );
+                                    try {
+                                      final operation = onEndMaatFlow(
+                                        currentFlow,
+                                      );
+                                      if (navigator.mounted) {
+                                        await navigator.maybePop();
+                                      }
+                                      await operation;
+                                    } finally {
+                                      if (mounted) {
+                                        setState(
+                                          () => _endingFlowIds.remove(
+                                            currentFlow.id,
+                                          ),
+                                        );
+                                      } else {
+                                        _endingFlowIds.remove(currentFlow.id);
+                                      }
+                                    }
+                                  },
+                            child: Text(
+                              _endingFlowIds.contains(currentFlow.id)
+                                  ? 'Ending…'
+                                  : 'End Flow',
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                if (widget.showFlowOptions)
+                  PopupMenuButton<String>(
+                    icon: KemeticGold.icon(Icons.more_vert), // ⋮ vertical dots
+                    tooltip: 'Flow options',
+                    onSelected: (value) async {
+                      if (value == 'journal') {
+                        await _handleAddFlowToJournal(
+                          currentFlow,
+                          currentEvents,
+                        );
+                      } else if (value == 'edit') {
+                        widget.onEdit(currentFlow);
+                      } else if (value == 'share') {
+                        _openShareSheet(context, currentFlow);
+                      } else if (value == 'save') {
+                        await _toggleSaved(currentFlow);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'journal',
+                        child: Row(
+                          children: [
+                            KemeticGold.icon(Icons.check_circle),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Done / Add to journal',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
                         ),
                       ),
-                      onPressed: _endingFlowIds.contains(currentFlow.id)
-                          ? null
-                          : () async {
-                              final onEndMaatFlow = widget.onEndMaatFlow;
-                              if (onEndMaatFlow == null) return;
-                              final navigator = Navigator.of(context);
-                              setState(
-                                () => _endingFlowIds.add(currentFlow.id),
-                              );
-                              try {
-                                final operation = onEndMaatFlow(currentFlow);
-                                if (navigator.mounted) {
-                                  await navigator.maybePop();
-                                }
-                                await operation;
-                              } finally {
-                                if (mounted) {
-                                  setState(
-                                    () => _endingFlowIds.remove(currentFlow.id),
-                                  );
-                                } else {
-                                  _endingFlowIds.remove(currentFlow.id);
-                                }
-                              }
-                            },
-                      child: Text(
-                        _endingFlowIds.contains(currentFlow.id)
-                            ? 'Ending…'
-                            : 'End Flow',
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            KemeticGold.icon(Icons.edit),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Edit Flow',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
                       ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          if (widget.showFlowOptions)
-            PopupMenuButton<String>(
-              icon: KemeticGold.icon(Icons.more_vert), // ⋮ vertical dots
-              tooltip: 'Flow options',
-              onSelected: (value) async {
-                if (value == 'journal') {
-                  await _handleAddFlowToJournal(currentFlow, currentEvents);
-                } else if (value == 'edit') {
-                  widget.onEdit(currentFlow);
-                } else if (value == 'share') {
-                  _openShareSheet(context, currentFlow);
-                } else if (value == 'save') {
-                  await _toggleSaved(currentFlow);
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'journal',
-                  child: Row(
-                    children: [
-                      KemeticGold.icon(Icons.check_circle),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Done / Add to journal',
-                        style: TextStyle(color: Colors.white),
+                      PopupMenuItem(
+                        value: 'share',
+                        child: Row(
+                          children: [
+                            KemeticGold.icon(Icons.share),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Share Flow',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'save',
+                        child: Row(
+                          children: [
+                            KemeticGold.icon(
+                              currentFlow.isSaved
+                                  ? Icons.bookmark_remove
+                                  : Icons.bookmark_add,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              currentFlow.isSaved
+                                  ? 'Remove from Saved'
+                                  : 'Save Flow',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
+                    color: const Color(0xFF000000), // True black
                   ),
-                ),
-                PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      KemeticGold.icon(Icons.edit),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Edit Flow',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'share',
-                  child: Row(
-                    children: [
-                      KemeticGold.icon(Icons.share),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Share Flow',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'save',
-                  child: Row(
-                    children: [
-                      KemeticGold.icon(
-                        currentFlow.isSaved
-                            ? Icons.bookmark_remove
-                            : Icons.bookmark_add,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        currentFlow.isSaved ? 'Remove from Saved' : 'Save Flow',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
               ],
-              color: const Color(0xFF000000), // True black
             ),
-        ],
-      ),
       body: PageView.builder(
         controller: _pageController,
         itemCount: _flowSequence.length,
@@ -2539,6 +2630,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
               _eventsByFlow[flow.id] ?? const <FlowEventRow>[],
             );
           });
+          _scheduleUserFlowDayBoundaryRefresh();
           _loadEventsFor(_flowSequence[index]);
         },
         itemBuilder: (context, index) {
@@ -2548,6 +2640,15 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           final loading = _loadingFlowIds.contains(flow.id);
           final error = _eventsErrorByFlow[flow.id];
           final reminderRule = _reminderRuleFromFlow(flow);
+          if (_usesUserFlowDetailSurface(flow, meta, reminderRule)) {
+            return _buildUserFlowDetailSurface(
+              flow: flow,
+              meta: meta,
+              events: events,
+              loading: loading,
+              error: error,
+            );
+          }
           if (_usesDashboardBody(flow, reminderRule)) {
             return _buildDashboardBody(
               flow: flow,
@@ -2567,7 +2668,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           );
         },
       ),
-      bottomNavigationBar: usesDashboard
+      bottomNavigationBar: usesUserFlowDetail
+          ? null
+          : usesDashboard
           ? widget.actionPolicy != null
                 ? _buildExternalDashboardFooter(
                     currentFlow,
@@ -3945,6 +4048,7 @@ class _FlowsViewerPage extends StatefulWidget {
     required this.completeAdd,
     this.onImportFlow,
     this.onAppendToJournal,
+    this.calendarPreviewForWindow,
     this.initialFilingSnapshot,
     this.onPreviewFlowForTesting,
   });
@@ -3958,6 +4062,7 @@ class _FlowsViewerPage extends StatefulWidget {
   final FlowAddCompletion completeAdd;
   final Future<void> Function(int? importedFlowId)? onImportFlow;
   final Future<void> Function(String text)? onAppendToJournal;
+  final _CalendarPreviewForWindow? calendarPreviewForWindow;
   final ValueChanged<int>? onPreviewFlowForTesting;
 
   @override
@@ -4138,6 +4243,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
               unawaited(_runAndReload(() => widget.onEditFlow(flow.id))),
           completeAdd: widget.completeAdd,
           onAppendToJournal: widget.onAppendToJournal,
+          calendarPreviewForWindow: widget.calendarPreviewForWindow,
           onEndMaatFlow: (flow) => _endFlowAndReconcile(flow.id),
           useMySavedExpansionParity: true,
         ),
@@ -4540,25 +4646,37 @@ Widget buildMyFlowDetailPreviewForTesting({
   bool physicalQueueTitles = false,
   bool includeSecondFlow = false,
   int eventCount = 6,
+  String? flowName,
   Color flowColor = const Color(0xFFB95A38),
+  FlowAppearance appearance = FlowAppearance.empty,
+  Uint8List? appearanceImageBytes,
+  FollowSkyCalendarPreview? calendarPreview,
+  DateTime? nowOverride,
   VoidCallback? onManageFlow,
   Key? previewKey,
 }) {
-  final now = DateUtils.dateOnly(DateTime.now());
+  final now = DateUtils.dateOnly(nowOverride ?? DateTime.now());
+  final normalizedCount = eventCount.clamp(0, 180);
+  final eventStart = now.subtract(const Duration(days: 2));
   final flow = _buildMyFlowsPreviewFlow(
     id: reminderBacked ? 70 : (saved ? 71 : 72),
-    name: longTitle
-        ? 'Daily Math Visuals: 90-Day Visual Math Ladder'
-        : (saved ? 'Saved Personal Template' : 'Daily Math Visuals'),
+    name:
+        flowName ??
+        (longTitle
+            ? 'Thirty Evenings Reading the Coffin Texts Aloud with My Father'
+            : (saved ? 'Saved Personal Template' : 'Daily Math Visuals')),
     color: flowColor,
     active: !saved,
     isSaved: saved,
     start: now.subtract(const Duration(days: 2)),
-    end: now.add(const Duration(days: 3)),
+    end: normalizedCount == 0
+        ? eventStart
+        : eventStart.add(Duration(days: normalizedCount - 1)),
     notes: reminderBacked
         ? null
         : 'mode=gregorian;ov=${Uri.encodeComponent('A focused flow with one linked video each day and a short reflection.')}',
     isReminder: reminderBacked,
+    appearance: appearance,
   );
   final previewTitles = physicalQueueTitles
       ? const <String>[
@@ -4589,11 +4707,13 @@ Widget buildMyFlowDetailPreviewForTesting({
           ),
         ]
       : <FlowEventRow>[
-          for (var i = 0; i < eventCount.clamp(0, 6); i++)
+          for (var i = 0; i < normalizedCount; i++)
             _buildMyFlowPreviewEvent(
               flowId: targetFlow.id,
               index: i,
-              title: previewTitles[i],
+              title: i < previewTitles.length
+                  ? previewTitles[i]
+                  : 'Practice ${i + 1}',
               detail: physicalQueueTitles && i == 2
                   ? 'Turn off screens at least one hour before bed. '
                         'Consider using blue light blocking glasses if necessary. '
@@ -4607,12 +4727,8 @@ Widget buildMyFlowDetailPreviewForTesting({
               location: i == 2
                   ? 'https://www.youtube.com/watch?v=example'
                   : null,
-              startsAt: now
-                  .subtract(const Duration(days: 2))
-                  .add(Duration(days: i, hours: 12)),
-              endsAt: now
-                  .subtract(const Duration(days: 2))
-                  .add(Duration(days: i, hours: 13)),
+              startsAt: eventStart.add(Duration(days: i, hours: 12)),
+              endsAt: eventStart.add(Duration(days: i, hours: 13)),
             ),
         ];
   final events = previewEventsFor(flow);
@@ -4639,6 +4755,42 @@ Widget buildMyFlowDetailPreviewForTesting({
     flow.id: events,
     if (secondFlow != null) secondFlow.id: secondEvents,
   };
+  final calendarContextStart = saved ? now : eventStart;
+  final previewRows =
+      calendarPreview?.rows ??
+      <FollowSkyCalendarPreviewRow>[
+        for (var i = 0; i < math.min(5, normalizedCount); i++)
+          FollowSkyCalendarPreviewRow(
+            localDay: calendarContextStart.add(Duration(days: i)),
+            start: calendarContextStart.add(Duration(days: i, hours: 8)),
+            end: calendarContextStart.add(Duration(days: i, hours: 9)),
+            title: i.isEven ? 'journal every day' : 'Reading hour',
+            eventColor: i.isEven
+                ? const Color(0xFF72C766)
+                : const Color(0xFF4EA5E5),
+            eventId: 'ordinary-$i',
+          ),
+      ];
+
+  FollowSkyCalendarPreview previewForWindow(
+    DateTime windowStart,
+    DateTime windowEnd,
+  ) {
+    final start = DateUtils.dateOnly(windowStart);
+    final end = DateUtils.dateOnly(windowEnd);
+    return FollowSkyCalendarPreview(
+      rows: <FollowSkyCalendarPreviewRow>[
+        for (final row in previewRows)
+          if (!DateUtils.dateOnly(row.localDay).isBefore(start) &&
+              !DateUtils.dateOnly(row.localDay).isAfter(end))
+            row,
+      ],
+      windowStart: start,
+      windowEnd: end,
+      coverageComplete: true,
+      supply: CalendarPreviewSupply.loaded,
+    );
+  }
 
   return _FlowPreviewPage(
     key: previewKey,
@@ -4672,6 +4824,9 @@ Widget buildMyFlowDetailPreviewForTesting({
     onAppendToJournal: null,
     onEndMaatFlow: null,
     useMySavedExpansionParity: true,
+    appearanceImageBytesForTesting: appearanceImageBytes,
+    calendarPreviewForWindow: previewForWindow,
+    nowForTesting: now,
   );
 }
 
@@ -4845,6 +5000,7 @@ _Flow _buildMyFlowsPreviewFlow({
   bool isSaved = false,
   bool isReminder = false,
   DateTime? savedAt,
+  FlowAppearance appearance = FlowAppearance.empty,
 }) {
   return _Flow(
     id: id,
@@ -4858,6 +5014,7 @@ _Flow _buildMyFlowsPreviewFlow({
     notes: notes,
     rules: const <FlowRule>[],
     isReminder: isReminder,
+    appearance: appearance,
   );
 }
 

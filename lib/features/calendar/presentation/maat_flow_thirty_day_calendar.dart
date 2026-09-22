@@ -59,6 +59,8 @@ class MaatFlowThirtyDayMarker {
     this.topLabel,
     this.onTopLabelTap,
     this.topLabelSemanticLabel,
+    this.onTap,
+    this.semanticLabel,
   });
 
   final DateTime date;
@@ -70,6 +72,8 @@ class MaatFlowThirtyDayMarker {
   final String? topLabel;
   final VoidCallback? onTopLabelTap;
   final String? topLabelSemanticLabel;
+  final VoidCallback? onTap;
+  final String? semanticLabel;
 }
 
 /// Shared Kemetic month/decan calendar geometry for a rolling thirty-day flow.
@@ -195,6 +199,8 @@ class MaatFlowThirtyDayCalendar extends StatelessWidget {
         topLabel: marker?.topLabel,
         onTopLabelTap: marker?.onTopLabelTap,
         topLabelSemanticLabel: marker?.topLabelSemanticLabel,
+        onTap: marker?.onTap,
+        semanticLabel: marker?.semanticLabel,
       );
     }
     return sections;
@@ -228,6 +234,8 @@ class _CalendarDay {
     required this.topLabel,
     required this.onTopLabelTap,
     required this.topLabelSemanticLabel,
+    required this.onTap,
+    required this.semanticLabel,
   });
 
   final DateTime date;
@@ -240,6 +248,8 @@ class _CalendarDay {
   final String? topLabel;
   final VoidCallback? onTopLabelTap;
   final String? topLabelSemanticLabel;
+  final VoidCallback? onTap;
+  final String? semanticLabel;
 }
 
 class _MonthBand extends StatelessWidget {
@@ -488,8 +498,20 @@ class _DayTile extends StatelessWidget {
       ],
     );
 
+    final interactiveTile = value.onTap == null
+        ? tile
+        : Semantics(
+            button: true,
+            label: value.semanticLabel,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: value.onTap,
+              child: tile,
+            ),
+          );
+
     final topLabel = value.topLabel;
-    if (topLabel == null || topLabel.isEmpty) return tile;
+    if (topLabel == null || topLabel.isEmpty) return interactiveTile;
 
     return Semantics(
       key: ValueKey<String>('$keyPrefix-top-label-control-$dateKey'),
@@ -503,7 +525,7 @@ class _DayTile extends StatelessWidget {
           clipBehavior: Clip.none,
           fit: StackFit.expand,
           children: [
-            tile,
+            interactiveTile,
             Positioned(
               top: 1,
               left: 0,

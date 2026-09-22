@@ -18,6 +18,7 @@ class UserFlowAppearanceHero extends StatelessWidget {
     this.completedOccurrences = 0,
     this.totalOccurrences = 0,
     this.showProgressFooter = false,
+    this.borderRadius,
   });
 
   final FlowAppearance appearance;
@@ -28,6 +29,7 @@ class UserFlowAppearanceHero extends StatelessWidget {
   final int completedOccurrences;
   final int totalOccurrences;
   final bool showProgressFooter;
+  final BorderRadiusGeometry? borderRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +39,7 @@ class UserFlowAppearanceHero extends StatelessWidget {
       height: height,
       width: double.infinity,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(compact ? 10 : 18),
+        borderRadius: borderRadius ?? BorderRadius.circular(compact ? 10 : 18),
         child: Stack(
           fit: StackFit.expand,
           children: [

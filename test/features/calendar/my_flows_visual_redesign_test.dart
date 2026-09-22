@@ -457,16 +457,28 @@ void main() {
     expect(find.text('Overview'), findsNothing);
     expect(find.text('Schedule'), findsNothing);
     expect(find.text('Days & Notes'), findsNothing);
-    expect(find.text('COMPLETED · 2 EVENTS'), findsOneWidget);
-    expect(find.text('Day 3 · 6'), findsOneWidget);
-    expect(find.text('Manage Flow'), findsOneWidget);
+    expect(find.text('DAY 3 OF 6'), findsOneWidget);
+    expect(find.text('Manage flow'), findsOneWidget);
+    expect(find.byKey(const ValueKey('user-flow-calendar-72')), findsOneWidget);
 
-    await _scrollToText(tester, 'TODAY · DAY 3');
-    expect(find.text('TODAY · DAY 3'), findsWidgets);
-    await _scrollToText(tester, 'UPCOMING');
-    expect(find.text('UPCOMING'), findsOneWidget);
+    await _scrollToText(tester, 'NEXT 4 UPCOMING EVENTS');
+    expect(find.text('NEXT 4 UPCOMING EVENTS'), findsOneWidget);
+    for (var day = 3; day <= 6; day++) {
+      expect(
+        find.byKey(ValueKey<String>('user-flow-schedule-block-$day')),
+        findsOneWidget,
+      );
+    }
+    expect(
+      find.byKey(const ValueKey<String>('user-flow-show-past')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('user-flow-show-later')),
+      findsNothing,
+    );
 
-    await tester.tap(find.text('Manage Flow'));
+    await tester.tap(find.text('Manage flow'));
     await tester.pump();
     expect(manageCount, 1);
   });
@@ -492,46 +504,53 @@ void main() {
     await _pumpMyFlowDetail(tester, saved: true);
 
     expect(find.text('Overview'), findsNothing);
-    expect(find.text('COMPLETED · 2 EVENTS'), findsNothing);
+    expect(find.text('COMPLETED · 2'), findsNothing);
     expect(find.textContaining('TODAY'), findsNothing);
-    expect(find.text('Day 1 · 6'), findsOneWidget);
-    await _scrollToText(tester, 'DAY 1');
-    expect(find.text('DAY 1'), findsWidgets);
+    expect(find.text('SAVED · 6 DAYS'), findsOneWidget);
+    await _scrollToText(tester, 'NEXT 5 UPCOMING EVENTS');
+    expect(find.text('NEXT 5 UPCOMING EVENTS'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('user-flow-schedule-block-1')),
+      findsOneWidget,
+    );
     expect(find.text('Area of Square'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey<String>('user-flow-show-later')),
+      findsOneWidget,
+    );
     await _scrollToText(tester, 'How to Simplify Fractions');
     expect(find.text('How to Simplify Fractions'), findsOneWidget);
-    expect(find.text('Import Flow'), findsOneWidget);
+    expect(find.text('Carry this flow'), findsOneWidget);
   });
 
   testWidgets(
     'Saved flow start picker opens with normalized date and Cancel preserves footer',
     (tester) async {
       _useSmallPhoneSurface(tester);
-      final expectedStart = DateUtils.dateOnly(DateTime.now());
-      final expectedLabel = _startLabel(expectedStart);
-
       await _pumpMyFlowDetail(tester, saved: true);
 
-      expect(find.text(expectedLabel), findsOneWidget);
-      expect(find.text('Import Flow'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('user-flow-saved-start-control')),
+        findsOneWidget,
+      );
+      expect(find.text('Carry this flow'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(OutlinedButton, expectedLabel));
+      await tester.tap(
+        find.byKey(const ValueKey('user-flow-saved-start-control')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Start date'), findsOneWidget);
-      expect(find.text('Gregorian Calendar'), findsOneWidget);
-      expect(
-        find.text(_gregorianMonthAbbreviation(expectedStart.month)),
-        findsWidgets,
-      );
-      expect(find.text('${expectedStart.day}'), findsWidgets);
-      expect(find.text('${expectedStart.year}'), findsWidgets);
+      expect(find.text('Kemetic Calendar'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
       await tester.pumpAndSettle();
 
-      expect(find.text(expectedLabel), findsOneWidget);
-      expect(find.text('Import Flow'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('user-flow-saved-start-control')),
+        findsOneWidget,
+      );
+      expect(find.text('Carry this flow'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -540,35 +559,37 @@ void main() {
     'Saved flow start picker Done preserves visible date and reopens',
     (tester) async {
       _useSmallPhoneSurface(tester);
-      final expectedStart = DateUtils.dateOnly(DateTime.now());
-      final expectedLabel = _startLabel(expectedStart);
-
       await _pumpMyFlowDetail(tester, saved: true);
 
-      await tester.tap(find.widgetWithText(OutlinedButton, expectedLabel));
+      await tester.tap(
+        find.byKey(const ValueKey('user-flow-saved-start-control')),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
       await tester.pumpAndSettle();
 
-      expect(find.text(expectedLabel), findsOneWidget);
-      expect(find.text('Import Flow'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('user-flow-saved-start-control')),
+        findsOneWidget,
+      );
+      expect(find.text('Carry this flow'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(OutlinedButton, expectedLabel));
+      await tester.tap(
+        find.byKey(const ValueKey('user-flow-saved-start-control')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Start date'), findsOneWidget);
-      expect(
-        find.text(_gregorianMonthAbbreviation(expectedStart.month)),
-        findsWidgets,
-      );
-      expect(find.text('${expectedStart.day}'), findsWidgets);
-      expect(find.text('${expectedStart.year}'), findsWidgets);
+      expect(find.text('Kemetic Calendar'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
       await tester.pumpAndSettle();
 
-      expect(find.text(expectedLabel), findsOneWidget);
-      expect(find.text('Import Flow'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('user-flow-saved-start-control')),
+        findsOneWidget,
+      );
+      expect(find.text('Carry this flow'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -578,17 +599,29 @@ void main() {
   ) async {
     await _pumpMyFlowDetail(tester);
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('my_flow_day_tap_72:preview-72-0')),
-    );
+    final showPast = find.byKey(const ValueKey<String>('user-flow-show-past'));
+    await _revealUserFlowDetail(tester, showPast);
+    await tester.tap(showPast);
     await tester.pumpAndSettle();
-    expect(find.text('COMPLETED · DAY 1'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('my_flow_day_tap_72:preview-72-0')),
+    final firstDay = find.byKey(
+      const ValueKey<String>('my_flow_day_tap_72:preview-72-0'),
     );
+    await _revealUserFlowDetail(tester, firstDay);
+    await tester.tap(firstDay);
     await tester.pumpAndSettle();
-    expect(find.text('COMPLETED · DAY 1'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('my_flow_day_card_72:preview-72-0')),
+      findsOneWidget,
+    );
+
+    await _revealUserFlowDetail(tester, firstDay);
+    await tester.tap(firstDay);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('my_flow_day_card_72:preview-72-0')),
+      findsNothing,
+    );
 
     await _scrollToText(tester, 'The Birthday Problem and Probability');
     await tester.tap(
@@ -696,19 +729,40 @@ Future<void> _pumpMyFlowsAtSize(
 
 Future<void> _scrollToText(WidgetTester tester, String text) async {
   final target = find.text(text);
-  for (var i = 0; i < 12 && target.evaluate().isEmpty; i++) {
-    await tester.drag(find.byType(ListView).first, const Offset(0, -360));
-    await tester.pumpAndSettle();
-  }
-  expect(target, findsWidgets);
+  await _revealUserFlowDetail(tester, target);
+}
+
+Future<void> _revealUserFlowDetail(WidgetTester tester, Finder target) async {
+  final scroll = _userFlowDetailScroll();
   final viewportHeight =
       tester.view.physicalSize.height / tester.view.devicePixelRatio;
-  final rect = tester.getRect(target.first);
-  if (rect.bottom > viewportHeight - 150) {
-    await tester.drag(find.byType(ListView).first, const Offset(0, -220));
+  for (var i = 0; i < 24; i++) {
+    if (target.evaluate().isNotEmpty) {
+      final rect = tester.getRect(target.first);
+      if (rect.top >= 8 && rect.bottom <= viewportHeight - 150) return;
+      await tester.drag(scroll, Offset(0, rect.top < 8 ? 280 : -280));
+    } else {
+      await tester.drag(scroll, const Offset(0, -280));
+    }
     await tester.pumpAndSettle();
   }
+  fail(
+    'Could not reveal ${target.describeMatch(Plurality.one)} '
+    'in the user-flow detail scroll.',
+  );
 }
+
+Finder _userFlowDetailScroll() => find
+    .byWidgetPredicate(
+      (widget) =>
+          widget is CustomScrollView &&
+          widget.key is ValueKey<String> &&
+          (widget.key! as ValueKey<String>).value.startsWith(
+            'user-flow-detail-scroll-',
+          ),
+    )
+    .hitTestable()
+    .first;
 
 Future<void> _pumpMyFlowDetail(
   WidgetTester tester, {
@@ -748,27 +802,4 @@ Future<void> _scrollArchivedControlIntoViewport(
     await tester.pumpAndSettle();
   }
   expect(tester.getRect(control).bottom, lessThanOrEqualTo(580));
-}
-
-String _startLabel(DateTime date) {
-  final normalized = DateUtils.dateOnly(date);
-  return 'Start: ${normalized.year}-${normalized.month.toString().padLeft(2, '0')}-${normalized.day.toString().padLeft(2, '0')}';
-}
-
-String _gregorianMonthAbbreviation(int month) {
-  const labels = <int, String>{
-    1: 'Jan',
-    2: 'Feb',
-    3: 'Mar',
-    4: 'Apr',
-    5: 'May',
-    6: 'Jun',
-    7: 'Jul',
-    8: 'Aug',
-    9: 'Sep',
-    10: 'Oct',
-    11: 'Nov',
-    12: 'Dec',
-  };
-  return labels[month]!;
 }

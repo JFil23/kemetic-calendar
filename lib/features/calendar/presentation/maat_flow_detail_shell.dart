@@ -443,6 +443,8 @@ class MaatFlowDetailDock extends StatelessWidget {
     required this.joinedKey,
     this.onJoinedPressed,
     this.showNote = true,
+    this.actionNoteWidget,
+    this.joinedNoteWidget,
   });
 
   final MaatFlowDetailTheme theme;
@@ -457,6 +459,8 @@ class MaatFlowDetailDock extends StatelessWidget {
   final Key joinedKey;
   final VoidCallback? onJoinedPressed;
   final bool showNote;
+  final Widget? actionNoteWidget;
+  final Widget? joinedNoteWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -528,21 +532,43 @@ class MaatFlowDetailDock extends StatelessWidget {
               ),
               if (showNote) ...<Widget>[
                 const SizedBox(height: 9),
-                Text(
-                  joined ? joinedNote : actionNote,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: theme.secondaryText,
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
+                joined
+                    ? (joinedNoteWidget ??
+                          _MaatFlowDetailDockNote(
+                            theme: theme,
+                            text: joinedNote,
+                          ))
+                    : (actionNoteWidget ??
+                          _MaatFlowDetailDockNote(
+                            theme: theme,
+                            text: actionNote,
+                          )),
               ],
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MaatFlowDetailDockNote extends StatelessWidget {
+  const _MaatFlowDetailDockNote({required this.theme, required this.text});
+
+  final MaatFlowDetailTheme theme;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: theme.secondaryText,
+        fontFamily: MaatFlowListTokens.fontFamily,
+        fontFamilyFallback: MaatFlowListTokens.fontFallback,
+        fontSize: 10.5,
+        fontWeight: FontWeight.w300,
       ),
     );
   }

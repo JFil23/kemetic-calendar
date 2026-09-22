@@ -111,6 +111,7 @@ import '../../shared/date_picker/stone_register_date_field.dart';
 import '../../shared/date_picker/stone_register_date_picker.dart'
     show StoneDatePickerCalendarMode;
 import '../../widgets/flow_start_date_picker.dart';
+import '../../widgets/maat_flow_date_picker.dart';
 import '../../widgets/day_sheet_components.dart';
 import '../../widgets/event_create_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart' show showGregorianDatePicker;
@@ -153,6 +154,8 @@ import 'maat_flow_visual_tokens.dart';
 import 'presentation/flow_studio_modal_sheet_host.dart';
 import 'presentation/maat_flow_discovery_view.dart';
 import 'presentation/maat_flow_detail_shell.dart';
+import 'presentation/maat_flow_preview_day.dart';
+import 'presentation/maat_flow_thirty_day_calendar.dart';
 import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_catalog.dart';
@@ -214,6 +217,7 @@ part 'calendar_grid_widgets.dart';
 part 'calendar_month_detail.dart';
 part 'calendar_flow_studio_page.dart';
 part 'calendar_flow_pages.dart';
+part 'calendar_user_flow_detail.dart';
 part 'calendar_active_maat_flows.dart';
 part 'reading_house_authoring_page.dart';
 part 'my_flow_card_spec.dart';
@@ -8280,6 +8284,12 @@ class CalendarPage extends StatefulWidget {
     return _FlowsViewerPage(
       loadFilingSnapshot: () => _loadDetachedMyFlowsFilingSnapshot(flowsRepo),
       initialFilingSnapshot: _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
+      calendarPreviewForWindow: (windowStart, windowEnd) {
+        final state = _mountedState;
+        return state?.mounted == true
+            ? state!._userFlowCalendarPreviewForWindow(windowStart, windowEnd)
+            : FollowSkyCalendarPreview.unavailable;
+      },
       fmtGregorian: _formatDetachedGregorian,
       onCreateNew: () async {
         await _pushDetachedFlowStudioEditor(
@@ -27020,6 +27030,8 @@ class CalendarPageState extends State<CalendarPage>
                             loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
                             initialFilingSnapshot:
                                 _cachedMyFlowsFilingSnapshot(),
+                            calendarPreviewForWindow:
+                                _userFlowCalendarPreviewForWindow,
                             fmtGregorian: (d) => d == null
                                 ? '--'
                                 : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -27201,6 +27213,7 @@ class CalendarPageState extends State<CalendarPage>
               builder: (ctx2) => _FlowsViewerPage(
                 loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
                 initialFilingSnapshot: _cachedMyFlowsFilingSnapshot(),
+                calendarPreviewForWindow: _userFlowCalendarPreviewForWindow,
                 fmtGregorian: (d) => d == null
                     ? '--'
                     : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -27411,6 +27424,7 @@ class CalendarPageState extends State<CalendarPage>
         return _FlowsViewerPage(
           loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
           initialFilingSnapshot: _cachedMyFlowsFilingSnapshot(),
+          calendarPreviewForWindow: _userFlowCalendarPreviewForWindow,
           fmtGregorian: (d) => d == null
               ? '--'
               : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -27811,6 +27825,22 @@ class CalendarPageState extends State<CalendarPage>
       rows: source.rows,
       windowStart: windowStart,
       windowEnd: windowEnd,
+      coverageComplete: true,
+      supply: CalendarPreviewSupply.loaded,
+    );
+  }
+
+  FollowSkyCalendarPreview _userFlowCalendarPreviewForWindow(
+    DateTime windowStart,
+    DateTime windowEnd,
+  ) {
+    final start = DateUtils.dateOnly(windowStart);
+    final end = DateUtils.dateOnly(windowEnd);
+    final source = _calendarPreviewSource(windowStart: start, windowEnd: end);
+    return FollowSkyCalendarPreview(
+      rows: source.rows,
+      windowStart: start,
+      windowEnd: end,
       coverageComplete: true,
       supply: CalendarPreviewSupply.loaded,
     );
