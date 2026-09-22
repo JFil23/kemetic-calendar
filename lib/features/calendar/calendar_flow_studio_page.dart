@@ -3901,6 +3901,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     required double height,
     required String emptyLabel,
     bool showProgressFooter = false,
+    UserFlowAppearanceSurface surface = UserFlowAppearanceSurface.standard,
   }) {
     if (hasVisual) {
       return UserFlowAppearanceHero(
@@ -3909,6 +3910,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         localImageBytes: _pendingAppearanceImageBytes,
         height: height,
         compact: true,
+        surface: surface,
         completedOccurrences: 11,
         totalOccurrences: 28,
         showProgressFooter: showProgressFooter,
@@ -4003,6 +4005,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             hasVisual: hasVisual,
             height: 128,
             emptyLabel: 'Current user-flow sheet',
+            surface: UserFlowAppearanceSurface.daySheet,
           ),
           Positioned(
             left: 0,
@@ -4066,6 +4069,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             hasVisual: hasVisual,
             height: 128,
             emptyLabel: name,
+            surface: UserFlowAppearanceSurface.fullDetail,
           ),
           Positioned(
             left: 10,

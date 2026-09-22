@@ -74,4 +74,29 @@ void main() {
       );
     },
   );
+
+  test('user-flow images and Merkhets have one surface contract', () async {
+    final dayView = await File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsString();
+    final dashboard = await File(
+      'lib/features/calendar/calendar_flow_pages.dart',
+    ).readAsString();
+    final detail = await File(
+      'lib/features/calendar/calendar_user_flow_detail.dart',
+    ).readAsString();
+    final profile = await File(
+      'lib/features/profile/profile_page.dart',
+    ).readAsString();
+
+    expect(dayView, contains('surface: UserFlowAppearanceSurface.daySheet'));
+    expect(dayView, contains('height: 190'));
+    expect(dayView, contains('flow.appearance.hasSign'));
+    expect(
+      dashboard,
+      contains('surface: UserFlowAppearanceSurface.fullDetail'),
+    );
+    expect(detail, contains('surface: UserFlowAppearanceSurface.fullDetail'));
+    expect(profile, contains('appearance.copyWith(clearImage: true)'));
+  });
 }

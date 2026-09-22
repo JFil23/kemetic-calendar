@@ -225,6 +225,7 @@ void main() {
     'user-flow appearance keeps a fixed stage behind the scrolling foreground',
     (tester) async {
       await _setPhoneViewport(tester);
+      final recordedStatuses = <CompletionStatus>[];
 
       await tester.pumpWidget(
         _DayViewHarness(
@@ -259,6 +260,19 @@ void main() {
                   'you want to carry into the next occurrence.',
             ),
           ],
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {
+                recordedStatuses.add(
+                  CompletionStatusX.fromWireName(
+                    metadata?['completion_status']?.toString(),
+                  ),
+                );
+              },
         ),
       );
       await tester.pumpAndSettle();
@@ -283,6 +297,7 @@ void main() {
       expect(hero, findsOneWidget);
       expect(foreground, findsOneWidget);
       expect(foregroundScroll, findsOneWidget);
+      expect(tester.getSize(hero).height, 190);
       expect(find.text('3 OF 12'), findsOneWidget);
       if (_captureUserFlowAppearance) {
         await expectLater(
@@ -293,11 +308,24 @@ void main() {
 
       final heroTopBefore = tester.getTopLeft(hero).dy;
       final foregroundTopBefore = tester.getTopLeft(foreground).dy;
-      await tester.drag(foregroundScroll, const Offset(0, -120));
+      await tester.drag(foregroundScroll, const Offset(0, -300));
       await tester.pumpAndSettle();
 
       expect(tester.getTopLeft(hero).dy, closeTo(heroTopBefore, 0.01));
       expect(tester.getTopLeft(foreground).dy, lessThan(foregroundTopBefore));
+
+      await tester.tap(find.text('Observed').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 10));
+
+      expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+      expect(find.text('4 OF 12'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('user-flow-merkhet-animation-papyrus-1')),
+        findsOneWidget,
+      );
+      expect(tester.hasRunningAnimations, isTrue);
+      await tester.pumpAndSettle();
     },
   );
 

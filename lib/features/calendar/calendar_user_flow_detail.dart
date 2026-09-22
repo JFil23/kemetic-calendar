@@ -160,6 +160,7 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
               localImageBytes: widget.appearanceImageBytesForTesting,
               height: double.infinity,
               borderRadius: BorderRadius.zero,
+              surface: UserFlowAppearanceSurface.fullDetail,
               completedOccurrences: metrics.completedEventCount,
               totalOccurrences: total,
             ),
@@ -805,8 +806,7 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
                 ),
               ),
               const SizedBox(width: 10),
-              if (!flow.appearance.isEmpty ||
-                  widget.appearanceImageBytesForTesting != null)
+              if (flow.appearance.hasSign)
                 UserFlowAppearanceBadge(
                   appearance: flow.appearance,
                   accent: theme.accent,

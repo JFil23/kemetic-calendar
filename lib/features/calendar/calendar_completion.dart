@@ -417,6 +417,7 @@ class CalendarEventCompletionPanel extends StatefulWidget {
     this.onClearStatus,
     this.onCreateContinuity,
     this.onUserCompletionFeedback,
+    this.onStatusPersisted,
     this.onReflect,
     this.observedButtonKey,
     this.reloadSignal,
@@ -431,6 +432,8 @@ class CalendarEventCompletionPanel extends StatefulWidget {
   final Future<void> Function()? onClearStatus;
   final Future<void> Function(CompletionStatus status)? onCreateContinuity;
   final ValueChanged<CompletionStatus>? onUserCompletionFeedback;
+  final void Function(CompletionStatus previous, CompletionStatus current)?
+  onStatusPersisted;
   final VoidCallback? onReflect;
   final Key? observedButtonKey;
   final Object? reloadSignal;
@@ -514,6 +517,7 @@ class _CalendarEventCompletionPanelState
 
   Future<void> _record(CompletionStatus status) async {
     if (_saving) return;
+    final previous = _status;
     setState(() => _saving = true);
     _scheduleCompletionFeedback(status);
     try {
@@ -535,6 +539,7 @@ class _CalendarEventCompletionPanelState
         _status = status;
         _saving = false;
       });
+      widget.onStatusPersisted?.call(previous, status);
     } catch (_) {
       _cancelCompletionFeedback();
       if (!mounted) return;

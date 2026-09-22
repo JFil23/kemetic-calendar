@@ -39,20 +39,32 @@ void main() {
     int completedOccurrences = 0,
     int totalOccurrences = 0,
     bool showProgressFooter = false,
+    double height = 180,
+    UserFlowAppearanceSurface surface = UserFlowAppearanceSurface.standard,
+    int animationRevision = 0,
+    int? animationFromCompletedOccurrences,
+    bool disableAnimations = false,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: RepaintBoundary(
-            key: const ValueKey('appearance-capture'),
-            child: UserFlowAppearanceHero(
-              appearance: appearance,
-              accent: accent,
-              localImageBytes: withImage ? imageBytes : null,
-              height: 180,
-              completedOccurrences: completedOccurrences,
-              totalOccurrences: totalOccurrences,
-              showProgressFooter: showProgressFooter,
+          body: MediaQuery(
+            data: MediaQueryData(disableAnimations: disableAnimations),
+            child: RepaintBoundary(
+              key: const ValueKey('appearance-capture'),
+              child: UserFlowAppearanceHero(
+                appearance: appearance,
+                accent: accent,
+                localImageBytes: withImage ? imageBytes : null,
+                height: height,
+                surface: surface,
+                completedOccurrences: completedOccurrences,
+                totalOccurrences: totalOccurrences,
+                showProgressFooter: showProgressFooter,
+                animationRevision: animationRevision,
+                animationFromCompletedOccurrences:
+                    animationFromCompletedOccurrences,
+              ),
             ),
           ),
         ),
@@ -129,6 +141,106 @@ void main() {
     );
   });
 
+  testWidgets('surface contract preserves detail image and subdues Day View', (
+    tester,
+  ) async {
+    const appearance = FlowAppearance(
+      signKind: FlowSignKind.palmCount,
+      accentArgb: 0xFF6F93A8,
+    );
+
+    await pumpHero(
+      tester,
+      appearance: appearance,
+      withImage: true,
+      height: 300,
+      surface: UserFlowAppearanceSurface.fullDetail,
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find.byKey(const ValueKey('user-flow-appearance-image-opacity')),
+          )
+          .opacity,
+      1,
+    );
+    expect(
+      tester.widget<FlowSignVisual>(find.byType(FlowSignVisual)).size,
+      152,
+    );
+
+    await pumpHero(
+      tester,
+      appearance: appearance,
+      withImage: true,
+      height: 190,
+      surface: UserFlowAppearanceSurface.daySheet,
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find.byKey(const ValueKey('user-flow-appearance-image-opacity')),
+          )
+          .opacity,
+      0.24,
+    );
+    expect(
+      tester.widget<FlowSignVisual>(find.byType(FlowSignVisual)).size,
+      116,
+    );
+
+    await pumpHero(
+      tester,
+      appearance: const FlowAppearance(accentArgb: 0xFF6F93A8),
+      withImage: true,
+      height: 190,
+      surface: UserFlowAppearanceSurface.daySheet,
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find.byKey(const ValueKey('user-flow-appearance-image-opacity')),
+          )
+          .opacity,
+      1,
+    );
+  });
+
+  testWidgets('timeline badge is Merkhet-only and never renders its image', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Column(
+          children: [
+            UserFlowAppearanceBadge(
+              appearance: const FlowAppearance(
+                imageObjectPath: 'owner/photo.jpg',
+                signKind: FlowSignKind.riverPath,
+              ),
+              localImageBytes: imageBytes,
+              accent: accent,
+            ),
+            UserFlowAppearanceBadge(
+              appearance: const FlowAppearance(
+                imageObjectPath: 'owner/image-only.jpg',
+              ),
+              localImageBytes: imageBytes,
+              accent: accent,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('user-flow-appearance-image-layer')),
+      findsNothing,
+    );
+    expect(find.byType(FlowSignVisual), findsOneWidget);
+    expect(find.byType(UserFlowAppearanceHero), findsOneWidget);
+  });
+
   testWidgets('persisted image hydration is shared across rebuilds', (
     tester,
   ) async {
@@ -193,5 +305,63 @@ void main() {
 
     expect(find.text('completed occurrences'), findsOneWidget);
     expect(find.text('4 OF 12'), findsOneWidget);
+  });
+
+  for (final kind in FlowSignKind.values) {
+    testWidgets('${kind.name} animates its next measured step', (tester) async {
+      final appearance = FlowAppearance(signKind: kind);
+      await pumpHero(
+        tester,
+        appearance: appearance,
+        completedOccurrences: 3,
+        totalOccurrences: 12,
+        surface: UserFlowAppearanceSurface.daySheet,
+      );
+      await pumpHero(
+        tester,
+        appearance: appearance,
+        completedOccurrences: 4,
+        totalOccurrences: 12,
+        surface: UserFlowAppearanceSurface.daySheet,
+        animationRevision: 1,
+        animationFromCompletedOccurrences: 3,
+      );
+
+      expect(
+        find.byKey(
+          ValueKey<String>('user-flow-merkhet-animation-${kind.name}-1'),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.hasRunningAnimations, isTrue);
+      await tester.pumpAndSettle();
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+  }
+
+  testWidgets('reduced motion applies the measured step without animation', (
+    tester,
+  ) async {
+    const appearance = FlowAppearance(signKind: FlowSignKind.palmCount);
+    await pumpHero(
+      tester,
+      appearance: appearance,
+      completedOccurrences: 3,
+      totalOccurrences: 12,
+      surface: UserFlowAppearanceSurface.daySheet,
+      disableAnimations: true,
+    );
+    await pumpHero(
+      tester,
+      appearance: appearance,
+      completedOccurrences: 4,
+      totalOccurrences: 12,
+      surface: UserFlowAppearanceSurface.daySheet,
+      animationRevision: 1,
+      animationFromCompletedOccurrences: 3,
+      disableAnimations: true,
+    );
+
+    expect(tester.hasRunningAnimations, isFalse);
   });
 }

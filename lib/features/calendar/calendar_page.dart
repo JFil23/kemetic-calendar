@@ -28941,6 +28941,9 @@ class CalendarPageState extends State<CalendarPage>
         completedOnDate: completedOnDate,
         metadata: metadata,
       );
+      if (metadata?['source_type'] == CompletionSourceType.userFlow.wireName) {
+        await _refreshHydrationAccounting();
+      }
       if (resolveMaatFlowKind(behaviorPayload: metadata) ==
           MaatFlowKind.decanWatch) {
         unawaited(_ensureDecanWatchHorizon(flowId));

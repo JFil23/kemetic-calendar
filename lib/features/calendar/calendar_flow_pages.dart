@@ -1828,6 +1828,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             appearance: flow.appearance,
             accent: appearanceAccent,
             height: 300,
+            surface: UserFlowAppearanceSurface.fullDetail,
             completedOccurrences: metrics.completedEventCount,
             totalOccurrences: total,
             showProgressFooter: true,

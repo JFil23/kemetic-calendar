@@ -4987,10 +4987,10 @@ class _ProfilePageState extends State<ProfilePage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (!appearance.isEmpty) ...[
+                    if (appearance.hasSign) ...[
                       UserFlowAppearanceHero(
                         key: const ValueKey('profile-flow-appearance'),
-                        appearance: appearance,
+                        appearance: appearance.copyWith(clearImage: true),
                         accent: accent,
                         height: 150,
                         compact: true,
@@ -5474,10 +5474,10 @@ class _ProfilePageState extends State<ProfilePage>
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!appearance.isEmpty) ...[
+          if (appearance.hasSign) ...[
             UserFlowAppearanceHero(
               key: const ValueKey('expanded-profile-flow-appearance'),
-              appearance: appearance,
+              appearance: appearance.copyWith(clearImage: true),
               accent: accent,
               height: 220,
             ),

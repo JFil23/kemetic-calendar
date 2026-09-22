@@ -2124,6 +2124,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   _offeringTableDayStates =
       <({int flowId, int dayNumber}), OfferingTableDayViewState>{};
   final Set<int> _offeringTableLoadingFlowStates = <int>{};
+  final Map<String, int> _userFlowCompletedOccurrenceOverrides =
+      <String, int>{};
+  final Map<String, int> _userFlowMerkhetAnimationRevisions = <String, int>{};
+  final Map<String, int> _userFlowMerkhetAnimationFrom = <String, int>{};
 
   @override
   void initState() {
@@ -2177,6 +2181,31 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
 
   void _handleEndFlowAuthReadinessChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _handleUserFlowCompletionPersisted({
+    required String identity,
+    required FlowData flow,
+    required CompletionStatus previous,
+    required CompletionStatus current,
+  }) {
+    final displayedCount =
+        _userFlowCompletedOccurrenceOverrides[identity] ??
+        flow.completedOccurrenceCount;
+    final wasCounted = previous != CompletionStatus.none;
+    final isCounted = current != CompletionStatus.none;
+    final nextCount =
+        (displayedCount + (isCounted ? 1 : 0) - (wasCounted ? 1 : 0))
+            .clamp(0, flow.totalOccurrenceCount)
+            .toInt();
+    setState(() {
+      _userFlowCompletedOccurrenceOverrides[identity] = nextCount;
+      if (current == CompletionStatus.observed) {
+        _userFlowMerkhetAnimationFrom[identity] = displayedCount;
+        _userFlowMerkhetAnimationRevisions[identity] =
+            (_userFlowMerkhetAnimationRevisions[identity] ?? 0) + 1;
+      }
+    });
   }
 
   Widget _buildDetailPageSizeTransition({
@@ -3528,6 +3557,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     );
     final hasUserAppearance =
         flow != null && !isMaatFlow && !flow.appearance.isEmpty;
+    final completionIdentity = _completionIdentityForEvent(currentEvent);
 
     if (instrumentPresentation.kind == _DayViewInstrumentKind.followSky) {
       final followSkyClientEventId =
@@ -3577,7 +3607,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       return Builder(
         builder: (feedbackContext) => _MaatFlowCompletionPanel(
           event: currentEvent,
-          identity: _completionIdentityForEvent(currentEvent),
+          identity: completionIdentity,
           completion: completionContext!,
           responseSpecs: responseSpecsOverride ?? responseSpecs,
           ky: target.ky,
@@ -3856,6 +3886,14 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               ? (status) =>
                     playDayViewRitualCompletionFeedback(feedbackContext, status)
               : null,
+          onStatusPersisted: hasUserAppearance
+              ? (previous, current) => _handleUserFlowCompletionPersisted(
+                  identity: completionIdentity,
+                  flow: flow,
+                  previous: previous,
+                  current: current,
+                )
+              : null,
           onReflect: null,
           reloadSignal: completionReloadSignal,
           pickerStyle: completionPickerStyle,
@@ -4085,10 +4123,17 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         accent: flow.appearance.accentArgb == null
             ? flow.color
             : Color(flow.appearance.accentArgb!),
-        height: 140,
-        completedOccurrences: flow.completedOccurrenceCount,
+        height: 190,
+        surface: UserFlowAppearanceSurface.daySheet,
+        completedOccurrences:
+            _userFlowCompletedOccurrenceOverrides[completionIdentity] ??
+            flow.completedOccurrenceCount,
         totalOccurrences: flow.totalOccurrenceCount,
         showProgressFooter: true,
+        animationRevision:
+            _userFlowMerkhetAnimationRevisions[completionIdentity] ?? 0,
+        animationFromCompletedOccurrences:
+            _userFlowMerkhetAnimationFrom[completionIdentity],
       );
     }
 
@@ -4160,7 +4205,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 136),
+                const SizedBox(height: 186),
                 buildUserAppearanceForeground(),
               ],
             ),
@@ -8420,7 +8465,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final customAppearance =
         flow != null &&
             _maatFlowCompletionContextForEvent(event, flow) == null &&
-            !flow.appearance.isEmpty
+            flow.appearance.hasSign
         ? flow.appearance
         : null;
     final customAccent = customAppearance?.accentArgb == null

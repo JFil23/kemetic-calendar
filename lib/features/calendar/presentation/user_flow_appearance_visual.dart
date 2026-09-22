@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/flow_appearance.dart';
 import '../../../data/flow_appearance_store.dart';
 
+enum UserFlowAppearanceSurface { standard, fullDetail, daySheet, timelineBadge }
+
 class UserFlowAppearanceHero extends StatelessWidget {
   const UserFlowAppearanceHero({
     super.key,
@@ -19,6 +21,9 @@ class UserFlowAppearanceHero extends StatelessWidget {
     this.totalOccurrences = 0,
     this.showProgressFooter = false,
     this.borderRadius,
+    this.surface = UserFlowAppearanceSurface.standard,
+    this.animationRevision = 0,
+    this.animationFromCompletedOccurrences,
   });
 
   final FlowAppearance appearance;
@@ -30,11 +35,26 @@ class UserFlowAppearanceHero extends StatelessWidget {
   final int totalOccurrences;
   final bool showProgressFooter;
   final BorderRadiusGeometry? borderRadius;
+  final UserFlowAppearanceSurface surface;
+  final int animationRevision;
+  final int? animationFromCompletedOccurrences;
 
   @override
   Widget build(BuildContext context) {
     final hasImage = localImageBytes != null || appearance.hasImage;
     final hasSign = appearance.hasSign;
+    final showImage =
+        hasImage && surface != UserFlowAppearanceSurface.timelineBadge;
+    final imageOpacity = switch (surface) {
+      UserFlowAppearanceSurface.daySheet => hasSign ? 0.24 : 1.0,
+      _ => 1.0,
+    };
+    final signSize = switch (surface) {
+      UserFlowAppearanceSurface.fullDetail => math.min(152.0, height * 0.54),
+      UserFlowAppearanceSurface.daySheet => math.min(116.0, height * 0.62),
+      UserFlowAppearanceSurface.timelineBadge => math.min(31.0, height * 0.78),
+      UserFlowAppearanceSurface.standard => compact ? 31.0 : 78.0,
+    };
     return SizedBox(
       height: height,
       width: double.infinity,
@@ -43,14 +63,19 @@ class UserFlowAppearanceHero extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (hasImage)
-              _FlowImageLayer(
-                key: const ValueKey('user-flow-appearance-image-layer'),
-                objectPath: appearance.imageObjectPath,
-                localImageBytes: localImageBytes,
-                accent: accent,
-              )
-            else
+            if (showImage) ...[
+              const ColoredBox(color: Color(0xFF050403)),
+              Opacity(
+                key: const ValueKey('user-flow-appearance-image-opacity'),
+                opacity: imageOpacity,
+                child: _FlowImageLayer(
+                  key: const ValueKey('user-flow-appearance-image-layer'),
+                  objectPath: appearance.imageObjectPath,
+                  localImageBytes: localImageBytes,
+                  accent: accent,
+                ),
+              ),
+            ] else
               DecoratedBox(
                 key: const ValueKey('user-flow-appearance-fallback-layer'),
                 decoration: BoxDecoration(
@@ -65,7 +90,7 @@ class UserFlowAppearanceHero extends StatelessWidget {
                   ),
                 ),
               ),
-            if (hasImage)
+            if (showImage)
               const DecoratedBox(
                 key: ValueKey('user-flow-appearance-treatment-layer'),
                 decoration: BoxDecoration(
@@ -81,7 +106,7 @@ class UserFlowAppearanceHero extends StatelessWidget {
                   ),
                 ),
               ),
-            if (hasImage)
+            if (showImage)
               const DecoratedBox(
                 key: ValueKey('user-flow-appearance-vignette-layer'),
                 decoration: BoxDecoration(
@@ -93,7 +118,7 @@ class UserFlowAppearanceHero extends StatelessWidget {
                   ),
                 ),
               ),
-            if (hasImage)
+            if (showImage)
               const Positioned.fill(
                 key: ValueKey('user-flow-appearance-grain-layer'),
                 child: IgnorePointer(
@@ -110,9 +135,13 @@ class UserFlowAppearanceHero extends StatelessWidget {
                   kind: appearance.signKind!,
                   label: showProgressFooter ? null : appearance.signLabel,
                   color: accent,
-                  compact: compact,
+                  compact: surface == UserFlowAppearanceSurface.timelineBadge,
+                  size: signSize,
                   completedOccurrences: completedOccurrences,
                   totalOccurrences: totalOccurrences,
+                  animationRevision: animationRevision,
+                  animationFromCompletedOccurrences:
+                      animationFromCompletedOccurrences,
                 ),
               ),
             if (!compact && showProgressFooter)
@@ -180,7 +209,7 @@ class UserFlowAppearanceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (appearance.isEmpty && localImageBytes == null) {
+    if (!appearance.hasSign) {
       return const SizedBox.shrink();
     }
     return SizedBox.square(
@@ -191,6 +220,7 @@ class UserFlowAppearanceBadge extends StatelessWidget {
         localImageBytes: localImageBytes,
         height: size,
         compact: true,
+        surface: UserFlowAppearanceSurface.timelineBadge,
         completedOccurrences: completedOccurrences,
         totalOccurrences: totalOccurrences,
       ),
@@ -198,57 +228,117 @@ class UserFlowAppearanceBadge extends StatelessWidget {
   }
 }
 
-class FlowSignVisual extends StatelessWidget {
+class FlowSignVisual extends StatefulWidget {
   const FlowSignVisual({
     super.key,
     required this.kind,
     required this.color,
     this.label,
     this.compact = false,
+    this.size,
     this.completedOccurrences = 0,
     this.totalOccurrences = 0,
+    this.animationRevision = 0,
+    this.animationFromCompletedOccurrences,
   });
 
   final FlowSignKind kind;
   final Color color;
   final String? label;
   final bool compact;
+  final double? size;
   final int completedOccurrences;
   final int totalOccurrences;
+  final int animationRevision;
+  final int? animationFromCompletedOccurrences;
+
+  @override
+  State<FlowSignVisual> createState() => _FlowSignVisualState();
+}
+
+class _FlowSignVisualState extends State<FlowSignVisual>
+    with SingleTickerProviderStateMixin {
+  static const _duration = Duration(milliseconds: 720);
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: _duration);
+  }
+
+  @override
+  void didUpdateWidget(covariant FlowSignVisual oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animationRevision != oldWidget.animationRevision &&
+        widget.animationRevision > 0) {
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _controller.value = 1;
+      } else {
+        _controller.forward(from: 0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final size = compact ? 31.0 : 78.0;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox.square(
-          dimension: size,
-          child: CustomPaint(
-            painter: _FlowSignPainter(
-              kind,
-              color,
-              completedOccurrences: completedOccurrences,
-              totalOccurrences: totalOccurrences,
+    final size = widget.size ?? (widget.compact ? 31.0 : 78.0);
+    return AnimatedBuilder(
+      key: ValueKey<String>(
+        'user-flow-merkhet-animation-${widget.kind.name}-${widget.animationRevision}',
+      ),
+      animation: _controller,
+      builder: (context, _) {
+        final animationValue = Curves.easeOutCubic.transform(_controller.value);
+        final from =
+            (widget.animationFromCompletedOccurrences ??
+                    widget.completedOccurrences)
+                .toDouble();
+        final completed = _controller.isAnimating || _controller.value > 0
+            ? from + (widget.completedOccurrences - from) * animationValue
+            : widget.completedOccurrences.toDouble();
+        final pulse = _controller.isAnimating
+            ? math.sin(math.pi * _controller.value).clamp(0.0, 1.0)
+            : 0.0;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox.square(
+              dimension: size,
+              child: CustomPaint(
+                painter: _FlowSignPainter(
+                  widget.kind,
+                  widget.color,
+                  completedOccurrences: completed,
+                  totalOccurrences: widget.totalOccurrences,
+                  pulse: pulse,
+                ),
+              ),
             ),
-          ),
-        ),
-        if (!compact && label?.trim().isNotEmpty == true) ...[
-          const SizedBox(height: 8),
-          Text(
-            label!.trim(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color.withValues(alpha: 0.92),
-              fontFamily: 'GentiumPlus',
-              fontSize: 15,
-              fontStyle: FontStyle.italic,
-              letterSpacing: 0.6,
-            ),
-          ),
-        ],
-      ],
+            if (!widget.compact && widget.label?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.label!.trim(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: widget.color.withValues(alpha: 0.92),
+                  fontFamily: 'GentiumPlus',
+                  fontSize: 15,
+                  fontStyle: FontStyle.italic,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -318,17 +408,27 @@ class _FlowSignPainter extends CustomPainter {
     this.color, {
     required this.completedOccurrences,
     required this.totalOccurrences,
+    required this.pulse,
   });
 
   final FlowSignKind kind;
   final Color color;
-  final int completedOccurrences;
+  final double completedOccurrences;
   final int totalOccurrences;
+  final double pulse;
 
   double get _progress {
     if (totalOccurrences <= 0) return 0;
     return (completedOccurrences / totalOccurrences).clamp(0.0, 1.0);
   }
+
+  Paint _glowPaint(double width) => Paint()
+    ..color = color.withValues(alpha: 0.58 * pulse)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = width
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -344,11 +444,8 @@ class _FlowSignPainter extends CustomPainter {
       case FlowSignKind.palmCount:
         final count = totalOccurrences > 0 ? totalOccurrences.clamp(1, 30) : 4;
         final completed = totalOccurrences > 0
-            ? ((completedOccurrences.clamp(0, totalOccurrences) /
-                          totalOccurrences) *
-                      count)
-                  .round()
-            : count;
+            ? _progress * count
+            : count.toDouble();
         final columns = count <= 7 ? count : 7;
         final rows = (count / columns).ceil();
         final xGap = w * 0.62 / math.max(1, columns - 1);
@@ -356,13 +453,21 @@ class _FlowSignPainter extends CustomPainter {
         for (var i = 0; i < count; i++) {
           final column = i % columns;
           final row = i ~/ columns;
+          final completion = (completed - i).clamp(0.0, 1.0);
           final mark = Paint()
-            ..color = color.withValues(alpha: i < completed ? 0.96 : 0.22)
+            ..color = color.withValues(alpha: 0.22 + 0.74 * completion)
             ..style = PaintingStyle.stroke
             ..strokeWidth = math.max(1.15, size.width * 0.028)
             ..strokeCap = StrokeCap.round;
           final x = w * 0.19 + column * xGap;
           final y = rows == 1 ? h * 0.5 : h * 0.23 + row * yGap;
+          if (pulse > 0 && i == math.max(0, completed.ceil() - 1)) {
+            canvas.drawLine(
+              Offset(x, y - h * 0.055),
+              Offset(x, y + h * 0.055),
+              _glowPaint(math.max(4, size.width * 0.09)),
+            );
+          }
           canvas.drawLine(
             Offset(x, y - h * 0.055),
             Offset(x, y + h * 0.055),
@@ -380,6 +485,15 @@ class _FlowSignPainter extends CustomPainter {
         final sweep = totalOccurrences > 0
             ? math.pi * 2 * _progress
             : math.pi * 2;
+        if (pulse > 0 && sweep > 0) {
+          canvas.drawArc(
+            ring,
+            -math.pi / 2,
+            sweep,
+            false,
+            _glowPaint(math.max(4, p.strokeWidth * 2.8)),
+          );
+        }
         canvas.drawArc(ring, -math.pi / 2, sweep, false, p);
         canvas.drawLine(
           Offset(w * 0.35, h * 0.78),
@@ -406,6 +520,14 @@ class _FlowSignPainter extends CustomPainter {
             Paint()..color = color.withValues(alpha: 0.28),
           );
           canvas.restore();
+          if (pulse > 0) {
+            final surfaceY = h * (0.8 - 0.48 * _progress);
+            canvas.drawLine(
+              Offset(w * 0.29, surfaceY),
+              Offset(w * 0.71, surfaceY),
+              _glowPaint(math.max(3, p.strokeWidth * 2.4)),
+            );
+          }
         }
         canvas.drawLine(
           Offset(w * 0.18, h * 0.28),
@@ -425,29 +547,41 @@ class _FlowSignPainter extends CustomPainter {
         canvas.drawPath(path, totalOccurrences > 0 ? dim : p);
         if (totalOccurrences > 0) {
           for (final metric in path.computeMetrics()) {
-            canvas.drawPath(
-              metric.extractPath(0, metric.length * _progress),
-              p,
-            );
+            final traveled = metric.length * _progress;
+            final revealed = metric.extractPath(0, traveled);
+            if (pulse > 0 && traveled > 0) {
+              canvas.drawPath(
+                metric.extractPath(math.max(0, traveled - w * 0.16), traveled),
+                _glowPaint(math.max(4, p.strokeWidth * 2.6)),
+              );
+            }
+            canvas.drawPath(revealed, p);
           }
         }
       case FlowSignKind.papyrus:
         final stalks = const [-0.25, -0.12, 0.0, 0.12, 0.25];
-        final grown = totalOccurrences > 0
-            ? (_progress * stalks.length).ceil()
-            : stalks.length;
+        final growth = totalOccurrences > 0
+            ? _progress * stalks.length
+            : stalks.length.toDouble();
         for (var i = 0; i < stalks.length; i++) {
           final dx = stalks[i];
+          final stalkGrowth = (growth - i).clamp(0.0, 1.0);
           final stalkPaint = Paint()
-            ..color = color.withValues(alpha: i < grown ? 0.96 : 0.2)
+            ..color = color.withValues(alpha: 0.2 + 0.76 * stalkGrowth)
             ..style = PaintingStyle.stroke
             ..strokeWidth = p.strokeWidth
             ..strokeCap = StrokeCap.round;
-          canvas.drawLine(
-            Offset(w * (0.5 + dx * 0.22), h * 0.78),
-            Offset(w * (0.5 + dx), h * 0.15),
-            stalkPaint,
-          );
+          final base = Offset(w * (0.5 + dx * 0.22), h * 0.78);
+          final tip = Offset(w * (0.5 + dx), h * 0.15);
+          final grownTip = Offset.lerp(base, tip, stalkGrowth)!;
+          if (pulse > 0 && i == math.max(0, growth.ceil() - 1)) {
+            canvas.drawLine(
+              base,
+              grownTip,
+              _glowPaint(math.max(4, p.strokeWidth * 2.7)),
+            );
+          }
+          canvas.drawLine(base, grownTip, stalkPaint);
         }
         canvas.drawLine(
           Offset(w * 0.3, h * 0.78),
@@ -458,18 +592,48 @@ class _FlowSignPainter extends CustomPainter {
         final stage = totalOccurrences <= 0
             ? 4
             : (_progress * 4).ceil().clamp(0, 4);
+        final activeStage = math.max(1, stage);
         final guide = Paint()
           ..color = color.withValues(alpha: 0.18)
           ..style = PaintingStyle.stroke
           ..strokeWidth = p.strokeWidth
           ..strokeCap = StrokeCap.round;
         final body = Rect.fromLTWH(w * 0.32, h * 0.3, w * 0.36, h * 0.38);
+        if (pulse > 0 && activeStage == 1) {
+          canvas.drawOval(body, _glowPaint(math.max(4, p.strokeWidth * 2.8)));
+        }
         canvas.drawOval(body, stage >= 1 ? p : guide);
+        if (pulse > 0 && activeStage == 2) {
+          final glow = _glowPaint(math.max(4, p.strokeWidth * 2.8));
+          canvas.drawLine(
+            Offset(w * 0.2, h * 0.22),
+            Offset(w * 0.38, h * 0.38),
+            glow,
+          );
+          canvas.drawLine(
+            Offset(w * 0.8, h * 0.22),
+            Offset(w * 0.62, h * 0.38),
+            glow,
+          );
+        }
         canvas.drawLine(
           Offset(w * 0.2, h * 0.22),
           Offset(w * 0.38, h * 0.38),
           stage >= 2 ? p : guide,
         );
+        if (pulse > 0 && activeStage == 3) {
+          final glow = _glowPaint(math.max(4, p.strokeWidth * 2.8));
+          canvas.drawLine(
+            Offset(w * 0.18, h * 0.7),
+            Offset(w * 0.38, h * 0.58),
+            glow,
+          );
+          canvas.drawLine(
+            Offset(w * 0.82, h * 0.7),
+            Offset(w * 0.62, h * 0.58),
+            glow,
+          );
+        }
         canvas.drawLine(
           Offset(w * 0.8, h * 0.22),
           Offset(w * 0.62, h * 0.38),
@@ -485,6 +649,15 @@ class _FlowSignPainter extends CustomPainter {
           Offset(w * 0.62, h * 0.58),
           stage >= 3 ? p : guide,
         );
+        if (pulse > 0 && activeStage == 4) {
+          canvas.drawArc(
+            Rect.fromLTWH(w * 0.37, h * 0.08, w * 0.26, h * 0.2),
+            math.pi,
+            math.pi,
+            false,
+            _glowPaint(math.max(4, p.strokeWidth * 2.8)),
+          );
+        }
         canvas.drawArc(
           Rect.fromLTWH(w * 0.37, h * 0.08, w * 0.26, h * 0.2),
           math.pi,
@@ -500,7 +673,8 @@ class _FlowSignPainter extends CustomPainter {
       oldDelegate.kind != kind ||
       oldDelegate.color != color ||
       oldDelegate.completedOccurrences != completedOccurrences ||
-      oldDelegate.totalOccurrences != totalOccurrences;
+      oldDelegate.totalOccurrences != totalOccurrences ||
+      oldDelegate.pulse != pulse;
 }
 
 String _flowSignProgressNoun(FlowSignKind? kind) => switch (kind) {
