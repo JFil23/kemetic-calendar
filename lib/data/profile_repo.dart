@@ -918,7 +918,7 @@ class ProfileRepo {
       final response = await withSupabaseAuthRetry(
         _client,
         () => _client.rpc(
-          'get_profile_feed_cards',
+          'get_profile_feed',
           params: {'p_limit': limit, 'p_offset': offset},
         ),
       );

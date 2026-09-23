@@ -406,33 +406,6 @@ class FlowsRepo {
       userId: userId,
       flowIds: savedFlowIds,
     );
-    final flowIds = rows
-        .map((row) => (row['id'] as num?)?.toInt())
-        .whereType<int>()
-        .toSet();
-    final appearancesByFlowId = <int, FlowAppearance>{};
-    if (flowIds.isNotEmpty) {
-      try {
-        final appearanceRows =
-            await _client
-                    .from(_kFlows)
-                    .select('id, appearance')
-                    .inFilter('id', flowIds.toList(growable: false))
-                as List<dynamic>;
-        for (final raw in appearanceRows.whereType<Map>()) {
-          final row = Map<String, dynamic>.from(raw);
-          final id = (row['id'] as num?)?.toInt();
-          if (id != null) {
-            appearancesByFlowId[id] = FlowAppearance.fromJson(
-              row['appearance'],
-            );
-          }
-        }
-      } catch (error) {
-        _log('appearance enrichment unavailable: $error');
-      }
-    }
-
     return rows
         .map((row) {
           final flowId = (row['id'] as num).toInt();
@@ -440,10 +413,6 @@ class FlowsRepo {
           final savedAt =
               savedAtByFlowId[flowId] ?? _savedAtFallbackForRow(enriched);
           enriched['saved_at'] = savedAt?.toIso8601String();
-          final appearance = appearancesByFlowId[flowId];
-          if (appearance != null) {
-            enriched['appearance'] = appearance.toJsonOrNull();
-          }
           return FlowRow.fromRow(enriched);
         })
         .toList(growable: false);

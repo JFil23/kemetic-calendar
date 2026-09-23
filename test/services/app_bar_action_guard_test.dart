@@ -1397,7 +1397,8 @@ void main() {
         expect(rhythmRepo, contains('withSupabaseAuthRetry'));
         expect(decanRepo, contains('withSupabaseAuthRetry'));
         expect(profileRepo, contains('withSupabaseAuthRetry'));
-        expect(profileRepo, contains("'get_profile_feed_cards'"));
+        expect(profileRepo, contains("'get_profile_feed'"));
+        expect(profileRepo, isNot(contains("'get_profile_feed_cards'")));
         expect(profileRepo, contains("'get_flow_post_feed'"));
       },
     );

@@ -156,12 +156,10 @@ void main() {
                 id: 7,
                 name: 'Bounded flow',
                 remainingLiveEventCount: 4,
+                appearance: const <String, Object?>{'sign_kind': 'palm_count'},
               ),
             ],
             '/rest/v1/rpc/get_my_held_reading_houses_v1': const <Object?>[],
-            '/rest/v1/flows': <Object?>[
-              <String, Object?>{'id': 7, 'appearance': null},
-            ],
           },
         );
         final client = SupabaseClient(
@@ -177,14 +175,17 @@ void main() {
           expect(rows, hasLength(1));
           expect(rows.single.id, 7);
           expect(rows.single.remainingLiveEventCount, 4);
-          expect(httpClient.lastRequestPath, '/rest/v1/flows');
+          expect(rows.single.appearance.signKind?.wireName, 'palm_count');
+          expect(
+            httpClient.lastRequestPath,
+            '/rest/v1/rpc/get_my_held_reading_houses_v1',
+          );
           expect(httpClient.lastRequestBody, <String, Object?>{'p_limit': 10});
           expect(httpClient.requestPaths, <String>[
             '/rest/v1/rpc/get_my_filed_flows_v1',
             '/rest/v1/rpc/get_my_held_reading_houses_v1',
-            '/rest/v1/flows',
           ]);
-          expect(httpClient.requestCount, 3);
+          expect(httpClient.requestCount, 2);
         } finally {
           client.dispose();
         }
@@ -201,9 +202,6 @@ void main() {
               _filedRow(id: 71, name: 'Still filed'),
             ],
             '/rest/v1/rpc/get_my_held_reading_houses_v1': const <Object?>[],
-            '/rest/v1/flows': <Object?>[
-              <String, Object?>{'id': 71, 'appearance': null},
-            ],
           },
         );
         final healthyClient = SupabaseClient(
@@ -345,7 +343,7 @@ void main() {
 
           expect(rows, hasLength(1));
           expect(rows.single.id, 7);
-          expect(httpClient.requestCount, 3);
+          expect(httpClient.requestCount, 2);
         } finally {
           client.dispose();
         }
@@ -580,6 +578,7 @@ Map<String, Object?> _filedRow({
   String createdAt = '2026-08-30T12:00:00Z',
   bool visibleInActiveList = true,
   int remainingLiveEventCount = 0,
+  Map<String, Object?>? appearance,
 }) => <String, Object?>{
   'id': id,
   'user_id': userId,
@@ -592,6 +591,7 @@ Map<String, Object?> _filedRow({
   'end_date': null,
   'notes': null,
   'rules': const <Object?>[],
+  'appearance': appearance,
   'is_hidden': false,
   'is_reminder': false,
   'created_at': createdAt,

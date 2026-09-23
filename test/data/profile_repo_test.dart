@@ -422,7 +422,7 @@ void main() {
 
     final feed = await _withProfileServer(
       (request) async {
-        if (request.uri.path == '/rest/v1/rpc/get_profile_feed_cards') {
+        if (request.uri.path == '/rest/v1/rpc/get_profile_feed') {
           await _sendJson(
             request,
             body: <Object?>[

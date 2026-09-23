@@ -32,7 +32,7 @@ class CommonsRepo {
       final response = await withSupabaseAuthRetry(
         _client,
         () => _client.rpc(
-          'get_commons_home_cards',
+          'get_commons_home',
           params: <String, dynamic>{
             'p_local_date': _dateOnly(date),
             'p_question_id': questionId.trim(),
