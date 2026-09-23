@@ -10,9 +10,7 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
         widget.mode != _FlowPreviewMode.saved) {
       return false;
     }
-    if (!widget.useMySavedExpansionParity || widget.actionPolicy != null) {
-      return false;
-    }
+    if (!widget.useMySavedExpansionParity) return false;
     return meta.maatKey == null && reminderRule == null && !flow.isReminder;
   }
 
@@ -1086,6 +1084,33 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
     required _Flow flow,
     required MaatFlowDetailTheme theme,
   }) {
+    final externalPolicy = widget.actionPolicy;
+    if (externalPolicy != null) {
+      void runExternalAction() {
+        final result = externalPolicy.onPressed?.call();
+        if (result is Future<void>) unawaited(result);
+      }
+
+      return MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.4,
+        child: MaatFlowDetailDock(
+          theme: theme,
+          joined: false,
+          busy: externalPolicy.busy,
+          onPressed: externalPolicy.canRun ? runExternalAction : null,
+          actionLabel: externalPolicy.effectiveLabel,
+          actionNote: '',
+          joinedLabel: externalPolicy.label,
+          joinedNote: '',
+          actionKey: const ValueKey<String>('user-flow-external-action'),
+          joinedKey: const ValueKey<String>(
+            'user-flow-external-action-complete',
+          ),
+          showNote: false,
+        ),
+      );
+    }
+
     if (widget.mode == _FlowPreviewMode.saved) {
       final date = _savedDisplayStart(flow);
       return MediaQuery.withClampedTextScaling(

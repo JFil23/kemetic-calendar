@@ -133,42 +133,19 @@ void main() {
     },
   );
 
-  test('Discover Practices uses expanded For You blocks', () {
+  test('Discover Practices reuses the For You post component', () {
     final discoverSource = _methodSource(
       source,
       'Widget _buildCommonsDiscoverSection()',
       'Widget _buildCommonsCompactButton(',
     );
-    final expandedShellSource = _methodSource(
-      source,
-      'Widget _buildExpandedFeedCardShell({',
-      'Widget _buildExpandedFeedAuthorRow({',
-    );
-
-    expect(discoverSource, contains('_buildCommonsDiscoverExpandedBlock'));
-    expect(discoverSource, contains('_buildExpandedFeedDetailCard'));
-    expect(
-      discoverSource,
-      contains('height: _expandedFeedDetailHeight(context)'),
-    );
-    expect(discoverSource, contains('embeddedInCommonsDiscover: true'));
-    expect(discoverSource, isNot(contains('embeddedInScrollView: true')));
-    expect(
-      discoverSource,
-      contains(
-        'Commons Discover intentionally embeds the bounded expanded For You block',
-      ),
-    );
-    expect(source, contains('_openCommonsDiscoverItem'));
-    expect(source, contains('_selectedFeedTab = _SocialFeedTab.forYou'));
-    expect(expandedShellSource, contains('embeddedInCommonsDiscover'));
-    expect(expandedShellSource, contains('SingleChildScrollView('));
-    expect(expandedShellSource, contains('Expanded(child: bodyContent)'));
-    expect(expandedShellSource, contains('Icons.north_east_rounded'));
+    expect(discoverSource, contains('_buildCommonsDiscoverPost'));
+    expect(discoverSource, contains('return _buildFeedItemTile(item)'));
+    expect(discoverSource, isNot(contains('_buildExpandedFeedDetailCard')));
+    expect(discoverSource, isNot(contains('_expandedFeedDetailHeight')));
     expect(source, isNot(contains('_buildCommonsDiscoverCard')));
     expect(source, isNot(contains('_buildCommonsDiscoverFlow')));
     expect(source, isNot(contains('_FeedTileMode')));
-    expect(source, isNot(contains('embeddedInScrollView')));
   });
 
   test('Discover Practices uses the loaded For You feed source', () {
@@ -180,23 +157,32 @@ void main() {
     );
   });
 
-  test('Commons Discover inherits expanded engagement and owner actions', () {
-    final expandedFlowSource = _methodSource(
+  test('Commons Discover inherits shared flow-post actions', () {
+    final feedFlowSource = _methodSource(
       source,
-      'Widget _buildExpandedFlowDetailCard(',
-      'Widget _buildExpandedInsightDetailCard(',
+      'Widget _buildFeedFlowTile(',
+      'Widget _buildFeedInsightTile(',
     );
+    final tileSource = File(
+      'lib/features/profile/social_flow_post_tile.dart',
+    ).readAsStringSync();
 
-    expect(expandedFlowSource, contains('FlowPostEngagementRow('));
-    expect(expandedFlowSource, contains("ValueKey('expanded_"));
+    expect(feedFlowSource, contains('SocialFlowPostTile('));
     expect(
-      expandedFlowSource,
-      contains('onPressed: () => _removePost(post.id)'),
+      feedFlowSource,
+      contains('FlowPostShareActions.open(context, post)'),
     );
-    expect(expandedFlowSource, contains('onPressed: () => _savePost(post)'));
-    expect(expandedFlowSource, contains('Practice Together'));
-    expect(expandedFlowSource, contains('cleanFlowOverview('));
-    expect(expandedFlowSource, contains('decodedOverview: meta.overview'));
+    expect(tileSource, contains('FlowPostEngagementRow('));
+    expect(tileSource, contains('PostedFlowArtifact('));
+    expect(tileSource, contains('additionalActions:'));
+    expect(tileSource, contains("label: isOwner ? 'Edit' : 'Save'"));
+    expect(tileSource, contains("label: 'Together'"));
+    expect(feedFlowSource, isNot(contains('_buildForYouFlowTileActions')));
+    expect(feedFlowSource, contains(': () => unawaited(_savePost(post))'));
+    expect(source, contains('Practice Together'));
+    expect(source, isNot(contains('_buildExpandedFlowDetailCard')));
+    expect(source, isNot(contains('_buildExpandedFeedView')));
+    expect(source, isNot(contains('_feedBloomController')));
   });
 
   test('Today Commons keeps honest empty states', () {

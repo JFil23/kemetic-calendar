@@ -97,6 +97,34 @@ void main() {
       contains('surface: UserFlowAppearanceSurface.fullDetail'),
     );
     expect(detail, contains('surface: UserFlowAppearanceSurface.fullDetail'));
-    expect(profile, contains('appearance.copyWith(clearImage: true)'));
+    expect(profile, contains('PostedFlowArtifact('));
+    expect(profile, isNot(contains('appearance.copyWith(clearImage: true)')));
   });
+
+  test(
+    'canonical saved-flow detail parity is opt-in for social posts only',
+    () async {
+      final calendar = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final sharedDetail = await File(
+        'lib/features/inbox/shared_flow_details_page.dart',
+      ).readAsString();
+      final socialDetail = await File(
+        'lib/features/profile/flow_post_detail_page.dart',
+      ).readAsString();
+
+      expect(calendar, contains('bool useMySavedExpansionParity = false'));
+      expect(calendar, contains("label: 'Manage Flow'"));
+      expect(calendar, contains("label: 'Add to My Flows'"));
+      expect(sharedDetail, contains('this.useCanonicalUserFlowDetail = false'));
+      expect(
+        sharedDetail,
+        contains(
+          'useMySavedExpansionParity: widget.useCanonicalUserFlowDetail',
+        ),
+      );
+      expect(socialDetail, contains('useCanonicalUserFlowDetail: true'));
+    },
+  );
 }

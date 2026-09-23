@@ -37,6 +37,15 @@ class ShareAppLinkIntent extends AppLinkIntent {
 }
 
 @immutable
+class FlowPostAppLinkIntent extends AppLinkIntent {
+  final String postId;
+
+  const FlowPostAppLinkIntent({required this.postId});
+
+  String get routeLocation => '/flow-post/${Uri.encodeComponent(postId)}';
+}
+
+@immutable
 class PlannerAppLinkIntent extends AppLinkIntent {
   final PlannerLaunchIntent plannerIntent;
 
@@ -56,7 +65,28 @@ class AppLinkIntentParser {
       return PlannerAppLinkIntent(plannerIntent);
     }
 
+    final flowPostIntent = _parseFlowPostLink(uri);
+    if (flowPostIntent != null) return flowPostIntent;
+
     return _parseShareLink(uri);
+  }
+
+  static FlowPostAppLinkIntent? _parseFlowPostLink(Uri uri) {
+    final segments = uri.pathSegments
+        .where((segment) => segment.isNotEmpty)
+        .toList(growable: false);
+    final supportedWebHost =
+        uri.host == 'maat.app' || uri.host == 'www.maat.app';
+    final supportedScheme = uri.scheme == 'maat';
+    if (!supportedWebHost && !supportedScheme) return null;
+    if (supportedScheme && uri.host.toLowerCase() == 'flow-post') {
+      final postId = segments.isEmpty ? null : _nonEmpty(segments.first);
+      return postId == null ? null : FlowPostAppLinkIntent(postId: postId);
+    }
+    if (segments.length < 2) return null;
+    if (segments.first.toLowerCase() != 'flow-post') return null;
+    final postId = _nonEmpty(segments[1]);
+    return postId == null ? null : FlowPostAppLinkIntent(postId: postId);
   }
 
   static bool _looksLikeAuthCallback(Uri uri) {

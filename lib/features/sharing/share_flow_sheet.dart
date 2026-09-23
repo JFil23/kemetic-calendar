@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/profile_repo.dart';
+import '../../repositories/inbox_repo.dart';
 import '../inbox/conversation_user.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/shared/kemetic_text.dart';
@@ -19,6 +20,7 @@ class ShareFlowSheet extends StatefulWidget {
   final String flowTitle;
   final String? noteShareText; // When present, share a note instead of a flow
   final String? eventId; // When present, call create_event_share
+  final bool sendTextInInbox;
 
   const ShareFlowSheet({
     super.key,
@@ -26,6 +28,7 @@ class ShareFlowSheet extends StatefulWidget {
     required this.flowTitle,
     this.noteShareText,
     this.eventId,
+    this.sendTextInInbox = false,
   });
 
   @override
@@ -51,10 +54,12 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   bool get _isEventShare => widget.eventId != null;
   bool get _isTextShare =>
       widget.flowId == null && widget.noteShareText != null && !_isEventShare;
+  bool get _isInboxTextShare => _isTextShare && widget.sendTextInInbox;
   bool get _isFlowShare => widget.flowId != null;
-  bool get _supportsExternalRecipients => !_isEventShare;
+  bool get _supportsExternalRecipients => !_isEventShare && !_isInboxTextShare;
   String get _sheetTitle {
     if (_isEventShare) return 'Invite People';
+    if (_isInboxTextShare) return 'Send in Inbox';
     if (_isTextShare) return 'Share Note';
     return 'Share Flow';
   }
@@ -134,7 +139,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                   ),
                   ElevatedButton(
                     onPressed:
-                        ((_isFlowShare || _isEventShare) &&
+                        ((_isFlowShare || _isEventShare || _isInboxTextShare) &&
                                 _recipients.isEmpty) ||
                             _sending
                         ? null
@@ -232,6 +237,8 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: _isEventShare
+            ? 'Search app users by @handle or name'
+            : _isInboxTextShare
             ? 'Search app users by @handle or name'
             : 'Search by @handle or enter email/phone (press Enter)',
         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
@@ -825,6 +832,47 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
             backgroundColor: Colors.red,
           ),
         );
+        return;
+      }
+      if (_isInboxTextShare) {
+        final recipients = dedupeShareRecipients(
+          _recipients.where(
+            (recipient) => recipient.type == ShareRecipientType.user,
+          ),
+        );
+        if (recipients.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Choose at least one person'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        setState(() => _sending = true);
+        try {
+          final inboxRepo = InboxRepo(Supabase.instance.client);
+          await Future.wait(
+            recipients.map(
+              (recipient) => inboxRepo.sendTextMessage(
+                recipientId: recipient.value,
+                text: text,
+              ),
+            ),
+          );
+          if (!mounted) return;
+          Navigator.pop(context, true);
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not send this post in Inbox.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        } finally {
+          if (mounted) setState(() => _sending = false);
+        }
         return;
       }
       final externalText = KemeticExternalText.asciiSafe(text);

@@ -65,8 +65,10 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="maat.app" android:pathPrefix="/share" />
                 <data android:scheme="https" android:host="maat.app" android:pathPrefix="/f" />
+                <data android:scheme="https" android:host="maat.app" android:pathPrefix="/flow-post" />
                 <data android:scheme="https" android:host="www.maat.app" android:pathPrefix="/share" />
                 <data android:scheme="https" android:host="www.maat.app" android:pathPrefix="/f" />
+                <data android:scheme="https" android:host="www.maat.app" android:pathPrefix="/flow-post" />
             </intent-filter>
 
             <!-- ICS File Import Support -->

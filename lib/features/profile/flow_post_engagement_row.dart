@@ -18,11 +18,51 @@ import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 
+Future<void> showFlowPostCommentsSheet({
+  required BuildContext context,
+  required FlowPost post,
+  ProfileRepo? repo,
+  List<FlowPostComment> initialComments = const <FlowPostComment>[],
+}) {
+  final resolvedRepo = repo ?? ProfileRepo(Supabase.instance.client);
+  return showEditableModalBottomSheet<void>(
+    context: context,
+    backgroundColor: const Color(0xFF0D0D0F),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+    ),
+    builder: (context) => _FlowPostCommentsSheet(
+      post: post,
+      repo: resolvedRepo,
+      initialComments: initialComments,
+    ),
+  );
+}
+
+class FlowPostEngagementAction {
+  const FlowPostEngagementAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.key,
+    this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final Key? key;
+  final Color? color;
+}
+
 class FlowPostEngagementRow extends StatefulWidget {
   final FlowPost post;
   final bool autoOpenComments;
   final bool lazyComments;
   final bool compact;
+  final VoidCallback? onShare;
+  final List<FlowPostEngagementAction> additionalActions;
+  final Color? likedColor;
 
   const FlowPostEngagementRow({
     super.key,
@@ -30,6 +70,9 @@ class FlowPostEngagementRow extends StatefulWidget {
     this.autoOpenComments = false,
     this.lazyComments = false,
     this.compact = false,
+    this.onShare,
+    this.additionalActions = const <FlowPostEngagementAction>[],
+    this.likedColor,
   });
 
   @override
@@ -168,10 +211,11 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = widget.compact || constraints.maxWidth < 260;
+        final unified = widget.additionalActions.isNotEmpty;
         final labelStyle = TextStyle(
           color: Colors.white.withValues(alpha: 0.85),
           fontWeight: FontWeight.w600,
-          fontSize: compact ? 12 : 14,
+          fontSize: unified ? 10 : (compact ? 12 : 14),
         );
         final actionMinHeight = useExpandedTouchTargets(context)
             ? kMinInteractiveDimension
@@ -186,46 +230,56 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
               Expanded(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: actionMinHeight),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      InkWell(
-                        onTap: _likeButtonEnabled ? _toggleLike : null,
-                        borderRadius: BorderRadius.circular(999),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: compact ? 2 : 4,
-                            vertical: compact ? 4 : 6,
+                  child: unified
+                      ? InkWell(
+                          onTap: _likeButtonEnabled ? _toggleLike : null,
+                          borderRadius: BorderRadius.circular(10),
+                          child: _buildUnifiedActionContent(
+                            icon: _buildLikeIcon(iconSize),
+                            label: _likeLabel(compact: true),
+                            style: labelStyle,
                           ),
-                          child: _buildLikeIcon(iconSize),
-                        ),
-                      ),
-                      SizedBox(width: spacing),
-                      Flexible(
-                        child: InkWell(
-                          onTap: _likesListEnabled
-                              ? _openLikesSheet
-                              : (_engagementUnavailable
-                                    ? _showMigrationNeeded
-                                    : null),
-                          borderRadius: BorderRadius.circular(999),
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: compact ? 2 : 4,
-                              vertical: compact ? 4 : 6,
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            InkWell(
+                              onTap: _likeButtonEnabled ? _toggleLike : null,
+                              borderRadius: BorderRadius.circular(999),
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: compact ? 2 : 4,
+                                  vertical: compact ? 4 : 6,
+                                ),
+                                child: _buildLikeIcon(iconSize),
+                              ),
                             ),
-                            child: Text(
-                              _likeLabel(compact: compact),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              softWrap: false,
-                              style: labelStyle,
+                            SizedBox(width: spacing),
+                            Flexible(
+                              child: InkWell(
+                                onTap: _likesListEnabled
+                                    ? _openLikesSheet
+                                    : (_engagementUnavailable
+                                          ? _showMigrationNeeded
+                                          : null),
+                                borderRadius: BorderRadius.circular(999),
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: compact ? 2 : 4,
+                                    vertical: compact ? 4 : 6,
+                                  ),
+                                  child: Text(
+                                    _likeLabel(compact: compact),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    softWrap: false,
+                                    style: labelStyle,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
               Expanded(
@@ -236,33 +290,129 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                   borderRadius: BorderRadius.circular(10),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(minHeight: actionMinHeight),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: iconSize,
-                          color: KemeticGold.base,
-                        ),
-                        SizedBox(width: spacing),
-                        Flexible(
-                          child: Text(
-                            _commentLabel(compact: compact),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
+                    child: unified
+                        ? _buildUnifiedActionContent(
+                            icon: Icon(
+                              Icons.chat_bubble_outline,
+                              size: iconSize,
+                              color: KemeticGold.base,
+                            ),
+                            label: _commentLabel(compact: true),
                             style: labelStyle,
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.chat_bubble_outline,
+                                size: iconSize,
+                                color: KemeticGold.base,
+                              ),
+                              SizedBox(width: spacing),
+                              Flexible(
+                                child: Text(
+                                  _commentLabel(compact: compact),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: false,
+                                  style: labelStyle,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),
+              if (widget.onShare != null)
+                Expanded(
+                  child: InkWell(
+                    key: const ValueKey<String>('flow-post-share-action'),
+                    onTap: widget.onShare,
+                    borderRadius: BorderRadius.circular(10),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: actionMinHeight),
+                      child: unified
+                          ? _buildUnifiedActionContent(
+                              icon: Icon(
+                                Icons.ios_share_rounded,
+                                size: iconSize,
+                                color: KemeticGold.base,
+                              ),
+                              label: 'Share',
+                              style: labelStyle,
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.ios_share_rounded,
+                                  size: iconSize,
+                                  color: KemeticGold.base,
+                                ),
+                                SizedBox(width: spacing),
+                                Flexible(
+                                  child: Text(
+                                    'Share',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    softWrap: false,
+                                    style: labelStyle,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              for (final action in widget.additionalActions)
+                Expanded(
+                  child: InkWell(
+                    key: action.key,
+                    onTap: action.onPressed,
+                    borderRadius: BorderRadius.circular(10),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: actionMinHeight),
+                      child: _buildUnifiedActionContent(
+                        icon: Icon(
+                          action.icon,
+                          size: iconSize,
+                          color: action.color ?? KemeticGold.base,
+                        ),
+                        label: action.label,
+                        style: labelStyle.copyWith(
+                          color: action.color ?? labelStyle.color,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildUnifiedActionContent({
+    required Widget icon,
+    required String label,
+    required TextStyle style,
+  }) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        icon,
+        const SizedBox(height: 2),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+          textAlign: TextAlign.center,
+          style: style,
+        ),
+      ],
     );
   }
 
@@ -285,7 +435,9 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
 
     return KemeticHeartIcon(
       size: iconSize,
-      color: _likedByMe ? Colors.redAccent : KemeticGold.base,
+      color: _likedByMe
+          ? widget.likedColor ?? Colors.redAccent
+          : KemeticGold.base,
       filled: _likedByMe,
     );
   }
@@ -389,19 +541,11 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
       return;
     }
 
-    await showEditableModalBottomSheet<void>(
+    await showFlowPostCommentsSheet(
       context: context,
-      backgroundColor: const Color(0xFF0D0D0F),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (context) {
-        return _FlowPostCommentsSheet(
-          post: widget.post,
-          repo: _repo,
-          initialComments: _comments,
-        );
-      },
+      post: widget.post,
+      repo: _repo,
+      initialComments: _comments,
     );
 
     if (!mounted || _engagementUnavailable) return;

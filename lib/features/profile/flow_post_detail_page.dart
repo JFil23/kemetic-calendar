@@ -37,8 +37,6 @@ class FlowPostDetailPage extends StatefulWidget {
 }
 
 class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
-  static const double _baseFooterReservedHeight = 164;
-
   final _repo = ProfileRepo(Supabase.instance.client);
   late final List<FlowPost> _posts;
   late final PageController _pageController;
@@ -51,8 +49,6 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
 
   FlowPost get _activePost => _posts[_activeIndex];
   bool get _showsPager => _posts.length > 1;
-  double get _footerReservedHeight =>
-      _baseFooterReservedHeight + (_showsPager ? 34 : 0);
 
   @override
   void initState() {
@@ -63,6 +59,12 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     _activeIndex = widget.initialIndex.clamp(0, _posts.length - 1);
     _pageController = PageController(initialPage: _activeIndex);
     _refreshSavedStateFor(_activePost);
+    if (widget.openCommentsOnLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showFlowPostCommentsSheet(context: context, post: _activePost);
+      });
+    }
   }
 
   @override
@@ -134,7 +136,6 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
       body: Stack(
         children: [
           Positioned.fill(
-            bottom: _footerReservedHeight,
             child: _showsPager
                 ? PageView.builder(
                     controller: _pageController,
@@ -150,6 +151,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                         payloadJson: _payloadFor(_posts[index]),
                         showImportFooter: false,
                         actionPolicy: _actionPolicyFor(_posts[index]),
+                        useCanonicalUserFlowDetail: true,
                         fallbackLocation:
                             '/profile/${Uri.encodeComponent(_posts[index].userId)}',
                       );
@@ -159,66 +161,44 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                     payloadJson: _payloadFor(post),
                     showImportFooter: false,
                     actionPolicy: _actionPolicyFor(post),
+                    useCanonicalUserFlowDetail: true,
                     fallbackLocation:
                         '/profile/${Uri.encodeComponent(post.userId)}',
                   ),
           ),
           SafeArea(
-            minimum: const EdgeInsets.all(16),
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_showsPager) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        for (int i = 0; i < _posts.length; i++)
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            height: 8,
-                            width: _activeIndex == i ? 18 : 8,
-                            decoration: BoxDecoration(
-                              color: _activeIndex == i
-                                  ? KemeticGold.base
-                                  : Colors.white.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(20),
+            minimum: const EdgeInsets.fromLTRB(62, 10, 12, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_showsPager)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (int i = 0; i < _posts.length; i++)
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              height: 7,
+                              width: _activeIndex == i ? 18 : 7,
+                              decoration: BoxDecoration(
+                                color: _activeIndex == i
+                                    ? KemeticGold.base
+                                    : Colors.white.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
                             ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D0D0F),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
+                        ],
                       ),
                     ),
-                    child: FlowPostEngagementRow(
-                      key: ValueKey('detail_${post.id}'),
-                      post: post,
-                      autoOpenComments: widget.openCommentsOnLoad,
-                    ),
-                  ),
-                  if (!widget.isOwner) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _buildSafetyMenu(),
-                    ),
-                  ],
-                ],
-              ),
+                  )
+                else
+                  const Spacer(),
+                if (!widget.isOwner) _buildSafetyMenu(),
+              ],
             ),
           ),
         ],

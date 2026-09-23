@@ -83,31 +83,35 @@ void main() {
     expect(backdropSource, contains('profileBackdropNeutralPlaceholderKey'));
   });
 
-  test('community feed flow taps keep feed-specific expansion behavior', () {
+  test('community flow posts open the canonical detail surface', () {
     final profileSource = File(
       'lib/features/profile/profile_page.dart',
+    ).readAsStringSync();
+    final socialTileSource = File(
+      'lib/features/profile/social_flow_post_tile.dart',
     ).readAsStringSync();
     final tileSource = _methodSource(
       profileSource,
       'Widget _buildFeedFlowTile(',
       'Widget _buildFeedInsightTile(',
     );
-    final expandedSource = _methodSource(
-      profileSource,
-      'Widget _buildExpandedFlowDetailCard(',
-      'Widget _buildExpandedInsightDetailCard(',
+    expect(tileSource, contains('SocialFlowPostTile('));
+    expect(tileSource, contains('onOpenFlow: () => _openFeedFlowPost(post)'));
+    expect(socialTileSource, contains('PostedFlowArtifact('));
+    expect(socialTileSource, contains('FlowPostEngagementRow('));
+    expect(socialTileSource, contains('additionalActions:'));
+    expect(socialTileSource, contains('relationshipLabel:'));
+    expect(socialTileSource, contains('color: Colors.black'));
+    expect(
+      socialTileSource,
+      isNot(contains('borderRadius: BorderRadius.circular(22)')),
     );
-
-    expect(tileSource, contains('onTap: () => _expandFeedItem(item)'));
+    expect(tileSource, contains('FlowPostShareActions.open(context, post)'));
+    expect(tileSource, isNot(contains('copyWith(clearImage: true)')));
+    expect(tileSource, isNot(contains("label: 'Begin'")));
     expect(tileSource, isNot(contains('_openPostDetails')));
     expect(tileSource, isNot(contains('FlowPostDetailPage')));
-
-    expect(expandedSource, contains('_buildExpandedFeedCardShell'));
-    expect(expandedSource, contains('_buildExpandedFlowEventTile(event)'));
-    expect(expandedSource, contains('FlowPostEngagementRow('));
-    expect(expandedSource, contains('onPressed: () => _savePost(post)'));
-    expect(expandedSource, isNot(contains('SharedFlowDetailsPage')));
-    expect(expandedSource, isNot(contains('buildCanonicalCustomFlowDetail')));
+    expect(profileSource, isNot(contains('_buildExpandedFlowDetailCard')));
   });
 
   testWidgets(

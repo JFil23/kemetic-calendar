@@ -1088,6 +1088,53 @@ class ProfileRepo {
     }
   }
 
+  /// Updates only the owner's optional voice attached to a flow post.
+  ///
+  /// The published flow snapshot remains unchanged. The note is mirrored at
+  /// the existing top-level and nested payload locations so old and current
+  /// clients continue to read the same post without a second caption store.
+  Future<bool> updateFlowPostSharedNote(
+    FlowPost post, {
+    String? sharedNote,
+  }) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || post.userId != userId) return false;
+
+      final normalized = sharedNote?.trim();
+      final payload = <String, dynamic>{
+        ...?post.payloadJson,
+        'name': post.name,
+        'color': post.color,
+        'notes': post.notes,
+        'rules': post.rules,
+        'start_date': post.startDate?.toIso8601String(),
+        'end_date': post.endDate?.toIso8601String(),
+      };
+      final metadata = <String, dynamic>{...?post.aiMetadata};
+      if (normalized == null || normalized.isEmpty) {
+        payload.remove('shared_note');
+        metadata.remove('shared_note');
+      } else {
+        payload['shared_note'] = normalized;
+        metadata['shared_note'] = normalized;
+      }
+      metadata['payload'] = payload;
+
+      final updated = await _client
+          .from('flow_posts')
+          .update(<String, dynamic>{'ai_metadata': metadata})
+          .eq('id', post.id)
+          .eq('user_id', userId)
+          .select('id')
+          .maybeSingle();
+      return updated != null;
+    } catch (e) {
+      _log('[ProfileRepo] Error updating flow post caption: $e');
+      return false;
+    }
+  }
+
   /// Create or refresh an insight post for the current user from an insight entry.
   Future<InsightPost?> postInsightEntry(String entryId) async {
     try {

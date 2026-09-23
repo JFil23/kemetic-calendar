@@ -4995,6 +4995,7 @@ class CalendarPage extends StatefulWidget {
     bool isSaved = false,
     bool previewAsTemplate = false,
     FlowDetailActionPolicy? actionPolicy,
+    bool useMySavedExpansionParity = false,
     bool showFlowOptions = false,
     FlowAppearance appearance = FlowAppearance.empty,
   }) {
@@ -5048,6 +5049,7 @@ class CalendarPage extends StatefulWidget {
       onEndMaatFlow: null,
       actionPolicy: actionPolicy,
       showFlowOptions: showFlowOptions,
+      useMySavedExpansionParity: useMySavedExpansionParity,
     );
   }
 

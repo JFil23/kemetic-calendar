@@ -108,6 +108,30 @@ void main() {
       );
     });
 
+    test('parses posted-flow universal links', () {
+      final intent = AppLinkIntent.parse(
+        Uri.parse('https://maat.app/flow-post/post-123'),
+      );
+
+      expect(intent, isA<FlowPostAppLinkIntent>());
+      expect(
+        (intent as FlowPostAppLinkIntent).routeLocation,
+        '/flow-post/post-123',
+      );
+    });
+
+    test('parses posted-flow custom-scheme links', () {
+      final intent = AppLinkIntent.parse(
+        Uri.parse('maat://flow-post/post-456'),
+      );
+
+      expect(intent, isA<FlowPostAppLinkIntent>());
+      expect(
+        (intent as FlowPostAppLinkIntent).routeLocation,
+        '/flow-post/post-456',
+      );
+    });
+
     test('parses planner widget universal links', () {
       final intent = AppLinkIntent.parse(
         Uri.parse(

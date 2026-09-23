@@ -568,6 +568,58 @@ void main() {
       expect(flowId, 778);
     },
   );
+
+  test(
+    'updateFlowPostSharedNote updates only the owner caption snapshot',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      String? requestMethod;
+      Map<String, dynamic>? requestBody;
+
+      final updated = await _withProfileServer(
+        (request) async {
+          if (request.uri.path == '/rest/v1/flow_posts') {
+            requestMethod = request.method;
+            requestBody = await _readJsonMap(request);
+            await _sendJson(request, body: {'id': 'post-caption-1'});
+            return;
+          }
+          await _sendJson(request, statusCode: HttpStatus.notFound, body: {});
+        },
+        (client, _) async {
+          await client.auth.recoverSession(_sessionJson(ownerUserId));
+          final post = FlowPost(
+            id: 'post-caption-1',
+            userId: ownerUserId,
+            sourceFlowId: 91,
+            name: 'Return to Measure',
+            color: 0xFF6F93A8,
+            notes: 'A thirty-day practice.',
+            rules: const <dynamic>[],
+            aiMetadata: const <String, dynamic>{'source': 'flow_snapshot'},
+            payloadJson: const <String, dynamic>{
+              'appearance': <String, dynamic>{'sign_kind': 'palm_count'},
+            },
+            createdAt: DateTime.utc(2026, 9, 22),
+          );
+          return ProfileRepo(client).updateFlowPostSharedNote(
+            post,
+            sharedNote: 'This changed my mornings.',
+          );
+        },
+      );
+
+      expect(updated, isTrue);
+      expect(requestMethod, 'PATCH');
+      final metadata = requestBody?['ai_metadata'] as Map<String, dynamic>?;
+      expect(metadata?['source'], 'flow_snapshot');
+      expect(metadata?['shared_note'], 'This changed my mornings.');
+      expect(
+        (metadata?['payload'] as Map<String, dynamic>?)?['shared_note'],
+        'This changed my mornings.',
+      );
+    },
+  );
 }
 
 Future<T> _withProfileServer<T>(

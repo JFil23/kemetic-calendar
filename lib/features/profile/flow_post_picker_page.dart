@@ -8,6 +8,8 @@ import '../../core/navigation_fallback.dart';
 import '../../data/flows_repo.dart';
 import '../../data/profile_repo.dart';
 import '_post_glossy_helper.dart';
+import 'flow_post_caption_sheet.dart';
+import 'posted_flow_artifact.dart';
 
 enum FlowPostTab { active, saved }
 
@@ -110,15 +112,29 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
       );
   }
 
-  Future<void> _postFlow(int flowId) async {
+  Future<void> _postFlow(FlowRow flow) async {
     if (_posting) return;
+    final caption = await showFlowPostCaptionSheet(
+      context: context,
+      actionLabel: 'Post flow',
+      preview: PostedFlowArtifact(
+        name: flow.name,
+        color: flow.color,
+        notes: flow.notes,
+        startDate: flow.startDate,
+        endDate: flow.endDate,
+        appearance: flow.appearance,
+        compact: true,
+      ),
+    );
+    if (caption == null || !mounted) return;
     final hapticResult = await AppHaptics.productiveAction(
       reason: 'profile_flow_post',
     );
     if (!mounted) return;
     _showDebugHapticsSnackBar(hapticResult);
     setState(() => _posting = true);
-    final created = await _profileRepo.postFlow(flowId);
+    final created = await _profileRepo.postFlow(flow.id, sharedNote: caption);
     if (!mounted) return;
     setState(() => _posting = false);
 
@@ -227,7 +243,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
                           itemBuilder: (ctx, i) {
                             final f = flows[i];
                             return ListTile(
-                              onTap: () => _postFlow(f.id),
+                              onTap: () => _postFlow(f),
                               leading: Container(
                                 width: 18,
                                 height: 18,
@@ -242,8 +258,8 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
                               ),
                               subtitle: Text(
                                 _tab == FlowPostTab.saved
-                                    ? 'Saved Flow'
-                                    : 'Active',
+                                    ? 'Saved Flow · preview and post'
+                                    : 'Active · preview and post',
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,

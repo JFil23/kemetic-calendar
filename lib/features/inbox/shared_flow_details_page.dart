@@ -38,6 +38,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
   final bool showRemoveButton;
   final Future<void> Function()? onRemove;
   final FlowDetailActionPolicy? actionPolicy;
+  final bool useCanonicalUserFlowDetail;
   final String fallbackLocation;
 
   const SharedFlowDetailsPage({
@@ -50,6 +51,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
     this.showRemoveButton = false,
     this.onRemove,
     this.actionPolicy,
+    this.useCanonicalUserFlowDetail = false,
     this.fallbackLocation = '/inbox',
   }) : assert(
          share != null || flowId != null || payloadJson != null,
@@ -598,6 +600,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           isSaved: data.isSaved,
           previewAsTemplate: !data.isImported,
           actionPolicy: actionPolicy,
+          useMySavedExpansionParity: widget.useCanonicalUserFlowDetail,
           showFlowOptions: false,
           appearance: data.appearance,
         );

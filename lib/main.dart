@@ -1415,6 +1415,9 @@ String? _initialLocationFromAppLinkIntent(AppLinkIntent intent) {
   if (intent is ShareAppLinkIntent) {
     return intent.routeLocation;
   }
+  if (intent is FlowPostAppLinkIntent) {
+    return intent.routeLocation;
+  }
   return null;
 }
 
@@ -1423,6 +1426,8 @@ String _appLinkIntentSignature(AppLinkIntent intent, Uri uri) {
       ? 'auth:${intent.uri}'
       : intent is ShareAppLinkIntent
       ? 'share:${intent.routeLocation}'
+      : intent is FlowPostAppLinkIntent
+      ? 'flow-post:${intent.routeLocation}'
       : intent is PlannerAppLinkIntent
       ? 'planner:${intent.routeLocation}'
       : 'unknown:${uri.toString()}';
@@ -1446,6 +1451,9 @@ String? _redirectExternalAppLink(Uri uri) {
     return intent.routeLocation;
   }
   if (intent is ShareAppLinkIntent) {
+    return intent.routeLocation;
+  }
+  if (intent is FlowPostAppLinkIntent) {
     return intent.routeLocation;
   }
   return null;
@@ -4713,6 +4721,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       return;
     }
 
+    if (intent is FlowPostAppLinkIntent) {
+      _routeToFlowPost(intent);
+      return;
+    }
+
     if (intent is PlannerAppLinkIntent) {
       _routeToPlanner(intent.plannerIntent);
     }
@@ -4738,6 +4751,14 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   void _routeToSharedFlow(ShareAppLinkIntent intent) {
+    final location = intent.routeLocation;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _router.go(location);
+    });
+  }
+
+  void _routeToFlowPost(FlowPostAppLinkIntent intent) {
     final location = intent.routeLocation;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
