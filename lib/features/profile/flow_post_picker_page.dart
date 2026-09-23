@@ -124,7 +124,6 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
         startDate: flow.startDate,
         endDate: flow.endDate,
         appearance: flow.appearance,
-        compact: true,
       ),
     );
     if (caption == null || !mounted) return;

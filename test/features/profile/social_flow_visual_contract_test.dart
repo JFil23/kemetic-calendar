@@ -30,9 +30,9 @@ void main() {
   });
 
   testWidgets(
-    'social flow artifacts match the approved image and plain states',
+    'social flow artifacts match the approved image widget and plain states',
     (tester) async {
-      tester.view.physicalSize = const Size(390, 700);
+      tester.view.physicalSize = const Size(390, 1020);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final heroData = await rootBundle.load(
@@ -68,6 +68,18 @@ void main() {
                         accentArgb: 0xFF6F93A8,
                       ),
                       localImageBytes: heroBytes,
+                    ),
+                    const SizedBox(height: 22),
+                    const PostedFlowArtifact(
+                      name: 'Measured Practice',
+                      color: 0xFF6F93A8,
+                      notes: 'The chosen Merkhet carries this flow.',
+                      startDate: null,
+                      endDate: null,
+                      appearance: FlowAppearance(
+                        signKind: FlowSignKind.palmCount,
+                        accentArgb: 0xFF6F93A8,
+                      ),
                     ),
                     const SizedBox(height: 22),
                     PostedFlowArtifact(

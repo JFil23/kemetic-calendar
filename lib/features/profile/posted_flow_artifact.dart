@@ -8,6 +8,8 @@ import '../calendar/presentation/user_flow_appearance_visual.dart';
 
 const Color _artifactBone = Color(0xFFF2ECE0);
 const Color _artifactMuted = Color(0xFFA69A83);
+const double _artifactHeight = 300;
+const double _artifactHeroHeight = 148;
 const List<String> _artifactSerifFallback = <String>[
   'GentiumPlus',
   'Georgia',
@@ -30,7 +32,6 @@ class PostedFlowArtifact extends StatelessWidget {
     this.startDate,
     this.endDate,
     this.events = const <dynamic>[],
-    this.compact = false,
     this.localImageBytes,
   });
 
@@ -41,7 +42,6 @@ class PostedFlowArtifact extends StatelessWidget {
   final DateTime? endDate;
   final List<dynamic> events;
   final FlowAppearance appearance;
-  final bool compact;
   final Uint8List? localImageBytes;
 
   Color get _accent => appearance.accentArgb == null
@@ -78,233 +78,122 @@ class PostedFlowArtifact extends StatelessWidget {
     final accent = _accent;
     final title = cleanFlowTitle(name);
     final overview = cleanFlowOverview(notes);
-    if (appearance.isEmpty) {
-      return _buildCompactArtifact(
-        accent: accent,
-        title: title,
-        overview: overview,
-      );
-    }
-    final radius = BorderRadius.circular(compact ? 16 : 20);
+    final radius = BorderRadius.circular(20);
 
     return Semantics(
       container: true,
       label: '${title.isEmpty ? 'Untitled Flow' : title}, $_spanLabel',
-      child: Container(
-        key: const ValueKey<String>('posted-flow-artifact'),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: const Color(0xE6080705),
-          borderRadius: radius,
-          border: Border.all(color: accent.withValues(alpha: 0.48)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Stack(
-              children: <Widget>[
-                UserFlowAppearanceHero(
-                  key: const ValueKey<String>(
-                    'posted-flow-artifact-appearance',
-                  ),
-                  appearance: appearance,
-                  accent: accent,
-                  localImageBytes: localImageBytes,
-                  height: compact ? 128 : 148,
-                  compact: false,
-                  signSize: compact ? 112 : 136,
-                  showSignLabel: false,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(19),
-                  ),
-                ),
-                Positioned(
-                  top: 11,
-                  right: 11,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: const Color(0xB8090806),
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: accent.withValues(alpha: 0.42)),
+      child: SizedBox(
+        height: _artifactHeight,
+        child: Container(
+          key: const ValueKey<String>('posted-flow-artifact'),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: const Color(0xE6080705),
+            borderRadius: radius,
+            border: Border.all(color: accent.withValues(alpha: 0.48)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Stack(
+                children: <Widget>[
+                  UserFlowAppearanceHero(
+                    key: const ValueKey<String>(
+                      'posted-flow-artifact-appearance',
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 5,
+                    appearance: appearance,
+                    accent: accent,
+                    localImageBytes: localImageBytes,
+                    height: _artifactHeroHeight,
+                    compact: false,
+                    signSize: 136,
+                    showSignLabel: false,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(19),
+                    ),
+                  ),
+                  Positioned(
+                    top: 11,
+                    right: 11,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: const Color(0xB8090806),
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.42),
+                        ),
                       ),
-                      child: Text(
-                        _spanLabel.toUpperCase(),
-                        style: TextStyle(
-                          color: accent.withValues(alpha: 0.94),
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.35,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        child: Text(
+                          _spanLabel.toUpperCase(),
+                          style: TextStyle(
+                            color: accent.withValues(alpha: 0.94),
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.35,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                compact ? 14 : 18,
-                compact ? 12 : 8,
-                compact ? 14 : 18,
-                14,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'FLOW · ${_signTypeLabel(appearance.signKind)}',
-                    style: TextStyle(
-                      color: accent.withValues(alpha: 0.92),
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.55,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    title.isEmpty ? 'Untitled Flow' : title,
-                    maxLines: compact ? 2 : 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _artifactBone,
-                      fontFamily: 'CormorantGaramond',
-                      fontFamilyFallback: _artifactSerifFallback,
-                      fontSize: compact ? 23 : 25,
-                      fontWeight: FontWeight.w500,
-                      height: 1.02,
-                    ),
-                  ),
-                  if (overview.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 4),
-                    Text(
-                      overview,
-                      maxLines: compact ? 2 : 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _artifactMuted.withValues(alpha: 0.90),
-                        fontFamily: 'CormorantGaramond',
-                        fontFamilyFallback: _artifactSerifFallback,
-                        fontSize: compact ? 15 : 16,
-                        fontWeight: FontWeight.w400,
-                        height: 1.28,
-                      ),
-                    ),
-                  ],
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCompactArtifact({
-    required Color accent,
-    required String title,
-    required String overview,
-  }) {
-    final visibleTitle = title.isEmpty ? 'Untitled Flow' : title;
-    final mark = visibleTitle.characters.first.toUpperCase();
-    return Semantics(
-      container: true,
-      label: '$visibleTitle, $_spanLabel',
-      child: Container(
-        key: const ValueKey<String>('posted-flow-artifact'),
-        constraints: const BoxConstraints(minHeight: 88),
-        clipBehavior: Clip.antiAlias,
-        padding: const EdgeInsets.fromLTRB(16, 14, 15, 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0D0B08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF241F17)),
-        ),
-        child: Stack(
-          children: <Widget>[
-            Positioned(
-              top: -14,
-              bottom: -14,
-              left: -16,
-              child: ColoredBox(color: accent, child: const SizedBox(width: 3)),
-            ),
-            Row(
-              children: <Widget>[
-                Container(
-                  width: 50,
-                  height: 50,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: accent.withValues(alpha: 0.42)),
-                  ),
-                  child: Text(
-                    mark,
-                    style: TextStyle(
-                      color: accent.withValues(alpha: 0.96),
-                      fontFamily: 'CormorantGaramond',
-                      fontFamilyFallback: _artifactSerifFallback,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 13),
-                Expanded(
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        visibleTitle,
-                        maxLines: 1,
+                        'FLOW · ${_signTypeLabel(appearance.signKind)}',
+                        style: TextStyle(
+                          color: accent.withValues(alpha: 0.92),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.55,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        title.isEmpty ? 'Untitled Flow' : title,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: _artifactBone,
                           fontFamily: 'CormorantGaramond',
                           fontFamilyFallback: _artifactSerifFallback,
-                          fontSize: 22,
+                          fontSize: 25,
                           fontWeight: FontWeight.w500,
-                          height: 1.05,
+                          height: 1.02,
                         ),
                       ),
                       if (overview.isNotEmpty) ...<Widget>[
                         const SizedBox(height: 4),
                         Text(
                           overview,
-                          maxLines: 1,
+                          maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: _artifactMuted.withValues(alpha: 0.9),
+                            color: _artifactMuted.withValues(alpha: 0.90),
                             fontFamily: 'CormorantGaramond',
                             fontFamilyFallback: _artifactSerifFallback,
-                            fontSize: 15,
-                            fontStyle: FontStyle.italic,
-                            height: 1.2,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            height: 1.28,
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  _spanLabel.toUpperCase(),
-                  style: TextStyle(
-                    color: accent.withValues(alpha: 0.92),
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.25,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

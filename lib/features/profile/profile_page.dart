@@ -4447,7 +4447,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           endDate: post.endDate,
           events: _flowPayloadEvents(post),
           appearance: appearance,
-          compact: true,
         ),
       ],
     );
@@ -4853,7 +4852,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         endDate: post.endDate,
         events: _flowPayloadEvents(post),
         appearance: appearance,
-        compact: true,
       ),
     );
     if (caption == null || !mounted) return;

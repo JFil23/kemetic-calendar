@@ -69,29 +69,55 @@ void main() {
     );
   });
 
-  testWidgets('empty appearance preserves the legacy text-only artifact', (
+  testWidgets('image, widget-only, and plain artifacts share one geometry', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: PostedFlowArtifact(
-          name: 'Plain Flow',
-          color: 0xFF8A8378,
-          appearance: FlowAppearance.empty,
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Column(
+              children: const <Widget>[
+                PostedFlowArtifact(
+                  key: ValueKey<String>('image-artifact'),
+                  name: 'Image Flow',
+                  color: 0xFF8A8378,
+                  appearance: FlowAppearance(imageObjectPath: 'image-flow.jpg'),
+                ),
+                PostedFlowArtifact(
+                  key: ValueKey<String>('widget-artifact'),
+                  name: 'Widget Flow',
+                  color: 0xFF6F93A8,
+                  appearance: FlowAppearance(signKind: FlowSignKind.palmCount),
+                ),
+                PostedFlowArtifact(
+                  key: ValueKey<String>('plain-artifact'),
+                  name: 'Plain Flow',
+                  color: 0xFFC08E6E,
+                  appearance: FlowAppearance.empty,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
 
-    expect(find.text('Plain Flow'), findsOneWidget);
+    final heights = <double>[
+      tester.getSize(find.byKey(const ValueKey('image-artifact'))).height,
+      tester.getSize(find.byKey(const ValueKey('widget-artifact'))).height,
+      tester.getSize(find.byKey(const ValueKey('plain-artifact'))).height,
+    ];
+    expect(heights, everyElement(300));
     expect(
       find.byKey(const ValueKey('posted-flow-artifact-appearance')),
-      findsNothing,
+      findsNWidgets(3),
     );
     expect(
-      tester.getSize(find.byKey(const ValueKey('posted-flow-artifact'))).height,
-      greaterThanOrEqualTo(88),
+      find.byKey(const ValueKey('user-flow-appearance-sign-layer')),
+      findsOneWidget,
     );
-    expect(find.text('P'), findsOneWidget);
+    expect(find.text('P'), findsNothing);
   });
 
   testWidgets('caption composer previews typed words above the artifact', (
@@ -233,6 +259,8 @@ void main() {
       expect(picker, contains('PostedFlowArtifact('));
       expect(socialTile, contains('PostedFlowArtifact('));
       expect(artifact, contains('UserFlowAppearanceHero('));
+      expect(artifact, isNot(contains('_buildCompactArtifact')));
+      expect(artifact, isNot(contains('if (appearance.isEmpty)')));
       expect(profile, isNot(contains('_buildExpandedFlowDetailCard')));
       expect(profile, isNot(contains('_buildExpandedFlowEventTile')));
       expect(profile, isNot(contains('copyWith(clearImage: true)')));
@@ -263,12 +291,8 @@ void main() {
     final userDetail = File(
       'lib/features/calendar/calendar_user_flow_detail.dart',
     ).readAsStringSync();
-    final profileRepo = File(
-      'lib/data/profile_repo.dart',
-    ).readAsStringSync();
-    final commonsRepo = File(
-      'lib/data/commons_repo.dart',
-    ).readAsStringSync();
+    final profileRepo = File('lib/data/profile_repo.dart').readAsStringSync();
+    final commonsRepo = File('lib/data/commons_repo.dart').readAsStringSync();
 
     expect(caption, contains('kFlowPostCaptionMaxLength = 280'));
     expect(caption, contains('ValueListenableBuilder<TextEditingValue>'));
