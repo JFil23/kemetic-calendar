@@ -365,6 +365,52 @@ void main() {
   );
 
   test(
+    'profile feed fallback keeps undiscoverable profiles out of both queries',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+
+      final result = await _withProfileServer(
+        (request) async {
+          if (request.uri.path == '/rest/v1/rpc/get_profile_feed') {
+            await _sendJson(
+              request,
+              statusCode: HttpStatus.internalServerError,
+              body: {
+                'code': '57014',
+                'message': 'canceling statement due to statement timeout',
+              },
+            );
+            return;
+          }
+          if (request.uri.path == '/rest/v1/flow_posts' ||
+              request.uri.path == '/rest/v1/insight_posts') {
+            await _sendJson(request, body: <Object?>[]);
+            return;
+          }
+          await _sendJson(request, statusCode: HttpStatus.notFound, body: {});
+        },
+        (client, requests) async {
+          await client.auth.recoverSession(_sessionJson(ownerUserId));
+          final feed = await ProfileRepo(client).getProfileFeedResult();
+          return (feed: feed, requests: List<Uri>.from(requests));
+        },
+      );
+
+      expect(result.feed.hasError, isFalse);
+      final fallbackRequests = result.requests.where(
+        (uri) =>
+            uri.path == '/rest/v1/flow_posts' ||
+            uri.path == '/rest/v1/insight_posts',
+      );
+      expect(fallbackRequests, hasLength(2));
+      for (final uri in fallbackRequests) {
+        expect(uri.queryParameters['select'], contains('profiles!inner'));
+        expect(uri.queryParameters['profiles.is_discoverable'], 'eq.true');
+      }
+    },
+  );
+
+  test(
     'saveFlowPostToMyFlows creates profile-import metadata and snapshot events',
     () async {
       SharedPreferences.setMockInitialValues({});

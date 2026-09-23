@@ -24,6 +24,9 @@ import 'flow_post_comment_model.dart';
 import 'flow_appearance.dart';
 import 'flow_appearance_store.dart';
 
+const Duration _profileFeedRpcTimeout = Duration(seconds: 6);
+const Duration _profileFeedFallbackTimeout = Duration(seconds: 6);
+
 class ProfileAvatarGlyphsUnavailable implements Exception {
   const ProfileAvatarGlyphsUnavailable();
 
@@ -921,7 +924,7 @@ class ProfileRepo {
           'get_profile_feed',
           params: {'p_limit': limit, 'p_offset': offset},
         ),
-      );
+      ).timeout(_profileFeedRpcTimeout);
       final rows = (response as List<dynamic>?) ?? const [];
       final items = rows
           .whereType<Map>()
@@ -1941,21 +1944,23 @@ class ProfileRepo {
           _client
               .from('flow_posts')
               .select(
-                'id, user_id, flow_id, name, color, notes, rules, start_date, end_date, is_hidden, ai_metadata, created_at, profiles(handle, display_name, avatar_url, avatar_glyphs)',
+                'id, user_id, flow_id, name, color, notes, rules, start_date, end_date, is_hidden, ai_metadata, created_at, profiles!inner(handle, display_name, avatar_url, avatar_glyphs, is_discoverable)',
               )
               .eq('is_hidden', false)
+              .eq('profiles.is_discoverable', true)
               .order('created_at', ascending: false)
               .range(0, (limit * 2) - 1),
           _client
               .from('insight_posts')
               .select(
-                'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
+                'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles!inner(handle, display_name, avatar_url, avatar_glyphs, is_discoverable)',
               )
               .eq('is_hidden', false)
+              .eq('profiles.is_discoverable', true)
               .order('created_at', ascending: false)
               .range(0, (limit * 2) - 1),
         ]),
-      );
+      ).timeout(_profileFeedFallbackTimeout);
       final flowItems = ((results[0] as List<dynamic>?) ?? const [])
           .whereType<Map>()
           .map(

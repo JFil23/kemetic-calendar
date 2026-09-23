@@ -134,6 +134,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
       body: Stack(
+        fit: StackFit.expand,
         children: [
           Positioned.fill(
             child: _showsPager

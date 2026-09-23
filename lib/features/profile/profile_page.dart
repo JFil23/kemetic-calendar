@@ -69,6 +69,19 @@ const List<String> _profileSerifFallback = ['GentiumPlus', 'Georgia', 'serif'];
 
 enum _SocialFeedTab { todaysCommons, forYou }
 
+@visibleForTesting
+List<ProfileFeedItem> seedProfileFeedFromOwnedPosts({
+  required List<FlowPost> flowPosts,
+  required List<InsightPost> insightPosts,
+}) {
+  final items = <ProfileFeedItem>[
+    for (final post in flowPosts) ProfileFeedItem.flow(post),
+    for (final post in insightPosts) ProfileFeedItem.insight(post),
+  ];
+  items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  return items;
+}
+
 class ProfilePage extends StatefulWidget {
   final String userId;
   final bool isMyProfile;
@@ -278,6 +291,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     });
 
     if (feedRevealed) {
+      _primeFeedFromOwnedPosts();
       unawaited(_loadFeedPage(reset: true));
     }
     _applyPendingContinuityAfterFrame();
@@ -663,6 +677,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       _postsLoading = false;
       _activePostIndex = activeIndex;
     });
+    _primeFeedFromOwnedPosts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || posts.isEmpty || !_postPageController.hasClients) return;
       final currentPage = (_postPageController.page ?? activeIndex.toDouble())
@@ -693,6 +708,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       _insightPostsLoading = false;
       _activeInsightPostIndex = activeIndex;
     });
+    _primeFeedFromOwnedPosts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || posts.isEmpty || !_insightPostPageController.hasClients) {
         return;
@@ -741,14 +757,27 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     _feedTopPullDistance = 0;
     unawaited(AppHaptics.mediumImpact(reason: 'profile_feed_reveal'));
     setState(() => _feedRevealed = true);
+    _primeFeedFromOwnedPosts();
     unawaited(_markProfileCommunityHelperSeen());
     _scheduleContinuitySave();
-    if (_feedItems.isEmpty && !_feedLoading) {
+    if (!_feedLoading) {
       unawaited(_loadFeedPage(reset: true));
     }
     if (_commonsHome == null && !_commonsLoading) {
       unawaited(_loadCommonsHome());
     }
+  }
+
+  void _primeFeedFromOwnedPosts() {
+    if (!_isViewingOwnProfile || (_feedItems.isNotEmpty && !_feedLoading)) {
+      return;
+    }
+    final seed = seedProfileFeedFromOwnedPosts(
+      flowPosts: _posts,
+      insightPosts: _insightPosts,
+    );
+    if (seed.isEmpty) return;
+    setState(() => _feedItems = seed);
   }
 
   Future<void> _closeFeed() async {
