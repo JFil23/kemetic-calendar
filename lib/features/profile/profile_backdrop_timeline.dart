@@ -135,12 +135,14 @@ class ProfileDayCycleBackdrop extends StatefulWidget {
     super.key,
     this.opacity = 0.9,
     this.alignment = const Alignment(-0.08, -1.0),
+    this.fit = BoxFit.cover,
     this.clock,
     this.imageProviderFactory,
   });
 
   final double opacity;
   final Alignment alignment;
+  final BoxFit fit;
   final DateTime Function()? clock;
   final ProfileBackdropImageProviderFactory? imageProviderFactory;
 
@@ -271,7 +273,7 @@ class _ProfileDayCycleBackdropState extends State<ProfileDayCycleBackdrop>
   Widget _buildBackdropImage(String assetPath) {
     return Image(
       image: _backdropImageProvider(assetPath),
-      fit: BoxFit.cover,
+      fit: widget.fit,
       alignment: widget.alignment,
       gaplessPlayback: true,
       filterQuality: FilterQuality.low,

@@ -114,6 +114,25 @@ void main() {
     expect(profileSource, isNot(contains('_buildExpandedFlowDetailCard')));
   });
 
+  test('feed owns one full-frame pyramid hero below the app bar', () {
+    final profileSource = File(
+      'lib/features/profile/profile_page.dart',
+    ).readAsStringSync();
+    final feedSource = _methodSource(
+      profileSource,
+      'Widget _buildFeedMode()',
+      'Widget _buildHeroSection(',
+    );
+
+    expect(feedSource, contains('padding: EdgeInsets.only(top: appBarBottom)'));
+    expect(feedSource, contains('width * 9 / 16'));
+    expect(feedSource, contains('_ProfileFeedHeroHeaderDelegate('));
+    expect(profileSource, contains("'profile-feed-pyramid-hero'"));
+    expect(profileSource, contains('fit: BoxFit.contain'));
+    expect(profileSource, contains('offset: Offset(0, shrinkOffset * 0.34)'));
+    expect(profileSource, contains('if (showBackdrop && !_feedRevealed)'));
+  });
+
   testWidgets(
     'uses a neutral placeholder until the intended backdrop asset resolves',
     (tester) async {

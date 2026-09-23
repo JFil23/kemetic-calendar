@@ -59,6 +59,14 @@ void main() {
     expect(find.text('Evening Return'), findsOneWidget);
     expect(find.text('30 DAYS'), findsOneWidget);
     expect(find.text('A measured return to the body.'), findsOneWidget);
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey('posted-flow-artifact-appearance')),
+          )
+          .height,
+      148,
+    );
   });
 
   testWidgets('empty appearance preserves the legacy text-only artifact', (
@@ -79,6 +87,11 @@ void main() {
       find.byKey(const ValueKey('posted-flow-artifact-appearance')),
       findsNothing,
     );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('posted-flow-artifact'))).height,
+      greaterThanOrEqualTo(88),
+    );
+    expect(find.text('P'), findsOneWidget);
   });
 
   testWidgets('caption composer previews typed words above the artifact', (
@@ -250,12 +263,22 @@ void main() {
     final userDetail = File(
       'lib/features/calendar/calendar_user_flow_detail.dart',
     ).readAsStringSync();
+    final profileRepo = File(
+      'lib/data/profile_repo.dart',
+    ).readAsStringSync();
+    final commonsRepo = File(
+      'lib/data/commons_repo.dart',
+    ).readAsStringSync();
 
     expect(caption, contains('kFlowPostCaptionMaxLength = 280'));
     expect(caption, contains('ValueListenableBuilder<TextEditingValue>'));
     expect(caption, contains("'flow-post-live-caption-preview'"));
     expect(caption, contains("'flow-post-live-caption-text'"));
     expect(profile, contains('updateFlowPostSharedNote'));
+    expect(profileRepo, contains("'get_profile_feed_cards'"));
+    expect(commonsRepo, contains("'get_commons_home_cards'"));
+    expect(detail, contains('_fullPostFor(post)'));
+    expect(profileRepo, contains("post.payloadJson?['events'] is! List"));
     expect(socialTile, contains('additionalActions:'));
     expect(profile, isNot(contains('_feedBloomController')));
     expect(profile, isNot(contains('_buildExpandedFeedView')));

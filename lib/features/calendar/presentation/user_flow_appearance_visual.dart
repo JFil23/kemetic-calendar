@@ -42,6 +42,8 @@ class UserFlowAppearanceHero extends StatelessWidget {
     this.showProgressFooter = false,
     this.borderRadius,
     this.surface = UserFlowAppearanceSurface.standard,
+    this.signSize,
+    this.showSignLabel = true,
     this.animationRevision = 0,
     this.animationFromCompletedOccurrences,
   });
@@ -56,6 +58,8 @@ class UserFlowAppearanceHero extends StatelessWidget {
   final bool showProgressFooter;
   final BorderRadiusGeometry? borderRadius;
   final UserFlowAppearanceSurface surface;
+  final double? signSize;
+  final bool showSignLabel;
   final int animationRevision;
   final int? animationFromCompletedOccurrences;
 
@@ -69,12 +73,20 @@ class UserFlowAppearanceHero extends StatelessWidget {
       UserFlowAppearanceSurface.daySheet => hasSign ? 0.24 : 1.0,
       _ => 1.0,
     };
-    final signSize = switch (surface) {
-      UserFlowAppearanceSurface.fullDetail => math.min(152.0, height * 0.54),
-      UserFlowAppearanceSurface.daySheet => math.min(136.0, height * 0.72),
-      UserFlowAppearanceSurface.timelineBadge => math.min(31.0, height * 0.78),
-      UserFlowAppearanceSurface.standard => compact ? 31.0 : 78.0,
-    };
+    final resolvedSignSize =
+        signSize ??
+        switch (surface) {
+          UserFlowAppearanceSurface.fullDetail => math.min(
+            152.0,
+            height * 0.54,
+          ),
+          UserFlowAppearanceSurface.daySheet => math.min(136.0, height * 0.72),
+          UserFlowAppearanceSurface.timelineBadge => math.min(
+            31.0,
+            height * 0.78,
+          ),
+          UserFlowAppearanceSurface.standard => compact ? 31.0 : 78.0,
+        };
     return SizedBox(
       height: height,
       width: double.infinity,
@@ -153,10 +165,12 @@ class UserFlowAppearanceHero extends StatelessWidget {
                     : Alignment.center,
                 child: FlowSignVisual(
                   kind: appearance.signKind!,
-                  label: showProgressFooter ? null : appearance.signLabel,
+                  label: showProgressFooter || !showSignLabel
+                      ? null
+                      : appearance.signLabel,
                   color: accent,
                   compact: surface == UserFlowAppearanceSurface.timelineBadge,
-                  size: signSize,
+                  size: resolvedSignSize,
                   completedOccurrences: completedOccurrences,
                   totalOccurrences: totalOccurrences,
                   animationRevision: animationRevision,

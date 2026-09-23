@@ -1385,7 +1385,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
             : _buildProfile(),
       ),
     );
-    final appBarBackground = showBackdrop
+    final appBarBackground = _feedRevealed
+        ? const Color(0xFF070604)
+        : showBackdrop
         ? Colors.transparent
         : const Color(0xFF000000);
     final appBarSystemOverlayStyle = SystemUiOverlayStyle.light.copyWith(
@@ -1458,7 +1460,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       ),
       body: Stack(
         children: [
-          if (showBackdrop) ...[
+          if (showBackdrop && !_feedRevealed) ...[
             const Positioned.fill(child: ProfileDayCycleBackdrop()),
             Positioned.fill(
               child: IgnorePointer(
@@ -1749,45 +1751,43 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   Widget _buildFeedMode() {
     const bottomPadding = 32.0;
-    final mastheadTop = MediaQuery.paddingOf(context).top + kToolbarHeight;
+    final appBarBottom = MediaQuery.paddingOf(context).top + kToolbarHeight;
+    final heroExtent = MediaQuery.sizeOf(context).width * 9 / 16;
 
     return NotificationListener<ScrollNotification>(
       onNotification: _handleFeedScrollNotification,
-      child: CustomScrollView(
-        controller: _feedScrollController,
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
-        slivers: [
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: mastheadTop + 172,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20, mastheadTop + 22, 20, 20),
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: _buildFeedHeader(),
+      child: Padding(
+        padding: EdgeInsets.only(top: appBarBottom),
+        child: CustomScrollView(
+          controller: _feedScrollController,
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          slivers: [
+            SliverPersistentHeader(
+              delegate: _ProfileFeedHeroHeaderDelegate(
+                extent: heroExtent,
+                header: _buildFeedHeader(),
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _ProfileFeedTabsHeaderDelegate(
+                extent: _profileFeedTabsHeaderExtent,
+                child: _buildPinnedSocialFeedTabs(),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: ColoredBox(
+                color: const Color(0xFF070604),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, bottomPadding),
+                  child: _buildFeedPanel(),
                 ),
               ),
             ),
-          ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _ProfileFeedTabsHeaderDelegate(
-              extent: _profileFeedTabsHeaderExtent,
-              child: _buildPinnedSocialFeedTabs(),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: ColoredBox(
-              color: const Color(0xFF070604),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, bottomPadding),
-                child: _buildFeedPanel(),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -4942,5 +4942,64 @@ class _ProfileFeedTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _ProfileFeedTabsHeaderDelegate oldDelegate) {
     return extent != oldDelegate.extent || child != oldDelegate.child;
+  }
+}
+
+class _ProfileFeedHeroHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _ProfileFeedHeroHeaderDelegate({
+    required this.extent,
+    required this.header,
+  });
+
+  final double extent;
+  final Widget header;
+
+  @override
+  double get minExtent => 0;
+
+  @override
+  double get maxExtent => extent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ClipRect(
+      key: const ValueKey<String>('profile-feed-pyramid-hero'),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          Transform.translate(
+            offset: Offset(0, shrinkOffset * 0.34),
+            child: const ProfileDayCycleBackdrop(
+              fit: BoxFit.contain,
+              alignment: Alignment.center,
+            ),
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[
+                  Color(0x00000000),
+                  Color(0x30000000),
+                  Color(0xE8070604),
+                ],
+                stops: <double>[0.0, 0.54, 1.0],
+              ),
+            ),
+          ),
+          Positioned(left: 20, right: 20, bottom: 16, child: header),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _ProfileFeedHeroHeaderDelegate oldDelegate) {
+    return extent != oldDelegate.extent || header != oldDelegate.header;
   }
 }

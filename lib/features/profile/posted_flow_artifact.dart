@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../data/flow_appearance.dart';
@@ -29,6 +31,7 @@ class PostedFlowArtifact extends StatelessWidget {
     this.endDate,
     this.events = const <dynamic>[],
     this.compact = false,
+    this.localImageBytes,
   });
 
   final String name;
@@ -39,6 +42,7 @@ class PostedFlowArtifact extends StatelessWidget {
   final List<dynamic> events;
   final FlowAppearance appearance;
   final bool compact;
+  final Uint8List? localImageBytes;
 
   Color get _accent => appearance.accentArgb == null
       ? Color(0xFF000000 | (color & 0x00FFFFFF))
@@ -74,6 +78,13 @@ class PostedFlowArtifact extends StatelessWidget {
     final accent = _accent;
     final title = cleanFlowTitle(name);
     final overview = cleanFlowOverview(notes);
+    if (appearance.isEmpty) {
+      return _buildCompactArtifact(
+        accent: accent,
+        title: title,
+        overview: overview,
+      );
+    }
     final radius = BorderRadius.circular(compact ? 16 : 20);
 
     return Semantics(
@@ -86,38 +97,75 @@ class PostedFlowArtifact extends StatelessWidget {
           color: const Color(0xE6080705),
           borderRadius: radius,
           border: Border.all(color: accent.withValues(alpha: 0.48)),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: accent.withValues(alpha: 0.10),
-              blurRadius: compact ? 14 : 22,
-              offset: const Offset(0, 10),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            if (!appearance.isEmpty)
-              UserFlowAppearanceHero(
-                key: const ValueKey<String>('posted-flow-artifact-appearance'),
-                appearance: appearance,
-                accent: accent,
-                height: compact ? 128 : 184,
-                compact: false,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(19),
+            Stack(
+              children: <Widget>[
+                UserFlowAppearanceHero(
+                  key: const ValueKey<String>(
+                    'posted-flow-artifact-appearance',
+                  ),
+                  appearance: appearance,
+                  accent: accent,
+                  localImageBytes: localImageBytes,
+                  height: compact ? 128 : 148,
+                  compact: false,
+                  signSize: compact ? 112 : 136,
+                  showSignLabel: false,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(19),
+                  ),
                 ),
-              ),
+                Positioned(
+                  top: 11,
+                  right: 11,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xB8090806),
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: accent.withValues(alpha: 0.42)),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      child: Text(
+                        _spanLabel.toUpperCase(),
+                        style: TextStyle(
+                          color: accent.withValues(alpha: 0.94),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.35,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             Padding(
               padding: EdgeInsets.fromLTRB(
                 compact ? 14 : 18,
-                appearance.isEmpty ? (compact ? 14 : 18) : (compact ? 12 : 15),
+                compact ? 12 : 8,
                 compact ? 14 : 18,
-                compact ? 14 : 17,
+                14,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
+                  Text(
+                    'FLOW · ${_signTypeLabel(appearance.signKind)}',
+                    style: TextStyle(
+                      color: accent.withValues(alpha: 0.92),
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.55,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   Text(
                     title.isEmpty ? 'Untitled Flow' : title,
                     maxLines: compact ? 2 : 3,
@@ -126,36 +174,13 @@ class PostedFlowArtifact extends StatelessWidget {
                       color: _artifactBone,
                       fontFamily: 'CormorantGaramond',
                       fontFamilyFallback: _artifactSerifFallback,
-                      fontSize: compact ? 23 : 28,
-                      fontWeight: FontWeight.w600,
+                      fontSize: compact ? 23 : 25,
+                      fontWeight: FontWeight.w500,
                       height: 1.02,
                     ),
                   ),
-                  const SizedBox(height: 7),
-                  Row(
-                    children: <Widget>[
-                      Container(
-                        width: 18,
-                        height: 2,
-                        decoration: BoxDecoration(
-                          color: accent,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _spanLabel.toUpperCase(),
-                        style: TextStyle(
-                          color: accent.withValues(alpha: 0.92),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
                   if (overview.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 9),
+                    const SizedBox(height: 4),
                     Text(
                       overview,
                       maxLines: compact ? 2 : 3,
@@ -178,4 +203,120 @@ class PostedFlowArtifact extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildCompactArtifact({
+    required Color accent,
+    required String title,
+    required String overview,
+  }) {
+    final visibleTitle = title.isEmpty ? 'Untitled Flow' : title;
+    final mark = visibleTitle.characters.first.toUpperCase();
+    return Semantics(
+      container: true,
+      label: '$visibleTitle, $_spanLabel',
+      child: Container(
+        key: const ValueKey<String>('posted-flow-artifact'),
+        constraints: const BoxConstraints(minHeight: 88),
+        clipBehavior: Clip.antiAlias,
+        padding: const EdgeInsets.fromLTRB(16, 14, 15, 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D0B08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF241F17)),
+        ),
+        child: Stack(
+          children: <Widget>[
+            Positioned(
+              top: -14,
+              bottom: -14,
+              left: -16,
+              child: ColoredBox(color: accent, child: const SizedBox(width: 3)),
+            ),
+            Row(
+              children: <Widget>[
+                Container(
+                  width: 50,
+                  height: 50,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: accent.withValues(alpha: 0.42)),
+                  ),
+                  child: Text(
+                    mark,
+                    style: TextStyle(
+                      color: accent.withValues(alpha: 0.96),
+                      fontFamily: 'CormorantGaramond',
+                      fontFamilyFallback: _artifactSerifFallback,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        visibleTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: _artifactBone,
+                          fontFamily: 'CormorantGaramond',
+                          fontFamilyFallback: _artifactSerifFallback,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w500,
+                          height: 1.05,
+                        ),
+                      ),
+                      if (overview.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 4),
+                        Text(
+                          overview,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: _artifactMuted.withValues(alpha: 0.9),
+                            fontFamily: 'CormorantGaramond',
+                            fontFamilyFallback: _artifactSerifFallback,
+                            fontSize: 15,
+                            fontStyle: FontStyle.italic,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _spanLabel.toUpperCase(),
+                  style: TextStyle(
+                    color: accent.withValues(alpha: 0.92),
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _signTypeLabel(FlowSignKind? kind) => switch (kind) {
+    FlowSignKind.palmCount => 'PALM COUNT',
+    FlowSignKind.shen => 'SHEN CYCLE',
+    FlowSignKind.gatheringVessel => 'GATHERING VESSEL',
+    FlowSignKind.riverPath => 'RIVER PATH',
+    FlowSignKind.papyrus => 'PAPYRUS GROWTH',
+    FlowSignKind.kheper => 'KHEPER',
+    null => 'PRACTICE',
+  };
 }

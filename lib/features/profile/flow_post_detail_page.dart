@@ -46,6 +46,8 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
   bool _safetyActionRunning = false;
   final Map<String, int> _savedFlowIdsByPostId = <String, int>{};
   final Set<String> _saveLookupCompletePostIds = <String>{};
+  final Map<String, Future<FlowPost?>> _fullPostFutures =
+      <String, Future<FlowPost?>>{};
 
   FlowPost get _activePost => _posts[_activeIndex];
   bool get _showsPager => _posts.length > 1;
@@ -84,6 +86,53 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
           'start_date': post.startDate?.toIso8601String(),
           'end_date': post.endDate?.toIso8601String(),
         };
+  }
+
+  bool _hasCompleteSnapshot(FlowPost post) {
+    return post.payloadJson?['events'] is List;
+  }
+
+  Future<FlowPost?> _fullPostFor(FlowPost post) {
+    if (_hasCompleteSnapshot(post)) return Future<FlowPost?>.value(post);
+    return _fullPostFutures.putIfAbsent(
+      post.id,
+      () => _repo.getFlowPostById(post.id),
+    );
+  }
+
+  Widget _buildCanonicalDetail(FlowPost post) {
+    if (_hasCompleteSnapshot(post)) {
+      return _buildHydratedDetail(post);
+    }
+    return FutureBuilder<FlowPost?>(
+      future: _fullPostFor(post),
+      builder: (context, snapshot) {
+        final hydrated = snapshot.data;
+        if (hydrated != null) return _buildHydratedDetail(hydrated);
+        if (snapshot.connectionState == ConnectionState.done) {
+          return _buildHydratedDetail(post);
+        }
+        return const ColoredBox(
+          color: Color(0xFF000000),
+          child: Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHydratedDetail(FlowPost post) {
+    return SharedFlowDetailsPage(
+      key: ValueKey(post.id),
+      payloadJson: _payloadFor(post),
+      showImportFooter: false,
+      actionPolicy: _actionPolicyFor(post),
+      useCanonicalUserFlowDetail: true,
+      fallbackLocation: '/profile/${Uri.encodeComponent(post.userId)}',
+    );
   }
 
   void _refreshSavedStateFor(FlowPost post) {
@@ -146,26 +195,10 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                       setState(() => _activeIndex = index);
                       _refreshSavedStateFor(_posts[index]);
                     },
-                    itemBuilder: (context, index) {
-                      return SharedFlowDetailsPage(
-                        key: ValueKey(_posts[index].id),
-                        payloadJson: _payloadFor(_posts[index]),
-                        showImportFooter: false,
-                        actionPolicy: _actionPolicyFor(_posts[index]),
-                        useCanonicalUserFlowDetail: true,
-                        fallbackLocation:
-                            '/profile/${Uri.encodeComponent(_posts[index].userId)}',
-                      );
-                    },
+                    itemBuilder: (context, index) =>
+                        _buildCanonicalDetail(_posts[index]),
                   )
-                : SharedFlowDetailsPage(
-                    payloadJson: _payloadFor(post),
-                    showImportFooter: false,
-                    actionPolicy: _actionPolicyFor(post),
-                    useCanonicalUserFlowDetail: true,
-                    fallbackLocation:
-                        '/profile/${Uri.encodeComponent(post.userId)}',
-                  ),
+                : _buildCanonicalDetail(post),
           ),
           SafeArea(
             minimum: const EdgeInsets.fromLTRB(62, 10, 12, 0),

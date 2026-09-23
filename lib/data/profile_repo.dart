@@ -921,7 +921,7 @@ class ProfileRepo {
       final response = await withSupabaseAuthRetry(
         _client,
         () => _client.rpc(
-          'get_profile_feed',
+          'get_profile_feed_cards',
           params: {'p_limit': limit, 'p_offset': offset},
         ),
       ).timeout(_profileFeedRpcTimeout);
@@ -1238,6 +1238,20 @@ class ProfileRepo {
 
   /// Save someone else's flow post into my saved flows.
   Future<int?> saveFlowPostToMyFlows(
+    FlowPost post, {
+    DateTime? startDateOverride,
+  }) async {
+    var resolvedPost = post;
+    if (post.payloadJson?['events'] is! List) {
+      resolvedPost = await getFlowPostById(post.id) ?? post;
+    }
+    return _saveResolvedFlowPostToMyFlows(
+      resolvedPost,
+      startDateOverride: startDateOverride,
+    );
+  }
+
+  Future<int?> _saveResolvedFlowPostToMyFlows(
     FlowPost post, {
     DateTime? startDateOverride,
   }) async {
