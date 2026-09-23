@@ -410,6 +410,58 @@ void main() {
     },
   );
 
+  test('profile feed keeps posts from multiple user owners', () async {
+    SharedPreferences.setMockInitialValues({});
+
+    final feed = await _withProfileServer(
+      (request) async {
+        if (request.uri.path == '/rest/v1/rpc/get_profile_feed_cards') {
+          await _sendJson(
+            request,
+            body: <Object?>[
+              <String, Object?>{
+                'post_type': 'flow',
+                'id': 'post-owner',
+                'user_id': ownerUserId,
+                'name': 'Owner flow',
+                'color': 0xFFCA9221,
+                'rules': <Object?>[],
+                'created_at': '2026-09-23T10:00:00Z',
+                'author_handle': 'bigjfil',
+              },
+              <String, Object?>{
+                'post_type': 'flow',
+                'id': 'post-neighbor',
+                'user_id': '4ad5f7f7-82de-4072-aafd-b643f8db892b',
+                'name': 'Neighbor flow',
+                'color': 0xFF6F93A8,
+                'rules': <Object?>[],
+                'created_at': '2026-09-23T09:00:00Z',
+                'author_handle': 'neighbor',
+              },
+            ],
+          );
+          return;
+        }
+        if (request.uri.path == '/rest/v1/user_blocks') {
+          await _sendJson(request, body: <Object?>[]);
+          return;
+        }
+        await _sendJson(request, statusCode: HttpStatus.notFound, body: {});
+      },
+      (client, _) async {
+        await client.auth.recoverSession(_sessionJson(ownerUserId));
+        return ProfileRepo(client).getProfileFeedResult();
+      },
+    );
+
+    expect(feed.hasError, isFalse);
+    expect(feed.data.map((item) => item.userId), <String>[
+      ownerUserId,
+      '4ad5f7f7-82de-4072-aafd-b643f8db892b',
+    ]);
+  });
+
   test(
     'saveFlowPostToMyFlows creates profile-import metadata and snapshot events',
     () async {
@@ -666,6 +718,36 @@ void main() {
       );
     },
   );
+
+  test('deleteFlowPost hides only the authenticated owner post', () async {
+    SharedPreferences.setMockInitialValues({});
+    String? requestMethod;
+    Uri? requestUri;
+    Map<String, dynamic>? requestBody;
+
+    final hidden = await _withProfileServer(
+      (request) async {
+        if (request.uri.path == '/rest/v1/flow_posts') {
+          requestMethod = request.method;
+          requestUri = request.uri;
+          requestBody = await _readJsonMap(request);
+          await _sendJson(request, body: {'id': 'post-hide-1'});
+          return;
+        }
+        await _sendJson(request, statusCode: HttpStatus.notFound, body: {});
+      },
+      (client, _) async {
+        await client.auth.recoverSession(_sessionJson(ownerUserId));
+        return ProfileRepo(client).deleteFlowPost('post-hide-1');
+      },
+    );
+
+    expect(hidden, isTrue);
+    expect(requestMethod, 'PATCH');
+    expect(requestBody, <String, dynamic>{'is_hidden': true});
+    expect(requestUri?.queryParameters['id'], 'eq.post-hide-1');
+    expect(requestUri?.queryParameters['user_id'], 'eq.$ownerUserId');
+  });
 }
 
 Future<T> _withProfileServer<T>(

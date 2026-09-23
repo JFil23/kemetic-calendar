@@ -185,6 +185,56 @@ void main() {
     );
 
     test(
+      'preserves the last verified filing snapshot when refresh fails',
+      () async {
+        final healthyHttpClient = _ActivityClient(
+          fail: false,
+          responsesByPath: <String, Object?>{
+            '/rest/v1/rpc/get_my_filed_flows_v1': <Object?>[
+              _filedRow(id: 71, name: 'Still filed'),
+            ],
+            '/rest/v1/rpc/get_my_held_reading_houses_v1': const <Object?>[],
+            '/rest/v1/flows': <Object?>[
+              <String, Object?>{'id': 71, 'appearance': null},
+            ],
+          },
+        );
+        final healthyClient = SupabaseClient(
+          'https://example.supabase.test',
+          'test-anon-key',
+          httpClient: healthyHttpClient,
+          authOptions: const AuthClientOptions(autoRefreshToken: false),
+        );
+        final failingClient = SupabaseClient(
+          'https://example.supabase.test',
+          'test-anon-key',
+          httpClient: _ActivityClient(fail: true),
+          authOptions: const AuthClientOptions(autoRefreshToken: false),
+        );
+        try {
+          await healthyClient.auth.recoverSession(_sessionJson());
+          final healthyRepo = FlowsRepo(healthyClient);
+          await healthyRepo.clearMyFiledFlowsCache();
+          final first = await healthyRepo.refreshMyFiledFlows();
+          expect(first.single.id, 71);
+
+          await failingClient.auth.recoverSession(_sessionJson());
+          final preserved = await FlowsRepo(
+            failingClient,
+          ).refreshMyFiledFlows();
+
+          expect(preserved, hasLength(1));
+          expect(preserved.single.id, 71);
+          expect(preserved.single.name, 'Still filed');
+        } finally {
+          await FlowsRepo(failingClient).clearMyFiledFlowsCache();
+          healthyClient.dispose();
+          failingClient.dispose();
+        }
+      },
+    );
+
+    test(
       'composes v1 with held houses and keeps ordinary v1 rows intact',
       () async {
         final httpClient = _ActivityClient(

@@ -5050,6 +5050,8 @@ class CalendarPage extends StatefulWidget {
       actionPolicy: actionPolicy,
       showFlowOptions: showFlowOptions,
       useMySavedExpansionParity: useMySavedExpansionParity,
+      calendarPreviewForWindow:
+          CalendarPage._mountedState?._userFlowCalendarPreviewForWindow,
     );
   }
 

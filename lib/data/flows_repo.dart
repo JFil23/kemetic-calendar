@@ -12,6 +12,7 @@ import 'flow_appearance.dart';
 const _kFlows = 'flows';
 const _kFiledFlowsRpc = 'get_my_filed_flows_v1';
 const _kHeldReadingHousesRpc = 'get_my_held_reading_houses_v1';
+const _kFiledFlowsRpcTimeout = Duration(seconds: 15);
 
 typedef FlowEventCounts = ({Map<int, int> total, Map<int, int> remaining});
 
@@ -517,36 +518,47 @@ class FlowsRepo {
     if (user == null) return const [];
     final cacheGeneration = _filedFlowsCacheGenerations[user.id] ?? 0;
 
-    final filedResponse = await _client.rpc(
-      _kFiledFlowsRpc,
-      params: {'p_limit': limit},
-    );
-    var heldReadingHouseRows = const <Map<String, dynamic>>[];
     try {
-      final supplementResponse = await _client.rpc(
-        _kHeldReadingHousesRpc,
-        params: {'p_limit': limit},
+      final filedResponse = await _client
+          .rpc(_kFiledFlowsRpc, params: {'p_limit': limit})
+          .timeout(_kFiledFlowsRpcTimeout);
+      var heldReadingHouseRows = const <Map<String, dynamic>>[];
+      try {
+        final supplementResponse = await _client
+            .rpc(_kHeldReadingHousesRpc, params: {'p_limit': limit})
+            .timeout(_kFiledFlowsRpcTimeout);
+        heldReadingHouseRows = _rpcFlowRows(supplementResponse);
+      } catch (e) {
+        // The unchanged v1 result remains a complete compatibility fallback
+        // until the additive Reading House migration is present.
+        _log('held Reading House filing supplement unavailable: $e');
+      }
+      final rows = _mergeFiledFlowRows(
+        _rpcFlowRows(filedResponse),
+        heldReadingHouseRows,
+        limit: limit,
       );
-      heldReadingHouseRows = _rpcFlowRows(supplementResponse);
+      final inflated = await _inflateFlowRows(rows, userId: user.id);
+      unawaited(
+        _cacheFiledFlows(
+          userId: user.id,
+          rows: inflated,
+          generation: cacheGeneration,
+        ),
+      );
+      return inflated;
     } catch (e) {
-      // The unchanged v1 result remains a complete compatibility fallback
-      // until the additive Reading House migration is present.
-      _log('held Reading House filing supplement unavailable: $e');
+      final cached =
+          cachedMyFiledFlowsSync() ?? await restoreCachedFiledFlows();
+      if (cached != null) {
+        _log('filed flows unavailable, preserving last verified snapshot: $e');
+        if (limit == null || limit < 0 || cached.length <= limit) {
+          return cached;
+        }
+        return cached.take(limit).toList(growable: false);
+      }
+      rethrow;
     }
-    final rows = _mergeFiledFlowRows(
-      _rpcFlowRows(filedResponse),
-      heldReadingHouseRows,
-      limit: limit,
-    );
-    final inflated = await _inflateFlowRows(rows, userId: user.id);
-    unawaited(
-      _cacheFiledFlows(
-        userId: user.id,
-        rows: inflated,
-        generation: cacheGeneration,
-      ),
-    );
-    return inflated;
   }
 
   Future<HydrationFetchResult<FlowEventCounts>> _loadMyEventCounts(

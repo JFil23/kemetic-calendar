@@ -24,8 +24,8 @@ import 'flow_post_comment_model.dart';
 import 'flow_appearance.dart';
 import 'flow_appearance_store.dart';
 
-const Duration _profileFeedRpcTimeout = Duration(seconds: 6);
-const Duration _profileFeedFallbackTimeout = Duration(seconds: 6);
+const Duration _profileFeedRpcTimeout = Duration(seconds: 12);
+const Duration _profileFeedFallbackTimeout = Duration(seconds: 12);
 
 class ProfileAvatarGlyphsUnavailable implements Exception {
   const ProfileAvatarGlyphsUnavailable();
@@ -1175,10 +1175,18 @@ class ProfileRepo {
 
   Future<bool> deleteFlowPost(String postId) async {
     try {
-      await _client.from('flow_posts').delete().eq('id', postId);
-      return true;
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return false;
+      final hidden = await _client
+          .from('flow_posts')
+          .update(<String, dynamic>{'is_hidden': true})
+          .eq('id', postId)
+          .eq('user_id', userId)
+          .select('id')
+          .maybeSingle();
+      return hidden != null;
     } catch (e) {
-      _log('[ProfileRepo] Error deleting flow post: $e');
+      _log('[ProfileRepo] Error hiding flow post: $e');
       return false;
     }
   }

@@ -1,9 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flow_post_model.dart';
-import 'package:mobile/data/insight_post_model.dart';
 import 'package:mobile/features/profile/flow_post_detail_page.dart';
-import 'package:mobile/features/profile/profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -97,26 +97,23 @@ void main() {
     );
   });
 
-  test('owned post seed is immediate, mixed, and newest first', () {
-    final older = _post(id: 'older', createdAt: DateTime(2026, 9, 20));
-    final newer = _post(id: 'newer', createdAt: DateTime(2026, 9, 22));
-    final insight = InsightPost(
-      id: 'insight',
-      userId: older.userId,
-      insightEntryId: 'entry',
-      nodeId: 'node',
-      nodeTitle: 'Stillness',
-      bodyText: 'A clear note.',
-      entryDate: DateTime(2026, 9, 21),
-      createdAt: DateTime(2026, 9, 21),
-      updatedAt: DateTime(2026, 9, 21),
-    );
+  test(
+    'community feed cannot substitute profile-owned posts for feed data',
+    () {
+      final source = File(
+        'lib/features/profile/profile_page.dart',
+      ).readAsStringSync();
 
-    final seed = seedProfileFeedFromOwnedPosts(
-      flowPosts: <FlowPost>[older, newer],
-      insightPosts: <InsightPost>[insight],
-    );
+      expect(source, isNot(contains('seedProfileFeedFromOwnedPosts')));
+      expect(source, isNot(contains('_primeFeedFromOwnedPosts')));
+      expect(source, contains('getProfileFeedResult'));
+    },
+  );
 
-    expect(seed.map((item) => item.id), <String>['newer', 'insight', 'older']);
+  test('a post without profile names still exposes a unique owner label', () {
+    final post = _post(id: 'owner-fallback', createdAt: DateTime(2026, 9, 22));
+
+    expect(post.authorLabel, 'Hꜣw member 27D631');
+    expect(post.authorLabel, isNot('Community'));
   });
 }

@@ -144,7 +144,11 @@ class FlowPost {
     if (handle != null && handle.isNotEmpty) {
       return '@$handle';
     }
-    return 'Community';
+    final compactId = userId.replaceAll('-', '');
+    final suffix = compactId.length >= 6
+        ? compactId.substring(0, 6).toUpperCase()
+        : compactId.toUpperCase();
+    return suffix.isEmpty ? 'Hꜣw member' : 'Hꜣw member $suffix';
   }
 
   bool get hasAuthorIdentity {

@@ -69,19 +69,6 @@ const List<String> _profileSerifFallback = ['GentiumPlus', 'Georgia', 'serif'];
 
 enum _SocialFeedTab { todaysCommons, forYou }
 
-@visibleForTesting
-List<ProfileFeedItem> seedProfileFeedFromOwnedPosts({
-  required List<FlowPost> flowPosts,
-  required List<InsightPost> insightPosts,
-}) {
-  final items = <ProfileFeedItem>[
-    for (final post in flowPosts) ProfileFeedItem.flow(post),
-    for (final post in insightPosts) ProfileFeedItem.insight(post),
-  ];
-  items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-  return items;
-}
-
 class ProfilePage extends StatefulWidget {
   final String userId;
   final bool isMyProfile;
@@ -291,7 +278,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     });
 
     if (feedRevealed) {
-      _primeFeedFromOwnedPosts();
       unawaited(_loadFeedPage(reset: true));
     }
     _applyPendingContinuityAfterFrame();
@@ -677,7 +663,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       _postsLoading = false;
       _activePostIndex = activeIndex;
     });
-    _primeFeedFromOwnedPosts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || posts.isEmpty || !_postPageController.hasClients) return;
       final currentPage = (_postPageController.page ?? activeIndex.toDouble())
@@ -708,7 +693,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       _insightPostsLoading = false;
       _activeInsightPostIndex = activeIndex;
     });
-    _primeFeedFromOwnedPosts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || posts.isEmpty || !_insightPostPageController.hasClients) {
         return;
@@ -757,7 +741,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     _feedTopPullDistance = 0;
     unawaited(AppHaptics.mediumImpact(reason: 'profile_feed_reveal'));
     setState(() => _feedRevealed = true);
-    _primeFeedFromOwnedPosts();
     unawaited(_markProfileCommunityHelperSeen());
     _scheduleContinuitySave();
     if (!_feedLoading) {
@@ -766,18 +749,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     if (_commonsHome == null && !_commonsLoading) {
       unawaited(_loadCommonsHome());
     }
-  }
-
-  void _primeFeedFromOwnedPosts() {
-    if (!_isViewingOwnProfile || (_feedItems.isNotEmpty && !_feedLoading)) {
-      return;
-    }
-    final seed = seedProfileFeedFromOwnedPosts(
-      flowPosts: _posts,
-      insightPosts: _insightPosts,
-    );
-    if (seed.isEmpty) return;
-    setState(() => _feedItems = seed);
   }
 
   Future<void> _closeFeed() async {
@@ -4257,7 +4228,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       onOpenFlow: () => _openFeedFlowPost(post),
       onShare: () => FlowPostShareActions.open(context, post),
       onSaveOrEdit: _ownsPost(post)
-          ? () => unawaited(_editPostCaption(post))
+          ? () => unawaited(_openOwnedPostActions(post))
           : () => unawaited(_savePost(post)),
       onTogether: () => unawaited(_openPracticeTogetherForFlowPost(post)),
     );
@@ -4871,6 +4842,75 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _openOwnedPostActions(FlowPost post) async {
+    final action = await showModalBottomSheet<_OwnedPostAction>(
+      context: context,
+      backgroundColor: const Color(0xFF0D0D0F),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(
+                Icons.edit_note_rounded,
+                color: _profileGoldText,
+              ),
+              title: const Text(
+                'Edit caption',
+                style: TextStyle(color: Color(0xFFF2ECE0)),
+              ),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_OwnedPostAction.edit),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.delete_outline,
+                color: Colors.redAccent,
+              ),
+              title: const Text(
+                'Delete post',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_OwnedPostAction.remove),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == _OwnedPostAction.edit) {
+      await _editPostCaption(post);
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF0D0D0F),
+        title: const Text(
+          'Delete this post?',
+          style: TextStyle(color: Color(0xFFF2ECE0)),
+        ),
+        content: const Text(
+          'The flow itself stays in My Flows. This removes only the social post.',
+          style: TextStyle(color: Color(0xFFA69A83)),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Delete post'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _removePost(post.id);
+  }
+
   Future<void> _savePost(FlowPost post) async {
     final flowId = await _repo.saveFlowPostToMyFlows(post);
     if (!mounted) return;
@@ -4912,6 +4952,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     }
   }
 }
+
+enum _OwnedPostAction { edit, remove }
 
 class _ProfileFeedTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
   const _ProfileFeedTabsHeaderDelegate({

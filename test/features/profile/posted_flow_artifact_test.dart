@@ -310,6 +310,11 @@ void main() {
     expect(engagement, contains("'Share'"));
     expect(detail, contains('SharedFlowDetailsPage('));
     expect(detail, contains('useCanonicalUserFlowDetail: true'));
+    expect(userDetail, contains(r'NEXT ${visibleUpcoming.length} UPCOMING'));
+    expect(
+      File('lib/features/calendar/calendar_page.dart').readAsStringSync(),
+      contains('CalendarPage._mountedState?._userFlowCalendarPreviewForWindow'),
+    );
     expect(detail, contains("label: 'Remove from profile'"));
     expect(detail, contains('FlowDetailActionKind.manage'));
     expect(detail, contains('resolveCanonicalCustomFlowActionPolicy('));
