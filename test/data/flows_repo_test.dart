@@ -138,6 +138,13 @@ void main() {
   });
 
   group('filed flow hydration', () {
+    test('does not abandon canonical filing reads on a client deadline', () {
+      final source = File('lib/data/flows_repo.dart').readAsStringSync();
+
+      expect(source, isNot(contains('_kFiledFlowsRpcTimeout')));
+      expect(source, isNot(contains('.timeout(_kFiledFlowsRpcTimeout)')));
+    });
+
     test(
       'uses the set-based filed-flows RPC instead of the filing view',
       () async {

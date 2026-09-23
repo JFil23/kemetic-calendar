@@ -24,9 +24,6 @@ import 'flow_post_comment_model.dart';
 import 'flow_appearance.dart';
 import 'flow_appearance_store.dart';
 
-const Duration _profileFeedRpcTimeout = Duration(seconds: 12);
-const Duration _profileFeedFallbackTimeout = Duration(seconds: 12);
-
 class ProfileAvatarGlyphsUnavailable implements Exception {
   const ProfileAvatarGlyphsUnavailable();
 
@@ -924,7 +921,7 @@ class ProfileRepo {
           'get_profile_feed_cards',
           params: {'p_limit': limit, 'p_offset': offset},
         ),
-      ).timeout(_profileFeedRpcTimeout);
+      );
       final rows = (response as List<dynamic>?) ?? const [];
       final items = rows
           .whereType<Map>()
@@ -1982,7 +1979,7 @@ class ProfileRepo {
               .order('created_at', ascending: false)
               .range(0, (limit * 2) - 1),
         ]),
-      ).timeout(_profileFeedFallbackTimeout);
+      );
       final flowItems = ((results[0] as List<dynamic>?) ?? const [])
           .whereType<Map>()
           .map(

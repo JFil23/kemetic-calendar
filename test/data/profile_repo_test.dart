@@ -10,6 +10,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 void main() {
   const ownerUserId = '4d2583da-8de4-49d3-9cd1-37a9a74f55bd';
 
+  test('does not abandon community reads on a client deadline', () {
+    final source = File('lib/data/profile_repo.dart').readAsStringSync();
+
+    expect(source, isNot(contains('_profileFeedRpcTimeout')));
+    expect(source, isNot(contains('_profileFeedFallbackTimeout')));
+  });
+
   test(
     'restoreCachedProfile reads the last profile summary without network',
     () async {
