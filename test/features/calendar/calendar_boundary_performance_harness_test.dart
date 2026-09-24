@@ -303,6 +303,71 @@ void main() {
   );
 
   testWidgets(
+    'collapse gives every newly visible month the same fractional geometry',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final controller = CalendarBoundaryHarnessController(
+        expansionLevel: MonthExpansionLevel.details,
+        content: CalendarBoundaryHarnessContent.eventHeavy,
+        instrumentation: CalendarBoundaryInstrumentation.fullProbe,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CalendarPage(
+            key: GlobalKey<CalendarPageState>(),
+            calendarBoundaryHarnessController: controller,
+          ),
+        ),
+      );
+      await _pumpFrames(tester, 8);
+
+      final anchorMonth = controller.outgoingMonth;
+      final anchorGeometry = controller.snapshot!.geometryFor(anchorMonth)!;
+      controller.scrollController.position.jumpTo(
+        anchorGeometry.extent.leading + 1,
+      );
+      await _pumpFrames(tester, 4);
+
+      for (final progress in const <double>[2, 1.5, 1, 0.5, 0]) {
+        controller.drivePinchExpansionProgress(
+          progress,
+          anchorMonth: anchorMonth,
+          anchorDay: 5,
+        );
+        await _pumpFrames(tester, 2);
+
+        final viewportMonths = controller.viewportMonths;
+        expect(viewportMonths, isNotEmpty, reason: 'progress=$progress');
+        expect(
+          viewportMonths.difference(controller.fractionalPresentationMonths),
+          isEmpty,
+          reason: 'progress=$progress',
+        );
+
+        final expectedHeight = CalendarExpansionGeometry(
+          progress,
+        ).dayHeight(detailsHeight: 250);
+        for (final month in viewportMonths) {
+          expect(
+            controller.dayViewportRect(month.year, month.month, 1).height,
+            closeTo(expectedHeight, 0.01),
+            reason: '$month at progress=$progress',
+          );
+        }
+      }
+
+      controller.finishPinchExpansionHarness();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 2));
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
     'Today records controlled early and late hydration transactions',
     (tester) async {
       tester.view.physicalSize = const Size(780, 1688);

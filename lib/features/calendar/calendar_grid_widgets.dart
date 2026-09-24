@@ -354,7 +354,7 @@ class _YearSection extends StatelessWidget {
 
 /// Keeps endpoint month content dormant during a pinch while still publishing
 /// the exact fractional outer extent needed by the scroll viewport. Only
-/// months intersecting the viewport build the continuous event presentation.
+/// months in the viewport presentation band build the continuous event tree.
 class _FractionalMonthPresentation extends StatelessWidget {
   const _FractionalMonthPresentation({
     required this.month,
@@ -559,7 +559,7 @@ const double _kDayTileBorderWidth = 0.45;
 const double _kTodayDayTileBorderWidth = 1.0;
 const double _kTodayDayTileStrokeAlpha = 0.54;
 const double _kDayTileCompactPadding = 4.0;
-const double _kDayTileExpandedHorizontalPadding = 1.5;
+const double _kDayTileExpandedHorizontalPadding = 0.0;
 const double _kDayTileVerticalPadding = 1.0;
 const double _kDayNumberHeaderHeight = 28.0;
 const double _kCompactMarkerGap = 1.0;

@@ -237,6 +237,14 @@ final class CalendarBoundaryHarnessController {
     return origin & anchor.size;
   }
 
+  Set<MonthRef> get fractionalPresentationMonths => Set<MonthRef>.unmodifiable(
+    _requireState()._fractionalPresentationMonths.value,
+  );
+
+  Set<MonthRef> get viewportMonths => Set<MonthRef>.unmodifiable(
+    _requireState()._fractionalPresentationBandMonths(includeOverscan: false),
+  );
+
   void drivePinchExpansionProgress(
     double progress, {
     MonthRef? anchorMonth,

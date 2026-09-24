@@ -25969,6 +25969,7 @@ class CalendarPageState extends State<CalendarPage>
 
   void _applyPinchExpansionProgress(double value) {
     if (!mounted) return;
+    _promoteFractionalPresentationBand();
     final next = value.clamp(
       0.0,
       (MonthExpansionLevel.values.length - 1).toDouble(),
@@ -25988,6 +25989,10 @@ class CalendarPageState extends State<CalendarPage>
       resolveAnchor: () => correctionAnchor,
     );
     _transientMonthExpansionProgress.value = next;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _transientMonthExpansionProgress.value == null) return;
+      _promoteFractionalPresentationBand();
+    }, debugLabel: 'CalendarPage.promoteFractionalPresentationBand');
   }
 
   void _schedulePinchExpansionProgress(double value) {
@@ -26093,14 +26098,21 @@ class CalendarPageState extends State<CalendarPage>
     return (baseKy, baseKm);
   }
 
-  Set<MonthRef> _renderedMonthsForFractionalPresentation() {
+  Set<MonthRef> _fractionalPresentationBandMonths({
+    bool includeOverscan = true,
+  }) {
     if (!_scrollCtrl.hasClients) return <MonthRef>{};
     final notificationContext =
         _scrollCtrl.position.context.notificationContext;
     final viewport = notificationContext?.findRenderObject();
     if (viewport is! RenderBox || !viewport.attached) return <MonthRef>{};
-    final viewportTop = viewport.localToGlobal(Offset.zero).dy;
-    final viewportBottom = viewportTop + viewport.size.height;
+    final viewportHeight = viewport.size.height;
+    // A one-viewport band keeps fast collapses from revealing endpoint cells
+    // before their fractional presentation can be promoted on the next frame.
+    final overscan = includeOverscan ? viewportHeight : 0.0;
+    final viewportOriginY = viewport.localToGlobal(Offset.zero).dy;
+    final viewportTop = viewportOriginY - overscan;
+    final viewportBottom = viewportOriginY + viewportHeight + overscan;
     final visible = <MonthRef>{};
     final idPattern = RegExp(r'^y(-?\d+)m(\d+)$');
     for (final entry in _calendarMonthKeys.entries) {
@@ -26118,6 +26130,22 @@ class CalendarPageState extends State<CalendarPage>
       visible.add(MonthRef(year: year, month: month));
     }
     return visible;
+  }
+
+  void _promoteFractionalPresentationBand() {
+    final current = _fractionalPresentationMonths.value;
+    final promoted = <MonthRef>{
+      ...current,
+      ..._fractionalPresentationBandMonths(),
+    };
+    final anchorMonth = _pinchAnchorMonth;
+    if (anchorMonth != null) {
+      promoted.add(MonthRef(year: anchorMonth.$1, month: anchorMonth.$2));
+    }
+    if (promoted.length == current.length && current.containsAll(promoted)) {
+      return;
+    }
+    _fractionalPresentationMonths.value = Set<MonthRef>.unmodifiable(promoted);
   }
 
   void _onScaleStart(ScaleStartDetails details) {
@@ -26139,7 +26167,7 @@ class CalendarPageState extends State<CalendarPage>
     _pinchAnchorMonth = dayAnchor == null
         ? _findMonthAtPoint(details.focalPoint)
         : (dayAnchor.year, dayAnchor.month);
-    final presentationMonths = _renderedMonthsForFractionalPresentation();
+    final presentationMonths = _fractionalPresentationBandMonths();
     final anchorMonth = _pinchAnchorMonth;
     if (anchorMonth != null) {
       presentationMonths.add(

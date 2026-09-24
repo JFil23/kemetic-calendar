@@ -544,6 +544,17 @@ void main() {
 
       const dayCellKey = ValueKey<String>('k:6267-1-4|K');
 
+      void expectExpandedPillsFillTile(Finder pills) {
+        final dayRect = tester.getRect(find.byKey(dayCellKey));
+        final nextDayRect = tester.getRect(
+          find.byKey(const ValueKey<String>('k:6267-1-5|K')),
+        );
+        expect(nextDayRect.left - dayRect.right, closeTo(3.0, 0.1));
+        for (final size in _eventPillSizes(tester, pills)) {
+          expect(size.width, closeTo(dayRect.width, 0.1));
+        }
+      }
+
       await _pumpMonthCard(
         tester,
         expansionLevel: MonthExpansionLevel.stacked,
@@ -562,6 +573,7 @@ void main() {
         expect(size.height, closeTo(12.0, 0.1));
         expect(size.width, greaterThanOrEqualTo(27.0));
       }
+      expectExpandedPillsFillTile(stackedPills);
 
       await _pumpMonthCard(
         tester,
@@ -574,6 +586,7 @@ void main() {
         expect(size.height, closeTo(30.0, 0.1));
         expect(size.width, greaterThanOrEqualTo(27.0));
       }
+      expectExpandedPillsFillTile(labeledPills);
       final labeledText = tester.widget<Text>(
         find.descendant(
           of: find.byKey(dayCellKey),
@@ -594,6 +607,7 @@ void main() {
         expect(size.height, closeTo(52.0, 0.1));
         expect(size.width, greaterThanOrEqualTo(27.0));
       }
+      expectExpandedPillsFillTile(detailPills);
       final detailText = tester.widget<Text>(
         find.descendant(
           of: find.byKey(dayCellKey),
@@ -1442,7 +1456,7 @@ void main() {
       );
       expect(
         constantsBlock,
-        contains('const double _kDayTileExpandedHorizontalPadding = 1.5;'),
+        contains('const double _kDayTileExpandedHorizontalPadding = 0.0;'),
       );
       expect(
         constantsBlock,
