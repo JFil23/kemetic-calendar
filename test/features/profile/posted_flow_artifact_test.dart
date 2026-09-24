@@ -122,7 +122,7 @@ void main() {
       find.byKey(const ValueKey('user-flow-appearance-sign-layer')),
       findsOneWidget,
     );
-    expect(find.text('P'), findsOneWidget);
+    expect(find.text('P'), findsNothing);
   });
 
   testWidgets('caption composer previews typed words above the artifact', (
@@ -450,7 +450,8 @@ void main() {
       expect(artifact, contains('const double _artifactHeroHeight = 150'));
       expect(artifact, contains('const double _artifactCopyHeight = 84'));
       expect(artifact, isNot(contains('_buildCompactArtifact')));
-      expect(artifact, contains('if (appearance.isEmpty)'));
+      expect(artifact, isNot(contains('if (appearance.isEmpty)')));
+      expect(artifact, isNot(contains('_firstCharacter')));
       expect(icons, contains('..strokeWidth ='));
       expect(icons, contains("HawProfileIconKind.post"));
       expect(icons, contains("HawProfileIconKind.settings"));

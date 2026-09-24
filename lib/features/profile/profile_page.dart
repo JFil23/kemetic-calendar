@@ -1418,14 +1418,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
             icon: const KemeticAppBarSearchIcon(gradient: _profileGoldGradient),
             onPressed: _openFindPeople,
           ),
-          KemeticAppBarAction(
-            tooltip: 'Today',
-            icon: const KemeticAppBarTodayIcon(gradient: _profileGoldGradient),
-            onPressed: () {
-              NavigationTrace.instance.record('Today app-bar tap fired');
-              CalendarPage.openMainCalendarAtToday(context);
-            },
-          ),
           if (_feedRevealed)
             KemeticAppBarAction(
               tooltip: 'Profile',

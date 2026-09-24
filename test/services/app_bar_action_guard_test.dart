@@ -663,10 +663,9 @@ void main() {
         'KemeticAppBarSearchIcon',
         'onPressed: _openFindPeople',
       ]);
-      _expectTooltipAction(appBar, 'Today', <String>[
-        'KemeticAppBarTodayIcon',
-        'CalendarPage.openMainCalendarAtToday(context)',
-      ]);
+      expect(appBar, isNot(contains("tooltip: 'Today'")));
+      expect(appBar, isNot(contains('KemeticAppBarTodayIcon')));
+      expect(appBar, isNot(contains('openMainCalendarAtToday')));
       _expectTooltipAction(appBar, 'Profile', <String>['_closeFeed()']);
       _expectTooltipAction(appBar, 'My Profile', <String>[
         'KemeticAppBarProfileIcon',

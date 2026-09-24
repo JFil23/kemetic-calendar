@@ -144,40 +144,6 @@ class PostedFlowArtifact extends StatelessWidget {
                         top: Radius.circular(15),
                       ),
                     ),
-                    if (appearance.isEmpty)
-                      Center(
-                        child: Container(
-                          width: 76,
-                          height: 76,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0B0906),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: accent.withValues(alpha: 0.42),
-                            ),
-                            gradient: RadialGradient(
-                              center: const Alignment(0, -0.1),
-                              radius: 0.85,
-                              colors: <Color>[
-                                accent.withValues(alpha: 0.15),
-                                const Color(0xFF0B0906),
-                              ],
-                            ),
-                          ),
-                          child: Text(
-                            _firstCharacter(resolvedTitle),
-                            style: TextStyle(
-                              color: accentText,
-                              fontFamily: 'CormorantGaramond',
-                              fontFamilyFallback: _artifactSerifFallback,
-                              fontSize: 36,
-                              fontWeight: FontWeight.w400,
-                              height: 1,
-                            ),
-                          ),
-                        ),
-                      ),
                     const IgnorePointer(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -317,10 +283,5 @@ class PostedFlowArtifact extends StatelessWidget {
       FlowSignKind.papyrus => 'PAPYRUS GROWTH',
       FlowSignKind.kheper => 'KHEPER',
     }}';
-  }
-
-  String _firstCharacter(String value) {
-    final runes = value.trim().runes;
-    return runes.isEmpty ? 'F' : String.fromCharCode(runes.first).toUpperCase();
   }
 }
