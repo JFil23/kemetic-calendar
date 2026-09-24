@@ -5170,6 +5170,7 @@ class _FlowHubPageState extends State<_FlowHubPage> {
   bool _helperPrompted = false;
   bool _helperPromptScheduled = false;
   _MyFlowsFilingSnapshot? _sourceSnapshot;
+  Object? _sourceLoadError;
   int _loadSerial = 0;
 
   @override
@@ -5183,13 +5184,22 @@ class _FlowHubPageState extends State<_FlowHubPage> {
 
   Future<void> _refreshSourceSnapshot() async {
     final loadSerial = ++_loadSerial;
+    if (mounted) {
+      setState(() {
+        _sourceLoadError = null;
+      });
+    }
     try {
       final snapshot = await widget.loadFilingSnapshot();
       if (!mounted || loadSerial != _loadSerial) return;
-      setState(() => _sourceSnapshot = snapshot);
-    } catch (_) {
-      // Keep the latest available source snapshot; the destination lists own
-      // their explicit loading/error presentation.
+      setState(() {
+        _sourceSnapshot = snapshot;
+      });
+    } catch (error) {
+      if (!mounted || loadSerial != _loadSerial) return;
+      setState(() {
+        _sourceLoadError = error;
+      });
     }
   }
 
@@ -5318,8 +5328,13 @@ class _FlowHubPageState extends State<_FlowHubPage> {
     final visibleSnapshot = sourceSnapshot == null
         ? null
         : CalendarPage._applyEndFlowVisibilityOverlay(sourceSnapshot);
-    final activeCount = visibleSnapshot?.activeFlowIds.length ?? 0;
-    final savedCount = visibleSnapshot?.savedFlowIds.length ?? 0;
+    final activeCount = visibleSnapshot?.activeFlowIds.length;
+    final savedCount = visibleSnapshot?.savedFlowIds.length;
+    final filingStatsText = activeCount != null && savedCount != null
+        ? '$activeCount active · $savedCount saved'
+        : _sourceLoadError != null
+        ? 'Unable to load · tap to retry'
+        : 'Loading your flows…';
     final joinedMaatCount = visibleSnapshot == null
         ? 0
         : _kCoreMaatFlowTemplates
@@ -5407,7 +5422,7 @@ class _FlowHubPageState extends State<_FlowHubPage> {
                       _FlowHubMyFlowsCard(
                         title: 'My Flows',
                         subtitle: 'Your active and saved flows.',
-                        statsText: '$activeCount active · $savedCount saved',
+                        statsText: filingStatsText,
                         onTap: _handleOpenMyFlows,
                       ),
                       const SizedBox(height: 14),

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/supabase_auth_retry.dart';
 import '../features/calendar/calendar_hydration_diagnostics.dart';
 import '../utils/flow_visibility.dart';
 import 'flow_appearance.dart';
@@ -487,15 +488,15 @@ class FlowsRepo {
     final cacheGeneration = _filedFlowsCacheGenerations[user.id] ?? 0;
 
     try {
-      final filedResponse = await _client.rpc(
-        _kFiledFlowsRpc,
-        params: {'p_limit': limit},
+      final filedResponse = await withSupabaseAuthRetry(
+        _client,
+        () => _client.rpc(_kFiledFlowsRpc, params: {'p_limit': limit}),
       );
       var heldReadingHouseRows = const <Map<String, dynamic>>[];
       try {
-        final supplementResponse = await _client.rpc(
-          _kHeldReadingHousesRpc,
-          params: {'p_limit': limit},
+        final supplementResponse = await withSupabaseAuthRetry(
+          _client,
+          () => _client.rpc(_kHeldReadingHousesRpc, params: {'p_limit': limit}),
         );
         heldReadingHouseRows = _rpcFlowRows(supplementResponse);
       } catch (e) {
