@@ -199,6 +199,26 @@ The go/no-go result from source inventory is **go for inert model and shadow
 work**. Production epoch work remains gated on numerical baselines, exact
 spec-versus-render parity, and the layout-coupled correction feasibility proof.
 
+## 2026-09-24 pinch presentation-band and event-width re-audit
+
+The pinch-collapse repair promotes every month in a one-viewport overscan band
+to the existing fractional presentation before and after each transient
+progress update. This changes which months build the fractional content tree,
+not the extent calculation: promoted months and dormant endpoint months still
+publish the same `CalendarExpansionGeometry`-derived outer extent, and the
+same layout-anchor correction remains the sole scroll correction authority.
+
+Expanded day tiles now use zero horizontal inset for event pills while
+retaining the existing 3-pixel inter-column gap. The outer `_DayChip` heights,
+vertical padding, day-number header, pill heights, vertical pill gaps, visible
+caps, overflow allocation, and details projection are unchanged. Event text
+remains bounded by fixed-height pill containers with finite `maxLines` and
+overflow clipping, so the added horizontal width cannot add vertical extent.
+
+The render-path trace and both ordinary-month and Heriu Renpet equations were
+therefore rechecked without adding or removing an extent contributor. The
+closed contributor list and equations above remain exhaustive.
+
 ## 2026-08-14 ownership and paint re-audit
 
 The production repair changed four audited fragments without changing any

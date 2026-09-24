@@ -7,7 +7,7 @@
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "3e6cfb9aca75d4815c43f39f10678b81599bc77c65228a2b635bf01ab504ae50"
+      "sha256": "eda4ae455144e928fc0ca0a8645fd73242ddd56ac7a8eb89d2d2c9f60050943f"
     },
     {
       "name": "calendar_text_styles",
@@ -63,7 +63,7 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  RenderCalendarPinchDayAnchor? _findPinchDayAnchorAtPoint(",
       "end": "  Color _noteColor(_Note note) {",
-      "sha256": "087da2dc62a7377006bed53bd820c333f16600a6c99343c4b30af35b7592441d"
+      "sha256": "bdc8c93a0ce9d6c34b28f0f6f8003fa5dbd2b84342ed2fb0fbb6f1792d349e3d"
     },
     {
       "name": "pinch_day_anchor_marker",
