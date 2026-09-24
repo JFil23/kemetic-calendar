@@ -73,6 +73,12 @@ jobs:
             test/features/calendar/maat_flow_discovery_view_test.dart \
             test/features/calendar/offering_table_day_v8_presentation_test.dart
 
+      - name: Render exact Linux x64 social reference
+        if: matrix.arch == 'linux-x64'
+        run: >-
+          flutter test --update-goldens
+          test/features/profile/social_flow_visual_contract_test.dart
+
       - name: Upload exact architecture references
         uses: actions/upload-artifact@v4
         with:
@@ -82,6 +88,15 @@ jobs:
           path: |
             test/visual_reference/maat_flows/goldens/linux
             test/visual_reference/maat_flows/goldens/linux-x64
+
+      - name: Upload exact Linux x64 social reference
+        if: matrix.arch == 'linux-x64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: social-flow-visuals-linux-x64-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: test/features/profile/goldens/linux-x64/social_flow_artifacts.png
 
   app-gate:
     name: LOCK-GATE app authority and complete suite
