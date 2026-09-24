@@ -17,6 +17,8 @@ Future<void> loadMaatFlowVisualTestFonts() async {
     );
   final materialIcons = FontLoader('MaterialIcons')
     ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+  final inter = FontLoader('Inter')
+    ..addFont(rootBundle.load('ios/Runner/Fonts/Inter-Variable.ttf'));
   final hieroglyphs = FontLoader('Noto Sans Egyptian Hieroglyphs')
     ..addFont(
       rootBundle.load(
@@ -30,4 +32,5 @@ Future<void> loadMaatFlowVisualTestFonts() async {
     materialIcons.load(),
     hieroglyphs.load(),
   ]);
+  await inter.load();
 }

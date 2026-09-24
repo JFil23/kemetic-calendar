@@ -6,6 +6,7 @@ import 'package:mobile/data/flow_appearance.dart';
 import 'package:mobile/data/flow_post_model.dart';
 import 'package:mobile/features/profile/flow_post_caption_sheet.dart';
 import 'package:mobile/features/profile/posted_flow_artifact.dart';
+import 'package:mobile/features/profile/profile_flow_post_tile.dart';
 import 'package:mobile/features/profile/social_flow_post_tile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -65,8 +66,12 @@ void main() {
             find.byKey(const ValueKey('posted-flow-artifact-appearance')),
           )
           .height,
-      148,
+      150,
     );
+    final duration = tester.widget<Text>(find.text('30 DAYS'));
+    expect(duration.style?.fontFamily, 'Inter');
+    expect(duration.style?.fontSize, 8);
+    expect(duration.style?.letterSpacing, 1.6);
   });
 
   testWidgets('image, widget-only, and plain artifacts share one geometry', (
@@ -108,7 +113,7 @@ void main() {
       tester.getSize(find.byKey(const ValueKey('widget-artifact'))).height,
       tester.getSize(find.byKey(const ValueKey('plain-artifact'))).height,
     ];
-    expect(heights, everyElement(300));
+    expect(heights, everyElement(236));
     expect(
       find.byKey(const ValueKey('posted-flow-artifact-appearance')),
       findsNWidgets(3),
@@ -117,7 +122,7 @@ void main() {
       find.byKey(const ValueKey('user-flow-appearance-sign-layer')),
       findsOneWidget,
     );
-    expect(find.text('P'), findsNothing);
+    expect(find.text('P'), findsOneWidget);
   });
 
   testWidgets('caption composer previews typed words above the artifact', (
@@ -239,6 +244,157 @@ void main() {
     },
   );
 
+  testWidgets(
+    'profile flow post platforms the canonical artifact without outer housing',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final post = FlowPost(
+        id: 'profile-post-owner',
+        userId: 'owner-1',
+        name: 'Daily Math Visuals',
+        color: 0xFF6F93A8,
+        notes: 'One linked visual mathematics lesson each day.',
+        rules: const <dynamic>[],
+        startDate: DateTime(2026, 9, 1),
+        endDate: DateTime(2026, 11, 29),
+        aiMetadata: const <String, dynamic>{
+          'shared_note':
+              'The one I keep coming back to when everything else slips. '
+              'It has become the quiet beginning I can still trust.',
+        },
+        createdAt: DateTime(2026, 9, 22),
+        likesCount: 2,
+        commentsCount: 1,
+        likedByMe: false,
+        hasLikesCount: true,
+        hasCommentsCount: true,
+        hasLikedByMe: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(
+            brightness: Brightness.dark,
+            fontFamily: 'GentiumPlus',
+          ),
+          home: Scaffold(
+            backgroundColor: const Color(0xFF070604),
+            body: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ProfileFlowPostTile(
+                  post: post,
+                  appearance: const FlowAppearance(
+                    signKind: FlowSignKind.palmCount,
+                    accentArgb: 0xFF6F93A8,
+                  ),
+                  accent: const Color(0xFF6F93A8),
+                  relationshipLabel: 'You',
+                  authorDisplayName: 'BigJFil',
+                  authorHandle: 'bigjfil',
+                  authorAvatarUrl: null,
+                  authorAvatarGlyphIds: const <String>[],
+                  events: const <dynamic>[],
+                  postedDateLabel: 'Rekh-Nedjes 8 · 2026',
+                  isOwner: true,
+                  onOpenAuthor: () {},
+                  onOpenFlow: () {},
+                  onOpenMenu: (_) {},
+                  onShare: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final tile = find.byKey(
+        const ValueKey<String>('profile-flow-post-profile-post-owner'),
+      );
+      expect(tile, findsOneWidget);
+      expect(tester.widget(tile), isA<SizedBox>());
+      expect(tester.getSize(tile).height, 392);
+      expect(find.byType(PostedFlowArtifact), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('profile-flow-post-menu')),
+        findsOneWidget,
+      );
+      expect(find.text('View details'), findsNothing);
+      expect(find.text('Edit caption'), findsNothing);
+      expect(find.text('Save'), findsNothing);
+      expect(find.text('BigJFil'), findsOneWidget);
+      expect(find.text('@bigjfil'), findsOneWidget);
+      expect(find.text('Rekh-Nedjes 8 · 2026'), findsOneWidget);
+      expect(find.textContaining('Posted Rekh-Nedjes'), findsNothing);
+      expect(find.text('More'), findsNothing);
+      expect(find.text('Share'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('visitor profile flow post exposes Save but no owner controls', (
+    tester,
+  ) async {
+    final post = FlowPost(
+      id: 'profile-post-visitor',
+      userId: 'visited-user',
+      name: 'Dawn House Rite',
+      color: 0xFFB8A067,
+      notes: 'At dawn, the world returns to its order.',
+      rules: const <dynamic>[],
+      createdAt: DateTime(2026, 9, 21),
+      likesCount: 0,
+      commentsCount: 0,
+      likedByMe: false,
+      hasLikesCount: true,
+      hasCommentsCount: true,
+      hasLikedByMe: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: ProfileFlowPostTile(
+            post: post,
+            appearance: const FlowAppearance(
+              signKind: FlowSignKind.palmCount,
+              accentArgb: 0xFFB8A067,
+            ),
+            accent: const Color(0xFFB8A067),
+            relationshipLabel: 'Following',
+            authorDisplayName: 'L.',
+            authorHandle: 'lcc86',
+            authorAvatarUrl: null,
+            authorAvatarGlyphIds: const <String>[],
+            events: const <dynamic>[],
+            postedDateLabel: 'Paopi 25 · 2026',
+            isOwner: false,
+            onOpenAuthor: () {},
+            onOpenFlow: () {},
+            onOpenMenu: (_) {},
+            onShare: () {},
+            onSave: () {},
+            onTogether: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Together'), findsOneWidget);
+    expect(find.text('Share'), findsNothing);
+    expect(find.text('Edit caption'), findsNothing);
+    expect(find.text('Remove'), findsNothing);
+    expect(find.byType(PostedFlowArtifact), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   test(
     'social flow surfaces have one artifact and no legacy flow renderer',
     () {
@@ -254,13 +410,50 @@ void main() {
       final socialTile = File(
         'lib/features/profile/social_flow_post_tile.dart',
       ).readAsStringSync();
+      final profileTile = File(
+        'lib/features/profile/profile_flow_post_tile.dart',
+      ).readAsStringSync();
+      final engagement = File(
+        'lib/features/profile/flow_post_engagement_row.dart',
+      ).readAsStringSync();
+      final icons = File(
+        'lib/features/profile/haw_profile_icon.dart',
+      ).readAsStringSync();
 
       expect(profile, contains('SocialFlowPostTile('));
+      expect(profile, contains('ProfileFlowPostTile('));
+      expect(profile, contains('_postPageController = PageController();'));
+      expect(profile, contains('_repo.getFlowPosts(widget.userId)'));
+      expect(profile, contains('_repo.restoreCachedFlowPosts(widget.userId)'));
+      expect(profile, contains("label: 'Post'"));
+      expect(profile, contains('_openPostChooser()'));
+      expect(profile, contains('useShortMonthName: compact'));
+      expect(profile, contains("title.toUpperCase()"));
+      expect(profile, contains('color: _profileSurface'));
+      expect(profile, contains('Color(0x850B0906)'));
+      expect(profile, contains('Color(0x700B0906)'));
+      expect(profile, contains('Color(0xBD0B0906)'));
+      expect(profile, contains('BorderRadius.circular(pill ? 999 : 14)'));
+      expect(profile, contains('const Positioned.fill('));
+      expect(profile, contains('child: ProfileDayCycleBackdrop()'));
+      expect(profileTile, contains('ProfileAvatar('));
+      expect(profileTile, contains('profileV2: true'));
+      expect(engagement, contains('final bool inlineUnified;'));
+      expect(engagement, contains('final bool profileV2;'));
+      expect(profile, isNot(contains("label: 'Flow Events'")));
+      expect(profile, isNot(contains('_buildPostFlowButton')));
+      expect(profile, isNot(contains('_buildPostInsightButton')));
       expect(picker, contains('PostedFlowArtifact('));
       expect(socialTile, contains('PostedFlowArtifact('));
       expect(artifact, contains('UserFlowAppearanceHero('));
+      expect(artifact, contains('const double _artifactHeight = 236'));
+      expect(artifact, contains('const double _artifactHeroHeight = 150'));
+      expect(artifact, contains('const double _artifactCopyHeight = 84'));
       expect(artifact, isNot(contains('_buildCompactArtifact')));
-      expect(artifact, isNot(contains('if (appearance.isEmpty)')));
+      expect(artifact, contains('if (appearance.isEmpty)'));
+      expect(icons, contains('..strokeWidth ='));
+      expect(icons, contains("HawProfileIconKind.post"));
+      expect(icons, contains("HawProfileIconKind.settings"));
       expect(profile, isNot(contains('_buildExpandedFlowDetailCard')));
       expect(profile, isNot(contains('_buildExpandedFlowEventTile')));
       expect(profile, isNot(contains('copyWith(clearImage: true)')));
@@ -326,6 +519,6 @@ void main() {
     );
     expect(userDetail, contains('final externalPolicy = widget.actionPolicy'));
     expect(userDetail, contains('if (externalPolicy != null)'));
-    expect(profile, contains('color: const Color(0xFF070604)'));
+    expect(profile, contains('color: _profileSurface'));
   });
 }

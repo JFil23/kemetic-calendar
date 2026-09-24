@@ -359,6 +359,7 @@ void main() {
         'lib/features/onboarding/onboarding_overlay.dart',
         'lib/features/profile/flow_post_detail_page.dart',
         'lib/features/profile/flow_post_engagement_row.dart',
+        'lib/features/profile/profile_flow_post_tile.dart',
         'lib/features/profile/profile_page.dart',
         'lib/features/rhythm/pages/commitment_tracker_page.dart',
         'lib/features/rhythm/pages/todays_alignment_page.dart',

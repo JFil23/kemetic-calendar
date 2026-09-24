@@ -10,9 +10,16 @@ String gregorianYearLabelForKemeticMonth(int kYear, int kMonth) {
   return yStart == yEnd ? '$yStart' : '$yStart/$yEnd';
 }
 
-String formatKemeticDate(DateTime date, {bool includeGregorianYear = true}) {
+String formatKemeticDate(
+  DateTime date, {
+  bool includeGregorianYear = true,
+  bool useShortMonthName = false,
+}) {
   final kDate = KemeticMath.fromGregorian(date);
-  final month = getMonthById(kDate.kMonth).displayFull;
+  final monthMetadata = getMonthById(kDate.kMonth);
+  final month = useShortMonthName
+      ? monthMetadata.displayShort
+      : monthMetadata.displayFull;
   if (!includeGregorianYear) {
     return '$month ${kDate.kDay}';
   }

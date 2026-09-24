@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -7,9 +8,11 @@ import '../../utils/detail_sanitizer.dart';
 import '../calendar/presentation/user_flow_appearance_visual.dart';
 
 const Color _artifactBone = Color(0xFFF2ECE0);
-const Color _artifactMuted = Color(0xFFA69A83);
-const double _artifactHeight = 300;
-const double _artifactHeroHeight = 148;
+const Color _artifactMuted = Color(0xFF9E9A94);
+const Color _artifactPanel = Color(0xFF0D0B08);
+const double _artifactHeight = 236;
+const double _artifactHeroHeight = 150;
+const double _artifactCopyHeight = 84;
 const List<String> _artifactSerifFallback = <String>[
   'GentiumPlus',
   'Georgia',
@@ -48,24 +51,38 @@ class PostedFlowArtifact extends StatelessWidget {
       ? Color(0xFF000000 | (color & 0x00FFFFFF))
       : Color(appearance.accentArgb!);
 
-  String get _spanLabel {
-    if (startDate != null && endDate != null) {
-      final start = DateUtils.dateOnly(startDate!);
-      final end = DateUtils.dateOnly(endDate!);
-      final days = end.difference(start).inDays + 1;
-      if (days > 0) return '$days ${days == 1 ? 'day' : 'days'}';
-    }
+  Color get _accentText => Color.lerp(_accent, _artifactBone, 0.58)!;
 
+  int get _totalProgressUnits {
     var largestOffset = -1;
     for (final raw in events) {
       if (raw is! Map) continue;
       final offset = (raw['offset_days'] as num?)?.toInt();
-      if (offset != null && offset > largestOffset) largestOffset = offset;
+      if (offset != null && offset >= 0) {
+        largestOffset = math.max(largestOffset, offset);
+      }
     }
-    if (largestOffset >= 0) {
-      final days = largestOffset + 1;
-      return '$days ${days == 1 ? 'day' : 'days'}';
+    if (largestOffset >= 0) return largestOffset + 1;
+
+    if (startDate != null && endDate != null) {
+      final start = DateUtils.dateOnly(startDate!);
+      final end = DateUtils.dateOnly(endDate!);
+      return math.max(0, end.difference(start).inDays + 1);
     }
+    return 0;
+  }
+
+  int get _currentProgressUnit {
+    final total = _totalProgressUnits;
+    if (total <= 0 || startDate == null) return 0;
+    final start = DateUtils.dateOnly(startDate!);
+    final today = DateUtils.dateOnly(DateTime.now());
+    return (today.difference(start).inDays + 1).clamp(0, total);
+  }
+
+  String get _spanLabel {
+    final total = _totalProgressUnits;
+    if (total > 0) return '$total ${total == 1 ? 'day' : 'days'}';
     if (events.isNotEmpty) {
       final count = events.length;
       return '$count ${count == 1 ? 'occurrence' : 'occurrences'}';
@@ -73,122 +90,213 @@ class PostedFlowArtifact extends StatelessWidget {
     return 'Flow';
   }
 
+  String? get _readoutLabel {
+    final total = _totalProgressUnits;
+    if (total <= 0 || startDate == null) return null;
+    return 'DAY $_currentProgressUnit OF $total';
+  }
+
   @override
   Widget build(BuildContext context) {
     final accent = _accent;
+    final accentText = _accentText;
     final title = cleanFlowTitle(name);
+    final resolvedTitle = title.isEmpty ? 'Untitled Flow' : title;
     final overview = cleanFlowOverview(notes);
-    final radius = BorderRadius.circular(20);
+    final readoutLabel = _readoutLabel;
+    final radius = BorderRadius.circular(16);
 
     return Semantics(
       container: true,
-      label: '${title.isEmpty ? 'Untitled Flow' : title}, $_spanLabel',
+      label: '$resolvedTitle, $_spanLabel',
       child: SizedBox(
         height: _artifactHeight,
         child: Container(
           key: const ValueKey<String>('posted-flow-artifact'),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: const Color(0xE6080705),
+            color: _artifactPanel,
             borderRadius: radius,
-            border: Border.all(color: accent.withValues(alpha: 0.48)),
+            border: Border.all(color: accent.withValues(alpha: 0.42)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Stack(
-                children: <Widget>[
-                  UserFlowAppearanceHero(
-                    key: const ValueKey<String>(
-                      'posted-flow-artifact-appearance',
+              SizedBox(
+                height: _artifactHeroHeight,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    UserFlowAppearanceHero(
+                      key: const ValueKey<String>(
+                        'posted-flow-artifact-appearance',
+                      ),
+                      appearance: appearance,
+                      accent: accent,
+                      localImageBytes: localImageBytes,
+                      height: _artifactHeroHeight,
+                      compact: false,
+                      completedOccurrences: _currentProgressUnit,
+                      totalOccurrences: _totalProgressUnits,
+                      signSize: 136,
+                      showSignLabel: false,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(15),
+                      ),
                     ),
-                    appearance: appearance,
-                    accent: accent,
-                    localImageBytes: localImageBytes,
-                    height: _artifactHeroHeight,
-                    compact: false,
-                    signSize: 136,
-                    showSignLabel: false,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(19),
-                    ),
-                  ),
-                  Positioned(
-                    top: 11,
-                    right: 11,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: const Color(0xB8090806),
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(
-                          color: accent.withValues(alpha: 0.42),
+                    if (appearance.isEmpty)
+                      Center(
+                        child: Container(
+                          width: 76,
+                          height: 76,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0B0906),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: accent.withValues(alpha: 0.42),
+                            ),
+                            gradient: RadialGradient(
+                              center: const Alignment(0, -0.1),
+                              radius: 0.85,
+                              colors: <Color>[
+                                accent.withValues(alpha: 0.15),
+                                const Color(0xFF0B0906),
+                              ],
+                            ),
+                          ),
+                          child: Text(
+                            _firstCharacter(resolvedTitle),
+                            style: TextStyle(
+                              color: accentText,
+                              fontFamily: 'CormorantGaramond',
+                              fontFamilyFallback: _artifactSerifFallback,
+                              fontSize: 36,
+                              fontWeight: FontWeight.w400,
+                              height: 1,
+                            ),
+                          ),
                         ),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 5,
-                        ),
-                        child: Text(
-                          _spanLabel.toUpperCase(),
-                          style: TextStyle(
-                            color: accent.withValues(alpha: 0.94),
-                            fontSize: 8,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.35,
+                    const IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: <Color>[
+                              Color(0x05080806),
+                              Color(0xE60D0B08),
+                            ],
+                            stops: <double>[0.38, 1.0],
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      top: 11,
+                      right: 11,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0xA8090806),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: accent.withValues(alpha: 0.42),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          child: Text(
+                            _spanLabel.toUpperCase(),
+                            style: TextStyle(
+                              color: accentText,
+                              fontFamily: 'Inter',
+                              fontSize: 8,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: 1.6,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (readoutLabel != null)
+                      Positioned(
+                        left: 12,
+                        bottom: 10,
+                        child: Text(
+                          readoutLabel,
+                          style: TextStyle(
+                            color: accentText,
+                            fontFamily: 'Inter',
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 1.53,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-              Expanded(
+              SizedBox(
+                height: _artifactCopyHeight,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'FLOW · ${_signTypeLabel(appearance.signKind)}',
-                        style: TextStyle(
-                          color: accent.withValues(alpha: 0.92),
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.55,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        title.isEmpty ? 'Untitled Flow' : title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: _artifactBone,
-                          fontFamily: 'CormorantGaramond',
-                          fontFamilyFallback: _artifactSerifFallback,
-                          fontSize: 25,
-                          fontWeight: FontWeight.w500,
-                          height: 1.02,
-                        ),
-                      ),
-                      if (overview.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: 4),
+                  padding: const EdgeInsets.fromLTRB(15, 6, 15, 0),
+                  child: ClipRect(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
                         Text(
-                          overview,
-                          maxLines: 3,
+                          _typeLabel(appearance.signKind),
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: _artifactMuted.withValues(alpha: 0.90),
-                            fontFamily: 'CormorantGaramond',
-                            fontFamilyFallback: _artifactSerifFallback,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
-                            height: 1.28,
+                            color: accent,
+                            fontFamily: 'Inter',
+                            fontSize: 8,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.68,
+                            height: 1,
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        Text(
+                          resolvedTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: _artifactBone,
+                            fontFamily: 'CormorantGaramond',
+                            fontFamilyFallback: _artifactSerifFallback,
+                            fontSize: 21,
+                            fontWeight: FontWeight.w500,
+                            height: 1.08,
+                          ),
+                        ),
+                        if (overview.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: 3),
+                          Text(
+                            overview,
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _artifactMuted,
+                              fontFamily: 'CormorantGaramond',
+                              fontFamilyFallback: _artifactSerifFallback,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                              fontStyle: FontStyle.italic,
+                              height: 1,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -199,13 +307,20 @@ class PostedFlowArtifact extends StatelessWidget {
     );
   }
 
-  String _signTypeLabel(FlowSignKind? kind) => switch (kind) {
-    FlowSignKind.palmCount => 'PALM COUNT',
-    FlowSignKind.shen => 'SHEN CYCLE',
-    FlowSignKind.gatheringVessel => 'GATHERING VESSEL',
-    FlowSignKind.riverPath => 'RIVER PATH',
-    FlowSignKind.papyrus => 'PAPYRUS GROWTH',
-    FlowSignKind.kheper => 'KHEPER',
-    null => 'PRACTICE',
-  };
+  String _typeLabel(FlowSignKind? kind) {
+    if (kind == null) return 'FLOW';
+    return 'FLOW · ${switch (kind) {
+      FlowSignKind.palmCount => 'PALM COUNT',
+      FlowSignKind.shen => 'SHEN CYCLE',
+      FlowSignKind.gatheringVessel => 'GATHERING VESSEL',
+      FlowSignKind.riverPath => 'RIVER PATH',
+      FlowSignKind.papyrus => 'PAPYRUS GROWTH',
+      FlowSignKind.kheper => 'KHEPER',
+    }}';
+  }
+
+  String _firstCharacter(String value) {
+    final runes = value.trim().runes;
+    return runes.isEmpty ? 'F' : String.fromCharCode(runes.first).toUpperCase();
+  }
 }

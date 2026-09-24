@@ -17,6 +17,7 @@ import '../../data/profile_repo.dart';
 import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
+import 'haw_profile_icon.dart';
 
 Future<void> showFlowPostCommentsSheet({
   required BuildContext context,
@@ -46,6 +47,7 @@ class FlowPostEngagementAction {
     required this.onPressed,
     this.key,
     this.color,
+    this.profileIcon,
   });
 
   final IconData icon;
@@ -53,6 +55,7 @@ class FlowPostEngagementAction {
   final VoidCallback onPressed;
   final Key? key;
   final Color? color;
+  final HawProfileIconKind? profileIcon;
 }
 
 class FlowPostEngagementRow extends StatefulWidget {
@@ -60,6 +63,8 @@ class FlowPostEngagementRow extends StatefulWidget {
   final bool autoOpenComments;
   final bool lazyComments;
   final bool compact;
+  final bool inlineUnified;
+  final bool profileV2;
   final VoidCallback? onShare;
   final List<FlowPostEngagementAction> additionalActions;
   final Color? likedColor;
@@ -70,6 +75,8 @@ class FlowPostEngagementRow extends StatefulWidget {
     this.autoOpenComments = false,
     this.lazyComments = false,
     this.compact = false,
+    this.inlineUnified = false,
+    this.profileV2 = false,
     this.onShare,
     this.additionalActions = const <FlowPostEngagementAction>[],
     this.likedColor,
@@ -208,6 +215,8 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.profileV2) return _buildProfileV2();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = widget.compact || constraints.maxWidth < 260;
@@ -238,6 +247,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                             icon: _buildLikeIcon(iconSize),
                             label: _likeLabel(compact: true),
                             style: labelStyle,
+                            inline: widget.inlineUnified,
                           ),
                         )
                       : Row(
@@ -299,6 +309,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                             ),
                             label: _commentLabel(compact: true),
                             style: labelStyle,
+                            inline: widget.inlineUnified,
                           )
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -340,6 +351,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                               ),
                               label: 'Share',
                               style: labelStyle,
+                              inline: widget.inlineUnified,
                             )
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -382,6 +394,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                         style: labelStyle.copyWith(
                           color: action.color ?? labelStyle.color,
                         ),
+                        inline: widget.inlineUnified,
                       ),
                     ),
                   ),
@@ -393,11 +406,148 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     );
   }
 
+  Widget _buildProfileV2() {
+    const idle = Color(0xFF9E9A94);
+    final liked = widget.likedColor ?? const Color(0xFFC4DCE8);
+    final likeColor = _likedByMe ? liked : idle;
+
+    return SizedBox(
+      height: 24,
+      child: Row(
+        children: <Widget>[
+          _buildProfileV2Action(
+            label: '$_likesCount',
+            semanticsLabel: '$_likesCount likes',
+            onTap: _likeButtonEnabled ? _toggleLike : null,
+            color: likeColor,
+            icon: _likeUpdating
+                ? const SizedBox.square(
+                    dimension: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.4,
+                      color: idle,
+                    ),
+                  )
+                : HawProfileIcon(
+                    HawProfileIconKind.heart,
+                    color: likeColor,
+                    filled: _likedByMe,
+                  ),
+          ),
+          const SizedBox(width: 18),
+          _buildProfileV2Action(
+            label: '$_commentsCount',
+            semanticsLabel: '$_commentsCount comments',
+            onTap: _engagementUnavailable
+                ? _showMigrationNeeded
+                : _openCommentsSheet,
+            color: idle,
+            icon: const HawProfileIcon(HawProfileIconKind.comment, color: idle),
+          ),
+          const Spacer(),
+          if (widget.onShare != null)
+            _buildProfileV2Action(
+              key: const ValueKey<String>('flow-post-share-action'),
+              label: 'Share',
+              onTap: widget.onShare,
+              color: idle,
+              icon: const HawProfileIcon(HawProfileIconKind.share, color: idle),
+            )
+          else
+            for (
+              var index = 0;
+              index < widget.additionalActions.length;
+              index++
+            ) ...<Widget>[
+              if (index > 0) const SizedBox(width: 16),
+              _buildProfileV2AdditionalAction(widget.additionalActions[index]),
+            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileV2AdditionalAction(FlowPostEngagementAction action) {
+    const idle = Color(0xFF9E9A94);
+    final color = action.color ?? idle;
+    return _buildProfileV2Action(
+      key: action.key,
+      label: action.label,
+      onTap: action.onPressed,
+      color: color,
+      icon: HawProfileIcon(
+        action.profileIcon ?? HawProfileIconKind.save,
+        color: color,
+      ),
+    );
+  }
+
+  Widget _buildProfileV2Action({
+    Key? key,
+    required String label,
+    String? semanticsLabel,
+    required VoidCallback? onTap,
+    required Color color,
+    required Widget icon,
+  }) {
+    return Semantics(
+      button: true,
+      label: semanticsLabel ?? label,
+      child: GestureDetector(
+        key: key,
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          height: 24,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              icon,
+              const SizedBox(width: 6),
+              Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  color: color,
+                  fontFamily: 'Inter',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildUnifiedActionContent({
     required Widget icon,
     required String label,
     required TextStyle style,
+    bool inline = false,
   }) {
+    if (inline) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          icon,
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+              style: style,
+            ),
+          ),
+        ],
+      );
+    }
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,

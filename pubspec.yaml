@@ -106,6 +106,9 @@ flutter:
           style: italic
         - asset: ios/Runner/Fonts/CormorantGaramond-SemiBold.ttf
           weight: 600
+    - family: Inter
+      fonts:
+        - asset: ios/Runner/Fonts/Inter-Variable.ttf
     - family: Noto Sans Egyptian Hieroglyphs
       fonts:
         - asset: ios/Runner/Fonts/NotoSansEgyptianHieroglyphs-Regular.ttf

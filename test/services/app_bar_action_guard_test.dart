@@ -693,13 +693,12 @@ void main() {
       final settingsButton = _sourceBetween(
         source,
         'Widget _buildSettingsButton',
-        'Widget _buildPostFlowButton',
+        'Widget _buildPostButton',
       );
       expect(settingsButton, contains("label: 'Settings'"));
-      expect(settingsButton, contains('leading: const GlossyGlyph('));
-      expect(settingsButton, contains('glyph: MeduNeterGlyphs.settings'));
-      expect(settingsButton, contains('gradient: goldGloss'));
-      expect(settingsButton, contains('size: 22'));
+      expect(settingsButton, contains('leading: const HawProfileIcon('));
+      expect(settingsButton, contains('HawProfileIconKind.settings'));
+      expect(settingsButton, contains('color: _profileHigh'));
       expect(settingsButton, contains('onPressed: _openSettings'));
       expect(source, isNot(contains("label: 'Find People'")));
     });
@@ -1670,7 +1669,7 @@ void main() {
           ],
           'lib/features/profile/follow_list_page.dart': ['popOrGo('],
           'lib/features/profile/flow_post_picker_page.dart': [
-            "popOrGo(context, '/profile/me')",
+            "popOrGo(context, '/profile/me', result: true)",
           ],
           'lib/features/profile/insight_post_picker_page.dart': [
             "popOrGo(context, '/profile/me')",

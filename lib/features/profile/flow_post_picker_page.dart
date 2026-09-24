@@ -7,11 +7,9 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../../core/navigation_fallback.dart';
 import '../../data/flows_repo.dart';
 import '../../data/profile_repo.dart';
-import '_post_glossy_helper.dart';
+import '../calendar/calendar_page.dart';
 import 'flow_post_caption_sheet.dart';
 import 'posted_flow_artifact.dart';
-
-enum FlowPostTab { active, saved }
 
 bool canUserPublishFlow(FlowRow flow, String? currentUserId) {
   final normalizedUserId = currentUserId?.trim();
@@ -31,18 +29,8 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   final _flowsRepo = FlowsRepo(Supabase.instance.client);
   final _profileRepo = ProfileRepo(Supabase.instance.client);
 
-  FlowPostTab _tab = FlowPostTab.active;
-  bool _loading = true;
   bool _posting = false;
   List<FlowRow> _filedFlows = const <FlowRow>[];
-
-  int _compareSavedFlows(FlowRow a, FlowRow b) {
-    final aSavedAt = a.savedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-    final bSavedAt = b.savedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-    final bySavedAt = bSavedAt.compareTo(aSavedAt);
-    if (bySavedAt != 0) return bySavedAt;
-    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-  }
 
   @override
   void initState() {
@@ -53,51 +41,44 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   Future<void> _restoreCachedThenRefresh() async {
     final cached = await _flowsRepo.restoreCachedFiledFlows();
     if (mounted && cached != null) {
-      setState(() {
-        _filedFlows = cached;
-        _loading = false;
-      });
+      setState(() => _filedFlows = cached);
     }
     await _load();
   }
 
   Future<void> _load() async {
-    if (mounted && _filedFlows.isEmpty) {
-      setState(() => _loading = true);
-    }
     final flows = await _flowsRepo.refreshMyFiledFlows();
     if (!mounted) return;
-    setState(() {
-      _filedFlows = flows;
-      _loading = false;
-    });
+    setState(() => _filedFlows = flows);
   }
 
-  List<FlowRow> get _activeFlows {
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    final flows = _filedFlows
-        .where(
-          (flow) =>
-              flow.visibleInActiveList &&
-              canUserPublishFlow(flow, currentUserId),
-        )
-        .toList();
-    flows.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    return flows;
+  FlowRow? _flowById(int flowId) {
+    for (final flow in _filedFlows) {
+      if (flow.id == flowId) return flow;
+    }
+    return null;
   }
 
-  // Saved flows can be posted/shared later even if they are no longer active.
-  List<FlowRow> get _savedFlows {
+  Future<void> _postFlowById(int flowId) async {
+    var flow = _flowById(flowId);
+    if (flow == null) {
+      final refreshed = await _flowsRepo.refreshMyFiledFlows();
+      if (!mounted) return;
+      setState(() => _filedFlows = refreshed);
+      flow = _flowById(flowId);
+    }
+
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    final flows = _filedFlows
-        .where(
-          (flow) =>
-              flow.visibleInSavedList &&
-              canUserPublishFlow(flow, currentUserId),
-        )
-        .toList();
-    flows.sort(_compareSavedFlows);
-    return flows;
+    if (flow == null || !canUserPublishFlow(flow, currentUserId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only flows you own can be posted.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    await _postFlow(flow);
   }
 
   void _showDebugHapticsSnackBar(AppHapticResult result) {
@@ -158,160 +139,11 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final flows = switch (_tab) {
-      FlowPostTab.active => _activeFlows,
-      FlowPostTab.saved => _savedFlows,
-    };
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF000000),
-        elevation: 0.5,
-        leading: IconButton(
-          icon: KemeticGold.icon(Icons.close),
-          onPressed: () => popOrGo(context, '/profile/me'),
-        ),
-        title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
-        actions: [
-          if (_posting)
-            const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-                ),
-              ),
-            ),
-        ],
-      ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-              ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: SegmentedButton<FlowPostTab>(
-                    segments: const [
-                      ButtonSegment(
-                        value: FlowPostTab.active,
-                        label: Text('Active Flows'),
-                      ),
-                      ButtonSegment(
-                        value: FlowPostTab.saved,
-                        label: Text('Saved Flows'),
-                      ),
-                    ],
-                    selected: <FlowPostTab>{_tab},
-                    onSelectionChanged: (v) {
-                      if (v.isNotEmpty) {
-                        setState(() => _tab = v.first);
-                      }
-                    },
-                    style: ButtonStyle(
-                      backgroundColor: WidgetStateProperty.all(
-                        const Color(0xFF111111),
-                      ),
-                      foregroundColor: WidgetStateProperty.all(Colors.white),
-                      side: WidgetStateProperty.all(
-                        const BorderSide(color: Colors.white24),
-                      ),
-                      padding: WidgetStateProperty.all(
-                        const EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: flows.isEmpty
-                      ? _buildEmpty()
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                          itemCount: flows.length,
-                          separatorBuilder: (context, index) =>
-                              const Divider(height: 12, color: Colors.white10),
-                          itemBuilder: (ctx, i) {
-                            final f = flows[i];
-                            return ListTile(
-                              onTap: () => _postFlow(f),
-                              leading: Container(
-                                width: 18,
-                                height: 18,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: glossFromColor(f.color),
-                                ),
-                              ),
-                              title: Text(
-                                f.name,
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              subtitle: Text(
-                                _tab == FlowPostTab.saved
-                                    ? 'Saved Flow · preview and post'
-                                    : 'Active · preview and post',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              trailing: const Icon(
-                                Icons.chevron_right,
-                                color: Color(0xFFB0B0B0),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildEmpty() {
-    final label = switch (_tab) {
-      FlowPostTab.active => 'No active flows',
-      FlowPostTab.saved => 'No saved flows',
-    };
-    final hint = switch (_tab) {
-      FlowPostTab.active => 'Create a flow in Flow Studio to post it here.',
-      FlowPostTab.saved => 'Save a flow first, then you can post it here.',
-    };
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              hint,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return CalendarPage.buildMyFlowsPostingPage(
+      navigator: Navigator.of(context),
+      parentRoute: '/profile/flow-post-picker',
+      flowsRepo: _flowsRepo,
+      onFlowSelected: _postFlowById,
     );
   }
 }

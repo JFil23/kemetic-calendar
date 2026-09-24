@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flows_repo.dart';
 import 'package:mobile/features/profile/flow_post_picker_page.dart';
@@ -24,5 +26,18 @@ void main() {
   test('accepted member cannot publish a host-owned filed house', () {
     expect(canUserPublishFlow(row('host-user'), 'reader-user'), isFalse);
     expect(canUserPublishFlow(row('host-user'), null), isFalse);
+  });
+
+  test('profile posting reuses the canonical My Flows surface', () {
+    final pickerSource = File(
+      'lib/features/profile/flow_post_picker_page.dart',
+    ).readAsStringSync();
+    final calendarSource = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+
+    expect(pickerSource, contains('CalendarPage.buildMyFlowsPostingPage('));
+    expect(pickerSource, isNot(contains('SegmentedButton<FlowPostTab>')));
+    expect(calendarSource, contains('onSelectFlow: onFlowSelected'));
   });
 }

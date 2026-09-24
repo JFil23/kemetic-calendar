@@ -14,6 +14,9 @@ class ProfileAvatar extends StatelessWidget {
     this.borderColor,
     this.borderWidth = 0,
     this.maxInitialCharacters = 2,
+    this.initialFontSize = 32,
+    this.initialFontFamily,
+    this.initialFontWeight = FontWeight.w700,
   });
 
   final String displayName;
@@ -25,6 +28,9 @@ class ProfileAvatar extends StatelessWidget {
   final Color? borderColor;
   final double borderWidth;
   final int maxInitialCharacters;
+  final double initialFontSize;
+  final String? initialFontFamily;
+  final FontWeight initialFontWeight;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +70,9 @@ class ProfileAvatar extends StatelessWidget {
           foregroundColor: foregroundColor,
           backgroundColor: backgroundColor,
           maxCharacters: maxInitialCharacters,
+          fontSize: initialFontSize,
+          fontFamily: initialFontFamily,
+          fontWeight: initialFontWeight,
         ),
       );
     }
@@ -73,6 +82,9 @@ class ProfileAvatar extends StatelessWidget {
       foregroundColor: foregroundColor,
       backgroundColor: backgroundColor,
       maxCharacters: maxInitialCharacters,
+      fontSize: initialFontSize,
+      fontFamily: initialFontFamily,
+      fontWeight: initialFontWeight,
     );
   }
 }
@@ -83,12 +95,18 @@ class _InitialAvatar extends StatelessWidget {
     required this.foregroundColor,
     required this.backgroundColor,
     required this.maxCharacters,
+    required this.fontSize,
+    required this.fontFamily,
+    required this.fontWeight,
   });
 
   final String displayName;
   final Color foregroundColor;
   final Color backgroundColor;
   final int maxCharacters;
+  final double fontSize;
+  final String? fontFamily;
+  final FontWeight fontWeight;
 
   @override
   Widget build(BuildContext context) {
@@ -102,9 +120,10 @@ class _InitialAvatar extends StatelessWidget {
             initials,
             style: TextStyle(
               color: foregroundColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 32,
-              letterSpacing: 0.5,
+              fontWeight: fontWeight,
+              fontSize: fontSize,
+              fontFamily: fontFamily,
+              height: 1,
             ),
           ),
         ),

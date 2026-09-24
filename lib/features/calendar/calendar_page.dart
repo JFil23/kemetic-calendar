@@ -8266,6 +8266,7 @@ class CalendarPage extends StatefulWidget {
     required FlowsRepo flowsRepo,
     int? initialFlowId,
     VoidCallback? onClose,
+    FutureOr<void> Function(int flowId)? onSelectFlow,
   }) {
     if (initialFlowId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -8330,9 +8331,26 @@ class CalendarPage extends StatefulWidget {
         flowId: flowId,
         onClose: onClose,
       ),
+      onSelectFlow: onSelectFlow,
       onImportFlow: (_) async {
         await flowsRepo.refreshMyFiledFlows();
       },
+    );
+  }
+
+  /// Reuses the canonical My Flows/Saved Flows surface as the profile post
+  /// picker while leaving flow creation and filing behavior on one authority.
+  static Widget buildMyFlowsPostingPage({
+    required NavigatorState navigator,
+    required String parentRoute,
+    required FlowsRepo flowsRepo,
+    required FutureOr<void> Function(int flowId) onFlowSelected,
+  }) {
+    return _buildDetachedMyFlowsPage(
+      navigator: navigator,
+      parentRoute: parentRoute,
+      flowsRepo: flowsRepo,
+      onSelectFlow: onFlowSelected,
     );
   }
 

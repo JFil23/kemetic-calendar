@@ -125,10 +125,10 @@ void main() {
     );
 
     expect(feedSource, contains('padding: EdgeInsets.only(top: appBarBottom)'));
-    expect(feedSource, contains('width * 9 / 16'));
+    expect(feedSource, contains('const heroExtent = 168.0'));
     expect(feedSource, contains('_ProfileFeedHeroHeaderDelegate('));
     expect(profileSource, contains("'profile-feed-pyramid-hero'"));
-    expect(profileSource, contains('fit: BoxFit.contain'));
+    expect(profileSource, contains('fit: BoxFit.cover'));
     expect(profileSource, contains('offset: Offset(0, shrinkOffset * 0.34)'));
     expect(profileSource, contains('if (showBackdrop && !_feedRevealed)'));
   });

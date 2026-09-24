@@ -4097,6 +4097,7 @@ class _FlowsViewerPage extends StatefulWidget {
     this.calendarPreviewForWindow,
     this.initialFilingSnapshot,
     this.onPreviewFlowForTesting,
+    this.onSelectFlow,
   });
 
   final Future<_MyFlowsFilingSnapshot> Function() loadFilingSnapshot;
@@ -4110,6 +4111,7 @@ class _FlowsViewerPage extends StatefulWidget {
   final Future<void> Function(String text)? onAppendToJournal;
   final _CalendarPreviewForWindow? calendarPreviewForWindow;
   final ValueChanged<int>? onPreviewFlowForTesting;
+  final FutureOr<void> Function(int flowId)? onSelectFlow;
 
   @override
   State<_FlowsViewerPage> createState() => _FlowsViewerPageState();
@@ -4415,6 +4417,11 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
           spec: spec,
           isActive: _tab == FlowListTab.active,
           onTap: () {
+            final onSelectFlow = widget.onSelectFlow;
+            if (onSelectFlow != null) {
+              unawaited(Future<void>.sync(() => onSelectFlow(f.id)));
+              return;
+            }
             unawaited(_openFlowPreview(items, i));
           },
         );
