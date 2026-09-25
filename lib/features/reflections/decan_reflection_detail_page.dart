@@ -19,6 +19,44 @@ import '../nodes/kemetic_node_model.dart';
 import '../nodes/node_link_picker_sheet.dart';
 import 'decan_reflection_skin.dart';
 
+class DecanReflectionInteractionTelemetry {
+  DecanReflectionInteractionTelemetry(this._choiceEvents);
+
+  final ChoiceEventTracker _choiceEvents;
+  bool _reflectionOpenRecorded = false;
+
+  Future<void> recordOpened(DecanReflection reflection) async {
+    if (_reflectionOpenRecorded) return;
+    _reflectionOpenRecorded = true;
+    await _choiceEvents.trackChoiceEvent(
+      eventType: 'reflection_opened',
+      reflectionId: reflection.id,
+      sourceSurface: 'decan_reflection_detail',
+      metadata: <String, dynamic>{
+        'decan_start': reflection.decanStart.toUtc().toIso8601String(),
+        'decan_end': reflection.decanEnd.toUtc().toIso8601String(),
+        'decan_name': reflection.decanName,
+      },
+    );
+  }
+
+  Future<void> recordSuggestedNodeLink({
+    required String reflectionId,
+    required String nodeSlug,
+    required String reason,
+  }) async {
+    final slug = nodeSlug.trim();
+    if (slug.isEmpty) return;
+    await _choiceEvents.trackChoiceEvent(
+      eventType: 'reflection_linked_to_node',
+      nodeSlug: slug,
+      reflectionId: reflectionId,
+      sourceSurface: 'decan_reflection_library_continuation',
+      metadata: <String, dynamic>{'reason': reason},
+    );
+  }
+}
+
 class DecanReflectionDetailPage extends StatefulWidget {
   final String reflectionId;
   const DecanReflectionDetailPage({super.key, required this.reflectionId});
@@ -34,6 +72,8 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   final ChoiceEventTracker _choiceEvents = SupabaseChoiceEventTracker(
     Supabase.instance.client,
   );
+  late final DecanReflectionInteractionTelemetry _reflectionEvents =
+      DecanReflectionInteractionTelemetry(_choiceEvents);
   final _insightRepo = InsightLinkRepo();
   List<InsightLink> _links = [];
   final List<GestureRecognizer> _linkGestureRecognizers = [];
@@ -48,7 +88,6 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     offset: -1,
   );
   bool _loading = true;
-  bool _reflectionOpenRecorded = false;
 
   @override
   void initState() {
@@ -70,7 +109,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         ? null
         : await _repo.getGraphHintsForReflection(data);
     if (data != null) {
-      unawaited(_recordReflectionOpened(data));
+      unawaited(_reflectionEvents.recordOpened(data));
       await _promptState.markInteracted(data.decanStart);
       await _repo.markPromptInteracted(
         decanStart: data.decanStart,
@@ -97,21 +136,6 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
       _rebuildReflectionSpans();
       _loading = false;
     });
-  }
-
-  Future<void> _recordReflectionOpened(DecanReflection reflection) async {
-    if (_reflectionOpenRecorded) return;
-    _reflectionOpenRecorded = true;
-    await _choiceEvents.trackChoiceEvent(
-      eventType: 'reflection_opened',
-      reflectionId: reflection.id,
-      sourceSurface: 'decan_reflection_detail',
-      metadata: <String, dynamic>{
-        'decan_start': reflection.decanStart.toUtc().toIso8601String(),
-        'decan_end': reflection.decanEnd.toUtc().toIso8601String(),
-        'decan_name': reflection.decanName,
-      },
-    );
   }
 
   Future<void> _recordNodeLinkTapped({
@@ -184,9 +208,10 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   Future<void> _openSuggestedNode(
     DecanReflectionSuggestedNodeLink suggestion,
   ) async {
-    await _repo.recordSuggestedNodeTap(
+    await _reflectionEvents.recordSuggestedNodeLink(
       reflectionId: widget.reflectionId,
       nodeSlug: suggestion.node.id,
+      reason: suggestion.reason,
     );
     unawaited(
       _recordNodeLinkTapped(

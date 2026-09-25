@@ -224,41 +224,6 @@ class DecanReflectionRepo {
     }
   }
 
-  Future<void> recordSuggestedNodeTap({
-    required String reflectionId,
-    required String nodeSlug,
-  }) async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) return;
-    final slug = nodeSlug.trim();
-    if (slug.isEmpty) return;
-
-    try {
-      final nodeRow = await withSupabaseAuthRetry(
-        _client,
-        () => _client.from('nodes').select('id').eq('slug', slug).maybeSingle(),
-      );
-      final nodeId = nodeRow == null ? null : nodeRow['id'] as String?;
-      if (nodeId == null || nodeId.isEmpty) return;
-
-      await withSupabaseAuthRetry(
-        _client,
-        () => _client.from('user_choice_events').insert({
-          'user_id': uid,
-          'event_type': 'reflection_linked_to_node',
-          'node_id': nodeId,
-          'reflection_entry_id': reflectionId,
-          'metadata': {
-            'source': 'decan_reflection_suggestion',
-            'node_slug': slug,
-          },
-        }),
-      );
-    } catch (e) {
-      debugPrint('[DecanReflectionRepo] recordSuggestedNodeTap error: $e');
-    }
-  }
-
   Future<DecanReflection?> findByWindow(
     DateTime decanStart,
     DateTime decanEnd,
