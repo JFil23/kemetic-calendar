@@ -1,3 +1,6 @@
+const String kReflectionGenerationManifestV2 =
+    'reflection_generation_manifest_v2';
+
 class DecanReflection {
   final String id;
   final String decanName;
@@ -102,6 +105,26 @@ class DecanReflectionRenderMetadata {
   factory DecanReflectionRenderMetadata.fromGenerationJson(
     Map<String, dynamic> json,
   ) {
+    final manifest = _reflectionGenerationManifestV2(json);
+    if (manifest.isNotEmpty) {
+      final render = _asStringKeyedMap(manifest['render']);
+      return DecanReflectionRenderMetadata(
+        renderer: _trimmedString(render['renderer']),
+        usedLlm: _boolFrom(render['used_llm']),
+        llmCost: _numFrom(render['llm_cost']),
+        spectrumFlowKey: _trimmedString(render['spectrum_flow_key']),
+        responseKind: _trimmedString(render['response_kind']),
+        selectedTier: _trimmedString(render['selected_tier']),
+        selectedSeed: _trimmedString(render['selected_seed']),
+        badgeTitle: _trimmedString(render['badge_title']),
+        badgeBody: _trimmedString(render['badge_body']),
+        detailBody: _trimmedString(render['detail_body']),
+        centralTension: _trimmedString(render['central_tension']),
+        anthropicAttempted: _boolFrom(render['anthropic_attempted']),
+        raw: json,
+      );
+    }
+
     final metadata = _asStringKeyedMap(json['metadata']);
     final sourceSnapshot = _asStringKeyedMap(json['source_snapshot']);
     final metadataOutputControl = _asStringKeyedMap(metadata['output_control']);
@@ -223,6 +246,22 @@ class DecanReflectionGraphHints {
   factory DecanReflectionGraphHints.fromGenerationJson(
     Map<String, dynamic> json,
   ) {
+    final manifest = _reflectionGenerationManifestV2(json);
+    if (manifest.isNotEmpty) {
+      final graph = _asStringKeyedMap(manifest['graph']);
+      final cta = DecanReflectionCta.fromGenerationJson(json);
+      final canonicalNode = _asStringKeyedMap(graph['canonical_node']);
+      return DecanReflectionGraphHints(
+        leadAxis: _trimmedString(graph['lead_axis']),
+        anchorNodes: _stringList(json['anchor_nodes']),
+        cta: cta.hasDestination ? cta : null,
+        fallbackNode: DecanReflectionNodeSuggestion.tryFromCtaFallback(cta),
+        canonicalNode: DecanReflectionNodeSuggestion.tryFromCanonicalMaps([
+          canonicalNode,
+        ]),
+      );
+    }
+
     final metadata = _asStringKeyedMap(json['metadata']);
     final sourceSnapshot = _asStringKeyedMap(json['source_snapshot']);
     final decisionMatrix = _asStringKeyedMap(metadata['decision_matrix']);
@@ -315,6 +354,26 @@ class DecanReflectionCta {
   });
 
   factory DecanReflectionCta.fromGenerationJson(Map<String, dynamic> json) {
+    final manifest = _reflectionGenerationManifestV2(json);
+    if (manifest.isNotEmpty) {
+      final graph = _asStringKeyedMap(manifest['graph']);
+      final destination = _asStringKeyedMap(graph['destination']);
+      final type = _trimmedString(destination['type']);
+      final ref = _trimmedString(destination['ref']);
+      if (type == null || ref == null || type == 'none') {
+        return const DecanReflectionCta(type: 'none', ref: '', label: '');
+      }
+      final fallback = _asStringKeyedMap(destination['fallback']);
+      return DecanReflectionCta(
+        type: type,
+        ref: ref,
+        label: _trimmedString(destination['label']) ?? _defaultCtaLabel(type),
+        fallbackType: _trimmedString(fallback['type']),
+        fallbackRef: _trimmedString(fallback['ref']),
+        fallbackLabel: _trimmedString(fallback['label']),
+      );
+    }
+
     final metadata = _asStringKeyedMap(json['metadata']);
     final sourceSnapshot = _asStringKeyedMap(json['source_snapshot']);
     final metadataOutputControl = _asStringKeyedMap(metadata['output_control']);
@@ -380,6 +439,16 @@ Map<String, dynamic> _asStringKeyedMap(Object? value) {
   if (value is Map<String, dynamic>) return value;
   if (value is Map) return Map<String, dynamic>.from(value);
   return const <String, dynamic>{};
+}
+
+Map<String, dynamic> _reflectionGenerationManifestV2(
+  Map<String, dynamic> json,
+) {
+  final metadata = _asStringKeyedMap(json['metadata']);
+  final manifest = _asStringKeyedMap(metadata['manifest']);
+  return manifest['version'] == kReflectionGenerationManifestV2
+      ? manifest
+      : const <String, dynamic>{};
 }
 
 Map<String, dynamic> _firstMap(Iterable<Object?> values) {

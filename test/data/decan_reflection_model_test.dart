@@ -177,4 +177,206 @@ void main() {
       'decan_recommendation_policy_v1',
     );
   });
+
+  group('reflection generation manifest v2', () {
+    test('pure v2 matches v1 render, graph, CTA, and node semantics', () {
+      final v1Render = DecanReflectionRenderMetadata.fromGenerationJson(
+        _v1Generation,
+      );
+      final v2Render = DecanReflectionRenderMetadata.fromGenerationJson(
+        _v2Generation,
+      );
+      _expectEquivalentRenderMetadata(v2Render, v1Render);
+
+      final v1Hints = DecanReflectionGraphHints.fromGenerationJson(
+        _v1Generation,
+      );
+      final v2Hints = DecanReflectionGraphHints.fromGenerationJson(
+        _v2Generation,
+      );
+      _expectEquivalentGraphHints(v2Hints, v1Hints);
+
+      expect(
+        (_v2Generation['metadata'] as Map<String, dynamic>),
+        isNot(contains('output_control')),
+      );
+      expect(
+        (_v2Generation['source_snapshot'] as Map<String, dynamic>),
+        isNot(contains('output_control')),
+      );
+    });
+
+    test('mixed row prefers a supported v2 manifest', () {
+      final mixed = <String, dynamic>{
+        ..._v1Generation,
+        'metadata': <String, dynamic>{
+          ...(_v1Generation['metadata'] as Map<String, dynamic>),
+          'manifest': <String, dynamic>{
+            ..._manifestV2,
+            'render': <String, dynamic>{
+              ...(_manifestV2['render'] as Map<String, dynamic>),
+              'badge_body': 'V2 wins.',
+            },
+            'graph': <String, dynamic>{
+              ...(_manifestV2['graph'] as Map<String, dynamic>),
+              'lead_axis': 'v2-axis',
+            },
+          },
+        },
+      };
+
+      final render = DecanReflectionRenderMetadata.fromGenerationJson(mixed);
+      final hints = DecanReflectionGraphHints.fromGenerationJson(mixed);
+
+      expect(render.badgeBody, 'V2 wins.');
+      expect(hints.leadAxis, 'v2-axis');
+    });
+
+    test('unknown manifest version falls back to unchanged v1 parsing', () {
+      final unknown = <String, dynamic>{
+        ..._v1Generation,
+        'metadata': <String, dynamic>{
+          ...(_v1Generation['metadata'] as Map<String, dynamic>),
+          'manifest': <String, dynamic>{
+            ..._manifestV2,
+            'version': 'reflection_generation_manifest_v999',
+            'render': <String, dynamic>{'badge_body': 'Must not win.'},
+          },
+        },
+      };
+
+      _expectEquivalentRenderMetadata(
+        DecanReflectionRenderMetadata.fromGenerationJson(unknown),
+        DecanReflectionRenderMetadata.fromGenerationJson(_v1Generation),
+      );
+      _expectEquivalentGraphHints(
+        DecanReflectionGraphHints.fromGenerationJson(unknown),
+        DecanReflectionGraphHints.fromGenerationJson(_v1Generation),
+      );
+    });
+  });
+}
+
+const Map<String, dynamic> _v1Generation = <String, dynamic>{
+  'anchor_nodes': <String>['maat', 'instruction_amenemope'],
+  'source_snapshot': <String, dynamic>{
+    'decan_reflection_id': 'reflection-paired-fixture',
+  },
+  'metadata': <String, dynamic>{
+    'renderer': 'deterministic_spectrum',
+    'used_llm': false,
+    'llm_cost': 0,
+    'spectrum_flow_key': 'the-weighing',
+    'lead_axis': 'truth',
+    'output_control': <String, dynamic>{
+      'renderer': <String, dynamic>{
+        'renderer': 'deterministic_spectrum',
+        'anthropic_attempted': false,
+        'deterministic_response': <String, dynamic>{
+          'responseKind': 'witness',
+          'badgeTitle': 'The balance held',
+          'badgeBody': 'The record was brought to the scale.',
+          'detailBody': 'The record names one clear return.',
+          'centralTension': 'Measure and movement',
+          'selectedSeed': <String, dynamic>{
+            'tier': 'observed',
+            'seed': 'The record was brought to the scale.',
+          },
+        },
+      },
+      'compiled_output_package': <String, dynamic>{
+        'node_ref': 'maat',
+        'node_title': 'Ma\u2019at',
+        'destination': <String, dynamic>{
+          'type': 'flow_template',
+          'ref': 'the-tending',
+          'label': 'Open suggested flow',
+          'fallback': <String, dynamic>{
+            'ctaType': 'node',
+            'ctaRef': 'instruction_amenemope',
+            'ctaLabel': 'Read the guiding node',
+          },
+        },
+      },
+    },
+  },
+};
+
+const Map<String, dynamic> _manifestV2 = <String, dynamic>{
+  'version': kReflectionGenerationManifestV2,
+  'render': <String, dynamic>{
+    'renderer': 'deterministic_spectrum',
+    'used_llm': false,
+    'llm_cost': 0,
+    'spectrum_flow_key': 'the-weighing',
+    'response_kind': 'witness',
+    'selected_tier': 'observed',
+    'selected_seed': 'The record was brought to the scale.',
+    'badge_title': 'The balance held',
+    'badge_body': 'The record was brought to the scale.',
+    'detail_body': 'The record names one clear return.',
+    'central_tension': 'Measure and movement',
+    'anthropic_attempted': false,
+  },
+  'graph': <String, dynamic>{
+    'lead_axis': 'truth',
+    'destination': <String, dynamic>{
+      'type': 'flow_template',
+      'ref': 'the-tending',
+      'label': 'Open suggested flow',
+      'fallback': <String, dynamic>{
+        'type': 'node',
+        'ref': 'instruction_amenemope',
+        'label': 'Read the guiding node',
+      },
+    },
+    'canonical_node': <String, dynamic>{
+      'node_ref': 'maat',
+      'node_title': 'Ma\u2019at',
+    },
+  },
+};
+
+const Map<String, dynamic> _v2Generation = <String, dynamic>{
+  'anchor_nodes': <String>['maat', 'instruction_amenemope'],
+  'source_snapshot': <String, dynamic>{
+    'decan_reflection_id': 'reflection-paired-fixture',
+  },
+  'metadata': <String, dynamic>{'manifest': _manifestV2},
+};
+
+void _expectEquivalentRenderMetadata(
+  DecanReflectionRenderMetadata actual,
+  DecanReflectionRenderMetadata expected,
+) {
+  expect(actual.renderer, expected.renderer);
+  expect(actual.usedLlm, expected.usedLlm);
+  expect(actual.llmCost, expected.llmCost);
+  expect(actual.spectrumFlowKey, expected.spectrumFlowKey);
+  expect(actual.responseKind, expected.responseKind);
+  expect(actual.selectedTier, expected.selectedTier);
+  expect(actual.selectedSeed, expected.selectedSeed);
+  expect(actual.badgeTitle, expected.badgeTitle);
+  expect(actual.badgeBody, expected.badgeBody);
+  expect(actual.detailBody, expected.detailBody);
+  expect(actual.centralTension, expected.centralTension);
+  expect(actual.anthropicAttempted, expected.anthropicAttempted);
+}
+
+void _expectEquivalentGraphHints(
+  DecanReflectionGraphHints actual,
+  DecanReflectionGraphHints expected,
+) {
+  expect(actual.leadAxis, expected.leadAxis);
+  expect(actual.anchorNodes, expected.anchorNodes);
+  expect(actual.cta?.type, expected.cta?.type);
+  expect(actual.cta?.ref, expected.cta?.ref);
+  expect(actual.cta?.label, expected.cta?.label);
+  expect(actual.cta?.fallbackType, expected.cta?.fallbackType);
+  expect(actual.cta?.fallbackRef, expected.cta?.fallbackRef);
+  expect(actual.cta?.fallbackLabel, expected.cta?.fallbackLabel);
+  expect(actual.fallbackNode?.ref, expected.fallbackNode?.ref);
+  expect(actual.fallbackNode?.label, expected.fallbackNode?.label);
+  expect(actual.canonicalNode?.ref, expected.canonicalNode?.ref);
+  expect(actual.canonicalNode?.label, expected.canonicalNode?.label);
 }
