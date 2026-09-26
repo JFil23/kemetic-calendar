@@ -131,7 +131,8 @@ class SocialFlowPostTile extends StatelessWidget {
     required this.onOpenFlow,
     required this.onShare,
     required this.onSaveOrEdit,
-    required this.onTogether,
+    this.onTogether,
+    this.togetherLabel = 'Together',
   });
 
   final FlowPost post;
@@ -145,7 +146,8 @@ class SocialFlowPostTile extends StatelessWidget {
   final VoidCallback onOpenFlow;
   final VoidCallback onShare;
   final VoidCallback onSaveOrEdit;
-  final VoidCallback onTogether;
+  final VoidCallback? onTogether;
+  final String togetherLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -243,12 +245,15 @@ class SocialFlowPostTile extends StatelessWidget {
                   color: accent.withValues(alpha: 0.92),
                   onPressed: onSaveOrEdit,
                 ),
-                FlowPostEngagementAction(
-                  key: ValueKey<String>('feed_together_${post.id}'),
-                  icon: Icons.people_outline_rounded,
-                  label: 'Together',
-                  onPressed: onTogether,
-                ),
+                if (onTogether != null)
+                  FlowPostEngagementAction(
+                    key: ValueKey<String>('feed_together_${post.id}'),
+                    icon: togetherLabel == 'Requested'
+                        ? Icons.hourglass_top_rounded
+                        : Icons.people_outline_rounded,
+                    label: togetherLabel,
+                    onPressed: onTogether!,
+                  ),
               ],
             ),
           ],

@@ -761,6 +761,7 @@ class ReadingHouseChatComposer extends StatefulWidget {
     this.onSend,
     this.onJumpToLatest,
     this.compact = false,
+    this.activeHintText = 'Message House Chat',
   });
 
   final ReadingHouseRoomVisualState state;
@@ -768,6 +769,7 @@ class ReadingHouseChatComposer extends StatefulWidget {
   final ValueChanged<String>? onSend;
   final VoidCallback? onJumpToLatest;
   final bool compact;
+  final String activeHintText;
 
   bool get _canDraft => switch (state) {
     ReadingHouseRoomVisualState.active ||
@@ -866,7 +868,7 @@ class _ReadingHouseChatComposerState extends State<ReadingHouseChatComposer> {
                           'This House is read-only',
                         ReadingHouseRoomVisualState.solo =>
                           'Solo study has no House Chat',
-                        _ => 'Message House Chat',
+                        _ => widget.activeHintText,
                       },
                       hintStyle: const TextStyle(color: Color(0xFF506058)),
                       filled: true,

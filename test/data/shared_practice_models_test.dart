@@ -150,5 +150,109 @@ void main() {
       expect(privateOtherMember.entryActionLabel, 'Entry private');
       expect(statusOnlyShared.entryActionLabel, 'No note shared');
     });
+
+    test('parses persisted group messages and published quote activity', () {
+      final snapshot = SharedPracticeRoomSnapshot.fromJson({
+        'room': {
+          'id': 'room-1',
+          'created_by': 'host-1',
+          'title': 'Morning Practice',
+          'visibility': 'public',
+          'request_audience': 'anyone',
+        },
+        'calendar': {'id': '', 'name': 'Morning Practice'},
+        'local_date': '2026-09-26',
+        'messages': [
+          {
+            'id': 'message-1',
+            'room_id': 'room-1',
+            'user_id': 'member-1',
+            'flow_day': '2026-09-26',
+            'body_text': 'Breathe before beginning.',
+            'host_client_event_id': 'event-3',
+            'flow_id': 42,
+            'author_display_name': 'Amina',
+          },
+        ],
+      });
+      final quote = SharedPracticeQuotePost.fromJson({
+        'id': 'quote-1',
+        'room_id': 'room-1',
+        'source_message_id': 'message-1',
+        'quoted_user_id': 'member-1',
+        'submitted_by': 'member-1',
+        'body_text': 'Breathe before beginning.',
+        'status': 'published',
+        'author_is_public': true,
+        'author_display_name': 'Amina',
+        'likes_count': 3,
+        'liked_by_me': true,
+        'comments': [
+          {
+            'id': 'comment-1',
+            'quote_post_id': 'quote-1',
+            'user_id': 'reader-1',
+            'body_text': 'Keeping this.',
+            'author_handle': 'reader',
+          },
+        ],
+      });
+
+      expect(snapshot.messages.single.bodyText, 'Breathe before beginning.');
+      expect(snapshot.messages.single.authorLabel, 'Amina');
+      expect(snapshot.messages.single.flowId, 42);
+      expect(quote.authorLabel, 'Amina');
+      expect(quote.likesCount, 3);
+      expect(quote.likedByMe, isTrue);
+      expect(quote.comments.single.authorLabel, '@reader');
+    });
+  });
+
+  group('TogetherInboxSnapshot', () {
+    test('parses active rooms, quote approvals, and requester decisions', () {
+      final snapshot = TogetherInboxSnapshot.fromJson({
+        'active_rooms': [
+          {
+            'room_id': 'room-active',
+            'title': 'Morning Practice',
+            'member_count': 3,
+            'visibility': 'private',
+            'request_audience': 'nobody',
+            'created_by': 'host-1',
+            'host_display_name': 'Sekhet',
+          },
+        ],
+        'quote_approvals': [
+          {
+            'id': 'quote-1',
+            'room_id': 'room-1',
+            'source_message_id': 'message-1',
+            'submitted_by': 'member-2',
+            'body_text': 'A selected line.',
+            'flow_title': 'Morning Practice',
+            'submitter_display_name': 'Amina',
+          },
+        ],
+        'request_decisions': [
+          {
+            'id': 'request-1',
+            'room_id': 'room-1',
+            'status': 'approved',
+            'title': 'Morning Practice',
+            'host_id': 'host-1',
+            'source_flow_id': 42,
+            'host_handle': 'host',
+          },
+        ],
+      });
+
+      expect(snapshot.isEmpty, isFalse);
+      expect(snapshot.activeRooms.single.memberCount, 3);
+      expect(snapshot.activeRooms.single.hostLabel, 'Sekhet');
+      expect(snapshot.quoteApprovals.single.submitterLabel, 'Amina');
+      expect(snapshot.requestDecisions.single.approved, isTrue);
+      expect(snapshot.requestDecisions.single.hostLabel, '@host');
+      expect(snapshot.requestDecisions.single.sourceFlowId, 42);
+    });
   });
 }

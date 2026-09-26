@@ -493,8 +493,8 @@ void main() {
     expect(caption, contains("'flow-post-live-caption-preview'"));
     expect(caption, contains("'flow-post-live-caption-text'"));
     expect(profile, contains('updateFlowPostSharedNote'));
-    expect(profileRepo, contains("'get_profile_feed_cards'"));
-    expect(commonsRepo, contains("'get_commons_home_cards'"));
+    expect(profileRepo, contains("'get_profile_feed_together_cards'"));
+    expect(commonsRepo, contains("'get_commons_together_home_cards'"));
     expect(detail, contains('_fullPostFor(post)'));
     expect(profileRepo, contains("post.payloadJson?['events'] is! List"));
     expect(socialTile, contains('additionalActions:'));

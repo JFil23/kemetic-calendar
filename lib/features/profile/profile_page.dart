@@ -21,19 +21,17 @@ import '../../data/flow_appearance.dart';
 import '../../data/insight_post_model.dart';
 import '../../data/profile_feed_item_model.dart';
 import '../../data/shared_practice_models.dart';
-import '../../data/shared_practice_repo.dart';
-import '../../utils/detail_sanitizer.dart';
 import '../../utils/kemetic_date_format.dart';
 import '../../services/app_haptics.dart';
 import '../../services/navigation_trace.dart';
 import '../../services/restoration_coordinator.dart';
 import '../../widgets/keyboard_aware.dart';
+import '../../widgets/profile_avatar.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
 import '../calendar/calendar_invalidation.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
-import '../shared_practice/shared_practice_calendar_chooser_sheet.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/shared/kemetic_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
@@ -143,8 +141,15 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   int _activePostIndex = 0;
   int _activeInsightPostIndex = 0;
   int _activeCommonsPracticeIndex = 0;
-  final Set<String> _commonsJoiningRoomIds = <String>{};
-  final Set<String> _commonsVisibilityUpdatingRoomIds = <String>{};
+  final Set<String> _requestedFlowPostIds = <String>{};
+  final Set<String> _clearedFlowPostRequestIds = <String>{};
+  final Set<String> _togetherRequestBusyIds = <String>{};
+  final Set<String> _requestedCommonsRoomIds = <String>{};
+  final Set<String> _clearedCommonsRoomRequestIds = <String>{};
+  final Set<String> _commonsRequestBusyIds = <String>{};
+  final Set<String> _optimisticLikedCommonsRoomIds = <String>{};
+  final Set<String> _commonsLikeBusyIds = <String>{};
+  final Set<String> _commonsQuoteLikeBusyIds = <String>{};
   final Set<String> _savedFlowPostIds = <String>{};
   int _profileLoadSerial = 0;
   double _feedTopPullDistance = 0;
@@ -195,6 +200,63 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   bool _ownsInsightPost(InsightPost post) {
     final currentUserId = _currentUserId;
     return currentUserId != null && currentUserId == post.userId;
+  }
+
+  bool _flowPostRequestIsPending(FlowPost post) {
+    return _requestedFlowPostIds.contains(post.id) ||
+        (!_clearedFlowPostRequestIds.contains(post.id) &&
+            post.viewerTogetherRequestStatus?.trim().toLowerCase() ==
+                'pending');
+  }
+
+  Future<void> _toggleTogetherRequest(FlowPost post) async {
+    if (!post.viewerCanRequestTogether ||
+        _ownsPost(post) ||
+        _togetherRequestBusyIds.contains(post.id)) {
+      return;
+    }
+    final wasPending = _flowPostRequestIsPending(post);
+    setState(() {
+      _togetherRequestBusyIds.add(post.id);
+      if (wasPending) {
+        _requestedFlowPostIds.remove(post.id);
+        _clearedFlowPostRequestIds.add(post.id);
+      } else {
+        _requestedFlowPostIds.add(post.id);
+        _clearedFlowPostRequestIds.remove(post.id);
+      }
+    });
+    try {
+      if (wasPending) {
+        await _repo.cancelTogetherRequest(post.id);
+      } else {
+        await _repo.requestTogether(post.id);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (wasPending) {
+          _requestedFlowPostIds.add(post.id);
+          _clearedFlowPostRequestIds.remove(post.id);
+        } else {
+          _requestedFlowPostIds.remove(post.id);
+          _clearedFlowPostRequestIds.add(post.id);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasPending
+                ? 'Could not remove that request.'
+                : 'Could not send that request.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _togetherRequestBusyIds.remove(post.id));
+      }
+    }
   }
 
   @override
@@ -958,6 +1020,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         _commonsHome = snapshot.questions.isEmpty
             ? snapshot.copyWith(questions: <CommonsQuestion>[question])
             : snapshot;
+        _requestedCommonsRoomIds.clear();
+        _clearedCommonsRoomRequestIds.clear();
+        _optimisticLikedCommonsRoomIds.clear();
         _commonsLoading = false;
         _commonsErrorMessage = null;
         final practiceCount = _commonsPracticeRooms().length;
@@ -1073,109 +1138,154 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     if (ok) unawaited(_loadCommonsHome(force: true));
   }
 
-  List<CommonsPracticeRoom> _commonsPracticeRooms() {
-    final home = _commonsHome;
-    if (home == null) return const <CommonsPracticeRoom>[];
-    final rooms = <CommonsPracticeRoom>[];
-    final seen = <String>{};
-    for (final room in [
-      ...home.mySharedPractices,
-      ...home.publicSharedPractices,
-    ]) {
-      if (room.id.isEmpty || !seen.add(room.id)) continue;
-      rooms.add(room);
+  Future<void> _toggleCommonsRoomRequest(CommonsPracticeRoom room) async {
+    if (!room.viewerCanRequestJoin ||
+        _commonsRequestBusyIds.contains(room.id)) {
+      return;
     }
-    return rooms;
-  }
-
-  Future<void> _updateCommonsPracticeVisibility(
-    CommonsPracticeRoom room,
-    SharedPracticeRoomVisibility visibility,
-  ) async {
-    if (_commonsVisibilityUpdatingRoomIds.contains(room.id)) return;
-    setState(() => _commonsVisibilityUpdatingRoomIds.add(room.id));
+    final wasRequested =
+        _requestedCommonsRoomIds.contains(room.id) ||
+        (!_clearedCommonsRoomRequestIds.contains(room.id) &&
+            room.viewerRequestStatus == 'pending');
+    setState(() {
+      _commonsRequestBusyIds.add(room.id);
+      if (wasRequested) {
+        _requestedCommonsRoomIds.remove(room.id);
+        _clearedCommonsRoomRequestIds.add(room.id);
+      } else {
+        _requestedCommonsRoomIds.add(room.id);
+        _clearedCommonsRoomRequestIds.remove(room.id);
+      }
+    });
     try {
-      await _commonsRepo.setPracticeVisibility(
-        roomId: room.id,
-        visibility: visibility,
-        joinPolicy: visibility == SharedPracticeRoomVisibility.public
-            ? SharedPracticeJoinPolicy.ownerApproval
-            : SharedPracticeJoinPolicy.closed,
+      if (wasRequested) {
+        await _commonsRepo.cancelJoinSharedPractice(roomId: room.id);
+      } else {
+        await _commonsRepo.requestJoinSharedPractice(roomId: room.id);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (wasRequested) {
+          _requestedCommonsRoomIds.add(room.id);
+          _clearedCommonsRoomRequestIds.remove(room.id);
+        } else {
+          _requestedCommonsRoomIds.remove(room.id);
+          _clearedCommonsRoomRequestIds.add(room.id);
+        }
+      });
+      _showCommonsActionSnack(
+        wasRequested
+            ? 'Could not remove that request.'
+            : 'Could not send that request.',
       );
-      if (!mounted) return;
-      _showCommonsActionSnack('${visibility.label} visibility saved.');
-      unawaited(_loadCommonsHome(force: true));
-    } catch (e) {
-      if (!mounted) return;
-      _showCommonsActionSnack('Could not update that shared practice.');
     } finally {
       if (mounted) {
-        setState(() => _commonsVisibilityUpdatingRoomIds.remove(room.id));
+        setState(() => _commonsRequestBusyIds.remove(room.id));
       }
     }
   }
 
-  Future<void> _requestJoinCommonsPractice(CommonsPracticeRoom room) async {
-    if (_commonsJoiningRoomIds.contains(room.id)) return;
+  Future<void> _toggleCommonsRoomLike(CommonsPracticeRoom room) async {
+    if (_commonsLikeBusyIds.contains(room.id)) return;
+    setState(() {
+      _commonsLikeBusyIds.add(room.id);
+      if (!_optimisticLikedCommonsRoomIds.add(room.id)) {
+        _optimisticLikedCommonsRoomIds.remove(room.id);
+      }
+    });
+    try {
+      await _commonsRepo.togglePracticeLike(roomId: room.id);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (!_optimisticLikedCommonsRoomIds.add(room.id)) {
+          _optimisticLikedCommonsRoomIds.remove(room.id);
+        }
+      });
+      _showCommonsActionSnack('Could not update that like.');
+    } finally {
+      if (mounted) {
+        setState(() => _commonsLikeBusyIds.remove(room.id));
+      }
+    }
+  }
+
+  Future<void> _toggleCommonsQuoteLike(SharedPracticeQuotePost post) async {
+    if (_commonsQuoteLikeBusyIds.contains(post.id)) return;
+    setState(() => _commonsQuoteLikeBusyIds.add(post.id));
+    try {
+      await _commonsRepo.toggleQuoteLike(quotePostId: post.id);
+      await _loadCommonsHome(force: true);
+    } catch (_) {
+      if (mounted) _showCommonsActionSnack('Could not update that like.');
+    } finally {
+      if (mounted) {
+        setState(() => _commonsQuoteLikeBusyIds.remove(post.id));
+      }
+    }
+  }
+
+  Future<void> _commentOnCommonsQuote(SharedPracticeQuotePost post) async {
     final controller = TextEditingController();
-    final message = await showEditableDialog<String?>(
+    final body = await showEditableDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF0D0D0F),
-        title: const Text('Ask to join', style: TextStyle(color: Colors.white)),
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF15110A),
+        title: const Text(
+          'Comment on quote',
+          style: TextStyle(color: Colors.white),
+        ),
         content: TextField(
           controller: controller,
-          maxLines: 3,
-          maxLength: 500,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 5,
+          maxLength: 1000,
           style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: 'Optional note',
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.42)),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(
-                color: _profileGoldMid.withValues(alpha: 0.3),
-              ),
-            ),
-            focusedBorder: const OutlineInputBorder(
-              borderSide: BorderSide(color: _profileGoldMid),
-            ),
-          ),
+          decoration: const InputDecoration(hintText: 'Write a comment'),
         ),
-        actions: [
+        actions: <Widget>[
           TextButton(
-            onPressed: () => Navigator.of(context).pop(null),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Send request'),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Post'),
           ),
         ],
       ),
     );
     controller.dispose();
-    if (message == null) return;
-    setState(() => _commonsJoiningRoomIds.add(room.id));
+    final clean = body?.trim();
+    if (!mounted || clean == null || clean.isEmpty) return;
     try {
-      final request = await _commonsRepo.requestJoinSharedPractice(
-        roomId: room.id,
-        message: message,
-      );
-      if (!mounted) return;
-      _showCommonsActionSnack(
-        request.status == 'approved'
-            ? 'You joined this shared practice.'
-            : 'Join request sent.',
-      );
-      unawaited(_loadCommonsHome(force: true));
-    } catch (e) {
-      if (!mounted) return;
-      _showCommonsActionSnack('Could not send that join request.');
-    } finally {
-      if (mounted) {
-        setState(() => _commonsJoiningRoomIds.remove(room.id));
-      }
+      await _commonsRepo.addQuoteComment(quotePostId: post.id, bodyText: clean);
+      await _loadCommonsHome(force: true);
+    } catch (_) {
+      if (mounted) _showCommonsActionSnack('Could not post that comment.');
     }
+  }
+
+  List<CommonsPracticeRoom> _commonsPracticeRooms() {
+    final home = _commonsHome;
+    if (home == null) return const <CommonsPracticeRoom>[];
+    final rooms = <CommonsPracticeRoom>[];
+    final seen = <String>{};
+    for (final room in <CommonsPracticeRoom>[
+      ...home.mySharedPractices,
+      ...home.publicSharedPractices,
+    ]) {
+      if (room.id.isEmpty || !seen.add(room.id)) continue;
+      if (room.visibility != SharedPracticeRoomVisibility.public ||
+          room.memberCount < 2 ||
+          room.status.trim().toLowerCase() != 'active') {
+        continue;
+      }
+      rooms.add(room);
+    }
+    return rooms;
   }
 
   void _maybeLoadMoreFeed() {
@@ -2981,6 +3091,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         _buildCommonsQuestionSection(),
         _buildCommonsReflectionSection(),
         _buildCommonsPracticeTogetherSection(),
+        _buildCommonsGroupQuotesSection(),
         _buildCommonsDiscoverSection(),
       ],
     );
@@ -3052,51 +3163,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   void _openFlowsForCommons() {
     context.go('/flows');
-  }
-
-  Future<void> _openPracticeTogetherForFlowPost(FlowPost post) async {
-    final sourceFlowId = post.sourceFlowId;
-    if (sourceFlowId == null || sourceFlowId <= 0) {
-      _showCommonsActionSnack('This flow cannot be practiced together yet.');
-      return;
-    }
-    final title = cleanFlowTitle(post.name);
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id.trim();
-    final authorUserId = post.userId.trim();
-    if (currentUserId != null &&
-        currentUserId.isNotEmpty &&
-        authorUserId.isNotEmpty &&
-        authorUserId != currentUserId) {
-      try {
-        final result = await SharedPracticeRepo(Supabase.instance.client)
-            .createJointFlowExperienceFromCommons(
-              sourceFlowId: sourceFlowId,
-              participantUserIds: <String>[authorUserId],
-              calendarTitle: title.isEmpty ? 'Shared Practice' : title,
-              context: <String, dynamic>{
-                'flow_post_id': post.id,
-                'source': 'profile_flow_post',
-              },
-            );
-        if (!mounted || result.sharedPracticeRoomId.trim().isEmpty) return;
-        context.push(
-          '/shared-practice/${Uri.encodeComponent(result.sharedPracticeRoomId.trim())}',
-        );
-      } catch (_) {
-        if (!mounted) return;
-        _showCommonsActionSnack('Could not start shared practice.');
-      }
-      return;
-    }
-
-    final roomId = await showSharedPracticeCalendarChooser(
-      context: context,
-      sourceFlowId: sourceFlowId,
-      flowTitle: title.isEmpty ? 'Ma\'at Flow' : title,
-      stepCount: _flowPayloadEvents(post).length,
-    );
-    if (!mounted || roomId == null || roomId.trim().isEmpty) return;
-    context.push('/shared-practice/${Uri.encodeComponent(roomId.trim())}');
   }
 
   Widget _buildCommonsRhythmSection() {
@@ -3724,8 +3790,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         title: 'Practice Together',
         children: [
           _buildCommonsEmptyState(
-            'Shared practices are loading.',
-            'Your rooms will appear first, followed by public rooms open to join.',
+            'Public group flows are loading.',
+            'Commons shows flows that people are already practicing together.',
           ),
         ],
       );
@@ -3737,8 +3803,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       children: rooms.isEmpty
           ? [
               _buildCommonsEmptyState(
-                'Start a shared practice or make one public.',
-                'Your shared flows appear first. Public practices from other users appear after them.',
+                'No public group flows yet.',
+                'Private groups stay with their members. Public groups appear here after a second person joins.',
               ),
               const SizedBox(height: 10),
               _buildCommonsGhostButton(
@@ -3784,15 +3850,24 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   double _commonsPracticeCarouselHeight(BuildContext context) {
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
-    return 306 + ((textScale - 1.0).clamp(0.0, 0.4) * 120);
+    return 318 + ((textScale - 1.0).clamp(0.0, 0.4) * 120);
   }
 
   Widget _buildCommonsPracticeRoomCard(CommonsPracticeRoom room) {
-    final isUpdating = _commonsVisibilityUpdatingRoomIds.contains(room.id);
+    final liked =
+        room.likedByMe ^ _optimisticLikedCommonsRoomIds.contains(room.id);
+    final likeCount = math.max(
+      0,
+      room.likesCount +
+          (liked == room.likedByMe
+              ? 0
+              : liked
+              ? 1
+              : -1),
+    );
+    final viewerAction = _buildCommonsPracticeViewerAction(room);
     return _buildCommonsCard(
-      borderColor: room.viewerCanManage
-          ? _profileGoldText.withValues(alpha: 0.36)
-          : _profileGoldMid.withValues(alpha: 0.22),
+      borderColor: _profileGoldMid.withValues(alpha: 0.22),
       padding: const EdgeInsets.all(15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3805,10 +3880,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildCommonsStatusPill(
-                      room.viewerCanManage ? 'Your Flow' : 'Public Flow',
-                      color: room.viewerCanManage
-                          ? _profileGoldText
-                          : const Color(0xFF30D5C8),
+                      'Public group flow',
+                      color: const Color(0xFF30D5C8),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -3828,17 +3901,18 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(width: 10),
-              IconButton(
-                onPressed: () => context.push(
-                  '/shared-practice/${Uri.encodeComponent(room.id)}',
+              if (room.viewerIsMember || room.viewerCanManage)
+                IconButton(
+                  onPressed: () => context.push(
+                    '/shared-practice/${Uri.encodeComponent(room.id)}',
+                  ),
+                  tooltip: 'Open group flow',
+                  icon: const Icon(Icons.open_in_new_rounded, size: 20),
+                  color: _profileGoldText,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: 0.28),
+                  ),
                 ),
-                tooltip: 'Open shared practice',
-                icon: const Icon(Icons.open_in_new_rounded, size: 20),
-                color: _profileGoldText,
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.black.withValues(alpha: 0.28),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -3847,7 +3921,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               if (room.calendarName?.trim().isNotEmpty == true)
                 room.calendarName!.trim(),
               '${room.memberCount} ${_plural(room.memberCount, 'member')}',
-              room.joinPolicy.label,
             ].join(' · '),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -3858,27 +3931,38 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 12),
-          if (room.viewerCanManage)
-            _buildCommonsPracticeVisibilityControls(room, isUpdating)
-          else
-            _buildCommonsPracticeViewerAction(room),
+          _buildCommonsPublicMemberRoster(room),
           const Spacer(),
-          if (room.pendingJoinRequestCount > 0 && room.viewerCanManage) ...[
-            Text(
-              '${room.pendingJoinRequestCount} pending ${_plural(room.pendingJoinRequestCount, 'request')}',
-              style: TextStyle(
-                color: _profileGoldText.withValues(alpha: 0.82),
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+          Row(
+            children: [
+              TextButton.icon(
+                key: ValueKey<String>('commons_group_like_${room.id}'),
+                onPressed: _commonsLikeBusyIds.contains(room.id)
+                    ? null
+                    : () => unawaited(_toggleCommonsRoomLike(room)),
+                icon: Icon(
+                  liked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  size: 18,
+                ),
+                label: Text(likeCount > 0 ? '$likeCount' : 'Like'),
+                style: TextButton.styleFrom(
+                  foregroundColor: liked
+                      ? const Color(0xFFC4DCE8)
+                      : Colors.white.withValues(alpha: 0.62),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 40),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-          ],
+              const Spacer(),
+              viewerAction,
+            ],
+          ),
+          const SizedBox(height: 8),
           Text(
-            room.viewerCanManage
-                ? 'Choose whether this shared flow stays private, invite-only, or appears publicly in Commons.'
-                : 'Ask to join public practices. Owners approve requests before the room becomes visible to you.',
-            maxLines: 3,
+            'The group is public here; its conversation stays with the people practicing inside it.',
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.50),
@@ -3894,39 +3978,61 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildCommonsPracticeVisibilityControls(
-    CommonsPracticeRoom room,
-    bool isUpdating,
-  ) {
-    return Wrap(
-      spacing: 7,
-      runSpacing: 7,
+  Widget _buildCommonsPublicMemberRoster(CommonsPracticeRoom room) {
+    final visibleMembers = room.publicMembers.take(3).toList(growable: false);
+    if (visibleMembers.isEmpty) {
+      return Text(
+        '${room.memberCount} practicing · names kept private',
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.52),
+          fontFamily: _profileSerifFont,
+          fontFamilyFallback: _profileSerifFallback,
+          fontSize: 14,
+          fontStyle: FontStyle.italic,
+        ),
+      );
+    }
+    final privateCount = math.max(0, room.memberCount - visibleMembers.length);
+    return Row(
       children: [
-        for (final visibility in SharedPracticeRoomVisibility.values)
-          ChoiceChip(
-            selected: room.visibility == visibility,
-            onSelected: isUpdating
-                ? null
-                : (_) => unawaited(
-                    _updateCommonsPracticeVisibility(room, visibility),
+        SizedBox(
+          width: 28.0 + ((visibleMembers.length - 1) * 19),
+          height: 30,
+          child: Stack(
+            children: [
+              for (var index = 0; index < visibleMembers.length; index++)
+                Positioned(
+                  left: index * 19,
+                  child: ProfileAvatar(
+                    radius: 14,
+                    displayName: visibleMembers[index].label,
+                    avatarUrl: visibleMembers[index].avatarUrl,
+                    avatarGlyphIds: visibleMembers[index].avatarGlyphIds,
+                    backgroundColor: const Color(0xFF163C32),
+                    foregroundColor: const Color(0xFFB9E5D7),
+                    borderColor: const Color(0xFF090704),
+                    borderWidth: 1,
                   ),
-            label: Text(visibility.label),
-            selectedColor: _profileGoldMid.withValues(alpha: 0.30),
-            backgroundColor: Colors.black.withValues(alpha: 0.18),
-            disabledColor: Colors.black.withValues(alpha: 0.12),
-            labelStyle: TextStyle(
-              color: room.visibility == visibility
-                  ? _profileGoldText
-                  : Colors.white.withValues(alpha: 0.66),
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-            ),
-            side: BorderSide(
-              color: room.visibility == visibility
-                  ? _profileGoldText.withValues(alpha: 0.48)
-                  : _profileGoldMid.withValues(alpha: 0.16),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            [
+              visibleMembers.map((member) => member.label).join(', '),
+              if (privateCount > 0) '+ $privateCount private',
+            ].join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.62),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
             ),
           ),
+        ),
       ],
     );
   }
@@ -3934,24 +4040,23 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   Widget _buildCommonsPracticeViewerAction(CommonsPracticeRoom room) {
     if (room.viewerIsMember || room.viewerRequestStatus == 'approved') {
       return _buildCommonsCompactButton(
-        'Open room',
+        'Open flow',
         primary: true,
         onPressed: () =>
             context.push('/shared-practice/${Uri.encodeComponent(room.id)}'),
       );
     }
-    final requested = room.viewerRequestStatus == 'pending';
-    final joining = _commonsJoiningRoomIds.contains(room.id);
+    if (!room.viewerCanRequestJoin) return const SizedBox.shrink();
+    final requested =
+        _requestedCommonsRoomIds.contains(room.id) ||
+        (!_clearedCommonsRoomRequestIds.contains(room.id) &&
+            room.viewerRequestStatus == 'pending');
     return _buildCommonsCompactButton(
-      joining
-          ? 'Sending...'
-          : requested
-          ? 'Requested'
-          : room.requestLabel,
+      requested ? 'Requested' : 'Practice Together',
       primary: !requested,
-      onPressed: requested || joining
+      onPressed: _commonsRequestBusyIds.contains(room.id)
           ? null
-          : () => unawaited(_requestJoinCommonsPractice(room)),
+          : () => unawaited(_toggleCommonsRoomRequest(room)),
     );
   }
 
@@ -4001,10 +4106,134 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     );
   }
 
+  Widget _buildCommonsGroupQuotesSection() {
+    final posts =
+        _commonsHome?.groupQuotePosts ?? const <SharedPracticeQuotePost>[];
+    if (posts.isEmpty) return const SizedBox.shrink();
+    return _buildCommonsSection(
+      numeral: 'V',
+      title: 'From Group Conversations',
+      note:
+          'Quotes selected by group members. The conversation itself stays private.',
+      children: <Widget>[
+        for (var index = 0; index < posts.length; index++) ...<Widget>[
+          if (index > 0) const SizedBox(height: 12),
+          _buildCommonsGroupQuoteCard(posts[index]),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCommonsGroupQuoteCard(SharedPracticeQuotePost post) {
+    return _buildCommonsCard(
+      borderColor: const Color(0xFF30D5C8).withValues(alpha: 0.28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              _buildCommonsStatusPill(
+                'Group quote',
+                color: const Color(0xFF30D5C8),
+              ),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                  post.flowTitle ?? 'Group flow',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.46),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '“${post.bodyText}”',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontFamily: _profileSerifFont,
+              fontFamilyFallback: _profileSerifFallback,
+              fontSize: 21,
+              fontStyle: FontStyle.italic,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            post.authorLabel,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.48),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (post.comments.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 12),
+            for (final comment in post.comments.take(3))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text.rich(
+                  TextSpan(
+                    text: '${comment.authorLabel}: ',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    children: <InlineSpan>[
+                      TextSpan(
+                        text: comment.bodyText,
+                        style: const TextStyle(fontWeight: FontWeight.w400),
+                      ),
+                    ],
+                  ),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.62),
+                    fontSize: 12,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+          ],
+          const Divider(color: Color(0xFF2E2920), height: 22),
+          Row(
+            children: <Widget>[
+              TextButton.icon(
+                key: ValueKey<String>('commons_group_quote_like_${post.id}'),
+                onPressed: _commonsQuoteLikeBusyIds.contains(post.id)
+                    ? null
+                    : () => unawaited(_toggleCommonsQuoteLike(post)),
+                icon: Icon(
+                  post.likedByMe
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  post.likesCount > 0 ? '${post.likesCount}' : 'Like',
+                ),
+              ),
+              TextButton.icon(
+                key: ValueKey<String>('commons_group_quote_comment_${post.id}'),
+                onPressed: () => unawaited(_commentOnCommonsQuote(post)),
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 17),
+                label: Text(
+                  post.comments.isEmpty ? 'Comment' : '${post.comments.length}',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCommonsDiscoverSection() {
     final items = _commonsDiscoverItems();
     return _buildCommonsSection(
-      numeral: 'V',
+      numeral: 'VI',
       title: 'Discover Practices',
       note: 'Public flows and insights from the wider rhythm.',
       children: _feedLoading && _feedItems.isEmpty
@@ -4147,6 +4376,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     final post = item.flowPost!;
     final appearance = FlowAppearance.fromJson(post.payloadJson?['appearance']);
     final accent = _flowPostAccent(post, appearance);
+    final canRequestTogether =
+        !_ownsPost(post) && post.viewerCanRequestTogether;
+    final requestPending = _flowPostRequestIsPending(post);
     return SocialFlowPostTile(
       post: post,
       appearance: appearance,
@@ -4161,7 +4393,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       onSaveOrEdit: _ownsPost(post)
           ? () => unawaited(_editPostCaption(post))
           : () => unawaited(_savePost(post)),
-      onTogether: () => unawaited(_openPracticeTogetherForFlowPost(post)),
+      onTogether: canRequestTogether
+          ? () => unawaited(_toggleTogetherRequest(post))
+          : null,
+      togetherLabel: requestPending ? 'Requested' : 'Together',
     );
   }
 
@@ -4305,6 +4540,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   Widget _buildPostCard(FlowPost post, {required VoidCallback onTap}) {
     final appearance = FlowAppearance.fromJson(post.payloadJson?['appearance']);
     final ownsPost = _ownsPost(post);
+    final canRequestTogether = !ownsPost && post.viewerCanRequestTogether;
+    final requestPending = _flowPostRequestIsPending(post);
     final profile = _profile!;
     return ProfileFlowPostTile(
       post: post,
@@ -4332,9 +4569,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           ? () {}
           : () => unawaited(_savePost(post)),
       isSaved: _savedFlowPostIds.contains(post.id),
-      onTogether: ownsPost
-          ? null
-          : () => unawaited(_openPracticeTogetherForFlowPost(post)),
+      onTogether: canRequestTogether
+          ? () => unawaited(_toggleTogetherRequest(post))
+          : null,
+      togetherLabel: requestPending ? 'Requested' : 'Together',
     );
   }
 

@@ -350,6 +350,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   bool _appearanceImageBusy = false;
   final TextEditingController _flowSignLabelCtrl = TextEditingController();
   int _appearancePreviewIndex = 0;
+  List<UserSearchResult> _invitedPeople = <UserSearchResult>[];
 
   // analytics
   int _originalEventCount = 0; // Store count of AI-generated events
@@ -359,6 +360,64 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   bool get _isItineraryImport =>
       widget.importData?.aiMetadata?['prompt_type'] == 'itinerarySchedule';
+
+  Future<void> _openInvitePeoplePicker() async {
+    final selected = await context.push<List<UserSearchResult>>(
+      '/profile-search'
+      '?title=${Uri.encodeComponent('Invite people')}'
+      '&hint=${Uri.encodeComponent('Search friends by @handle or name')}'
+      '&fallback=${Uri.encodeComponent('/calendar')}'
+      '&select=multi_picker',
+    );
+    if (!mounted || selected == null || selected.isEmpty) return;
+    final byId = <String, UserSearchResult>{
+      for (final person in _invitedPeople) person.userId: person,
+      for (final person in selected) person.userId: person,
+    };
+    setState(() {
+      _invitedPeople = byId.values.toList(growable: false);
+    });
+    _schedulePersistentDraftSave();
+  }
+
+  void _removeInvitedPerson(String userId) {
+    setState(() {
+      _invitedPeople = _invitedPeople
+          .where((person) => person.userId != userId)
+          .toList(growable: false);
+    });
+    _schedulePersistentDraftSave();
+  }
+
+  void _showGroupFlowPreview() {
+    final title = _nameCtrl.text.trim().isEmpty
+        ? 'Your group flow'
+        : _nameCtrl.text.trim();
+    final participants = _invitedPeople.isEmpty
+        ? const <GroupFlowParticipantPreview>[
+            GroupFlowParticipantPreview(id: 'preview-friend', name: 'Friend'),
+          ]
+        : _invitedPeople
+              .map(
+                (person) => GroupFlowParticipantPreview(
+                  id: person.userId,
+                  name: person.name,
+                  avatarUrl: person.avatarUrl,
+                  avatarGlyphIds: person.avatarGlyphIds,
+                ),
+              )
+              .toList(growable: false);
+    unawaited(
+      GroupFlowUiPreviewSheet.show(
+        context,
+        flowTitle: title,
+        appearance: _studioAppearance,
+        accent: _appearanceAccent,
+        participants: participants,
+        localImageBytes: _pendingAppearanceImageBytes,
+      ),
+    );
+  }
 
   Future<void> _ensureCalendarChoicesLoaded() async {
     final pageState = _calendarPageState;
@@ -829,7 +888,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         _startDate != null ||
         _endDate != null ||
         !_studioAppearance.isEmpty ||
-        _pendingAppearanceImageBytes != null;
+        _pendingAppearanceImageBytes != null ||
+        _invitedPeople.isNotEmpty;
 
     final appearance = _studioAppearance;
 
@@ -878,6 +938,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       flowAlertMinutesBefore: _flowAlertMinutesBefore,
       flowAlertMixed: _flowAlertMixed,
       appearance: appearance,
+      invitedPeople: List<UserSearchResult>.from(_invitedPeople),
     );
   }
 
@@ -1010,6 +1071,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _flowAlertMinutesBefore = draft.flowAlertMinutesBefore;
       _flowAlertMixed = draft.flowAlertMixed;
       _appearance = draft.appearance;
+      _invitedPeople = List<UserSearchResult>.from(draft.invitedPeople);
       _pendingAppearanceImageBytes = null;
       _pendingAppearanceImageName = null;
       _flowSignLabelCtrl.text = draft.appearance.signLabel ?? '';
@@ -2221,6 +2283,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         originGenerationId: originGenerationId,
         rootFlowId: rootFlowId,
         aiMetadata: widget.importData?.aiMetadata,
+        invitedUserIds: _invitedPeople
+            .map((person) => person.userId)
+            .toList(growable: false),
       ),
     );
   }
@@ -2492,6 +2557,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _pendingAppearanceImageBytes = null;
       _pendingAppearanceImageName = null;
       _flowSignLabelCtrl.clear();
+      _invitedPeople = <UserSearchResult>[];
 
       _syncReady = false; // prevent any sync during wipe/reset
       _rebuildSpans(); // clears spans; no sync happens
@@ -2523,6 +2589,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _pendingAppearanceImageBytes = null;
       _pendingAppearanceImageName = null;
       _flowSignLabelCtrl.text = f.appearance.signLabel ?? '';
+      _invitedPeople = <UserSearchResult>[];
 
       _startDate = f.start == null ? null : _dateOnly(f.start!);
       _endDate = f.end == null ? null : _dateOnly(f.end!);
@@ -3993,6 +4060,48 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     required Color accent,
     required bool hasVisual,
   }) {
+    if (_invitedPeople.isNotEmpty) {
+      final first = _invitedPeople.first;
+      final participant = GroupFlowParticipantPreview(
+        id: first.userId,
+        name: first.name,
+        avatarUrl: first.avatarUrl,
+        avatarGlyphIds: first.avatarGlyphIds,
+      );
+      return ClipRRect(
+        key: const ValueKey('flow-studio-day-sheet-preview'),
+        borderRadius: BorderRadius.circular(10),
+        child: GroupFlowChatSurface(
+          flowTitle: name,
+          positionLabel: 'Day 12 of 30 · group flow',
+          appearance: appearance,
+          accent: accent,
+          localImageBytes: _pendingAppearanceImageBytes,
+          compact: true,
+          memberInitials: <String>['Y', participant.initials],
+          memberCount: _invitedPeople.length + 1,
+          completedOccurrences: 11,
+          totalOccurrences: 28,
+          messages: <GroupFlowChatMessagePreview>[
+            GroupFlowChatMessagePreview(
+              id: 'studio-preview-friend',
+              author: participant.name,
+              initials: participant.initials,
+              body: 'I joined you where the flow is today.',
+              timeLabel: '7:18',
+            ),
+            const GroupFlowChatMessagePreview(
+              id: 'studio-preview-you',
+              author: 'You',
+              initials: 'Y',
+              body: 'We are moving through it together.',
+              timeLabel: '7:20',
+              mine: true,
+            ),
+          ],
+        ),
+      );
+    }
     return ClipRRect(
       key: const ValueKey('flow-studio-day-sheet-preview'),
       borderRadius: BorderRadius.circular(10),
@@ -4262,6 +4371,159 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                   ),
           ),
           onTap: () => unawaited(_showFlowSignPicker()),
+        ),
+      ],
+    );
+  }
+
+  Widget _studioInvitesSection(_FlowStudioTone tone) {
+    final count = _invitedPeople.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        InkWell(
+          key: const ValueKey<String>('flow-studio-invite-people'),
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => unawaited(_openInvitePeoplePicker()),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 66),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF050403),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: tone.fieldBorder),
+            ),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 42,
+                  height: 42,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: tone.softenedAccent.withValues(alpha: 0.12),
+                    border: Border.all(
+                      color: tone.softenedAccent.withValues(alpha: 0.28),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.person_add_alt_1_outlined,
+                    color: tone.ctaText,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text(
+                        'Invite people',
+                        style: TextStyle(
+                          color: Color(0xFFE8D9C3),
+                          fontFamily: 'GentiumPlus',
+                          fontSize: 19,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        count == 0
+                            ? 'Start solo, or shape this as a group flow'
+                            : '$count ${count == 1 ? 'person' : 'people'} selected',
+                        style: const TextStyle(
+                          color: Color(0xFF776B5B),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  count == 0 ? 'Choose' : 'Add',
+                  style: TextStyle(
+                    color: tone.ctaText,
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: Color(0xFF6F604A),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_invitedPeople.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              for (final person in _invitedPeople)
+                InputChip(
+                  key: ValueKey<String>('flow-studio-invitee-${person.userId}'),
+                  avatar: ProfileAvatar(
+                    radius: 11,
+                    displayName: person.name,
+                    avatarUrl: person.avatarUrl,
+                    avatarGlyphIds: person.avatarGlyphIds,
+                    backgroundColor: const Color(0xFF0A0805),
+                    foregroundColor: tone.ctaText,
+                  ),
+                  label: Text(person.name),
+                  onDeleted: () => _removeInvitedPerson(person.userId),
+                  deleteIcon: const Icon(Icons.close, size: 15),
+                  backgroundColor: tone.softenedAccent.withValues(alpha: 0.1),
+                  side: BorderSide(color: tone.fieldBorder),
+                  labelStyle: const TextStyle(
+                    color: Color(0xFFDCCFAF),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  deleteIconColor: const Color(0xFF9E927E),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          key: const ValueKey<String>('flow-studio-preview-group-flow'),
+          onPressed: _showGroupFlowPreview,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: tone.ctaText,
+            side: BorderSide(color: tone.ctaBorder),
+            backgroundColor: tone.ctaBg,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          icon: const Icon(Icons.visibility_outlined, size: 18),
+          label: const Text(
+            'Preview group flow',
+            style: TextStyle(
+              fontFamily: 'GentiumPlus',
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(height: 7),
+        const Text(
+          'Preview only: selections stay in this draft and no invitations are sent yet.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Color(0xFF746A5A),
+            fontFamily: 'GentiumPlus',
+            fontSize: 12,
+            fontStyle: FontStyle.italic,
+          ),
         ),
       ],
     );
@@ -5658,6 +5920,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
               ),
             ],
             const Divider(color: Color(0x1FFFFFFF), height: 28),
+            _studioSectionLabel('People'),
+            const SizedBox(height: 12),
+            _studioInvitesSection(tone),
+            const Divider(color: Color(0x1FFFFFFF), height: 34),
             Row(
               children: [
                 _studioSectionLabel('System'),

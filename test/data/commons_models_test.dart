@@ -109,6 +109,13 @@ void main() {
             'visibility': 'public',
             'join_policy': 'owner_approval',
             'member_count': 3,
+            'viewer_can_request_join': true,
+            'likes_count': 8,
+            'liked_by_me': true,
+            'public_members': [
+              {'user_id': 'user-2', 'display_name': 'Aset'},
+              {'user_id': 'user-4', 'handle': 'hidden_name'},
+            ],
             'viewer_is_member': false,
             'viewer_can_manage': false,
           },
@@ -143,6 +150,12 @@ void main() {
       expect(publicRoom.visibility, SharedPracticeRoomVisibility.public);
       expect(publicRoom.joinPolicy, SharedPracticeJoinPolicy.ownerApproval);
       expect(publicRoom.requestLabel, 'Ask to join');
+      expect(publicRoom.viewerCanRequestJoin, isTrue);
+      expect(publicRoom.likesCount, 8);
+      expect(publicRoom.likedByMe, isTrue);
+      expect(publicRoom.publicMembers, hasLength(2));
+      expect(publicRoom.publicMembers.first.label, 'Aset');
+      expect(publicRoom.publicMembers.last.label, '@hidden_name');
 
       final pendingRoom = snapshot.publicSharedPractices.last;
       expect(pendingRoom.requestLabel, 'Requested');

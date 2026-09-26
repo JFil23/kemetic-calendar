@@ -28,7 +28,8 @@ void main() {
     expect(source, contains('_commonsHome'));
     expect(source, contains('getCommonsHome'));
     expect(source, contains('answerQuestion'));
-    expect(source, contains('setPracticeVisibility'));
+    expect(source, contains('viewerCanRequestJoin'));
+    expect(source, isNot(contains('setPracticeVisibility')));
     expect(source, contains('requestJoinSharedPractice'));
     expect(
       source,
@@ -77,12 +78,12 @@ void main() {
   );
 
   test(
-    'Practice Together carousel orders own rooms first and exposes join states',
+    'Practice Together carousel shows public groups and capability-gated actions',
     () {
       final orderingSource = _methodSource(
         source,
         'List<CommonsPracticeRoom> _commonsPracticeRooms()',
-        'Future<void> _updateCommonsPracticeVisibility(',
+        'void _maybeLoadMoreFeed()',
       );
       final sectionSource = _methodSource(
         source,
@@ -92,12 +93,7 @@ void main() {
       final cardSource = _methodSource(
         source,
         'Widget _buildCommonsPracticeRoomCard(CommonsPracticeRoom room)',
-        'Widget _buildCommonsPracticeVisibilityControls(',
-      );
-      final controlsSource = _methodSource(
-        source,
-        'Widget _buildCommonsPracticeVisibilityControls(',
-        'Widget _buildCommonsPracticeViewerAction(CommonsPracticeRoom room)',
+        'Widget _buildCommonsPublicMemberRoster(CommonsPracticeRoom room)',
       );
       final viewerActionSource = _methodSource(
         source,
@@ -105,9 +101,16 @@ void main() {
         'Widget _buildCommonsStatusPill(',
       );
 
+      expect(orderingSource, contains('home.publicSharedPractices'));
+      expect(orderingSource, contains('home.mySharedPractices'));
       expect(
-        orderingSource.indexOf('...home.mySharedPractices'),
-        lessThan(orderingSource.indexOf('...home.publicSharedPractices')),
+        orderingSource,
+        contains('room.visibility != SharedPracticeRoomVisibility.public'),
+      );
+      expect(orderingSource, contains('room.memberCount < 2'));
+      expect(
+        orderingSource,
+        contains("room.status.trim().toLowerCase() != 'active'"),
       );
       expect(orderingSource, contains('seen.add(room.id)'));
       expect(sectionSource, contains('PageView.builder'));
@@ -115,21 +118,23 @@ void main() {
       expect(sectionSource, contains('BouncingScrollPhysics'));
       expect(sectionSource, contains('onPageChanged'));
       expect(sectionSource, contains('_buildCommonsCarouselDots'));
-      expect(cardSource, contains("room.viewerCanManage ? 'Your Flow'"));
-      expect(cardSource, contains("'Public Flow'"));
-      expect(cardSource, contains('pendingJoinRequestCount'));
+      expect(cardSource, contains("'Public group flow'"));
+      expect(cardSource, contains('room.memberCount'));
+      expect(cardSource, contains('_buildCommonsPublicMemberRoster(room)'));
+      expect(cardSource, contains('commons_group_like_'));
+      expect(viewerActionSource, contains("'Open flow'"));
       expect(
-        cardSource,
-        contains('Choose whether this shared flow stays private'),
+        viewerActionSource,
+        contains(
+          'if (!room.viewerCanRequestJoin) return const SizedBox.shrink()',
+        ),
       );
-      expect(cardSource, contains('Ask to join public practices'));
-      expect(controlsSource, contains('SharedPracticeRoomVisibility.values'));
-      expect(controlsSource, contains('ChoiceChip'));
-      expect(controlsSource, contains('_updateCommonsPracticeVisibility'));
-      expect(viewerActionSource, contains("'Open room'"));
       expect(viewerActionSource, contains("'Requested'"));
-      expect(viewerActionSource, contains('room.requestLabel'));
-      expect(viewerActionSource, contains('_requestJoinCommonsPractice(room)'));
+      expect(viewerActionSource, contains("'Practice Together'"));
+      expect(viewerActionSource, contains('_requestedCommonsRoomIds'));
+      expect(viewerActionSource, contains('_toggleCommonsRoomRequest(room)'));
+      expect(source, isNot(contains('_updateCommonsPracticeVisibility')));
+      expect(source, isNot(contains('_requestJoinCommonsPractice')));
     },
   );
 
@@ -176,7 +181,9 @@ void main() {
     expect(tileSource, contains('PostedFlowArtifact('));
     expect(tileSource, contains('additionalActions:'));
     expect(tileSource, contains("label: isOwner ? 'Edit' : 'Save'"));
-    expect(tileSource, contains("label: 'Together'"));
+    expect(tileSource, contains('if (onTogether != null)'));
+    expect(tileSource, contains('label: togetherLabel'));
+    expect(feedFlowSource, contains('post.viewerCanRequestTogether'));
     expect(feedFlowSource, isNot(contains('_buildForYouFlowTileActions')));
     expect(feedFlowSource, contains(': () => unawaited(_savePost(post))'));
     expect(source, contains('Practice Together'));
@@ -189,8 +196,11 @@ void main() {
     expect(source, contains('No fragments have been shared today.'));
     expect(source, contains('No discoverable practices yet.'));
     expect(source, contains('Answer in the Commons'));
-    expect(source, contains('Start a shared practice or make one public.'));
-    expect(source, contains('Choose whether this shared flow stays private'));
+    expect(source, contains('No public group flows yet.'));
+    expect(
+      source,
+      contains('Public groups appear here after a second person joins.'),
+    );
   });
 
   test('prototype social claims are not present', () {

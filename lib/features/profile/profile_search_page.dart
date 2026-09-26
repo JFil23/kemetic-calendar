@@ -45,6 +45,8 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
   Timer? _debounce;
 
   bool get _isConversationMode => widget.selectionMode == 'conversation';
+  bool get _isMultiPickerMode => widget.selectionMode == 'multi_picker';
+  bool get _isMultiSelectionMode => _isConversationMode || _isMultiPickerMode;
 
   @override
   void dispose() {
@@ -87,7 +89,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         return;
       }
     }
-    if (_isConversationMode) {
+    if (_isMultiSelectionMode) {
       _toggleSelectedUser(user);
       return;
     }
@@ -103,13 +105,19 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     if (currentUserId != null && currentUserId == user.userId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You cannot message yourself')),
+        SnackBar(
+          content: Text(
+            _isMultiPickerMode
+                ? 'You are already part of this flow.'
+                : 'You cannot message yourself',
+          ),
+        ),
       );
       return;
     }
 
     final isSelected = _selectedUsersById.containsKey(user.userId);
-    if (!isSelected && _selectedUsersById.length >= 5) {
+    if (_isConversationMode && !isSelected && _selectedUsersById.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Group chats are limited to 6 people')),
       );
@@ -173,6 +181,13 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
     }
   }
 
+  void _finishMultiPicker() {
+    if (_selectedUsersById.isEmpty) return;
+    final navigator = Navigator.of(context);
+    if (!navigator.canPop()) return;
+    navigator.pop(_selectedUsersById.values.toList(growable: false));
+  }
+
   @override
   Widget build(BuildContext context) {
     const bodyPadding = EdgeInsets.all(20);
@@ -194,11 +209,13 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: _isConversationMode
+        actions: _isMultiSelectionMode
             ? [
                 TextButton(
                   onPressed: _selectedUsersById.isEmpty || _startingConversation
                       ? null
+                      : _isMultiPickerMode
+                      ? _finishMultiPicker
                       : () => unawaited(_startConversation()),
                   child: _startingConversation
                       ? const SizedBox(
@@ -211,7 +228,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
                             ),
                           ),
                         )
-                      : const Text('Start'),
+                      : Text(_isMultiPickerMode ? 'Add' : 'Start'),
                 ),
               ]
             : null,
@@ -223,7 +240,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildSearchField(),
-              if (_isConversationMode && _selectedUsersById.isNotEmpty) ...[
+              if (_isMultiSelectionMode && _selectedUsersById.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 _buildSelectedPeopleChips(),
               ],
@@ -379,7 +396,8 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
       itemBuilder: (context, index) {
         final user = _results[index];
         final isSelected =
-            _isConversationMode && _selectedUsersById.containsKey(user.userId);
+            _isMultiSelectionMode &&
+            _selectedUsersById.containsKey(user.userId);
         final subtitle =
             user.displayName != null && user.displayName!.isNotEmpty
             ? '@${user.handle ?? 'user'}'
@@ -410,7 +428,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                 )
               : null,
-          trailing: _isConversationMode
+          trailing: _isMultiSelectionMode
               ? Icon(
                   isSelected ? Icons.check_circle : Icons.add_circle_outline,
                   color: isSelected

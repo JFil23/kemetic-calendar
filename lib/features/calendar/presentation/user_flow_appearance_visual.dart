@@ -44,6 +44,8 @@ class UserFlowAppearanceHero extends StatelessWidget {
     this.surface = UserFlowAppearanceSurface.standard,
     this.signSize,
     this.showSignLabel = true,
+    this.showSignVisual = true,
+    this.imageOpacityOverride,
     this.animationRevision = 0,
     this.animationFromCompletedOccurrences,
   });
@@ -60,6 +62,8 @@ class UserFlowAppearanceHero extends StatelessWidget {
   final UserFlowAppearanceSurface surface;
   final double? signSize;
   final bool showSignLabel;
+  final bool showSignVisual;
+  final double? imageOpacityOverride;
   final int animationRevision;
   final int? animationFromCompletedOccurrences;
 
@@ -69,10 +73,12 @@ class UserFlowAppearanceHero extends StatelessWidget {
     final hasSign = appearance.hasSign;
     final showImage =
         hasImage && surface != UserFlowAppearanceSurface.timelineBadge;
-    final imageOpacity = switch (surface) {
-      UserFlowAppearanceSurface.daySheet => hasSign ? 0.24 : 1.0,
-      _ => 1.0,
-    };
+    final imageOpacity =
+        imageOpacityOverride?.clamp(0.0, 1.0) ??
+        switch (surface) {
+          UserFlowAppearanceSurface.daySheet => hasSign ? 0.24 : 1.0,
+          _ => 1.0,
+        };
     final resolvedSignSize =
         signSize ??
         switch (surface) {
@@ -157,7 +163,7 @@ class UserFlowAppearanceHero extends StatelessWidget {
                   child: CustomPaint(painter: _FlowImageGrainPainter()),
                 ),
               ),
-            if (hasSign)
+            if (hasSign && showSignVisual)
               Align(
                 key: const ValueKey('user-flow-appearance-sign-layer'),
                 alignment: showProgressFooter

@@ -94,6 +94,7 @@ import '../../utils/external_link_utils.dart';
 import '../../utils/flow_filter_engine.dart';
 import '../../utils/text_editing_controller_sync.dart';
 import '../shared_practice/shared_practice_completion_sheet.dart';
+import '../shared_practice/together_flow_day_hero.dart';
 import '../../core/feature_flags.dart';
 import 'event_resource.dart';
 import 'event_workspace/event_workspace_models.dart';
@@ -4154,23 +4155,59 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     );
 
     Widget buildUserAppearanceHero() {
-      return UserFlowAppearanceHero(
+      final accent = flow!.appearance.accentArgb == null
+          ? flow.color
+          : Color(flow.appearance.accentArgb!);
+      final completedOccurrences =
+          _userFlowCompletedOccurrenceOverrides[completionIdentity] ??
+          flow.completedOccurrenceCount;
+      final animationRevision =
+          _userFlowMerkhetAnimationRevisions[completionIdentity] ?? 0;
+      final fallback = UserFlowAppearanceHero(
         key: const ValueKey('user-flow-day-sheet-fixed-appearance'),
-        appearance: flow!.appearance,
-        accent: flow.appearance.accentArgb == null
-            ? flow.color
-            : Color(flow.appearance.accentArgb!),
+        appearance: flow.appearance,
+        accent: accent,
         height: 190,
         surface: UserFlowAppearanceSurface.daySheet,
-        completedOccurrences:
-            _userFlowCompletedOccurrenceOverrides[completionIdentity] ??
-            flow.completedOccurrenceCount,
+        completedOccurrences: completedOccurrences,
         totalOccurrences: flow.totalOccurrenceCount,
         showProgressFooter: true,
-        animationRevision:
-            _userFlowMerkhetAnimationRevisions[completionIdentity] ?? 0,
+        animationRevision: animationRevision,
         animationFromCompletedOccurrences:
             _userFlowMerkhetAnimationFrom[completionIdentity],
+      );
+      return TogetherFlowDayHero(
+        flowId: currentEvent.flowId!,
+        clientEventId: currentEvent.clientEventId ?? '',
+        flowTitle: flow.name,
+        calendarName: currentEvent.calendarName ?? '',
+        appearance: flow.appearance,
+        accent: accent,
+        completedOccurrences: completedOccurrences,
+        totalOccurrences: flow.totalOccurrenceCount,
+        animationRevision: animationRevision,
+        animationFromCompletedOccurrences:
+            _userFlowMerkhetAnimationFrom[completionIdentity],
+        fallback: fallback,
+      );
+    }
+
+    Widget buildAppearanceFreeTogetherHero() {
+      if (flow == null || isMaatFlow || currentEvent.flowId == null) {
+        return const SizedBox.shrink();
+      }
+      return TogetherFlowDayHero(
+        key: const ValueKey('appearance-free-together-flow-day-hero'),
+        flowId: currentEvent.flowId!,
+        clientEventId: currentEvent.clientEventId ?? '',
+        flowTitle: flow.name,
+        calendarName: currentEvent.calendarName ?? '',
+        appearance: FlowAppearance.empty,
+        accent: flow.color,
+        completedOccurrences: flow.completedOccurrenceCount,
+        totalOccurrences: flow.totalOccurrenceCount,
+        animationRevision: 0,
+        fallback: const SizedBox.shrink(),
       );
     }
 
@@ -4208,14 +4245,18 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
 
     Widget buildDetailContent() {
       if (!hasUserAppearance) {
+        final content = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[buildAppearanceFreeTogetherHero(), body],
+        );
         return scrollable
             ? SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
-                child: body,
+                child: content,
               )
-            : body;
+            : content;
       }
 
       if (!scrollable) {

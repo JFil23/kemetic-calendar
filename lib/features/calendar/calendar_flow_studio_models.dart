@@ -384,6 +384,7 @@ class _FlowStudioDraft {
   final int flowAlertMinutesBefore;
   final bool flowAlertMixed;
   final FlowAppearance appearance;
+  final List<UserSearchResult> invitedPeople;
 
   const _FlowStudioDraft({
     required this.editingFlowId,
@@ -419,6 +420,7 @@ class _FlowStudioDraft {
     required this.flowAlertMinutesBefore,
     required this.flowAlertMixed,
     this.appearance = FlowAppearance.empty,
+    this.invitedPeople = const <UserSearchResult>[],
   });
 
   Map<String, dynamic> toJson() {
@@ -469,6 +471,17 @@ class _FlowStudioDraft {
       'flowAlertMinutesBefore': flowAlertMinutesBefore,
       'flowAlertMixed': flowAlertMixed,
       'appearance': appearance.toJsonOrNull(),
+      'invitedPeople': invitedPeople
+          .map(
+            (person) => <String, dynamic>{
+              'userId': person.userId,
+              if (person.handle != null) 'handle': person.handle,
+              if (person.displayName != null) 'displayName': person.displayName,
+              if (person.avatarUrl != null) 'avatarUrl': person.avatarUrl,
+              'avatarGlyphIds': person.avatarGlyphIds,
+            },
+          )
+          .toList(growable: false),
     };
   }
 
@@ -540,6 +553,27 @@ class _FlowStudioDraft {
           _alertNoneMinutes,
       flowAlertMixed: json['flowAlertMixed'] == true,
       appearance: FlowAppearance.fromJson(json['appearance']),
+      invitedPeople: (json['invitedPeople'] is List)
+          ? (json['invitedPeople'] as List)
+                .whereType<Map>()
+                .map((rawPerson) {
+                  final person = Map<String, dynamic>.from(rawPerson);
+                  final userId = person['userId']?.toString().trim() ?? '';
+                  return UserSearchResult(
+                    userId: userId,
+                    handle: person['handle']?.toString(),
+                    displayName: person['displayName']?.toString(),
+                    avatarUrl: person['avatarUrl']?.toString(),
+                    avatarGlyphIds:
+                        (person['avatarGlyphIds'] as List<dynamic>? ??
+                                const <dynamic>[])
+                            .map((value) => value.toString())
+                            .toList(growable: false),
+                  );
+                })
+                .where((person) => person.userId.isNotEmpty)
+                .toList(growable: false)
+          : const <UserSearchResult>[],
     );
   }
 }
@@ -633,6 +667,7 @@ class _FlowStudioResult {
   final String? originGenerationId;
   final int? rootFlowId;
   final Map<String, dynamic>? aiMetadata;
+  final List<String> invitedUserIds;
   const _FlowStudioResult({
     this.savedFlow,
     this.deleteFlowId,
@@ -644,6 +679,7 @@ class _FlowStudioResult {
     this.originGenerationId,
     this.rootFlowId,
     this.aiMetadata,
+    this.invitedUserIds = const <String>[],
   });
 }
 

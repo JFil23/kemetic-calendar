@@ -172,6 +172,40 @@ class CommonsQuestion {
   }
 }
 
+class CommonsPracticeMemberPreview {
+  const CommonsPracticeMemberPreview({
+    required this.userId,
+    this.handle,
+    this.displayName,
+    this.avatarUrl,
+    this.avatarGlyphIds = const <String>[],
+  });
+
+  final String userId;
+  final String? handle;
+  final String? displayName;
+  final String? avatarUrl;
+  final List<String> avatarGlyphIds;
+
+  String get label {
+    final display = displayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final cleanHandle = handle?.trim();
+    if (cleanHandle != null && cleanHandle.isNotEmpty) return '@$cleanHandle';
+    return 'Participant';
+  }
+
+  factory CommonsPracticeMemberPreview.fromJson(Map<String, dynamic> json) {
+    return CommonsPracticeMemberPreview(
+      userId: _cleanString(json['user_id']) ?? '',
+      handle: _cleanString(json['handle']),
+      displayName: _cleanString(json['display_name']),
+      avatarUrl: _cleanString(json['avatar_url']),
+      avatarGlyphIds: parseProfileAvatarGlyphIds(json['avatar_glyphs']),
+    );
+  }
+}
+
 class CommonsPracticeRoom {
   const CommonsPracticeRoom({
     required this.id,
@@ -187,6 +221,7 @@ class CommonsPracticeRoom {
     required this.status,
     required this.visibility,
     required this.joinPolicy,
+    this.requestAudience = SharedPracticeRequestAudience.creatorFriends,
     this.calendarName,
     this.calendarColor,
     this.ownerHandle,
@@ -196,7 +231,11 @@ class CommonsPracticeRoom {
     this.pendingJoinRequestCount = 0,
     this.viewerIsMember = false,
     this.viewerCanManage = false,
+    this.viewerCanRequestJoin = false,
     this.viewerRequestStatus,
+    this.likesCount = 0,
+    this.likedByMe = false,
+    this.publicMembers = const <CommonsPracticeMemberPreview>[],
     this.createdAt,
     this.updatedAt,
   });
@@ -214,6 +253,7 @@ class CommonsPracticeRoom {
   final String status;
   final SharedPracticeRoomVisibility visibility;
   final SharedPracticeJoinPolicy joinPolicy;
+  final SharedPracticeRequestAudience requestAudience;
   final String? calendarName;
   final int? calendarColor;
   final String? ownerHandle;
@@ -223,7 +263,11 @@ class CommonsPracticeRoom {
   final int pendingJoinRequestCount;
   final bool viewerIsMember;
   final bool viewerCanManage;
+  final bool viewerCanRequestJoin;
   final String? viewerRequestStatus;
+  final int likesCount;
+  final bool likedByMe;
+  final List<CommonsPracticeMemberPreview> publicMembers;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -270,6 +314,9 @@ class CommonsPracticeRoom {
       joinPolicy: SharedPracticeJoinPolicyX.fromWireName(
         _cleanString(json['join_policy']),
       ),
+      requestAudience: SharedPracticeRequestAudienceX.fromWireName(
+        _cleanString(json['request_audience']),
+      ),
       calendarName: _cleanString(json['calendar_name']),
       calendarColor: _parseInt(json['calendar_color']),
       ownerHandle: _cleanString(json['owner_handle']),
@@ -282,7 +329,14 @@ class CommonsPracticeRoom {
           0,
       viewerIsMember: json['viewer_is_member'] == true,
       viewerCanManage: json['viewer_can_manage'] == true,
+      viewerCanRequestJoin: json['viewer_can_request_join'] == true,
       viewerRequestStatus: _cleanString(json['viewer_request_status']),
+      likesCount: _parseInt(json['likes_count']) ?? 0,
+      likedByMe: json['liked_by_me'] == true,
+      publicMembers: _parseList(
+        json['public_members'],
+        CommonsPracticeMemberPreview.fromJson,
+      ).where((member) => member.userId.isNotEmpty).toList(growable: false),
       createdAt: _parseDateTime(json['created_at']),
       updatedAt: _parseDateTime(json['updated_at']),
     );
@@ -295,6 +349,7 @@ class CommonsHomeSnapshot {
     this.questions = const <CommonsQuestion>[],
     this.mySharedPractices = const <CommonsPracticeRoom>[],
     this.publicSharedPractices = const <CommonsPracticeRoom>[],
+    this.groupQuotePosts = const <SharedPracticeQuotePost>[],
     this.fragments = const <InsightPost>[],
     this.discover = const <ProfileFeedItem>[],
   });
@@ -303,6 +358,7 @@ class CommonsHomeSnapshot {
   final List<CommonsQuestion> questions;
   final List<CommonsPracticeRoom> mySharedPractices;
   final List<CommonsPracticeRoom> publicSharedPractices;
+  final List<SharedPracticeQuotePost> groupQuotePosts;
   final List<InsightPost> fragments;
   final List<ProfileFeedItem> discover;
 
@@ -327,6 +383,10 @@ class CommonsHomeSnapshot {
         json['public_shared_practices'],
         (row) => CommonsPracticeRoom.fromJson(row),
       ),
+      groupQuotePosts: _parseList(
+        json['group_quote_posts'],
+        (row) => SharedPracticeQuotePost.fromJson(row),
+      ),
       fragments: _parseList(
         json['fragments'],
         (row) => InsightPost.fromJson(row),
@@ -343,6 +403,7 @@ class CommonsHomeSnapshot {
     List<CommonsQuestion>? questions,
     List<CommonsPracticeRoom>? mySharedPractices,
     List<CommonsPracticeRoom>? publicSharedPractices,
+    List<SharedPracticeQuotePost>? groupQuotePosts,
     List<InsightPost>? fragments,
     List<ProfileFeedItem>? discover,
   }) {
@@ -352,6 +413,7 @@ class CommonsHomeSnapshot {
       mySharedPractices: mySharedPractices ?? this.mySharedPractices,
       publicSharedPractices:
           publicSharedPractices ?? this.publicSharedPractices,
+      groupQuotePosts: groupQuotePosts ?? this.groupQuotePosts,
       fragments: fragments ?? this.fragments,
       discover: discover ?? this.discover,
     );

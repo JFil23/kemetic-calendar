@@ -32,7 +32,7 @@ class CommonsRepo {
       final response = await withSupabaseAuthRetry(
         _client,
         () => _client.rpc(
-          'get_commons_home_cards',
+          'get_commons_together_home_cards',
           params: <String, dynamic>{
             'p_local_date': _dateOnly(date),
             'p_question_id': questionId.trim(),
@@ -41,17 +41,24 @@ class CommonsRepo {
           },
         ),
       );
-      if (response is Map<String, dynamic>) {
-        return CommonsHomeSnapshot.fromJson(response);
-      }
-      if (response is Map) {
-        return CommonsHomeSnapshot.fromJson(
-          Map<String, dynamic>.from(response),
+      if (response is! Map) {
+        throw StateError(
+          'Unexpected Commons home response: ${response.runtimeType}',
         );
       }
-      throw StateError(
-        'Unexpected Commons home response: ${response.runtimeType}',
+      final quoteResponse = await withSupabaseAuthRetry(
+        _client,
+        () => _client.rpc(
+          'get_shared_practice_quote_posts',
+          params: <String, dynamic>{'p_room_id': null, 'p_limit': limit},
+        ),
       );
+      return CommonsHomeSnapshot.fromJson(<String, dynamic>{
+        ...Map<String, dynamic>.from(response),
+        'group_quote_posts': quoteResponse is List
+            ? quoteResponse
+            : const <dynamic>[],
+      });
     } catch (e) {
       _log('get_commons_home unavailable: $e');
       return _fallbackHome(
@@ -133,17 +140,12 @@ class CommonsRepo {
 
   Future<SharedPracticeJoinRequest> requestJoinSharedPractice({
     required String roomId,
-    String? message,
   }) async {
     final response = await withSupabaseAuthRetry(
       _client,
       () => _client.rpc(
         'request_join_shared_practice',
-        params: <String, dynamic>{
-          'p_room_id': roomId.trim(),
-          if (message != null && message.trim().isNotEmpty)
-            'p_message': message.trim(),
-        },
+        params: <String, dynamic>{'p_room_id': roomId.trim()},
       ),
     );
     if (response is Map<String, dynamic>) {
@@ -156,6 +158,69 @@ class CommonsRepo {
     }
     throw StateError(
       'Unexpected shared practice join response: ${response.runtimeType}',
+    );
+  }
+
+  Future<SharedPracticeJoinRequest> cancelJoinSharedPractice({
+    required String roomId,
+  }) async {
+    final response = await withSupabaseAuthRetry(
+      _client,
+      () => _client.rpc(
+        'cancel_join_shared_practice',
+        params: <String, dynamic>{'p_room_id': roomId.trim()},
+      ),
+    );
+    if (response is Map<String, dynamic>) {
+      return SharedPracticeJoinRequest.fromJson(response);
+    }
+    if (response is Map) {
+      return SharedPracticeJoinRequest.fromJson(
+        Map<String, dynamic>.from(response),
+      );
+    }
+    throw StateError(
+      'Unexpected shared practice cancellation response: '
+      '${response.runtimeType}',
+    );
+  }
+
+  Future<({bool likedByMe, int likesCount})> togglePracticeLike({
+    required String roomId,
+  }) async {
+    final response = await withSupabaseAuthRetry(
+      _client,
+      () => _client.rpc(
+        'toggle_shared_practice_room_like',
+        params: <String, dynamic>{'p_room_id': roomId.trim()},
+      ),
+    );
+    if (response is! Map) {
+      throw StateError(
+        'Unexpected shared practice like response: ${response.runtimeType}',
+      );
+    }
+    return (
+      likedByMe: response['liked_by_me'] == true,
+      likesCount: (response['likes_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<void> setPracticeAccess({
+    required String roomId,
+    required SharedPracticeRoomVisibility visibility,
+    required SharedPracticeRequestAudience requestAudience,
+  }) async {
+    await withSupabaseAuthRetry(
+      _client,
+      () => _client.rpc(
+        'set_shared_practice_access',
+        params: <String, dynamic>{
+          'p_room_id': roomId.trim(),
+          'p_visibility': visibility.wireName,
+          'p_request_audience': requestAudience.wireName,
+        },
+      ),
     );
   }
 
@@ -200,6 +265,51 @@ class CommonsRepo {
         CommonsQuestion(id: questionId, question: questionText),
       ],
       discover: discover,
+    );
+  }
+
+  Future<({bool likedByMe, int likesCount})> toggleQuoteLike({
+    required String quotePostId,
+  }) async {
+    final response = await withSupabaseAuthRetry(
+      _client,
+      () => _client.rpc(
+        'toggle_shared_practice_quote_like',
+        params: <String, dynamic>{'p_quote_post_id': quotePostId.trim()},
+      ),
+    );
+    if (response is! Map) {
+      throw StateError(
+        'Unexpected quote like response: ${response.runtimeType}',
+      );
+    }
+    return (
+      likedByMe: response['liked_by_me'] == true,
+      likesCount: (response['likes_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<SharedPracticeQuoteComment> addQuoteComment({
+    required String quotePostId,
+    required String bodyText,
+  }) async {
+    final response = await withSupabaseAuthRetry(
+      _client,
+      () => _client.rpc(
+        'add_shared_practice_quote_comment',
+        params: <String, dynamic>{
+          'p_quote_post_id': quotePostId.trim(),
+          'p_body_text': bodyText.trim(),
+        },
+      ),
+    );
+    if (response is Map) {
+      return SharedPracticeQuoteComment.fromJson(
+        Map<String, dynamic>.from(response),
+      );
+    }
+    throw StateError(
+      'Unexpected quote comment response: ${response.runtimeType}',
     );
   }
 }

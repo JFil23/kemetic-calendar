@@ -4,13 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/completion_status.dart';
+import '../../data/flow_appearance.dart';
 import '../../data/shared_calendars_repo.dart';
 import '../../data/shared_practice_models.dart';
 import '../../data/shared_practice_repo.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../calendar/presentation/maat_flow_detail_shell.dart';
 import '../calendar/the_reading_house/presentation/reading_house_detail_page.dart';
 import '../calendar/the_reading_house/reading_house_authority.dart';
 import '../calendar/the_reading_house_flow.dart';
+import 'presentation/group_flow_ui_preview.dart';
 import 'shared_practice_completion_sheet.dart';
 
 const Color _base = Color(0xFF0B0906);
@@ -25,6 +28,8 @@ typedef SharedPracticeRoomSnapshotLoader =
       String roomId,
       DateTime localDate,
     );
+typedef SharedPracticeMessageChangeWatcher =
+    Stream<void> Function(String roomId);
 
 bool sharedPracticeSnapshotIsReadingHouse(SharedPracticeRoomSnapshot snapshot) {
   final source = snapshot.sourceFlow;
@@ -48,12 +53,14 @@ class SharedPracticeRoomRoutePage extends StatefulWidget {
     this.loadSnapshot,
     this.readingHouseAuthority,
     this.resolvePersonalCalendarId,
+    this.watchMessageChanges,
   });
 
   final String roomId;
   final SharedPracticeRoomSnapshotLoader? loadSnapshot;
   final ReadingHouseAuthority? readingHouseAuthority;
   final Future<String?> Function()? resolvePersonalCalendarId;
+  final SharedPracticeMessageChangeWatcher? watchMessageChanges;
 
   @override
   State<SharedPracticeRoomRoutePage> createState() =>
@@ -127,6 +134,7 @@ class _SharedPracticeRoomRoutePageState
           return SharedPracticeRoomPage(
             roomId: widget.roomId,
             initialSnapshot: snapshot,
+            watchMessageChanges: widget.watchMessageChanges,
           );
         }
         final house = readingHouseSnapshotFromSharedPracticeRoom(snapshot);
@@ -157,10 +165,12 @@ class SharedPracticeRoomPage extends StatefulWidget {
     super.key,
     required this.roomId,
     this.initialSnapshot,
+    this.watchMessageChanges,
   });
 
   final String roomId;
   final SharedPracticeRoomSnapshot? initialSnapshot;
+  final SharedPracticeMessageChangeWatcher? watchMessageChanges;
 
   @override
   State<SharedPracticeRoomPage> createState() => _SharedPracticeRoomPageState();
@@ -174,7 +184,17 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
   SharedPracticeRoomSnapshot? _snapshot;
   String? _presenceMarkedForClientEventId;
   bool _visibilityUpdating = false;
+  bool _messageSending = false;
+  bool _publicIdentityUpdating = false;
   final Set<String> _requestDecisionIds = <String>{};
+  final Set<String> _quoteLikeBusyIds = <String>{};
+  List<SharedPracticeQuotePost> _quotePosts = const <SharedPracticeQuotePost>[];
+  bool _showMyNameInCommons = true;
+  int _merkhetAnimationRevision = 0;
+  int? _merkhetAnimationFromCompletedOccurrences;
+  int? _optimisticCompletedOccurrences;
+  StreamSubscription<void>? _messageChangesSubscription;
+  Timer? _messageRefreshDebounce;
 
   @override
   void initState() {
@@ -184,9 +204,31 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
       _future = _load();
     } else {
       _snapshot = initialSnapshot;
+      _syncPublicIdentity(initialSnapshot);
       _future = Future<SharedPracticeRoomSnapshot>.value(initialSnapshot);
       unawaited(_markOpened(initialSnapshot));
+      unawaited(_loadQuotePosts());
     }
+    final messageChanges =
+        widget.watchMessageChanges ?? _repo.watchSharedPracticeMessages;
+    _messageChangesSubscription = messageChanges(widget.roomId).listen(
+      (_) {
+        _messageRefreshDebounce?.cancel();
+        _messageRefreshDebounce = Timer(const Duration(milliseconds: 120), () {
+          if (mounted) _refresh();
+        });
+      },
+      onError: (_) {
+        // Pull-to-refresh remains available if Realtime is interrupted.
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _messageRefreshDebounce?.cancel();
+    unawaited(_messageChangesSubscription?.cancel());
+    super.dispose();
   }
 
   Future<SharedPracticeRoomSnapshot> _load() async {
@@ -197,12 +239,41 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
     if (mounted) {
       setState(() {
         _snapshot = snapshot;
+        _syncPublicIdentity(snapshot);
       });
     } else {
       _snapshot = snapshot;
+      _syncPublicIdentity(snapshot);
     }
     unawaited(_markOpened(snapshot));
+    unawaited(_loadQuotePosts());
     return snapshot;
+  }
+
+  Future<void> _loadQuotePosts() async {
+    try {
+      final posts = await _repo.getSharedPracticeQuotePosts(
+        roomId: widget.roomId,
+      );
+      if (!mounted) {
+        _quotePosts = posts;
+        return;
+      }
+      setState(() => _quotePosts = posts);
+    } catch (_) {
+      // Quote publishing is secondary to the room/chat authority.
+    }
+  }
+
+  void _syncPublicIdentity(SharedPracticeRoomSnapshot snapshot) {
+    final currentUserId = _currentUserIdOrNull();
+    if (currentUserId == null) return;
+    for (final member in snapshot.members) {
+      if (member.userId == currentUserId) {
+        _showMyNameInCommons = member.publicIdentity;
+        return;
+      }
+    }
   }
 
   Future<void> _markOpened(SharedPracticeRoomSnapshot snapshot) async {
@@ -235,12 +306,10 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
     if (snapshot == null || _visibilityUpdating) return;
     setState(() => _visibilityUpdating = true);
     try {
-      await _repo.setSharedPracticeVisibility(
+      await _repo.setSharedPracticeAccess(
         roomId: snapshot.room.id,
         visibility: visibility,
-        joinPolicy: visibility == SharedPracticeRoomVisibility.public
-            ? SharedPracticeJoinPolicy.ownerApproval
-            : SharedPracticeJoinPolicy.closed,
+        requestAudience: snapshot.room.requestAudience,
       );
       if (!mounted) return;
       _refresh();
@@ -248,6 +317,30 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not update visibility.')),
+      );
+    } finally {
+      if (mounted) setState(() => _visibilityUpdating = false);
+    }
+  }
+
+  Future<void> _setRequestAudience(
+    SharedPracticeRequestAudience requestAudience,
+  ) async {
+    final snapshot = _snapshot;
+    if (snapshot == null || _visibilityUpdating) return;
+    setState(() => _visibilityUpdating = true);
+    try {
+      await _repo.setSharedPracticeAccess(
+        roomId: snapshot.room.id,
+        visibility: snapshot.room.visibility,
+        requestAudience: requestAudience,
+      );
+      if (!mounted) return;
+      _refresh();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update who can request.')),
       );
     } finally {
       if (mounted) setState(() => _visibilityUpdating = false);
@@ -309,7 +402,20 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
           'flow_key': snapshot.room.flowKey!.trim(),
       },
     );
-    if (saved && mounted) _refresh();
+    if (saved && mounted) {
+      if (initialStatus == CompletionStatus.observed) {
+        final before = _snapshotCompletedOccurrences(snapshot);
+        final total = _snapshotTotalOccurrences(snapshot);
+        setState(() {
+          _merkhetAnimationFromCompletedOccurrences = before;
+          _optimisticCompletedOccurrences = total > 0
+              ? (before + 1).clamp(0, total)
+              : before + 1;
+          _merkhetAnimationRevision++;
+        });
+      }
+      _refresh();
+    }
   }
 
   void _openEntry(SharedPracticeEntry entry) {
@@ -318,6 +424,337 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _EntrySheet(entry: entry),
+    );
+  }
+
+  FlowAppearance _appearanceFor(SharedPracticeRoomSnapshot snapshot) {
+    final source = snapshot.sourceFlow;
+    if (source == null) return FlowAppearance.empty;
+    final payload = source['payload'];
+    final metadata = source['ai_metadata'];
+    return FlowAppearance.fromJson(
+      source['appearance'] ??
+          (payload is Map ? payload['appearance'] : null) ??
+          (metadata is Map ? metadata['appearance'] : null),
+    );
+  }
+
+  Color _accentFor(SharedPracticeRoomSnapshot snapshot) {
+    final appearance = _appearanceFor(snapshot);
+    final value = appearance.accentArgb ?? snapshot.calendar.colorValue;
+    return Color(0xFF000000 | (value & 0x00FFFFFF));
+  }
+
+  int _snapshotCompletedOccurrences(SharedPracticeRoomSnapshot snapshot) {
+    if (snapshot.members.isEmpty) return 0;
+    return snapshot.members
+        .map((member) => member.completedCount)
+        .reduce((left, right) => left > right ? left : right);
+  }
+
+  int _snapshotTotalOccurrences(SharedPracticeRoomSnapshot snapshot) {
+    final stepTotal = snapshot.todayStep?.totalSteps;
+    if (stepTotal != null) return stepTotal;
+    if (snapshot.members.isEmpty) return 0;
+    return snapshot.members
+        .map((member) => member.totalCount)
+        .reduce((left, right) => left > right ? left : right);
+  }
+
+  bool _snapshotIsGroupFlow(SharedPracticeRoomSnapshot snapshot) {
+    final memberCount = snapshot.room.memberCount > snapshot.members.length
+        ? snapshot.room.memberCount
+        : snapshot.members.length;
+    return memberCount >= 2;
+  }
+
+  List<GroupFlowParticipantPreview> _participantsFor(
+    SharedPracticeRoomSnapshot snapshot,
+  ) {
+    return snapshot.members
+        .map(
+          (member) => GroupFlowParticipantPreview(
+            id: member.userId,
+            name: member.displayLabel,
+            avatarUrl: member.avatarUrl,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  List<GroupFlowChatMessagePreview> _chatMessagesFor(
+    SharedPracticeRoomSnapshot snapshot,
+  ) {
+    final currentUserId = _currentUserIdOrNull();
+    return snapshot.messages
+        .map(
+          (message) => GroupFlowChatMessagePreview(
+            id: message.id,
+            author: message.authorLabel,
+            initials: _initials(message.authorLabel),
+            body: message.bodyText,
+            timeLabel: _chatTimeLabel(message.createdAt),
+            mine: currentUserId != null && message.userId == currentUserId,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  String? _currentUserIdOrNull() {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _sendChatMessage(String body) async {
+    final clean = body.trim();
+    final snapshot = _snapshot;
+    if (clean.isEmpty || snapshot == null || _messageSending) return;
+    setState(() => _messageSending = true);
+    try {
+      await _repo.sendSharedPracticeMessage(
+        roomId: snapshot.room.id,
+        bodyText: clean,
+      );
+      if (!mounted) return;
+      _refresh();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not send that message.')),
+      );
+    } finally {
+      if (mounted) setState(() => _messageSending = false);
+    }
+  }
+
+  Future<void> _setPublicIdentity(bool value) async {
+    final snapshot = _snapshot;
+    if (snapshot == null || _publicIdentityUpdating) return;
+    final previous = _showMyNameInCommons;
+    setState(() {
+      _showMyNameInCommons = value;
+      _publicIdentityUpdating = true;
+    });
+    try {
+      await _repo.setSharedPracticePublicIdentity(
+        roomId: snapshot.room.id,
+        isPublic: value,
+      );
+      if (!mounted) return;
+      _refresh();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _showMyNameInCommons = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update your public name.')),
+      );
+    } finally {
+      if (mounted) setState(() => _publicIdentityUpdating = false);
+    }
+  }
+
+  Future<void> _publishQuotePost(GroupFlowChatMessagePreview message) async {
+    final shouldPost = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (sheetContext) => _QuotePostComposerPreview(message: message),
+    );
+    if (!mounted || shouldPost != true) return;
+    try {
+      final post = await _repo.requestSharedPracticeQuotePost(message.id);
+      if (!mounted) return;
+      await _loadQuotePosts();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            post.approvalRequired
+                ? 'Sent to ${message.author} for approval.'
+                : 'Quote posted to Commons.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not post that quote.')),
+      );
+    }
+  }
+
+  Future<void> _toggleQuoteLike(SharedPracticeQuotePost post) async {
+    if (_quoteLikeBusyIds.contains(post.id) || post.status != 'approved') {
+      return;
+    }
+    setState(() => _quoteLikeBusyIds.add(post.id));
+    try {
+      await _repo.toggleSharedPracticeQuoteLike(post.id);
+      await _loadQuotePosts();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update that like.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _quoteLikeBusyIds.remove(post.id));
+    }
+  }
+
+  Future<void> _addQuoteComment(SharedPracticeQuotePost post) async {
+    if (post.status != 'approved') return;
+    final controller = TextEditingController();
+    final body = await showEditableDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _panel,
+        title: const Text(
+          'Comment on quote',
+          style: TextStyle(color: _ink, fontFamily: _serif),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 5,
+          maxLength: 1000,
+          style: const TextStyle(color: _ink),
+          decoration: const InputDecoration(hintText: 'Write a comment'),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Post'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    final clean = body?.trim();
+    if (!mounted || clean == null || clean.isEmpty) return;
+    try {
+      await _repo.addSharedPracticeQuoteComment(
+        quotePostId: post.id,
+        bodyText: clean,
+      );
+      await _loadQuotePosts();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not post that comment.')),
+      );
+    }
+  }
+
+  Widget _buildGroupConversation(SharedPracticeRoomSnapshot snapshot) {
+    final appearance = _appearanceFor(snapshot);
+    final accent = _accentFor(snapshot);
+    final participants = _participantsFor(snapshot);
+    final messages = _chatMessagesFor(snapshot);
+    final step = snapshot.todayStep;
+    final positionLabel = step?.stepIndex != null && step?.totalSteps != null
+        ? 'Day ${step!.stepIndex} of ${step.totalSteps} · host position'
+        : 'Host’s current position';
+    final snapshotCompleted = _snapshotCompletedOccurrences(snapshot);
+    final optimisticCompleted = _optimisticCompletedOccurrences;
+    final completedOccurrences =
+        optimisticCompleted != null && optimisticCompleted > snapshotCompleted
+        ? optimisticCompleted
+        : snapshotCompleted;
+    final totalOccurrences = _snapshotTotalOccurrences(snapshot);
+    final postedQuotes = _quotePosts;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        GroupFlowChatSurface(
+          key: const ValueKey<String>('live-group-flow-chat'),
+          flowTitle: snapshot.room.title,
+          positionLabel: positionLabel,
+          appearance: appearance,
+          accent: accent,
+          memberInitials: participants
+              .map((participant) => participant.initials)
+              .take(3)
+              .toList(growable: false),
+          memberCount: snapshot.room.memberCount > 0
+              ? snapshot.room.memberCount
+              : participants.length,
+          messages: messages,
+          completedOccurrences: completedOccurrences,
+          totalOccurrences: totalOccurrences,
+          animationRevision: _merkhetAnimationRevision,
+          animationFromCompletedOccurrences:
+              _merkhetAnimationFromCompletedOccurrences,
+          onSendMessage: (body) => unawaited(_sendChatMessage(body)),
+          onPostMessage: (message) => unawaited(_publishQuotePost(message)),
+          onObserve: () => unawaited(
+            _openCompletionSheet(
+              snapshot,
+              initialStatus: CompletionStatus.observed,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          key: const ValueKey<String>('live-group-flow-public-name-setting'),
+          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+          decoration: BoxDecoration(
+            color: _panel.withValues(alpha: 0.74),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: accent.withValues(alpha: 0.22)),
+          ),
+          child: Row(
+            children: <Widget>[
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Show my name in Commons',
+                      style: TextStyle(
+                        color: _ink,
+                        fontFamily: _serif,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Your choice affects only the public member list.',
+                      style: TextStyle(color: _muted, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: _showMyNameInCommons,
+                activeTrackColor: accent,
+                onChanged: _publicIdentityUpdating
+                    ? null
+                    : (value) => unawaited(_setPublicIdentity(value)),
+              ),
+            ],
+          ),
+        ),
+        for (final quote in postedQuotes) ...<Widget>[
+          const SizedBox(height: 12),
+          _LocalGroupQuotePostCard(
+            post: quote,
+            likeBusy: _quoteLikeBusyIds.contains(quote.id),
+            onLike: () => unawaited(_toggleQuoteLike(quote)),
+            onComment: () => unawaited(_addQuoteComment(quote)),
+          ),
+        ],
+      ],
     );
   }
 
@@ -331,55 +768,69 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
         elevation: 0,
         title: const Text('Shared Practice'),
       ),
-      body: FutureBuilder<SharedPracticeRoomSnapshot>(
-        future: _future,
-        builder: (context, snapshot) {
-          final data = snapshot.data ?? _snapshot;
-          if (data == null) {
-            if (snapshot.hasError) {
-              return _ErrorState(onRetry: _refresh);
+      body: KeyboardAwareEditableSurface(
+        child: FutureBuilder<SharedPracticeRoomSnapshot>(
+          future: _future,
+          builder: (context, snapshot) {
+            final data = snapshot.data ?? _snapshot;
+            if (data == null) {
+              if (snapshot.hasError) {
+                return _ErrorState(onRetry: _refresh);
+              }
+              return const Center(
+                child: CircularProgressIndicator(color: _gold),
+              );
             }
-            return const Center(child: CircularProgressIndicator(color: _gold));
-          }
-          return RefreshIndicator(
-            color: _gold,
-            backgroundColor: _panel,
-            onRefresh: () async => _refresh(),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 110),
-              children: [
-                _RoomHeader(snapshot: data),
-                if (data.viewerCanManage) ...[
+            return RefreshIndicator(
+              color: _gold,
+              backgroundColor: _panel,
+              onRefresh: () async => _refresh(),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 110),
+                children: [
+                  _RoomHeader(snapshot: data),
                   const SizedBox(height: 18),
-                  _RoomManagementSection(
+                  if (_snapshotIsGroupFlow(data) &&
+                      (data.viewerIsMember || data.viewerCanManage))
+                    _buildGroupConversation(data),
+                  if (data.viewerCanManage) ...[
+                    const SizedBox(height: 18),
+                    _RoomManagementSection(
+                      snapshot: data,
+                      visibilityUpdating: _visibilityUpdating,
+                      updatingRequestIds: _requestDecisionIds,
+                      onVisibilitySelected: (visibility) {
+                        unawaited(_setVisibility(visibility));
+                      },
+                      onRequestAudienceSelected: (requestAudience) {
+                        unawaited(_setRequestAudience(requestAudience));
+                      },
+                      onRespondToRequest: (request, approve) {
+                        unawaited(
+                          _respondToJoinRequest(request, approve: approve),
+                        );
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  _MemberSection(
                     snapshot: data,
-                    visibilityUpdating: _visibilityUpdating,
-                    updatingRequestIds: _requestDecisionIds,
-                    onVisibilitySelected: (visibility) {
-                      unawaited(_setVisibility(visibility));
-                    },
-                    onRespondToRequest: (request, approve) {
-                      unawaited(
-                        _respondToJoinRequest(request, approve: approve),
-                      );
+                    onOpenEntry: (entryId) {
+                      final entry = data.visibleEntryById(entryId);
+                      if (entry != null) _openEntry(entry);
                     },
                   ),
+                  const SizedBox(height: 18),
+                  _EntriesSection(
+                    entries: data.entries,
+                    onOpenEntry: _openEntry,
+                  ),
                 ],
-                const SizedBox(height: 18),
-                _MemberSection(
-                  snapshot: data,
-                  onOpenEntry: (entryId) {
-                    final entry = data.visibleEntryById(entryId);
-                    if (entry != null) _openEntry(entry);
-                  },
-                ),
-                const SizedBox(height: 18),
-                _EntriesSection(entries: data.entries, onOpenEntry: _openEntry),
-              ],
-            ),
-          );
-        },
+              ),
+            );
+          },
+        ),
       ),
       bottomNavigationBar: _snapshot == null
           ? null
@@ -509,6 +960,7 @@ class _RoomManagementSection extends StatelessWidget {
     required this.visibilityUpdating,
     required this.updatingRequestIds,
     required this.onVisibilitySelected,
+    required this.onRequestAudienceSelected,
     required this.onRespondToRequest,
   });
 
@@ -516,6 +968,7 @@ class _RoomManagementSection extends StatelessWidget {
   final bool visibilityUpdating;
   final Set<String> updatingRequestIds;
   final ValueChanged<SharedPracticeRoomVisibility> onVisibilitySelected;
+  final ValueChanged<SharedPracticeRequestAudience> onRequestAudienceSelected;
   final void Function(SharedPracticeJoinRequest request, bool approve)
   onRespondToRequest;
 
@@ -530,7 +983,10 @@ class _RoomManagementSection extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final visibility in SharedPracticeRoomVisibility.values)
+              for (final visibility in <SharedPracticeRoomVisibility>[
+                SharedPracticeRoomVisibility.private,
+                SharedPracticeRoomVisibility.public,
+              ])
                 ChoiceChip(
                   selected: snapshot.room.visibility == visibility,
                   onSelected: visibilityUpdating
@@ -548,6 +1004,46 @@ class _RoomManagementSection extends StatelessWidget {
                   ),
                   side: BorderSide(
                     color: snapshot.room.visibility == visibility
+                        ? _gold.withValues(alpha: 0.58)
+                        : Colors.white.withValues(alpha: 0.12),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'WHO CAN REQUEST TO JOIN',
+            style: TextStyle(
+              color: _gold.withValues(alpha: 0.82),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final requestAudience
+                  in SharedPracticeRequestAudience.values)
+                ChoiceChip(
+                  selected: snapshot.room.requestAudience == requestAudience,
+                  onSelected: visibilityUpdating
+                      ? null
+                      : (_) => onRequestAudienceSelected(requestAudience),
+                  label: Text(requestAudience.label),
+                  selectedColor: _gold.withValues(alpha: 0.22),
+                  backgroundColor: Colors.black.withValues(alpha: 0.20),
+                  labelStyle: TextStyle(
+                    color: snapshot.room.requestAudience == requestAudience
+                        ? _gold
+                        : Colors.white.withValues(alpha: 0.68),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  side: BorderSide(
+                    color: snapshot.room.requestAudience == requestAudience
                         ? _gold.withValues(alpha: 0.58)
                         : Colors.white.withValues(alpha: 0.12),
                   ),
@@ -1086,6 +1582,203 @@ class _Avatar extends StatelessWidget {
   }
 }
 
+class _QuotePostComposerPreview extends StatelessWidget {
+  const _QuotePostComposerPreview({required this.message});
+
+  final GroupFlowChatMessagePreview message;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(top: BorderSide(color: Color(0x55D4AE43))),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Post selected quote',
+                style: TextStyle(
+                  color: _ink,
+                  fontFamily: _serif,
+                  fontSize: 27,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                message.mine
+                    ? 'Your words will be posted to Commons.'
+                    : '${message.author} will approve this before it becomes public.',
+                style: const TextStyle(color: _muted, fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.24),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _gold.withValues(alpha: 0.22)),
+                ),
+                child: Text(
+                  '“${message.body}”',
+                  style: const TextStyle(
+                    color: _ink,
+                    fontFamily: _serif,
+                    fontSize: 21,
+                    fontStyle: FontStyle.italic,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                key: const ValueKey<String>('live-group-flow-confirm-quote'),
+                onPressed: () => Navigator.of(context).pop(true),
+                icon: const Icon(Icons.format_quote_rounded, size: 18),
+                label: const Text('Post quote'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _gold,
+                  foregroundColor: const Color(0xFF181106),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LocalGroupQuotePostCard extends StatelessWidget {
+  const _LocalGroupQuotePostCard({
+    required this.post,
+    required this.likeBusy,
+    required this.onLike,
+    required this.onComment,
+  });
+
+  final SharedPracticeQuotePost post;
+  final bool likeBusy;
+  final VoidCallback onLike;
+  final VoidCallback onComment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>('live-group-flow-quote-${post.id}'),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _panel.withValues(alpha: 0.84),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const Text(
+                'FROM GROUP CHAT',
+                style: TextStyle(
+                  color: _gold,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.public_rounded,
+                color: Colors.white.withValues(alpha: 0.38),
+                size: 16,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '“${post.bodyText}”',
+            style: const TextStyle(
+              color: _ink,
+              fontFamily: _serif,
+              fontSize: 20,
+              fontStyle: FontStyle.italic,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            post.status == 'pending'
+                ? 'Waiting for ${post.authorLabel} to approve'
+                : 'Posted by ${post.authorLabel}',
+            style: const TextStyle(color: _muted, fontSize: 11),
+          ),
+          if (post.comments.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 10),
+            for (final comment in post.comments.take(3))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '${comment.authorLabel}: ${comment.bodyText}',
+                  style: const TextStyle(color: _muted, fontSize: 11.5),
+                ),
+              ),
+          ],
+          const Divider(color: Color(0xFF2E2920), height: 22),
+          Row(
+            children: <Widget>[
+              TextButton.icon(
+                key: ValueKey<String>('live-group-flow-quote-like-${post.id}'),
+                onPressed: post.status == 'approved' && !likeBusy
+                    ? onLike
+                    : null,
+                icon: Icon(
+                  post.likedByMe
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border,
+                  size: 17,
+                ),
+                label: Text(
+                  post.likesCount > 0 ? '${post.likesCount}' : 'Like',
+                ),
+              ),
+              TextButton.icon(
+                key: ValueKey<String>(
+                  'live-group-flow-quote-comment-${post.id}',
+                ),
+                onPressed: post.status == 'approved' ? onComment : null,
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                label: Text(
+                  post.comments.isEmpty ? 'Comment' : '${post.comments.length}',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.onRetry});
 
@@ -1201,4 +1894,23 @@ String _dateOnly(DateTime value) {
     local.month.toString().padLeft(2, '0'),
     local.day.toString().padLeft(2, '0'),
   ].join('-');
+}
+
+String _initials(String label) {
+  final words = label
+      .replaceFirst('@', '')
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .take(2);
+  final value = words.map((word) => word.characters.first).join();
+  return value.isEmpty ? 'P' : value.toUpperCase();
+}
+
+String _chatTimeLabel(DateTime? value) {
+  if (value == null) return 'today';
+  final local = value.toLocal();
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }

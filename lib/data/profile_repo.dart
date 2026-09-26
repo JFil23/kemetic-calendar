@@ -918,7 +918,7 @@ class ProfileRepo {
       final response = await withSupabaseAuthRetry(
         _client,
         () => _client.rpc(
-          'get_profile_feed_cards',
+          'get_profile_feed_together_cards',
           params: {'p_limit': limit, 'p_offset': offset},
         ),
       );
@@ -946,6 +946,42 @@ class ProfileRepo {
   }) async {
     final result = await getProfileFeedResult(limit: limit, offset: offset);
     return result.data;
+  }
+
+  Future<String> requestTogether(String flowPostId) async {
+    final cleanId = flowPostId.trim();
+    if (cleanId.isEmpty) {
+      throw ArgumentError.value(flowPostId, 'flowPostId', 'Must not be empty.');
+    }
+    final response = await withSupabaseAuthRetry(
+      _client,
+      () => _client.rpc(
+        'request_together_on_flow_post',
+        params: <String, dynamic>{'p_flow_post_id': cleanId},
+      ),
+    );
+    if (response is Map) {
+      return response['status']?.toString().trim() ?? 'pending';
+    }
+    throw StateError('Together request response was not an object.');
+  }
+
+  Future<String> cancelTogetherRequest(String flowPostId) async {
+    final cleanId = flowPostId.trim();
+    if (cleanId.isEmpty) {
+      throw ArgumentError.value(flowPostId, 'flowPostId', 'Must not be empty.');
+    }
+    final response = await withSupabaseAuthRetry(
+      _client,
+      () => _client.rpc(
+        'cancel_together_request',
+        params: <String, dynamic>{'p_flow_post_id': cleanId},
+      ),
+    );
+    if (response is Map) {
+      return response['status']?.toString().trim() ?? 'cancelled';
+    }
+    throw StateError('Together cancellation response was not an object.');
   }
 
   Future<List<CommunityRhythmRollup>?> getCommunityRhythmRollups({

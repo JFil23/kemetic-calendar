@@ -43,6 +43,7 @@ class ProfileFlowPostTile extends StatelessWidget {
     required this.onShare,
     this.onSave,
     this.onTogether,
+    this.togetherLabel = 'Together',
     this.isSaved = false,
   });
 
@@ -63,6 +64,7 @@ class ProfileFlowPostTile extends StatelessWidget {
   final VoidCallback onShare;
   final VoidCallback? onSave;
   final VoidCallback? onTogether;
+  final String togetherLabel;
   final bool isSaved;
 
   @override
@@ -163,7 +165,7 @@ class ProfileFlowPostTile extends StatelessWidget {
                           ),
                           icon: Icons.people_outline_rounded,
                           profileIcon: HawProfileIconKind.together,
-                          label: 'Together',
+                          label: togetherLabel,
                           onPressed: onTogether!,
                         ),
                     ]

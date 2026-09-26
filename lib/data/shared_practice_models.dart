@@ -145,6 +145,55 @@ extension SharedPracticeJoinPolicyX on SharedPracticeJoinPolicy {
   }
 }
 
+enum SharedPracticeRequestAudience {
+  nobody,
+  creatorFriends,
+  participantFriends,
+  anyone,
+}
+
+extension SharedPracticeRequestAudienceX on SharedPracticeRequestAudience {
+  String get wireName {
+    switch (this) {
+      case SharedPracticeRequestAudience.nobody:
+        return 'nobody';
+      case SharedPracticeRequestAudience.creatorFriends:
+        return 'creator_friends';
+      case SharedPracticeRequestAudience.participantFriends:
+        return 'participant_friends';
+      case SharedPracticeRequestAudience.anyone:
+        return 'anyone';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case SharedPracticeRequestAudience.nobody:
+        return 'Nobody';
+      case SharedPracticeRequestAudience.creatorFriends:
+        return 'Friends of creator';
+      case SharedPracticeRequestAudience.participantFriends:
+        return 'Friends of participants';
+      case SharedPracticeRequestAudience.anyone:
+        return 'Anyone';
+    }
+  }
+
+  static SharedPracticeRequestAudience fromWireName(String? raw) {
+    switch (raw?.trim().toLowerCase()) {
+      case 'nobody':
+        return SharedPracticeRequestAudience.nobody;
+      case 'participant_friends':
+        return SharedPracticeRequestAudience.participantFriends;
+      case 'anyone':
+        return SharedPracticeRequestAudience.anyone;
+      case 'creator_friends':
+      default:
+        return SharedPracticeRequestAudience.creatorFriends;
+    }
+  }
+}
+
 class SharedCalendarOption {
   const SharedCalendarOption({
     required this.calendar,
@@ -172,6 +221,7 @@ class SharedPracticeRoom {
     required this.status,
     this.visibility = SharedPracticeRoomVisibility.private,
     this.joinPolicy = SharedPracticeJoinPolicy.ownerApproval,
+    this.requestAudience = SharedPracticeRequestAudience.creatorFriends,
     this.memberCount = 0,
     this.pendingJoinRequestCount = 0,
     this.viewerIsMember = false,
@@ -194,6 +244,7 @@ class SharedPracticeRoom {
   final String status;
   final SharedPracticeRoomVisibility visibility;
   final SharedPracticeJoinPolicy joinPolicy;
+  final SharedPracticeRequestAudience requestAudience;
   final int memberCount;
   final int pendingJoinRequestCount;
   final bool viewerIsMember;
@@ -220,6 +271,9 @@ class SharedPracticeRoom {
       ),
       joinPolicy: SharedPracticeJoinPolicyX.fromWireName(
         _cleanString(json['join_policy']),
+      ),
+      requestAudience: SharedPracticeRequestAudienceX.fromWireName(
+        _cleanString(json['request_audience']),
       ),
       memberCount: _parseInt(json['member_count']) ?? 0,
       pendingJoinRequestCount:
@@ -322,6 +376,7 @@ class SharedPracticeMemberStatus {
     this.entryVisibility,
     this.entryHasBody = false,
     this.entryAvailableToViewer = false,
+    this.publicIdentity = false,
   });
 
   final String userId;
@@ -337,6 +392,7 @@ class SharedPracticeMemberStatus {
   final SharedPracticeVisibility? entryVisibility;
   final bool entryHasBody;
   final bool entryAvailableToViewer;
+  final bool publicIdentity;
 
   String get displayLabel {
     final display = displayName?.trim();
@@ -386,6 +442,291 @@ class SharedPracticeMemberStatus {
             ),
       entryHasBody: json['entry_has_body'] == true,
       entryAvailableToViewer: json['entry_available_to_viewer'] == true,
+      publicIdentity: json['public_identity'] == true,
+    );
+  }
+}
+
+class SharedPracticeMessage {
+  const SharedPracticeMessage({
+    required this.id,
+    required this.roomId,
+    required this.userId,
+    required this.flowDay,
+    required this.bodyText,
+    this.hostClientEventId,
+    this.flowId,
+    this.createdAt,
+    this.updatedAt,
+    this.authorHandle,
+    this.authorDisplayName,
+    this.authorAvatarUrl,
+  });
+
+  final String id;
+  final String roomId;
+  final String userId;
+  final DateTime flowDay;
+  final String bodyText;
+  final String? hostClientEventId;
+  final int? flowId;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String? authorHandle;
+  final String? authorDisplayName;
+  final String? authorAvatarUrl;
+
+  String get authorLabel {
+    final display = authorDisplayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final handle = authorHandle?.trim();
+    if (handle != null && handle.isNotEmpty) return '@$handle';
+    return 'Member';
+  }
+
+  factory SharedPracticeMessage.fromJson(Map<String, dynamic> json) {
+    return SharedPracticeMessage(
+      id: _cleanString(json['id']) ?? '',
+      roomId: _cleanString(json['room_id']) ?? '',
+      userId: _cleanString(json['user_id']) ?? '',
+      flowDay: _parseDate(json['flow_day']) ?? DateTime.now(),
+      bodyText: _cleanString(json['body_text']) ?? '',
+      hostClientEventId: _cleanString(json['host_client_event_id']),
+      flowId: _parseInt(json['flow_id']),
+      createdAt: _parseDateTime(json['created_at']),
+      updatedAt: _parseDateTime(json['updated_at']),
+      authorHandle: _cleanString(json['author_handle']),
+      authorDisplayName: _cleanString(json['author_display_name']),
+      authorAvatarUrl: _cleanString(json['author_avatar_url']),
+    );
+  }
+}
+
+class SharedPracticeQuoteComment {
+  const SharedPracticeQuoteComment({
+    required this.id,
+    required this.quotePostId,
+    required this.userId,
+    required this.bodyText,
+    this.createdAt,
+    this.updatedAt,
+    this.authorHandle,
+    this.authorDisplayName,
+    this.authorAvatarUrl,
+  });
+
+  final String id;
+  final String quotePostId;
+  final String userId;
+  final String bodyText;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String? authorHandle;
+  final String? authorDisplayName;
+  final String? authorAvatarUrl;
+
+  String get authorLabel {
+    final display = authorDisplayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final handle = authorHandle?.trim();
+    if (handle != null && handle.isNotEmpty) return '@$handle';
+    return 'Practitioner';
+  }
+
+  factory SharedPracticeQuoteComment.fromJson(Map<String, dynamic> json) {
+    return SharedPracticeQuoteComment(
+      id: _cleanString(json['id']) ?? '',
+      quotePostId: _cleanString(json['quote_post_id']) ?? '',
+      userId: _cleanString(json['user_id']) ?? '',
+      bodyText: _cleanString(json['body_text']) ?? '',
+      createdAt: _parseDateTime(json['created_at']),
+      updatedAt: _parseDateTime(json['updated_at']),
+      authorHandle: _cleanString(json['author_handle']),
+      authorDisplayName: _cleanString(json['author_display_name']),
+      authorAvatarUrl: _cleanString(json['author_avatar_url']),
+    );
+  }
+}
+
+class SharedPracticeQuotePost {
+  const SharedPracticeQuotePost({
+    required this.id,
+    required this.roomId,
+    required this.sourceMessageId,
+    required this.quotedUserId,
+    required this.submittedBy,
+    required this.bodyText,
+    required this.status,
+    this.flowTitle,
+    this.sourceFlowId,
+    this.authorHandle,
+    this.authorDisplayName,
+    this.authorAvatarUrl,
+    this.authorIsPublic = false,
+    this.likesCount = 0,
+    this.likedByMe = false,
+    this.comments = const <SharedPracticeQuoteComment>[],
+    this.approvalRequired = false,
+    this.publishedAt,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  final String id;
+  final String roomId;
+  final String sourceMessageId;
+  final String quotedUserId;
+  final String submittedBy;
+  final String bodyText;
+  final String status;
+  final String? flowTitle;
+  final int? sourceFlowId;
+  final String? authorHandle;
+  final String? authorDisplayName;
+  final String? authorAvatarUrl;
+  final bool authorIsPublic;
+  final int likesCount;
+  final bool likedByMe;
+  final List<SharedPracticeQuoteComment> comments;
+  final bool approvalRequired;
+  final DateTime? publishedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  String get authorLabel {
+    if (!authorIsPublic) return 'A participant';
+    final display = authorDisplayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final handle = authorHandle?.trim();
+    if (handle != null && handle.isNotEmpty) return '@$handle';
+    return 'A participant';
+  }
+
+  factory SharedPracticeQuotePost.fromJson(Map<String, dynamic> json) {
+    return SharedPracticeQuotePost(
+      id: _cleanString(json['id']) ?? '',
+      roomId: _cleanString(json['room_id']) ?? '',
+      sourceMessageId: _cleanString(json['source_message_id']) ?? '',
+      quotedUserId: _cleanString(json['quoted_user_id']) ?? '',
+      submittedBy: _cleanString(json['submitted_by']) ?? '',
+      bodyText: _cleanString(json['body_text']) ?? '',
+      status: _cleanString(json['status']) ?? 'pending',
+      flowTitle: _cleanString(json['flow_title']),
+      sourceFlowId: _parseInt(json['source_flow_id']),
+      authorHandle: _cleanString(json['author_handle']),
+      authorDisplayName: _cleanString(json['author_display_name']),
+      authorAvatarUrl: _cleanString(json['author_avatar_url']),
+      authorIsPublic: json['author_is_public'] == true,
+      likesCount: _parseInt(json['likes_count']) ?? 0,
+      likedByMe: json['liked_by_me'] == true,
+      comments: _parseObjectList(
+        json['comments'],
+        SharedPracticeQuoteComment.fromJson,
+      ),
+      approvalRequired: json['approval_required'] == true,
+      publishedAt: _parseDateTime(json['published_at']),
+      createdAt: _parseDateTime(json['created_at']),
+      updatedAt: _parseDateTime(json['updated_at']),
+    );
+  }
+}
+
+class TogetherQuoteApproval {
+  const TogetherQuoteApproval({
+    required this.id,
+    required this.roomId,
+    required this.sourceMessageId,
+    required this.submittedBy,
+    required this.bodyText,
+    required this.flowTitle,
+    this.submitterHandle,
+    this.submitterDisplayName,
+    this.submitterAvatarUrl,
+    this.createdAt,
+  });
+
+  final String id;
+  final String roomId;
+  final String sourceMessageId;
+  final String submittedBy;
+  final String bodyText;
+  final String flowTitle;
+  final String? submitterHandle;
+  final String? submitterDisplayName;
+  final String? submitterAvatarUrl;
+  final DateTime? createdAt;
+
+  String get submitterLabel {
+    final display = submitterDisplayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final handle = submitterHandle?.trim();
+    if (handle != null && handle.isNotEmpty) return '@$handle';
+    return 'A participant';
+  }
+
+  factory TogetherQuoteApproval.fromJson(Map<String, dynamic> json) {
+    return TogetherQuoteApproval(
+      id: _cleanString(json['id']) ?? '',
+      roomId: _cleanString(json['room_id']) ?? '',
+      sourceMessageId: _cleanString(json['source_message_id']) ?? '',
+      submittedBy: _cleanString(json['submitted_by']) ?? '',
+      bodyText: _cleanString(json['body_text']) ?? '',
+      flowTitle: _cleanString(json['flow_title']) ?? 'Group flow',
+      submitterHandle: _cleanString(json['submitter_handle']),
+      submitterDisplayName: _cleanString(json['submitter_display_name']),
+      submitterAvatarUrl: _cleanString(json['submitter_avatar_url']),
+      createdAt: _parseDateTime(json['created_at']),
+    );
+  }
+}
+
+class TogetherRequestDecision {
+  const TogetherRequestDecision({
+    required this.id,
+    required this.roomId,
+    required this.status,
+    required this.title,
+    required this.hostId,
+    this.sourceFlowId,
+    this.hostHandle,
+    this.hostDisplayName,
+    this.hostAvatarUrl,
+    this.respondedAt,
+  });
+
+  final String id;
+  final String roomId;
+  final String status;
+  final String title;
+  final String hostId;
+  final int? sourceFlowId;
+  final String? hostHandle;
+  final String? hostDisplayName;
+  final String? hostAvatarUrl;
+  final DateTime? respondedAt;
+
+  bool get approved => status == 'approved';
+
+  String get hostLabel {
+    final display = hostDisplayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final handle = hostHandle?.trim();
+    if (handle != null && handle.isNotEmpty) return '@$handle';
+    return 'The creator';
+  }
+
+  factory TogetherRequestDecision.fromJson(Map<String, dynamic> json) {
+    return TogetherRequestDecision(
+      id: _cleanString(json['id']) ?? '',
+      roomId: _cleanString(json['room_id']) ?? '',
+      status: _cleanString(json['status']) ?? 'denied',
+      title: _cleanString(json['title']) ?? 'Group flow',
+      hostId: _cleanString(json['host_id']) ?? '',
+      sourceFlowId: _parseInt(json['source_flow_id']),
+      hostHandle: _cleanString(json['host_handle']),
+      hostDisplayName: _cleanString(json['host_display_name']),
+      hostAvatarUrl: _cleanString(json['host_avatar_url']),
+      respondedAt: _parseDateTime(json['responded_at']),
     );
   }
 }
@@ -473,6 +814,8 @@ class SharedPracticeJoinRequest {
     this.requesterHandle,
     this.requesterDisplayName,
     this.requesterAvatarUrl,
+    this.title,
+    this.sourceFlowId,
   });
 
   final String id;
@@ -486,6 +829,8 @@ class SharedPracticeJoinRequest {
   final String? requesterHandle;
   final String? requesterDisplayName;
   final String? requesterAvatarUrl;
+  final String? title;
+  final int? sourceFlowId;
 
   String get requesterLabel {
     final display = requesterDisplayName?.trim();
@@ -511,6 +856,218 @@ class SharedPracticeJoinRequest {
       requesterHandle: _cleanString(json['requester_handle']),
       requesterDisplayName: _cleanString(json['requester_display_name']),
       requesterAvatarUrl: _cleanString(json['requester_avatar_url']),
+      title: _cleanString(json['title']),
+      sourceFlowId: _parseInt(json['source_flow_id']),
+    );
+  }
+}
+
+class TogetherInboxInvitation {
+  const TogetherInboxInvitation({
+    required this.roomId,
+    required this.userId,
+    required this.hostId,
+    required this.title,
+    this.sourceFlowId,
+    this.hostHandle,
+    this.hostDisplayName,
+    this.hostAvatarUrl,
+    this.createdAt,
+  });
+
+  final String roomId;
+  final String userId;
+  final String hostId;
+  final String title;
+  final int? sourceFlowId;
+  final String? hostHandle;
+  final String? hostDisplayName;
+  final String? hostAvatarUrl;
+  final DateTime? createdAt;
+
+  String get hostLabel {
+    final display = hostDisplayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final handle = hostHandle?.trim();
+    return handle == null || handle.isEmpty ? 'A friend' : '@$handle';
+  }
+
+  factory TogetherInboxInvitation.fromJson(Map<String, dynamic> json) {
+    return TogetherInboxInvitation(
+      roomId: _cleanString(json['room_id']) ?? '',
+      userId: _cleanString(json['user_id']) ?? '',
+      hostId: _cleanString(json['invited_by']) ?? '',
+      title: _cleanString(json['title']) ?? 'Group flow',
+      sourceFlowId: _parseInt(json['source_flow_id']),
+      hostHandle: _cleanString(json['host_handle']),
+      hostDisplayName: _cleanString(json['host_display_name']),
+      hostAvatarUrl: _cleanString(json['host_avatar_url']),
+      createdAt: _parseDateTime(json['created_at']),
+    );
+  }
+}
+
+class TogetherPolicyPrompt {
+  const TogetherPolicyPrompt({
+    required this.roomId,
+    required this.title,
+    required this.memberCount,
+    required this.visibility,
+    required this.requestAudience,
+    this.sourceFlowId,
+    this.joinedUserId,
+    this.joinedHandle,
+    this.joinedDisplayName,
+    this.joinedAvatarUrl,
+    this.joinedAt,
+  });
+
+  final String roomId;
+  final String title;
+  final int memberCount;
+  final SharedPracticeRoomVisibility visibility;
+  final SharedPracticeRequestAudience requestAudience;
+  final int? sourceFlowId;
+  final String? joinedUserId;
+  final String? joinedHandle;
+  final String? joinedDisplayName;
+  final String? joinedAvatarUrl;
+  final DateTime? joinedAt;
+
+  String get joinedLabel {
+    final display = joinedDisplayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final handle = joinedHandle?.trim();
+    return handle == null || handle.isEmpty ? 'A friend' : '@$handle';
+  }
+
+  factory TogetherPolicyPrompt.fromJson(Map<String, dynamic> json) {
+    return TogetherPolicyPrompt(
+      roomId: _cleanString(json['room_id']) ?? '',
+      title: _cleanString(json['title']) ?? 'Group flow',
+      memberCount: _parseInt(json['member_count']) ?? 2,
+      visibility: SharedPracticeRoomVisibilityX.fromWireName(
+        _cleanString(json['visibility']),
+      ),
+      requestAudience: SharedPracticeRequestAudienceX.fromWireName(
+        _cleanString(json['request_audience']),
+      ),
+      sourceFlowId: _parseInt(json['source_flow_id']),
+      joinedUserId: _cleanString(json['joined_user_id']),
+      joinedHandle: _cleanString(json['joined_handle']),
+      joinedDisplayName: _cleanString(json['joined_display_name']),
+      joinedAvatarUrl: _cleanString(json['joined_avatar_url']),
+      joinedAt: _parseDateTime(json['joined_at']),
+    );
+  }
+}
+
+class TogetherInboxRoom {
+  const TogetherInboxRoom({
+    required this.roomId,
+    required this.title,
+    required this.memberCount,
+    required this.visibility,
+    required this.requestAudience,
+    required this.createdBy,
+    this.sourceFlowId,
+    this.hostHandle,
+    this.hostDisplayName,
+    this.hostAvatarUrl,
+    this.updatedAt,
+  });
+
+  final String roomId;
+  final String title;
+  final int memberCount;
+  final SharedPracticeRoomVisibility visibility;
+  final SharedPracticeRequestAudience requestAudience;
+  final String createdBy;
+  final int? sourceFlowId;
+  final String? hostHandle;
+  final String? hostDisplayName;
+  final String? hostAvatarUrl;
+  final DateTime? updatedAt;
+
+  String get hostLabel {
+    final display = hostDisplayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final handle = hostHandle?.trim();
+    return handle == null || handle.isEmpty ? 'Group flow' : '@$handle';
+  }
+
+  factory TogetherInboxRoom.fromJson(Map<String, dynamic> json) {
+    return TogetherInboxRoom(
+      roomId: _cleanString(json['room_id']) ?? '',
+      title: _cleanString(json['title']) ?? 'Group flow',
+      memberCount: _parseInt(json['member_count']) ?? 2,
+      visibility: SharedPracticeRoomVisibilityX.fromWireName(
+        _cleanString(json['visibility']),
+      ),
+      requestAudience: SharedPracticeRequestAudienceX.fromWireName(
+        _cleanString(json['request_audience']),
+      ),
+      createdBy: _cleanString(json['created_by']) ?? '',
+      sourceFlowId: _parseInt(json['source_flow_id']),
+      hostHandle: _cleanString(json['host_handle']),
+      hostDisplayName: _cleanString(json['host_display_name']),
+      hostAvatarUrl: _cleanString(json['host_avatar_url']),
+      updatedAt: _parseDateTime(json['updated_at']),
+    );
+  }
+}
+
+class TogetherInboxSnapshot {
+  const TogetherInboxSnapshot({
+    this.joinRequests = const <SharedPracticeJoinRequest>[],
+    this.invitations = const <TogetherInboxInvitation>[],
+    this.policyPrompts = const <TogetherPolicyPrompt>[],
+    this.quoteApprovals = const <TogetherQuoteApproval>[],
+    this.requestDecisions = const <TogetherRequestDecision>[],
+    this.activeRooms = const <TogetherInboxRoom>[],
+  });
+
+  final List<SharedPracticeJoinRequest> joinRequests;
+  final List<TogetherInboxInvitation> invitations;
+  final List<TogetherPolicyPrompt> policyPrompts;
+  final List<TogetherQuoteApproval> quoteApprovals;
+  final List<TogetherRequestDecision> requestDecisions;
+  final List<TogetherInboxRoom> activeRooms;
+
+  bool get isEmpty =>
+      joinRequests.isEmpty &&
+      invitations.isEmpty &&
+      policyPrompts.isEmpty &&
+      quoteApprovals.isEmpty &&
+      requestDecisions.isEmpty &&
+      activeRooms.isEmpty;
+
+  factory TogetherInboxSnapshot.fromJson(Map<String, dynamic> json) {
+    return TogetherInboxSnapshot(
+      joinRequests: _parseObjectList(
+        json['join_requests'],
+        SharedPracticeJoinRequest.fromJson,
+      ),
+      invitations: _parseObjectList(
+        json['invitations'],
+        TogetherInboxInvitation.fromJson,
+      ),
+      policyPrompts: _parseObjectList(
+        json['policy_prompts'],
+        TogetherPolicyPrompt.fromJson,
+      ),
+      quoteApprovals: _parseObjectList(
+        json['quote_approvals'],
+        TogetherQuoteApproval.fromJson,
+      ),
+      requestDecisions: _parseObjectList(
+        json['request_decisions'],
+        TogetherRequestDecision.fromJson,
+      ),
+      activeRooms: _parseObjectList(
+        json['active_rooms'],
+        TogetherInboxRoom.fromJson,
+      ),
     );
   }
 }
@@ -522,6 +1079,7 @@ class SharedPracticeRoomSnapshot {
     required this.localDate,
     required this.members,
     required this.entries,
+    this.messages = const <SharedPracticeMessage>[],
     this.joinRequests = const <SharedPracticeJoinRequest>[],
     this.sourceFlow,
     this.viewerCanEdit = false,
@@ -536,6 +1094,7 @@ class SharedPracticeRoomSnapshot {
   final SharedPracticeStep? todayStep;
   final List<SharedPracticeMemberStatus> members;
   final List<SharedPracticeEntry> entries;
+  final List<SharedPracticeMessage> messages;
   final List<SharedPracticeJoinRequest> joinRequests;
   final Map<String, dynamic>? sourceFlow;
   final bool viewerCanEdit;
@@ -550,6 +1109,7 @@ class SharedPracticeRoomSnapshot {
     final stepRaw = json['today_step'];
     final membersRaw = json['members'];
     final entriesRaw = json['entries'];
+    final messagesRaw = json['messages'];
     final joinRequestsRaw = json['join_requests'];
     final sourceFlowRaw = json['source_flow'];
     return SharedPracticeRoomSnapshot(
@@ -581,6 +1141,20 @@ class SharedPracticeRoomSnapshot {
                 .where((entry) => entry.id.isNotEmpty && entry.hasBody)
                 .toList(growable: false)
           : const <SharedPracticeEntry>[],
+      messages: messagesRaw is List
+          ? messagesRaw
+                .whereType<Map>()
+                .map(
+                  (row) => SharedPracticeMessage.fromJson(
+                    Map<String, dynamic>.from(row),
+                  ),
+                )
+                .where(
+                  (message) =>
+                      message.id.isNotEmpty && message.bodyText.isNotEmpty,
+                )
+                .toList(growable: false)
+          : const <SharedPracticeMessage>[],
       joinRequests: joinRequestsRaw is List
           ? joinRequestsRaw
                 .whereType<Map>()
@@ -757,4 +1331,15 @@ DateTime? _parseDateTime(Object? value) {
   final text = _cleanString(value);
   if (text == null) return null;
   return DateTime.tryParse(text);
+}
+
+List<T> _parseObjectList<T>(
+  Object? value,
+  T Function(Map<String, dynamic>) fromJson,
+) {
+  if (value is! List) return <T>[];
+  return value
+      .whereType<Map>()
+      .map((row) => fromJson(Map<String, dynamic>.from(row)))
+      .toList(growable: false);
 }

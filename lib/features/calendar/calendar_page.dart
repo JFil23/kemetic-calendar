@@ -19,6 +19,7 @@ import 'presentation/user_flow_appearance_visual.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
 import '../../data/shared_practice_repo.dart';
+import '../shared_practice/presentation/group_flow_ui_preview.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:flutter/rendering.dart';
 import '../../data/note_category.dart';
@@ -61,6 +62,7 @@ import '../../data/decan_reflection_prompt_state.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../widgets/insight_link_text.dart';
 import '../../widgets/keyboard_aware.dart';
+import '../../widgets/profile_avatar.dart';
 import '../../widgets/pronounce_icon_button.dart';
 import '../../widgets/utility_sheet_route_scaffold.dart';
 import '../../services/speech/speech_service.dart';
@@ -292,6 +294,33 @@ Future<void> _ensureSharedExperienceForFlow({
         'calendar=$trimmedCalendarId: $e',
       );
     }
+  }
+}
+
+Future<void> _createTogetherOverlayForFlowStudioInvites({
+  required int flowId,
+  required List<String> invitedUserIds,
+  required String source,
+}) async {
+  final invitees = invitedUserIds
+      .map((id) => id.trim())
+      .where((id) => id.isNotEmpty)
+      .toSet()
+      .toList(growable: false);
+  if (flowId <= 0 || invitees.isEmpty) return;
+
+  try {
+    await SharedPracticeRepo(
+      Supabase.instance.client,
+    ).createTogetherOverlayForFlow(flowId: flowId, invitedUserIds: invitees);
+  } catch (error, stackTrace) {
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[$source] Together invitations failed for flow=$flowId: $error',
+      );
+      _calendarDebugPrint('$stackTrace');
+    }
+    rethrow;
   }
 }
 
@@ -9304,6 +9333,11 @@ class CalendarPage extends StatefulWidget {
             invalidationReason: CalendarInvalidationReason.flowStudioPersisted,
             additionalPersistence: () async {
               await commitGenerationIfNeeded();
+              await _createTogetherOverlayForFlowStudioInvites(
+                flowId: savedId,
+                invitedUserIds: r.invitedUserIds,
+                source: 'CalendarPage._persistFlowStudioResultHeadless',
+              );
               await _ensureSharedExperienceForFlow(
                 flowId: savedId,
                 calendarId: f.calendarId,
@@ -9395,6 +9429,11 @@ class CalendarPage extends StatefulWidget {
     }
 
     await commitGenerationIfNeeded();
+    await _createTogetherOverlayForFlowStudioInvites(
+      flowId: savedId,
+      invitedUserIds: r.invitedUserIds,
+      source: 'CalendarPage._persistFlowStudioResultHeadless',
+    );
     await _ensureSharedExperienceForFlow(
       flowId: savedId,
       calendarId: f.calendarId,
@@ -32273,6 +32312,16 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
 
+    Future<void> createTogetherOverlayIfNeeded() async {
+      final savedFlow = saved;
+      if (savedFlow == null) return;
+      await _createTogetherOverlayForFlowStudioInvites(
+        flowId: savedFlow.id,
+        invitedUserIds: r.invitedUserIds,
+        source: 'CalendarPage._persistFlowStudioResult',
+      );
+    }
+
     if (r.plannedNotes.isNotEmpty) {
       final savedFlow = saved;
       if (savedFlow == null) {
@@ -32329,6 +32378,7 @@ class CalendarPageState extends State<CalendarPage>
             invalidationReason: CalendarInvalidationReason.flowStudioPersisted,
             additionalPersistence: () async {
               await commitGenerationIfNeeded();
+              await createTogetherOverlayIfNeeded();
               await ensureSharedExperienceIfNeeded();
               try {
                 if (isNewFlowSave) {
@@ -32484,6 +32534,7 @@ class CalendarPageState extends State<CalendarPage>
 
     if (saved != null) {
       await commitGenerationIfNeeded();
+      await createTogetherOverlayIfNeeded();
       await ensureSharedExperienceIfNeeded();
     }
 

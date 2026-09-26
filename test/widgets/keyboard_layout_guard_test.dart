@@ -216,6 +216,7 @@ void main() {
         'lib/features/nodes/node_link_picker_sheet.dart',
         'lib/features/profile/edit_profile_page.dart',
         'lib/features/profile/profile_search_page.dart',
+        'lib/features/shared_practice/shared_practice_room_page.dart',
         'lib/features/sharing/share_flow_sheet.dart',
         'lib/features/calendar/the_offering_table/presentation/'
             'offering_table_preview_day_sheet.dart',
@@ -275,6 +276,7 @@ void main() {
         'lib/features/calendars/shared_calendars_sheet.dart',
         'lib/features/calendar/calendar_page.dart',
         'lib/features/profile/profile_page.dart',
+        'lib/features/shared_practice/shared_practice_room_page.dart',
         'lib/features/rhythm/pages/todays_alignment_page.dart',
       ];
 

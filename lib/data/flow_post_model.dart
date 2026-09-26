@@ -28,6 +28,8 @@ class FlowPost {
   final bool hasLikedByMe;
   final double? feedScore;
   final bool isFollowingAuthor;
+  final bool viewerCanRequestTogether;
+  final String? viewerTogetherRequestStatus;
 
   FlowPost({
     required this.id,
@@ -55,6 +57,8 @@ class FlowPost {
     this.hasLikedByMe = false,
     this.feedScore,
     this.isFollowingAuthor = false,
+    this.viewerCanRequestTogether = false,
+    this.viewerTogetherRequestStatus,
   });
 
   factory FlowPost.fromJson(Map<String, dynamic> json) {
@@ -105,6 +109,11 @@ class FlowPost {
       hasLikedByMe: hasLikedByMe,
       feedScore: (json['score'] as num?)?.toDouble(),
       isFollowingAuthor: (json['is_following_author'] as bool?) ?? false,
+      viewerCanRequestTogether:
+          (json['viewer_can_request_together'] as bool?) ?? false,
+      viewerTogetherRequestStatus: _stringOrNull(
+        json['viewer_together_request_status'],
+      ),
     );
   }
 
@@ -132,6 +141,8 @@ class FlowPost {
       'liked_by_me': likedByMe,
       'score': feedScore,
       'is_following_author': isFollowingAuthor,
+      'viewer_can_request_together': viewerCanRequestTogether,
+      'viewer_together_request_status': viewerTogetherRequestStatus,
     };
   }
 

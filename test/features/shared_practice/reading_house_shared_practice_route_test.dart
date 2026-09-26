@@ -25,6 +25,7 @@ void main() {
             snapshot.room.createdBy,
           ),
           resolvePersonalCalendarId: () async => 'personal-calendar',
+          watchMessageChanges: (_) => const Stream<void>.empty(),
         ),
       ),
     );
@@ -39,12 +40,42 @@ void main() {
       sourceName: kReadingHouseTitle,
       sourceNotes: 'ordinary shared practice',
       viewerCanEdit: false,
+      viewerIsMember: true,
+      includeGroupVisual: true,
     );
     await pumpRoute(tester, snapshot);
 
     expect(sharedPracticeSnapshotIsReadingHouse(snapshot), isFalse);
     expect(find.byType(SharedPracticeRoomPage), findsOneWidget);
     expect(find.byType(ReadingHouseDetailSurface), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('live-group-flow-chat')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('group-flow-compact-merkhet')),
+      findsOneWidget,
+    );
+    expect(find.text('Day 3 of 12 · host position'), findsOneWidget);
+
+    expect(find.text('The third day feels steadier.'), findsOneWidget);
+
+    final postQuote = find.byKey(
+      const ValueKey<String>('post_group_quote_message-1'),
+    );
+    expect(postQuote, findsOneWidget);
+    await tester.ensureVisible(postQuote);
+    await tester.pumpAndSettle();
+    await tester.tap(postQuote);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('live-group-flow-confirm-quote')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Flow Creator will approve this before it becomes public.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Reading House creator gets the canonical editable detail', (
@@ -65,6 +96,10 @@ void main() {
     expect(find.byType(ReadingHouseDetailSurface), findsOneWidget);
     expect(find.byType(SharedPracticeRoomPage), findsNothing);
     expect(
+      find.byKey(const ValueKey<String>('live-group-flow-chat')),
+      findsNothing,
+    );
+    expect(
       find.byKey(const ValueKey<String>('reading-house-book')),
       findsOneWidget,
     );
@@ -84,6 +119,25 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(MaatFlowDetailDock), findsOneWidget);
+  });
+
+  testWidgets('public non-member cannot see the private group conversation', (
+    tester,
+  ) async {
+    final snapshot = _roomSnapshot(
+      flowKey: 'generic-practice',
+      sourceName: 'Dawn Strength Practice',
+      sourceNotes: 'ordinary shared practice',
+      viewerCanEdit: false,
+      includeGroupVisual: true,
+    );
+    await pumpRoute(tester, snapshot);
+
+    expect(find.byType(SharedPracticeRoomPage), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('live-group-flow-chat')),
+      findsNothing,
+    );
   });
 
   testWidgets(
@@ -154,6 +208,7 @@ SharedPracticeRoomSnapshot _roomSnapshot({
   required bool viewerCanEdit,
   bool viewerCanManage = false,
   bool viewerIsMember = false,
+  bool includeGroupVisual = false,
 }) {
   const plan = ReadingHousePlan(
     bookTitle: 'The Living Blood',
@@ -172,6 +227,7 @@ SharedPracticeRoomSnapshot _roomSnapshot({
       'status': 'active',
       'visibility': 'public',
       'join_policy': 'owner_approval',
+      if (includeGroupVisual) 'member_count': 2,
     },
     'calendar': <String, dynamic>{
       'id': 'calendar-1',
@@ -186,6 +242,12 @@ SharedPracticeRoomSnapshot _roomSnapshot({
       'name': sourceName,
       'notes': sourceNotes,
       'start_date': '2026-08-30',
+      if (includeGroupVisual)
+        'appearance': <String, dynamic>{
+          'sign_kind': 'palm_count',
+          'sign_label': 'Day count',
+          'accent_argb': 0xFF3FA98A,
+        },
       'ai_metadata': <String, dynamic>{
         'flow_key': sourceFlowKey ?? flowKey,
         kReadingHouseMetadataKey: readingHouseMetadata(
@@ -196,16 +258,47 @@ SharedPracticeRoomSnapshot _roomSnapshot({
       },
     },
     'local_date': '2026-08-30',
+    if (includeGroupVisual)
+      'today_step': <String, dynamic>{
+        'id': 'step-3',
+        'client_event_id': 'event-3',
+        'flow_id': 960,
+        'title': 'Day 3 practice',
+        'step_index': 3,
+        'total_steps': 12,
+      },
     'members': viewerIsMember
         ? <Map<String, dynamic>>[
             <String, dynamic>{
               'user_id': 'reader-user',
               'role': 'viewer',
               'display_name': 'Accepted Reader',
+              if (includeGroupVisual) 'completed_count': 2,
+              if (includeGroupVisual) 'total_count': 12,
             },
+            if (includeGroupVisual)
+              <String, dynamic>{
+                'user_id': 'host-user',
+                'role': 'owner',
+                'display_name': 'Flow Creator',
+                'completed_count': 3,
+                'total_count': 12,
+              },
           ]
         : const <Map<String, dynamic>>[],
     'entries': const <Map<String, dynamic>>[],
+    if (includeGroupVisual)
+      'messages': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'message-1',
+          'room_id': 'room-1',
+          'user_id': 'host-user',
+          'flow_day': '2026-08-30',
+          'body_text': 'The third day feels steadier.',
+          'author_display_name': 'Flow Creator',
+          'created_at': '2026-08-30T12:00:00Z',
+        },
+      ],
     'viewer_can_edit': viewerCanEdit,
     'viewer_can_manage': viewerCanManage,
     'viewer_is_member': viewerIsMember,

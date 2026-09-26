@@ -10,6 +10,8 @@ import '../../data/share_models.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/shared_calendars_repo.dart';
+import '../../data/shared_practice_models.dart';
+import '../../data/shared_practice_repo.dart';
 import '../../repositories/dm_conversation_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import 'conversation_user.dart';
@@ -33,6 +35,7 @@ import '../calendar/the_reading_house_flow.dart' show kReadingHouseFlowKey;
 import '../calendar/the_reading_house/reading_house_room_repository.dart';
 import '../calendars/shared_calendars_sheet.dart';
 import 'inbox_threading.dart';
+import 'presentation/group_flow_inbox_preview_section.dart';
 import 'presentation/reading_house_inbox_section.dart';
 import 'presentation/reading_house_room_sheet.dart';
 
@@ -169,6 +172,7 @@ class _InboxPageState extends State<InboxPage> {
   late final ShareRepo _shareRepo;
   late final SharedCalendarsRepo _sharedCalendarsRepo;
   late final SupabaseReadingHouseRoomRepository _readingHouseRoomRepo;
+  late final SharedPracticeRepo _sharedPracticeRepo;
   StreamSubscription<List<InboxShareItem>>? _inboxItemsSub;
   StreamSubscription<List<DmConversationSummary>>? _dmConversationsSub;
   StreamSubscription<InboxUnreadState>? _unreadStateSub;
@@ -189,6 +193,9 @@ class _InboxPageState extends State<InboxPage> {
   List<ReadingHouseRoomSummary> _latestReadingHouseRooms = const [];
   ReadingHouseInboxSectionStatus _readingHouseRoomStatus =
       ReadingHouseInboxSectionStatus.loaded;
+  TogetherInboxSnapshot _togetherInbox = const TogetherInboxSnapshot();
+  GroupFlowInboxSectionStatus _togetherInboxStatus =
+      GroupFlowInboxSectionStatus.loading;
   List<_UnifiedInboxItem> _unified = const [];
   final Set<String> _optimisticReadShareIds = <String>{};
   bool _loading = true;
@@ -213,10 +220,12 @@ class _InboxPageState extends State<InboxPage> {
     _inboxRepo = InboxRepo(client);
     _dmConversationRepo = DmConversationRepo(client);
     _readingHouseRoomRepo = SupabaseReadingHouseRoomRepository(client);
+    _sharedPracticeRepo = SharedPracticeRepo(client);
     if (widget.disableAuxiliarySubscriptionsForTesting) {
       _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
       _latestDmConversations =
           widget.dmConversationsForTesting ?? const <DmConversationSummary>[];
+      _togetherInboxStatus = GroupFlowInboxSectionStatus.loaded;
       _applyActivity(widget.activityForTesting ?? const <InboxActivityItem>[]);
       _unified = _buildUnifiedItems();
       _loading = false;
@@ -364,6 +373,13 @@ class _InboxPageState extends State<InboxPage> {
     } catch (e) {
       _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
       _logInboxImport('[InboxPage] Failed to refresh Reading Houses: $e');
+    }
+    try {
+      _togetherInbox = await _sharedPracticeRepo.getTogetherInbox();
+      _togetherInboxStatus = GroupFlowInboxSectionStatus.loaded;
+    } catch (e) {
+      _togetherInboxStatus = GroupFlowInboxSectionStatus.error;
+      _logInboxImport('[InboxPage] Failed to refresh Together inbox: $e');
     }
 
     if (!mounted) return;
@@ -864,6 +880,121 @@ class _InboxPageState extends State<InboxPage> {
     if (mounted) await _refreshReadingHouseRooms();
   }
 
+  Future<void> _refreshTogetherInbox({bool showLoading = false}) async {
+    if (showLoading && mounted) {
+      setState(() {
+        _togetherInboxStatus = GroupFlowInboxSectionStatus.loading;
+      });
+    }
+    try {
+      final snapshot = await _sharedPracticeRepo.getTogetherInbox();
+      if (!mounted) return;
+      setState(() {
+        _togetherInbox = snapshot;
+        _togetherInboxStatus = GroupFlowInboxSectionStatus.loaded;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _togetherInboxStatus = GroupFlowInboxSectionStatus.error;
+      });
+    }
+  }
+
+  Future<void> _respondToTogetherRequest(
+    SharedPracticeJoinRequest request,
+    bool accept,
+  ) async {
+    try {
+      await _sharedPracticeRepo.respondToJoinRequest(
+        requestId: request.id,
+        approve: accept,
+      );
+      await _refreshTogetherInbox();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update that request.')),
+      );
+    }
+  }
+
+  Future<void> _respondToTogetherInvitation(
+    TogetherInboxInvitation invitation,
+    bool accept,
+  ) async {
+    try {
+      await _sharedPracticeRepo.respondToTogetherInvitation(
+        roomId: invitation.roomId,
+        accept: accept,
+      );
+      await _refreshTogetherInbox();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update that invitation.')),
+      );
+    }
+  }
+
+  Future<void> _saveTogetherPolicy(
+    TogetherPolicyPrompt prompt,
+    SharedPracticeRoomVisibility visibility,
+    SharedPracticeRequestAudience requestAudience,
+  ) async {
+    try {
+      await _sharedPracticeRepo.setSharedPracticeAccess(
+        roomId: prompt.roomId,
+        visibility: visibility,
+        requestAudience: requestAudience,
+      );
+      await _refreshTogetherInbox();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save group settings.')),
+      );
+    }
+  }
+
+  Future<void> _respondToTogetherQuoteApproval(
+    TogetherQuoteApproval approval,
+    bool accept,
+  ) async {
+    try {
+      await _sharedPracticeRepo.respondToSharedPracticeQuotePost(
+        quotePostId: approval.id,
+        approve: accept,
+      );
+      await _refreshTogetherInbox();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update that quote request.')),
+      );
+    }
+  }
+
+  Future<void> _handleTogetherRequestDecision(
+    TogetherRequestDecision decision,
+    bool open,
+  ) async {
+    try {
+      await _sharedPracticeRepo.markTogetherRequestDecisionSeen(decision.id);
+      await _refreshTogetherInbox();
+      if (!mounted || !open || !decision.approved) return;
+      await openDetailRoute<void>(
+        context,
+        '/shared-practice/${Uri.encodeComponent(decision.roomId)}',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not clear that update.')),
+      );
+    }
+  }
+
   String _readingHouseMemberInitials(ReadingHouseRoomMember member) {
     final label = _firstNonEmpty(<String?>[member.displayName, member.handle]);
     if (label == null) return 'R';
@@ -887,6 +1018,24 @@ class _InboxPageState extends State<InboxPage> {
     final listChildren = <Widget>[
       _buildSectionLabel('Activity'),
       for (var i = 0; i < _summaryTileCount; i++) _buildSummaryTile(i),
+      if (_togetherInboxStatus != GroupFlowInboxSectionStatus.loaded ||
+          !_togetherInbox.isEmpty) ...<Widget>[
+        _buildSectionLabel('Practice Together', topMargin: 30),
+        GroupFlowInboxSection(
+          snapshot: _togetherInbox,
+          status: _togetherInboxStatus,
+          onRespondToRequest: _respondToTogetherRequest,
+          onRespondToInvitation: _respondToTogetherInvitation,
+          onSavePolicy: _saveTogetherPolicy,
+          onRespondToQuoteApproval: _respondToTogetherQuoteApproval,
+          onRequestDecision: _handleTogetherRequestDecision,
+          onOpenRoom: (room) => openDetailRoute<void>(
+            context,
+            '/shared-practice/${Uri.encodeComponent(room.roomId)}',
+          ),
+          onRetry: () => unawaited(_refreshTogetherInbox(showLoading: true)),
+        ),
+      ],
       ReadingHouseInboxRoomSection(
         rooms: _readingHouseRoomFixtures,
         status: _readingHouseRoomStatus,

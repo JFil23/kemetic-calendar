@@ -165,6 +165,45 @@ void main() {
     await _closeFlowStudio(tester);
   });
 
+  testWidgets('Flow Studio exposes invitation entry and group-flow preview', (
+    tester,
+  ) async {
+    _useMobilePortraitSurface(tester);
+    final draft = _buildDraft(
+      name: 'Dawn Strength Practice',
+      startDate: DateTime(2026, 9, 20),
+      endDate: DateTime(2026, 10, 20),
+    );
+
+    await _openFlowStudio(tester, initialDraftJson: draft);
+    final invite = find.byKey(
+      const ValueKey<String>('flow-studio-invite-people'),
+    );
+    await _scrollStudioTo(tester, invite);
+
+    expect(invite, findsOneWidget);
+    expect(find.text('Invite people'), findsOneWidget);
+    expect(
+      find.text('Start solo, or shape this as a group flow'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('no invitations are sent yet'), findsOneWidget);
+
+    final preview = find.byKey(
+      const ValueKey<String>('flow-studio-preview-group-flow'),
+    );
+    await tester.ensureVisible(preview);
+    await tester.tap(preview);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('group-flow-ui-preview-sheet')),
+      findsOneWidget,
+    );
+    expect(find.text('Dawn Strength Practice'), findsOneWidget);
+
+    await _closeFlowStudio(tester);
+  });
+
   testWidgets('single day deselect removes the visible editor', (tester) async {
     _useLargeSurface(tester);
     final draft = _buildDraft(
