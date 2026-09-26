@@ -118,6 +118,170 @@ void main() {
     AppWindowService.instance.resetForTesting();
   });
 
+  test(
+    'coalesces a 100-mutation same-window burst to in-flight plus final',
+    () async {
+      final firstStarted = Completer<void>();
+      final releaseFirst = Completer<void>();
+      final writes = <Map<String, dynamic>>[];
+      addTearDown(() async {
+        if (!releaseFirst.isCompleted) releaseFirst.complete();
+        await AppRestorationService.instance.flushPendingWrites();
+      });
+      AppRestorationService.debugRemoteSnapshotWriter =
+          (userId, deviceId, windowId, snapshot) async {
+            writes.add(Map<String, dynamic>.from(snapshot));
+            if (writes.length == 1) {
+              firstStarted.complete();
+              await releaseFirst.future;
+            }
+          };
+
+      await AppRestorationService.instance.saveEditorState('cut19-burst', {
+        'revision': 0,
+      });
+      await firstStarted.future;
+      for (var revision = 1; revision < 100; revision += 1) {
+        await AppRestorationService.instance.saveEditorState('cut19-burst', {
+          'revision': revision,
+        });
+      }
+
+      final finalLocalSnapshot = await AppRestorationService.instance
+          .readSnapshot();
+      expect(
+        finalLocalSnapshot?.editors['cut19-burst'],
+        containsPair('revision', 99),
+      );
+      expect(writes, hasLength(1));
+
+      releaseFirst.complete();
+      await AppRestorationService.instance.flushPendingWrites();
+
+      expect(writes, hasLength(2));
+      expect(writes.last['userId'], finalLocalSnapshot?.userId);
+      expect(writes.last['windowId'], finalLocalSnapshot?.windowId);
+      expect(writes.last['updatedAtMs'], finalLocalSnapshot?.updatedAtMs);
+      expect(
+        (writes.last['editors'] as Map<String, dynamic>)['cut19-burst'],
+        finalLocalSnapshot?.editors['cut19-burst'],
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(writes, hasLength(2));
+    },
+  );
+
+  test(
+    'coalesces independently per user window without losing finals',
+    () async {
+      final firstStarted = Completer<void>();
+      final releaseFirst = Completer<void>();
+      final writes = <Map<String, dynamic>>[];
+      addTearDown(() async {
+        if (!releaseFirst.isCompleted) releaseFirst.complete();
+        await AppRestorationService.instance.flushPendingWrites();
+      });
+      AppRestorationService.debugRemoteSnapshotWriter =
+          (userId, deviceId, windowId, snapshot) async {
+            writes.add(Map<String, dynamic>.from(snapshot));
+            if (writes.length == 1) {
+              firstStarted.complete();
+              await releaseFirst.future;
+            }
+          };
+
+      await AppRestorationService.instance.saveEditorState('cut19-window', {
+        'revision': 'a-in-flight',
+      });
+      await firstStarted.future;
+
+      AppWindowService.debugWindowIdResolver = () async => 'window-2';
+      AppWindowService.instance.resetForTesting();
+      for (var revision = 0; revision < 20; revision += 1) {
+        await AppRestorationService.instance.saveEditorState('cut19-window', {
+          'revision': 'b-$revision',
+        });
+      }
+
+      AppWindowService.debugWindowIdResolver = () async => 'window-1';
+      AppWindowService.instance.resetForTesting();
+      for (var revision = 0; revision < 20; revision += 1) {
+        await AppRestorationService.instance.saveEditorState('cut19-window', {
+          'revision': 'a-$revision',
+        });
+      }
+
+      expect(writes, hasLength(1));
+      releaseFirst.complete();
+      await AppRestorationService.instance.flushPendingWrites();
+
+      expect(writes, hasLength(3));
+      expect(writes.map((snapshot) => snapshot['windowId']), <String>[
+        'window-1',
+        'window-2',
+        'window-1',
+      ]);
+      expect(
+        (writes[1]['editors'] as Map<String, dynamic>)['cut19-window'],
+        containsPair('revision', 'b-19'),
+      );
+      expect(
+        (writes[2]['editors'] as Map<String, dynamic>)['cut19-window'],
+        containsPair('revision', 'a-19'),
+      );
+    },
+  );
+
+  test(
+    'failed in-flight write preserves newer pending state and drain reuse',
+    () async {
+      final firstStarted = Completer<void>();
+      final failFirst = Completer<void>();
+      final writes = <Map<String, dynamic>>[];
+      addTearDown(() async {
+        if (!failFirst.isCompleted) failFirst.complete();
+        await AppRestorationService.instance.flushPendingWrites();
+      });
+      AppRestorationService.debugRemoteSnapshotWriter =
+          (userId, deviceId, windowId, snapshot) async {
+            writes.add(Map<String, dynamic>.from(snapshot));
+            if (writes.length == 1) {
+              firstStarted.complete();
+              await failFirst.future;
+              throw StateError('expected Cut 19 first-write failure');
+            }
+          };
+
+      await AppRestorationService.instance.saveEditorState('cut19-failure', {
+        'revision': 1,
+      });
+      await firstStarted.future;
+      await AppRestorationService.instance.saveEditorState('cut19-failure', {
+        'revision': 2,
+      });
+
+      failFirst.complete();
+      await AppRestorationService.instance.flushPendingWrites();
+
+      expect(writes, hasLength(2));
+      expect(
+        (writes.last['editors'] as Map<String, dynamic>)['cut19-failure'],
+        containsPair('revision', 2),
+      );
+
+      await AppRestorationService.instance.saveEditorState('cut19-failure', {
+        'revision': 3,
+      });
+      await AppRestorationService.instance.flushPendingWrites();
+
+      expect(writes, hasLength(3));
+      expect(
+        (writes.last['editors'] as Map<String, dynamic>)['cut19-failure'],
+        containsPair('revision', 3),
+      );
+    },
+  );
+
   test('stores route, calendar, day view, and day sheet per window', () async {
     await _saveDurableRoute('/inbox');
     await AppRestorationService.instance.saveCalendarState(

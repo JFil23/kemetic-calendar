@@ -755,6 +755,10 @@ class AppRestorationService {
   String? _deviceId;
   Future<String>? _deviceIdFuture;
   Future<void> _mutationQueue = Future<void>.value();
+  final Map<({String userId, String windowId}), Map<String, dynamic>>
+  _pendingRemoteSnapshots =
+      <({String userId, String windowId}), Map<String, dynamic>>{};
+  bool _remoteWriteDrainActive = false;
   Future<void> _remoteWriteQueue = Future<void>.value();
 
   Future<void> initialize() async {
@@ -2036,12 +2040,44 @@ class AppRestorationService {
 
   void _scheduleRemoteSnapshotWrite(Map<String, dynamic> raw) {
     final snapshot = Map<String, dynamic>.from(raw);
-    final next = _remoteWriteQueue.then(
-      (_) => _writeRemoteSnapshot(snapshot),
-      onError: (_) => _writeRemoteSnapshot(snapshot),
+    final key = (
+      userId: (snapshot['userId'] as String?)?.trim() ?? '',
+      windowId: (snapshot['windowId'] as String?)?.trim() ?? '',
     );
-    _remoteWriteQueue = next.catchError((_) {});
-    unawaited(_remoteWriteQueue);
+    _pendingRemoteSnapshots[key] = snapshot;
+    _startRemoteWriteDrain();
+  }
+
+  void _startRemoteWriteDrain() {
+    if (_remoteWriteDrainActive || _pendingRemoteSnapshots.isEmpty) {
+      return;
+    }
+    _remoteWriteDrainActive = true;
+    final drain = _drainRemoteSnapshotWrites();
+    _remoteWriteQueue = drain;
+    unawaited(drain);
+  }
+
+  Future<void> _drainRemoteSnapshotWrites() async {
+    try {
+      while (_pendingRemoteSnapshots.isNotEmpty) {
+        final key = _pendingRemoteSnapshots.keys.first;
+        final snapshot = _pendingRemoteSnapshots.remove(key);
+        if (snapshot == null) {
+          continue;
+        }
+        try {
+          await _writeRemoteSnapshot(snapshot);
+        } catch (error) {
+          _log('remote write skipped: $error');
+        }
+      }
+    } finally {
+      _remoteWriteDrainActive = false;
+      if (_pendingRemoteSnapshots.isNotEmpty) {
+        _startRemoteWriteDrain();
+      }
+    }
   }
 
   Future<void> _writeRemoteSnapshot(Map<String, dynamic> raw) async {
@@ -2105,7 +2141,13 @@ class AppRestorationService {
 
   Future<void> flushPendingWrites() async {
     await _mutationQueue;
-    await _remoteWriteQueue;
+    while (true) {
+      await _remoteWriteQueue;
+      if (!_remoteWriteDrainActive && _pendingRemoteSnapshots.isEmpty) {
+        return;
+      }
+      _startRemoteWriteDrain();
+    }
   }
 
   Future<void> clearCurrentSnapshot() async {
