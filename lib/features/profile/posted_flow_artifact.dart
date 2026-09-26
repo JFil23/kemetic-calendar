@@ -36,6 +36,7 @@ class PostedFlowArtifact extends StatelessWidget {
     this.endDate,
     this.events = const <dynamic>[],
     this.localImageBytes,
+    this.clock,
   });
 
   final String name;
@@ -46,6 +47,7 @@ class PostedFlowArtifact extends StatelessWidget {
   final List<dynamic> events;
   final FlowAppearance appearance;
   final Uint8List? localImageBytes;
+  final DateTime Function()? clock;
 
   Color get _accent => appearance.accentArgb == null
       ? Color(0xFF000000 | (color & 0x00FFFFFF))
@@ -76,7 +78,7 @@ class PostedFlowArtifact extends StatelessWidget {
     final total = _totalProgressUnits;
     if (total <= 0 || startDate == null) return 0;
     final start = DateUtils.dateOnly(startDate!);
-    final today = DateUtils.dateOnly(DateTime.now());
+    final today = DateUtils.dateOnly((clock ?? DateTime.now)());
     return (today.difference(start).inDays + 1).clamp(0, total);
   }
 

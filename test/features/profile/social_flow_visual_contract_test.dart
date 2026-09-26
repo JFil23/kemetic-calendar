@@ -42,6 +42,7 @@ void main() {
         heroData.offsetInBytes,
         heroData.lengthInBytes,
       );
+      final visualContractDate = DateTime(2026, 9, 25);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -68,6 +69,7 @@ void main() {
                         accentArgb: 0xFF6F93A8,
                       ),
                       localImageBytes: heroBytes,
+                      clock: () => visualContractDate,
                     ),
                     const SizedBox(height: 22),
                     const PostedFlowArtifact(
@@ -89,6 +91,7 @@ void main() {
                       startDate: DateTime(2026, 9, 1),
                       endDate: DateTime(2026, 9, 10),
                       appearance: FlowAppearance.empty,
+                      clock: () => visualContractDate,
                     ),
                   ],
                 ),
