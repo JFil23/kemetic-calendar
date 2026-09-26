@@ -134,6 +134,7 @@ class _SharedPracticeRoomRoutePageState
           return SharedPracticeRoomPage(
             roomId: widget.roomId,
             initialSnapshot: snapshot,
+            loadSnapshot: widget.loadSnapshot,
             watchMessageChanges: widget.watchMessageChanges,
           );
         }
@@ -165,11 +166,13 @@ class SharedPracticeRoomPage extends StatefulWidget {
     super.key,
     required this.roomId,
     this.initialSnapshot,
+    this.loadSnapshot,
     this.watchMessageChanges,
   });
 
   final String roomId;
   final SharedPracticeRoomSnapshot? initialSnapshot;
+  final SharedPracticeRoomSnapshotLoader? loadSnapshot;
   final SharedPracticeMessageChangeWatcher? watchMessageChanges;
 
   @override
@@ -208,10 +211,15 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
       _future = Future<SharedPracticeRoomSnapshot>.value(initialSnapshot);
       unawaited(_markOpened(initialSnapshot));
       unawaited(_loadQuotePosts());
+      _subscribeToRoomChanges();
     }
-    final messageChanges =
-        widget.watchMessageChanges ?? _repo.watchSharedPracticeMessages;
-    _messageChangesSubscription = messageChanges(widget.roomId).listen(
+  }
+
+  void _subscribeToRoomChanges() {
+    if (_messageChangesSubscription != null) return;
+    final roomChanges =
+        widget.watchMessageChanges ?? _repo.watchSharedPracticeChanges;
+    _messageChangesSubscription = roomChanges(widget.roomId).listen(
       (_) {
         _messageRefreshDebounce?.cancel();
         _messageRefreshDebounce = Timer(const Duration(milliseconds: 120), () {
@@ -232,23 +240,34 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
   }
 
   Future<SharedPracticeRoomSnapshot> _load() async {
-    final snapshot = await _repo.getSharedPracticeRoom(
-      roomId: widget.roomId,
-      localDate: DateTime.now(),
-    );
-    if (mounted) {
-      setState(() {
+    try {
+      final snapshot = await (widget.loadSnapshot ?? _loadSnapshot)(
+        widget.roomId,
+        DateTime.now(),
+      );
+      if (mounted) {
+        setState(() {
+          _snapshot = snapshot;
+          _syncPublicIdentity(snapshot);
+        });
+      } else {
         _snapshot = snapshot;
         _syncPublicIdentity(snapshot);
-      });
-    } else {
-      _snapshot = snapshot;
-      _syncPublicIdentity(snapshot);
+      }
+      _subscribeToRoomChanges();
+      unawaited(_markOpened(snapshot));
+      unawaited(_loadQuotePosts());
+      return snapshot;
+    } catch (_) {
+      if (mounted) setState(() => _snapshot = null);
+      rethrow;
     }
-    unawaited(_markOpened(snapshot));
-    unawaited(_loadQuotePosts());
-    return snapshot;
   }
+
+  Future<SharedPracticeRoomSnapshot> _loadSnapshot(
+    String roomId,
+    DateTime localDate,
+  ) => _repo.getSharedPracticeRoom(roomId: roomId, localDate: localDate);
 
   Future<void> _loadQuotePosts() async {
     try {
@@ -296,8 +315,10 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
   }
 
   void _refresh() {
+    final next = _load();
+    unawaited(next.then<void>((_) {}, onError: (_, _) {}));
     setState(() {
-      _future = _load();
+      _future = next;
     });
   }
 
@@ -772,11 +793,11 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
         child: FutureBuilder<SharedPracticeRoomSnapshot>(
           future: _future,
           builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return _ErrorState(onRetry: _refresh);
+            }
             final data = snapshot.data ?? _snapshot;
             if (data == null) {
-              if (snapshot.hasError) {
-                return _ErrorState(onRetry: _refresh);
-              }
               return const Center(
                 child: CircularProgressIndicator(color: _gold),
               );

@@ -91,6 +91,8 @@ class InboxPage extends StatefulWidget {
     this.calendarSummarySubtitleForTesting,
     this.incomingCalendarInvitesStreamForTesting,
     this.readingHouseRoomDataSourceForTesting,
+    this.togetherInboxChangesStreamForTesting,
+    this.togetherInboxLoaderForTesting,
     this.sheet = false,
   });
 
@@ -119,6 +121,10 @@ class InboxPage extends StatefulWidget {
   incomingCalendarInvitesStreamForTesting;
   @visibleForTesting
   final ReadingHouseRoomDataSource? readingHouseRoomDataSourceForTesting;
+  @visibleForTesting
+  final Stream<void>? togetherInboxChangesStreamForTesting;
+  @visibleForTesting
+  final Future<TogetherInboxSnapshot> Function()? togetherInboxLoaderForTesting;
   final bool sheet;
 
   @override
@@ -180,6 +186,8 @@ class _InboxPageState extends State<InboxPage> {
   StreamSubscription<List<SharedCalendarInvite>>? _incomingCalendarInvitesSub;
   StreamSubscription<CalendarInvalidated>? _flowLifecycleSub;
   StreamSubscription<List<ReadingHouseRoomSummary>>? _readingHouseRoomsSub;
+  StreamSubscription<void>? _togetherInboxChangesSub;
+  Timer? _togetherInboxRefreshDebounce;
   Map<String, List<InboxShareItem>> _latestThreads = const {};
   List<InboxShareItem> _latestEventInvites = const [];
   List<InboxShareItem> _latestCalendarNotifications = const [];
@@ -261,6 +269,7 @@ class _InboxPageState extends State<InboxPage> {
               });
             },
           );
+      _subscribeTogetherInboxChanges();
       _unreadStateSub = _shareRepo.watchUnreadState().listen((state) {
         if (!mounted) {
           _unreadState = state;
@@ -279,6 +288,8 @@ class _InboxPageState extends State<InboxPage> {
               });
             }
           });
+    } else if (widget.togetherInboxChangesStreamForTesting != null) {
+      _subscribeTogetherInboxChanges();
     }
     final incomingCalendarInvitesStream =
         widget.incomingCalendarInvitesStreamForTesting ??
@@ -334,6 +345,26 @@ class _InboxPageState extends State<InboxPage> {
         _loading = false;
       });
     });
+  }
+
+  void _subscribeTogetherInboxChanges() {
+    final changes =
+        widget.togetherInboxChangesStreamForTesting ??
+        _sharedPracticeRepo.watchTogetherInboxChanges();
+    _togetherInboxChangesSub = changes.listen(
+      (_) {
+        _togetherInboxRefreshDebounce?.cancel();
+        _togetherInboxRefreshDebounce = Timer(
+          const Duration(milliseconds: 120),
+          () {
+            if (mounted) unawaited(_refreshTogetherInbox());
+          },
+        );
+      },
+      onError: (_) {
+        // Pull-to-refresh remains available if Realtime is interrupted.
+      },
+    );
   }
 
   @override
@@ -510,6 +541,8 @@ class _InboxPageState extends State<InboxPage> {
     _incomingCalendarInvitesSub?.cancel();
     _flowLifecycleSub?.cancel();
     _readingHouseRoomsSub?.cancel();
+    _togetherInboxRefreshDebounce?.cancel();
+    _togetherInboxChangesSub?.cancel();
     _incomingCalendarInvitesListenable.dispose();
     super.dispose();
   }
@@ -887,7 +920,9 @@ class _InboxPageState extends State<InboxPage> {
       });
     }
     try {
-      final snapshot = await _sharedPracticeRepo.getTogetherInbox();
+      final snapshot =
+          await (widget.togetherInboxLoaderForTesting ??
+              _sharedPracticeRepo.getTogetherInbox)();
       if (!mounted) return;
       setState(() {
         _togetherInbox = snapshot;

@@ -15,11 +15,17 @@ void main() {
       'lib/features/shared_practice/shared_practice_room_page.dart',
     ).readAsStringSync();
 
-    expect(repo, contains('watchSharedPracticeMessages'));
+    expect(repo, contains('watchSharedPracticeChanges'));
     expect(repo, contains("table: 'shared_practice_messages'"));
+    expect(repo, contains("table: 'shared_practice_rooms'"));
+    expect(repo, contains("table: 'shared_practice_room_members'"));
     expect(repo, contains("column: 'room_id'"));
-    expect(room, contains('_repo.watchSharedPracticeMessages'));
-    expect(room, contains('messageChanges(widget.roomId)'));
+    expect(repo, contains("'p_public': isPublic"));
+    expect(repo, isNot(contains("'p_public_identity': isPublic")));
+    expect(repo, contains('watchTogetherInboxChanges'));
+    expect(repo, contains("table: 'shared_practice_join_requests'"));
+    expect(room, contains('_repo.watchSharedPracticeChanges'));
+    expect(room, contains('roomChanges(widget.roomId)'));
     expect(room, contains('_messageRefreshDebounce'));
     expect(room, contains('_messageChangesSubscription?.cancel()'));
 
@@ -32,6 +38,58 @@ void main() {
     );
     expect(surface, contains('showSignVisual: false'));
     expect(surface, contains("'group-flow-compact-merkhet'"));
+  });
+
+  testWidgets('group chat message header fits a small phone at 1.3x text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(1.3)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: GroupFlowChatSurface(
+            flowTitle: 'Dawn Strength Practice',
+            positionLabel: 'Day 12 of 30 · host position',
+            appearance: FlowAppearance.empty,
+            accent: const Color(0xFF6F93A8),
+            memberInitials: const <String>['AA', 'BB'],
+            memberCount: 2,
+            messages: const <GroupFlowChatMessagePreview>[
+              GroupFlowChatMessagePreview(
+                id: 'long-message',
+                author: 'A very long participant display name',
+                initials: 'AP',
+                body: 'Keeping pace together without clipping the header.',
+                timeLabel: '10:42 PM',
+              ),
+            ],
+            onPostMessage: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.text('Keeping pace together without clipping the header.'),
+      findsOneWidget,
+    );
+    if (_captureGroupFlowUi) {
+      await expectLater(
+        find.byKey(const ValueKey<String>('group-flow-chat-surface')),
+        matchesGoldenFile('/tmp/together-small-phone-text-1.3.png'),
+      );
+    }
   });
 
   testWidgets('group flow preview exercises Flow, Feed, Commons, and Inbox', (

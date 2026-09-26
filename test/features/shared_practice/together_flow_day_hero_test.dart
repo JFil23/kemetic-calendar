@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flow_appearance.dart';
@@ -61,7 +63,11 @@ SharedPracticeRoomSnapshot _snapshot({
   });
 }
 
-Widget _hero(SharedPracticeRoomSnapshot snapshot) {
+Widget _hero(
+  SharedPracticeRoomSnapshot snapshot, {
+  TogetherRoomSnapshotLoader? loadSnapshot,
+  TogetherMessageWatcher? watchChanges,
+}) {
   return MaterialApp(
     home: Scaffold(
       body: TogetherFlowDayHero(
@@ -76,8 +82,8 @@ Widget _hero(SharedPracticeRoomSnapshot snapshot) {
         animationRevision: 0,
         fallback: const SizedBox(key: ValueKey<String>('solo-flow-fallback')),
         resolveRoom: (_) async => 'room-1',
-        loadSnapshot: (_, _) async => snapshot,
-        watchMessageChanges: (_) => const Stream<void>.empty(),
+        loadSnapshot: loadSnapshot ?? (_, _) async => snapshot,
+        watchMessageChanges: watchChanges ?? (_) => const Stream<void>.empty(),
       ),
     ),
   );
@@ -105,6 +111,41 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_hero(_snapshot(clientEventId: 'event-4')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('together-flow-day-chat')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('solo-flow-fallback')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('open day surface follows the host position change', (
+    tester,
+  ) async {
+    final changes = StreamController<void>.broadcast();
+    addTearDown(changes.close);
+    var current = _snapshot();
+
+    await tester.pumpWidget(
+      _hero(
+        current,
+        loadSnapshot: (_, _) async => current,
+        watchChanges: (_) => changes.stream,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('together-flow-day-chat')),
+      findsOneWidget,
+    );
+
+    current = _snapshot(clientEventId: 'event-4');
+    changes.add(null);
+    await tester.pump(const Duration(milliseconds: 150));
     await tester.pumpAndSettle();
 
     expect(

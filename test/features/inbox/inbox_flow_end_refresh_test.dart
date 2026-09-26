@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/data/share_models.dart';
+import 'package:mobile/data/shared_practice_models.dart';
 import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/features/inbox/inbox_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -78,6 +79,57 @@ void main() {
 
     expect(committedLoads, 1);
     expect(applied.last.single.isCurrentlyImported, isFalse);
+  });
+
+  testWidgets('an already-open Inbox receives a Together request', (
+    tester,
+  ) async {
+    final inboxStream = StreamController<List<InboxShareItem>>.broadcast();
+    final togetherChanges = StreamController<void>.broadcast();
+    addTearDown(inboxStream.close);
+    addTearDown(togetherChanges.close);
+    var togetherLoads = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InboxPage(
+          inboxItemsStreamForTesting: inboxStream.stream,
+          flowLifecycleStreamForTesting:
+              const Stream<CalendarInvalidated>.empty(),
+          disableAuxiliarySubscriptionsForTesting: true,
+          togetherInboxChangesStreamForTesting: togetherChanges.stream,
+          togetherInboxLoaderForTesting: () async {
+            togetherLoads += 1;
+            return const TogetherInboxSnapshot(
+              joinRequests: <SharedPracticeJoinRequest>[
+                SharedPracticeJoinRequest(
+                  id: 'request-1',
+                  roomId: 'room-1',
+                  requesterId: 'friend-1',
+                  status: 'pending',
+                  requesterDisplayName: 'Amina',
+                  title: 'Dawn Strength Practice',
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    inboxStream.add(const <InboxShareItem>[]);
+    await tester.pump();
+    expect(find.text('PRACTICE TOGETHER'), findsNothing);
+
+    togetherChanges.add(null);
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pumpAndSettle();
+
+    expect(togetherLoads, 1);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -700));
+    await tester.pumpAndSettle();
+    expect(find.text('PRACTICE TOGETHER'), findsWidgets);
+    expect(find.text('Amina wants to practice together'), findsOneWidget);
+    expect(find.text('Dawn Strength Practice'), findsOneWidget);
   });
 }
 

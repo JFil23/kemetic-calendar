@@ -454,12 +454,16 @@ class _GroupFlowMessageRow extends StatelessWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Text(
-                    message.author,
-                    style: TextStyle(
-                      color: const Color(0xFFDCE7E2),
-                      fontSize: compact ? 7.5 : 11,
-                      fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Text(
+                      message.author,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: const Color(0xFFDCE7E2),
+                        fontSize: compact ? 7.5 : 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   SizedBox(width: compact ? 3 : 6),
@@ -470,7 +474,6 @@ class _GroupFlowMessageRow extends StatelessWidget {
                       fontSize: compact ? 6 : 9,
                     ),
                   ),
-                  const Spacer(),
                   if (onPost != null && !compact)
                     IconButton(
                       key: ValueKey<String>('post_group_quote_${message.id}'),

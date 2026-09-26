@@ -208,7 +208,7 @@ class SharedPracticeRepo {
     );
   }
 
-  Stream<void> watchSharedPracticeMessages(String roomId) {
+  Stream<void> watchSharedPracticeChanges(String roomId) {
     final trimmedRoomId = roomId.trim();
     if (trimmedRoomId.isEmpty) {
       return Stream<void>.error(
@@ -217,9 +217,13 @@ class SharedPracticeRepo {
     }
 
     final controller = StreamController<void>();
+    void emitChange() {
+      if (!controller.isClosed) controller.add(null);
+    }
+
     final channel =
         _client.channel(
-            'shared_practice_messages_${trimmedRoomId.replaceAll('-', '')}',
+            'shared_practice_room_${trimmedRoomId.replaceAll('-', '')}',
           )
           ..onPostgresChanges(
             event: PostgresChangeEvent.all,
@@ -230,15 +234,80 @@ class SharedPracticeRepo {
               column: 'room_id',
               value: trimmedRoomId,
             ),
-            callback: (_) {
-              if (!controller.isClosed) controller.add(null);
-            },
+            callback: (_) => emitChange(),
+          )
+          ..onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'shared_practice_rooms',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'id',
+              value: trimmedRoomId,
+            ),
+            callback: (_) => emitChange(),
+          )
+          ..onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'shared_practice_room_members',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'room_id',
+              value: trimmedRoomId,
+            ),
+            callback: (_) => emitChange(),
           )
           ..subscribe((status, [error]) {
             if (kDebugMode &&
                 (status == RealtimeSubscribeStatus.channelError ||
                     status == RealtimeSubscribeStatus.timedOut)) {
               _log('message channel status=$status error=$error');
+            }
+          });
+
+    controller.onCancel = () async {
+      await channel.unsubscribe();
+      await controller.close();
+    };
+    return controller.stream;
+  }
+
+  Stream<void> watchTogetherInboxChanges() {
+    final userId = _client.auth.currentUser?.id.trim();
+    if (userId == null || userId.isEmpty) {
+      return Stream<void>.error(StateError('Authentication required.'));
+    }
+
+    final controller = StreamController<void>();
+    void emitChange() {
+      if (!controller.isClosed) controller.add(null);
+    }
+
+    final channel =
+        _client.channel('together_inbox_${userId.replaceAll('-', '')}')
+          ..onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'shared_practice_join_requests',
+            callback: (_) => emitChange(),
+          )
+          ..onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'shared_practice_room_members',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) => emitChange(),
+          )
+          ..subscribe((status, [error]) {
+            if (kDebugMode &&
+                (status == RealtimeSubscribeStatus.channelError ||
+                    status == RealtimeSubscribeStatus.timedOut)) {
+              _log('Together inbox channel status=$status error=$error');
             }
           });
 
@@ -497,7 +566,7 @@ class SharedPracticeRepo {
       'set_shared_practice_public_identity',
       params: <String, dynamic>{
         'p_room_id': roomId.trim(),
-        'p_public_identity': isPublic,
+        'p_public': isPublic,
       },
     );
   }

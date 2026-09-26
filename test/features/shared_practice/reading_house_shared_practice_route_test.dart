@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -138,6 +139,51 @@ void main() {
       find.byKey(const ValueKey<String>('live-group-flow-chat')),
       findsNothing,
     );
+  });
+
+  testWidgets('revoked member no longer sees an already-open group room', (
+    tester,
+  ) async {
+    final changes = StreamController<void>.broadcast();
+    addTearDown(changes.close);
+    final snapshot = _roomSnapshot(
+      flowKey: 'generic-practice',
+      sourceName: 'Dawn Strength Practice',
+      sourceNotes: 'ordinary shared practice',
+      viewerCanEdit: false,
+      viewerIsMember: true,
+      includeGroupVisual: true,
+    );
+    var loads = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SharedPracticeRoomRoutePage(
+          roomId: snapshot.room.id,
+          loadSnapshot: (_, _) async {
+            loads += 1;
+            if (loads == 1) return snapshot;
+            throw StateError('ROOM_NOT_ACCESSIBLE');
+          },
+          watchMessageChanges: (_) => changes.stream,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('live-group-flow-chat')),
+      findsOneWidget,
+    );
+
+    changes.add(null);
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('live-group-flow-chat')),
+      findsNothing,
+    );
+    expect(find.text('Shared practice could not be loaded.'), findsOneWidget);
   });
 
   testWidgets(

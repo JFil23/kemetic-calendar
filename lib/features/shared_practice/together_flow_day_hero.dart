@@ -118,7 +118,7 @@ class _TogetherFlowDayHeroState extends State<TogetherFlowDayHero> {
       }
       if (mounted) setState(() => _snapshot = snapshot);
       final watcher =
-          widget.watchMessageChanges ?? _repo.watchSharedPracticeMessages;
+          widget.watchMessageChanges ?? _repo.watchSharedPracticeChanges;
       _messageChangesSubscription = watcher(roomId).listen((_) {
         _refreshDebounce?.cancel();
         _refreshDebounce = Timer(const Duration(milliseconds: 120), () {
@@ -143,9 +143,21 @@ class _TogetherFlowDayHeroState extends State<TogetherFlowDayHero> {
         roomId,
         DateTime.now(),
       );
-      if (mounted) setState(() => _snapshot = snapshot);
+      final todayClientEventId = snapshot.todayStep?.clientEventId.trim();
+      final memberCount = snapshot.room.memberCount > snapshot.members.length
+          ? snapshot.room.memberCount
+          : snapshot.members.length;
+      final remainsCurrent =
+          snapshot.viewerIsMember &&
+          memberCount >= 2 &&
+          todayClientEventId != null &&
+          todayClientEventId.isNotEmpty &&
+          todayClientEventId == widget.clientEventId.trim();
+      if (mounted) {
+        setState(() => _snapshot = remainsCurrent ? snapshot : null);
+      }
     } catch (_) {
-      // The current room remains usable while pull authority reconnects.
+      if (mounted) setState(() => _snapshot = null);
     }
   }
 
