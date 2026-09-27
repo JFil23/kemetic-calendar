@@ -28,6 +28,7 @@
 // ============================================================================
 
 // lib/data/journal_repo.dart
+import 'pages_read_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -270,6 +271,7 @@ class JournalRepo {
         if (category != null) 'category': category,
       }, onConflict: 'user_id,greg_date');
 
+      publishJournalOverview(userId, localDate, body);
       _log('upsert: ✓ saved entry for $dateStr');
     } catch (e) {
       _log('upsert error: $e');

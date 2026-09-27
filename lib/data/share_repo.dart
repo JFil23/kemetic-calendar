@@ -2,6 +2,7 @@
 // ShareRepo - Repository Layer for Flow Sharing System
 
 import 'dart:async';
+import 'account_view_cache.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -177,6 +178,13 @@ class ShareRepo {
     );
   }
 
+  InboxUnreadState? get cachedUnreadStateOnly =>
+      _unreadTrackers[_client.auth.currentUser?.id]?.currentState;
+
+  Stream<InboxUnreadState> get passiveUnreadChanges =>
+      _unreadTrackers[_client.auth.currentUser?.id]?._changes.stream ??
+      const Stream.empty();
+
   InboxUnreadState get currentUnreadState =>
       _trackerForCurrentUser()?.currentState ?? const InboxUnreadState();
 
@@ -232,6 +240,7 @@ class ShareRepo {
       items.where((item) => !item.isDeleted),
     );
     _inboxItemsMemoryCache[uid] = frozen;
+    AccountViewCache.instance.publish(uid, 'social.inbox', frozen);
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -323,6 +332,7 @@ class ShareRepo {
   }) async {
     final frozen = List<InboxActivityItem>.unmodifiable(items);
     _activityMemoryCache[uid] = frozen;
+    AccountViewCache.instance.publish(uid, 'social.activity', frozen);
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -336,7 +346,11 @@ class ShareRepo {
   }
 
   // Activity items (likes, comments, follows) for unified inbox feed.
-  Future<List<InboxActivityItem>> getRecentActivity({int limit = 50}) async {
+  Future<List<InboxActivityItem>> getRecentActivity({
+    int limit = 50,
+    bool strict = false,
+    bool includeCommentBody = true,
+  }) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return const [];
 
@@ -352,6 +366,7 @@ class ShareRepo {
           if (kDebugMode) {
             debugPrint('[ShareRepo] getRecentActivity $label error: $e');
           }
+          if (strict) rethrow;
           return const [];
         }
       }
@@ -374,7 +389,7 @@ class ShareRepo {
           _client
               .from('flow_post_comments')
               .select(
-                'created_at, user_id, body, flow_post_id, profiles(display_name, handle, avatar_url), flow_posts!inner(name, user_id)',
+                'created_at, user_id, ${includeCommentBody ? 'body,' : ''} flow_post_id, profiles(display_name, handle, avatar_url), flow_posts!inner(name, user_id)',
               )
               .neq('user_id', uid)
               .eq('flow_posts.user_id', uid)
@@ -461,6 +476,7 @@ class ShareRepo {
       if (kDebugMode) {
         debugPrint('[ShareRepo] getRecentActivity error: $e');
       }
+      if (strict) rethrow;
       return await restoreCachedRecentActivity(limit: limit) ?? const [];
     }
   }
@@ -495,6 +511,11 @@ class ShareRepo {
         effectiveSeenAt.toIso8601String(),
       );
       _activitySeenChangedController.add(null);
+      AccountViewCache.instance.publish(
+        uid,
+        'social.seen.${bucket.name}',
+        effectiveSeenAt,
+      );
     } catch (e) {
       _log('[ShareRepo] Error saving activity seen timestamp: $e');
     }
@@ -2674,6 +2695,21 @@ class ShareRepo {
     } catch (e) {
       throw Exception('Error resolving share: $e');
     }
+  }
+
+  /// Passive metadata projection; no import hydration, mark-viewed or sync.
+  Future<List<InboxShareItem>> readInboxMetadata({int limit = 20}) async {
+    final rows = await _client
+        .from(_shareFilingView)
+        .select(
+          'share_id,kind,sender_id,recipient_id,sender_handle,sender_name,recipient_handle,recipient_display_name,title,created_at,viewed_at,imported_at,deleted_at,response_status,responded_at',
+        )
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return rows
+        .map(InboxShareItem.fromJson)
+        .where((item) => !item.isDeleted)
+        .toList();
   }
 
   /// Get inbox items for current user

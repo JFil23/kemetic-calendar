@@ -9,10 +9,12 @@ class MaatScale extends StatelessWidget {
     super.key,
     required this.tiltDegrees,
     required this.progress,
+    this.animate = true,
   });
 
   final double tiltDegrees;
   final double progress;
+  final bool animate;
 
   @override
   Widget build(BuildContext context) {
@@ -22,19 +24,26 @@ class MaatScale extends StatelessWidget {
     return SizedBox(
       height: 104,
       width: double.infinity,
-      child: TweenAnimationBuilder<double>(
-        tween: Tween<double>(end: clampedTilt),
-        duration: const Duration(milliseconds: 800),
-        curve: Curves.easeOutCubic,
-        builder: (context, animatedTilt, child) {
-          return CustomPaint(
-            painter: _MaatScalePainter(
-              tiltDegrees: animatedTilt,
-              progress: clampedProgress,
+      child: !animate
+          ? CustomPaint(
+              painter: _MaatScalePainter(
+                tiltDegrees: clampedTilt,
+                progress: clampedProgress,
+              ),
+            )
+          : TweenAnimationBuilder<double>(
+              tween: Tween<double>(end: clampedTilt),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOutCubic,
+              builder: (context, animatedTilt, child) {
+                return CustomPaint(
+                  painter: _MaatScalePainter(
+                    tiltDegrees: animatedTilt,
+                    progress: clampedProgress,
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }

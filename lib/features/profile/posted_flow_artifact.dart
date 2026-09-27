@@ -36,6 +36,8 @@ class PostedFlowArtifact extends StatelessWidget {
     this.endDate,
     this.events = const <dynamic>[],
     this.localImageBytes,
+    this.allowImageFetch = true,
+    this.imageCacheWidth,
     this.clock,
   });
 
@@ -47,6 +49,8 @@ class PostedFlowArtifact extends StatelessWidget {
   final List<dynamic> events;
   final FlowAppearance appearance;
   final Uint8List? localImageBytes;
+  final bool allowImageFetch;
+  final int? imageCacheWidth;
   final DateTime Function()? clock;
 
   Color get _accent => appearance.accentArgb == null
@@ -136,6 +140,8 @@ class PostedFlowArtifact extends StatelessWidget {
                       appearance: appearance,
                       accent: accent,
                       localImageBytes: localImageBytes,
+                      allowImageFetch: allowImageFetch,
+                      imageCacheWidth: imageCacheWidth,
                       height: _artifactHeroHeight,
                       compact: false,
                       completedOccurrences: _currentProgressUnit,

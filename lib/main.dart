@@ -64,6 +64,7 @@ import 'features/maat_guidance/maat_guidance_controller.dart';
 import 'features/maat_guidance/maat_guidance_detail_page.dart';
 import 'features/maat_guidance/maat_guidance_floating_card.dart';
 import 'features/nodes/kemetic_node_library.dart';
+import 'features/pages/pages_page.dart';
 import 'features/nodes/kemetic_node_list_page.dart';
 import 'features/nodes/kemetic_node_reader_page.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
@@ -866,6 +867,7 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   void _send(PageRoute<dynamic>? route) {
     if (kDebugMode && _debugDaySheetSmokeBootRequested) return;
     final name = route?.settings.name ?? '/';
+    if (name == '/pages') return;
     if (!_screenViews.shouldTrack(name, DateTime.now())) return;
     unawaited(Events.trackIfAuthed('screen_view', {'route': name}));
   }
@@ -879,12 +881,14 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   @override
   void didReplace({Route? newRoute, Route? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    if (oldRoute?.settings.name == '/pages') return;
     if (newRoute is PageRoute) _send(newRoute);
   }
 
   @override
   void didPop(Route route, Route? previousRoute) {
     super.didPop(route, previousRoute);
+    if (route.settings.name == '/pages') return;
     if (previousRoute is PageRoute) _send(previousRoute);
   }
 }
@@ -1487,6 +1491,7 @@ GoRoute _calmRoute({
     path: path,
     pageBuilder: (context, state) => NoTransitionPage<dynamic>(
       key: state.pageKey,
+      name: path == '/pages' ? '/pages' : null,
       child: builder(context, state),
     ),
   );
@@ -1556,6 +1561,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
           );
         },
       ),
+    _calmRoute(path: '/pages', builder: (context, state) => const PagesPage()),
     _utilitySheetRoute(
       path: '/inbox',
       builder: (context, state) {
@@ -1804,7 +1810,8 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         return SessionTrackedRoute(
           location: state.uri.toString(),
           child: ProfilePage(
-            key: ValueKey(userId),
+            key: ValueKey('$userId:${state.uri.queryParameters["feed"]}'),
+            initialFeedRevealed: state.uri.queryParameters['feed'] == '1',
             userId: userId,
             isMyProfile: currentUserId != null && currentUserId == userId,
           ),

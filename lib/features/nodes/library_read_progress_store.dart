@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'library_read_state.dart';
+import '../../data/account_view_cache.dart';
 
 abstract class LibraryReadProgressRemote {
   Future<List<LibraryNodeProgress>> fetchAll({required String userId});
@@ -110,6 +111,19 @@ class LibraryReadProgressStore {
   final LibraryCurrentUserIdProvider? _currentUserIdProvider;
   final LibraryReadProgressRemote? _remote;
   Future<void> _pendingMutation = Future<void>.value();
+
+  Future<LibraryReadSnapshot?> readCachedSnapshotOnly() async {
+    final uid = _currentUserId();
+    if (uid == null) return null;
+    final cached = AccountViewCache.instance.peek<LibraryReadSnapshot>(
+      uid,
+      'library.progress',
+    );
+    if (cached != null) return cached;
+    final prefs = await _resolvedPrefs();
+    if (!prefs.containsKey(_storageKeyForUser(uid))) return null;
+    return LibraryReadSnapshot(progressByNodeId: await _readCacheProgress(uid));
+  }
 
   Future<LibraryReadSnapshot> readSnapshot() async {
     await _pendingMutation;
@@ -347,6 +361,13 @@ class LibraryReadProgressStore {
       for (final entry in progress.entries) entry.key: entry.value.toJson(),
     };
     await prefs.setString(_storageKeyForUser(userId), jsonEncode(payload));
+    if (userId != null) {
+      AccountViewCache.instance.publish(
+        userId,
+        'library.progress',
+        LibraryReadSnapshot(progressByNodeId: Map.unmodifiable(progress)),
+      );
+    }
   }
 
   Future<void> _clearCacheProgress(String? userId) async {

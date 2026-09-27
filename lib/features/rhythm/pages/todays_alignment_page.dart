@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../../../data/account_view_cache.dart';
+import '../planner/planner_overview.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -3157,6 +3159,35 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
         final progress = _progress();
         final progressPercent = (progress * 100).round();
+        if (!plannerLoading &&
+            !_nutritionLoading &&
+            _nutritionStatesLoaded &&
+            _friendlyError == null &&
+            _nutritionError == null) {
+          final uid = _currentUserId;
+          if (uid != null) {
+            final overview = PlannerOverview(
+              todos: List.unmodifiable(
+                _todosByDay.values.expand((rows) => rows),
+              ),
+              nutrition: List.unmodifiable(_nutritionItems),
+              nutritionStates: Map.unmodifiable(_nutritionStatesByKey),
+              alignment: List.unmodifiable(_alignmentItems),
+              note: _notes.isEmpty
+                  ? ''
+                  : _notes[_activeNoteIndex.clamp(0, _notes.length - 1)].text,
+            );
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _currentUserId == uid) {
+                AccountViewCache.instance.publish(
+                  uid,
+                  'planner.overview',
+                  overview,
+                );
+              }
+            });
+          }
+        }
         final plannerAction = _todayPlannerAction();
         final listBottomPadding = bottomPaddingAboveGlobalChrome(context, 32);
 
@@ -3396,47 +3427,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
-  double _progressWeight(RhythmItemState state) {
-    switch (state) {
-      case RhythmItemState.done:
-        return 1;
-      case RhythmItemState.partial:
-        return 0.5;
-      case RhythmItemState.skipped:
-      case RhythmItemState.pending:
-        return 0;
-    }
-  }
-
-  double _progress() {
-    final todayTodos = _todosByDay[_todayLocal] ?? const <RhythmTodo>[];
-    final todayNutrition = _todayNutritionItems();
-    final totalTracked = todayTodos.length + todayNutrition.length;
-
-    if (totalTracked > 0) {
-      final todoProgress = todayTodos.fold<double>(
-        0,
-        (sum, todo) => sum + _progressWeight(todo.state),
-      );
-      final nutritionProgress = todayNutrition.fold<double>(
-        0,
-        (sum, item) =>
-            sum +
-            _progressWeight(_nutritionStateForItem(item, date: _todayLocal)),
-      );
-      return (todoProgress + nutritionProgress) / totalTracked;
-    }
-
-    if (_alignmentItems.isEmpty) return 0;
-    final totalAlignment = _alignmentItems.length.toDouble();
-    final doneAlignment = _alignmentItems
-        .where((i) => i.state == RhythmItemState.done)
-        .length;
-    final partialAlignment = _alignmentItems
-        .where((i) => i.state == RhythmItemState.partial)
-        .length;
-    return (doneAlignment + partialAlignment * 0.5) / totalAlignment;
-  }
+  double _progress() => plannerCompletion([
+    ...(_todosByDay[_todayLocal] ?? const <RhythmTodo>[]).map((t) => t.state),
+    ..._todayNutritionItems().map(
+      (n) => _nutritionStateForItem(n, date: _todayLocal),
+    ),
+  ], _alignmentItems.map((a) => a.state));
 
   List<RhythmItem> _completed() {
     final doneAlignment = _alignmentItems.where(

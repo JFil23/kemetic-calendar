@@ -16,6 +16,7 @@ import 'profile_avatar_glyphs.dart';
 import 'profile_model.dart';
 import 'share_models.dart';
 import 'flow_post_model.dart';
+import 'account_view_cache.dart';
 import 'insight_post_model.dart';
 import 'profile_feed_item_model.dart';
 import 'flows_repo.dart';
@@ -251,6 +252,9 @@ class ProfileRepo {
   }) async {
     final frozen = List<FlowPost>.unmodifiable(posts);
     _flowPostsMemoryCache[userId] = frozen;
+    if (userId == _client.auth.currentUser?.id) {
+      AccountViewCache.instance.publish(userId, 'social.posts', frozen);
+    }
 
     try {
       final prefs = await SharedPreferences.getInstance();

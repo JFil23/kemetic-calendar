@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'account_view_cache.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -103,6 +104,7 @@ class SharedCalendarsRepo {
     if (uid == null || uid.isEmpty) return;
     final frozen = List<SharedCalendarSummary>.unmodifiable(calendars);
     _acceptedCalendarsMemoryCache[uid] = frozen;
+    AccountViewCache.instance.publish(uid, 'calendars.list', frozen);
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -270,6 +272,23 @@ class SharedCalendarsRepo {
       birthday: birthday,
       alertOffsetMinutes: alertOffsetMinutes,
     );
+  }
+
+  Future<List<SharedCalendarSummary>> readAcceptedCalendarsOnly() async {
+    final cached = cachedAcceptedCalendarsSync();
+    if (cached != null) return cached;
+    final rows = await _client
+        .from(_calendarFilingView)
+        .select()
+        .order('is_personal', ascending: false)
+        .order('name')
+        .limit(100);
+    if (rows.length == 100) {
+      throw StateError('Calendar preview coverage unavailable');
+    }
+    return rows
+        .map((r) => SharedCalendarSummary.fromRow(r))
+        .toList(growable: false);
   }
 
   Future<List<SharedCalendarSummary>> getAcceptedCalendars() async {
@@ -497,6 +516,11 @@ class SharedCalendarsRepo {
         hidden.add(trimmed);
       }
       await prefs.setStringList(key, hidden.toList()..sort());
+      AccountViewCache.instance.publish(
+        uid,
+        'pages.hiddenCalendars',
+        Set<String>.unmodifiable(hidden),
+      );
     } catch (e) {
       _log('setCalendarVisible failed: $e');
     }

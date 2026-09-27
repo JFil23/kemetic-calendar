@@ -6,6 +6,7 @@ import 'package:mobile/core/supabase_auth_retry.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'commons_models.dart';
+import 'account_view_cache.dart';
 import 'profile_repo.dart';
 import 'profile_feed_item_model.dart';
 import 'shared_practice_models.dart';
@@ -27,6 +28,7 @@ class CommonsRepo {
     required String questionText,
     int limit = 12,
   }) async {
+    final uid = _client.auth.currentUser?.id;
     final date = DateUtils.dateOnly(localDate.toLocal());
     try {
       final response = await withSupabaseAuthRetry(
@@ -53,12 +55,16 @@ class CommonsRepo {
           params: <String, dynamic>{'p_room_id': null, 'p_limit': limit},
         ),
       );
-      return CommonsHomeSnapshot.fromJson(<String, dynamic>{
+      final snapshot = CommonsHomeSnapshot.fromJson(<String, dynamic>{
         ...Map<String, dynamic>.from(response),
         'group_quote_posts': quoteResponse is List
             ? quoteResponse
             : const <dynamic>[],
       });
+      if (uid != null && uid == _client.auth.currentUser?.id) {
+        AccountViewCache.instance.publish(uid, 'social.commons', snapshot);
+      }
+      return snapshot;
     } catch (e) {
       _log('get_commons_home unavailable: $e');
       return _fallbackHome(

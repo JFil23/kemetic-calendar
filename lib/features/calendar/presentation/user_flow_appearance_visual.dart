@@ -35,6 +35,8 @@ class UserFlowAppearanceHero extends StatelessWidget {
     required this.appearance,
     required this.accent,
     this.localImageBytes,
+    this.allowImageFetch = true,
+    this.imageCacheWidth,
     this.height = 140,
     this.compact = false,
     this.completedOccurrences = 0,
@@ -53,6 +55,8 @@ class UserFlowAppearanceHero extends StatelessWidget {
   final FlowAppearance appearance;
   final Color accent;
   final Uint8List? localImageBytes;
+  final bool allowImageFetch;
+  final int? imageCacheWidth;
   final double height;
   final bool compact;
   final int completedOccurrences;
@@ -111,6 +115,8 @@ class UserFlowAppearanceHero extends StatelessWidget {
                   objectPath: appearance.imageObjectPath,
                   localImageBytes: localImageBytes,
                   accent: accent,
+                  allowFetch: allowImageFetch,
+                  cacheWidth: imageCacheWidth,
                 ),
               ),
             ] else
@@ -389,24 +395,35 @@ class _FlowImageLayer extends StatelessWidget {
   const _FlowImageLayer({
     super.key,
     required this.objectPath,
+    required this.allowFetch,
+    this.cacheWidth,
     required this.localImageBytes,
     required this.accent,
   });
 
   final String? objectPath;
+  final bool allowFetch;
+  final int? cacheWidth;
   final Uint8List? localImageBytes;
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
     final bytes = localImageBytes;
-    if (bytes != null) return Image.memory(bytes, fit: BoxFit.cover);
+    if (bytes != null) {
+      return Image.memory(bytes, fit: BoxFit.cover, cacheWidth: cacheWidth);
+    }
+    if (!allowFetch) return const SizedBox.shrink();
     final path = objectPath?.trim();
     if (path == null || path.isEmpty) return const SizedBox.shrink();
     final store = FlowAppearanceStore(Supabase.instance.client);
     final cachedBytes = store.cachedImageBytes(path);
     if (cachedBytes != null) {
-      return Image.memory(cachedBytes, fit: BoxFit.cover);
+      return Image.memory(
+        cachedBytes,
+        fit: BoxFit.cover,
+        cacheWidth: cacheWidth,
+      );
     }
     return FutureBuilder<Uint8List>(
       future: store.imageBytes(path),
@@ -415,7 +432,11 @@ class _FlowImageLayer extends StatelessWidget {
         if (hydratedBytes == null) {
           return ColoredBox(color: accent.withValues(alpha: 0.12));
         }
-        return Image.memory(hydratedBytes, fit: BoxFit.cover);
+        return Image.memory(
+          hydratedBytes,
+          fit: BoxFit.cover,
+          cacheWidth: cacheWidth,
+        );
       },
     );
   }

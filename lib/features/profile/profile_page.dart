@@ -85,12 +85,14 @@ class ProfilePage extends StatefulWidget {
   final String userId;
   final bool isMyProfile;
   final bool openedFromCalendar;
+  final bool initialFeedRevealed;
 
   const ProfilePage({
     super.key,
     required this.userId,
     this.isMyProfile = false,
     this.openedFromCalendar = false,
+    this.initialFeedRevealed = false,
   });
 
   @override
@@ -274,6 +276,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       ..addListener(_handleProfileScroll);
     _feedScrollController = ScrollController()..addListener(_handleFeedScroll);
     _seedPostedContentFromMemory();
+    _feedRevealed = widget.initialFeedRevealed;
+    if (_feedRevealed) {
+      unawaited(_loadFeedPage(reset: true));
+      unawaited(_loadCommonsHome());
+    }
     _flowLifecycleSub = CalendarInvalidationBus.instance.stream
         .where(
           (event) =>
@@ -330,7 +337,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       return;
     }
 
-    final feedRevealed = state['feedRevealed'] == true;
+    final feedRevealed =
+        widget.initialFeedRevealed || state['feedRevealed'] == true;
     _pendingProfileScrollOffset = (state['profileScrollOffset'] as num?)
         ?.toDouble();
     _pendingFeedScrollOffset = (state['feedScrollOffset'] as num?)?.toDouble();
@@ -354,7 +362,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       _continuityRestored = true;
     });
 
-    if (feedRevealed) {
+    if (feedRevealed && !widget.initialFeedRevealed) {
       unawaited(_loadFeedPage(reset: true));
     }
     _applyPendingContinuityAfterFrame();

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'account_view_cache.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -462,6 +463,7 @@ class SharedPracticeRepo {
   }
 
   Future<TogetherInboxSnapshot> getTogetherInbox({int limit = 40}) async {
+    final uid = _client.auth.currentUser?.id;
     final responses = await Future.wait<dynamic>(<Future<dynamic>>[
       _client.rpc(
         'get_together_inbox',
@@ -484,7 +486,7 @@ class SharedPracticeRepo {
         'Unexpected Together inbox response: ${inboxResponse.runtimeType}',
       );
     }
-    return TogetherInboxSnapshot.fromJson(<String, dynamic>{
+    final snapshot = TogetherInboxSnapshot.fromJson(<String, dynamic>{
       ...Map<String, dynamic>.from(inboxResponse),
       'quote_approvals': approvalResponse is List
           ? approvalResponse
@@ -493,6 +495,10 @@ class SharedPracticeRepo {
           ? decisionResponse
           : const <dynamic>[],
     });
+    if (uid != null && uid == _client.auth.currentUser?.id) {
+      AccountViewCache.instance.publish(uid, 'social.together', snapshot);
+    }
+    return snapshot;
   }
 
   Future<String?> getTogetherRoomForFlow(int flowId) async {

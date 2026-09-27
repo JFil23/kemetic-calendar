@@ -1,0 +1,725 @@
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import '../calendar/presentation/user_flow_appearance_visual.dart';
+import '../profile/posted_flow_artifact.dart';
+import '../rhythm/widgets/planner/maat_scale.dart';
+import '../rhythm/planner/planner_scale_math.dart';
+import '../../widgets/profile_avatar.dart';
+import 'pages_models.dart';
+
+const pagesGold = Color(0xffd4af37);
+const pagesBone = Color(0xfff2ece0);
+TextStyle pagesSerif(
+  double size, {
+  Color color = pagesBone,
+  bool italic = false,
+}) => TextStyle(
+  fontFamily: 'CormorantGaramond',
+  fontSize: size,
+  fontWeight: FontWeight.w400,
+  fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+  height: 1.12,
+  color: color,
+);
+
+/// Geometry shared by every board; selection never changes pane positions.
+class PagesBoard extends StatelessWidget {
+  const PagesBoard({
+    super.key,
+    required this.large,
+    required this.upper,
+    required this.lower,
+  });
+  final Widget large, upper, lower;
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: const Color(0xff050403),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(flex: 2, child: large),
+        const SizedBox(width: 2),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: upper),
+              const SizedBox(height: 2),
+              Expanded(child: lower),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class PagesTile extends StatelessWidget {
+  const PagesTile({super.key, required this.card, required this.onTap});
+  final PagesCard card;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Open ${card.title}',
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 1.49,
+            child: RepaintBoundary(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (card.state != PagesLoadState.ready &&
+                        card.destination == PagesDestination.calendar)
+                      _signal(
+                        PagesSignal(
+                          card.state == PagesLoadState.failed
+                              ? 'Unavailable'
+                              : 'Loading…',
+                        ),
+                      )
+                    else if (card.state != PagesLoadState.ready)
+                      PagesBoard(
+                        large: _signal(
+                          PagesSignal(
+                            card.state == PagesLoadState.failed
+                                ? 'Unavailable'
+                                : 'Loading…',
+                          ),
+                        ),
+                        upper: _signal(const PagesSignal('')),
+                        lower: _signal(const PagesSignal('')),
+                      )
+                    else if (card.destination == PagesDestination.calendar)
+                      _calendar()
+                    else
+                      PagesBoard(
+                        large: _large(),
+                        upper: _upper(),
+                        lower: _lower(),
+                      ),
+                    IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: pagesBone.withValues(alpha: .06),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (card.unread > 0)
+                      Positioned(
+                        right: 6,
+                        top: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xffc73b3b),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${card.unread}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 10,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
+            child: Text(
+              card.title,
+              style: pagesSerif(14).copyWith(height: 18 / 14),
+              maxLines: 1,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(6, 2, 6, 0),
+            child: Text(
+              card.meta.isEmpty ? ' ' : card.meta,
+              style: pagesSerif(
+                12,
+                color: const Color(0xffa39d92),
+                italic: true,
+              ).copyWith(height: 15 / 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _large() {
+    switch (card.destination) {
+      case PagesDestination.feed:
+        final f = card.flow;
+        if (f == null) return _signal(card.primary);
+        return LayoutBuilder(
+          builder: (context, box) => FittedBox(
+            fit: BoxFit.fill,
+            child: SizedBox(
+              width: 236,
+              height: 236,
+              child: PostedFlowArtifact(
+                allowImageFetch: false,
+                imageCacheWidth:
+                    (box.maxWidth * MediaQuery.devicePixelRatioOf(context))
+                        .ceil(),
+                name: f.name,
+                color: f.color,
+                appearance: f.appearance,
+                localImageBytes: f.imageBytes,
+                startDate: f.start,
+                endDate: f.end,
+              ),
+            ),
+          ),
+        );
+      case PagesDestination.planner:
+        final percent = card.primary.progress;
+        if (percent == null) return _signal(card.primary);
+        return _ground(
+          const Color(0xff100d08),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: 55,
+                child: OverflowBox(
+                  maxWidth: 210,
+                  minWidth: 210,
+                  child: MaatScale(
+                    animate: false,
+                    tiltDegrees: plannerScaleTiltDegrees(percent.round()),
+                    progress: percent / 100,
+                  ),
+                ),
+              ),
+              Text(
+                '${percent.round()}%',
+                style: pagesSerif(28, color: const Color(0xffecd48f)),
+              ),
+              const SizedBox(height: 4),
+              _micro('ALIGNED', tracked: true),
+            ],
+          ),
+          glow: pagesGold,
+        );
+      case PagesDestination.studio:
+        final f = card.flow;
+        if (f == null) return _signal(card.primary);
+        return _ground(
+          const Color(0xff07080d),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, box) => UserFlowAppearanceHero(
+                    allowImageFetch: false,
+                    imageCacheWidth:
+                        (box.maxWidth * MediaQuery.devicePixelRatioOf(context))
+                            .ceil(),
+                    appearance: f.appearance,
+                    accent: Color(f.color),
+                    localImageBytes: f.imageBytes,
+                    completedOccurrences: f.completed,
+                    totalOccurrences: f.total,
+                    showSignLabel: false,
+                    height: box.maxHeight,
+                    borderRadius: BorderRadius.zero,
+                    signSize: math.max(1, math.min(72, box.maxHeight - 8)),
+                  ),
+                ),
+              ),
+              if (f.total > 0)
+                Text('${f.completed} / ${f.total}', style: pagesSerif(15)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(6, 3, 6, 7),
+                child: _micro(f.name),
+              ),
+            ],
+          ),
+          glow: Color(f.color),
+        );
+      case PagesDestination.journal:
+        return _ground(
+          const Color(0xff0b0911),
+          Padding(
+            padding: const EdgeInsets.all(11),
+            child: _fitPane(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _micro('LATEST BADGE', tracked: true),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Color(card.primary.color).withValues(alpha: .14),
+                      border: Border.all(color: Color(card.primary.color)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      card.primary.title,
+                      style: pagesSerif(16, color: const Color(0xfff2cf63)),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          glow: Color(card.primary.color),
+        );
+      case PagesDestination.library:
+        return _ground(
+          const Color(0xff110e08),
+          Stack(
+            children: [
+              Positioned(
+                left: 5,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 2,
+                  color: pagesGold.withValues(alpha: .6),
+                ),
+              ),
+              Positioned(
+                right: 10,
+                top: 8,
+                child: _glyph(card.primary.glyph, 34),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 11, 9),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      card.primary.title,
+                      style: pagesSerif(17, color: const Color(0xffe6c86f)),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    if (card.primary.progress != null)
+                      LinearProgressIndicator(
+                        value: card.primary.progress! / 100,
+                        minHeight: 2,
+                        color: pagesGold,
+                        backgroundColor: const Color(0xff4b412c),
+                      ),
+                    const SizedBox(height: 4),
+                    _micro(card.primary.detail),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          glow: pagesGold,
+        );
+      case PagesDestination.inbox:
+        return _signal(card.primary, large: true, avatar: true);
+      case PagesDestination.calendars:
+        return _signal(card.primary, large: true);
+      case PagesDestination.calendar:
+        return _calendar();
+    }
+  }
+
+  Widget _upper() => _signal(
+    card.upper,
+    avatar:
+        card.destination == PagesDestination.inbox ||
+        card.destination == PagesDestination.feed,
+  );
+  Widget _lower() {
+    if (card.destination == PagesDestination.journal) {
+      return _ground(
+        const Color(0xff0d0a06),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: card.week
+                  .map(
+                    (on) => Container(
+                      width: 4,
+                      height: on ? 24 : 7,
+                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                      decoration: BoxDecoration(
+                        color: on ? pagesGold : const Color(0xff4d4127),
+                        borderRadius: BorderRadius.circular(1.5),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 5),
+            _micro('this week'),
+          ],
+        ),
+      );
+    }
+    if (card.destination == PagesDestination.calendars) {
+      return _ground(
+        const Color(0xff0d0b08),
+        Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: SizedBox(
+              width: 39,
+              child: Wrap(
+                spacing: 5,
+                runSpacing: 4,
+                children: card.calendars
+                    .map(
+                      (c) => Opacity(
+                        opacity: c.visible ? 1 : .35,
+                        child: Container(
+                          width: 17,
+                          height: 10,
+                          padding: const EdgeInsets.all(1),
+                          decoration: BoxDecoration(
+                            color: Color(c.color).withValues(alpha: .3),
+                            border: Border.all(color: Color(c.color)),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          alignment: c.visible
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(c.color),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    if (card.destination == PagesDestination.library &&
+        card.lower.progress != null) {
+      return _ground(
+        const Color(0xff0e0c08),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 34,
+              height: 34,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    value: card.lower.progress! / 100,
+                    color: pagesGold,
+                    backgroundColor: const Color(0xff3d3420),
+                    strokeWidth: 3,
+                  ),
+                  Text(
+                    '${card.lower.progress!.round()}%',
+                    style: pagesSerif(11),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            _micro(card.lower.title),
+          ],
+        ),
+      );
+    }
+    return _signal(
+      card.lower,
+      large: card.destination == PagesDestination.studio,
+    );
+  }
+
+  Widget _calendar() => _ground(
+    const Color(0xff0c0a06),
+    Padding(
+      padding: const EdgeInsets.fromLTRB(9, 9, 9, 7),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text(card.primary.title, style: pagesSerif(16, color: pagesGold)),
+              const Spacer(),
+              Text(
+                card.primary.detail,
+                style: pagesSerif(
+                  10,
+                  color: const Color(0xff8f7a45),
+                  italic: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Row(
+            children: card.weekdays
+                .map(
+                  (d) => Expanded(
+                    child: Text(
+                      d,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'GentiumPlus',
+                        fontSize: 7,
+                        color: Color(0xff8f7d49),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 2),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, box) => Wrap(
+                children: card.days
+                    .map(
+                      (d) => SizedBox(
+                        width: box.maxWidth / 10,
+                        height: box.maxHeight / 3,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 19,
+                                height: 19,
+                                alignment: Alignment.center,
+                                decoration: d.today
+                                    ? const BoxDecoration(
+                                        color: pagesGold,
+                                        shape: BoxShape.circle,
+                                      )
+                                    : null,
+                                child: Text(
+                                  '${d.day}',
+                                  style: pagesSerif(
+                                    12,
+                                    color: d.today
+                                        ? const Color(0xff0b0804)
+                                        : d.past
+                                        ? const Color(0xff7a6a3e)
+                                        : const Color(0xffbfa153),
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: d.colors
+                                    .take(3)
+                                    .map(
+                                      (c) => Container(
+                                        width: 2.5,
+                                        height: 2.5,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: .75,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Color(c),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+    glow: pagesGold,
+  );
+}
+
+Widget _ground(Color color, Widget child, {Color? glow}) => DecoratedBox(
+  decoration: BoxDecoration(
+    color: color,
+    gradient: glow == null
+        ? null
+        : RadialGradient(
+            center: const Alignment(0, -.3),
+            radius: .85,
+            colors: [
+              Color.alphaBlend(glow.withValues(alpha: .12), color),
+              color,
+            ],
+          ),
+  ),
+  child: child,
+);
+Widget _micro(String value, {bool tracked = false}) => Text(
+  value,
+  textAlign: TextAlign.center,
+  maxLines: 2,
+  overflow: TextOverflow.ellipsis,
+  style: TextStyle(
+    fontFamily: tracked ? 'Inter' : 'GentiumPlus',
+    fontSize: tracked ? 6 : 8,
+    height: 1.2,
+    letterSpacing: tracked ? 1 : .1,
+    color: const Color(0xffa39d92),
+  ),
+);
+Widget _glyph(String value, double size) => Text(
+  value,
+  style: TextStyle(
+    fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+    fontSize: size,
+    color: pagesGold,
+    height: 1,
+  ),
+);
+Widget _signal(PagesSignal s, {bool large = false, bool avatar = false}) =>
+    _ground(
+      const Color(0xff0f0c08),
+      Padding(
+        padding: EdgeInsets.all(large ? 6 : 4),
+        child: LayoutBuilder(
+          builder: (context, box) => FittedBox(
+            fit: BoxFit.scaleDown,
+            child: SizedBox(
+              width: box.maxWidth,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (s.label.isNotEmpty) ...[
+                    _micro(s.label.toUpperCase(), tracked: true),
+                    const SizedBox(height: 3),
+                  ],
+                  if (s.people.isNotEmpty) ...[
+                    _memberCoins(s.people, large ? 25 : 20),
+                    const SizedBox(height: 6),
+                  ] else if (avatar &&
+                      s.title.isNotEmpty &&
+                      s.glyph.isEmpty) ...[
+                    ProfileAvatar(
+                      displayName: s.title,
+                      avatarGlyphIds: s.glyphIds,
+                      radius: large ? 22 : 11,
+                      backgroundColor: Color(s.color),
+                      foregroundColor: const Color(0xff171006),
+                      initialFontSize: 12,
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  if (s.glyph.isNotEmpty) ...[
+                    _glyph(s.glyph, large ? 30 : 22),
+                    const SizedBox(height: 3),
+                  ],
+                  Text(
+                    s.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: pagesSerif(
+                      large ? 16 : 11,
+                      color: Color.lerp(Color(s.color), pagesBone, .55)!,
+                    ),
+                  ),
+                  if (s.detail.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    _micro(s.detail),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      glow: large || s.color != 0xffd4af37 ? Color(s.color) : null,
+    );
+
+Widget _fitPane(Widget child) => LayoutBuilder(
+  builder: (context, box) => FittedBox(
+    fit: BoxFit.scaleDown,
+    child: SizedBox(width: box.maxWidth, child: child),
+  ),
+);
+
+Widget _memberCoins(List<PagesPerson> people, double diameter) {
+  final shown = people.take(3).toList();
+  return SizedBox(
+    width: diameter + (shown.length - 1) * (diameter - 9),
+    height: diameter,
+    child: Stack(
+      children: [
+        for (var i = 0; i < shown.length; i++)
+          Positioned(
+            left: i * (diameter - 9),
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  center: Alignment(-.32, -.44),
+                  colors: [
+                    Color(0xfffbe7a4),
+                    Color(0xffdcb44b),
+                    Color(0xff9c7420),
+                  ],
+                ),
+              ),
+              child: ProfileAvatar(
+                displayName: shown[i].name,
+                avatarGlyphIds: shown[i].glyphIds,
+                radius: diameter / 2,
+                backgroundColor: Colors.transparent,
+                foregroundColor: const Color(0xff171006),
+                initialFontSize: 13,
+                borderColor: const Color(0xff0f0c08),
+                borderWidth: 1.5,
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}

@@ -1,4 +1,7 @@
 import 'dart:async';
+import '../pages/pages_models.dart';
+import '../pages/pages_arrangement.dart';
+import '../../data/account_view_cache.dart';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -5876,6 +5879,8 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  static void publishPagesSnapshot() => _mountedState?._publishPagesCalendar();
+
   static Future<void> openQuickAddFromAnyContext(BuildContext context) async {
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
@@ -10413,6 +10418,12 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _publishWarmStateSnapshot() {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid != null &&
+        AccountViewCache.instance.peek<PagesCard>(uid, 'pages.calendar') !=
+            null) {
+      _publishPagesCalendar();
+    }
     _CalendarWarmStateStore.save(
       userId: _activeWarmStartUserId(),
       notes: _notes,
@@ -26445,11 +26456,165 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  void _publishPagesCalendar() {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    final cache = AccountViewCache.instance;
+    cache.enterAccount(uid);
+    final now = DateTime.now();
+    final k = KemeticMath.fromGregorian(now);
+    final month = getMonthById(k.kMonth);
+    final first = KemeticMath.toGregorian(k.kYear, k.kMonth, 1);
+    final monthCovered = _hydrationController.state.coverage.covers(
+      CalendarHydrationInterval.fromInclusiveLocalDays(
+        firstLocalDay: first,
+        lastLocalDay: KemeticMath.toGregorian(
+          k.kYear,
+          k.kMonth,
+          _maxDayForMonth(k.kYear, k.kMonth),
+        ),
+      ),
+    );
+    final days = <PagesCalendarDay>[];
+    final events = <PagesUpcomingEvent>[];
+    for (var d = 1; d <= _maxDayForMonth(k.kYear, k.kMonth); d++) {
+      final notes = _dedupeVisibleDayNotes(
+        (_notes[_kKey(k.kYear, k.kMonth, d)] ?? const <_Note>[])
+            .where((n) => _isCalendarVisible(n.calendarId))
+            .toList(),
+      );
+      days.add(
+        PagesCalendarDay(
+          d,
+          today: d == k.kDay,
+          past: d < k.kDay,
+          colors: notes.map((n) => _noteColor(n).toARGB32()).take(3).toList(),
+        ),
+      );
+    }
+    for (final entry in _notes.entries) {
+      final parts = entry.key.split('-').map(int.tryParse).toList();
+      if (parts.length != 3 || parts.any((p) => p == null)) continue;
+      final date = KemeticMath.toGregorian(parts[0]!, parts[1]!, parts[2]!);
+      if (date.isBefore(DateTime(now.year, now.month, now.day)) ||
+          date.isAfter(now.add(const Duration(days: 31)))) {
+        continue;
+      }
+      for (final note in _dedupeVisibleDayNotes(
+        entry.value.where((n) => _isCalendarVisible(n.calendarId)).toList(),
+      )) {
+        final at = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          note.start?.hour ?? 0,
+          note.start?.minute ?? 0,
+        );
+        events.add(
+          PagesUpcomingEvent(
+            flowId: note.flowId?.toString() ?? '',
+            title: note.title,
+            at: at,
+          ),
+        );
+      }
+    }
+    events.sort((a, b) => a.at.compareTo(b.at));
+    const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final todayNotes = _dedupeVisibleDayNotes(
+      (_notes[_kKey(k.kYear, k.kMonth, k.kDay)] ?? const <_Note>[])
+          .where((n) => _isCalendarVisible(n.calendarId))
+          .toList(),
+    );
+    cache.publish(
+      uid,
+      'pages.calendar',
+      PagesCard(
+        PagesDestination.calendar,
+        state: monthCovered ? PagesLoadState.ready : PagesLoadState.failed,
+        primary: PagesSignal(
+          month.displayShort,
+          detail: '${month.season.label} ${k.kYear}',
+        ),
+        meta:
+            '${todayNotes.length} today${events.where((e) => e.at.isAfter(now)).firstOrNull == null ? '' : ' · ${events.where((e) => e.at.isAfter(now)).first.at.hour.toString().padLeft(2, '0')}:${events.where((e) => e.at.isAfter(now)).first.at.minute.toString().padLeft(2, '0')}'}',
+        days: days,
+        weekdays: List.generate(
+          10,
+          (i) => weekdays[(first.weekday - 1 + i) % 7],
+        ),
+      ),
+    );
+    final windowEnd = DateTime(now.year, now.month, now.day + 31);
+    if (_hydrationController.state.coverage.covers(
+      CalendarHydrationInterval(
+        startUtc: DateTime(now.year, now.month, now.day),
+        endUtc: windowEnd,
+      ),
+    )) {
+      cache.publish(
+        uid,
+        'pages.events',
+        PagesEventWindow(List.unmodifiable(events), windowEnd),
+      );
+    }
+    if (_flows.isNotEmpty || _flowsRepo.cachedMyFiledFlowsSync() != null) {
+      cache.publish(
+        uid,
+        'pages.flows',
+        List<PagesFlow>.unmodifiable(
+          _flows.where((f) => f.active && !f.isHidden && !f.isReminder).map((
+            f,
+          ) {
+            final total = _flowTotalEventCounts[f.id] ?? 0;
+            final remaining = _flowRemainingEventCounts[f.id] ?? total;
+            return PagesFlow(
+              id: '${f.id}',
+              name: f.name,
+              appearance: f.appearance,
+              color: f.color.toARGB32(),
+              total: total,
+              completed: (total - remaining).clamp(0, total),
+              start: f.start,
+              end: f.end,
+            );
+          }),
+        ),
+      );
+    }
+    if (cache.peek<Set<String>>(uid, 'pages.hiddenCalendars') == null) {
+      cache.publish(
+        uid,
+        'pages.hiddenCalendars',
+        Set<String>.unmodifiable(_hiddenCalendarIds),
+      );
+    }
+    if (_calendarSummariesById.isNotEmpty &&
+        cache.peek<List<SharedCalendarSummary>>(uid, 'calendars.list') == null) {
+      cache.publish(
+        uid,
+        'calendars.list',
+        List<SharedCalendarSummary>.unmodifiable(_calendarSummariesById.values),
+      );
+    }
+  }
+
   PreferredSizeWidget _buildCalendarAppBar({
     required bool useLandscapeGrid,
     Widget? titleOverride,
   }) {
     return AppBar(
+      automaticallyImplyLeading: false,
+      leadingWidth: 32,
+      leading: IconButton(
+        tooltip: 'Pages',
+        padding: EdgeInsets.zero,
+        icon: const Icon(Icons.chevron_left, color: _gold),
+        onPressed: () {
+          _publishPagesCalendar();
+          unawaited(openDetailRoute<void>(context, '/pages'));
+        },
+      ),
       backgroundColor: _bg,
       surfaceTintColor: Colors.transparent,
       shadowColor: Colors.transparent,
