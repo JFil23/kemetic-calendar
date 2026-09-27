@@ -10,11 +10,13 @@ class MaatScale extends StatelessWidget {
     required this.tiltDegrees,
     required this.progress,
     this.animate = true,
+    this.showBacklight = true,
   });
 
   final double tiltDegrees;
   final double progress;
   final bool animate;
+  final bool showBacklight;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +31,7 @@ class MaatScale extends StatelessWidget {
               painter: _MaatScalePainter(
                 tiltDegrees: clampedTilt,
                 progress: clampedProgress,
+                showBacklight: showBacklight,
               ),
             )
           : TweenAnimationBuilder<double>(
@@ -40,6 +43,7 @@ class MaatScale extends StatelessWidget {
                   painter: _MaatScalePainter(
                     tiltDegrees: animatedTilt,
                     progress: clampedProgress,
+                    showBacklight: showBacklight,
                   ),
                 );
               },
@@ -49,10 +53,16 @@ class MaatScale extends StatelessWidget {
 }
 
 class _MaatScalePainter extends CustomPainter {
-  const _MaatScalePainter({required this.tiltDegrees, required this.progress});
+  const _MaatScalePainter({
+    required this.tiltDegrees,
+    required this.progress,
+    required this.showBacklight,
+  });
 
   final double tiltDegrees;
   final double progress;
+
+  final bool showBacklight;
 
   static const _gold = Color(0xFFC8A84A);
 
@@ -72,10 +82,12 @@ class _MaatScalePainter extends CustomPainter {
         alpha: PlannerVisualTokens.liftedAlpha(0.04 + progress * 0.08),
       )
       ..style = PaintingStyle.fill;
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(195, 46), width: 220, height: 68),
-      glowPaint,
-    );
+    if (showBacklight) {
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(195, 46), width: 220, height: 68),
+        glowPaint,
+      );
+    }
 
     final postPaint = Paint()
       ..color = _gold.withValues(
@@ -192,6 +204,7 @@ class _MaatScalePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _MaatScalePainter oldDelegate) {
     return oldDelegate.tiltDegrees != tiltDegrees ||
+        oldDelegate.showBacklight != showBacklight ||
         oldDelegate.progress != progress;
   }
 }

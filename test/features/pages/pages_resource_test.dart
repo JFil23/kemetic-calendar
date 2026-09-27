@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mobile/data/account_view_cache.dart';
+import 'package:mobile/data/share_repo.dart';
+import 'package:mobile/data/share_models.dart';
+import 'package:mobile/data/shared_practice_models.dart';
 import 'package:mobile/data/pages_read_repository.dart';
 import 'package:mobile/features/nodes/library_read_progress_store.dart';
 import 'package:mobile/features/nodes/library_read_state.dart';
@@ -44,6 +47,86 @@ Future<void> drain() async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'displayed Inbox actor glyphs use one read and survive revisit',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final requests = <http.Request>[];
+      final client = SupabaseClient(
+        'https://example.supabase.co',
+        'test-key',
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+        httpClient: MockClient((request) async {
+          requests.add(request);
+          final name = request.url.pathSegments.last;
+          final Object payload = name == 'profiles'
+              ? [
+                  {
+                    'avatar_glyphs': ['sun'],
+                  },
+                ]
+              : name == 'get_together_inbox' ||
+                    name == 'get_commons_together_home_cards'
+              ? <String, Object>{}
+              : <Object>[];
+          return http.Response(
+            jsonEncode(payload),
+            200,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          );
+        }),
+      );
+      await client.auth.recoverSession(session());
+      final cache = AccountViewCache()..enterAccount(uid);
+      cache.publish(uid, 'social.activity', [
+        InboxActivityItem(
+          type: InboxActivityType.follow,
+          createdAt: DateTime.now(),
+          actorId: 'c5cebdcc-0fa4-490c-9db7-922157e9d300',
+          actorName: 'Reader',
+        ),
+      ]);
+      cache.publish(uid, 'social.inbox', <InboxShareItem>[]);
+      cache.publish(uid, 'social.together', TogetherInboxSnapshot.fromJson({}));
+      final controller = PagesController(client, cache: cache);
+      final glyphReady = Completer<void>();
+      controller.cards[PagesDestination.inbox.index].addListener(() {
+        if (!glyphReady.isCompleted &&
+            controller
+                .cards[PagesDestination.inbox.index]
+                .value
+                .primary
+                .glyphIds
+                .isNotEmpty) {
+          glyphReady.complete();
+        }
+      });
+      controller.setVisible(true);
+      await glyphReady.future.timeout(const Duration(seconds: 5));
+      await drain();
+      final inbox = controller.cards[PagesDestination.inbox.index].value;
+      expect(inbox.primary.glyphIds, ['sun']);
+      expect(inbox.upper.glyphIds, ['sun']);
+      final glyphReads = requests
+          .where((r) => r.url.path.endsWith('/profiles'))
+          .toList();
+      expect(glyphReads, hasLength(1));
+      expect(glyphReads.single.method, 'GET');
+      expect(glyphReads.single.url.queryParameters['select'], 'avatar_glyphs');
+      expect(glyphReads.single.url.queryParameters['limit'], '1');
+      controller.setVisible(false);
+      controller.setVisible(true);
+      await drain();
+      expect(
+        requests.where((r) => r.url.path.endsWith('/profiles')),
+        hasLength(1),
+      );
+      controller.dispose();
+      await client.dispose();
+    },
+  );
+
   test(
     'cold entry bounded; revisit search sheet and hidden view do not write or refetch',
     () async {

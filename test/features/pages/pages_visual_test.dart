@@ -31,11 +31,13 @@ void main() {
     await (FontLoader(
       'MaterialIcons',
     )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-    const math = PagesFlow(
+    final math = PagesFlow(
       id: 'math',
       name: 'Daily Math Visuals: 90-Day Visual Math Ladder',
       appearance: FlowAppearance(signKind: FlowSignKind.palmCount),
-      color: 0xffff6b6b,
+      color: 0xffad8146,
+      start: DateTime(2026, 9, 20),
+      end: DateTime(2026, 12, 18),
       total: 88,
       completed: 6,
     );
@@ -51,7 +53,7 @@ void main() {
       PagesCard(
         PagesDestination.calendar,
         state: PagesLoadState.ready,
-        primary: const PagesSignal('Paopi', detail: 'Akhet 2'),
+        primary: const PagesSignal('Rekh-Nedjes', detail: 'Peret 2026'),
         meta: '6 today',
         weekdays: const ['S', 'M', 'T', 'W', 'T', 'F', 'S', 'S', 'M', 'T'],
         days: List.generate(
@@ -64,7 +66,7 @@ void main() {
           ),
         ),
       ),
-      const PagesCard(
+      PagesCard(
         PagesDestination.feed,
         state: PagesLoadState.ready,
         flow: math,
@@ -97,7 +99,12 @@ void main() {
         PagesDestination.journal,
         state: PagesLoadState.ready,
         meta: '1 badge · 3 days this week',
-        primary: PagesSignal('Evening Reflection', color: 0xff6344d3),
+        primary: PagesSignal(
+          'Full Moon',
+          status: '✓',
+          detail: '8 PM',
+          color: 0xff8186dc,
+        ),
         upper: PagesSignal('Paopi 11', label: 'Today', detail: '✓ Saved'),
         week: [false, true, false, false, true, false, true],
       ),
@@ -179,6 +186,7 @@ void main() {
               const PagesSearchRecord('Ptah', 'Library', '/nodes/ptah'),
             ],
             profileName: 'BigJFil',
+            profileHandle: 'bigjfil',
             profileGlyphIds: const ['i', 'receive', 'aset'],
           ),
         ),
@@ -191,11 +199,24 @@ void main() {
       final boundary =
           key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       await tester.runAsync(() async {
+        // Prime retained raster layers before exporting the complete page.
+        final warmup = await boundary.toImage(pixelRatio: 2);
+        warmup.dispose();
         final image = await boundary.toImage(pixelRatio: 2);
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         await File(capturePath).writeAsBytes(bytes!.buffer.asUint8List());
       });
     }
+    expect(find.text('Pages'), findsNothing);
+    expect(tester.getCenter(find.text('bigjfil')).dx, closeTo(393 / 2, .1));
+    final searchRect = tester.getRect(find.byType(TextField));
+    expect(searchRect.left, 6);
+    expect(searchRect.right, 387);
+    expect(searchRect.height, 44);
+    final input = tester.widget<TextField>(find.byType(TextField));
+    expect(input.decoration!.fillColor, const Color(0x600d0b07));
+    expect(find.text('𓉐'), findsWidgets);
+    expect(find.byIcon(Icons.check), findsOneWidget);
     expect(find.text('Calendar'), findsOneWidget);
     expect(find.text('Flow Studio'), findsOneWidget);
     final tiles = find.byType(PagesTile);
@@ -210,6 +231,26 @@ void main() {
     expect(rect.width / rect.height, closeTo(1.49, .001));
     final secondRow = tester.getRect(tiles.at(2));
     expect(secondRow.top - left.bottom, closeTo(22, .001));
+    final studio = cards[PagesDestination.studio.index];
+    final originalStudio = studio.value;
+    studio.value = const PagesCard(
+      PagesDestination.studio,
+      state: PagesLoadState.ready,
+      flow: PagesFlow(
+        id: 'offering',
+        name: 'The Offering Table',
+        appearance: FlowAppearance(),
+        maatKey: 'the-offering-table',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('pages-studio-built-in-art')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    studio.value = originalStudio;
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Ptah');
     await tester.pump();
     expect(find.text('Showing what’s already loaded'), findsOneWidget);

@@ -47,3 +47,23 @@ No authenticated live-account payload profile or before/after database-row audit
 Preview: [Flutter Pages render](/Users/jaralephillips/.codex/visualizations/2026/09/26/01a0dfd5-244c-7982-a089-d882fe315655/pages-preview.png).
 
 Remaining release verification: authenticated live-account navigation/traffic and database audit, plus any release build/deployment gates when deployment is requested.
+
+
+## September 26 visual correction against v8
+
+Reference: `/Users/jaralephillips/Downloads/haw-pages-v8.html`, the accompanying fidelity spec, and the user's direct request to remove pane backlights. The direct request takes precedence over residual radial glow instructions in the attachment. Example users, statuses, and featured flows in the HTML are representative data, not selection overrides.
+
+Verified changes:
+- Centered handle and bare profile glyph phrase; removed Pages title and avatar ring. Existing profile and add-note actions remain. Search is 44px tall with 6px side margins, 12px above and 18px below.
+- Kept board order, 2:1 pane division, 2px gutters, 1.49 aspect, 16px corners, 8px column gap and 22px row gap. Widget checks cover 320, 393, 430 and 844 widths.
+- Explicit dark search fill and per-role pane colors; no generic pane glow, title color blending, app-bar elevation tint or Planner scale oval backlight. Existing flow artwork retains its authored effects. Planner's original scale elsewhere retains its default appearance.
+- Inbox/Feed avatars use the same shaded coin treatment as calendar members. Missing selected actor glyph IDs are resolved from the existing profile cache, otherwise a deduplicated account-scoped GET of only avatar_glyphs, filtered to that person, limit 1. No profile bootstrap, polling, writes or new subscriptions. The test confirms a shared Inbox actor needs one read for both panes and none on revisit.
+- Inbox Reading House glyph, Journal completion icon and saved check, actual badge time, brighter captions and full Gregorian year in the mini calendar are restored. Non-today calendar dots are muted; today's retain event colors.
+- Built-in Flow Studio art comes from the existing five-flow discovery asset registry, resolved from the saved maat metadata through the existing notes decoder. Custom saved flow appearances remain authoritative. Unknown progress totals do not produce a fabricated count or an Unavailable steps label.
+- Selection order, navigation and sheet return behavior are unchanged. No sample account state or progress numbers are hardcoded in production.
+
+Evidence: 19 Pages tests pass, including navigation/sheet return and selected-person glyph enrichment. Resource fixture: 15 cold reads, zero writes, zero fresh-revisit/search/sheet-return reads, six existing reads on expired social resume. Analysis has only the six pre-existing private-type infos in calendar_active_maat_flows.dart. Final fixture screenshot was inspected after priming retained raster layers; an earlier single-pass capture omitted retained text and was discarded.
+
+Preview: [v8 correction render](/Users/jaralephillips/.codex/visualizations/2026/09/26/01a0dfd5-244c-7982-a089-d882fe315655/pages-v8-preview.png).
+
+Limits: this is a representative Flutter render, not an authenticated screenshot of the user's account or a pixel-equivalence claim against browser-rendered HTML. Live Inbox statuses and the selected flow can differ from the mockup's dated snapshot. No backend schema/job changes, release build or deployment in this correction. Served RC was verified as b1a272064a51ad681cdec4de64b821bc920b8017 before editing; production was untouched.

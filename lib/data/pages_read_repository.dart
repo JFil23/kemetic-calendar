@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../core/completion_status.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../features/rhythm/models/rhythm_models.dart';
@@ -8,6 +9,7 @@ import '../features/rhythm/data/planner_badge_repo.dart';
 import '../features/journal/journal_badge_utils.dart';
 import '../features/journal/journal_v2_document_model.dart';
 import '../features/pages/pages_models.dart';
+import '../features/calendar/calendar_page.dart' show notesDecode;
 import 'account_view_cache.dart';
 import '../features/pages/pages_arrangement.dart';
 import 'nutrition_repo.dart';
@@ -175,7 +177,7 @@ class PagesReadRepository {
     final rows = await client
         .rpc('get_my_filed_flows_v1', params: {'p_limit': 100})
         .select(
-          'id,user_id,name,color,appearance,start_date,end_date,active,is_hidden,is_reminder,visible_in_active_list,total_event_count,remaining_event_count',
+          'id,user_id,name,color,appearance,notes,start_date,end_date,active,is_hidden,is_reminder,visible_in_active_list,total_event_count,remaining_event_count',
         );
     if (rows.length == 100) {
       throw StateError('Flow preview coverage unavailable');
@@ -188,6 +190,7 @@ class PagesReadRepository {
             id: '${f.id}',
             name: f.name,
             appearance: f.appearance,
+            maatKey: notesDecode(f.notes).maatKey,
             color: 0xff000000 | f.color,
             total: f.totalEventCount,
             completed: (f.totalEventCount - f.remainingEventCount).clamp(
@@ -220,6 +223,17 @@ class PagesReadRepository {
           }),
         )
         .toList();
+  }
+
+  /// Selected people only; no profile bootstrap or progress writes.
+  Future<List<String>> personGlyphs(String personId) async {
+    checkActive();
+    final rows = await client
+        .from('profiles')
+        .select('avatar_glyphs')
+        .eq('id', personId)
+        .limit(1);
+    return parseProfileAvatarGlyphIds(rows.firstOrNull?['avatar_glyphs']);
   }
 
   Future<List<PagesPerson>> calendarMembers(String calendarId) async {
@@ -396,10 +410,28 @@ JournalDocument _journalDocument(String body) {
   }
 }
 
-List<PagesSignal> journalBadgeSignals(String body) =>
-    JournalBadgeUtils.tokensFromDocument(_journalDocument(body)).reversed
-        .map((b) => PagesSignal(b.title, color: b.color.toARGB32()))
-        .toList(growable: false);
+List<PagesSignal> journalBadgeSignals(
+  String body,
+) => JournalBadgeUtils.tokensFromDocument(_journalDocument(body)).reversed
+    .map((b) {
+      final at = b.start?.toLocal();
+      return PagesSignal(
+        b.title,
+        color: b.color.toARGB32(),
+        status: b.isCompletionBadge
+            ? switch (b.completionStatus) {
+                CompletionStatus.observed => '✓',
+                CompletionStatus.partial => '◐',
+                CompletionStatus.skipped => '—',
+                CompletionStatus.none => '',
+              }
+            : '',
+        detail: at == null
+            ? ''
+            : '${at.hour % 12 == 0 ? 12 : at.hour % 12}${at.minute == 0 ? '' : ':${at.minute.toString().padLeft(2, '0')}'} ${at.hour < 12 ? 'AM' : 'PM'}',
+      );
+    })
+    .toList(growable: false);
 void publishJournalOverview(String uid, DateTime date, String body) {
   final cache = AccountViewCache.instance;
   final previous = cache.peek<JournalOverview>(uid, 'journal.overview');

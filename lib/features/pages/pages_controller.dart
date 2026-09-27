@@ -19,6 +19,7 @@ import '../nodes/library_read_state.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../rhythm/planner/planner_overview.dart';
 import '../calendar/calendar_invalidation.dart';
+import '../calendar/calendar_page.dart' show notesDecode;
 import 'pages_arrangement.dart';
 import '../../widgets/kemetic_date_picker.dart' show KemeticMath;
 import '../calendar/kemetic_month_metadata.dart';
@@ -101,6 +102,7 @@ class PagesController {
     id: '${f.id}',
     name: f.name,
     appearance: f.appearance,
+    maatKey: notesDecode(f.notes).maatKey,
     color: 0xff000000 | f.color,
     total: f.totalEventCount,
     completed: (f.totalEventCount - f.remainingEventCount).clamp(
@@ -399,6 +401,7 @@ class PagesController {
       s.label,
       s.detail,
       s.glyph,
+      s.status,
       s.color,
       s.progress,
       s.glyphIds,
@@ -416,6 +419,7 @@ class PagesController {
           f.id,
           f.name,
           f.appearance,
+          f.maatKey,
           f.color,
           f.completed,
           f.total,
@@ -451,7 +455,7 @@ class PagesController {
       PagesCard(
         PagesDestination.planner,
         state: PagesLoadState.ready,
-        meta: 'Today’s alignment',
+        meta: '${p.percent(now)}% aligned',
         primary: PagesSignal('Aligned', progress: p.percent(now).toDouble()),
         upper: PagesSignal(
           p.note.isEmpty ? 'Name a commitment' : p.note,
@@ -492,7 +496,7 @@ class PagesController {
         upper: PagesSignal(
           '${getMonthById(kemetic.kMonth).displayShort} ${kemetic.kDay}',
           label: 'Today',
-          detail: j.written.contains(today) ? 'Saved' : 'Still open',
+          detail: j.written.contains(today) ? '✓ Saved' : 'Still open',
         ),
         week: List.generate(
           7,
@@ -581,6 +585,7 @@ class PagesController {
       start: f.start,
       end: f.end,
       imageBytes: bytes,
+      maatKey: f.maatKey,
     );
   }
 
@@ -613,8 +618,8 @@ class PagesController {
               ? ''
               : f.total > 0
               ? '${f.total - f.completed}'
-              : 'Unavailable',
-          detail: f == null ? '' : 'steps remaining',
+              : '',
+          detail: f == null || f.total == 0 ? '' : 'steps remaining',
         ),
       ),
     );
@@ -672,6 +677,7 @@ class PagesController {
                 ? 'Liked your flow'
                 : 'Commented',
             actor: a.actorName ?? a.actorHandle ?? 'Someone',
+            actorId: a.actorId,
             unresolved: true,
           ),
         );
@@ -693,6 +699,7 @@ class PagesController {
             at: request.createdAt ?? DateTime(1970),
             reason: 'Wants to join',
             actor: request.requesterLabel,
+            actorId: request.requesterId,
             unresolved: true,
           ),
         );
@@ -732,6 +739,7 @@ class PagesController {
           at: p.createdAt,
           reason: 'Your shared flow',
           ownShared: true,
+          actorId: uid,
         ),
       );
     }
@@ -744,12 +752,27 @@ class PagesController {
         flow: selected == null ? null : _image(selected.flow),
         primary: const PagesSignal('Discover a flow'),
         upper: PagesSignal(
-          selected?.actor ?? '',
+          selected?.ownShared == true
+              ? 'Latest shared flow'
+              : selected?.actor ?? '',
+          glyphIds: _personGlyphs(selected?.actorId),
+          label: selected?.ownShared == true ? 'Your flows' : '',
           detail: selected?.reason ?? 'Practice together',
         ),
         lower: pagesCommonsSignal(rooms.firstOrNull),
       ),
     );
+  }
+
+  List<String> _personGlyphs(String? personId) {
+    if (personId == null || personId.isEmpty) return const [];
+    final profile = ProfileRepo(client).getCachedProfileSync(personId);
+    if (profile != null) return profile.avatarGlyphIds;
+    final key = 'social.avatar.$personId';
+    final glyphs = _peek<List<String>>(key);
+    if (glyphs != null) return glyphs;
+    if (active) unawaited(_load(key, () => repository.personGlyphs(personId)));
+    return const [];
   }
 
   void _paintInbox() {
@@ -810,6 +833,9 @@ class PagesController {
         primary: useShare
             ? PagesSignal(
                 updateName ?? 'Someone',
+                glyphIds: _personGlyphs(
+                  isSender ? update.recipientId : update.senderId,
+                ),
                 label: 'Latest update',
                 detail: accepted
                     ? (isSender
@@ -821,6 +847,7 @@ class PagesController {
             ? const PagesSignal('All caught up')
             : PagesSignal(
                 latest.actorName ?? latest.actorHandle ?? 'Someone',
+                glyphIds: _personGlyphs(latest.actorId),
                 label: 'Latest update',
                 detail: reason(latest),
               ),
@@ -828,10 +855,12 @@ class PagesController {
             ? const PagesSignal('Community')
             : PagesSignal(
                 follow.actorName ?? follow.actorHandle ?? 'Someone',
+                glyphIds: _personGlyphs(follow.actorId),
                 detail: 'followed you',
               ),
         lower: PagesSignal(
           invitation?.title ?? 'Reading House',
+          glyph: invitation == null ? '𓉐' : '',
           detail: invitation == null ? 'Read together' : 'Invitation',
         ),
       ),

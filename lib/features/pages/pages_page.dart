@@ -165,6 +165,7 @@ class _PagesPageState extends State<PagesPage>
       cards: controller.cards,
       onOpen: (d) => unawaited(_open(d)),
       profileName: profile?.effectiveName ?? '',
+      profileHandle: profile?.handle ?? '',
       profileGlyphIds: profile?.avatarGlyphIds ?? const [],
       searchRecords: controller.searchRecords,
       onProfile: () => unawaited(

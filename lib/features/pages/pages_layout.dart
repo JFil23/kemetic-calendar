@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../widgets/profile_avatar.dart';
+import '../../data/profile_avatar_glyphs.dart';
 import 'pages_board.dart';
 import 'pages_models.dart';
 
@@ -14,6 +14,7 @@ class PagesLayout extends StatefulWidget {
     required this.onSearchResult,
     required this.searchRecords,
     this.profileName = '',
+    this.profileHandle = '',
     this.profileGlyphIds = const [],
   });
   final List<ValueListenable<PagesCard>> cards;
@@ -21,7 +22,7 @@ class PagesLayout extends StatefulWidget {
   final VoidCallback onProfile, onNewNote;
   final ValueChanged<PagesSearchRecord> onSearchResult;
   final List<PagesSearchRecord> Function() searchRecords;
-  final String profileName;
+  final String profileName, profileHandle;
   final List<String> profileGlyphIds;
   @override
   State<PagesLayout> createState() => _PagesLayoutState();
@@ -54,26 +55,64 @@ class _PagesLayoutState extends State<PagesLayout> {
         backgroundColor: const Color(0xff060504),
         surfaceTintColor: Colors.transparent,
         automaticallyImplyLeading: false,
-        titleSpacing: 12,
-        title: Row(
-          children: [
-            InkWell(
-              customBorder: const CircleBorder(),
-              onTap: widget.onProfile,
-              child: ProfileAvatar(
-                displayName: widget.profileName,
-                avatarGlyphIds: widget.profileGlyphIds,
-                radius: 23,
-                borderColor: pagesGold.withValues(alpha: .35),
-                borderWidth: 1,
+        toolbarHeight: 58,
+        centerTitle: true,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Semantics(
+          button: true,
+          label: 'Open profile',
+          child: InkWell(
+            onTap: widget.onProfile,
+            child: SizedBox(
+              height: 50,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (widget.profileHandle.isNotEmpty) ...[
+                    Text(
+                      widget.profileHandle,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        height: 1,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: .2,
+                        color: Color(0xffd9d3c7),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final id in normalizeProfileAvatarGlyphIds(
+                        widget.profileGlyphIds,
+                      ))
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                          child: Text(
+                            kProfileGlyphTileById[id]!.glyph,
+                            style: const TextStyle(
+                              fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                              fontSize: 17,
+                              height: 1,
+                              color: pagesGold,
+                            ),
+                          ),
+                        ),
+                      if (widget.profileGlyphIds.isEmpty)
+                        const Icon(
+                          Icons.person_outline,
+                          color: pagesGold,
+                          size: 24,
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 10),
-            Text(
-              'Pages',
-              style: pagesSerif(27, color: const Color(0xffe4c579)),
-            ),
-          ],
+          ),
         ),
         actions: [
           IconButton(
@@ -92,9 +131,10 @@ class _PagesLayoutState extends State<PagesLayout> {
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(15, 15, 15, 27),
+                padding: const EdgeInsets.fromLTRB(6, 12, 6, 18),
                 child: TextField(
                   controller: _search,
+                  textAlignVertical: TextAlignVertical.center,
                   onChanged: (_) => setState(() {}),
                   style: const TextStyle(
                     fontFamily: 'Inter',
@@ -103,6 +143,11 @@ class _PagesLayoutState extends State<PagesLayout> {
                     color: pagesBone,
                   ),
                   decoration: InputDecoration(
+                    constraints: const BoxConstraints.tightFor(height: 44),
+                    isDense: true,
+                    filled: true,
+                    fillColor: const Color(0x600d0b07),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 43),
                     hintText: 'Search all of ḥꜣw',
                     hintStyle: const TextStyle(
                       fontFamily: 'Inter',
@@ -113,7 +158,7 @@ class _PagesLayoutState extends State<PagesLayout> {
                     prefixIcon: const Icon(
                       Icons.search,
                       color: Color(0xffd0c7b6),
-                      size: 23,
+                      size: 18,
                     ),
                     suffixIcon: query.isEmpty
                         ? null
@@ -126,15 +171,15 @@ class _PagesLayoutState extends State<PagesLayout> {
                             icon: const Icon(Icons.close, color: pagesBone),
                           ),
                     contentPadding: const EdgeInsets.symmetric(
-                      vertical: 15,
-                      horizontal: 15,
+                      vertical: 11,
+                      horizontal: 14,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: Color(0x8ca1967c)),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: pagesGold),
                     ),
                   ),

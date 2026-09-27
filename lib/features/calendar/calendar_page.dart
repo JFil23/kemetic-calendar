@@ -26534,7 +26534,7 @@ class CalendarPageState extends State<CalendarPage>
         state: monthCovered ? PagesLoadState.ready : PagesLoadState.failed,
         primary: PagesSignal(
           month.displayShort,
-          detail: '${month.season.label} ${k.kYear}',
+          detail: '${month.season.label} ${now.year}',
         ),
         meta:
             '${todayNotes.length} today${events.where((e) => e.at.isAfter(now)).firstOrNull == null ? '' : ' · ${events.where((e) => e.at.isAfter(now)).first.at.hour.toString().padLeft(2, '0')}:${events.where((e) => e.at.isAfter(now)).first.at.minute.toString().padLeft(2, '0')}'}',

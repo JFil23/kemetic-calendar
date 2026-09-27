@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../calendar/presentation/user_flow_appearance_visual.dart';
+import '../calendar/presentation/maat_flow_discovery_view.dart';
 import '../profile/posted_flow_artifact.dart';
 import '../rhythm/widgets/planner/maat_scale.dart';
 import '../rhythm/planner/planner_scale_math.dart';
@@ -156,7 +157,7 @@ class PagesTile extends StatelessWidget {
               card.meta.isEmpty ? ' ' : card.meta,
               style: pagesSerif(
                 12,
-                color: const Color(0xffa39d92),
+                color: const Color(0xffd9d3c7),
                 italic: true,
               ).copyWith(height: 15 / 12),
               maxLines: 1,
@@ -209,6 +210,7 @@ class PagesTile extends StatelessWidget {
                   minWidth: 210,
                   child: MaatScale(
                     animate: false,
+                    showBacklight: false,
                     tiltDegrees: plannerScaleTiltDegrees(percent.round()),
                     progress: percent / 100,
                   ),
@@ -222,11 +224,13 @@ class PagesTile extends StatelessWidget {
               _micro('ALIGNED', tracked: true),
             ],
           ),
-          glow: pagesGold,
         );
       case PagesDestination.studio:
         final f = card.flow;
         if (f == null) return _signal(card.primary);
+        final builtIn = kCoreMaatFlowDiscoveryFixtures
+            .where((v) => v.flowKey == f.maatKey)
+            .firstOrNull;
         return _ground(
           const Color(0xff07080d),
           Column(
@@ -234,21 +238,39 @@ class PagesTile extends StatelessWidget {
             children: [
               Expanded(
                 child: LayoutBuilder(
-                  builder: (context, box) => UserFlowAppearanceHero(
-                    allowImageFetch: false,
-                    imageCacheWidth:
-                        (box.maxWidth * MediaQuery.devicePixelRatioOf(context))
-                            .ceil(),
-                    appearance: f.appearance,
-                    accent: Color(f.color),
-                    localImageBytes: f.imageBytes,
-                    completedOccurrences: f.completed,
-                    totalOccurrences: f.total,
-                    showSignLabel: false,
-                    height: box.maxHeight,
-                    borderRadius: BorderRadius.zero,
-                    signSize: math.max(1, math.min(72, box.maxHeight - 8)),
-                  ),
+                  builder: (context, box) =>
+                      builtIn != null && f.appearance.isEmpty
+                      ? Image.asset(
+                          builtIn.heroAsset,
+                          key: const ValueKey('pages-studio-built-in-art'),
+                          width: box.maxWidth,
+                          height: box.maxHeight,
+                          fit: BoxFit.cover,
+                          alignment: builtIn.heroAlignment,
+                          cacheWidth:
+                              (box.maxWidth *
+                                      MediaQuery.devicePixelRatioOf(context))
+                                  .ceil(),
+                        )
+                      : UserFlowAppearanceHero(
+                          allowImageFetch: false,
+                          imageCacheWidth:
+                              (box.maxWidth *
+                                      MediaQuery.devicePixelRatioOf(context))
+                                  .ceil(),
+                          appearance: f.appearance,
+                          accent: Color(f.color),
+                          localImageBytes: f.imageBytes,
+                          completedOccurrences: f.completed,
+                          totalOccurrences: f.total,
+                          showSignLabel: false,
+                          height: box.maxHeight,
+                          borderRadius: BorderRadius.zero,
+                          signSize: math.max(
+                            1,
+                            math.min(72, box.maxHeight - 8),
+                          ),
+                        ),
                 ),
               ),
               if (f.total > 0)
@@ -259,7 +281,6 @@ class PagesTile extends StatelessWidget {
               ),
             ],
           ),
-          glow: Color(f.color),
         );
       case PagesDestination.journal:
         return _ground(
@@ -280,18 +301,49 @@ class PagesTile extends StatelessWidget {
                       border: Border.all(color: Color(card.primary.color)),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      card.primary.title,
-                      style: pagesSerif(16, color: const Color(0xfff2cf63)),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (card.primary.status.isNotEmpty) ...[
+                              Icon(
+                                switch (card.primary.status) {
+                                  '✓' => Icons.check,
+                                  '◐' => Icons.incomplete_circle_rounded,
+                                  _ => Icons.remove,
+                                },
+                                size: 16,
+                                color: Color(card.primary.color),
+                              ),
+                              const SizedBox(width: 5),
+                            ],
+                            Expanded(
+                              child: Text(
+                                card.primary.title,
+                                style: pagesSerif(
+                                  16,
+                                  color: const Color(0xfff2cf63),
+                                ),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (card.primary.detail.isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          _micro(card.primary.detail),
+                        ],
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          glow: Color(card.primary.color),
         );
       case PagesDestination.library:
         return _ground(
@@ -339,12 +391,23 @@ class PagesTile extends StatelessWidget {
               ),
             ],
           ),
-          glow: pagesGold,
         );
       case PagesDestination.inbox:
-        return _signal(card.primary, large: true, avatar: true);
+        return _signal(
+          card.primary,
+          large: true,
+          avatar: true,
+          base: const Color(0xff0f0c07),
+          ink: const Color(0xfff0e5c8),
+          titleSize: 13.5,
+        );
       case PagesDestination.calendars:
-        return _signal(card.primary, large: true);
+        return _signal(
+          card.primary,
+          large: true,
+          base: const Color(0xff0b0a12),
+          ink: const Color(0xffc3b8ff),
+        );
       case PagesDestination.calendar:
         return _calendar();
     }
@@ -352,6 +415,19 @@ class PagesTile extends StatelessWidget {
 
   Widget _upper() => _signal(
     card.upper,
+    base: switch (card.destination) {
+      PagesDestination.studio => const Color(0xff090c10),
+      PagesDestination.calendars => const Color(0xff07110d),
+      PagesDestination.inbox => const Color(0xff0d0b07),
+      PagesDestination.journal => const Color(0xff141006),
+      _ => const Color(0xff0d0b08),
+    },
+    ink: switch (card.destination) {
+      PagesDestination.studio => const Color(0xffc9d5e2),
+      PagesDestination.calendars => const Color(0xff7fdcbc),
+      PagesDestination.journal => const Color(0xffd7c49a),
+      _ => const Color(0xffdcb850),
+    },
     avatar:
         card.destination == PagesDestination.inbox ||
         card.destination == PagesDestination.feed,
@@ -466,6 +542,20 @@ class PagesTile extends StatelessWidget {
     return _signal(
       card.lower,
       large: card.destination == PagesDestination.studio,
+      base: switch (card.destination) {
+        PagesDestination.feed => const Color(0xff07110e),
+        PagesDestination.inbox => const Color(0xff07110d),
+        PagesDestination.studio => const Color(0xff090b0f),
+        PagesDestination.library => const Color(0xff111009),
+        _ => const Color(0xff0c0a06),
+      },
+      ink: switch (card.destination) {
+        PagesDestination.feed => const Color(0xffd3e5d9),
+        PagesDestination.inbox => const Color(0xff6fd0ae),
+        PagesDestination.studio => const Color(0xffc9d5e2),
+        _ => const Color(0xffdcc37c),
+      },
+      titleSize: card.destination == PagesDestination.studio ? 23 : null,
     );
   }
 
@@ -477,8 +567,14 @@ class PagesTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(card.primary.title, style: pagesSerif(16, color: pagesGold)),
-              const Spacer(),
+              Expanded(
+                child: Text(
+                  card.primary.title,
+                  style: pagesSerif(16, color: pagesGold),
+                  maxLines: 1,
+                ),
+              ),
+              const SizedBox(width: 4),
               Text(
                 card.primary.detail,
                 style: pagesSerif(
@@ -557,7 +653,9 @@ class PagesTile extends StatelessWidget {
                                         ),
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: Color(c),
+                                          color: d.today
+                                              ? Color(c)
+                                              : const Color(0xff8d7c4c),
                                         ),
                                       ),
                                     )
@@ -575,26 +673,12 @@ class PagesTile extends StatelessWidget {
         ],
       ),
     ),
-    glow: pagesGold,
   );
 }
 
-Widget _ground(Color color, Widget child, {Color? glow}) => DecoratedBox(
-  decoration: BoxDecoration(
-    color: color,
-    gradient: glow == null
-        ? null
-        : RadialGradient(
-            center: const Alignment(0, -.3),
-            radius: .85,
-            colors: [
-              Color.alphaBlend(glow.withValues(alpha: .12), color),
-              color,
-            ],
-          ),
-  ),
-  child: child,
-);
+// Each role has an explicit dark base. No shared glow or overlay lifts panes.
+Widget _ground(Color color, Widget child) =>
+    ColoredBox(color: color, child: child);
 Widget _micro(String value, {bool tracked = false}) => Text(
   value,
   textAlign: TextAlign.center,
@@ -605,7 +689,7 @@ Widget _micro(String value, {bool tracked = false}) => Text(
     fontSize: tracked ? 6 : 8,
     height: 1.2,
     letterSpacing: tracked ? 1 : .1,
-    color: const Color(0xffa39d92),
+    color: tracked ? const Color(0xff9b8a5e) : const Color(0xffa39d92),
   ),
 );
 Widget _glyph(String value, double size) => Text(
@@ -617,66 +701,69 @@ Widget _glyph(String value, double size) => Text(
     height: 1,
   ),
 );
-Widget _signal(PagesSignal s, {bool large = false, bool avatar = false}) =>
-    _ground(
-      const Color(0xff0f0c08),
-      Padding(
-        padding: EdgeInsets.all(large ? 6 : 4),
-        child: LayoutBuilder(
-          builder: (context, box) => FittedBox(
-            fit: BoxFit.scaleDown,
-            child: SizedBox(
-              width: box.maxWidth,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (s.label.isNotEmpty) ...[
-                    _micro(s.label.toUpperCase(), tracked: true),
-                    const SizedBox(height: 3),
-                  ],
-                  if (s.people.isNotEmpty) ...[
-                    _memberCoins(s.people, large ? 25 : 20),
-                    const SizedBox(height: 6),
-                  ] else if (avatar &&
-                      s.title.isNotEmpty &&
-                      s.glyph.isEmpty) ...[
-                    ProfileAvatar(
-                      displayName: s.title,
-                      avatarGlyphIds: s.glyphIds,
-                      radius: large ? 22 : 11,
-                      backgroundColor: Color(s.color),
-                      foregroundColor: const Color(0xff171006),
-                      initialFontSize: 12,
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  if (s.glyph.isNotEmpty) ...[
-                    _glyph(s.glyph, large ? 30 : 22),
-                    const SizedBox(height: 3),
-                  ],
-                  Text(
-                    s.title,
-                    textAlign: TextAlign.center,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: pagesSerif(
-                      large ? 16 : 11,
-                      color: Color.lerp(Color(s.color), pagesBone, .55)!,
-                    ),
+Widget _signal(
+  PagesSignal s, {
+  bool large = false,
+  bool avatar = false,
+  Color base = const Color(0xff0f0c08),
+  Color ink = const Color(0xffdcc37c),
+  double? titleSize,
+}) => _ground(
+  base,
+  Padding(
+    padding: EdgeInsets.all(large ? 6 : 4),
+    child: LayoutBuilder(
+      builder: (context, box) => FittedBox(
+        fit: BoxFit.scaleDown,
+        child: SizedBox(
+          width: box.maxWidth,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (s.label.isNotEmpty) ...[
+                _micro(s.label.toUpperCase(), tracked: true),
+                const SizedBox(height: 3),
+              ],
+              if (s.people.isNotEmpty) ...[
+                _memberCoins(s.people, large ? 25 : 20),
+                const SizedBox(height: 6),
+              ] else if (avatar && s.title.isNotEmpty && s.glyph.isEmpty) ...[
+                _memberCoins([
+                  PagesPerson(s.title, glyphIds: s.glyphIds),
+                ], large ? 42 : 28),
+                const SizedBox(height: 4),
+              ],
+              if (s.glyph.isNotEmpty) ...[
+                Text(
+                  s.glyph,
+                  style: TextStyle(
+                    fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                    fontSize: large ? 30 : 22,
+                    height: 1,
+                    color: ink,
                   ),
-                  if (s.detail.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    _micro(s.detail),
-                  ],
-                ],
+                ),
+                const SizedBox(height: 3),
+              ],
+              Text(
+                s.title,
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: pagesSerif(titleSize ?? (large ? 16 : 11), color: ink),
               ),
-            ),
+              if (s.detail.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                _micro(s.detail),
+              ],
+            ],
           ),
         ),
       ),
-      glow: large || s.color != 0xffd4af37 ? Color(s.color) : null,
-    );
+    ),
+  ),
+);
 
 Widget _fitPane(Widget child) => LayoutBuilder(
   builder: (context, box) => FittedBox(
@@ -700,6 +787,8 @@ Widget _memberCoins(List<PagesPerson> people, double diameter) {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   center: Alignment(-.32, -.44),
+                  radius: .8,
+                  stops: [0, .4, .88],
                   colors: [
                     Color(0xfffbe7a4),
                     Color(0xffdcb44b),

@@ -31,10 +31,12 @@ class PagesFeedCandidate {
     this.joinable = false,
     this.ownShared = false,
     this.actor = '',
+    this.actorId,
   });
   final PagesFlow flow;
   final DateTime at;
   final String reason, actor;
+  final String? actorId;
   final bool unresolved, joinable, ownShared;
 }
 

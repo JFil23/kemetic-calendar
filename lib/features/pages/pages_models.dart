@@ -28,12 +28,13 @@ class PagesSignal {
     this.label = '',
     this.detail = '',
     this.glyph = '',
+    this.status = '',
     this.color = 0xffd4af37,
     this.progress,
     this.glyphIds = const [],
     this.people = const [],
   });
-  final String title, label, detail, glyph;
+  final String title, label, detail, glyph, status;
   final int color;
   final double? progress;
   final List<String> glyphIds;
@@ -52,8 +53,10 @@ class PagesFlow {
     this.start,
     this.end,
     this.imageBytes,
+    this.maatKey,
   });
   final String id, name;
+  final String? maatKey;
   final FlowAppearance appearance;
   final int color, completed, total;
   final DateTime? start, end;
