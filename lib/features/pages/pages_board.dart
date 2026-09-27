@@ -268,81 +268,91 @@ class PagesTile extends StatelessWidget {
                 ),
               ),
               IgnorePointer(
-                child: SizedBox(
-                  height: 30,
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    child: SizedBox(
-                      width: 360,
-                      child: CalendarCompletionPicker(
-                        current:
-                            card.studioSnapshot?.completion ??
-                            CompletionStatus.none,
-                        onChanged: (_) {},
-                        onReflect: () {},
-                      ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(9, 3, 9, 9),
+                  child: CalendarCompletionPicker(
+                    current:
+                        card.studioSnapshot?.completion ??
+                        CompletionStatus.none,
+                    onChanged: (_) {},
+                    style: const CalendarCompletionPickerStyle(
+                      label: '',
+                      labelGap: 0,
+                      containerPadding: EdgeInsets.zero,
+                      containerColor: Colors.transparent,
+                      containerBorderColor: Colors.transparent,
+                      containerBorderWidth: 0,
+                      buttonGap: 4,
+                      buttonRadius: 7,
+                      buttonFontFamily: 'GentiumPlus',
+                      buttonFontSize: 9,
+                      buttonFontWeight: FontWeight.w400,
+                      buttonPadding: EdgeInsets.zero,
+                      buttonMinimumSize: Size(0, 24),
+                      buttonTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      buttonVisualDensity: VisualDensity.compact,
+                      unselectedForegroundColor: Color(0xFFB6BAC5),
+                      unselectedBorderColor: Color(0xFF303440),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
             ],
           ),
         );
       case PagesDestination.journal:
         return IgnorePointer(
-          child: FittedBox(
-            fit: BoxFit.fill,
-            child: SizedBox(
-              width: 350,
-              height: 260,
-              child: JournalBadgesArea(height: 260, badges: card.badges),
+          child: LayoutBuilder(
+            builder: (context, box) => JournalBadgesArea(
+              pane: true,
+              height: box.maxHeight,
+              badges: card.badges,
             ),
           ),
         );
       case PagesDestination.library:
         return _ground(
           const Color(0xff110e08),
-          Stack(
-            children: [
-              Positioned(
-                left: 5,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: 2,
-                  color: pagesGold.withValues(alpha: .6),
-                ),
-              ),
-              Positioned.fill(
-                child: Center(child: _glyph(card.primary.glyph, 34)),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 11, 9),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: Center(child: _glyph(card.primary.glyph, 38))),
+                const SizedBox(height: 5),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      card.primary.title,
-                      style: pagesSerif(17, color: const Color(0xffe6c86f)),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    if (card.primary.progress != null)
-                      LinearProgressIndicator(
-                        value: card.primary.progress! / 100,
-                        minHeight: 2,
-                        color: pagesGold,
-                        backgroundColor: const Color(0xff4b412c),
+                    Expanded(
+                      child: Text(
+                        card.primary.title,
+                        style: pagesSerif(18, color: const Color(0xffe6c86f)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    const SizedBox(height: 4),
-                    _micro(card.primary.detail),
+                    ),
+                    if (card.primary.progress != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '${card.primary.progress!.round()}%',
+                        style: pagesSerif(11, color: const Color(0xffa39d92)),
+                      ),
+                    ],
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 7),
+                if (card.primary.progress != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: card.primary.progress! / 100,
+                      minHeight: 2,
+                      color: pagesGold,
+                      backgroundColor: const Color(0xff39301e),
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       case PagesDestination.inbox:
@@ -355,36 +365,90 @@ class PagesTile extends StatelessWidget {
           titleSize: 13.5,
         );
       case PagesDestination.calendars:
-        return _signal(
-          card.primary,
-          large: true,
-          base: const Color(0xff0b0a12),
-          ink: const Color(0xffc3b8ff),
+        return _ground(
+          const Color(0xff0b0a12),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (card.primary.people.isNotEmpty)
+                  _memberCoins(card.primary.people, 25),
+                const SizedBox(height: 8),
+                Text(
+                  card.primary.title,
+                  textAlign: TextAlign.center,
+                  style: pagesSerif(17, color: const Color(0xffc3b8ff)),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  card.primary.detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: pagesSerif(10, color: const Color(0xffa39d92)),
+                ),
+              ],
+            ),
+          ),
         );
       case PagesDestination.calendar:
         return _calendar();
     }
   }
 
-  Widget _upper() => _signal(
-    card.upper,
-    base: switch (card.destination) {
-      PagesDestination.studio => const Color(0xff090c10),
-      PagesDestination.calendars => const Color(0xff07110d),
-      PagesDestination.inbox => const Color(0xff0d0b07),
-      PagesDestination.journal => const Color(0xff141006),
-      _ => const Color(0xff0d0b08),
-    },
-    ink: switch (card.destination) {
-      PagesDestination.studio => const Color(0xffc9d5e2),
-      PagesDestination.calendars => const Color(0xff7fdcbc),
-      PagesDestination.journal => const Color(0xffd7c49a),
-      _ => const Color(0xffdcb850),
-    },
-    avatar:
-        card.destination == PagesDestination.inbox ||
-        card.destination == PagesDestination.feed,
-  );
+  Widget _upper() => card.destination == PagesDestination.calendars
+      ? _ground(
+          const Color(0xff07110d),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (card.upper.glyph.isNotEmpty)
+                  Text(
+                    card.upper.glyph,
+                    style: const TextStyle(
+                      fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                      fontSize: 23,
+                      height: 1,
+                      color: Color(0xff7fdcbc),
+                    ),
+                  ),
+                const SizedBox(height: 3),
+                Flexible(
+                  child: Text(
+                    card.upper.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: pagesSerif(11, color: const Color(0xff7fdcbc)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )
+      : _signal(
+          card.upper,
+          base: switch (card.destination) {
+            PagesDestination.studio => const Color(0xff090c10),
+            PagesDestination.calendars => const Color(0xff07110d),
+            PagesDestination.inbox => const Color(0xff0d0b07),
+            PagesDestination.journal => const Color(0xff141006),
+            _ => const Color(0xff0d0b08),
+          },
+          ink: switch (card.destination) {
+            PagesDestination.studio => const Color(0xffc9d5e2),
+            PagesDestination.calendars => const Color(0xff7fdcbc),
+            PagesDestination.journal => const Color(0xffd7c49a),
+            _ => const Color(0xffdcb850),
+          },
+          avatar:
+              card.destination == PagesDestination.inbox ||
+              card.destination == PagesDestination.feed,
+        );
   Widget _lower() {
     if (card.destination == PagesDestination.journal) {
       return _ground(
@@ -419,42 +483,39 @@ class PagesTile extends StatelessWidget {
       return _ground(
         const Color(0xff0d0b08),
         Center(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: SizedBox(
-              width: 39,
-              child: Wrap(
-                spacing: 5,
-                runSpacing: 4,
-                children: card.calendars
-                    .map(
-                      (c) => Opacity(
-                        opacity: c.visible ? 1 : .35,
+          child: SizedBox(
+            width: 39,
+            child: Wrap(
+              spacing: 5,
+              runSpacing: 4,
+              children: card.calendars
+                  .map(
+                    (c) => Opacity(
+                      opacity: c.visible ? 1 : .35,
+                      child: Container(
+                        width: 17,
+                        height: 10,
+                        padding: const EdgeInsets.all(1),
+                        decoration: BoxDecoration(
+                          color: Color(c.color).withValues(alpha: .3),
+                          border: Border.all(color: Color(c.color)),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        alignment: c.visible
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
-                          width: 17,
-                          height: 10,
-                          padding: const EdgeInsets.all(1),
+                          width: 6,
+                          height: 6,
                           decoration: BoxDecoration(
-                            color: Color(c.color).withValues(alpha: .3),
-                            border: Border.all(color: Color(c.color)),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          alignment: c.visible
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Color(c.color),
-                            ),
+                            shape: BoxShape.circle,
+                            color: Color(c.color),
                           ),
                         ),
                       ),
-                    )
-                    .toList(),
-              ),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
         ),

@@ -73,3 +73,32 @@ resolver uses its existing HTTP invocation but performs no database writes.
 Static fixtures establish visual geometry and shared renderer fidelity. Live
 content naturally differs with the account, date and next scheduled event.
 Exact-commit CI and sealed artifact receipts are the release authority.
+
+## Native pane refinement
+
+The subsequent user review supersedes the scaled full-section presentation:
+Calendar, Planner and Inbox are retained; remaining feature UI is composed for
+its actual pane bounds. The board geometry, outside captions, fixed header,
+selection rules, read budget, and destinations remain unchanged.
+
+Commons now presents its actual question with readable typography and a single
+Commons entry point instead of a miniature disabled answer form. Journal uses
+its actual first visible badge and total count, or the existing empty glyph,
+without a nested badge-area frame. Library separates the centered glyph from
+the title/progress row. Calendars uses native text sizing in the same collage.
+
+Flow previews give their existing instruments the pane bounds. Sheet headings
+and forms are omitted, while the original drawing, state and identity remain.
+Kꜣr fits only its authored vector art uniformly; it does not shrink a sheet.
+The shared completion control uses compact native typography and padding.
+All default feature-screen presentation modes remain unchanged.
+
+Verification includes native captures of empty/populated Journal and all five
+built-in instruments, explicit nonzero Djed drawing bounds, responsive page
+layout, and canonical navigation. The pane widgets introduce no repositories,
+network calls, timers or persistence.
+
+The final refinement check passes 48 Pages/Djed tests; the other 144 shared
+feature checks in the broader run passed. Calendar, Planner and Inbox board
+crops are pixel-identical to the prior native reference. Analyzer has no new
+errors or warnings. Final exact-commit CI is required before RC upload.

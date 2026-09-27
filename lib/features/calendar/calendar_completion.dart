@@ -315,38 +315,40 @@ class CalendarCompletionPicker extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (pickerStyle.labelDividerColor == null)
-            Text(
-              pickerStyle.label,
-              style: TextStyle(
-                color: pickerStyle.labelColor,
-                fontSize: pickerStyle.labelFontSize,
-                fontWeight: pickerStyle.labelFontWeight,
-                letterSpacing: pickerStyle.labelLetterSpacing,
+          if (pickerStyle.label.isNotEmpty) ...[
+            if (pickerStyle.labelDividerColor == null)
+              Text(
+                pickerStyle.label,
+                style: TextStyle(
+                  color: pickerStyle.labelColor,
+                  fontSize: pickerStyle.labelFontSize,
+                  fontWeight: pickerStyle.labelFontWeight,
+                  letterSpacing: pickerStyle.labelLetterSpacing,
+                ),
+              )
+            else
+              Row(
+                children: <Widget>[
+                  Text(
+                    pickerStyle.label,
+                    style: TextStyle(
+                      color: pickerStyle.labelColor,
+                      fontSize: pickerStyle.labelFontSize,
+                      fontWeight: pickerStyle.labelFontWeight,
+                      letterSpacing: pickerStyle.labelLetterSpacing,
+                    ),
+                  ),
+                  SizedBox(width: pickerStyle.labelDividerGap),
+                  Expanded(
+                    child: SizedBox(
+                      height: pickerStyle.labelDividerThickness,
+                      child: ColoredBox(color: pickerStyle.labelDividerColor!),
+                    ),
+                  ),
+                ],
               ),
-            )
-          else
-            Row(
-              children: <Widget>[
-                Text(
-                  pickerStyle.label,
-                  style: TextStyle(
-                    color: pickerStyle.labelColor,
-                    fontSize: pickerStyle.labelFontSize,
-                    fontWeight: pickerStyle.labelFontWeight,
-                    letterSpacing: pickerStyle.labelLetterSpacing,
-                  ),
-                ),
-                SizedBox(width: pickerStyle.labelDividerGap),
-                Expanded(
-                  child: SizedBox(
-                    height: pickerStyle.labelDividerThickness,
-                    child: ColoredBox(color: pickerStyle.labelDividerColor!),
-                  ),
-                ),
-              ],
-            ),
-          SizedBox(height: pickerStyle.labelGap),
+            SizedBox(height: pickerStyle.labelGap),
+          ],
           if (leadingContent != null) ...[
             leadingContent!,
             SizedBox(height: pickerStyle.labelGap),

@@ -281,7 +281,31 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
       key: const ValueKey<String>('kar-fixed-hero'),
       child: _buildHeroLayer(cycle),
     );
-    if (widget.graphicOnly) return hero;
+    if (widget.graphicOnly) {
+      return Container(
+        decoration: _heroDecoration(),
+        foregroundDecoration: _heroGlow(),
+        padding: const EdgeInsets.all(8),
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: widget.stageIndex == 5 || (cycle != null && _isReturn(cycle))
+              ? KarDayShrineVisual(
+                  color: Color(widget.netjer.accentValue),
+                  placedStages: _placedStages(cycle),
+                  currentStage: widget.stageIndex == 5
+                      ? null
+                      : widget.stageIndex,
+                )
+              : KarShrineVisual(
+                  color: Color(widget.netjer.accentValue),
+                  currentColor: Color(widget.netjer.accent2Value),
+                  placed: cycle?.placedCount ?? 0,
+                  currentStage: widget.stageIndex,
+                  pastStages: {for (var i = 0; i < widget.stageIndex; i++) i},
+                ),
+        ),
+      );
+    }
     final heroControls = _buildHeroControls(
       cycle,
       availableHeight: _fixedHeroHeight,

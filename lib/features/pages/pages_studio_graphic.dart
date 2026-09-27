@@ -55,13 +55,8 @@ class PagesStudioGraphic extends StatelessWidget {
   final PagesUpcomingEvent? event;
   final PagesStudioSnapshot? snapshot;
 
-  Widget _sheetGraphic(Widget graphic, {double height = 300}) => IgnorePointer(
-    child: ExcludeFocus(
-      child: FittedBox(
-        fit: BoxFit.fill,
-        child: SizedBox(width: 390, height: height, child: graphic),
-      ),
-    ),
+  Widget _sheetGraphic(Widget graphic) => IgnorePointer(
+    child: ExcludeFocus(child: SizedBox.expand(child: graphic)),
   );
 
   @override
@@ -115,6 +110,7 @@ class PagesStudioGraphic extends StatelessWidget {
             fixture: fixture,
             supports: djedV2SupportFixtures(flow.notes, e.behavior),
             stageHeight: 230,
+            graphicOnly: true,
           ),
         ),
       );
@@ -127,12 +123,12 @@ class PagesStudioGraphic extends StatelessWidget {
           stageIndex: karStageIndexFromPayload(e.behavior),
           shrine: data.kar,
         ),
-        height: 354,
       );
     }
     if (flow.maatKey == 'the-reading-house') {
       return _sheetGraphic(
         ReadingHouseChatRoom(
+          pane: true,
           fixture: readingHouseSnapshotVisualFixture(
             context: context,
             summary: data.room,

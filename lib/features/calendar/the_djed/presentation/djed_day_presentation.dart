@@ -156,14 +156,23 @@ class DjedDayInstrument extends StatelessWidget {
     required this.fixture,
     required this.supports,
     required this.stageHeight,
+    this.graphicOnly = false,
   });
 
   final DjedDayVisualFixture fixture;
   final List<DjedSupportFixture> supports;
   final double stageHeight;
+  final bool graphicOnly;
 
   @override
   Widget build(BuildContext context) {
+    if (graphicOnly) {
+      return DjedSittingStage(
+        fixture: fixture,
+        supports: supports,
+        showLegend: false,
+      );
+    }
     final sitting =
         kDjedSittingFixtures[(fixture.sittingNumber - 1).clamp(
           0,
@@ -229,24 +238,35 @@ class DjedSittingStage extends StatelessWidget {
     super.key,
     required this.fixture,
     required this.supports,
+    this.showLegend = true,
   });
 
   final DjedDayVisualFixture fixture;
   final List<DjedSupportFixture> supports;
+  final bool showLegend;
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _DjedSheetStagePainter(fixture: fixture, supports: supports),
+      painter: _DjedSheetStagePainter(
+        fixture: fixture,
+        supports: supports,
+        showLegend: showLegend,
+      ),
     );
   }
 }
 
 class _DjedSheetStagePainter extends CustomPainter {
-  const _DjedSheetStagePainter({required this.fixture, required this.supports});
+  const _DjedSheetStagePainter({
+    required this.fixture,
+    required this.supports,
+    required this.showLegend,
+  });
 
   final DjedDayVisualFixture fixture;
   final List<DjedSupportFixture> supports;
+  final bool showLegend;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -273,13 +293,15 @@ class _DjedSheetStagePainter extends CustomPainter {
       (size.height - drawingSize.height) / 2,
     );
 
-    canvas.drawLine(
-      Offset(17, size.height - 27),
-      Offset(size.width - 17, size.height - 27),
-      Paint()
-        ..color = const Color(0x2ED4AE43)
-        ..strokeWidth = 1,
-    );
+    if (showLegend) {
+      canvas.drawLine(
+        Offset(17, size.height - 27),
+        Offset(size.width - 17, size.height - 27),
+        Paint()
+          ..color = const Color(0x2ED4AE43)
+          ..strokeWidth = 1,
+      );
+    }
 
     canvas.save();
     canvas.translate(drawingOffset.dx, drawingOffset.dy);
@@ -326,6 +348,8 @@ class _DjedSheetStagePainter extends CustomPainter {
     );
     canvas.restore();
 
+    if (!showLegend) return;
+
     if (fixture.raised) {
       final progressText = TextPainter(
         text: const TextSpan(
@@ -359,7 +383,9 @@ class _DjedSheetStagePainter extends CustomPainter {
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout();
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(0, size.width - 20));
     angleText.paint(
       canvas,
       Offset(
@@ -541,7 +567,9 @@ class _DjedSheetStagePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DjedSheetStagePainter oldDelegate) =>
-      oldDelegate.fixture != fixture || oldDelegate.supports != supports;
+      oldDelegate.showLegend != showLegend ||
+      oldDelegate.fixture != fixture ||
+      oldDelegate.supports != supports;
 }
 
 List<Color> _supportGradient(DjedSupportCondition condition) =>

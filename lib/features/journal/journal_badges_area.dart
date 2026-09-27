@@ -9,6 +9,7 @@ class JournalBadgesArea extends StatelessWidget {
     required this.height,
     required this.badges,
     this.compact = false,
+    this.pane = false,
     this.pageMode = false,
     this.scrollController,
     this.expandedIds = const {},
@@ -17,7 +18,7 @@ class JournalBadgesArea extends StatelessWidget {
   });
   final double height;
   final List<EventBadgeToken> badges;
-  final bool compact, pageMode;
+  final bool compact, pageMode, pane;
   final ScrollController? scrollController;
   final Set<String> expandedIds;
   final ValueChanged<EventBadgeToken>? onDelete;
@@ -27,6 +28,8 @@ class JournalBadgesArea extends StatelessWidget {
     final badgeCountLabel = badges.isEmpty
         ? 'No badges yet'
         : '${badges.length} badge${badges.length == 1 ? '' : 's'}';
+
+    if (pane) return _buildPane(badgeCountLabel);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -90,6 +93,61 @@ class JournalBadgesArea extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildPane(String count) => ColoredBox(
+    color: const Color(0xFF0A0910),
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'BADGES',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 7,
+                  letterSpacing: 1.2,
+                  color: Color(0xFFD4AF37),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  count,
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'GentiumPlus',
+                    fontSize: 9,
+                    color: Color(0xFF938B9E),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: badges.isEmpty
+                ? const JournalEmptyBadgeGlyph(
+                    width: 100,
+                    height: 40,
+                    fontSize: 40,
+                  )
+                : Center(
+                    child: EventBadgeWidget(
+                      token: badges.first,
+                      expandable: false,
+                      pane: true,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _buildCompactBadgeList(List<EventBadgeToken> badges) {
     if (badges.isEmpty) {

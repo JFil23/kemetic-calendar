@@ -274,7 +274,13 @@ class _FollowSkyObservationPresentationState
 
   @override
   Widget build(BuildContext context) {
-    if (widget.graphicOnly) return _buildSky();
+    if (widget.graphicOnly) {
+      return FollowSkyInstrumentSurface(
+        data: widget.model.instrument,
+        peakMarker: widget.model.peakMarker,
+        controller: _instrumentController,
+      );
+    }
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('follow-sky-observation-presentation'),
       decoration: const BoxDecoration(

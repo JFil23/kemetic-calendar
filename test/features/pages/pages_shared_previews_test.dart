@@ -1,3 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile/features/calendar/the_kar/the_kar_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +24,18 @@ import 'package:mobile/features/pages/pages_models.dart';
 import 'package:mobile/features/pages/pages_studio_graphic.dart';
 
 void main() {
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final fonts =
+        jsonDecode(await rootBundle.loadString('FontManifest.json')) as List;
+    for (final font in fonts) {
+      final loader = FontLoader(font['family']);
+      for (final asset in font['fonts']) {
+        loader.addFont(rootBundle.load(asset['asset']));
+      }
+      await loader.load();
+    }
+  });
   test('Commons selects today only and preserves the saved answer', () {
     final date = DateTime(2026, 9, 27),
         seed = commonsQuestionSeed(DateTime(2026, 9, 27));
@@ -76,7 +93,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('1 badge'), findsOneWidget);
       expect(find.text('Actual badge'), findsOneWidget);
-      await tester.tap(find.byType(EventBadgeWidget));
+      expect(
+        find.descendant(
+          of: find.byType(PagesTile),
+          matching: find.byType(FittedBox),
+        ),
+        findsNothing,
+      );
+      await capturePane(tester, 'journal-populated');
+      await tester.tap(find.byType(PagesTile));
       expect(taps, 1);
       expect(tester.takeException(), isNull);
     },
@@ -159,7 +184,49 @@ void main() {
       };
       expect(find.byType(type), findsOneWidget, reason: key);
       expect(tester.takeException(), isNull, reason: key);
+      if (key == 'the-djed') {
+        expect(
+          tester.getSize(find.byType(DjedSittingStage)).width,
+          greaterThan(150),
+        );
+      }
+      expect(
+        find.descendant(
+          of: find.byType(PagesTile),
+          matching: find.byType(FittedBox),
+        ),
+        key == 'the-kar' ? findsOneWidget : findsNothing,
+        reason: key,
+      );
+      await capturePane(tester, key);
     }
     await tester.pumpWidget(const SizedBox());
+  });
+}
+
+Future<void> capturePane(WidgetTester tester, String name) async {
+  final dir = Platform.environment['HAW_PANES_CAPTURE_DIR'];
+  if (dir == null) return;
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find
+        .descendant(
+          of: find.byType(PagesTile),
+          matching: find.byType(RepaintBoundary),
+        )
+        .first,
+  );
+  void repaint(RenderObject node) {
+    node.markNeedsPaint();
+    node.visitChildren(repaint);
+  }
+
+  repaint(boundary);
+  await tester.pump();
+  await tester.runAsync(() async {
+    final image = await boundary.toImage(pixelRatio: 3);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    await Directory(dir).create(recursive: true);
+    await File('$dir/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
+    image.dispose();
   });
 }

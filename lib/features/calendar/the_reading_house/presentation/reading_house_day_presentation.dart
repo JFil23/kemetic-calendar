@@ -201,6 +201,7 @@ class ReadingHouseChatRoom extends StatelessWidget {
     this.onSendMessage,
     this.onJumpToLatest,
     this.messagesTopAligned = false,
+    this.pane = false,
   });
 
   final ReadingHouseDayVisualFixture fixture;
@@ -211,6 +212,7 @@ class ReadingHouseChatRoom extends StatelessWidget {
   final ValueChanged<String>? onSendMessage;
   final VoidCallback? onJumpToLatest;
   final bool messagesTopAligned;
+  final bool pane;
 
   @override
   Widget build(BuildContext context) {
@@ -245,40 +247,81 @@ class ReadingHouseChatRoom extends StatelessWidget {
             ),
           ),
         ),
-        Positioned(
-          left: 16,
-          right: 16,
-          top: 16,
-          height: 54,
-          child: _HouseChatHeader(fixture: fixture),
-        ),
-        Positioned(
-          left: 16,
-          right: 16,
-          top: 80,
-          bottom: 68,
-          child: _HouseChatBody(
-            fixture: fixture,
-            scrollController: scrollController,
-            onFollowingLatestChanged: onFollowingLatestChanged,
-            onLoadOlderMessages: onLoadOlderMessages,
-            onDeleteMessage: onDeleteMessage,
-            messagesTopAligned: messagesTopAligned,
+        if (pane)
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  fixture.roomState == ReadingHouseRoomVisualState.solo
+                      ? 'PRIVATE READING'
+                      : 'HOUSE CHAT',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 7,
+                    letterSpacing: 1.1,
+                    color: ReadingHouseDayTokens.mint,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      fixture.messages.isNotEmpty
+                          ? fixture.messages.last.body
+                          : fixture.roomSubtitle,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'CormorantGaramond',
+                        fontSize: 16,
+                        height: 1.05,
+                        color: ReadingHouseDayTokens.bone,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        Positioned(
-          left: 16,
-          right: 16,
-          bottom: 10,
-          height: 46,
-          child: ReadingHouseChatComposer(
-            state: fixture.roomState,
-            newMessageCount: fixture.newMessageCount,
-            onSend: onSendMessage,
-            onJumpToLatest: onJumpToLatest,
-            compact: true,
+        if (!pane)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 16,
+            height: 54,
+            child: _HouseChatHeader(fixture: fixture),
           ),
-        ),
+        if (!pane)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 80,
+            bottom: 68,
+            child: _HouseChatBody(
+              fixture: fixture,
+              scrollController: scrollController,
+              onFollowingLatestChanged: onFollowingLatestChanged,
+              onLoadOlderMessages: onLoadOlderMessages,
+              onDeleteMessage: onDeleteMessage,
+              messagesTopAligned: messagesTopAligned,
+            ),
+          ),
+        if (!pane)
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 10,
+            height: 46,
+            child: ReadingHouseChatComposer(
+              state: fixture.roomState,
+              newMessageCount: fixture.newMessageCount,
+              onSend: onSendMessage,
+              onJumpToLatest: onJumpToLatest,
+              compact: true,
+            ),
+          ),
       ],
     );
   }

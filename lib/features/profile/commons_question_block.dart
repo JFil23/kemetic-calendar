@@ -179,6 +179,7 @@ class CommonsQuestionBlock extends StatelessWidget {
     required this.composer,
     required this.answerBuilder,
     this.topPadding = 28,
+    this.pane = false,
     this.editing = false,
     this.loading = false,
   });
@@ -186,6 +187,7 @@ class CommonsQuestionBlock extends StatelessWidget {
   final Widget composer;
   final Widget Function(CommonsAnswer, bool) answerBuilder;
   final bool editing, loading;
+  final bool pane;
   final double topPadding;
   @override
   Widget build(BuildContext context) {
@@ -194,6 +196,78 @@ class CommonsQuestionBlock extends StatelessWidget {
       '',
     );
     final hasQuestion = questionText.isNotEmpty;
+    if (pane) {
+      return ColoredBox(
+        color: const Color(0xFF100D07),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'QUESTION OF THE DAY',
+                maxLines: 1,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 7,
+                  letterSpacing: 1,
+                  color: _profileGoldText,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    hasQuestion ? questionText : 'No question today',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: _profileSerifFont,
+                      fontSize: 20,
+                      height: 1.02,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFFF2ECE0),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 7),
+              Container(
+                padding: const EdgeInsets.only(top: 7),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Color(0x30E8BE54))),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        question.myAnswer != null
+                            ? 'Your answer in Commons'
+                            : 'Answer in Commons',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: _profileSerifFont,
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                          color: _profileGoldText,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 11,
+                      color: _profileGoldText,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final myAnswer = question.myAnswer;
     final answerCount = question.answers
         .where((answer) => answer.id != myAnswer?.id)
