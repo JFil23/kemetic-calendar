@@ -102,3 +102,14 @@ The final refinement check passes 48 Pages/Djed tests; the other 144 shared
 feature checks in the broader run passed. Calendar, Planner and Inbox board
 crops are pixel-identical to the prior native reference. Analyzer has no new
 errors or warnings. Final exact-commit CI is required before RC upload.
+
+## Commons visual restoration
+
+The Feed pane again uses the Commons section heading (including II and its
+rule), gold card frame, daily-reflection label, original question typeface and
+line-height, and inset answer area. Spacing is composed at native pane bounds.
+The saved-answer preview uses the actual answer body; unanswered state uses the
+Commons placeholder and truthful public-answer status. Tapping still opens the
+existing Commons page for editing. Other panes, data selection and reads are
+unchanged. Narrow and standard-width checks cover saved/unanswered states and
+verify the question's glyph boxes fit within its allocated height.

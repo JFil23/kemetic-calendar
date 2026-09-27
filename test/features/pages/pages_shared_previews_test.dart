@@ -60,6 +60,68 @@ void main() {
     expect(q.question, seed.text);
     expect(q.myAnswer?.bodyText, answer.bodyText);
   });
+  testWidgets('Commons pane retains its section and real answer states', (
+    tester,
+  ) async {
+    for (final width in [150.0, 186.5]) {
+      for (final answered in [false, true]) {
+        const saved = CommonsAnswer(
+          id: 'saved',
+          questionId: 'today',
+          userId: 'viewer',
+          bodyText: 'A real saved reflection',
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.dark,
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: width,
+                  height: width / 1.49 + 43,
+                  child: PagesTile(
+                    card: PagesCard(
+                      PagesDestination.feed,
+                      state: PagesLoadState.ready,
+                      question: CommonsQuestion(
+                        id: 'today',
+                        question: 'Is my seeing coarsening?',
+                        myAnswer: answered ? saved : null,
+                      ),
+                    ),
+                    onTap: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('II'), findsOneWidget);
+        expect(find.text("FROM TODAY'S DAILY REFLECTION"), findsOneWidget);
+        expect(find.text('Is my seeing coarsening?'), findsOneWidget);
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find.text('Is my seeing coarsening?'),
+        );
+        final lines = paragraph.getBoxesForSelection(
+          const TextSelection(baseOffset: 0, extentOffset: 24),
+        );
+        for (final line in lines) {
+          expect(line.bottom, lessThanOrEqualTo(paragraph.size.height + 1));
+        }
+        expect(
+          find.text(answered ? saved.bodyText : 'Answer in the Commons'),
+          findsOneWidget,
+        );
+        expect(find.byType(TextField), findsNothing);
+        expect(find.byType(FittedBox), findsNothing);
+        expect(tester.takeException(), isNull);
+        if (width == 186.5) {
+          await capturePane(tester, answered ? 'feed-saved' : 'feed-open');
+        }
+      }
+    }
+  });
   testWidgets(
     'shared badge area renders actual tokens without preview controls taking taps',
     (tester) async {
