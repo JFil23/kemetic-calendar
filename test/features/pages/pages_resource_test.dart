@@ -263,7 +263,7 @@ void main() {
       controller.setVisible(true);
       await drain();
       final cold = requests.length;
-      expect(cold, 16);
+      expect(cold, 15);
       final todoQuery = requests
           .singleWhere((r) => r.url.path.endsWith('/todos'))
           .url

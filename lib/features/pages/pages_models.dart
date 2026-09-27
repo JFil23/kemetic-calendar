@@ -1,3 +1,7 @@
+import 'pages_arrangement.dart' show PagesUpcomingEvent;
+import 'pages_studio_graphic.dart' show PagesStudioSnapshot;
+import '../../data/commons_models.dart';
+import '../journal/journal_event_badge.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/flow_appearance.dart';
 import '../calendar/day_view.dart' show NoteData;
@@ -55,9 +59,10 @@ class PagesFlow {
     this.end,
     this.imageBytes,
     this.maatKey,
+    this.notes,
   });
   final String id, name;
-  final String? maatKey;
+  final String? maatKey, notes;
   final FlowAppearance appearance;
   final int color, completed, total;
   final DateTime? start, end;
@@ -87,11 +92,15 @@ class PagesCard {
     this.upper = const PagesSignal(''),
     this.lower = const PagesSignal(''),
     this.flow,
+    this.event,
+    this.studioSnapshot,
     this.days = const [],
     this.weekdays = const [],
     this.week = const [],
     this.calendars = const [],
     this.unread = 0,
+    this.question,
+    this.badges = const [],
     this.calendarDate,
     this.showGregorian = false,
     this.calendarNotes = const {},
@@ -106,11 +115,15 @@ class PagesCard {
   final String meta;
   final PagesSignal primary, upper, lower;
   final PagesFlow? flow;
+  final PagesUpcomingEvent? event;
+  final PagesStudioSnapshot? studioSnapshot;
   final List<PagesCalendarDay> days;
   final List<String> weekdays;
   final List<bool> week;
   final List<({int color, bool visible})> calendars;
   final int unread;
+  final CommonsQuestion? question;
+  final List<EventBadgeToken> badges;
   String get title => switch (destination) {
     PagesDestination.calendar => 'Calendar',
     PagesDestination.feed => 'Feed',

@@ -18,6 +18,7 @@ class FollowSkyObservationPresentation extends StatefulWidget {
     super.key,
     required this.model,
     this.now,
+    this.graphicOnly = false,
     this.clientEventId,
     this.completionIdentity,
     this.skyEventId,
@@ -45,6 +46,7 @@ class FollowSkyObservationPresentation extends StatefulWidget {
        );
 
   final FollowSkyObservationPresentationModel model;
+  final bool graphicOnly;
   final DateTime Function()? now;
   final String? clientEventId;
   final String? completionIdentity;
@@ -112,7 +114,7 @@ class _FollowSkyObservationPresentationState
     _reflectionController.addListener(_onReflectionChanged);
     _turning = _createTurningController();
     unawaited(_loadTurning());
-    if (_isWithinTrackingWindow(now)) {
+    if (!widget.graphicOnly && _isWithinTrackingWindow(now)) {
       _startLiveTracking(now);
     }
   }
@@ -132,7 +134,7 @@ class _FollowSkyObservationPresentationState
         track: widget.model.track,
         now: now,
       );
-      if (_isWithinTrackingWindow(now)) {
+      if (!widget.graphicOnly && _isWithinTrackingWindow(now)) {
         _startLiveTracking(now);
       }
       _reflectionOpen = false;
@@ -162,6 +164,7 @@ class _FollowSkyObservationPresentationState
   }
 
   FollowSkyTurningController? _createTurningController() {
+    if (widget.graphicOnly) return null;
     final injected = widget.turningController;
     if (injected != null) return injected;
     final clientEventId = widget.clientEventId;
@@ -271,6 +274,7 @@ class _FollowSkyObservationPresentationState
 
   @override
   Widget build(BuildContext context) {
+    if (widget.graphicOnly) return _buildSky();
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('follow-sky-observation-presentation'),
       decoration: const BoxDecoration(

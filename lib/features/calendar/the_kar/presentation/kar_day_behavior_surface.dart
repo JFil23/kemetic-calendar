@@ -49,6 +49,35 @@ class KarDayBehaviorSurface extends StatelessWidget {
   }
 }
 
+/// Passive view of the exact Day View graphic; no repository or write owner.
+class KarDayGraphic extends StatelessWidget {
+  const KarDayGraphic({
+    super.key,
+    required this.netjer,
+    required this.flowId,
+    required this.stageIndex,
+    this.shrine,
+  });
+  final KarNetjer netjer;
+  final int flowId, stageIndex;
+  final KarShrine? shrine;
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: _KarSittingBehaviorCore(
+      repository: null,
+      netjer: netjer,
+      flowId: flowId,
+      stageIndex: stageIndex,
+      completionPanel: null,
+      onCompletionCommit: null,
+      clock: null,
+      presentationMode: _KarSittingPresentationMode.dayView,
+      initialShrine: shrine,
+      graphicOnly: true,
+    ),
+  );
+}
+
 class KarDetailSittingBehaviorSurface extends StatelessWidget {
   const KarDetailSittingBehaviorSurface({
     super.key,
@@ -98,6 +127,8 @@ class _KarSittingBehaviorCore extends StatefulWidget {
     required this.onCompletionCommit,
     required this.clock,
     required this.presentationMode,
+    this.initialShrine,
+    this.graphicOnly = false,
   });
 
   final KarRepository? repository;
@@ -108,6 +139,8 @@ class _KarSittingBehaviorCore extends StatefulWidget {
   final Future<void> Function()? onCompletionCommit;
   final DateTime Function()? clock;
   final _KarSittingPresentationMode presentationMode;
+  final KarShrine? initialShrine;
+  final bool graphicOnly;
 
   @override
   State<_KarSittingBehaviorCore> createState() =>
@@ -141,6 +174,7 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
   @override
   void initState() {
     super.initState();
+    _shrine = widget.initialShrine;
     if (widget.repository == null) {
       _loading = false;
     } else {
@@ -230,7 +264,7 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
       );
     }
     final cycle = _cycle;
-    if (cycle == null && widget.repository != null) {
+    if (cycle == null && (widget.repository != null || widget.graphicOnly)) {
       return SizedBox(
         key: const ValueKey<String>('kar-day-missing-cycle'),
         height: 340,
@@ -247,6 +281,7 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
       key: const ValueKey<String>('kar-fixed-hero'),
       child: _buildHeroLayer(cycle),
     );
+    if (widget.graphicOnly) return hero;
     final heroControls = _buildHeroControls(
       cycle,
       availableHeight: _fixedHeroHeight,

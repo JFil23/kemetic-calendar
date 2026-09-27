@@ -28,6 +28,7 @@ class JournalEmptyBadgeGlyph extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: kJournalEmptyBadgeGlyphColor,
+              fontFamily: 'Noto Sans Egyptian Hieroglyphs',
               fontSize: fontSize,
               fontWeight: FontWeight.w300,
               height: 1,

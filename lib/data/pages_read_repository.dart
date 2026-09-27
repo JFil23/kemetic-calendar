@@ -1,3 +1,5 @@
+import 'commons_question_selection.dart';
+import '../features/journal/journal_event_badge.dart';
 import '../features/calendar/day_view.dart' show NoteData;
 import '../features/calendar/kemetic_month_metadata.dart';
 import '../widgets/kemetic_date_picker.dart' show KemeticMath;
@@ -198,6 +200,7 @@ class PagesReadRepository {
             name: f.name,
             appearance: f.appearance,
             maatKey: notesDecode(f.notes).maatKey,
+            notes: f.notes,
             color: 0xff000000 | f.color,
             total: f.totalEventCount,
             completed: (f.totalEventCount - f.remainingEventCount).clamp(
@@ -328,12 +331,13 @@ class PagesReadRepository {
   }
 
   Future<CommonsHomeSnapshot> commons() async {
+    final seed = commonsQuestionSeed(DateTime.now());
     final json = await client.rpc(
       'get_commons_together_home_cards',
       params: {
         'p_local_date': dayKey(DateTime.now()),
-        'p_question_id': '',
-        'p_question_text': '',
+        'p_question_id': seed.id,
+        'p_question_text': seed.text,
         'p_limit': 6,
       },
     );
@@ -452,16 +456,34 @@ class PagesReadRepository {
     final end = DateTime(now.year, now.month, now.day + 31);
     final rows = await client
         .from('user_event_filing_items_client')
-        .select('title,starts_at,calendar_id,flow_local_id,filed_flow_id')
+        .select(
+          'id,client_event_id,title,starts_at,calendar_id,flow_local_id,filed_flow_id,behavior_payload,category,item_kind',
+        )
         .eq('live_on_calendar', true)
         .gte('starts_at', now.toUtc().toIso8601String())
         .lt('starts_at', end.toUtc().toIso8601String())
         .order('starts_at', ascending: true)
         .limit(201);
+    final seen = <String>{};
     final events = rows
-        .where((r) => !hidden.contains(r['calendar_id']))
+        .where(
+          (r) =>
+              !hidden.contains(r['calendar_id']) &&
+              r['category'] != 'tombstone' &&
+              r['item_kind'] != 'reminder',
+        )
+        .where((r) {
+          final id = (r['client_event_id'] ?? r['id'])?.toString();
+          return id == null || seen.add(id);
+        })
         .map(
           (r) => PagesUpcomingEvent(
+            id: r['id']?.toString() ?? '',
+            clientEventId: r['client_event_id']?.toString() ?? '',
+            calendarId: r['calendar_id']?.toString() ?? '',
+            behavior: r['behavior_payload'] is Map
+                ? Map<String, dynamic>.from(r['behavior_payload'])
+                : const {},
             flowId: (r['filed_flow_id'] ?? r['flow_local_id'] ?? '').toString(),
             title: r['title'] as String? ?? '',
             at: DateTime.parse(r['starts_at'] as String).toLocal(),
@@ -489,6 +511,7 @@ class PagesReadRepository {
         .limit(14);
     final written = <String>{};
     final badgesByDay = <String, List<PagesSignal>>{};
+    final tokensByDay = <String, List<EventBadgeToken>>{};
     final unsaved = <String>{};
     final journalController = JournalController(client);
     for (final row in rows) {
@@ -500,6 +523,9 @@ class PagesReadRepository {
         serverUpdatedAt: DateTime.tryParse(row['updated_at']?.toString() ?? ''),
       );
       badgesByDay[date] = journalBadgeSignals(body ?? '');
+      tokensByDay[date] = JournalBadgeUtils.tokensFromDocument(
+        _journalDocument(body ?? ''),
+      );
       if (body != row['body']) unsaved.add(date);
     }
     final today = dayKey(now);
@@ -507,12 +533,16 @@ class PagesReadRepository {
       final local = await journalController.readPreviewBodyForDay(now);
       if (local != null) {
         badgesByDay[today] = journalBadgeSignals(local);
+        tokensByDay[today] = JournalBadgeUtils.tokensFromDocument(
+          _journalDocument(local),
+        );
         unsaved.add(today);
       }
     }
     return JournalOverview(
       written: written,
       badgesByDay: badgesByDay,
+      tokensByDay: tokensByDay,
       historyComplete: rows.length < 14,
       unsaved: unsaved,
     );
@@ -524,10 +554,12 @@ class JournalOverview {
     required this.written,
     required this.badgesByDay,
     this.historyComplete = false,
+    this.tokensByDay = const {},
     this.unsaved = const {},
   });
   final Set<String> written;
   final Map<String, List<PagesSignal>> badgesByDay;
+  final Map<String, List<EventBadgeToken>> tokensByDay;
   final bool historyComplete;
   final Set<String> unsaved;
   List<PagesSignal> get badges {
@@ -601,6 +633,11 @@ void publishJournalOverview(
     JournalOverview(
       written: written,
       badgesByDay: byDay,
+      tokensByDay: {
+        for (final d in byDay.keys)
+          if (d != key) d: previous.tokensByDay[d] ?? const [],
+        key: JournalBadgeUtils.tokensFromDocument(_journalDocument(body)),
+      },
       historyComplete: previous.historyComplete,
       unsaved: {...previous.unsaved.where((d) => d != key), if (!saved) key},
     ),

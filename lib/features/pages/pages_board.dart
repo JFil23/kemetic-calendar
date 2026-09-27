@@ -1,11 +1,13 @@
-import 'dart:math' as math;
+import 'pages_studio_graphic.dart';
+import '../journal/journal_badges_area.dart';
+import '../rhythm/widgets/planner/planner_visual_tokens.dart';
+import '../calendar/calendar_completion.dart';
+import '../../core/completion_status.dart';
+import 'pages_feature_previews.dart';
 import '../calendar/calendar_page.dart'
     show buildCalendarMonthCardPreview, MonthExpansionLevel;
 import '../../widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'package:flutter/material.dart';
-import '../calendar/presentation/user_flow_appearance_visual.dart';
-import '../calendar/presentation/maat_flow_discovery_view.dart';
-import '../profile/posted_flow_artifact.dart';
 import '../rhythm/widgets/planner/maat_scale.dart';
 import '../rhythm/planner/planner_scale_math.dart';
 import '../../widgets/profile_avatar.dart';
@@ -80,35 +82,49 @@ class PagesTile extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (card.state != PagesLoadState.ready &&
-                        card.destination == PagesDestination.calendar)
-                      _signal(
-                        PagesSignal(
-                          card.state == PagesLoadState.failed
-                              ? 'Unavailable'
-                              : 'Loading…',
-                        ),
-                      )
-                    else if (card.state != PagesLoadState.ready)
-                      PagesBoard(
-                        large: _signal(
-                          PagesSignal(
-                            card.state == PagesLoadState.failed
-                                ? 'Unavailable'
-                                : 'Loading…',
+                    ColorFiltered(
+                      colorFilter: const ColorFilter.matrix([
+                        1.110236,
+                        -.100128,
+                        -.010108,
+                        0,
+                        0,
+                        -.029764,
+                        1.039872,
+                        -.010108,
+                        0,
+                        0,
+                        -.029764,
+                        -.100128,
+                        1.129892,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                      ]),
+                      child: _preview(),
+                    ),
+                    IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            center: const Alignment(0, -.2),
+                            radius: .8,
+                            colors: [
+                              _accent.withValues(alpha: .09),
+                              Colors.transparent,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _accent.withValues(alpha: .15),
                           ),
                         ),
-                        upper: _signal(const PagesSignal('')),
-                        lower: _signal(const PagesSignal('')),
-                      )
-                    else if (card.destination == PagesDestination.calendar)
-                      _calendar()
-                    else
-                      PagesBoard(
-                        large: _large(),
-                        upper: _upper(),
-                        lower: _lower(),
                       ),
+                    ),
                     IgnorePointer(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -147,22 +163,30 @@ class PagesTile extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
+            padding: const EdgeInsets.fromLTRB(10.6, 7.5, 6, 0),
             child: Text(
-              card.title,
-              style: pagesSerif(14).copyWith(height: 18 / 14),
+              card.title.toUpperCase(),
+              style: PlannerVisualTokens.plateLabelStyle.copyWith(
+                fontSize: 7.7,
+                letterSpacing: 2.8,
+                color: pagesBone,
+                height: 1.3,
+              ),
               maxLines: 1,
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(6, 2, 6, 0),
+            padding: const EdgeInsets.fromLTRB(10.6, 4, 6, 0),
             child: Text(
-              card.meta.isEmpty ? ' ' : card.meta,
-              style: pagesSerif(
-                12,
-                color: const Color(0xffd9d3c7),
-                italic: true,
-              ).copyWith(height: 15 / 12),
+              (card.destination == PagesDestination.calendar ||
+                      card.destination == PagesDestination.calendars)
+                  ? card.meta
+                  : ' ',
+              style: PlannerVisualTokens.inputHint.copyWith(
+                fontSize: 11.2,
+                color: const Color(0xffa39d92),
+                height: 1.2,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -172,32 +196,33 @@ class PagesTile extends StatelessWidget {
     ),
   );
 
+  Widget _preview() {
+    if (card.state != PagesLoadState.ready) {
+      return _signal(
+        PagesSignal(
+          card.state == PagesLoadState.failed ? 'Unavailable' : 'Loading…',
+        ),
+      );
+    }
+    if (card.destination == PagesDestination.calendar) return _calendar();
+    if (card.destination == PagesDestination.calendars) {
+      return PagesBoard(large: _large(), upper: _upper(), lower: _lower());
+    }
+    return _large();
+  }
+
+  Color get _accent => switch (card.destination) {
+    PagesDestination.studio => const Color(0xff258eea),
+    PagesDestination.journal ||
+    PagesDestination.calendars => const Color(0xff8e7cff),
+    PagesDestination.inbox => const Color(0xffedc956),
+    PagesDestination.library => const Color(0xffdcbc62),
+    _ => pagesGold,
+  };
   Widget _large() {
     switch (card.destination) {
       case PagesDestination.feed:
-        final f = card.flow;
-        if (f == null) return _signal(card.primary);
-        return LayoutBuilder(
-          builder: (context, box) => FittedBox(
-            fit: BoxFit.fill,
-            child: SizedBox(
-              width: 236,
-              height: 236,
-              child: PostedFlowArtifact(
-                allowImageFetch: false,
-                imageCacheWidth:
-                    (box.maxWidth * MediaQuery.devicePixelRatioOf(context))
-                        .ceil(),
-                name: f.name,
-                color: f.color,
-                appearance: f.appearance,
-                localImageBytes: f.imageBytes,
-                startDate: f.start,
-                endDate: f.end,
-              ),
-            ),
-          ),
-        );
+        return PagesQuestionPreview(question: card.question);
       case PagesDestination.planner:
         final percent = card.primary.progress;
         if (percent == null) return _signal(card.primary);
@@ -231,120 +256,47 @@ class PagesTile extends StatelessWidget {
       case PagesDestination.studio:
         final f = card.flow;
         if (f == null) return _signal(card.primary);
-        final builtIn = kCoreMaatFlowDiscoveryFixtures
-            .where((v) => v.flowKey == f.maatKey)
-            .firstOrNull;
         return _ground(
           const Color(0xff07080d),
           Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, box) =>
-                      builtIn != null && f.appearance.isEmpty
-                      ? Image.asset(
-                          builtIn.heroAsset,
-                          key: const ValueKey('pages-studio-built-in-art'),
-                          width: box.maxWidth,
-                          height: box.maxHeight,
-                          fit: BoxFit.cover,
-                          alignment: builtIn.heroAlignment,
-                          cacheWidth:
-                              (box.maxWidth *
-                                      MediaQuery.devicePixelRatioOf(context))
-                                  .ceil(),
-                        )
-                      : UserFlowAppearanceHero(
-                          allowImageFetch: false,
-                          imageCacheWidth:
-                              (box.maxWidth *
-                                      MediaQuery.devicePixelRatioOf(context))
-                                  .ceil(),
-                          appearance: f.appearance,
-                          accent: Color(f.color),
-                          localImageBytes: f.imageBytes,
-                          completedOccurrences: f.completed,
-                          totalOccurrences: f.total,
-                          showSignLabel: false,
-                          height: box.maxHeight,
-                          borderRadius: BorderRadius.zero,
-                          signSize: math.max(
-                            1,
-                            math.min(72, box.maxHeight - 8),
-                          ),
-                        ),
+                child: PagesStudioGraphic(
+                  flow: f,
+                  event: card.event,
+                  snapshot: card.studioSnapshot,
                 ),
               ),
-              if (f.total > 0)
-                Text('${f.completed} / ${f.total}', style: pagesSerif(15)),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(6, 3, 6, 7),
-                child: _micro(f.name),
+              IgnorePointer(
+                child: SizedBox(
+                  height: 30,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(
+                      width: 360,
+                      child: CalendarCompletionPicker(
+                        current:
+                            card.studioSnapshot?.completion ??
+                            CompletionStatus.none,
+                        onChanged: (_) {},
+                        onReflect: () {},
+                      ),
+                    ),
+                  ),
+                ),
               ),
+              const SizedBox(height: 4),
             ],
           ),
         );
       case PagesDestination.journal:
-        return _ground(
-          const Color(0xff0b0911),
-          Padding(
-            padding: const EdgeInsets.all(11),
-            child: _fitPane(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _micro('LATEST BADGE', tracked: true),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Color(card.primary.color).withValues(alpha: .14),
-                      border: Border.all(color: Color(card.primary.color)),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (card.primary.status.isNotEmpty) ...[
-                              Icon(
-                                switch (card.primary.status) {
-                                  '✓' => Icons.check,
-                                  '◐' => Icons.incomplete_circle_rounded,
-                                  _ => Icons.remove,
-                                },
-                                size: 16,
-                                color: Color(card.primary.color),
-                              ),
-                              const SizedBox(width: 5),
-                            ],
-                            Expanded(
-                              child: Text(
-                                card.primary.title,
-                                style: pagesSerif(
-                                  14,
-                                  color: const Color(0xfff2cf63),
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (card.primary.detail.isNotEmpty) ...[
-                          const SizedBox(height: 5),
-                          _micro(card.primary.detail),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+        return IgnorePointer(
+          child: FittedBox(
+            fit: BoxFit.fill,
+            child: SizedBox(
+              width: 350,
+              height: 260,
+              child: JournalBadgesArea(height: 260, badges: card.badges),
             ),
           ),
         );
@@ -362,10 +314,8 @@ class PagesTile extends StatelessWidget {
                   color: pagesGold.withValues(alpha: .6),
                 ),
               ),
-              Positioned(
-                right: 10,
-                top: 8,
-                child: _glyph(card.primary.glyph, 34),
+              Positioned.fill(
+                child: Center(child: _glyph(card.primary.glyph, 34)),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 10, 11, 9),
@@ -680,13 +630,6 @@ Widget _signal(
         ),
       ),
     ),
-  ),
-);
-
-Widget _fitPane(Widget child) => LayoutBuilder(
-  builder: (context, box) => FittedBox(
-    fit: BoxFit.scaleDown,
-    child: SizedBox(width: box.maxWidth, child: child),
   ),
 );
 

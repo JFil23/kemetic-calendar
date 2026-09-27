@@ -16,7 +16,11 @@ void main() {
     expect(source, contains("isCommons ? 'Commons' : 'For You'"));
     expect(source, isNot(contains("TODAY'S COMMONS")));
     expect(source, isNot(contains("Today's Commons")));
-    expect(source, contains('dailyReflectionQuestionForDate'));
+    expect(source, contains('commonsQuestionSeed(DateTime.now())'));
+    expect(
+      File('lib/data/commons_question_selection.dart').readAsStringSync(),
+      contains('dailyReflectionQuestionForDate'),
+    );
     expect(source, contains('Public Rhythm'));
     expect(source, contains('_loadCommonsHome'));
     expect(source, contains('CommonsRepo'));
@@ -60,20 +64,31 @@ void main() {
         'Widget _buildCommonsReflectionSection()',
       );
 
-      expect(questionSource, contains('_buildCommonsAnswerComposer(question)'));
-      expect(questionSource, contains('_buildCommonsAnswerCard(myAnswer'));
-      expect(questionSource, contains('PUBLIC ANSWERS'));
+      final shared = File(
+        'lib/features/profile/commons_question_block.dart',
+      ).readAsStringSync();
+      expect(questionSource, contains('CommonsQuestionBlock('));
+      expect(
+        questionSource,
+        contains('_buildCommonsAnswerComposer(_activeCommonsQuestion())'),
+      );
+      expect(
+        questionSource,
+        contains('_buildCommonsAnswerCard(answer, isMine: isMine)'),
+      );
+      expect(shared, contains('answerBuilder(myAnswer, true)'));
+      expect(shared, contains('PUBLIC ANSWERS'));
       expect(composerSource, contains('_commonsAnswerEditing'));
       expect(composerSource, contains('Edit answer'));
-      expect(composerSource, contains('Answer in the Commons'));
-      expect(composerSource, contains('Save public answer'));
+      expect(shared, contains('Answer in the Commons'));
+      expect(shared, contains('Save public answer'));
       expect(composerSource, contains('_saveCommonsAnswer()'));
-      expect(answerCardSource, contains('Your answer'));
+      expect(shared, contains('Your answer'));
       expect(answerCardSource, contains("_deleteCommonsAnswer(answer)"));
       expect(answerCardSource, contains("_reportCommonsAnswer(answer)"));
       expect(answerCardSource, contains("_blockCommonsAnswerAuthor(answer)"));
-      expect(answerCardSource, contains("PopupMenuItem(value: 'edit'"));
-      expect(answerCardSource, contains("PopupMenuItem(value: 'delete'"));
+      expect(shared, contains("PopupMenuItem(value: 'edit'"));
+      expect(shared, contains("PopupMenuItem(value: 'delete'"));
     },
   );
 
@@ -142,7 +157,7 @@ void main() {
     final discoverSource = _methodSource(
       source,
       'Widget _buildCommonsDiscoverSection()',
-      'Widget _buildCommonsCompactButton(',
+      'Widget _buildCommonsGhostButton({',
     );
     expect(discoverSource, contains('_buildCommonsDiscoverPost'));
     expect(discoverSource, contains('return _buildFeedItemTile(item)'));
@@ -195,7 +210,12 @@ void main() {
   test('Today Commons keeps honest empty states', () {
     expect(source, contains('No fragments have been shared today.'));
     expect(source, contains('No discoverable practices yet.'));
-    expect(source, contains('Answer in the Commons'));
+    expect(
+      File(
+        'lib/features/profile/commons_question_block.dart',
+      ).readAsStringSync(),
+      contains('Answer in the Commons'),
+    );
     expect(source, contains('No public group flows yet.'));
     expect(
       source,

@@ -847,7 +847,7 @@ DjedDayVisualFixture _djedV2DayVisualFixture(
   return djedDayVisualFixtureForEvent(event, supportName: supportName);
 }
 
-List<DjedSupportFixture> _djedV2SupportFixtures(
+List<DjedSupportFixture> djedV2SupportFixtures(
   String? flowNotes,
   Map<String, dynamic>? behaviorPayload,
 ) {
@@ -3777,7 +3777,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           child: flowId == null
               ? DjedDayPresentation(
                   fixture: fixture,
-                  supports: _djedV2SupportFixtures(
+                  supports: djedV2SupportFixtures(
                     flow?.notes,
                     currentEvent.behaviorPayload,
                   ),
@@ -3789,7 +3789,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                   flowId: flowId,
                   event: activeDjedEvent,
                   baseFixture: fixture,
-                  supports: _djedV2SupportFixtures(
+                  supports: djedV2SupportFixtures(
                     flow?.notes,
                     currentEvent.behaviorPayload,
                   ),

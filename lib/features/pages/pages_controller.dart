@@ -1,3 +1,6 @@
+import '../../data/pages_studio_read_repository.dart';
+import 'pages_studio_graphic.dart';
+import '../../data/commons_question_selection.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -38,6 +41,8 @@ class PagesController {
       this.cache.invalidate(uid, 'pages.calendar');
       this.cache.invalidate(uid, 'pages.events');
       this.cache.invalidate(uid, 'pages.flows');
+      this.cache.invalidate(uid, 'pages.studio');
+      if (_studioLoading) _studioReloadAfterPending = true;
       if (active) {
         unawaited(_loadCalendar());
         unawaited(_loadEvents());
@@ -105,6 +110,7 @@ class PagesController {
     name: f.name,
     appearance: f.appearance,
     maatKey: notesDecode(f.notes).maatKey,
+    notes: f.notes,
     color: 0xff000000 | f.color,
     total: f.totalEventCount,
     completed: (f.totalEventCount - f.remainingEventCount).clamp(
@@ -163,6 +169,12 @@ class PagesController {
       return;
     }
     if (entering || resumed) cache.beginVisibleEntry();
+    final commonsAt = cache.loadedAt(uid, 'social.commons');
+    if (commonsAt != null &&
+        PagesReadRepository.dayKey(commonsAt) !=
+            PagesReadRepository.dayKey(DateTime.now())) {
+      cache.invalidate(uid, 'social.commons');
+    }
     _paintPlanner();
     _paintJournal();
     _paintStudio();
@@ -301,7 +313,6 @@ class PagesController {
       ),
       _load('social.together', repository.together),
       _load('social.commons', repository.commons),
-      _load('social.posts', repository.ownPosts),
       _load('social.inbox', () => share.readInboxMetadata()),
     ]);
     if (!active) return;
@@ -309,65 +320,6 @@ class PagesController {
       final seen = await share.getActivitySeenAt(bucket);
       if (!active) return;
       if (seen != null) cache.publish(uid, 'social.seen.${bucket.name}', seen);
-    }
-    final seen = _peek<DateTime>('social.seen.movement');
-    final newestActivity =
-        (_peek<List<InboxActivityItem>>('social.activity') ?? [])
-            .where(
-              (a) =>
-                  a.type != InboxActivityType.follow &&
-                  seen != null &&
-                  a.createdAt.isAfter(seen),
-            )
-            .firstOrNull;
-    final requests =
-        (_peek<TogetherInboxSnapshot>('social.together')?.joinRequests ?? [])
-            .where((r) => r.status == 'pending')
-            .toList()
-          ..sort(
-            (a, b) => (b.createdAt ?? DateTime(1970)).compareTo(
-              a.createdAt ?? DateTime(1970),
-            ),
-          );
-    final request = requests.firstOrNull;
-    final posts = _peek<List<FlowPost>>('social.posts') ?? [];
-    if (newestActivity != null &&
-        (request == null ||
-            newestActivity.createdAt.isAfter(
-              request.createdAt ?? DateTime(1970),
-            ))) {
-      final id = newestActivity.flowPostId;
-      if (id != null && !posts.any((p) => p.id == id)) {
-        await _load(
-          'social.post.$id',
-          () => repository.activityPost(postId: id),
-        );
-      }
-    } else if (request?.sourceFlowId != null) {
-      final id = request!.sourceFlowId!;
-      if (!posts.any((p) => p.sourceFlowId == id) &&
-          !(_peek<List<PagesFlow>>('pages.flows') ?? []).any(
-            (f) => f.id == '$id',
-          )) {
-        await _load(
-          'social.request.$id',
-          () => repository.activityPost(flowId: id),
-        );
-      }
-    }
-    if (!active) return;
-    final commons = _peek<CommonsHomeSnapshot>('social.commons');
-    final room = commons?.publicSharedPractices
-        .where(isPagesJoinable)
-        .firstOrNull;
-    if (room != null &&
-        !commons!.discover.any(
-          (p) => p.flowPost?.sourceFlowId == room.sourceFlowId,
-        )) {
-      await _load(
-        'social.appearance.${room.sourceFlowId}',
-        () => repository.publicAppearance(room.sourceFlowId),
-      );
     }
     _paintSocial();
   }
@@ -406,6 +358,7 @@ class PagesController {
         _missing(PagesDestination.calendar, [key]);
       }
     }
+    if (key == 'pages.studio') _paintStudio();
     if (key == 'planner.overview') _paintPlanner();
     if (key == 'journal.overview') _paintJournal();
     if (key == 'library.progress') _paintLibrary();
@@ -495,6 +448,36 @@ class PagesController {
       c.week,
       c.calendars,
       c.unread,
+      c.event?.id,
+      c.event?.at,
+      c.event?.behavior,
+      c.studioSnapshot,
+      if (c.question != null)
+        [
+          c.question!.id,
+          c.question!.question,
+          c.question!.myAnswer == null
+              ? null
+              : [
+                  c.question!.myAnswer!.id,
+                  c.question!.myAnswer!.bodyText,
+                  c.question!.myAnswer!.authorLabel,
+                ],
+          for (final a in c.question!.answers)
+            [a.id, a.bodyText, a.authorLabel],
+        ],
+      for (final b in c.badges)
+        [
+          b.id,
+          b.title,
+          b.color,
+          b.start,
+          b.end,
+          b.description,
+          b.completionStatus,
+          b.reflectionStatus,
+          b.sourceType,
+        ],
     ];
   }
 
@@ -550,6 +533,7 @@ class PagesController {
       PagesCard(
         PagesDestination.journal,
         state: PagesLoadState.ready,
+        badges: j.tokensByDay[today] ?? const [],
         meta: j.unsaved.contains(today)
             ? 'Draft on this device'
             : j.written.contains(today)
@@ -657,7 +641,41 @@ class PagesController {
       end: f.end,
       imageBytes: bytes,
       maatKey: f.maatKey,
+      notes: f.notes,
     );
+  }
+
+  bool _studioLoading = false, _studioReloadAfterPending = false;
+  Future<void> _ensureStudio(PagesFlow flow, PagesUpcomingEvent event) async {
+    if (_studioLoading || !active) return;
+    const key = 'pages.studio';
+    final previous = _peek<PagesStudioSnapshot>(key);
+    final identity = pagesStudioIdentity(flow, event);
+    if (previous != null && previous.identity != identity) {
+      cache.invalidate(uid, key);
+    }
+    _studioLoading = true;
+    try {
+      await _load(
+        key,
+        () => readPagesStudioSnapshot(client, flow, event, () => active),
+      );
+    } finally {
+      _studioLoading = false;
+    }
+    if (!active) return;
+    final current = selectPagesStudio(
+      _peek<List<PagesFlow>>('pages.flows') ?? [],
+      _peek<PagesEventWindow>('pages.events')?.events ?? [],
+      DateTime.now(),
+    );
+    if (_studioReloadAfterPending ||
+        (current.flow != null &&
+            current.event != null &&
+            pagesStudioIdentity(current.flow!, current.event!) != identity)) {
+      _studioReloadAfterPending = false;
+      _paintStudio();
+    }
   }
 
   void _paintStudio() {
@@ -672,13 +690,33 @@ class PagesController {
     }
     final selected = selectPagesStudio(flows, window.events, DateTime.now());
     final f = selected.flow;
+    final event = selected.event;
+    const key = 'pages.studio';
+    final previous = _peek<PagesStudioSnapshot>(key);
+    final identity = f == null || event == null
+        ? null
+        : pagesStudioIdentity(f, event);
+    final snapshot = previous?.identity == identity ? previous : null;
+    if (active && f != null && event != null) {
+      unawaited(_ensureStudio(f, event));
+    }
     _set(
       PagesCard(
         PagesDestination.studio,
-        state: PagesLoadState.ready,
+        state: f?.maatKey != null && snapshot == null
+            ? cache.failed(key)
+                  ? PagesLoadState.failed
+                  : PagesLoadState.loading
+            : PagesLoadState.ready,
         meta: f == null ? 'Your flows' : f.name,
-        flow: f == null ? null : _image(f),
-        primary: const PagesSignal('Create a flow'),
+        flow: f == null
+            ? null
+            : f.maatKey == null
+            ? _image(f)
+            : f,
+        event: event,
+        studioSnapshot: snapshot,
+        primary: const PagesSignal('No upcoming flow'),
         upper: PagesSignal(
           selected.event?.title ?? 'No event scheduled',
           label: 'Next event',
@@ -698,139 +736,16 @@ class PagesController {
 
   void _paintSocial() {
     _paintInbox();
-    final activity = _peek<List<InboxActivityItem>>('social.activity'),
-        together = _peek<TogetherInboxSnapshot>('social.together'),
-        commons = _peek<CommonsHomeSnapshot>('social.commons'),
-        posts = _peek<List<FlowPost>>('social.posts');
-    if (activity == null ||
-        together == null ||
-        commons == null ||
-        posts == null ||
-        [
-          'social.activity',
-          'social.together',
-          'social.commons',
-          'social.posts',
-        ].any(cache.failed)) {
-      _missing(PagesDestination.feed, [
-        'social.activity',
-        'social.together',
-        'social.commons',
-        'social.posts',
-      ]);
+    final commons = _peek<CommonsHomeSnapshot>('social.commons');
+    if (commons == null || cache.failed('social.commons')) {
+      _missing(PagesDestination.feed, ['social.commons']);
       return;
     }
-    final flows = _peek<List<PagesFlow>>('pages.flows') ?? const [];
-    final resolvedPosts = [
-      ...posts,
-      for (final a in activity)
-        ...?_peek<List<FlowPost>>('social.post.${a.flowPostId}'),
-      for (final r in together.joinRequests)
-        ...?_peek<List<FlowPost>>('social.request.${r.sourceFlowId}'),
-    ];
-    final candidates = <PagesFeedCandidate>[];
-    for (final a in activity) {
-      final seen = _peek<DateTime>('social.seen.${a.bucket.name}');
-      if (a.type == InboxActivityType.follow ||
-          seen == null ||
-          !a.createdAt.isAfter(seen)) {
-        continue;
-      }
-      final p = resolvedPosts
-          .where((p) => p.id == a.flowPostId && !p.isHidden)
-          .firstOrNull;
-      if (p != null) {
-        candidates.add(
-          PagesFeedCandidate(
-            flow: flowFromPost(p),
-            at: a.createdAt,
-            reason: a.type == InboxActivityType.like
-                ? 'Liked your flow'
-                : 'Commented',
-            actor: a.actorName ?? a.actorHandle ?? 'Someone',
-            actorId: a.actorId,
-            unresolved: true,
-          ),
-        );
-      }
-    }
-    for (final request in together.joinRequests.where(
-      (r) => r.status == 'pending',
-    )) {
-      final post = resolvedPosts
-          .where((p) => p.sourceFlowId == request.sourceFlowId && !p.isHidden)
-          .firstOrNull;
-      final flow = post == null
-          ? flows.where((f) => f.id == '${request.sourceFlowId}').firstOrNull
-          : flowFromPost(post);
-      if (flow != null) {
-        candidates.add(
-          PagesFeedCandidate(
-            flow: flow,
-            at: request.createdAt ?? DateTime(1970),
-            reason: 'Wants to join',
-            actor: request.requesterLabel,
-            actorId: request.requesterId,
-            unresolved: true,
-          ),
-        );
-      }
-    }
-    final rooms = commons.publicSharedPractices.where(isPagesJoinable).toList();
-    for (final room in rooms) {
-      final post = commons.discover
-          .map((p) => p.flowPost)
-          .whereType<FlowPost>()
-          .where((p) => p.sourceFlowId == room.sourceFlowId && !p.isHidden)
-          .firstOrNull;
-      final appearance = _peek<List<FlowRow>>(
-        'social.appearance.${room.sourceFlowId}',
-      )?.firstOrNull;
-      final flow = post != null
-          ? flowFromPost(post)
-          : appearance == null
-          ? null
-          : flowFromRow(appearance);
-      if (flow != null) {
-        candidates.add(
-          PagesFeedCandidate(
-            flow: flow,
-            at: room.updatedAt ?? room.createdAt ?? DateTime(1970),
-            reason: 'Practice together',
-            actor: room.ownerLabel,
-            joinable: true,
-          ),
-        );
-      }
-    }
-    for (final p in posts.where((p) => !p.isHidden)) {
-      candidates.add(
-        PagesFeedCandidate(
-          flow: flowFromPost(p),
-          at: p.createdAt,
-          reason: 'Your shared flow',
-          ownShared: true,
-          actorId: uid,
-        ),
-      );
-    }
-    final selected = selectPagesFeed(candidates);
     _set(
       PagesCard(
         PagesDestination.feed,
         state: PagesLoadState.ready,
-        meta: selected?.reason ?? 'Discover a flow',
-        flow: selected == null ? null : _image(selected.flow),
-        primary: const PagesSignal('Discover a flow'),
-        upper: PagesSignal(
-          selected?.ownShared == true
-              ? 'Latest shared flow'
-              : selected?.actor ?? '',
-          glyphIds: _personGlyphs(selected?.actorId),
-          label: selected?.ownShared == true ? 'Your flows' : '',
-          detail: selected?.reason ?? 'Practice together',
-        ),
-        lower: pagesCommonsSignal(rooms.firstOrNull),
+        question: activeCommonsQuestion(commons, DateTime.now()),
       ),
     );
   }
@@ -1012,8 +927,17 @@ class PagesController {
         if (!active) return;
         onLocalBoundary?.call();
         unawaited(_loadCalendar());
+        unawaited(_loadEvents());
+        final commonsAt = cache.loadedAt(uid, 'social.commons');
+        if (commonsAt != null &&
+            PagesReadRepository.dayKey(commonsAt) !=
+                PagesReadRepository.dayKey(DateTime.now())) {
+          cache.invalidate(uid, 'social.commons');
+          unawaited(_load('social.commons', repository.commons));
+        }
         _paintPlanner();
         _paintJournal();
+        _paintSocial();
         _paintStudio();
         _scheduleBoundary();
       },

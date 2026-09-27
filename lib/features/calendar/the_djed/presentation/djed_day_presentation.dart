@@ -110,7 +110,7 @@ class DjedDayPresentation extends StatelessWidget {
           ],
         ),
       ),
-      instrument: _DjedInstrument(
+      instrument: DjedDayInstrument(
         fixture: fixture,
         supports: supports,
         stageHeight: stageHeight,
@@ -150,8 +150,9 @@ class DjedDayPresentation extends StatelessWidget {
   }
 }
 
-class _DjedInstrument extends StatelessWidget {
-  const _DjedInstrument({
+class DjedDayInstrument extends StatelessWidget {
+  const DjedDayInstrument({
+    super.key,
     required this.fixture,
     required this.supports,
     required this.stageHeight,

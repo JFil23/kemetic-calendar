@@ -137,13 +137,11 @@ class _PagesLayoutState extends State<PagesLayout> {
       ),
       body: SafeArea(
         top: false,
-        child: CustomScrollView(
-          controller: _scroll,
-          key: const PageStorageKey('pages-scroll'),
-          slivers: [
-            SliverToBoxAdapter(
+        child: Column(
+          children: [
+            SizedBox(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(6, 12, 6, 18),
+                padding: const EdgeInsets.fromLTRB(6, 12, 6, 0),
                 child: TextField(
                   controller: _search,
                   textAlignVertical: TextAlignVertical.center,
@@ -198,70 +196,80 @@ class _PagesLayoutState extends State<PagesLayout> {
                 ),
               ),
             ),
-            if (query.isEmpty)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(6, 0, 6, 32),
-                sliver: SliverLayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = (constraints.crossAxisExtent - 8) / 2;
-                    return SliverGrid(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, i) => ValueListenableBuilder<PagesCard>(
-                          valueListenable: widget.cards[i],
-                          builder: (context, card, _) => PagesTile(
-                            card: card,
-                            onTap: () => widget.onOpen(card.destination),
+
+            Expanded(
+              child: CustomScrollView(
+                controller: _scroll,
+                key: const PageStorageKey('pages-scroll'),
+                slivers: [
+                  if (query.isEmpty)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(6, 18, 6, 32),
+                      sliver: SliverLayoutBuilder(
+                        builder: (context, constraints) {
+                          final width = (constraints.crossAxisExtent - 8) / 2;
+                          return SliverGrid(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, i) => ValueListenableBuilder<PagesCard>(
+                                valueListenable: widget.cards[i],
+                                builder: (context, card, _) => PagesTile(
+                                  card: card,
+                                  onTap: () => widget.onOpen(card.destination),
+                                ),
+                              ),
+                              childCount: widget.cards.length,
+                            ),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 22,
+                                  mainAxisExtent: width / 1.49 + 43,
+                                ),
+                          );
+                        },
+                      ),
+                    )
+                  else ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        child: Text(
+                          'Showing what’s already loaded',
+                          style: pagesSerif(
+                            14,
+                            color: const Color(0xffa39d92),
+                            italic: true,
                           ),
                         ),
-                        childCount: widget.cards.length,
                       ),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 22,
-                        mainAxisExtent: width / 1.49 + 43,
-                      ),
-                    );
-                  },
-                ),
-              )
-            else ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: Text(
-                    'Showing what’s already loaded',
-                    style: pagesSerif(
-                      14,
-                      color: const Color(0xffa39d92),
-                      italic: true,
                     ),
-                  ),
-                ),
-              ),
-              SliverList(
-                delegate: SliverChildBuilderDelegate((context, i) {
-                  if (matches.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Text(
-                        'No matches in loaded content',
-                        style: pagesSerif(18),
-                      ),
-                    );
-                  }
-                  final r = matches[i];
-                  return ListTile(
-                    onTap: () => widget.onSearchResult(r),
-                    title: Text(r.title, style: pagesSerif(22)),
-                    subtitle: Text(
-                      r.category,
-                      style: pagesSerif(12, color: pagesGold),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate((context, i) {
+                        if (matches.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.all(18),
+                            child: Text(
+                              'No matches in loaded content',
+                              style: pagesSerif(18),
+                            ),
+                          );
+                        }
+                        final r = matches[i];
+                        return ListTile(
+                          onTap: () => widget.onSearchResult(r),
+                          title: Text(r.title, style: pagesSerif(22)),
+                          subtitle: Text(
+                            r.category,
+                            style: pagesSerif(12, color: pagesGold),
+                          ),
+                        );
+                      }, childCount: matches.isEmpty ? 1 : matches.length),
                     ),
-                  );
-                }, childCount: matches.isEmpty ? 1 : matches.length),
+                  ],
+                ],
               ),
-            ],
+            ),
           ],
         ),
       ),

@@ -141,7 +141,7 @@ void main() {
     );
   });
   test(
-    'studio chooses earliest scheduled unfinished flow and keeps its event',
+    'studio chooses earliest scheduled flow and never invents an unscheduled fallback',
     () {
       final now = DateTime(2026, 9, 26);
       const other = PagesFlow(
@@ -170,7 +170,7 @@ void main() {
       );
       expect(selected.flow, same(flow));
       expect(selected.event, same(next));
-      expect(selectPagesStudio([flow], [], now).flow, same(flow));
+      expect(selectPagesStudio([flow], [], now).flow, isNull);
       expect(
         selectPagesStudio(
           [

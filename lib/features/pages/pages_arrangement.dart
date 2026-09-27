@@ -60,7 +60,13 @@ class PagesUpcomingEvent {
     required this.flowId,
     required this.title,
     required this.at,
+    this.id = '',
+    this.clientEventId = '',
+    this.calendarId = '',
+    this.behavior = const {},
   });
+  final String id, clientEventId, calendarId;
+  final Map<String, dynamic> behavior;
   final String flowId, title;
   final DateTime at;
 }
@@ -70,20 +76,17 @@ class PagesUpcomingEvent {
   List<PagesUpcomingEvent> events,
   DateTime now,
 ) {
-  final remaining = flows
-      .where((f) => f.total == 0 || f.completed < f.total)
-      .toList();
   final upcoming = events.where((e) => !e.at.isBefore(now)).toList()
-    ..sort((a, b) => a.at.compareTo(b.at));
+    ..sort((a, b) {
+      final time = a.at.compareTo(b.at);
+      return time == 0 ? a.id.compareTo(b.id) : time;
+    });
   for (final event in upcoming) {
-    for (final flow in remaining) {
+    for (final flow in flows) {
       if (flow.id == event.flowId) return (flow: flow, event: event);
     }
   }
-  return (
-    flow: remaining.where((f) => f.total > f.completed).firstOrNull,
-    event: null,
-  );
+  return (flow: null, event: null);
 }
 
 class PagesPlannerItem {

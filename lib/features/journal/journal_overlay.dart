@@ -1,3 +1,4 @@
+import 'journal_badges_area.dart';
 // lib/features/journal/journal_overlay.dart
 // FIXES: 1) Toolbar overflow, 2) Layered coexistence, 3) Drawing undo
 
@@ -33,7 +34,6 @@ import '../../widgets/insight_link_text.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/node_link_picker_sheet.dart';
-import 'journal_empty_badge_glyph.dart';
 
 enum JournalPresentationMode { overlay, page }
 
@@ -1415,133 +1415,22 @@ class _JournalOverlayState extends State<JournalOverlay>
     });
   }
 
-  Widget _buildBadgeArea({required double height, bool compact = false}) {
-    final badges = _extractBadges();
-    final badgeCountLabel = badges.isEmpty
-        ? 'No badges yet'
-        : '${badges.length} badge${badges.length == 1 ? '' : 's'}';
-
-    return AnimatedContainer(
-      key: widget.badgeAreaKey,
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      height: height,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(4, 0, 4, compact ? 6 : 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Badges',
-                  style: TextStyle(
-                    color: KemeticGold.base,
-                    fontSize: compact
-                        ? 13
-                        : widget.presentationMode ==
-                              JournalPresentationMode.page
-                        ? 16
-                        : 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  badgeCountLabel,
-                  style: const TextStyle(
-                    color: Color(0xFF888888),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0A0A),
-                  border: Border.all(color: const Color(0xFF333333), width: 1),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black54,
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: compact
-                    ? _buildCompactBadgeList(badges)
-                    : _buildExpandedBadgeList(badges),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompactBadgeList(List<EventBadgeToken> badges) {
-    if (badges.isEmpty) {
-      return const JournalEmptyBadgeGlyph(width: 96, height: 32, fontSize: 32);
-    }
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      child: Row(
-        children: badges.map((token) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: EventBadgeWidget(
-              token: token,
-              initialExpanded: false,
-              expandable: false,
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildExpandedBadgeList(List<EventBadgeToken> badges) {
-    if (badges.isEmpty) {
-      return const JournalEmptyBadgeGlyph();
-    }
-
-    return Scrollbar(
-      thumbVisibility: true,
-      controller: _badgeScrollController,
-      child: SingleChildScrollView(
-        controller: _badgeScrollController,
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: badges.map((token) {
-            final expanded = _badgeExpansion[token.id] ?? false;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: EventBadgeWidget(
-                token: token,
-                initialExpanded: expanded,
-                onDelete: () => unawaited(_removeBadge(token)),
-                onToggle: (next) {
-                  setState(() {
-                    _badgeExpansion[token.id] = next;
-                  });
-                },
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
+  Widget _buildBadgeArea({required double height, bool compact = false}) =>
+      JournalBadgesArea(
+        key: widget.badgeAreaKey,
+        height: height,
+        compact: compact,
+        badges: _extractBadges(),
+        pageMode: widget.presentationMode == JournalPresentationMode.page,
+        scrollController: _badgeScrollController,
+        expandedIds: {
+          for (final entry in _badgeExpansion.entries)
+            if (entry.value) entry.key,
+        },
+        onDelete: (token) => unawaited(_removeBadge(token)),
+        onToggle: (token, next) =>
+            setState(() => _badgeExpansion[token.id] = next),
+      );
 }
 
 class _JournalSavedCheckPainter extends CustomPainter {

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:mobile/data/commons_models.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -15,22 +18,15 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    for (final f in [
-      ('CormorantGaramond', 'CormorantGaramond-Regular.ttf'),
-      ('GentiumPlus', 'GentiumPlus-Regular.ttf'),
-      ('Inter', 'Inter-Variable.ttf'),
-      (
-        'Noto Sans Egyptian Hieroglyphs',
-        'NotoSansEgyptianHieroglyphs-Regular.ttf',
-      ),
-    ]) {
-      await (FontLoader(
-        f.$1,
-      )..addFont(rootBundle.load('ios/Runner/Fonts/${f.$2}'))).load();
+    final fonts =
+        jsonDecode(await rootBundle.loadString('FontManifest.json')) as List;
+    for (final f in fonts) {
+      final loader = FontLoader(f['family']);
+      for (final a in f['fonts']) {
+        loader.addFont(rootBundle.load(a['asset']));
+      }
+      await loader.load();
     }
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
     final math = PagesFlow(
       id: 'math',
       name: 'Daily Math Visuals: 90-Day Visual Math Ladder',
@@ -45,9 +41,9 @@ void main() {
       id: 'writing',
       name: 'Spanish Practice',
       appearance: FlowAppearance(signKind: FlowSignKind.shen),
-      color: 0xff5588ff,
+      color: 4280516568,
       total: 20,
-      completed: 12,
+      completed: 6,
     );
     final cards = <PagesCard>[
       PagesCard(
@@ -71,6 +67,10 @@ void main() {
         PagesDestination.feed,
         state: PagesLoadState.ready,
         flow: math,
+        question: const CommonsQuestion(
+          id: 'preview',
+          question: 'Is my seeing coarsening?',
+        ),
         meta: 'Your shared flow · 3 days ago',
         upper: PagesSignal(
           'Latest shared flow',
@@ -175,6 +175,7 @@ void main() {
     final key = GlobalKey();
     await tester.pumpWidget(
       MaterialApp(
+        theme: AppTheme.dark,
         home: RepaintBoundary(
           key: key,
           child: PagesLayout(
@@ -214,16 +215,16 @@ void main() {
     }
     expect(find.text('Pages'), findsNothing);
     expect(tester.getCenter(find.text('bigjfil')).dx, closeTo(393 / 2, .1));
-    final searchRect = tester.getRect(find.byType(TextField));
+    final searchRect = tester.getRect(find.byType(TextField).first);
     expect(searchRect.left, 6);
     expect(searchRect.right, 387);
     expect(searchRect.height, 44);
-    final input = tester.widget<TextField>(find.byType(TextField));
+    final input = tester.widget<TextField>(find.byType(TextField).first);
     expect(input.decoration!.fillColor, const Color(0x600d0b07));
     expect(find.text('𓉐'), findsWidgets);
-    expect(find.byIcon(Icons.check), findsOneWidget);
-    expect(find.text('Calendar'), findsOneWidget);
-    expect(find.text('Flow Studio'), findsOneWidget);
+    expect(find.text('No badges yet'), findsOneWidget);
+    expect(find.text('CALENDAR'), findsOneWidget);
+    expect(find.text('FLOW STUDIO'), findsOneWidget);
     final tiles = find.byType(PagesTile);
     final left = tester.getRect(tiles.at(0));
     final right = tester.getRect(tiles.at(1));
@@ -236,58 +237,23 @@ void main() {
     expect(rect.width / rect.height, closeTo(1.49, .001));
     final secondRow = tester.getRect(tiles.at(2));
     expect(secondRow.top - left.bottom, closeTo(22, .001));
-    final studio = cards[PagesDestination.studio.index];
-    final originalStudio = studio.value;
-    studio.value = const PagesCard(
-      PagesDestination.studio,
-      state: PagesLoadState.ready,
-      flow: PagesFlow(
-        id: 'sky',
-        name: 'Follow the sky',
-        appearance: FlowAppearance(),
-        maatKey: 'track-the-sky',
-        total: 65,
-        completed: 1,
-      ),
-      meta: 'Follow the sky',
-      upper: PagesSignal('Full Moon', label: 'Next event', detail: '8 PM'),
-      lower: PagesSignal('64', detail: 'steps left'),
-    );
+    // Only the pane viewport scrolls; header and search retain their bounds.
+    tester.view.physicalSize = const Size(1179, 1950);
     await tester.pumpAndSettle();
+    final headerBefore = tester.getRect(find.text('bigjfil'));
+    final searchBefore = tester.getRect(find.byType(TextField).first);
+    final panesBefore = tester.getTopLeft(find.byType(PagesTile).first).dy;
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(find.text('bigjfil')), headerBefore);
+    expect(tester.getRect(find.byType(TextField).first), searchBefore);
     expect(
-      find.byKey(const ValueKey('pages-studio-built-in-art')),
-      findsOneWidget,
+      tester.getTopLeft(find.byType(PagesTile).first).dy,
+      lessThan(panesBefore),
     );
-    expect(tester.takeException(), isNull);
-    final skyImage = tester.widget<Image>(
-      find.byKey(const ValueKey('pages-studio-built-in-art')),
-    );
-    await tester.runAsync(
-      () => precacheImage(skyImage.image, key.currentContext!),
-    );
-    await tester.pumpAndSettle();
-    if (capturePath != null) {
-      final boundary =
-          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-      void repaint(RenderObject node) {
-        node.markNeedsPaint();
-        node.visitChildren(repaint);
-      }
-
-      repaint(boundary);
-      await tester.pump();
-      await tester.runAsync(() async {
-        final image = await boundary.toImage(pixelRatio: 2);
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        await File(
-          capturePath.replaceFirst('.png', '-sky.png'),
-        ).writeAsBytes(bytes!.buffer.asUint8List());
-        image.dispose();
-      });
-    }
-    studio.value = originalStudio;
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Ptah');
+    final paneViewport = tester.getRect(find.byType(CustomScrollView));
+    expect(paneViewport.top, searchBefore.bottom);
+    await tester.enterText(find.byType(TextField).first, 'Ptah');
     await tester.pump();
     expect(find.text('Showing what’s already loaded'), findsOneWidget);
     expect(find.byType(PagesTile), findsNothing);

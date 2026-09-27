@@ -36,6 +36,8 @@ class FullMoonInstrumentDataProvider implements SkyInstrumentDataProvider {
     SupabaseClient? client,
     SharedPreferences? preferences,
     FullMoonInstrumentInvocation? invoke,
+    this.persistCache = true,
+    this.mayFetch,
     this.catalogFallback = const CatalogSkyInstrumentDataProvider(),
   }) : _preferences = preferences,
        _invoke =
@@ -43,6 +45,8 @@ class FullMoonInstrumentDataProvider implements SkyInstrumentDataProvider {
 
   static const String calculationVersion = 'full-moon-local-v1';
   static const String _cachePrefix = 'haw:full_moon_instrument:v1:';
+  final bool persistCache;
+  final bool Function()? mayFetch;
   final SharedPreferences? _preferences;
   final FullMoonInstrumentInvocation _invoke;
   final SkyInstrumentDataProvider catalogFallback;
@@ -96,11 +100,14 @@ class FullMoonInstrumentDataProvider implements SkyInstrumentDataProvider {
       try {
         response = Map<String, dynamic>.from(jsonDecode(cached) as Map);
       } on Object {
-        await preferences.remove(cacheKey);
+        if (persistCache) await preferences.remove(cacheKey);
       }
     }
 
     if (response == null) {
+      if (mayFetch?.call() == false) {
+        throw StateError('Instrument preview is hidden');
+      }
       final invocation = await _invoke(body);
       final raw = invocation.data;
       if (raw is! Map) {
@@ -113,7 +120,9 @@ class FullMoonInstrumentDataProvider implements SkyInstrumentDataProvider {
       if (invocation.status < 200 || invocation.status >= 300) {
         throw StateError('Full Moon computation is unavailable.');
       }
-      await preferences.setString(cacheKey, jsonEncode(response));
+      if (persistCache) {
+        await preferences.setString(cacheKey, jsonEncode(response));
+      }
     }
 
     return parseResult(response, night: night, place: place);

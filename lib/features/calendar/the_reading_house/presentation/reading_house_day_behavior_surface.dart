@@ -327,9 +327,39 @@ ReadingHouseDayVisualFixture readingHouseRoomVisualFixture({
   String? roomSubtitle,
   String roomGlyph = '◌',
 }) {
-  final summary = controller.summary;
+  return readingHouseSnapshotVisualFixture(
+    context: context,
+    summary: controller.summary,
+    messages: controller.messages,
+    status: controller.status,
+    currentUserId: currentUserId,
+    solo: solo,
+    newMessageCount: newMessageCount,
+    completion: completion,
+    hostAnnouncement: hostAnnouncement,
+    privateReflection: privateReflection,
+    roomSubtitle: roomSubtitle,
+    roomGlyph: roomGlyph,
+  );
+}
+
+ReadingHouseDayVisualFixture readingHouseSnapshotVisualFixture({
+  required BuildContext context,
+  required ReadingHouseRoomSummary? summary,
+  required List<ReadingHouseRoomMessage> messages,
+  required ReadingHouseRoomStatus status,
+  required String? currentUserId,
+  bool solo = false,
+  int newMessageCount = 0,
+  ReadingHouseCompletionVisualState completion =
+      ReadingHouseCompletionVisualState.none,
+  String hostAnnouncement = '',
+  String privateReflection = '',
+  String? roomSubtitle,
+  String roomGlyph = '◌',
+}) {
   final members = summary?.members ?? const <ReadingHouseRoomMember>[];
-  final messages = controller.messages
+  final visualMessages = messages
       .map((message) {
         ReadingHouseRoomMember? member;
         for (final candidate in members) {
@@ -363,11 +393,12 @@ ReadingHouseDayVisualFixture readingHouseRoomVisualFixture({
       .toList(growable: false);
   return ReadingHouseDayVisualFixture(
     roomState: _readingHouseRoomVisualState(
-      controller: controller,
+      status: status,
+      messages: messages,
       summary: summary,
       solo: solo,
     ),
-    messages: messages,
+    messages: visualMessages,
     memberInitials: memberInitials,
     memberCount: summary?.memberCount ?? (solo ? 1 : 0),
     newMessageCount: newMessageCount,
@@ -380,12 +411,13 @@ ReadingHouseDayVisualFixture readingHouseRoomVisualFixture({
 }
 
 ReadingHouseRoomVisualState _readingHouseRoomVisualState({
-  required ReadingHouseRoomController controller,
+  required ReadingHouseRoomStatus status,
+  required List<ReadingHouseRoomMessage> messages,
   required ReadingHouseRoomSummary? summary,
   required bool solo,
 }) {
   if (solo) return ReadingHouseRoomVisualState.solo;
-  return switch (controller.status) {
+  return switch (status) {
     ReadingHouseRoomStatus.idle ||
     ReadingHouseRoomStatus.loading => ReadingHouseRoomVisualState.loading,
     ReadingHouseRoomStatus.error => ReadingHouseRoomVisualState.error,
@@ -394,7 +426,7 @@ ReadingHouseRoomVisualState _readingHouseRoomVisualState({
           ? ReadingHouseRoomVisualState.ended
           : summary?.locked == true || summary == null
           ? ReadingHouseRoomVisualState.locked
-          : controller.messages.isEmpty
+          : messages.isEmpty
           ? ReadingHouseRoomVisualState.empty
           : ReadingHouseRoomVisualState.active,
   };

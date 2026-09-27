@@ -1822,6 +1822,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
           child: ProfilePage(
             key: ValueKey('$userId:${state.uri.queryParameters["feed"]}'),
             initialFeedRevealed: state.uri.queryParameters['feed'] == '1',
+            initialCommons: state.uri.queryParameters['commons'] == '1',
             userId: userId,
             isMyProfile: currentUserId != null && currentUserId == userId,
           ),
