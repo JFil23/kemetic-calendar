@@ -1,3 +1,4 @@
+import '../../data/share_models.dart';
 import 'pages_models.dart';
 import '../../data/commons_models.dart';
 import '../../data/shared_practice_models.dart';
@@ -118,4 +119,30 @@ PagesPlannerItem? selectPagesPlanner(
           .toList()
         ..sort((a, b) => a.at!.compareTo(b.at!));
   return nutrition.firstOrNull;
+}
+
+/// The subject is the other person, so outgoing actions cannot be attributed to them.
+String pagesShareUpdateLabel(InboxShareItem share, String viewerId) {
+  final outgoing = share.senderId == viewerId;
+  if (share.responseStatus == EventInviteResponseStatus.declined) {
+    return outgoing
+        ? 'Declined your invitation'
+        : 'You declined the invitation';
+  }
+  if (share.responseStatus == EventInviteResponseStatus.accepted ||
+      share.importedAt != null) {
+    return outgoing
+        ? 'Accepted your invitation'
+        : 'You accepted the invitation';
+  }
+  return switch (share.kind) {
+    InboxShareKind.flow =>
+      outgoing ? 'You shared a flow' : 'Shared a flow with you',
+    InboxShareKind.event =>
+      outgoing ? 'You sent an event' : 'Invited you to an event',
+    InboxShareKind.calendar =>
+      outgoing ? 'You sent an invitation' : 'Invited you to a calendar',
+    InboxShareKind.message =>
+      outgoing ? 'You sent a message' : 'Sent you a message',
+  };
 }

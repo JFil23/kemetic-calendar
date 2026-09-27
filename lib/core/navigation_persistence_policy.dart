@@ -391,6 +391,12 @@ class AppRouteRegistry {
       canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
+      pattern: '/pages',
+      routeClass: NavigationRouteClass.utility,
+      owner: AppRouteOwner.calendar,
+      canRestoreAsSurface: true,
+    ),
+    AppRouteDefinition(
       pattern: '/flows',
       routeClass: NavigationRouteClass.utility,
       owner: AppRouteOwner.calendar,

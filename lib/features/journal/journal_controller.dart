@@ -1,3 +1,4 @@
+import '../../data/pages_read_repository.dart' show publishJournalOverview;
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -456,6 +457,37 @@ class JournalController {
     }
   }
 
+  /// Passive preview shares Journal's account-scoped dirty-draft precedence.
+  /// Does not initialize the editor, migrate, autosave, or write preferences.
+  Future<String?> readPreviewBodyForDay(
+    DateTime date, {
+    String? serverBody,
+    DateTime? serverUpdatedAt,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _formatDate(date);
+    final dirty = prefs.getBool(_documentDirtyKey(key)) ?? false;
+    final modified = _parsePrefsDate(
+      prefs.getString(_documentModifiedKey(key)),
+    );
+    if (dirty &&
+        (serverBody == null ||
+            (modified != null &&
+                serverUpdatedAt != null &&
+                !modified.isBefore(serverUpdatedAt.toUtc())))) {
+      final body = prefs.getString(_documentKey(key));
+      if (body != null) {
+        try {
+          JournalDocument.fromJson(jsonDecode(body) as Map<String, dynamic>);
+          return body;
+        } catch (_) {
+          /* Use the valid server document. */
+        }
+      }
+    }
+    return serverBody;
+  }
+
   /// Load document for today (V2 behavior)
   Future<void> _loadDocumentForToday() async {
     final today = _today;
@@ -763,6 +795,15 @@ class JournalController {
       await prefs.setString(_documentKey(dateKey), docJson);
       await prefs.setString(_lastOpenDayKey, dateKey);
       await _setLocalDirty(prefs: prefs, dateKey: dateKey, dirty: markDirty);
+      final userId = _currentUserId();
+      if (userId != null && _currentDate != null) {
+        publishJournalOverview(
+          userId,
+          _currentDate!,
+          docJson,
+          saved: !markDirty,
+        );
+      }
       _log('_saveLocalDocument: ✓ cached locally');
     } catch (e) {
       _log('_saveLocalDocument error: $e');

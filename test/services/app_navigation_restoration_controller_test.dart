@@ -1047,9 +1047,47 @@ void main() {
     }
   });
 
+  test(
+    'Pages survives relaunch and returning from a real utility route',
+    () async {
+      final controller = AppNavigationRestorationController.instance;
+      await controller.recordVisibleSurface(route: '/pages');
+      expect(
+        (await controller.restoreLaunchDestination(
+          isAuthenticated: true,
+        )).route,
+        '/pages',
+      );
+      await controller.recordVisibleSurface(route: '/journal');
+      await controller.recordSurfaceDismissal(
+        dismissedRoute: '/journal',
+        fallbackRoute: '/pages',
+        source: NavigationSource.userDismissal,
+      );
+      expect(
+        (await controller.restoreLaunchDestination(
+          isAuthenticated: true,
+        )).route,
+        '/pages',
+      );
+      await controller.recordSurfaceDismissal(
+        dismissedRoute: '/pages',
+        fallbackRoute: '/',
+        source: NavigationSource.userBack,
+      );
+      expect(
+        (await controller.restoreLaunchDestination(
+          isAuthenticated: true,
+        )).route,
+        '/',
+      );
+    },
+  );
+
   test('utility routes restore as surfaces without primary selection', () {
     const policy = NavigationPersistencePolicy();
     for (final route in const <String>[
+      '/pages',
       '/flows',
       '/flows?mode=myFlows',
       '/flows?mode=maatFlows',

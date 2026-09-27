@@ -1,3 +1,4 @@
+import 'package:mobile/data/share_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flow_appearance.dart';
 import 'package:mobile/data/commons_models.dart';
@@ -15,6 +16,41 @@ const flow = PagesFlow(
   completed: 12,
 );
 void main() {
+  test('Inbox share wording preserves direction, kind and response', () {
+    InboxShareItem share({
+      bool outgoing = false,
+      EventInviteResponseStatus response = EventInviteResponseStatus.noResponse,
+    }) => InboxShareItem(
+      shareId: 's',
+      kind: InboxShareKind.flow,
+      recipientId: outgoing ? 'other' : 'me',
+      senderId: outgoing ? 'me' : 'other',
+      payloadId: 'p',
+      title: 'Real flow',
+      createdAt: DateTime(2026),
+      responseStatus: response,
+    );
+    expect(pagesShareUpdateLabel(share(), 'me'), 'Shared a flow with you');
+    expect(
+      pagesShareUpdateLabel(share(outgoing: true), 'me'),
+      'You shared a flow',
+    );
+    expect(
+      pagesShareUpdateLabel(
+        share(outgoing: true, response: EventInviteResponseStatus.accepted),
+        'me',
+      ),
+      'Accepted your invitation',
+    );
+    expect(
+      pagesShareUpdateLabel(
+        share(outgoing: true, response: EventInviteResponseStatus.declined),
+        'me',
+      ),
+      'Declined your invitation',
+    );
+  });
+
   test('new join request outranks older unseen like across activity types', () {
     final selected = selectPagesFeed([
       PagesFeedCandidate(

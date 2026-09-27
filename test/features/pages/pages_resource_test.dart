@@ -1,3 +1,4 @@
+import 'package:mobile/features/pages/pages_arrangement.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,6 +48,96 @@ Future<void> drain() async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'filed upcoming events select Sky before tomorrow Offering and retain its artwork key',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final now = DateTime(2026, 9, 26, 18);
+      final requests = <http.Request>[];
+      final client = SupabaseClient(
+        'https://example.supabase.co',
+        'test-key',
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+        httpClient: MockClient((request) async {
+          requests.add(request);
+          final payload = request.url.path.endsWith('get_my_filed_flows_v1')
+              ? [
+                  {
+                    'id': 963,
+                    'user_id': uid,
+                    'name': 'The Offering Table',
+                    'color': 0xffbb9933,
+                    'notes': 'maat=the-offering-table',
+                    'active': true,
+                    'visible_in_active_list': true,
+                    'total_event_count': 30,
+                    'remaining_event_count': 27,
+                  },
+                  {
+                    'id': 956,
+                    'user_id': uid,
+                    'name': 'Follow the sky',
+                    'color': 0xffbb9933,
+                    'notes': 'maat=track-the-sky',
+                    'active': true,
+                    'visible_in_active_list': true,
+                    'total_event_count': 65,
+                    'remaining_event_count': 64,
+                  },
+                ]
+              : [
+                  {
+                    'title': 'Hidden event',
+                    'filed_flow_id': 963,
+                    'calendar_id': 'hidden',
+                    'starts_at': now
+                        .add(const Duration(hours: 1))
+                        .toUtc()
+                        .toIso8601String(),
+                  },
+                  {
+                    'title': 'Full Moon',
+                    'filed_flow_id': 956,
+                    'calendar_id': 'visible',
+                    'starts_at': now
+                        .add(const Duration(hours: 2))
+                        .toUtc()
+                        .toIso8601String(),
+                  },
+                  {
+                    'title': 'Household Table',
+                    'filed_flow_id': 963,
+                    'calendar_id': 'visible',
+                    'starts_at': now
+                        .add(const Duration(hours: 13))
+                        .toUtc()
+                        .toIso8601String(),
+                  },
+                ];
+          return http.Response(
+            jsonEncode(payload),
+            200,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          );
+        }),
+      );
+      await client.auth.recoverSession(session());
+      final repo = PagesReadRepository(client, mayFetch: () => true);
+      final flows = await repo.flows();
+      final events = await repo.events(now, hidden: {'hidden'});
+      final selected = selectPagesStudio(flows, events.events, now);
+      expect(selected.flow?.name, 'Follow the sky');
+      expect(selected.flow?.maatKey, 'track-the-sky');
+      expect(selected.event?.title, 'Full Moon');
+      expect(
+        requests.last.url.queryParameters['order'],
+        startsWith('starts_at.asc'),
+      );
+      await client.dispose();
+    },
+  );
+
   test(
     'displayed Inbox actor glyphs use one read and survive revisit',
     () async {
@@ -172,7 +263,7 @@ void main() {
       controller.setVisible(true);
       await drain();
       final cold = requests.length;
-      expect(cold, 15);
+      expect(cold, 16);
       final todoQuery = requests
           .singleWhere((r) => r.url.path.endsWith('/todos'))
           .url
@@ -214,7 +305,22 @@ void main() {
           expect(request.url.queryParameters['limit'], isNotNull);
         }
       }
-      expect(endpoints.values.every((n) => n == 1), isTrue);
+      expect(endpoints['user_event_filing_items_client'], 2);
+      expect(
+        endpoints.entries
+            .where((e) => e.key != 'user_event_filing_items_client')
+            .every((e) => e.value == 1),
+        isTrue,
+      );
+      for (final request in requests.where(
+        (r) => r.url.path.endsWith('/user_event_filing_items_client'),
+      )) {
+        expect(
+          request.url.queryParameters['order'],
+          startsWith('starts_at.asc'),
+        );
+        expect(request.url.queryParameters['live_on_calendar'], 'eq.true');
+      }
       controller.setVisible(false);
       await drain();
       expect(requests.length, cold);

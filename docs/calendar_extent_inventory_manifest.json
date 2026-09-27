@@ -6,8 +6,8 @@
       "name": "year_and_month_sections",
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
-      "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "eda4ae455144e928fc0ca0a8645fd73242ddd56ac7a8eb89d2d2c9f60050943f"
+      "end": "/* \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Detail Page (single-window behavior, flows-aware) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */",
+      "sha256": "b5cb7fce8a26b118602086d369aa44ce601892e2c74d6909988fe17b170c3b3e"
     },
     {
       "name": "calendar_text_styles",
@@ -34,7 +34,7 @@
       "name": "season_header",
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "class _SeasonHeader extends StatelessWidget {",
-      "end": "/* ─────────── Shared dark input (top-level so all pages can use it) ─────────── */",
+      "end": "/* \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Shared dark input (top-level so all pages can use it) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */",
       "sha256": "6fef67659547d4ebb979a5fd8c2d7ea615ef4b09bae85e25ad36f4695c228fd6"
     },
     {
@@ -48,7 +48,7 @@
       "name": "portrait_body_and_banner",
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  Widget _buildBodyWithJournal() {",
-      "end": "  /* ───────────── Decan Reflection Badge & Archive ───────────── */",
+      "end": "  /* \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Decan Reflection Badge & Archive \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */",
       "sha256": "57cffa110374c6bf9d11e4732f8d8b6c66e53e06a24f9ea47809fddedeb5f511"
     },
     {

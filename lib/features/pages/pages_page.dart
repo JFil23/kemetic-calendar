@@ -140,7 +140,7 @@ class _PagesPageState extends State<PagesPage>
         case PagesDestination.calendars:
           await openUtilityRoute<void>(context, '/calendars');
         case PagesDestination.studio:
-          await CalendarPage.openFlowStudioFromAnyContext(context);
+          await openUtilityRoute<void>(context, '/flows');
       }
     });
   }

@@ -1,3 +1,9 @@
+import '../features/calendar/day_view.dart' show NoteData;
+import '../features/calendar/kemetic_month_metadata.dart';
+import '../widgets/kemetic_date_picker.dart' show KemeticMath;
+import '../utils/calendar_event_markers.dart';
+import '../services/app_restoration_service.dart';
+import '../features/journal/journal_controller.dart';
 import 'dart:convert';
 import '../core/completion_status.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
@@ -9,7 +15,8 @@ import '../features/rhythm/data/planner_badge_repo.dart';
 import '../features/journal/journal_badge_utils.dart';
 import '../features/journal/journal_v2_document_model.dart';
 import '../features/pages/pages_models.dart';
-import '../features/calendar/calendar_page.dart' show notesDecode;
+import '../features/calendar/calendar_page.dart'
+    show notesDecode, calendarPreviewEventColor;
 import 'account_view_cache.dart';
 import '../features/pages/pages_arrangement.dart';
 import 'nutrition_repo.dart';
@@ -334,16 +341,125 @@ class PagesReadRepository {
     return CommonsHomeSnapshot.fromJson(Map<String, dynamic>.from(json));
   }
 
-  Future<PagesEventWindow> events(DateTime now) async {
+  /// Cold restoration only: a bounded current-month read from the same filed
+  /// event view used by Calendar. A mounted Calendar publishes its exact snapshot.
+  Future<PagesCard> calendar(
+    DateTime now,
+    List<PagesFlow> flows,
+    Set<String> hidden,
+  ) async {
+    final k = KemeticMath.fromGregorian(now);
+    final first = KemeticMath.toGregorian(k.kYear, k.kMonth, 1);
+    final last = k.kMonth == 13
+        ? KemeticMath.toGregorian(k.kYear + 1, 1, 1)
+        : KemeticMath.toGregorian(k.kYear, k.kMonth + 1, 1);
+    final rows = await client
+        .from('user_event_filing_items_client')
+        .select(
+          'id,client_event_id,title,detail,starts_at,ends_at,all_day,calendar_id,calendar_color,calendar_is_personal,flow_local_id,filed_flow_id,item_kind,category,behavior_payload',
+        )
+        .eq('live_on_calendar', true)
+        .gte('starts_at', first.toUtc().toIso8601String())
+        .lt('starts_at', last.toUtc().toIso8601String())
+        .order('starts_at', ascending: true)
+        .limit(501);
+    if (rows.length == 501) {
+      throw StateError('Calendar preview coverage unavailable');
+    }
+    checkActive();
+    final saved = await AppRestorationService.instance.readCalendarState();
+    checkActive();
+    final byId = {for (final f in flows) f.id: f};
+    final notes = <int, List<NoteData>>{};
+    final seen = <String>{};
+    for (final row in rows) {
+      if (hidden.contains(row['calendar_id']) ||
+          row['category'] == 'tombstone') {
+        continue;
+      }
+      final at = DateTime.parse(row['starts_at'] as String).toLocal();
+      final day = KemeticMath.fromGregorian(at).kDay;
+      final clientId = row['client_event_id']?.toString().trim();
+      final identity = (clientId == null || clientId.isEmpty)
+          ? row['id'].toString()
+          : clientId;
+      if (!seen.add(identity)) continue;
+      final flowId = (row['filed_flow_id'] ?? row['flow_local_id'])?.toString();
+      final flow = byId[flowId];
+      final reminder = row['item_kind'] == 'reminder';
+      final color = calendarPreviewEventColor(
+        detail: row['detail'] as String?,
+        calendarColor: (row['calendar_color'] as num?)?.toInt(),
+        calendarIsPersonal: row['calendar_is_personal'] != false,
+        flowName: flow?.name,
+        flowColor: flow?.color,
+        isReminder: reminder,
+      );
+      (notes[day] ??= []).add(
+        NoteData(
+          id: row['id'] as String?,
+          clientEventId: row['client_event_id'] as String?,
+          calendarId: row['calendar_id'] as String?,
+          title: row['title'] as String? ?? '',
+          allDay: row['all_day'] == true,
+          start: TimeOfDay.fromDateTime(at),
+          flowId: int.tryParse(flowId ?? ''),
+          manualColor: color,
+          isReminder: reminder,
+          category: row['category'] as String?,
+          behaviorPayload: row['behavior_payload'] is Map
+              ? Map<String, dynamic>.from(row['behavior_payload'])
+              : null,
+        ),
+      );
+    }
+    return PagesCard(
+      PagesDestination.calendar,
+      state: PagesLoadState.ready,
+      calendarDate: now,
+      showGregorian: saved?.showGregorian ?? false,
+      calendarNotes: notes,
+      calendarFlowNames: {
+        for (final f in flows)
+          if (int.tryParse(f.id) != null) int.parse(f.id): f.name,
+      },
+      meta: '${notes[k.kDay]?.length ?? 0} today',
+      primary: PagesSignal(getMonthById(k.kMonth).displayShort),
+      days: List.generate(
+        DateTime.utc(
+          last.year,
+          last.month,
+          last.day,
+        ).difference(DateTime.utc(first.year, first.month, first.day)).inDays,
+        (i) => PagesCalendarDay(
+          i + 1,
+          today: i + 1 == k.kDay,
+          past: i + 1 < k.kDay,
+          colors: calendarEventMarkerColors<NoteData>(
+            notes[i + 1] ?? const [],
+            colorOf: (n) => n.manualColor!,
+            groupBy: (n) => n.flowId == null ? null : 'flow:${n.flowId}',
+          ).map((c) => c.toARGB32()).toList(),
+        ),
+      ),
+    );
+  }
+
+  Future<PagesEventWindow> events(
+    DateTime now, {
+    Set<String> hidden = const {},
+  }) async {
     final end = DateTime(now.year, now.month, now.day + 31);
     final rows = await client
         .from('user_event_filing_items_client')
-        .select('title,starts_at,flow_local_id,filed_flow_id')
+        .select('title,starts_at,calendar_id,flow_local_id,filed_flow_id')
+        .eq('live_on_calendar', true)
         .gte('starts_at', now.toUtc().toIso8601String())
         .lt('starts_at', end.toUtc().toIso8601String())
-        .order('starts_at')
+        .order('starts_at', ascending: true)
         .limit(201);
     final events = rows
+        .where((r) => !hidden.contains(r['calendar_id']))
         .map(
           (r) => PagesUpcomingEvent(
             flowId: (r['filed_flow_id'] ?? r['flow_local_id'] ?? '').toString(),
@@ -352,7 +468,12 @@ class PagesReadRepository {
           ),
         )
         .toList();
-    return PagesEventWindow(events, rows.length == 201 ? events.last.at : end);
+    return PagesEventWindow(
+      events,
+      rows.length == 201
+          ? DateTime.parse(rows.last['starts_at'] as String).toLocal()
+          : end,
+    );
   }
 
   Future<JournalOverview> journal(DateTime now) async {
@@ -361,22 +482,39 @@ class PagesReadRepository {
     // journal history. Older badge coverage remains explicitly unknown.
     final rows = await client
         .from('journal_entries')
-        .select('greg_date,body,meta')
+        .select('greg_date,body,meta,updated_at')
         .eq('user_id', owner)
         .lte('greg_date', dayKey(now))
         .order('greg_date', ascending: false)
         .limit(14);
     final written = <String>{};
     final badgesByDay = <String, List<PagesSignal>>{};
+    final unsaved = <String>{};
+    final journalController = JournalController(client);
     for (final row in rows) {
       final date = row['greg_date'].toString();
       if (((row['meta'] as Map?)?['chars'] as num? ?? 0) > 0) written.add(date);
-      badgesByDay[date] = journalBadgeSignals(row['body'] as String? ?? '');
+      final body = await journalController.readPreviewBodyForDay(
+        DateTime.parse(date),
+        serverBody: row['body'] as String?,
+        serverUpdatedAt: DateTime.tryParse(row['updated_at']?.toString() ?? ''),
+      );
+      badgesByDay[date] = journalBadgeSignals(body ?? '');
+      if (body != row['body']) unsaved.add(date);
+    }
+    final today = dayKey(now);
+    if (!badgesByDay.containsKey(today)) {
+      final local = await journalController.readPreviewBodyForDay(now);
+      if (local != null) {
+        badgesByDay[today] = journalBadgeSignals(local);
+        unsaved.add(today);
+      }
     }
     return JournalOverview(
       written: written,
       badgesByDay: badgesByDay,
       historyComplete: rows.length < 14,
+      unsaved: unsaved,
     );
   }
 }
@@ -386,10 +524,12 @@ class JournalOverview {
     required this.written,
     required this.badgesByDay,
     this.historyComplete = false,
+    this.unsaved = const {},
   });
   final Set<String> written;
   final Map<String, List<PagesSignal>> badgesByDay;
   final bool historyComplete;
+  final Set<String> unsaved;
   List<PagesSignal> get badges {
     final dates = badgesByDay.keys.toList()..sort((a, b) => b.compareTo(a));
     for (final d in dates) {
@@ -432,7 +572,12 @@ List<PagesSignal> journalBadgeSignals(
       );
     })
     .toList(growable: false);
-void publishJournalOverview(String uid, DateTime date, String body) {
+void publishJournalOverview(
+  String uid,
+  DateTime date,
+  String body, {
+  bool saved = true,
+}) {
   final cache = AccountViewCache.instance;
   final previous = cache.peek<JournalOverview>(uid, 'journal.overview');
   if (previous == null) return;
@@ -457,6 +602,7 @@ void publishJournalOverview(String uid, DateTime date, String body) {
       written: written,
       badgesByDay: byDay,
       historyComplete: previous.historyComplete,
+      unsaved: {...previous.unsaved.where((d) => d != key), if (!saved) key},
     ),
   );
 }

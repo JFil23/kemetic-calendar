@@ -1137,6 +1137,22 @@ normalizeTrackSkyLocalWindow({
   return (startLocal: newStart, endLocal: newEnd, allDay: false);
 }
 
+/// Calendar's stored override, shared-calendar color and flow-signifier rules.
+Color calendarPreviewEventColor({
+  String? detail,
+  int? calendarColor,
+  required bool calendarIsPersonal,
+  String? flowName,
+  int? flowColor,
+  required bool isReminder,
+}) {
+  final manual = _decodeDetailMetadata(detail).color;
+  if (manual != null) return manual;
+  if (!calendarIsPersonal && calendarColor != null) return Color(calendarColor);
+  if (flowColor != null) return _displayFlowColor(flowName, Color(flowColor));
+  return isReminder ? _blue : _silver;
+}
+
 Color _displayFlowColor(String? flowName, Color fallback) {
   if (_isTrackSkyFlowName(flowName)) return _trackSkySignifierBase;
   return fallback;
@@ -26476,6 +26492,7 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
     final days = <PagesCalendarDay>[];
+    final previewNotes = <int, List<NoteData>>{};
     final events = <PagesUpcomingEvent>[];
     for (var d = 1; d <= _maxDayForMonth(k.kYear, k.kMonth); d++) {
       final notes = _dedupeVisibleDayNotes(
@@ -26483,12 +26500,17 @@ class CalendarPageState extends State<CalendarPage>
             .where((n) => _isCalendarVisible(n.calendarId))
             .toList(),
       );
+      previewNotes[d] = notes.map(_noteDataFromNote).toList();
       days.add(
         PagesCalendarDay(
           d,
           today: d == k.kDay,
           past: d < k.kDay,
-          colors: notes.map((n) => _noteColor(n).toARGB32()).take(3).toList(),
+          colors: getFlowColorsForDay(
+            k.kYear,
+            k.kMonth,
+            d,
+          ).map((c) => c.toARGB32()).toList(),
         ),
       );
     }
@@ -26538,6 +26560,10 @@ class CalendarPageState extends State<CalendarPage>
         ),
         meta:
             '${todayNotes.length} today${events.where((e) => e.at.isAfter(now)).firstOrNull == null ? '' : ' · ${events.where((e) => e.at.isAfter(now)).first.at.hour.toString().padLeft(2, '0')}:${events.where((e) => e.at.isAfter(now)).first.at.minute.toString().padLeft(2, '0')}'}',
+        calendarDate: now,
+        showGregorian: _showGregorian,
+        calendarNotes: previewNotes,
+        calendarFlowNames: {for (final f in _flows) f.id: f.name},
         days: days,
         weekdays: List.generate(
           10,
@@ -26545,43 +26571,6 @@ class CalendarPageState extends State<CalendarPage>
         ),
       ),
     );
-    final windowEnd = DateTime(now.year, now.month, now.day + 31);
-    if (_hydrationController.state.coverage.covers(
-      CalendarHydrationInterval(
-        startUtc: DateTime(now.year, now.month, now.day),
-        endUtc: windowEnd,
-      ),
-    )) {
-      cache.publish(
-        uid,
-        'pages.events',
-        PagesEventWindow(List.unmodifiable(events), windowEnd),
-      );
-    }
-    if (_flows.isNotEmpty || _flowsRepo.cachedMyFiledFlowsSync() != null) {
-      cache.publish(
-        uid,
-        'pages.flows',
-        List<PagesFlow>.unmodifiable(
-          _flows.where((f) => f.active && !f.isHidden && !f.isReminder).map((
-            f,
-          ) {
-            final total = _flowTotalEventCounts[f.id] ?? 0;
-            final remaining = _flowRemainingEventCounts[f.id] ?? total;
-            return PagesFlow(
-              id: '${f.id}',
-              name: f.name,
-              appearance: f.appearance,
-              color: f.color.toARGB32(),
-              total: total,
-              completed: (total - remaining).clamp(0, total),
-              start: f.start,
-              end: f.end,
-            );
-          }),
-        ),
-      );
-    }
     if (cache.peek<Set<String>>(uid, 'pages.hiddenCalendars') == null) {
       cache.publish(
         uid,
@@ -26590,7 +26579,8 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
     if (_calendarSummariesById.isNotEmpty &&
-        cache.peek<List<SharedCalendarSummary>>(uid, 'calendars.list') == null) {
+        cache.peek<List<SharedCalendarSummary>>(uid, 'calendars.list') ==
+            null) {
       cache.publish(
         uid,
         'calendars.list',

@@ -1,4 +1,7 @@
 import 'dart:math' as math;
+import '../calendar/calendar_page.dart'
+    show buildCalendarMonthCardPreview, MonthExpansionLevel;
+import '../../widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'package:flutter/material.dart';
 import '../calendar/presentation/user_flow_appearance_visual.dart';
 import '../calendar/presentation/maat_flow_discovery_view.dart';
@@ -324,10 +327,10 @@ class PagesTile extends StatelessWidget {
                               child: Text(
                                 card.primary.title,
                                 style: pagesSerif(
-                                  16,
+                                  14,
                                   color: const Color(0xfff2cf63),
                                 ),
-                                maxLines: 3,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -559,121 +562,36 @@ class PagesTile extends StatelessWidget {
     );
   }
 
-  Widget _calendar() => _ground(
-    const Color(0xff0c0a06),
-    Padding(
-      padding: const EdgeInsets.fromLTRB(9, 9, 9, 7),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  card.primary.title,
-                  style: pagesSerif(16, color: pagesGold),
-                  maxLines: 1,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                card.primary.detail,
-                style: pagesSerif(
-                  10,
-                  color: const Color(0xff8f7a45),
-                  italic: true,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          Row(
-            children: card.weekdays
-                .map(
-                  (d) => Expanded(
-                    child: Text(
-                      d,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'GentiumPlus',
-                        fontSize: 7,
-                        color: Color(0xff8f7d49),
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 2),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, box) => Wrap(
-                children: card.days
-                    .map(
-                      (d) => SizedBox(
-                        width: box.maxWidth / 10,
-                        height: box.maxHeight / 3,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 19,
-                                height: 19,
-                                alignment: Alignment.center,
-                                decoration: d.today
-                                    ? const BoxDecoration(
-                                        color: pagesGold,
-                                        shape: BoxShape.circle,
-                                      )
-                                    : null,
-                                child: Text(
-                                  '${d.day}',
-                                  style: pagesSerif(
-                                    12,
-                                    color: d.today
-                                        ? const Color(0xff0b0804)
-                                        : d.past
-                                        ? const Color(0xff7a6a3e)
-                                        : const Color(0xffbfa153),
-                                  ),
-                                ),
-                              ),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: d.colors
-                                    .take(3)
-                                    .map(
-                                      (c) => Container(
-                                        width: 2.5,
-                                        height: 2.5,
-                                        margin: const EdgeInsets.symmetric(
-                                          horizontal: .75,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: d.today
-                                              ? Color(c)
-                                              : const Color(0xff8d7c4c),
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
+  Widget _calendar() {
+    final date = card.calendarDate;
+    if (date == null) return _signal(const PagesSignal('Loading calendar…'));
+    final k = KemeticMath.fromGregorian(date);
+    return _ground(
+      const Color(0xff0c0a06),
+      IgnorePointer(
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 390,
+            child: buildCalendarMonthCardPreview(
+              kYear: k.kYear,
+              kMonth: k.kMonth,
+              todayDay: k.kDay,
+              expansionLevel: MonthExpansionLevel.compact,
+              showGregorian: card.showGregorian,
+              notesForDay: (day) => card.calendarNotes[day] ?? const [],
+              colorsForDay: (day) =>
+                  (card.days.where((d) => d.day == day).firstOrNull?.colors ??
+                          const <int>[])
+                      .map(Color.new)
+                      .toList(),
+              flowNameForNote: (note) => card.calendarFlowNames[note.flowId],
             ),
           ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 // Each role has an explicit dark base. No shared glow or overlay lifts panes.

@@ -35,9 +35,11 @@ class PagesController {
     this.cache.enterAccount(uid);
     this.cache.changes.addListener(_changed);
     _calendarChanges = CalendarInvalidationBus.instance.stream.listen((_) {
+      this.cache.invalidate(uid, 'pages.calendar');
       this.cache.invalidate(uid, 'pages.events');
       this.cache.invalidate(uid, 'pages.flows');
       if (active) {
+        unawaited(_loadCalendar());
         unawaited(_loadEvents());
         unawaited(_load('pages.flows', repository.flows));
       }
@@ -178,6 +180,7 @@ class PagesController {
         () => SharedCalendarsRepo(client).getHiddenCalendarIds(),
       ),
     );
+    unawaited(_loadCalendar());
     unawaited(_loadEvents());
     unawaited(_load('pages.flows', repository.flows));
     unawaited(_loadSocial());
@@ -243,13 +246,46 @@ class PagesController {
     }
   }
 
+  Future<void> _loadCalendar() async {
+    final now = DateTime.now();
+    final current = _peek<PagesCard>('pages.calendar');
+    final sameMonth =
+        current?.calendarDate != null &&
+        KemeticMath.fromGregorian(current!.calendarDate!).kYear ==
+            KemeticMath.fromGregorian(now).kYear &&
+        KemeticMath.fromGregorian(current.calendarDate!).kMonth ==
+            KemeticMath.fromGregorian(now).kMonth;
+    if (sameMonth &&
+        current.state == PagesLoadState.ready &&
+        !cache.failed('pages.calendar') &&
+        cache.loadedAt(uid, 'pages.calendar') != null) {
+      _paintKey('pages.calendar');
+      return;
+    }
+    final flows = await _load('pages.flows', repository.flows);
+    if (!active || flows == null) return;
+    final hidden = await _load(
+      'pages.hiddenCalendars',
+      () => SharedCalendarsRepo(client).getHiddenCalendarIds(),
+    );
+    if (!active || hidden == null) return;
+    await _load(
+      'pages.calendar',
+      () => repository.calendar(now, flows, hidden),
+      stale: !sameMonth || current.state != PagesLoadState.ready,
+    );
+  }
+
   Future<void> _loadEvents() async {
     final window = _peek<PagesEventWindow>('pages.events');
-    await _load(
-      'pages.events',
-      () => repository.events(DateTime.now()),
-      stale: window != null && !window.end.isAfter(DateTime.now()),
-    );
+    await _load('pages.events', () async {
+      final hidden = await _load(
+        'pages.hiddenCalendars',
+        () => SharedCalendarsRepo(client).getHiddenCalendarIds(),
+      );
+      if (!active) throw const ViewReadCancelled();
+      return repository.events(DateTime.now(), hidden: hidden ?? const {});
+    }, stale: window != null && !window.end.isAfter(DateTime.now()));
     if (active) _scheduleBoundary();
   }
 
@@ -345,7 +381,30 @@ class PagesController {
   void _paintKey(String key) {
     if (key == 'pages.calendar') {
       final card = _peek<PagesCard>(key);
-      if (card != null) _set(card);
+      if (card != null) {
+        final now = DateTime.now();
+        final k = KemeticMath.fromGregorian(now);
+        _set(
+          PagesCard(
+            PagesDestination.calendar,
+            state: card.state,
+            primary: card.primary,
+            meta:
+                card.calendarDate != null &&
+                    PagesReadRepository.dayKey(card.calendarDate!) ==
+                        PagesReadRepository.dayKey(now)
+                ? card.meta
+                : '${card.calendarNotes[k.kDay]?.length ?? 0} today',
+            calendarDate: DateTime(now.year, now.month, now.day),
+            showGregorian: card.showGregorian,
+            calendarNotes: card.calendarNotes,
+            calendarFlowNames: card.calendarFlowNames,
+            days: card.days,
+          ),
+        );
+      } else if (cache.failed(key)) {
+        _missing(PagesDestination.calendar, [key]);
+      }
     }
     if (key == 'planner.overview') _paintPlanner();
     if (key == 'journal.overview') _paintJournal();
@@ -428,6 +487,10 @@ class PagesController {
           identityHashCode(f.imageBytes),
         ],
       for (final d in c.days) [d.day, d.today, d.past, d.colors],
+      c.calendarDate,
+      c.showGregorian,
+      c.calendarNotes,
+      c.calendarFlowNames,
       c.weekdays,
       c.week,
       c.calendars,
@@ -487,7 +550,11 @@ class PagesController {
       PagesCard(
         PagesDestination.journal,
         state: PagesLoadState.ready,
-        meta: j.written.contains(today) ? 'Today is saved' : 'Today is open',
+        meta: j.unsaved.contains(today)
+            ? 'Draft on this device'
+            : j.written.contains(today)
+            ? 'Today is saved'
+            : 'Today is open',
         primary:
             j.badges.firstOrNull ??
             PagesSignal(
@@ -496,7 +563,11 @@ class PagesController {
         upper: PagesSignal(
           '${getMonthById(kemetic.kMonth).displayShort} ${kemetic.kDay}',
           label: 'Today',
-          detail: j.written.contains(today) ? '✓ Saved' : 'Still open',
+          detail: j.unsaved.contains(today)
+              ? 'Unsaved draft'
+              : j.written.contains(today)
+              ? '✓ Saved'
+              : 'Still open',
         ),
         week: List.generate(
           7,
@@ -800,11 +871,20 @@ class PagesController {
             .firstOrNull;
     final invitation = together.invitations.firstOrNull;
     final updates =
-        shares.where((s) => s.kind != InboxShareKind.message).toList()..sort(
-          (a, b) => (b.respondedAt ?? b.importedAt ?? b.createdAt).compareTo(
-            a.respondedAt ?? a.importedAt ?? a.createdAt,
-          ),
-        );
+        shares
+            .where(
+              (s) =>
+                  s.kind != InboxShareKind.message &&
+                  (s.senderId != uid ||
+                      s.respondedAt != null ||
+                      s.importedAt != null),
+            )
+            .toList()
+          ..sort(
+            (a, b) => (b.respondedAt ?? b.importedAt ?? b.createdAt).compareTo(
+              a.respondedAt ?? a.importedAt ?? a.createdAt,
+            ),
+          );
     final update = updates.firstOrNull;
     final useShare =
         update != null &&
@@ -815,9 +895,6 @@ class PagesController {
     final updateName = isSender
         ? (update?.recipientDisplayName ?? update?.recipientHandle)
         : (update?.senderName ?? update?.senderHandle);
-    final accepted =
-        update?.responseStatus == EventInviteResponseStatus.accepted ||
-        update?.importedAt != null;
 
     String reason(InboxActivityItem a) => switch (a.type) {
       InboxActivityType.like => 'liked your flow',
@@ -837,11 +914,7 @@ class PagesController {
                   isSender ? update.recipientId : update.senderId,
                 ),
                 label: 'Latest update',
-                detail: accepted
-                    ? (isSender
-                          ? 'Accepted your invite'
-                          : 'Invitation accepted')
-                    : 'Sent an invitation',
+                detail: pagesShareUpdateLabel(update, uid),
               )
             : latest == null
             ? const PagesSignal('All caught up')
@@ -938,6 +1011,7 @@ class PagesController {
       () {
         if (!active) return;
         onLocalBoundary?.call();
+        unawaited(_loadCalendar());
         _paintPlanner();
         _paintJournal();
         _paintStudio();

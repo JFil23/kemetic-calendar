@@ -1,3 +1,5 @@
+import 'package:mobile/services/session_resume_service.dart';
+import 'package:mobile/main.dart' show createAppRouterForTesting;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +11,6 @@ import 'package:mobile/features/pages/pages_page.dart';
 import 'package:mobile/features/pages/pages_layout.dart';
 import 'package:mobile/features/pages/pages_board.dart';
 import 'package:mobile/features/pages/pages_models.dart';
-import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -64,6 +65,51 @@ void main() {
       expect(requests, isEmpty);
     },
   );
+  testWidgets('production route builders use canonical feature surfaces', (
+    tester,
+  ) async {
+    final router = createAppRouterForTesting();
+    addTearDown(router.dispose);
+    late BuildContext context;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (c) {
+            context = c;
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+    for (final entry in {
+      '/pages': 'PagesPage',
+      '/journal': 'JournalRoutePage',
+      '/rhythm/today': 'PlannerSheetRoutePage',
+      '/inbox': 'InboxSheetRoutePage',
+      '/flows': '_FlowStudioRoutePage',
+      '/calendars': '_SharedCalendarsRoutePage',
+    }.entries) {
+      final route = router.configuration.routes
+          .whereType<GoRoute>()
+          .singleWhere((r) => r.path == entry.key);
+      final state = GoRouterState(
+        router.configuration,
+        uri: Uri.parse(entry.key),
+        matchedLocation: entry.key,
+        fullPath: entry.key,
+        pathParameters: const {},
+        pageKey: ValueKey(entry.key),
+      );
+      final page = route.pageBuilder!(context, state) as CustomTransitionPage;
+      expect(page.child, isA<SessionTrackedRoute>());
+      expect(
+        (page.child as SessionTrackedRoute).child.runtimeType.toString(),
+        entry.value,
+        reason: entry.key,
+      );
+    }
+  });
+
   testWidgets(
     'Pages opens existing destinations and sheets preserve Pages and scroll',
     (tester) async {
@@ -103,6 +149,7 @@ void main() {
             '/journal',
             '/inbox',
             '/calendars',
+            '/flows',
           ])
             GoRoute(
               path: path,
@@ -147,6 +194,7 @@ void main() {
         (PagesDestination.journal, '/journal'),
         (PagesDestination.inbox, '/inbox'),
         (PagesDestination.calendars, '/calendars'),
+        (PagesDestination.studio, '/flows'),
       ]) {
         final finder = find.byWidgetPredicate(
           (w) => w is PagesTile && w.card.destination == pair.$1,
@@ -162,22 +210,6 @@ void main() {
         expect(find.byType(PagesLayout), findsOneWidget);
         expect(tester.getTopLeft(finder), before);
       }
-      var studioParent = '';
-      CalendarPage.debugOpenFlowStudioFromAnyContext = (context) async {
-        studioParent = GoRouterState.of(context).uri.path;
-        await showModalBottomSheet<void>(
-          context: context,
-          builder: (context) => TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close Studio'),
-          ),
-        );
-      };
-      addTearDown(() => CalendarPage.debugOpenFlowStudioFromAnyContext = null);
-      await open(PagesDestination.studio);
-      expect(studioParent, '/pages');
-      await tester.tap(find.text('Close Studio'));
-      await tester.pumpAndSettle();
       await open(PagesDestination.calendar);
       expect(find.text('Calendar home'), findsOneWidget);
       expect(tester.takeException(), isNull);

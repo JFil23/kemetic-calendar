@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../data/flow_appearance.dart';
+import '../calendar/day_view.dart' show NoteData;
 
 enum PagesDestination {
   calendar,
@@ -91,7 +92,15 @@ class PagesCard {
     this.week = const [],
     this.calendars = const [],
     this.unread = 0,
+    this.calendarDate,
+    this.showGregorian = false,
+    this.calendarNotes = const {},
+    this.calendarFlowNames = const {},
   });
+  final DateTime? calendarDate;
+  final bool showGregorian;
+  final Map<int, List<NoteData>> calendarNotes;
+  final Map<int, String> calendarFlowNames;
   final PagesDestination destination;
   final PagesLoadState state;
   final String meta;

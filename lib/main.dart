@@ -1533,6 +1533,10 @@ GoRoute _utilitySheetRoute({
   );
 }
 
+@visibleForTesting
+GoRouter createAppRouterForTesting({String initialLocation = '/pages'}) =>
+    _createRouter(initialLocation: initialLocation);
+
 GoRouter _createRouter({required String initialLocation}) => GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: initialLocation,
@@ -1561,7 +1565,13 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
           );
         },
       ),
-    _calmRoute(path: '/pages', builder: (context, state) => const PagesPage()),
+    _calmRoute(
+      path: '/pages',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const PagesPage(),
+      ),
+    ),
     _utilitySheetRoute(
       path: '/inbox',
       builder: (context, state) {

@@ -695,8 +695,8 @@ double _eventPillFontSize({
   return CalendarExpansionGeometry._lerp(labeled, details, detailsProgress);
 }
 
-@visibleForTesting
-Widget buildCalendarMonthCardLayoutForTesting({
+/// Read-only rendering of the real calendar month, shared with Pages.
+Widget buildCalendarMonthCardPreview({
   required int kYear,
   required int kMonth,
   required List<NoteData> Function(int kDay) notesForDay,
@@ -704,6 +704,8 @@ Widget buildCalendarMonthCardLayoutForTesting({
   double? expansionProgress,
   int? todayDay,
   bool showGregorian = false,
+  String? seasonShort,
+  List<Color> Function(int day)? colorsForDay,
   String? Function(NoteData note)? flowNameForNote,
 }) {
   final flowNamesByNote = <_Note, String?>{};
@@ -734,10 +736,12 @@ Widget buildCalendarMonthCardLayoutForTesting({
   List<_Note> notesGetter(int _, int day) =>
       notesForDay(day).map(convert).toList();
 
-  List<Color> flowColorsGetter(int _, int _, int day) => [
-    for (final note in notesForDay(day))
-      if (note.manualColor != null) note.manualColor!,
-  ];
+  List<Color> flowColorsGetter(int _, int _, int day) =>
+      colorsForDay?.call(day) ??
+      [
+        for (final note in notesForDay(day))
+          if (note.manualColor != null) note.manualColor!,
+      ];
 
   if (kMonth == CalendarSectionIndex.monthsPerYear) {
     return _EpagomenalCard(
@@ -758,7 +762,7 @@ Widget buildCalendarMonthCardLayoutForTesting({
   return _MonthCard(
     kYear: kYear,
     kMonth: kMonth,
-    seasonShort: 'Akhet',
+    seasonShort: seasonShort ?? getMonthById(kMonth).season.label,
     todayMonth: todayDay == null ? null : kMonth,
     todayDay: todayDay,
     notesGetter: notesGetter,
@@ -771,6 +775,28 @@ Widget buildCalendarMonthCardLayoutForTesting({
     flowNameGetter: (note) => flowNamesByNote[note],
   );
 }
+
+@visibleForTesting
+Widget buildCalendarMonthCardLayoutForTesting({
+  required int kYear,
+  required int kMonth,
+  required List<NoteData> Function(int kDay) notesForDay,
+  MonthExpansionLevel expansionLevel = MonthExpansionLevel.details,
+  double? expansionProgress,
+  int? todayDay,
+  bool showGregorian = false,
+  String? Function(NoteData note)? flowNameForNote,
+}) => buildCalendarMonthCardPreview(
+  kYear: kYear,
+  kMonth: kMonth,
+  notesForDay: notesForDay,
+  expansionLevel: expansionLevel,
+  expansionProgress: expansionProgress,
+  todayDay: todayDay,
+  showGregorian: showGregorian,
+  flowNameForNote: flowNameForNote,
+  seasonShort: 'Akhet',
+);
 
 @visibleForTesting
 Widget buildFocusedCalendarMonthGridForTesting({

@@ -51,77 +51,89 @@ class _PagesLayoutState extends State<PagesLayout> {
               .toList();
     return Scaffold(
       backgroundColor: const Color(0xff060504),
-      appBar: AppBar(
-        backgroundColor: const Color(0xff060504),
-        surfaceTintColor: Colors.transparent,
-        automaticallyImplyLeading: false,
-        toolbarHeight: 58,
-        centerTitle: true,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: Semantics(
-          button: true,
-          label: 'Open profile',
-          child: InkWell(
-            onTap: widget.onProfile,
-            child: SizedBox(
-              height: 50,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (widget.profileHandle.isNotEmpty) ...[
-                    Text(
-                      widget.profileHandle,
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        height: 1,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: .2,
-                        color: Color(0xffd9d3c7),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(
+          58 + (MediaQuery.paddingOf(context).top * .5).clamp(12, 30),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            top: (MediaQuery.paddingOf(context).top * .5).clamp(12, 30),
+          ),
+          child: AppBar(
+            backgroundColor: const Color(0xff060504),
+            surfaceTintColor: Colors.transparent,
+            automaticallyImplyLeading: false,
+            toolbarHeight: 58,
+            centerTitle: true,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            title: Semantics(
+              button: true,
+              label: 'Open profile',
+              child: InkWell(
+                onTap: widget.onProfile,
+                child: SizedBox(
+                  height: 50,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      for (final id in normalizeProfileAvatarGlyphIds(
-                        widget.profileGlyphIds,
-                      ))
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2.5),
-                          child: Text(
-                            kProfileGlyphTileById[id]!.glyph,
-                            style: const TextStyle(
-                              fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-                              fontSize: 17,
-                              height: 1,
-                              color: pagesGold,
-                            ),
+                      if (widget.profileHandle.isNotEmpty) ...[
+                        Text(
+                          widget.profileHandle,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14,
+                            height: 1,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: .2,
+                            color: Color(0xffd9d3c7),
                           ),
                         ),
-                      if (widget.profileGlyphIds.isEmpty)
-                        const Icon(
-                          Icons.person_outline,
-                          color: pagesGold,
-                          size: 24,
-                        ),
+                        const SizedBox(height: 4),
+                      ],
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final id in normalizeProfileAvatarGlyphIds(
+                            widget.profileGlyphIds,
+                          ))
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2.5,
+                              ),
+                              child: Text(
+                                kProfileGlyphTileById[id]!.glyph,
+                                style: const TextStyle(
+                                  fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                                  fontSize: 17,
+                                  height: 1,
+                                  color: pagesGold,
+                                ),
+                              ),
+                            ),
+                          if (widget.profileGlyphIds.isEmpty)
+                            const Icon(
+                              Icons.person_outline,
+                              color: pagesGold,
+                              size: 24,
+                            ),
+                        ],
+                      ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
+            actions: [
+              IconButton(
+                tooltip: 'New note',
+                onPressed: widget.onNewNote,
+                icon: const Icon(Icons.add, color: pagesGold, size: 28),
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'New note',
-            onPressed: widget.onNewNote,
-            icon: const Icon(Icons.add, color: pagesGold, size: 28),
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: SafeArea(
         top: false,

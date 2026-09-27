@@ -17,6 +17,46 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  test(
+    'passive preview honors dirty account draft without initialization or writes',
+    () async {
+      final today = _today();
+      final key = _dateKey(today);
+      final now = DateTime.now().toUtc();
+      final local = _documentJson('new local badge document');
+      final server = _documentJson('older server document');
+      SharedPreferences.setMockInitialValues({
+        _documentKey(key, uid: 'user-a'): local,
+        _documentDirtyKey(key, uid: 'user-a'): true,
+        _documentModifiedKey(key, uid: 'user-a'): now.toIso8601String(),
+      });
+      final controller = JournalController.withRepo(
+        _FakeJournalRepo(),
+        currentUserId: () => 'user-a',
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final before = {for (final k in prefs.getKeys()) k: prefs.get(k)};
+      expect(
+        await controller.readPreviewBodyForDay(
+          today,
+          serverBody: server,
+          serverUpdatedAt: now.subtract(const Duration(minutes: 1)),
+        ),
+        local,
+      );
+      expect(
+        await controller.readPreviewBodyForDay(
+          today,
+          serverBody: server,
+          serverUpdatedAt: now.add(const Duration(minutes: 1)),
+        ),
+        server,
+      );
+      expect({for (final k in prefs.getKeys()) k: prefs.get(k)}, before);
+      expect(controller.currentDate, isNull);
+    },
+  );
+
   test('loads server document over a clean local cache for today', () async {
     final today = _today();
     final key = _dateKey(today);

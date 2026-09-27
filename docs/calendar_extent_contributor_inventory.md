@@ -429,3 +429,17 @@ The LOCK-GATE follow-up removes the never-supplied fixed
 `expansionProgress` constructor parameter. Its fallback was already the
 committed endpoint path, so the removal changes neither rendered output nor
 any extent term.
+
+
+## 2026-09-26 Pages preview extraction re-audit
+
+Compared the full calendar grid source against parent `f4a21308`: outside the
+preview/testing factory span it is byte-identical. `_YearSection`, `_MonthCard`,
+`_EpagomenalCard`, decan rows, day chips, padding, title/weekday measurements,
+expansion equations and geometry markers are unchanged. The original test
+factory forwards its same arguments and fixed Akhet fixture label to the
+shared preview factory. Pages supplies actual season, note names and marker
+colors, and scales the result inside its own fixed board; it is not a year
+sliver or extent-index consumer. The contributor list, environment inputs,
+section topology and equations above remain unchanged. The
+`year_and_month_sections` hash was updated only after this comparison.

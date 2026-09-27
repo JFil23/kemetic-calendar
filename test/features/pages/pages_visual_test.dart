@@ -11,8 +11,8 @@ import 'package:mobile/features/pages/pages_models.dart';
 
 void main() {
   testWidgets('approved eight-board geometry at phone width', (tester) async {
-    tester.view.physicalSize = const Size(393, 930);
-    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1179, 2790);
+    tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     for (final f in [
@@ -54,6 +54,7 @@ void main() {
         PagesDestination.calendar,
         state: PagesLoadState.ready,
         primary: const PagesSignal('Rekh-Nedjes', detail: 'Peret 2026'),
+        calendarDate: DateTime(2026, 9, 26),
         meta: '6 today',
         weekdays: const ['S', 'M', 'T', 'W', 'T', 'F', 'S', 'S', 'M', 'T'],
         days: List.generate(
@@ -100,12 +101,12 @@ void main() {
         state: PagesLoadState.ready,
         meta: '1 badge · 3 days this week',
         primary: PagesSignal(
-          'Full Moon',
+          'Evening Reflection',
           status: '✓',
           detail: '8 PM',
           color: 0xff8186dc,
         ),
-        upper: PagesSignal('Paopi 11', label: 'Today', detail: '✓ Saved'),
+        upper: PagesSignal('Rekh-Nedjes 11', label: 'Today', detail: '✓ Saved'),
         week: [false, true, false, false, true, false, true],
       ),
       const PagesCard(
@@ -198,10 +199,14 @@ void main() {
     if (capturePath != null) {
       final boundary =
           key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      void repaint(RenderObject node) {
+        node.markNeedsPaint();
+        node.visitChildren(repaint);
+      }
+
+      repaint(boundary);
+      await tester.pump();
       await tester.runAsync(() async {
-        // Prime retained raster layers before exporting the complete page.
-        final warmup = await boundary.toImage(pixelRatio: 2);
-        warmup.dispose();
         final image = await boundary.toImage(pixelRatio: 2);
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         await File(capturePath).writeAsBytes(bytes!.buffer.asUint8List());
@@ -237,11 +242,16 @@ void main() {
       PagesDestination.studio,
       state: PagesLoadState.ready,
       flow: PagesFlow(
-        id: 'offering',
-        name: 'The Offering Table',
+        id: 'sky',
+        name: 'Follow the sky',
         appearance: FlowAppearance(),
-        maatKey: 'the-offering-table',
+        maatKey: 'track-the-sky',
+        total: 65,
+        completed: 1,
       ),
+      meta: 'Follow the sky',
+      upper: PagesSignal('Full Moon', label: 'Next event', detail: '8 PM'),
+      lower: PagesSignal('64', detail: 'steps left'),
     );
     await tester.pumpAndSettle();
     expect(
@@ -249,6 +259,32 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+    final skyImage = tester.widget<Image>(
+      find.byKey(const ValueKey('pages-studio-built-in-art')),
+    );
+    await tester.runAsync(
+      () => precacheImage(skyImage.image, key.currentContext!),
+    );
+    await tester.pumpAndSettle();
+    if (capturePath != null) {
+      final boundary =
+          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      void repaint(RenderObject node) {
+        node.markNeedsPaint();
+        node.visitChildren(repaint);
+      }
+
+      repaint(boundary);
+      await tester.pump();
+      await tester.runAsync(() async {
+        final image = await boundary.toImage(pixelRatio: 2);
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        await File(
+          capturePath.replaceFirst('.png', '-sky.png'),
+        ).writeAsBytes(bytes!.buffer.asUint8List());
+        image.dispose();
+      });
+    }
     studio.value = originalStudio;
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Ptah');
@@ -259,7 +295,7 @@ void main() {
     await tester.tap(find.byTooltip('Clear search'));
     await tester.pumpAndSettle();
     for (final width in [320.0, 430.0, 844.0]) {
-      tester.view.physicalSize = Size(width, 852);
+      tester.view.physicalSize = Size(width * 3, 852 * 3);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'width $width');
     }
