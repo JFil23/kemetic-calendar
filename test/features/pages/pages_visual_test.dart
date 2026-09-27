@@ -8,9 +8,13 @@ import 'package:mobile/data/flow_appearance.dart';
 import 'package:mobile/features/pages/pages_layout.dart';
 import 'package:mobile/features/pages/pages_board.dart';
 import 'package:mobile/features/pages/pages_models.dart';
+import 'package:mobile/features/calendar/follow_the_sky/services/follow_sky_day_detail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('approved eight-board geometry at phone width', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.runAsync(() => FollowSkyDayDetail.catalog());
     tester.view.physicalSize = const Size(1179, 2790);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.resetPhysicalSize);
@@ -213,6 +217,26 @@ void main() {
       });
     }
     expect(find.text('Pages'), findsNothing);
+    // Removing visual copy must not erase the selected event/update for readers.
+    final inboxSemantics = tester
+        .widgetList<Semantics>(find.byType(Semantics))
+        .firstWhere((s) => s.properties.label == 'Open Inbox');
+    expect(inboxSemantics.properties.onTap, isNotNull);
+    expect(inboxSemantics.properties.value, contains('Accepted your invite'));
+    expect(inboxSemantics.properties.value, contains('producedbyearth'));
+    final studioSemantics = tester
+        .widgetList<Semantics>(find.byType(Semantics))
+        .firstWhere((s) => s.properties.label == 'Open Flow Studio');
+    expect(studioSemantics.properties.value, contains('Writing Practice'));
+    expect(studioSemantics.properties.value, contains('Tomorrow · 9 AM'));
+    expect(find.text('LATEST BADGE'), findsNothing);
+    expect(find.text('LATEST UPDATE'), findsNothing);
+    expect(find.text('Evening Reflection'), findsOneWidget);
+    expect(find.text('Commons'), findsNothing);
+    expect(find.text('Writing Practice'), findsNothing);
+    expect(find.text('Tomorrow · 9 AM'), findsNothing);
+    expect(find.text('Say no to burnout'), findsNothing);
+    expect(find.text('Cosmic Order'), findsNothing);
     expect(tester.getCenter(find.text('bigjfil')).dx, closeTo(393 / 2, .1));
     final searchRect = tester.getRect(find.byType(TextField));
     expect(searchRect.left, 6);
@@ -221,7 +245,7 @@ void main() {
     final input = tester.widget<TextField>(find.byType(TextField));
     expect(input.decoration!.fillColor, const Color(0x600d0b07));
     expect(find.text('𓉐'), findsWidgets);
-    expect(find.byIcon(Icons.check), findsOneWidget);
+    expect(find.byIcon(Icons.check), findsWidgets);
     expect(find.text('Calendar'), findsOneWidget);
     expect(find.text('Flow Studio'), findsOneWidget);
     final tiles = find.byType(PagesTile);
@@ -238,7 +262,7 @@ void main() {
     expect(secondRow.top - left.bottom, closeTo(22, .001));
     final studio = cards[PagesDestination.studio.index];
     final originalStudio = studio.value;
-    studio.value = const PagesCard(
+    studio.value = PagesCard(
       PagesDestination.studio,
       state: PagesLoadState.ready,
       flow: PagesFlow(
@@ -246,26 +270,37 @@ void main() {
         name: 'Follow the sky',
         appearance: FlowAppearance(),
         maatKey: 'track-the-sky',
+        occurrence: PagesUpcomingEvent(
+          flowId: 'sky',
+          title: 'Full Moon',
+          at: DateTime(2026, 9, 26, 20),
+          behavior: {
+            'kind': 'track_sky_v2',
+            'skyEventId': 'full-moon-2026-09-26',
+          },
+        ),
         total: 65,
         completed: 1,
       ),
+      companionFlows: [writing, math],
       meta: 'Follow the sky',
       upper: PagesSignal('Full Moon', label: 'Next event', detail: '8 PM'),
       lower: PagesSignal('64', detail: 'steps left'),
     );
     await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    });
+    await tester.pumpAndSettle();
     expect(
-      find.byKey(const ValueKey('pages-studio-built-in-art')),
+      find.byKey(const ValueKey('follow-sky-renderer-lunarPath')),
       findsOneWidget,
     );
-    expect(tester.takeException(), isNull);
-    final skyImage = tester.widget<Image>(
+    expect(
       find.byKey(const ValueKey('pages-studio-built-in-art')),
+      findsNothing,
     );
-    await tester.runAsync(
-      () => precacheImage(skyImage.image, key.currentContext!),
-    );
-    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
     if (capturePath != null) {
       final boundary =
           key.currentContext!.findRenderObject()! as RenderRepaintBoundary;

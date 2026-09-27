@@ -97,6 +97,11 @@ void main() {
                   },
                   {
                     'title': 'Full Moon',
+                    'flow_local_id': 956,
+                    'behavior_payload': {
+                      'kind': 'track_sky_v2',
+                      'skyEventId': 'full-moon-2026-09-26',
+                    },
                     'filed_flow_id': 956,
                     'calendar_id': 'visible',
                     'starts_at': now
@@ -130,6 +135,8 @@ void main() {
       expect(selected.flow?.name, 'Follow the sky');
       expect(selected.flow?.maatKey, 'track-the-sky');
       expect(selected.event?.title, 'Full Moon');
+      expect(selected.event?.behavior['skyEventId'], 'full-moon-2026-09-26');
+      expect(selected.event?.localFlowId, 956);
       expect(
         requests.last.url.queryParameters['order'],
         startsWith('starts_at.asc'),

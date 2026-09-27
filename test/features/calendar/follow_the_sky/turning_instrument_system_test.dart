@@ -243,6 +243,49 @@ void main() {
   });
 
   test(
+    'passive Full Moon preview never invokes or writes, including corrupt cache',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await SharedPreferences.getInstance();
+      final night = catalog.observingNight(
+        catalog.byId('full-moon-2026-08-28')!,
+      );
+      const place = ObservingPlace(
+        latitude: 37.7749,
+        longitude: -122.4194,
+        ianaTimeZone: 'America/Los_Angeles',
+        label: 'San Francisco',
+        source: ObservingPlaceSource.manual,
+      );
+      var calls = 0;
+      final passive = FullMoonInstrumentDataProvider(
+        readOnly: true,
+        preferences: preferences,
+        invoke: (_) async {
+          calls++;
+          throw StateError('No passive invocation');
+        },
+      );
+      final empty = await passive.resolve(night: night, place: place);
+      expect(empty, isA<LunarPathData>());
+      expect(preferences.getKeys(), isEmpty);
+      final regular = FullMoonInstrumentDataProvider(
+        preferences: preferences,
+        invoke: (_) async => (status: 200, data: _fullMoonInstrumentResponse()),
+      );
+      await regular.resolve(night: night, place: place);
+      final key = preferences.getKeys().single;
+      final saved = preferences.getString(key);
+      await passive.resolve(night: night, place: place);
+      expect(preferences.getString(key), saved);
+      await preferences.setString(key, 'corrupt');
+      await passive.resolve(night: night, place: place);
+      expect(preferences.getString(key), 'corrupt');
+      expect(calls, 0);
+    },
+  );
+
+  test(
     'invalid IANA zone fails closed instead of claiming local time',
     () async {
       final night = catalog.observingNight(

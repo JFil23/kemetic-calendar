@@ -87,3 +87,36 @@ Verification: the final 82-test Pages/Journal/restoration/inventory run passes. 
 The final 393-logical-pixel render uses a 3x phone device scale and was inspected with the decoded Sky asset, the longer Evening Reflection title and complete board roles. Tests also cover 320, 430 and 844 logical widths. Full PNG pixel checks confirm the unchanged header, Calendar/Feed, Planner, Inbox and lower boards match the inspected baseline; an incremental image-viewer presentation was not used as export evidence. These are app tests and representative renders, not a claim that this revision has been deployed or exercised in the authenticated browser session.
 
 Preview: [Pages corrections, representative data](/Users/jaralephillips/.codex/visualizations/2026/09/26/01a0dfd5-244c-7982-a089-d882fe315655/pages-authority-preview.png).
+
+## September 26 v9 presentation pass
+
+Reference: `haw-pages-v9 (1).html`, interpreted under the user's instruction to reduce text without changing the accurate selection. The reference's alternative Feed/Studio pools, planner math and prototype interactions were not adopted.
+
+- Board geometry, order, dark bases, header and the actual Calendar month preview remain unchanged. Labels now use uniform Inter type and one compact caption below each board.
+- Feed renders the existing PostedFlowArtifact artwork with its same appearance/accent/date-progress calculation, without its title and duration overlays. The default artifact elsewhere remains unchanged. Commons stays in the bottom-right pane.
+- Studio gives its selected upcoming flow's real artwork the whole large pane. The existing next-event title/time and actual remaining steps stay visible; repeated flow title/count copy inside the large pane is removed.
+- Planner keeps its true scale and next item/time; alignment moves to the existing caption. Journal keeps the selected badge title/status, uses a compact truthful Saved/Draft/Open state and keeps actual weekly bars.
+- Inbox uses selected actors' real glyph coins, with the selected update action/actor in its caption. Calendars keeps member coins and actual colored visibility indicators. Library keeps the selected chapter glyph and progress, with completion check and existing progress ring.
+- Every tile retains its actual navigation action and full selected signal text in accessibility semantics. No controller, repository, selector, route, persistence, backend, scheduling or subscription change.
+
+Verification: 31 Pages/shared-artifact tests pass, including content selection, resource requests, canonical navigation and artifact appearance/progress parity. Final visual test rerun passes after caption/accessibility polish, including 320/393/430/844 logical widths. Scoped analyzer reports no issues; diff whitespace check is clean. Final Sky and custom-flow fixture renders were inspected; the header, real Calendar and Sky pane are pixel-identical between the two polish captures outside intended changed regions. Representative data, not an authenticated account capture. This pass has not been deployed.
+
+Preview: [v9 presentation, representative data](/Users/jaralephillips/.codex/visualizations/2026/09/26/01a0dfd5-244c-7982-a089-d882fe315655/pages-v9-preview.png).
+
+### v9 follow-up: picture-only panes
+
+The user's follow-up supersedes the compromise above that retained next-event, Planner and Library prose. Pane copy is now removed except the actual Calendar grid and selected Journal badge title (the same exceptions as the reference). Journal saved/open state is represented by seal intensity; weekly bars, real progress rings, member coins, visibility colors and the current decan's dots remain visual. Inbox caption is a short unread count; Flow Studio has no extra caption. Full selected records remain in accessibility semantics and existing destinations.
+
+Studio retains the exact existing lead selector. Its two small panes now render other distinct visible, unfinished filed flows, applying that same next-event ordering to the already-loaded remainder. No fixture flows are injected. Missing companions leave a quiet pane. Companion artwork uses bundled real Ma'at assets, authored signs, or cached images only; it cannot initiate an image request. The card equality projection includes companions so existing notifications repaint changed artwork/progress. Feed Commons remains its existing role, now a group symbol.
+
+Verification: all 31 Pages/shared-artifact tests pass, including resource and route checks. Analyzer reports no issues. The representative render was inspected with Sky as the lead and two real appearance fixtures as companions; the visual test explicitly excludes the previous note, event/time, Commons and chapter prose and verifies selected details remain accessible. This is an undeployed RC change.
+
+### Flow Studio: bottom-sheet instruments
+
+The user's next correction replaces detail-page hero photographs with the existing bottom-sheet graphics in all three Studio panes. PagesSheetGraphic reuses FollowSkyInstrumentSurface, OfferingTableDayInstrument, DjedSittingStage, KarDayShrineVisual and the Reading House sheet's extracted room emblem. Custom flows use UserFlowAppearanceHero with the same daySheet presentation surface. No discovery hero assets, sample chat messages or behavior sheets are mounted.
+
+The existing lead/companion selection is unchanged. The existing bounded event query now includes behavior_payload (already used by the Calendar query), and carries the local flow ID. That exact occurrence travels with the selected flow: Sky resolves its real skyEventId; Offering Table resolves the selected day; Djed resolves the selected sitting and configured supports; Kꜣr resolves the selected stage. Missing occurrence metadata leaves a quiet instrument pane rather than inventing an event or falling back to a detail-page photograph.
+
+Sky is a stationary preview at the selected event's peak, reusing the actual sheet renderer. A read-only option on the existing astronomy provider uses its valid saved calculation or the same catalog fallback used by the sheet; it never invokes the astronomy function, writes a result, or removes corrupt cache entries. This is a visual excerpt, not a live observing slider or a claim of fresh observer-specific ephemeris. Offering Table passively reads existing local day state; Djed uses configured support conditions, and Kꜣr shows the selected stage without claiming unsupplied shrine completion. Reading House uses its sheet emblem instead of fabricating a room transcript. No timers, polling, subscriptions or backend rows were added.
+
+Verification: 51 Pages/artifact/Sky/inventory checks passed, followed by 18 final-render/all-flow/Reading House checks. The all-flow test verifies day 11, Djed sitting 4 without sample support text, Kꜣr stage 3, the real room emblem, custom daySheet styling and closed behavior when occurrence metadata is absent. Sky tests cover empty/valid/corrupt read-only cache and zero invocation/writes. The final phone render was inspected; responsive checks remain 320/393/430/844. Scoped analysis reports no issues. Resource checks retain 16 cold requests, zero writes, zero fresh revisit/search/return requests. This pass is not deployed.

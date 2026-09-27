@@ -36,13 +36,20 @@ class FullMoonInstrumentDataProvider implements SkyInstrumentDataProvider {
     SupabaseClient? client,
     SharedPreferences? preferences,
     FullMoonInstrumentInvocation? invoke,
+    this.readOnly = false,
     this.catalogFallback = const CatalogSkyInstrumentDataProvider(),
   }) : _preferences = preferences,
        _invoke =
-           invoke ?? _clientInvocation(client ?? Supabase.instance.client);
+           invoke ??
+           (readOnly
+               ? (body) async => (status: 503, data: null)
+               : _clientInvocation(client ?? Supabase.instance.client));
 
   static const String calculationVersion = 'full-moon-local-v1';
   static const String _cachePrefix = 'haw:full_moon_instrument:v1:';
+
+  /// Passive previews may use saved astronomy, never compute or write.
+  final bool readOnly;
   final SharedPreferences? _preferences;
   final FullMoonInstrumentInvocation _invoke;
   final SkyInstrumentDataProvider catalogFallback;
@@ -96,10 +103,13 @@ class FullMoonInstrumentDataProvider implements SkyInstrumentDataProvider {
       try {
         response = Map<String, dynamic>.from(jsonDecode(cached) as Map);
       } on Object {
-        await preferences.remove(cacheKey);
+        if (!readOnly) await preferences.remove(cacheKey);
       }
     }
 
+    if (response == null && readOnly) {
+      return catalogFallback.resolve(night: night, place: place);
+    }
     if (response == null) {
       final invocation = await _invoke(body);
       final raw = invocation.data;
