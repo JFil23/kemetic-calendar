@@ -105,7 +105,6 @@ class PagesController {
     name: f.name,
     appearance: f.appearance,
     maatKey: notesDecode(f.notes).maatKey,
-    notes: f.notes,
     color: 0xff000000 | f.color,
     total: f.totalEventCount,
     completed: (f.totalEventCount - f.remainingEventCount).clamp(
@@ -476,35 +475,16 @@ class PagesController {
       signal(c.lower),
       if (f != null)
         [
-          f.occurrence?.at,
-          f.occurrence?.behavior,
-          f.occurrence?.localFlowId,
           f.id,
           f.name,
           f.appearance,
           f.maatKey,
-          f.notes,
           f.color,
           f.completed,
           f.total,
           f.start,
           f.end,
           identityHashCode(f.imageBytes),
-        ],
-      for (final v in c.companionFlows)
-        [
-          v.occurrence?.at,
-          v.occurrence?.behavior,
-          v.occurrence?.localFlowId,
-          v.id,
-          v.name,
-          v.appearance,
-          v.maatKey,
-          v.notes,
-          v.color,
-          v.completed,
-          v.total,
-          identityHashCode(v.imageBytes),
         ],
       for (final d in c.days) [d.day, d.today, d.past, d.colors],
       c.calendarDate,
@@ -650,18 +630,14 @@ class PagesController {
     );
   }
 
-  PagesFlow _image(
-    PagesFlow f, {
-    bool fetch = true,
-    PagesUpcomingEvent? occurrence,
-  }) {
+  PagesFlow _image(PagesFlow f) {
     final path = f.appearance.imageObjectPath;
     Uint8List? bytes = f.imageBytes;
     if (path != null) {
       bytes ??=
           _peek<Uint8List>('image.$path') ??
           FlowAppearanceStore(client).cachedImageBytes(path);
-      if (bytes == null && active && fetch) {
+      if (bytes == null && active) {
         unawaited(
           _load(
             'image.$path',
@@ -681,8 +657,6 @@ class PagesController {
       end: f.end,
       imageBytes: bytes,
       maatKey: f.maatKey,
-      notes: f.notes,
-      occurrence: occurrence ?? f.occurrence,
     );
   }
 
@@ -698,30 +672,12 @@ class PagesController {
     }
     final selected = selectPagesStudio(flows, window.events, DateTime.now());
     final f = selected.flow;
-    // Picture companions come from the same loaded, visible filed-flow slice.
-    // Keep the lead selection authoritative and never fetch companion images.
-    final companions = <PagesFlow>[];
-    final remaining = flows.where((v) => v.id != f?.id).toList();
-    while (remaining.isNotEmpty && companions.length < 2) {
-      final nextSelection = selectPagesStudio(
-        remaining,
-        window.events,
-        DateTime.now(),
-      );
-      final next = nextSelection.flow;
-      if (next == null) break;
-      companions.add(
-        _image(next, fetch: false, occurrence: nextSelection.event),
-      );
-      remaining.removeWhere((v) => v.id == next.id);
-    }
     _set(
       PagesCard(
         PagesDestination.studio,
         state: PagesLoadState.ready,
         meta: f == null ? 'Your flows' : f.name,
-        flow: f == null ? null : _image(f, occurrence: selected.event),
-        companionFlows: companions,
+        flow: f == null ? null : _image(f),
         primary: const PagesSignal('Create a flow'),
         upper: PagesSignal(
           selected.event?.title ?? 'No event scheduled',

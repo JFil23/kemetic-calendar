@@ -1,8 +1,10 @@
-import 'pages_sheet_graphic.dart';
+import 'dart:math' as math;
 import '../calendar/calendar_page.dart'
     show buildCalendarMonthCardPreview, MonthExpansionLevel;
 import '../../widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'package:flutter/material.dart';
+import '../calendar/presentation/user_flow_appearance_visual.dart';
+import '../calendar/presentation/maat_flow_discovery_view.dart';
 import '../profile/posted_flow_artifact.dart';
 import '../rhythm/widgets/planner/maat_scale.dart';
 import '../rhythm/planner/planner_scale_math.dart';
@@ -64,9 +66,6 @@ class PagesTile extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     button: true,
     label: 'Open ${card.title}',
-    value: _accessibleSummary,
-    excludeSemantics: true,
-    onTap: onTap,
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -151,26 +150,19 @@ class PagesTile extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
             child: Text(
               card.title,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                height: 18 / 14,
-                color: pagesBone,
-              ),
+              style: pagesSerif(14).copyWith(height: 18 / 14),
               maxLines: 1,
             ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(6, 2, 6, 0),
             child: Text(
-              _caption.isEmpty ? ' ' : _caption,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 10.5,
-                height: 15 / 10.5,
-                color: Color(0xffb8b2a7),
-              ),
+              card.meta.isEmpty ? ' ' : card.meta,
+              style: pagesSerif(
+                12,
+                color: const Color(0xffd9d3c7),
+                italic: true,
+              ).copyWith(height: 15 / 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -180,63 +172,30 @@ class PagesTile extends StatelessWidget {
     ),
   );
 
-  // Presentation only: retain every selected signal for assistive technology.
-  String get _accessibleSummary => [
-    card.meta,
-    for (final f in card.companionFlows) f.name,
-    if (card.flow != null) ...[
-      card.flow!.name,
-      if (card.flow!.total > 0)
-        '${card.flow!.completed} of ${card.flow!.total} steps',
-    ],
-    for (final signal in [card.primary, card.upper, card.lower]) ...[
-      signal.label,
-      signal.title,
-      signal.status,
-      signal.detail,
-      if (signal.progress != null) '${signal.progress!.round()}%',
-    ],
-    if (card.unread > 0) '${card.unread} unread',
-    if (card.week.isNotEmpty)
-      '${card.week.where((v) => v).length} days this week',
-  ].where((v) => v.isNotEmpty).join(', ');
-
-  String get _caption {
-    if (card.state != PagesLoadState.ready) return card.meta;
-    return switch (card.destination) {
-      PagesDestination.inbox =>
-        card.unread > 0 ? '${card.unread} new' : 'No new updates',
-      PagesDestination.studio => '',
-      _ => card.meta,
-    };
-  }
-
-  Widget _flowPicture(PagesFlow f, {bool lead = false}) => PagesSheetGraphic(
-    key: ValueKey('pages-sheet-${lead ? "lead" : f.id}'),
-    flow: f,
-  );
-
-  Widget _companion(int index) => card.companionFlows.length > index
-      ? _flowPicture(card.companionFlows[index])
-      : const ColoredBox(color: Color(0xff090b0f));
-
   Widget _large() {
     switch (card.destination) {
       case PagesDestination.feed:
         final f = card.flow;
         if (f == null) return _signal(card.primary);
         return LayoutBuilder(
-          builder: (context, box) => PostedFlowArtifact(
-            artworkOnly: true,
-            allowImageFetch: false,
-            imageCacheWidth:
-                (box.maxWidth * MediaQuery.devicePixelRatioOf(context)).ceil(),
-            name: f.name,
-            color: f.color,
-            appearance: f.appearance,
-            localImageBytes: f.imageBytes,
-            startDate: f.start,
-            endDate: f.end,
+          builder: (context, box) => FittedBox(
+            fit: BoxFit.fill,
+            child: SizedBox(
+              width: 236,
+              height: 236,
+              child: PostedFlowArtifact(
+                allowImageFetch: false,
+                imageCacheWidth:
+                    (box.maxWidth * MediaQuery.devicePixelRatioOf(context))
+                        .ceil(),
+                name: f.name,
+                color: f.color,
+                appearance: f.appearance,
+                localImageBytes: f.imageBytes,
+                startDate: f.start,
+                endDate: f.end,
+              ),
+            ),
           ),
         );
       case PagesDestination.planner:
@@ -260,13 +219,72 @@ class PagesTile extends StatelessWidget {
                   ),
                 ),
               ),
+              Text(
+                '${percent.round()}%',
+                style: pagesSerif(28, color: const Color(0xffecd48f)),
+              ),
+              const SizedBox(height: 4),
+              _micro('ALIGNED', tracked: true),
             ],
           ),
         );
       case PagesDestination.studio:
         final f = card.flow;
         if (f == null) return _signal(card.primary);
-        return _flowPicture(f, lead: true);
+        final builtIn = kCoreMaatFlowDiscoveryFixtures
+            .where((v) => v.flowKey == f.maatKey)
+            .firstOrNull;
+        return _ground(
+          const Color(0xff07080d),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, box) =>
+                      builtIn != null && f.appearance.isEmpty
+                      ? Image.asset(
+                          builtIn.heroAsset,
+                          key: const ValueKey('pages-studio-built-in-art'),
+                          width: box.maxWidth,
+                          height: box.maxHeight,
+                          fit: BoxFit.cover,
+                          alignment: builtIn.heroAlignment,
+                          cacheWidth:
+                              (box.maxWidth *
+                                      MediaQuery.devicePixelRatioOf(context))
+                                  .ceil(),
+                        )
+                      : UserFlowAppearanceHero(
+                          allowImageFetch: false,
+                          imageCacheWidth:
+                              (box.maxWidth *
+                                      MediaQuery.devicePixelRatioOf(context))
+                                  .ceil(),
+                          appearance: f.appearance,
+                          accent: Color(f.color),
+                          localImageBytes: f.imageBytes,
+                          completedOccurrences: f.completed,
+                          totalOccurrences: f.total,
+                          showSignLabel: false,
+                          height: box.maxHeight,
+                          borderRadius: BorderRadius.zero,
+                          signSize: math.max(
+                            1,
+                            math.min(72, box.maxHeight - 8),
+                          ),
+                        ),
+                ),
+              ),
+              if (f.total > 0)
+                Text('${f.completed} / ${f.total}', style: pagesSerif(15)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(6, 3, 6, 7),
+                child: _micro(f.name),
+              ),
+            ],
+          ),
+        );
       case PagesDestination.journal:
         return _ground(
           const Color(0xff0b0911),
@@ -277,6 +295,8 @@ class PagesTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  _micro('LATEST BADGE', tracked: true),
+                  const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -316,6 +336,10 @@ class PagesTile extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (card.primary.detail.isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          _micro(card.primary.detail),
+                        ],
                       ],
                     ),
                   ),
@@ -327,31 +351,58 @@ class PagesTile extends StatelessWidget {
       case PagesDestination.library:
         return _ground(
           const Color(0xff110e08),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(child: Center(child: _glyph(card.primary.glyph, 44))),
-                if (card.primary.progress != null)
-                  LinearProgressIndicator(
-                    value: card.primary.progress! / 100,
-                    minHeight: 2,
-                    color: pagesGold,
-                    backgroundColor: const Color(0xff4b412c),
-                  ),
-              ],
-            ),
+          Stack(
+            children: [
+              Positioned(
+                left: 5,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 2,
+                  color: pagesGold.withValues(alpha: .6),
+                ),
+              ),
+              Positioned(
+                right: 10,
+                top: 8,
+                child: _glyph(card.primary.glyph, 34),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 11, 9),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      card.primary.title,
+                      style: pagesSerif(17, color: const Color(0xffe6c86f)),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    if (card.primary.progress != null)
+                      LinearProgressIndicator(
+                        value: card.primary.progress! / 100,
+                        minHeight: 2,
+                        color: pagesGold,
+                        backgroundColor: const Color(0xff4b412c),
+                      ),
+                    const SizedBox(height: 4),
+                    _micro(card.primary.detail),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       case PagesDestination.inbox:
         return _signal(
           card.primary,
           large: true,
-          avatar: card.primary.detail.isNotEmpty,
+          avatar: true,
           base: const Color(0xff0f0c07),
           ink: const Color(0xfff0e5c8),
-          pictureOnly: true,
+          titleSize: 13.5,
         );
       case PagesDestination.calendars:
         return _signal(
@@ -359,105 +410,32 @@ class PagesTile extends StatelessWidget {
           large: true,
           base: const Color(0xff0b0a12),
           ink: const Color(0xffc3b8ff),
-          pictureOnly: true,
         );
       case PagesDestination.calendar:
         return _calendar();
     }
   }
 
-  Widget _upper() {
-    if (card.destination == PagesDestination.studio) return _companion(0);
-    if (card.destination == PagesDestination.planner) {
-      return _ground(
-        const Color(0xff100d08),
-        Center(
-          child: SizedBox(
-            width: 34,
-            height: 34,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                CircularProgressIndicator(
-                  value: (card.primary.progress ?? 0) / 100,
-                  color: pagesGold,
-                  backgroundColor: const Color(0xff3d3420),
-                  strokeWidth: 3,
-                ),
-                _glyph('𓆄', 18),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-    if (card.destination == PagesDestination.journal) {
-      final draft = card.upper.detail == 'Unsaved draft';
-      final saved = card.upper.detail == '✓ Saved';
-      return _ground(
-        const Color(0xff141006),
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Opacity(opacity: saved || draft ? 1 : .4, child: _glyph('𓏞', 30)),
-          ],
-        ),
-      );
-    }
-    return _signal(
-      card.upper,
-      pictureOnly: true,
-      base: switch (card.destination) {
-        PagesDestination.studio => const Color(0xff090c10),
-        PagesDestination.calendars => const Color(0xff07110d),
-        PagesDestination.inbox => const Color(0xff0d0b07),
-        PagesDestination.journal => const Color(0xff141006),
-        _ => const Color(0xff0d0b08),
-      },
-      ink: switch (card.destination) {
-        PagesDestination.studio => const Color(0xffc9d5e2),
-        PagesDestination.calendars => const Color(0xff7fdcbc),
-        PagesDestination.journal => const Color(0xffd7c49a),
-        _ => const Color(0xffdcb850),
-      },
-      avatar:
-          card.destination == PagesDestination.inbox ||
-          card.destination == PagesDestination.feed,
-    );
-  }
-
+  Widget _upper() => _signal(
+    card.upper,
+    base: switch (card.destination) {
+      PagesDestination.studio => const Color(0xff090c10),
+      PagesDestination.calendars => const Color(0xff07110d),
+      PagesDestination.inbox => const Color(0xff0d0b07),
+      PagesDestination.journal => const Color(0xff141006),
+      _ => const Color(0xff0d0b08),
+    },
+    ink: switch (card.destination) {
+      PagesDestination.studio => const Color(0xffc9d5e2),
+      PagesDestination.calendars => const Color(0xff7fdcbc),
+      PagesDestination.journal => const Color(0xffd7c49a),
+      _ => const Color(0xffdcb850),
+    },
+    avatar:
+        card.destination == PagesDestination.inbox ||
+        card.destination == PagesDestination.feed,
+  );
   Widget _lower() {
-    if (card.destination == PagesDestination.studio) return _companion(1);
-    if (card.destination == PagesDestination.planner) {
-      final day = (KemeticMath.fromGregorian(DateTime.now()).kDay - 1) % 10;
-      return _ground(
-        const Color(0xff100d08),
-        Center(
-          child: SizedBox(
-            width: 46,
-            child: Wrap(
-              spacing: 4,
-              runSpacing: 5,
-              children: [
-                for (var i = 0; i < 10; i++)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: i == day
-                          ? pagesGold
-                          : i < day
-                          ? const Color(0xff8a7336)
-                          : const Color(0xff4a3d22),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
     if (card.destination == PagesDestination.journal) {
       return _ground(
         const Color(0xff0d0a06),
@@ -481,6 +459,8 @@ class PagesTile extends StatelessWidget {
                   )
                   .toList(),
             ),
+            const SizedBox(height: 5),
+            _micro('this week'),
           ],
         ),
       );
@@ -549,17 +529,22 @@ class PagesTile extends StatelessWidget {
                     backgroundColor: const Color(0xff3d3420),
                     strokeWidth: 3,
                   ),
-                  if (card.lower.glyph.isNotEmpty) _glyph(card.lower.glyph, 16),
+                  Text(
+                    '${card.lower.progress!.round()}%',
+                    style: pagesSerif(11),
+                  ),
                 ],
               ),
             ),
+            const SizedBox(height: 4),
+            _micro(card.lower.title),
           ],
         ),
       );
     }
     return _signal(
       card.lower,
-      pictureOnly: true,
+      large: card.destination == PagesDestination.studio,
       base: switch (card.destination) {
         PagesDestination.feed => const Color(0xff07110e),
         PagesDestination.inbox => const Color(0xff07110d),
@@ -641,8 +626,6 @@ Widget _signal(
   Color base = const Color(0xff0f0c08),
   Color ink = const Color(0xffdcc37c),
   double? titleSize,
-  bool pictureOnly = false,
-  bool showDetail = false,
 }) => _ground(
   base,
   Padding(
@@ -656,8 +639,12 @@ Widget _signal(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              if (s.label.isNotEmpty) ...[
+                _micro(s.label.toUpperCase(), tracked: true),
+                const SizedBox(height: 3),
+              ],
               if (s.people.isNotEmpty) ...[
-                _memberCoins(s.people, large ? 32 : 23),
+                _memberCoins(s.people, large ? 25 : 20),
                 const SizedBox(height: 6),
               ] else if (avatar && s.title.isNotEmpty && s.glyph.isEmpty) ...[
                 _memberCoins([
@@ -677,27 +664,14 @@ Widget _signal(
                 ),
                 const SizedBox(height: 3),
               ],
-              if (s.label.toLowerCase() == 'complete')
-                Icon(Icons.check, color: ink, size: 15),
-              if (pictureOnly && s.people.isEmpty && s.glyph.isEmpty && !avatar)
-                Icon(
-                  s.label == 'Commons'
-                      ? Icons.groups_outlined
-                      : s.label.toLowerCase() == 'complete'
-                      ? Icons.bookmark_outline
-                      : Icons.auto_stories_outlined,
-                  color: ink,
-                  size: large ? 34 : 25,
-                ),
-              if (!pictureOnly)
-                Text(
-                  s.label == 'Commons' ? 'Commons' : s.title,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: pagesSerif(titleSize ?? (large ? 16 : 11), color: ink),
-                ),
-              if (showDetail && s.detail.isNotEmpty) ...[
+              Text(
+                s.title,
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: pagesSerif(titleSize ?? (large ? 16 : 11), color: ink),
+              ),
+              if (s.detail.isNotEmpty) ...[
                 const SizedBox(height: 3),
                 _micro(s.detail),
               ],

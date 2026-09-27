@@ -303,7 +303,33 @@ class _HouseChatHeader extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(2, 1, 2, compactVerticalRhythm ? 8 : 10),
           child: Row(
             children: <Widget>[
-              ReadingHouseRoomEmblem(glyph: fixture.roomGlyph),
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ReadingHouseDayTokens.mintLow.withValues(alpha: 0.09),
+                  border: Border.all(
+                    color: ReadingHouseDayTokens.mint.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: fixture.roomGlyph == '◌'
+                    ? const Icon(
+                        Icons.radio_button_unchecked,
+                        color: ReadingHouseDayTokens.mint,
+                        size: 17,
+                      )
+                    : Text(
+                        fixture.roomGlyph,
+                        style: const TextStyle(
+                          color: ReadingHouseDayTokens.mint,
+                          fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                          fontSize: 16,
+                          height: 1,
+                        ),
+                      ),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -1241,39 +1267,5 @@ InputDecoration _practiceInputDecoration(String hintText) {
         color: ReadingHouseDayTokens.mint.withValues(alpha: 0.42),
       ),
     ),
-  );
-}
-
-/// The room emblem shared by the day sheet and passive previews.
-class ReadingHouseRoomEmblem extends StatelessWidget {
-  const ReadingHouseRoomEmblem({super.key, required this.glyph});
-  final String glyph;
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 34,
-    height: 34,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: ReadingHouseDayTokens.mintLow.withValues(alpha: 0.09),
-      border: Border.all(
-        color: ReadingHouseDayTokens.mint.withValues(alpha: 0.35),
-      ),
-    ),
-    child: glyph == '◌'
-        ? const Icon(
-            Icons.radio_button_unchecked,
-            color: ReadingHouseDayTokens.mint,
-            size: 17,
-          )
-        : Text(
-            glyph,
-            style: const TextStyle(
-              color: ReadingHouseDayTokens.mint,
-              fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-              fontSize: 16,
-              height: 1,
-            ),
-          ),
   );
 }

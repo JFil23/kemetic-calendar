@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flow_appearance.dart';
-import 'package:mobile/features/calendar/presentation/user_flow_appearance_visual.dart';
 import 'package:mobile/data/flow_post_model.dart';
 import 'package:mobile/features/profile/flow_post_caption_sheet.dart';
 import 'package:mobile/features/profile/posted_flow_artifact.dart';
@@ -74,54 +73,6 @@ void main() {
     expect(duration.style?.fontSize, 8);
     expect(duration.style?.letterSpacing, 1.6);
   });
-
-  testWidgets(
-    'artwork-only preview preserves canonical appearance and progress',
-    (tester) async {
-      final appearance = FlowAppearance(
-        signKind: FlowSignKind.palmCount,
-        accentArgb: 0xff6f93a8,
-      );
-      Future<UserFlowAppearanceHero> render(bool artworkOnly) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 126,
-                height: 236,
-                child: PostedFlowArtifact(
-                  artworkOnly: artworkOnly,
-                  name: 'Evening Return',
-                  color: 0xffd4af37,
-                  appearance: appearance,
-                  allowImageFetch: false,
-                  startDate: DateTime(2026, 9, 1),
-                  endDate: DateTime(2026, 9, 30),
-                  clock: () => DateTime(2026, 9, 12),
-                ),
-              ),
-            ),
-          ),
-        );
-        expect(tester.takeException(), isNull);
-        return tester.widget<UserFlowAppearanceHero>(
-          find.byType(UserFlowAppearanceHero),
-        );
-      }
-
-      final full = await render(false);
-      final picture = await render(true);
-      expect(picture.appearance, same(full.appearance));
-      expect(picture.accent, full.accent);
-      expect(picture.completedOccurrences, full.completedOccurrences);
-      expect(picture.totalOccurrences, full.totalOccurrences);
-      expect(picture.completedOccurrences, 12);
-      expect(picture.totalOccurrences, 30);
-      expect(picture.allowImageFetch, isFalse);
-      expect(find.text('Evening Return'), findsNothing);
-      expect(find.text('30 DAYS'), findsNothing);
-    },
-  );
 
   testWidgets('image, widget-only, and plain artifacts share one geometry', (
     tester,

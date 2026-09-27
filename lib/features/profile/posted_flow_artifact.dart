@@ -39,11 +39,8 @@ class PostedFlowArtifact extends StatelessWidget {
     this.allowImageFetch = true,
     this.imageCacheWidth,
     this.clock,
-    this.artworkOnly = false,
   });
 
-  /// Reuses the same appearance and date-based progress without card copy.
-  final bool artworkOnly;
   final String name;
   final int color;
   final String? notes;
@@ -105,30 +102,8 @@ class PostedFlowArtifact extends StatelessWidget {
     return 'DAY $_currentProgressUnit OF $total';
   }
 
-  Widget _artwork(double height, BorderRadius borderRadius) =>
-      UserFlowAppearanceHero(
-        key: const ValueKey<String>('posted-flow-artifact-appearance'),
-        appearance: appearance,
-        accent: _accent,
-        localImageBytes: localImageBytes,
-        allowImageFetch: allowImageFetch,
-        imageCacheWidth: imageCacheWidth,
-        height: height,
-        compact: false,
-        completedOccurrences: _currentProgressUnit,
-        totalOccurrences: _totalProgressUnits,
-        signSize: math.min(136, height - 8),
-        showSignLabel: false,
-        borderRadius: borderRadius,
-      );
-
   @override
   Widget build(BuildContext context) {
-    if (artworkOnly) {
-      return LayoutBuilder(
-        builder: (context, box) => _artwork(box.maxHeight, BorderRadius.zero),
-      );
-    }
     final accent = _accent;
     final accentText = _accentText;
     final title = cleanFlowTitle(name);
@@ -158,9 +133,24 @@ class PostedFlowArtifact extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: <Widget>[
-                    _artwork(
-                      _artifactHeroHeight,
-                      const BorderRadius.vertical(top: Radius.circular(15)),
+                    UserFlowAppearanceHero(
+                      key: const ValueKey<String>(
+                        'posted-flow-artifact-appearance',
+                      ),
+                      appearance: appearance,
+                      accent: accent,
+                      localImageBytes: localImageBytes,
+                      allowImageFetch: allowImageFetch,
+                      imageCacheWidth: imageCacheWidth,
+                      height: _artifactHeroHeight,
+                      compact: false,
+                      completedOccurrences: _currentProgressUnit,
+                      totalOccurrences: _totalProgressUnits,
+                      signSize: 136,
+                      showSignLabel: false,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(15),
+                      ),
                     ),
                     const IgnorePointer(
                       child: DecoratedBox(

@@ -198,7 +198,6 @@ class PagesReadRepository {
             name: f.name,
             appearance: f.appearance,
             maatKey: notesDecode(f.notes).maatKey,
-            notes: f.notes,
             color: 0xff000000 | f.color,
             total: f.totalEventCount,
             completed: (f.totalEventCount - f.remainingEventCount).clamp(
@@ -453,9 +452,7 @@ class PagesReadRepository {
     final end = DateTime(now.year, now.month, now.day + 31);
     final rows = await client
         .from('user_event_filing_items_client')
-        .select(
-          'title,starts_at,calendar_id,flow_local_id,filed_flow_id,behavior_payload',
-        )
+        .select('title,starts_at,calendar_id,flow_local_id,filed_flow_id')
         .eq('live_on_calendar', true)
         .gte('starts_at', now.toUtc().toIso8601String())
         .lt('starts_at', end.toUtc().toIso8601String())
@@ -467,10 +464,6 @@ class PagesReadRepository {
           (r) => PagesUpcomingEvent(
             flowId: (r['filed_flow_id'] ?? r['flow_local_id'] ?? '').toString(),
             title: r['title'] as String? ?? '',
-            localFlowId: int.tryParse('${r['flow_local_id'] ?? ''}'),
-            behavior: r['behavior_payload'] is Map
-                ? Map<String, dynamic>.from(r['behavior_payload'])
-                : const {},
             at: DateTime.parse(r['starts_at'] as String).toLocal(),
           ),
         )

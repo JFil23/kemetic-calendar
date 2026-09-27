@@ -55,13 +55,9 @@ class PagesFlow {
     this.end,
     this.imageBytes,
     this.maatKey,
-    this.occurrence,
-    this.notes,
   });
   final String id, name;
   final String? maatKey;
-  final String? notes;
-  final PagesUpcomingEvent? occurrence;
   final FlowAppearance appearance;
   final int color, completed, total;
   final DateTime? start, end;
@@ -91,7 +87,6 @@ class PagesCard {
     this.upper = const PagesSignal(''),
     this.lower = const PagesSignal(''),
     this.flow,
-    this.companionFlows = const [],
     this.days = const [],
     this.weekdays = const [],
     this.week = const [],
@@ -111,7 +106,6 @@ class PagesCard {
   final String meta;
   final PagesSignal primary, upper, lower;
   final PagesFlow? flow;
-  final List<PagesFlow> companionFlows;
   final List<PagesCalendarDay> days;
   final List<String> weekdays;
   final List<bool> week;
@@ -133,18 +127,4 @@ class PagesCard {
 class PagesSearchRecord {
   const PagesSearchRecord(this.title, this.category, this.location);
   final String title, category, location;
-}
-
-class PagesUpcomingEvent {
-  const PagesUpcomingEvent({
-    required this.flowId,
-    required this.title,
-    required this.at,
-    this.behavior = const {},
-    this.localFlowId,
-  });
-  final String flowId, title;
-  final DateTime at;
-  final Map<String, dynamic> behavior;
-  final int? localFlowId;
 }

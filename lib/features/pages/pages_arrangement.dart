@@ -1,4 +1,3 @@
-export 'pages_models.dart' show PagesUpcomingEvent;
 import '../../data/share_models.dart';
 import 'pages_models.dart';
 import '../../data/commons_models.dart';
@@ -54,6 +53,16 @@ PagesFeedCandidate? selectPagesFeed(Iterable<PagesFeedCandidate> records) {
     }
   }
   return null;
+}
+
+class PagesUpcomingEvent {
+  const PagesUpcomingEvent({
+    required this.flowId,
+    required this.title,
+    required this.at,
+  });
+  final String flowId, title;
+  final DateTime at;
 }
 
 ({PagesFlow? flow, PagesUpcomingEvent? event}) selectPagesStudio(
