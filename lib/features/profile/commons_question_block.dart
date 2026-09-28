@@ -207,7 +207,7 @@ class CommonsQuestionBlock extends StatelessWidget {
           return buildCommonsCard(
             padding: EdgeInsets.symmetric(
               horizontal: small ? 10 : 12,
-              vertical: 8,
+              vertical: small ? 10 : 12,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,16 +220,16 @@ class CommonsQuestionBlock extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: _profileGoldText.withValues(alpha: .72),
-                    fontSize: 6,
+                    fontSize: small ? 6 : 6.5,
                     fontWeight: FontWeight.w800,
                     letterSpacing: .55,
                     height: 1.1,
                   ),
                 ),
-                const SizedBox(height: 3),
+                SizedBox(height: small ? 6 : 7),
                 Expanded(
                   child: Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: Alignment.topLeft,
                     child: Text(
                       hasQuestion ? questionText : 'No question today.',
                       maxLines: 2,
@@ -238,19 +238,19 @@ class CommonsQuestionBlock extends StatelessWidget {
                         color: Colors.white.withValues(alpha: .9),
                         fontFamily: _profileSerifFont,
                         fontFamilyFallback: _profileSerifFallback,
-                        fontSize: small ? 15 : 20,
+                        fontSize: small ? 14 : 18,
                         fontWeight: FontWeight.w600,
-                        height: 1.18,
+                        height: 1.1,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 if (hasQuestion)
                   Container(
-                    height: small ? 18 : 20,
+                    height: small ? 22 : 24,
                     alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0D0D0F),
                       borderRadius: BorderRadius.circular(6),
@@ -276,7 +276,7 @@ class CommonsQuestionBlock extends StatelessWidget {
                     ),
                   ),
                 if (!small) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 5),
                   Text(
                     answer != null
                         ? 'Your public answer'

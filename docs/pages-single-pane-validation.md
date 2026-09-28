@@ -121,3 +121,10 @@ existing bounds. The section numeral, heading, separator and outer inset are
 removed. The reflection label, question, answer preview and answer status remain;
 the question uses the recovered space. Existing question selection and Commons
 navigation are unchanged.
+
+### Feed card spacing refinement
+
+The reflection label and question now form a top-aligned stack, with consistent
+outer padding, tighter question leading, and a taller answer preview. The footer
+has its own gap and bottom inset. Verified rendered proportions and clipping at
+150 and 186.5 logical pixels, including saved and unanswered states.
