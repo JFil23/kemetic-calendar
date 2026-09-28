@@ -10,15 +10,18 @@ const _maatFlowGoldenRoot = '../../visual_reference/maat_flows/goldens';
 /// image rasterization differ by host platform and CPU architecture even under
 /// the same pinned Flutter and engine revisions. No tolerance or image
 /// normalization is used.
-String get maatFlowVisualGoldenRoot {
+String get maatFlowVisualGoldenRoot =>
+    platformVisualGoldenRoot(_maatFlowGoldenRoot);
+
+String platformVisualGoldenRoot(String root) {
   if (!Platform.isLinux) {
-    return _maatFlowGoldenRoot;
+    return root;
   }
   return switch (Abi.current()) {
-    Abi.linuxX64 => '$_maatFlowGoldenRoot/linux-x64',
-    Abi.linuxArm64 => '$_maatFlowGoldenRoot/linux',
+    Abi.linuxX64 => '$root/linux-x64',
+    Abi.linuxArm64 => '$root/linux',
     final abi => throw UnsupportedError(
-      'No exact Ma\'at flow golden authority is registered for $abi.',
+      'No exact visual golden authority is registered for $abi.',
     ),
   };
 }

@@ -19,7 +19,7 @@ void main() {
 
   tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
 
-  group('LandscapeMonthPager rotation handoff', () {
+  group('Continuous landscape rotation handoff', () {
     testWidgets('header plus opens quick add before the date editor', (
       tester,
     ) async {
@@ -63,7 +63,7 @@ void main() {
         await tester.pumpAndSettle();
 
         final controller = _landscapePagerController(tester);
-        controller.jumpToPage(controller.initialPage + 1);
+        controller.jumpTo(controller.offset + 30 * _landscapeDayWidth(tester));
         await tester.pumpAndSettle();
 
         await tester.pumpWidget(const SizedBox.shrink());
@@ -93,8 +93,7 @@ void main() {
 
         final controller = _landscapePagerController(tester);
         controller.jumpTo(
-          controller.position.pixels +
-              (controller.position.viewportDimension * 0.6),
+          controller.position.pixels + (29.6 * _landscapeDayWidth(tester)),
         );
         await tester.pump();
 
@@ -133,7 +132,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Landscape note'));
+      await tester.tap(find.text('Landscape note').last);
       await tester.pumpAndSettle();
 
       expect(find.text('Make to-do'), findsOneWidget);
@@ -208,7 +207,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Landscape completion'));
+        await tester.tap(find.text('Landscape completion').last);
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Observed').last);
@@ -271,7 +270,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Landscape pulse'));
+      await tester.tap(find.text('Landscape pulse').last);
       await tester.pumpAndSettle();
 
       final hapticCalls = _capturePlatformHaptics(tester);
@@ -1308,7 +1307,6 @@ void main() {
       ).readAsStringSync();
 
       for (final styleDefinition in const [
-        'const TextStyle _monthTitleGold = TextStyle(',
         'const TextStyle _seasonStyle = TextStyle(',
         'const TextStyle _decanStyle = TextStyle(',
       ]) {
@@ -1787,15 +1785,10 @@ Future<void> _setTabletLandscapeViewport(WidgetTester tester) async {
   });
 }
 
-PageController _landscapePagerController(WidgetTester tester) {
-  final pageView = tester.widget<PageView>(
-    find.descendant(
-      of: find.byType(LandscapeMonthPager),
-      matching: find.byWidgetPredicate(
-        (widget) =>
-            widget is PageView && widget.scrollDirection == Axis.horizontal,
-      ),
-    ),
-  );
-  return pageView.controller!;
-}
+ScrollController _landscapePagerController(WidgetTester tester) => tester
+    .widget<ListView>(find.byKey(const ValueKey('landscape-days')))
+    .controller!;
+
+double _landscapeDayWidth(WidgetTester tester) => tester
+    .widget<ListView>(find.byKey(const ValueKey('landscape-days')))
+    .itemExtent!;

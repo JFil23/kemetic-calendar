@@ -81,7 +81,12 @@ class TrackSkyEventBlockVisual extends StatelessWidget {
           ),
         ],
       ),
-      child: child,
+      child: child == null
+          ? null
+          : Padding(
+              padding: EdgeInsets.only(right: (width ?? 300) < 220 ? 29 : 0),
+              child: child,
+            ),
     );
   }
 }

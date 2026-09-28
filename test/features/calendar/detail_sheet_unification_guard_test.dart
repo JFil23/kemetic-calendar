@@ -51,7 +51,7 @@ void main() {
       final landscapeOpener = _sourceBetween(
         landscapeMonthView,
         '  void _showEventDetail(',
-        '  Map<EventItem, int> _assignColumns(',
+        '\n}\n',
       );
 
       for (final opener in <String>[

@@ -778,7 +778,7 @@ void main() {
     final landscapeShowDetail = _sourceBetween(
       landscape,
       'void _showEventDetail(',
-      'Map<EventItem, int> _assignColumns',
+      '\n}\n',
     );
     final landscapeReleaseSheet = _sourceBetween(
       landscapeShowDetail,

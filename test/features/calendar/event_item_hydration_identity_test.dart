@@ -90,7 +90,7 @@ void main() {
   });
 
   test(
-    'Landscape uses shared identity/order and keeps month-scoped enumeration',
+    'Landscape uses shared identity/order across month boundaries',
     () {
       final landscape = File(
         'lib/features/calendar/landscape_month_view.dart',
@@ -103,7 +103,7 @@ void main() {
         ),
       );
       expect(landscape, contains('eventsShareStableIdentity('));
-      expect(landscape, contains('compareEventItemsBySchedule'));
+      expect(landscape, contains('calendarEventsForNotes('));
       expect(
         landscape,
         contains(
@@ -113,7 +113,7 @@ void main() {
       expect(landscape, contains('widget.notesForDay(ky, km, kd)'));
       expect(
         landscape,
-        contains('if (ky != widget.kYear || km != widget.kMonth)'),
+        isNot(contains('if (ky != widget.kYear || km != widget.kMonth)')),
       );
     },
   );

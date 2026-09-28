@@ -492,6 +492,8 @@ class KarEventBlockVisual extends StatelessWidget {
     final isWalk = stageIndex == 5;
     final stage = kKarStages[stageIndex];
     final compact = height < 82;
+    final narrow = (width ?? 300) < 220;
+    final artWidth = ((width ?? 300) * .30).clamp(18.0, 52.0);
     final accent = Color(netjer.accentValue);
     final accent2 = Color(netjer.accent2Value);
     final deep = Color(netjer.deepValue);
@@ -637,7 +639,7 @@ class KarEventBlockVisual extends StatelessWidget {
       children: <Widget>[
         Positioned(
           left: 12,
-          right: 62,
+          right: artWidth + 10,
           top: 8,
           child: Text(
             kicker,
@@ -655,7 +657,7 @@ class KarEventBlockVisual extends StatelessWidget {
         ),
         Positioned(
           left: 12,
-          right: 62,
+          right: artWidth + 10,
           top: 20,
           child: Text(
             blockTitle,
@@ -672,7 +674,9 @@ class KarEventBlockVisual extends StatelessWidget {
         Positioned(
           left: 12,
           bottom: 7,
-          width: 77,
+          width: narrow
+              ? ((width ?? 300) - artWidth - 24).clamp(0.0, 77.0)
+              : 77,
           child: Text(
             support,
             maxLines: 1,
@@ -689,27 +693,28 @@ class KarEventBlockVisual extends StatelessWidget {
             ),
           ),
         ),
-        Positioned(
-          left: 91,
-          right: 62,
-          bottom: 7,
-          height: 9,
-          child: Row(
-            children: <Widget>[
-              progressPips(compact: true),
-              const SizedBox(width: 2),
-              Expanded(
-                child: Text(
-                  footerLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.fade,
-                  textAlign: TextAlign.right,
-                  style: _style(const Color(0xFF71878F), 7.8),
+        if (!narrow)
+          Positioned(
+            left: 91,
+            right: artWidth + 10,
+            bottom: 7,
+            height: 9,
+            child: Row(
+              children: <Widget>[
+                progressPips(compact: true),
+                const SizedBox(width: 2),
+                Expanded(
+                  child: Text(
+                    footerLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    textAlign: TextAlign.right,
+                    style: _style(const Color(0xFF71878F), 7.8),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
       ],
     );
 
@@ -796,7 +801,7 @@ class KarEventBlockVisual extends StatelessWidget {
           Positioned(
             right: compact ? 5 : 10,
             top: compact ? 3.5 : 16,
-            width: compact ? 52 : 70,
+            width: compact ? artWidth : 70,
             height: compact ? 54 : 74,
             child: KarShrineMark(
               color: accent,

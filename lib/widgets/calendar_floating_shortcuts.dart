@@ -40,6 +40,7 @@ class CalendarFloatingShortcutsLayer extends StatelessWidget {
     required this.onInboxPressed,
     this.unreadInboxCount = 0,
     this.todayButtonKey,
+    this.enabled = true,
   });
 
   final Widget child;
@@ -48,9 +49,11 @@ class CalendarFloatingShortcutsLayer extends StatelessWidget {
   final VoidCallback onInboxPressed;
   final int unreadInboxCount;
   final Key? todayButtonKey;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
+    if (!enabled) return child;
     final media = MediaQuery.of(context);
     final keyboardVisible = keyboardIsVisible(context);
 

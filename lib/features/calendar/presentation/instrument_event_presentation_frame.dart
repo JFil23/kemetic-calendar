@@ -6,6 +6,13 @@ import 'package:mobile/widgets/keyboard_aware.dart';
 
 const double instrumentEventSheetMinExtent = 0.58;
 
+/// KeyboardInsetBoundary publishes the remaining height. Use the actual view
+/// orientation so opening a portrait keyboard does not select landscape UI.
+bool calendarEventSheetUsesLandscape(BuildContext context) {
+  final size = View.of(context).physicalSize;
+  return size.width > size.height;
+}
+
 double instrumentEventSheetExtentForViewport({
   required BuildContext context,
   required double viewportFraction,
@@ -33,6 +40,9 @@ Future<T?> showCalendarEventDetailSheetModal<T>({
   return showEditableModalBottomSheet<T>(
     context: context,
     backgroundColor: Colors.transparent,
+    constraints: calendarEventSheetUsesLandscape(context)
+        ? const BoxConstraints(maxWidth: double.infinity)
+        : null,
     isDismissible: true,
     enableDrag: true,
     useRootNavigator: false,
@@ -744,6 +754,79 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
         final boundedHeight = constraints.hasBoundedHeight
             ? constraints.maxHeight
             : 620.0;
+        // A short landscape sheet scrolls the native composition as a whole.
+        // Its art keeps its authored size instead of being covered by a fixed
+        // foreground that can consume the entire remaining viewport.
+        if (calendarEventSheetUsesLandscape(context) && boundedHeight < 500) {
+          final naturalStart = graphicSpace.foregroundStartFor(520);
+          final artworkHeight = graphicSpace.artworkHeightFor(
+            520,
+            naturalStart,
+          );
+          final artworkBodyHeight = math.max(
+            0.0,
+            artworkHeight - graphicSpace.footerHeight,
+          );
+          return DecoratedBox(
+            decoration: decoration,
+            child: SingleChildScrollView(
+              key: bodyScrollKey,
+              physics: const ClampingScrollPhysics(),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: artworkHeight,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Column(
+                            children: [
+                              SizedBox(
+                                height: artworkBodyHeight,
+                                child: instrumentInteractive
+                                    ? RepaintBoundary(child: instrument)
+                                    : ExcludeSemantics(
+                                        child: IgnorePointer(
+                                          child: RepaintBoundary(
+                                            child: instrument,
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                              if (graphicSpace.footerHeight > 0)
+                                SizedBox(
+                                  height: graphicSpace.footerHeight,
+                                  child: instrumentFooter,
+                                ),
+                            ],
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: inputBuilder(
+                            context,
+                            artworkBodyHeight,
+                            artworkHeight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  RepaintBoundary(
+                    key: lowerSheetKey,
+                    child: MaatDayViewForegroundShell(
+                      style: foregroundStyle,
+                      child: MaatDayViewForegroundContent(
+                        body: body,
+                        completion: completion,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
         final lowerSheetStart = graphicSpace.foregroundStartFor(boundedHeight);
         final instrumentHeight = graphicSpace.artworkHeightFor(
           boundedHeight,

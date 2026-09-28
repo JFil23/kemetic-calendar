@@ -1030,11 +1030,6 @@ const TextStyle _titleGold = TextStyle(
   fontWeight: FontWeight.w500,
   color: Colors.white,
 );
-const TextStyle _monthTitleGold = TextStyle(
-  fontSize: 20,
-  fontWeight: FontWeight.w500,
-  color: Colors.white,
-);
 const TextStyle _seasonStyle = TextStyle(
   fontSize: 13,
   fontWeight: FontWeight.w500,
@@ -26460,42 +26455,6 @@ class CalendarPageState extends State<CalendarPage>
     _scrollToToday();
   }
 
-  Widget _buildLandscapeCalendarTitle(int ky, int km) {
-    final titleGradient = _showGregorian ? whiteGloss : goldGloss;
-    return GestureDetector(
-      onTap: _handleCalendarToggleTapped,
-      child: RepaintBoundary(
-        key: _calendarToggleKey,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 6.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _GlossyMonthNameText(
-                text: _monthLabel(km),
-                style: _monthTitleGold.copyWith(fontSize: 18),
-                gradient: titleGradient,
-              ),
-              GlossyText(
-                text: _gregYearLabelFor(ky, km),
-                gradient: titleGradient,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
-                ),
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.fade,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   void _publishPagesCalendar() {
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid == null) return;
@@ -33706,50 +33665,29 @@ class CalendarPageState extends State<CalendarPage>
 
       final landscapeScaffold = Scaffold(
         backgroundColor: _bg,
-        appBar: _buildCalendarAppBar(
-          useLandscapeGrid: true,
-          titleOverride: ValueListenableBuilder<MonthRef>(
-            valueListenable: _calendarScrollCoordinator.activeCenteredMonth,
-            builder: (context, centeredMonth, child) =>
-                _buildLandscapeCalendarTitle(
-                  centeredMonth.year,
-                  centeredMonth.month,
-                ),
-          ),
-        ),
         body: LandscapeMonthView(
+          onOpenCalendars: () => unawaited(_openSharedCalendarsSheet()),
+          onOpenInbox: () => unawaited(_openInboxFromMenu()),
+          onToggleCalendar: _handleCalendarToggleTapped,
+          onOpenQuickAdd: (_) => _openQuickAddSheet(),
+          onOpenSearch: (_) async => _openSearch(),
+          onOpenProfile: CalendarPage.openProfileFromAnyContext,
+          onClose: () {
+            _publishPagesCalendar();
+            unawaited(openDetailRoute<void>(context, '/pages'));
+          },
+          onVisibleDayChanged: (ky, km, kd) {
+            _lastViewKy = ky;
+            _lastViewKm = km;
+            _lastViewKd = kd;
+          },
           embeddedInCalendarScaffold: true,
           initialKy: ky,
           initialKm: km,
           initialKd: _lastViewKd ?? _today.kDay, // ✅ Highlight current day
           showGregorian: _showGregorian,
           dataVersion: _dayViewDataVersion,
-          notesForDay: (ky, km, kd) {
-            final notes = _getNotes(ky, km, kd);
-            return notes
-                .map(
-                  (n) => NoteData(
-                    id: n.id?.toString(),
-                    clientEventId: n.clientEventId,
-                    calendarId: n.calendarId,
-                    calendarName: n.calendarName,
-                    title: n.title,
-                    detail: n.detail,
-                    location: n.location,
-                    allDay: n.allDay,
-                    start: n.start,
-                    end: n.end,
-                    canonicalEnd: n.canonicalEnd,
-                    flowId: n.flowId,
-                    manualColor: n.manualColor,
-                    category: n.category,
-                    isReminder: n.isReminder,
-                    reminderId: n.reminderId,
-                    behaviorPayload: n.behaviorPayload,
-                  ),
-                )
-                .toList();
-          },
+          notesForDay: _noteDataForDay,
           flowIndex: _buildCalendarFlowChromeIndex(),
           activeLedgerFlowIds: _buildActiveLedgerFlowIds(),
           getMonthName: (km) => getMonthById(km).displayFull,
@@ -33808,10 +33746,7 @@ class CalendarPageState extends State<CalendarPage>
                   .shouldPreserveOverlayForLifecycleClose,
         ),
       );
-      return _withCalendarFloatingShortcuts(
-        landscapeScaffold,
-        useLandscapeGrid: true,
-      );
+      return landscapeScaffold;
     }
 
     final scaffold = _withCalendarFloatingShortcuts(

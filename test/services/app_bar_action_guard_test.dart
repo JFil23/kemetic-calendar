@@ -1864,7 +1864,11 @@ void main() {
         expect(landscapeView, contains("tooltip: 'New note'"));
         expect(
           landscapeView,
-          contains('await CalendarPage.openQuickAddFromAnyContext(context);'),
+          contains(
+            RegExp(
+              r'await CalendarPage\.openQuickAddFromAnyContext\(\s*context,?\s*\);',
+            ),
+          ),
         );
       },
     );

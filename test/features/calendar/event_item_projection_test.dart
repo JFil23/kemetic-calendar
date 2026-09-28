@@ -105,7 +105,7 @@ void main() {
     expect(empty.behaviorPayload, isNull);
   });
 
-  test('five note projections call the shared contract as small adapters', () {
+  test('note projections share the complete Day View display contract', () {
     final dayAdapter = _sourceBetween(
       dayView,
       'EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {',
@@ -113,8 +113,8 @@ void main() {
     );
     final landscapeAdapter = _sourceBetween(
       landscape,
-      'EventItem _eventItemFromNote(NoteData note) {',
-      'FlowData? _chromeFlowForId(int? flowId)',
+      'List<EventItem> _eventsForKemeticDay(int ky, int km, int kd)',
+      'void _configureColumns',
     );
     final pageAdapter = _sourceBetween(
       calendarPage,
@@ -134,7 +134,6 @@ void main() {
 
     for (final adapter in <String>[
       dayAdapter,
-      landscapeAdapter,
       pageAdapter,
       sheetAdapter,
       gridAdapter,
@@ -152,10 +151,8 @@ void main() {
     expect(dayAdapter, contains('flowNotes: flow?.notes'));
     expect(dayAdapter, contains('behaviorPayload: note.behaviorPayload'));
 
-    expect(landscapeAdapter, isNot(contains('canonicalEnd')));
-    expect(landscapeAdapter, isNot(contains('flowName')));
-    expect(landscapeAdapter, isNot(contains('flowNotes')));
-    expect(landscapeAdapter, isNot(contains('behaviorPayload')));
+    expect(landscapeAdapter, contains('calendarEventsForNotes('));
+    expect(landscapeAdapter, contains('widget.notesForDay(ky, km, kd)'));
 
     expect(
       pageAdapter,

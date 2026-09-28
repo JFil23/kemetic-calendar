@@ -55,6 +55,7 @@ class DjedEventBlockVisual extends StatelessWidget {
     final compact = size == DjedEventBlockSize.compact || requestedHeight < 90;
     final narrow = compact && width != null && width! < 190;
     final blockHeight = requestedHeight;
+    final artWidth = compact ? ((width ?? 300) * .30).clamp(18.0, 56.0) : 70.0;
     final radius = BorderRadius.circular(MaatEventBlockBorderTokens.radius);
     final content = Container(
       key: ValueKey<String>(
@@ -134,7 +135,7 @@ class DjedEventBlockVisual extends StatelessWidget {
           Positioned(
             left: narrow ? 8 : (compact ? 10 : 14),
             top: compact ? 6 : 11,
-            right: compact ? 62 : 82,
+            right: compact ? artWidth + 6 : 82,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,10 +178,16 @@ class DjedEventBlockVisual extends StatelessWidget {
                 SizedBox(height: compact ? 3 : 9),
                 Row(
                   children: <Widget>[
-                    _SittingPips(
-                      sittingNumber: sittingNumber,
-                      supportPipIndex: supportPipIndex,
-                      dense: narrow,
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: _SittingPips(
+                          sittingNumber: sittingNumber,
+                          supportPipIndex: supportPipIndex,
+                          dense: narrow,
+                        ),
+                      ),
                     ),
                     SizedBox(width: compact ? 4 : 9),
                     Expanded(
@@ -219,10 +226,10 @@ class DjedEventBlockVisual extends StatelessWidget {
             right: compact ? 6 : 10,
             top: 0,
             bottom: 0,
-            width: compact ? 56 : 70,
+            width: artWidth,
             child: Center(
               child: SizedBox(
-                width: compact ? 56 : 70,
+                width: artWidth,
                 height: compact ? math.min(54.0, blockHeight - 6) : 74,
                 child: CustomPaint(
                   painter: _EmberDjedPainter(

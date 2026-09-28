@@ -68,6 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           flutter test --update-goldens \
+            test/features/calendar/landscape_split_view_test.dart \
             test/features/calendar/authored_event_block_day_view_test.dart \
             test/features/calendar/follow_the_sky/follow_sky_sheet_resize_test.dart \
             test/features/calendar/maat_flow_discovery_view_test.dart \
@@ -88,6 +89,8 @@ jobs:
           path: |
             test/visual_reference/maat_flows/goldens/linux
             test/visual_reference/maat_flows/goldens/linux-x64
+            test/visual_reference/landscape/linux
+            test/visual_reference/landscape/linux-x64
 
       - name: Upload exact Linux x64 social reference
         if: matrix.arch == 'linux-x64'

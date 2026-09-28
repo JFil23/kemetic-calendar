@@ -2112,6 +2112,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   late DayViewSheetEventTarget _currentTarget;
   late PageController _pageController;
   late String _presentation;
+  double _landscapeDetailExtent = .68;
   final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
       <TrackSkyTimeZone, TrackSkyFlowData>{};
   final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
@@ -4269,6 +4270,22 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         );
       }
 
+      if (calendarEventSheetUsesLandscape(context)) {
+        return SingleChildScrollView(
+          key: const ValueKey('user-flow-day-sheet-foreground-scroll'),
+          controller: _userFlowForegroundScrollController(completionIdentity),
+          physics: const BouncingScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              buildUserAppearanceHero(),
+              buildUserAppearanceForeground(),
+            ],
+          ),
+        );
+      }
+
       return Stack(
         fit: StackFit.expand,
         children: [
@@ -4798,6 +4815,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         ? availableSheetHeight
         : keyboardVisible
         ? availableSheetHeight
+        : calendarEventSheetUsesLandscape(context)
+        ? availableSheetHeight * _landscapeDetailExtent
         : math.min(media.size.height * 0.68, 520.0);
     final showBottomActions = !_isWorkspacePresentation && !keyboardVisible;
     final bottomActionChromeHeight = showBottomActions ? 54.0 : 0.0;
@@ -4853,10 +4872,44 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (!_isWorkspacePresentation) ...[
-                  _buildEventDetailTopActionRow(
-                    rootContext: widget.hostContext,
-                    sheetContext: context,
-                    target: target,
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      _buildEventDetailTopActionRow(
+                        rootContext: widget.hostContext,
+                        sheetContext: context,
+                        target: target,
+                      ),
+                      if (calendarEventSheetUsesLandscape(context))
+                        SizedBox(
+                          width: 96,
+                          height: 40,
+                          child: GestureDetector(
+                            key: const ValueKey('landscape-detail-resize'),
+                            behavior: HitTestBehavior.opaque,
+                            onVerticalDragUpdate: (details) {
+                              if (availableSheetHeight <= 0) return;
+                              setState(
+                                () => _landscapeDetailExtent =
+                                    (_landscapeDetailExtent -
+                                            details.delta.dy /
+                                                availableSheetHeight)
+                                        .clamp(.58, 1.0),
+                              );
+                            },
+                            child: Center(
+                              child: Container(
+                                width: 42,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: _dayGold.withValues(alpha: .55),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -5316,6 +5369,15 @@ int compareEventItemsBySchedule(EventItem a, EventItem b) {
 
   return eventItemIdentityKey(a).compareTo(eventItemIdentityKey(b));
 }
+
+/// Shared display projection: preserves identity, appearance behavior, and deadlines.
+List<EventItem> calendarEventsForNotes({
+  required List<NoteData> notes,
+  required Map<int, FlowData> flowIndex,
+}) => _sortedEventsForDay(
+  notes: _dedupeDayNotesForUi(notes),
+  flowIndex: flowIndex,
+);
 
 List<EventItem> _sortedEventsForDay({
   required List<NoteData> notes,
@@ -6411,6 +6473,7 @@ class _DayViewPageState extends State<DayViewPage> {
             }
           },
           child: CalendarFloatingShortcutsLayer(
+            enabled: effectiveOrientation != Orientation.landscape,
             todayButtonKey: _dayViewFloatingTodayButtonKey,
             onTodayPressed: () => unawaited(_jumpToToday()),
             onCalendarsPressed: widget.onOpenCalendars ?? () {},
@@ -6422,6 +6485,25 @@ class _DayViewPageState extends State<DayViewPage> {
                   final orient = isTablet ? Orientation.portrait : orientation;
                   if (orient == Orientation.landscape) {
                     return LandscapeMonthView(
+                      onOpenCalendars: widget.onOpenCalendars,
+                      onOpenInbox: widget.onOpenInbox,
+                      clock: widget.clock,
+                      onToggleCalendar: () =>
+                          setState(() => _showGregorian = !_showGregorian),
+                      onOpenSearch: widget.onOpenSearch,
+                      onOpenProfile: widget.onOpenProfile,
+                      onVisibleDayChanged: (ky, km, kd) {
+                        if (!mounted) return;
+                        setState(() {
+                          _currentKy = ky;
+                          _currentKm = km;
+                          _currentKd = kd;
+                        });
+                        _reportRestorationState(immediate: true);
+                      },
+                      onRecordCompletion: widget.onRecordCompletion,
+                      onUnrecordCompletion: widget.onUnrecordCompletion,
+                      onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
                       initialKy: _currentKy,
                       initialKm: _currentKm,
                       initialKd: _currentKd,
@@ -6880,27 +6962,10 @@ class DayViewGrid extends StatefulWidget {
 class _DayViewGridState extends State<DayViewGrid> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _timelineKey = GlobalKey();
-  KarRepository? _defaultKarRepository;
-  bool _resolvedDefaultKarRepository = false;
   ReadingHouseRoomDataSource? _defaultReadingHouseRoomDataSource;
   bool _resolvedDefaultReadingHouseRoomDataSource = false;
 
   DateTime get _now => (widget.clock ?? DateTime.now)().toLocal();
-
-  KarRepository? get _karEventBlockRepository {
-    final supplied = widget.karRepository;
-    if (supplied != null) return supplied;
-    if (_resolvedDefaultKarRepository) return _defaultKarRepository;
-    _resolvedDefaultKarRepository = true;
-    try {
-      _defaultKarRepository = SupabaseKarRepository(Supabase.instance.client);
-    } on Object {
-      // Widget-only tests do not initialize Supabase. They still receive the
-      // correct fixed visual rather than a fabricated placement count.
-      _defaultKarRepository = null;
-    }
-    return _defaultKarRepository;
-  }
 
   ReadingHouseRoomDataSource? get _readingHouseRoomDataSource {
     final supplied = widget.readingHouseRoomDataSource;
@@ -6931,9 +6996,6 @@ class _DayViewGridState extends State<DayViewGrid> {
   double? _cachedSingleEventWidthFactor;
   List<PositionedEventBlock> _displayBlocks = const [];
   final Map<int, int> _eventCarouselPageByGroup = <int, int>{};
-  final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
-      <TrackSkyTimeZone, TrackSkyFlowData>{};
-  final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
   bool _hasScrolledToInitial = false; // Added for scroll persistence
   int? _tempDragStartMin; // minutes since midnight
   bool _isDraggingEvent = false;
@@ -6960,7 +7022,6 @@ class _DayViewGridState extends State<DayViewGrid> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll); // Added listener
-    _primeTrackSkyFlowData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToSavedOrCurrentTime(); // Renamed method
     });
@@ -6970,10 +7031,6 @@ class _DayViewGridState extends State<DayViewGrid> {
   @override
   void didUpdateWidget(covariant DayViewGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_computeFlowIndexHash(oldWidget.flowIndex) !=
-        _computeFlowIndexHash(widget.flowIndex)) {
-      _primeTrackSkyFlowData();
-    }
     if (_eventDetailRestoreKey(oldWidget.initialEventDetailRestorationState) !=
         _eventDetailRestoreKey(widget.initialEventDetailRestorationState)) {
       _scheduleInitialEventDetailRestore();
@@ -7523,36 +7580,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     ];
   }
 
-  bool _looksLikeCidDetail(String text) {
-    final trimmed = text.trim().replaceAll(RegExp(r'\s+'), '');
-    final withPrefix = trimmed.startsWith('kemet_cid:')
-        ? trimmed.substring('kemet_cid:'.length)
-        : trimmed;
-    final cidPattern = RegExp(
-      r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
-    );
-    return cidPattern.hasMatch(withPrefix);
-  }
-
-  /// Remove lines that are just cid tokens or legacy flowLocalId lines.
-  String _stripCidLines(String detail) {
-    final lines = detail.split(RegExp(r'\r?\n'));
-    final cidRegex = RegExp(
-      r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
-    );
-    final kept = lines.where((line) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty) return false; // drop blank lines
-      if (trimmed.startsWith('flowLocalId=')) return false;
-      final norm = trimmed.replaceAll(RegExp(r'\s+'), '');
-      if (cidRegex.hasMatch(norm)) return false;
-      if (norm.toLowerCase().startsWith('kemet_cid:reminder:')) return false;
-      if (norm.toLowerCase().startsWith('reminder:')) return false;
-      return true;
-    }).toList();
-    return kept.join('\n').trim();
-  }
-
   int _computeNotesHash(List<NoteData> notes) {
     return Object.hashAll(
       notes.map(
@@ -7593,157 +7620,6 @@ class _DayViewGridState extends State<DayViewGrid> {
         ),
       ),
     );
-  }
-
-  TrackSkyTimeZone? _trackSkyTimeZoneForFlow(FlowData? flow) {
-    final raw = flow?.notes;
-    if (raw == null || raw.isEmpty) return null;
-    for (final token in raw.split(';')) {
-      final trimmed = token.trim();
-      if (!trimmed.startsWith('sky_tz=')) continue;
-      switch (trimmed.substring('sky_tz='.length)) {
-        case 'pacific':
-          return TrackSkyTimeZone.pacific;
-        case 'mountain':
-          return TrackSkyTimeZone.mountain;
-        case 'central':
-          return TrackSkyTimeZone.central;
-        case 'eastern':
-          return TrackSkyTimeZone.eastern;
-      }
-    }
-    return null;
-  }
-
-  Future<void> _primeTrackSkyFlowData() async {
-    final neededTimeZones = widget.flowIndex.values
-        .where((flow) => _isTrackSkyFlowName(flow.name))
-        .map(_trackSkyTimeZoneForFlow)
-        .whereType<TrackSkyTimeZone>()
-        .toSet();
-    for (final timezone in neededTimeZones) {
-      if (_trackSkyDataByTimeZone.containsKey(timezone) ||
-          _trackSkyLoadingTimeZones.contains(timezone)) {
-        continue;
-      }
-      _trackSkyLoadingTimeZones.add(timezone);
-      unawaited(() async {
-        try {
-          final data = await loadTrackSkyFlowData(timezone);
-          if (!mounted) return;
-          setState(() {
-            _trackSkyDataByTimeZone[timezone] = data;
-          });
-        } catch (_) {
-        } finally {
-          _trackSkyLoadingTimeZones.remove(timezone);
-        }
-      }());
-    }
-  }
-
-  TrackSkyEvent? _resolveTrackSkyEvent(
-    EventItem event, {
-    required int ky,
-    required int km,
-    required int kd,
-  }) {
-    final flow = _chromeFlowForId(event.flowId);
-    if (!_isTrackSkyFlowName(flow?.name)) return null;
-    final timezone = _trackSkyTimeZoneForFlow(flow);
-    if (timezone == null) return null;
-    final data = _trackSkyDataByTimeZone[timezone];
-    if (data == null) {
-      _primeTrackSkyFlowData();
-      return null;
-    }
-
-    final ownedEvent = trackSkyEventFromBehaviorPayload(
-      data,
-      event.behaviorPayload,
-    );
-    if (ownedEvent != null) return ownedEvent;
-
-    final targetDate = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
-    final normalizedTitle = event.title.trim().toLowerCase();
-    final exactMatches = data.events.where((candidate) {
-      if (candidate.title.trim().toLowerCase() != normalizedTitle) return false;
-      final candidateDate = DateUtils.dateOnly(
-        trackSkyEventStartLocal(candidate, timezone),
-      );
-      if (!DateUtils.isSameDay(candidateDate, targetDate)) return false;
-      if (event.allDay != candidate.schedule.allDay) return false;
-      if (event.allDay) return true;
-      final candidateStart = trackSkyEventStartLocal(candidate, timezone);
-      final candidateStartMin =
-          candidateStart.hour * 60 + candidateStart.minute;
-      return candidateStartMin == event.startMin;
-    }).toList();
-    if (exactMatches.isNotEmpty) return exactMatches.first;
-
-    final dayMatches = data.events.where((candidate) {
-      if (candidate.title.trim().toLowerCase() != normalizedTitle) return false;
-      final candidateDate = DateUtils.dateOnly(
-        trackSkyEventStartLocal(candidate, timezone),
-      );
-      return DateUtils.isSameDay(candidateDate, targetDate);
-    }).toList();
-    if (dayMatches.isNotEmpty) return dayMatches.first;
-
-    return null;
-  }
-
-  String _trackSkyDisplayDetail(
-    EventItem event, {
-    required int ky,
-    required int km,
-    required int kd,
-  }) {
-    final resolved = _resolveTrackSkyEvent(event, ky: ky, km: km, kd: kd);
-    if (resolved != null) {
-      return resolved.detailSummary;
-    }
-
-    final raw = event.detail;
-    if (raw == null || raw.isEmpty) return '';
-    String displayDetail = raw;
-    if (displayDetail.startsWith('flowLocalId=')) {
-      final semi = displayDetail.indexOf(';');
-      if (semi > 0 && semi < displayDetail.length - 1) {
-        displayDetail = displayDetail.substring(semi + 1).trim();
-      } else {
-        return '';
-      }
-    }
-    displayDetail = kemeticizeTrackSkyText(
-      normalizeTrackSkyDetailText(_stripCidLines(displayDetail)),
-      anchorDate: KemeticMath.toGregorian(ky, km, kd),
-    );
-    displayDetail = buildTrackSkyNarrativeSummary(
-      title: event.title,
-      category: event.category,
-      fallbackGuidance: displayDetail,
-    );
-    if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
-      return '';
-    }
-    return displayDetail;
-  }
-
-  String _trackSkyTeaserText(
-    EventItem event, {
-    required int ky,
-    required int km,
-    required int kd,
-  }) {
-    final resolved = _resolveTrackSkyEvent(event, ky: ky, km: km, kd: kd);
-    if (resolved != null && resolved.teaserText.isNotEmpty) {
-      return resolved.teaserText;
-    }
-    final detail = _trackSkyDisplayDetail(event, ky: ky, km: km, kd: kd);
-    if (detail.isEmpty) return '';
-    final firstPipe = detail.indexOf(' | ');
-    return firstPipe >= 0 ? detail.substring(0, firstPipe).trim() : detail;
   }
 
   bool _usesTabletLandscapeLayout(BuildContext context) {
@@ -8428,469 +8304,18 @@ class _DayViewGridState extends State<DayViewGrid> {
     PositionedEventBlock block, {
     bool isPreview = false,
   }) {
-    final event = block.event;
-    final flow = _chromeFlowForId(event.flowId);
-    final isNutrition =
-        event.detail != null && event.detail!.contains('Source:');
-    final visual = _dayViewVisualForEvent(
-      event,
-      flow,
-      isReminder: event.isReminder,
-      isNutrition: isNutrition,
-    );
-    final graphic = visual.graphic;
-    final isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
-    final trackSkySpec = isTrackSky ? graphic : null;
-
-    final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
-    final double height = _eventVisualHeight(event);
-
-    final borderRadius = BorderRadius.circular(graphic != null ? 7 : 6);
-
-    if (isTrackSky) {
-      return TrackSkyEventBlockVisual(
-        title: event.title,
-        graphic: trackSkySpec!,
-        width: block.width,
-        height: height,
-        compact: durationMinutes < 80,
-        isPreview: isPreview,
-        child: _buildEventTextContents(
-          event,
-          durationMinutes,
-          isPreview: isPreview,
-        ),
-      );
-    }
-
-    if (graphic?.kind == CalendarEventGraphicKind.offeringTable) {
-      final offeringTableDay = _offeringTableDayFaceForEvent(event);
-      final dayViewContract = offeringTableDayViewContract(
-        offeringTableDay.dayNumber,
-      );
-      return OfferingTableEventBlockVisual(
-        dayNumber: offeringTableDay.dayNumber,
-        title: dayViewContract.title,
-        width: block.width,
-        height: height,
-        isPreview: isPreview,
-        dayViewFace: true,
-        animateRipple:
-            !isPreview &&
-            offeringTableEventIsToday(
-              ky: widget.ky,
-              km: widget.km,
-              kd: widget.kd,
-              now: _now,
-            ),
-      );
-    }
-
-    if (graphic?.kind == CalendarEventGraphicKind.djed) {
-      final fixture = _djedSittingFaceForEvent(event);
-      final orientation = fixture.number == 1;
-      return DjedEventBlockVisual(
-        sittingNumber: fixture.number,
-        title: fixture.title,
-        phase: fixture.phase,
-        timeLabel: fixture.timeLabel,
-        durationLabel: fixture.durationLabel,
-        supportName:
-            event.behaviorPayload?['support_name']?.toString() ??
-            (orientation
-                ? 'name the four parts that need strengthening'
-                : null),
-        progressCopy: orientation ? 'Name the structure' : null,
-        ordinalLabel: orientation ? 'Find your footing' : null,
-        supportPipIndex: orientation ? -1 : null,
-        width: block.width,
-        height: height,
-      );
-    }
-
-    if (graphic?.kind == CalendarEventGraphicKind.readingHouse) {
-      final sitting = _readingHouseSittingFaceForEvent(event);
-      return ReadingHouseEventBlockBehaviorSurface(
-        identity: ReadingHouseRoomIdentity(
-          calendarId: event.calendarId?.trim() ?? '',
-          flowId: event.flowId ?? 0,
-        ),
-        dataSource: _readingHouseRoomDataSource,
-        sittingNumber: sitting.eventNumber,
-        title: sitting.title,
-        prompt: sitting.privatePrompt,
-        width: block.width,
-        height: height,
-      );
-    }
-
-    if (graphic?.kind == CalendarEventGraphicKind.kar) {
-      final stageIndex = karStageIndexFromPayload(event.behaviorPayload);
-      final netjer = karNetjerFromPayload(event.behaviorPayload);
-      return _KarEventBlockWithCycleState(
-        key: ValueKey<String>(
-          'kar-day-event-state:${event.flowId}:$stageIndex:${netjer.key}',
-        ),
-        repository: _karEventBlockRepository,
-        flowId: event.flowId,
-        netjer: netjer,
-        stageIndex: stageIndex,
-        title: stageIndex == 5 ? 'Walk the kꜣr' : netjer.labels[stageIndex],
-        width: block.width,
-        height: height,
-      );
-    }
-
-    final customAppearance =
-        flow != null &&
-            _maatFlowCompletionContextForEvent(event, flow) == null &&
-            flow.appearance.hasSign
-        ? flow.appearance
-        : null;
-    final customAccent = customAppearance?.accentArgb == null
-        ? flow?.color ?? visual.source
-        : Color(customAppearance!.accentArgb!);
-
-    return Container(
+    return CalendarDayEventBlock(
+      event: block.event,
+      flow: _chromeFlowForId(block.event.flowId),
+      ky: widget.ky,
+      km: widget.km,
+      kd: widget.kd,
       width: block.width,
-      height: height,
-      margin: const EdgeInsets.only(right: 4, bottom: 2),
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isPreview ? 0.12 : 0.26),
-            blurRadius: 10,
-            spreadRadius: -5,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.hardEdge, // ✅ Prevent overflow
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    Color.alphaBlend(
-                      visual.wash.withValues(alpha: isPreview ? 0.066 : 0.10),
-                      visual.base,
-                    ),
-                    Color.alphaBlend(
-                      visual.wash.withValues(alpha: isPreview ? 0.030 : 0.05),
-                      visual.base,
-                    ),
-                    visual.base,
-                    _dayViewBase,
-                  ],
-                  stops: const [0.0, 0.42, 0.73, 1.0],
-                ),
-                border: Border.all(
-                  color: visual.source.withValues(
-                    alpha: isPreview ? 0.14 : 0.22,
-                  ),
-                  width: isPreview ? 0.65 : 0.55,
-                ),
-                borderRadius: borderRadius,
-              ),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: visual.source.withValues(alpha: isPreview ? 0.46 : 0.64),
-              ),
-              child: const SizedBox(width: 2.5),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              event.isReminder ? 9 : 10,
-              event.isReminder ? 4 : 4,
-              customAppearance == null ? 6 : 56,
-              4,
-            ),
-            child: _buildEventTextContents(
-              event,
-              durationMinutes,
-              isPreview: isPreview,
-            ),
-          ),
-          if (customAppearance != null)
-            Positioned(
-              right: 9,
-              top: (height - 40) / 2,
-              child: UserFlowAppearanceBadge(
-                key: const ValueKey('user-flow-timeline-appearance'),
-                appearance: customAppearance,
-                accent: customAccent,
-                size: 40,
-                completedOccurrences: flow?.completedOccurrenceCount ?? 0,
-                totalOccurrences: flow?.totalOccurrenceCount ?? 0,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// ✅ FIX #2B: Separate method for text content with empty title handling
-  Widget _buildEventTextContents(
-    EventItem event,
-    int durationMinutes, {
-    bool isPreview = false,
-  }) {
-    final flow = _chromeFlowForId(event.flowId);
-    final bool hasFlow = flow != null;
-    final isNutrition =
-        event.detail != null && event.detail!.contains('Source:');
-    final visual = _dayViewVisualForEvent(
-      event,
-      flow,
-      isReminder: event.isReminder,
-      isNutrition: isNutrition,
-    );
-    final graphic = visual.graphic;
-    final bool isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
-    final bool isGraphicFlow = graphic != null;
-    final trackSkySpec = isTrackSky ? graphic : null;
-    final displayTitle = event.title;
-    final isMaatFlow = _maatFlowCompletionContextForEvent(event, flow) != null;
-    final flowLabel = _dayViewTimelineFlowLabel(
-      event,
-      flow,
-      isMaatFlow: isMaatFlow,
-      isReminder: event.isReminder,
-      isNutrition: isNutrition,
-    );
-
-    final showTitle = displayTitle.trim().isNotEmpty;
-    final showPreviewLabel = !isGraphicFlow || (hasFlow && !event.isReminder);
-    final graphicFlowNameColor = (graphic?.labelColor ?? _dayGold).withValues(
-      alpha: isPreview ? 0.92 : 1.0,
-    );
-    final titleColor = isGraphicFlow
-        ? graphic.titleColor.withValues(
-            alpha: isPreview ? (isTrackSky ? 0.94 : 0.92) : 1.0,
-          )
-        : event.isReminder
-        ? visual.title.withValues(alpha: isPreview ? 0.72 : 0.88)
-        : visual.title.withValues(alpha: isPreview ? 0.74 : 0.9);
-    final flowColor = !isGraphicFlow
-        ? visual.category.withValues(alpha: isPreview ? 0.52 : 0.68)
-        : null;
-    final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
-        ? 1
-        : 2;
-    final trackSkyTeaser = isTrackSky
-        ? _trackSkyTeaserText(
-            event,
-            ky: widget.ky,
-            km: widget.km,
-            kd: widget.kd,
-          )
-        : '';
-    Widget buildGraphicText(
-      String text, {
-      required TextStyle style,
-      required int maxLines,
-      required TextOverflow overflow,
-      Gradient? gradient,
-    }) {
-      final compactStyle = style.height == null
-          ? style.copyWith(height: 1.05)
-          : style;
-      final softWrap = maxLines != 1;
-      if (gradient != null) {
-        return GlossyText(
-          text: text,
-          style: compactStyle,
-          gradient: gradient,
-          maxLines: maxLines,
-          overflow: overflow,
-          softWrap: softWrap,
-        );
-      }
-      if (kIsWeb) {
-        return Text(
-          text,
-          style: compactStyle.copyWith(
-            shadows: const [
-              Shadow(
-                color: Color(0x22FFF8D6),
-                offset: Offset(0, -0.2),
-                blurRadius: 0.2,
-              ),
-            ],
-          ),
-          maxLines: maxLines,
-          overflow: overflow,
-          softWrap: softWrap,
-        );
-      }
-      final highlightStyle = compactStyle.copyWith(
-        color: Colors.white.withValues(alpha: isPreview ? 0.56 : 0.74),
-        shadows: null,
-      );
-      final shadowStyle = compactStyle.copyWith(
-        color: const Color(
-          0xFF02050C,
-        ).withValues(alpha: isPreview ? 0.28 : 0.42),
-        shadows: null,
-      );
-      final fillStyle = compactStyle.copyWith(color: compactStyle.color);
-      return Stack(
-        children: [
-          ExcludeSemantics(
-            child: Transform.translate(
-              offset: const Offset(-0.3, -0.3),
-              child: Text(
-                text,
-                style: highlightStyle,
-                maxLines: maxLines,
-                overflow: overflow,
-              ),
-            ),
-          ),
-          ExcludeSemantics(
-            child: Transform.translate(
-              offset: const Offset(0.55, 0.72),
-              child: Text(
-                text,
-                style: shadowStyle,
-                maxLines: maxLines,
-                overflow: overflow,
-              ),
-            ),
-          ),
-          Text(
-            text,
-            style: fillStyle,
-            maxLines: maxLines,
-            overflow: overflow,
-            softWrap: softWrap,
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Compact preview label only; detail/body/location belongs in the sheet.
-        if (showPreviewLabel) ...[
-          isGraphicFlow
-              ? buildGraphicText(
-                  flow!.name,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: graphicFlowNameColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  gradient: graphic.flowLabelGradient,
-                )
-              : Text(
-                  flowLabel,
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 1.55,
-                    color: flowColor,
-                    fontFamilyFallback: _dayViewSansFallback,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-          SizedBox(height: isGraphicFlow ? 0 : 2),
-        ],
-
-        // Note title - only render if meaningful
-        if (showTitle)
-          isGraphicFlow
-              ? buildGraphicText(
-                  displayTitle,
-                  style: TextStyle(
-                    fontSize: isTrackSky ? 14 : 13,
-                    fontWeight: FontWeight.w700,
-                    color: titleColor,
-                  ),
-                  maxLines: titleMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : Text(
-                  displayTitle,
-                  style: TextStyle(
-                    fontSize: event.isReminder ? 13.5 : 13.8,
-                    height: 1.08,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: _dayViewSerifFamily,
-                    fontFamilyFallback: _dayViewSerifFallback,
-                    color: titleColor,
-                  ),
-                  maxLines: titleMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                )
-        else
-          isGraphicFlow
-              ? buildGraphicText(
-                  hasFlow ? '(flow block)' : '(scheduled)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: graphic.labelColor.withValues(
-                      alpha: isPreview ? 0.8 : 0.9,
-                    ),
-                    fontStyle: FontStyle.italic,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : Text(
-                  // Fallback so you don't get giant red nothing-brick
-                  hasFlow ? '(flow block)' : '(scheduled)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: _dayViewSerifFamily,
-                    fontFamilyFallback: _dayViewSerifFallback,
-                    color: visual.title.withValues(
-                      alpha: isPreview ? 0.56 : 0.76,
-                    ),
-                    fontStyle: FontStyle.italic,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-
-        if (isTrackSky &&
-            trackSkyTeaser.isNotEmpty &&
-            durationMinutes >= 45) ...[
-          const SizedBox(height: 0),
-          buildGraphicText(
-            trackSkyTeaser,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: trackSkySpec!.detailColor.withValues(
-                alpha: isPreview ? 0.82 : 0.96,
-              ),
-            ),
-            maxLines: durationMinutes >= 90 ? 2 : 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ],
+      height: _eventVisualHeight(block.event),
+      isPreview: isPreview,
+      clock: widget.clock,
+      karRepository: widget.karRepository,
+      readingHouseRoomDataSource: _readingHouseRoomDataSource,
     );
   }
 
@@ -14039,3 +13464,741 @@ class _MeasureSizeRenderObject extends RenderProxyBox {
 // Day View - 24-hour timeline with pixel-perfect event layout
 // Uses EventLayoutEngine for consistent positioning
 //
+
+/// Landscape uses the same authored Ma'at face height; generic durations use
+/// the calendar's hour scale. Lane collision uses this painted height too.
+double calendarLandscapeEventHeight(
+  EventItem event,
+  FlowData? flow, {
+  required double hourHeight,
+}) {
+  final fixed = MaatEventBlockLayoutSpec.forFlow(
+    _eventMaatFlowKind(event),
+  ).fixedVisualHeight;
+  if (fixed != null) return fixed / 60 * hourHeight;
+  return math.max(40.0, _eventVisualHeightForLayout(event) / 60 * hourHeight);
+}
+
+/// One event face for the portrait timeline and landscape calendar.
+/// Scheduling, selection, and gestures remain owned by the caller.
+class CalendarDayEventBlock extends StatefulWidget {
+  const CalendarDayEventBlock({
+    super.key,
+    required this.event,
+    required this.flow,
+    required this.ky,
+    required this.km,
+    required this.kd,
+    required this.width,
+    required this.height,
+    this.isPreview = false,
+    this.karRepository,
+    this.readingHouseRoomDataSource,
+    this.clock,
+  });
+  final EventItem event;
+  final FlowData? flow;
+  final int ky, km, kd;
+  final double width, height;
+  final bool isPreview;
+  final KarRepository? karRepository;
+  final ReadingHouseRoomDataSource? readingHouseRoomDataSource;
+  final DateTime Function()? clock;
+  @override
+  State<CalendarDayEventBlock> createState() => _CalendarDayEventBlockState();
+}
+
+class _CalendarDayEventBlockState extends State<CalendarDayEventBlock> {
+  bool _looksLikeCidDetail(String text) {
+    final trimmed = text.trim().replaceAll(RegExp(r'\s+'), '');
+    final withPrefix = trimmed.startsWith('kemet_cid:')
+        ? trimmed.substring('kemet_cid:'.length)
+        : trimmed;
+    final cidPattern = RegExp(
+      r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
+    );
+    return cidPattern.hasMatch(withPrefix);
+  }
+
+  /// Remove lines that are just cid tokens or legacy flowLocalId lines.
+  String _stripCidLines(String detail) {
+    final lines = detail.split(RegExp(r'\r?\n'));
+    final cidRegex = RegExp(
+      r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
+    );
+    final kept = lines.where((line) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) return false; // drop blank lines
+      if (trimmed.startsWith('flowLocalId=')) return false;
+      final norm = trimmed.replaceAll(RegExp(r'\s+'), '');
+      if (cidRegex.hasMatch(norm)) return false;
+      if (norm.toLowerCase().startsWith('kemet_cid:reminder:')) return false;
+      if (norm.toLowerCase().startsWith('reminder:')) return false;
+      return true;
+    }).toList();
+    return kept.join('\n').trim();
+  }
+
+  final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
+      <TrackSkyTimeZone, TrackSkyFlowData>{};
+  final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
+  TrackSkyTimeZone? _trackSkyTimeZoneForFlow(FlowData? flow) {
+    final raw = flow?.notes;
+    if (raw == null || raw.isEmpty) return null;
+    for (final token in raw.split(';')) {
+      final trimmed = token.trim();
+      if (!trimmed.startsWith('sky_tz=')) continue;
+      switch (trimmed.substring('sky_tz='.length)) {
+        case 'pacific':
+          return TrackSkyTimeZone.pacific;
+        case 'mountain':
+          return TrackSkyTimeZone.mountain;
+        case 'central':
+          return TrackSkyTimeZone.central;
+        case 'eastern':
+          return TrackSkyTimeZone.eastern;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _primeTrackSkyFlowData() async {
+    final neededTimeZones = [if (widget.flow != null) widget.flow!]
+        .where((flow) => _isTrackSkyFlowName(flow.name))
+        .map(_trackSkyTimeZoneForFlow)
+        .whereType<TrackSkyTimeZone>()
+        .toSet();
+    for (final timezone in neededTimeZones) {
+      if (_trackSkyDataByTimeZone.containsKey(timezone) ||
+          _trackSkyLoadingTimeZones.contains(timezone)) {
+        continue;
+      }
+      _trackSkyLoadingTimeZones.add(timezone);
+      unawaited(() async {
+        try {
+          final data = await loadTrackSkyFlowData(timezone);
+          if (!mounted) return;
+          setState(() {
+            _trackSkyDataByTimeZone[timezone] = data;
+          });
+        } catch (_) {
+        } finally {
+          _trackSkyLoadingTimeZones.remove(timezone);
+        }
+      }());
+    }
+  }
+
+  TrackSkyEvent? _resolveTrackSkyEvent(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) {
+    final flow = widget.flow;
+    if (!_isTrackSkyFlowName(flow?.name)) return null;
+    final timezone = _trackSkyTimeZoneForFlow(flow);
+    if (timezone == null) return null;
+    final data = _trackSkyDataByTimeZone[timezone];
+    if (data == null) {
+      _primeTrackSkyFlowData();
+      return null;
+    }
+
+    final ownedEvent = trackSkyEventFromBehaviorPayload(
+      data,
+      event.behaviorPayload,
+    );
+    if (ownedEvent != null) return ownedEvent;
+
+    final targetDate = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
+    final normalizedTitle = event.title.trim().toLowerCase();
+    final exactMatches = data.events.where((candidate) {
+      if (candidate.title.trim().toLowerCase() != normalizedTitle) return false;
+      final candidateDate = DateUtils.dateOnly(
+        trackSkyEventStartLocal(candidate, timezone),
+      );
+      if (!DateUtils.isSameDay(candidateDate, targetDate)) return false;
+      if (event.allDay != candidate.schedule.allDay) return false;
+      if (event.allDay) return true;
+      final candidateStart = trackSkyEventStartLocal(candidate, timezone);
+      final candidateStartMin =
+          candidateStart.hour * 60 + candidateStart.minute;
+      return candidateStartMin == event.startMin;
+    }).toList();
+    if (exactMatches.isNotEmpty) return exactMatches.first;
+
+    final dayMatches = data.events.where((candidate) {
+      if (candidate.title.trim().toLowerCase() != normalizedTitle) return false;
+      final candidateDate = DateUtils.dateOnly(
+        trackSkyEventStartLocal(candidate, timezone),
+      );
+      return DateUtils.isSameDay(candidateDate, targetDate);
+    }).toList();
+    if (dayMatches.isNotEmpty) return dayMatches.first;
+
+    return null;
+  }
+
+  String _trackSkyDisplayDetail(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) {
+    final resolved = _resolveTrackSkyEvent(event, ky: ky, km: km, kd: kd);
+    if (resolved != null) {
+      return resolved.detailSummary;
+    }
+
+    final raw = event.detail;
+    if (raw == null || raw.isEmpty) return '';
+    String displayDetail = raw;
+    if (displayDetail.startsWith('flowLocalId=')) {
+      final semi = displayDetail.indexOf(';');
+      if (semi > 0 && semi < displayDetail.length - 1) {
+        displayDetail = displayDetail.substring(semi + 1).trim();
+      } else {
+        return '';
+      }
+    }
+    displayDetail = kemeticizeTrackSkyText(
+      normalizeTrackSkyDetailText(_stripCidLines(displayDetail)),
+      anchorDate: KemeticMath.toGregorian(ky, km, kd),
+    );
+    displayDetail = buildTrackSkyNarrativeSummary(
+      title: event.title,
+      category: event.category,
+      fallbackGuidance: displayDetail,
+    );
+    if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
+      return '';
+    }
+    return displayDetail;
+  }
+
+  String _trackSkyTeaserText(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) {
+    final resolved = _resolveTrackSkyEvent(event, ky: ky, km: km, kd: kd);
+    if (resolved != null && resolved.teaserText.isNotEmpty) {
+      return resolved.teaserText;
+    }
+    final detail = _trackSkyDisplayDetail(event, ky: ky, km: km, kd: kd);
+    if (detail.isEmpty) return '';
+    final firstPipe = detail.indexOf(' | ');
+    return firstPipe >= 0 ? detail.substring(0, firstPipe).trim() : detail;
+  }
+
+  KarRepository? _defaultKarRepository;
+  bool _resolvedDefaultKarRepository = false;
+  ReadingHouseRoomDataSource? _defaultReadingHouseRoomDataSource;
+  bool _resolvedDefaultReadingHouseRoomDataSource = false;
+
+  DateTime get _now => (widget.clock ?? DateTime.now)().toLocal();
+
+  KarRepository? get _karEventBlockRepository {
+    final supplied = widget.karRepository;
+    if (supplied != null) return supplied;
+    if (_resolvedDefaultKarRepository) return _defaultKarRepository;
+    _resolvedDefaultKarRepository = true;
+    try {
+      _defaultKarRepository = SupabaseKarRepository(Supabase.instance.client);
+    } on Object {
+      // Widget-only tests do not initialize Supabase. They still receive the
+      // correct fixed visual rather than a fabricated placement count.
+      _defaultKarRepository = null;
+    }
+    return _defaultKarRepository;
+  }
+
+  ReadingHouseRoomDataSource? get _readingHouseRoomDataSource {
+    final supplied = widget.readingHouseRoomDataSource;
+    if (supplied != null) return supplied;
+    if (_resolvedDefaultReadingHouseRoomDataSource) {
+      return _defaultReadingHouseRoomDataSource;
+    }
+    _resolvedDefaultReadingHouseRoomDataSource = true;
+    try {
+      _defaultReadingHouseRoomDataSource = SupabaseReadingHouseRoomRepository(
+        Supabase.instance.client,
+      );
+    } on Object {
+      _defaultReadingHouseRoomDataSource = null;
+    }
+    return _defaultReadingHouseRoomDataSource;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPreview = widget.isPreview;
+    final event = widget.event;
+    final flow = widget.flow;
+    final isNutrition =
+        event.detail != null && event.detail!.contains('Source:');
+    final visual = _dayViewVisualForEvent(
+      event,
+      flow,
+      isReminder: event.isReminder,
+      isNutrition: isNutrition,
+    );
+    final graphic = visual.graphic;
+    final isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
+    final trackSkySpec = isTrackSky ? graphic : null;
+
+    final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
+    final double height = widget.height;
+
+    final borderRadius = BorderRadius.circular(graphic != null ? 7 : 6);
+
+    if (isTrackSky) {
+      return TrackSkyEventBlockVisual(
+        title: event.title,
+        graphic: trackSkySpec!,
+        width: widget.width,
+        height: height,
+        compact: durationMinutes < 80,
+        isPreview: isPreview,
+        child: _buildEventTextContents(
+          event,
+          durationMinutes,
+          isPreview: isPreview,
+        ),
+      );
+    }
+
+    if (graphic?.kind == CalendarEventGraphicKind.offeringTable) {
+      final offeringTableDay = _offeringTableDayFaceForEvent(event);
+      final dayViewContract = offeringTableDayViewContract(
+        offeringTableDay.dayNumber,
+      );
+      return OfferingTableEventBlockVisual(
+        dayNumber: offeringTableDay.dayNumber,
+        title: dayViewContract.title,
+        width: widget.width,
+        height: height,
+        isPreview: isPreview,
+        dayViewFace: true,
+        animateRipple:
+            !isPreview &&
+            offeringTableEventIsToday(
+              ky: widget.ky,
+              km: widget.km,
+              kd: widget.kd,
+              now: _now,
+            ),
+      );
+    }
+
+    if (graphic?.kind == CalendarEventGraphicKind.djed) {
+      final fixture = _djedSittingFaceForEvent(event);
+      final orientation = fixture.number == 1;
+      return DjedEventBlockVisual(
+        sittingNumber: fixture.number,
+        title: fixture.title,
+        phase: fixture.phase,
+        timeLabel: fixture.timeLabel,
+        durationLabel: fixture.durationLabel,
+        supportName:
+            event.behaviorPayload?['support_name']?.toString() ??
+            (orientation
+                ? 'name the four parts that need strengthening'
+                : null),
+        progressCopy: orientation ? 'Name the structure' : null,
+        ordinalLabel: orientation ? 'Find your footing' : null,
+        supportPipIndex: orientation ? -1 : null,
+        width: widget.width,
+        height: height,
+      );
+    }
+
+    if (graphic?.kind == CalendarEventGraphicKind.readingHouse) {
+      final sitting = _readingHouseSittingFaceForEvent(event);
+      return ReadingHouseEventBlockBehaviorSurface(
+        identity: ReadingHouseRoomIdentity(
+          calendarId: event.calendarId?.trim() ?? '',
+          flowId: event.flowId ?? 0,
+        ),
+        dataSource: _readingHouseRoomDataSource,
+        sittingNumber: sitting.eventNumber,
+        title: sitting.title,
+        prompt: sitting.privatePrompt,
+        width: widget.width,
+        height: height,
+      );
+    }
+
+    if (graphic?.kind == CalendarEventGraphicKind.kar) {
+      final stageIndex = karStageIndexFromPayload(event.behaviorPayload);
+      final netjer = karNetjerFromPayload(event.behaviorPayload);
+      return _KarEventBlockWithCycleState(
+        key: ValueKey<String>(
+          'kar-day-event-state:${event.flowId}:$stageIndex:${netjer.key}',
+        ),
+        repository: _karEventBlockRepository,
+        flowId: event.flowId,
+        netjer: netjer,
+        stageIndex: stageIndex,
+        title: stageIndex == 5 ? 'Walk the kꜣr' : netjer.labels[stageIndex],
+        width: widget.width,
+        height: height,
+      );
+    }
+
+    final customAppearance =
+        flow != null &&
+            _maatFlowCompletionContextForEvent(event, flow) == null &&
+            flow.appearance.hasSign
+        ? flow.appearance
+        : null;
+    final customAccent = customAppearance?.accentArgb == null
+        ? flow?.color ?? visual.source
+        : Color(customAppearance!.accentArgb!);
+
+    final badgeSize = widget.width < 130 ? 24.0 : 40.0;
+    return Container(
+      width: widget.width,
+      height: height,
+      margin: const EdgeInsets.only(right: 4, bottom: 2),
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isPreview ? 0.12 : 0.26),
+            blurRadius: 10,
+            spreadRadius: -5,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.hardEdge, // ✅ Prevent overflow
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Color.alphaBlend(
+                      visual.wash.withValues(alpha: isPreview ? 0.066 : 0.10),
+                      visual.base,
+                    ),
+                    Color.alphaBlend(
+                      visual.wash.withValues(alpha: isPreview ? 0.030 : 0.05),
+                      visual.base,
+                    ),
+                    visual.base,
+                    _dayViewBase,
+                  ],
+                  stops: const [0.0, 0.42, 0.73, 1.0],
+                ),
+                border: Border.all(
+                  color: visual.source.withValues(
+                    alpha: isPreview ? 0.14 : 0.22,
+                  ),
+                  width: isPreview ? 0.65 : 0.55,
+                ),
+                borderRadius: borderRadius,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: visual.source.withValues(alpha: isPreview ? 0.46 : 0.64),
+              ),
+              child: const SizedBox(width: 2.5),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              event.isReminder ? 9 : 10,
+              event.isReminder ? 4 : 4,
+              customAppearance == null ? 6 : badgeSize + 16,
+              4,
+            ),
+            child: _buildEventTextContents(
+              event,
+              durationMinutes,
+              isPreview: isPreview,
+            ),
+          ),
+          if (customAppearance != null)
+            Positioned(
+              right: 9,
+              top: (height - badgeSize) / 2,
+              child: UserFlowAppearanceBadge(
+                key: const ValueKey('user-flow-timeline-appearance'),
+                appearance: customAppearance,
+                accent: customAccent,
+                size: badgeSize,
+                completedOccurrences: flow?.completedOccurrenceCount ?? 0,
+                totalOccurrences: flow?.totalOccurrenceCount ?? 0,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// ✅ FIX #2B: Separate method for text content with empty title handling
+  Widget _buildEventTextContents(
+    EventItem event,
+    int durationMinutes, {
+    bool isPreview = false,
+  }) {
+    final flow = widget.flow;
+    final bool hasFlow = flow != null;
+    final isNutrition =
+        event.detail != null && event.detail!.contains('Source:');
+    final visual = _dayViewVisualForEvent(
+      event,
+      flow,
+      isReminder: event.isReminder,
+      isNutrition: isNutrition,
+    );
+    final graphic = visual.graphic;
+    final bool isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
+    final bool isGraphicFlow = graphic != null;
+    final trackSkySpec = isTrackSky ? graphic : null;
+    final displayTitle = event.title;
+    final isMaatFlow = _maatFlowCompletionContextForEvent(event, flow) != null;
+    final flowLabel = _dayViewTimelineFlowLabel(
+      event,
+      flow,
+      isMaatFlow: isMaatFlow,
+      isReminder: event.isReminder,
+      isNutrition: isNutrition,
+    );
+
+    final showTitle = displayTitle.trim().isNotEmpty;
+    final showPreviewLabel = !isGraphicFlow || (hasFlow && !event.isReminder);
+    final graphicFlowNameColor = (graphic?.labelColor ?? _dayGold).withValues(
+      alpha: isPreview ? 0.92 : 1.0,
+    );
+    final titleColor = isGraphicFlow
+        ? graphic.titleColor.withValues(
+            alpha: isPreview ? (isTrackSky ? 0.94 : 0.92) : 1.0,
+          )
+        : event.isReminder
+        ? visual.title.withValues(alpha: isPreview ? 0.72 : 0.88)
+        : visual.title.withValues(alpha: isPreview ? 0.74 : 0.9);
+    final flowColor = !isGraphicFlow
+        ? visual.category.withValues(alpha: isPreview ? 0.52 : 0.68)
+        : null;
+    final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
+        ? 1
+        : 2;
+    final trackSkyTeaser = isTrackSky
+        ? _trackSkyTeaserText(
+            event,
+            ky: widget.ky,
+            km: widget.km,
+            kd: widget.kd,
+          )
+        : '';
+    Widget buildGraphicText(
+      String text, {
+      required TextStyle style,
+      required int maxLines,
+      required TextOverflow overflow,
+      Gradient? gradient,
+    }) {
+      final compactStyle = style.height == null
+          ? style.copyWith(height: 1.05)
+          : style;
+      final softWrap = maxLines != 1;
+      if (gradient != null) {
+        return GlossyText(
+          text: text,
+          style: compactStyle,
+          gradient: gradient,
+          maxLines: maxLines,
+          overflow: overflow,
+          softWrap: softWrap,
+        );
+      }
+      if (kIsWeb) {
+        return Text(
+          text,
+          style: compactStyle.copyWith(
+            shadows: const [
+              Shadow(
+                color: Color(0x22FFF8D6),
+                offset: Offset(0, -0.2),
+                blurRadius: 0.2,
+              ),
+            ],
+          ),
+          maxLines: maxLines,
+          overflow: overflow,
+          softWrap: softWrap,
+        );
+      }
+      final highlightStyle = compactStyle.copyWith(
+        color: Colors.white.withValues(alpha: isPreview ? 0.56 : 0.74),
+        shadows: null,
+      );
+      final shadowStyle = compactStyle.copyWith(
+        color: const Color(
+          0xFF02050C,
+        ).withValues(alpha: isPreview ? 0.28 : 0.42),
+        shadows: null,
+      );
+      final fillStyle = compactStyle.copyWith(color: compactStyle.color);
+      return Stack(
+        children: [
+          ExcludeSemantics(
+            child: Transform.translate(
+              offset: const Offset(-0.3, -0.3),
+              child: Text(
+                text,
+                style: highlightStyle,
+                maxLines: maxLines,
+                overflow: overflow,
+              ),
+            ),
+          ),
+          ExcludeSemantics(
+            child: Transform.translate(
+              offset: const Offset(0.55, 0.72),
+              child: Text(
+                text,
+                style: shadowStyle,
+                maxLines: maxLines,
+                overflow: overflow,
+              ),
+            ),
+          ),
+          Text(
+            text,
+            style: fillStyle,
+            maxLines: maxLines,
+            overflow: overflow,
+            softWrap: softWrap,
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Compact preview label only; detail/body/location belongs in the sheet.
+        if (showPreviewLabel) ...[
+          isGraphicFlow
+              ? buildGraphicText(
+                  flow!.name,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: graphicFlowNameColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  gradient: graphic.flowLabelGradient,
+                )
+              : Text(
+                  flowLabel,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 1.55,
+                    color: flowColor,
+                    fontFamilyFallback: _dayViewSansFallback,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+          SizedBox(height: isGraphicFlow ? 0 : 2),
+        ],
+
+        // Note title - only render if meaningful
+        if (showTitle)
+          isGraphicFlow
+              ? buildGraphicText(
+                  displayTitle,
+                  style: TextStyle(
+                    fontSize: isTrackSky ? 14 : 13,
+                    fontWeight: FontWeight.w700,
+                    color: titleColor,
+                  ),
+                  maxLines: titleMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : Text(
+                  displayTitle,
+                  style: TextStyle(
+                    fontSize: event.isReminder ? 13.5 : 13.8,
+                    height: 1.08,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: _dayViewSerifFamily,
+                    fontFamilyFallback: _dayViewSerifFallback,
+                    color: titleColor,
+                  ),
+                  maxLines: titleMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                )
+        else
+          isGraphicFlow
+              ? buildGraphicText(
+                  hasFlow ? '(flow block)' : '(scheduled)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: graphic.labelColor.withValues(
+                      alpha: isPreview ? 0.8 : 0.9,
+                    ),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : Text(
+                  // Fallback so you don't get giant red nothing-brick
+                  hasFlow ? '(flow block)' : '(scheduled)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: _dayViewSerifFamily,
+                    fontFamilyFallback: _dayViewSerifFallback,
+                    color: visual.title.withValues(
+                      alpha: isPreview ? 0.56 : 0.76,
+                    ),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+        if (isTrackSky &&
+            trackSkyTeaser.isNotEmpty &&
+            durationMinutes >= 45) ...[
+          const SizedBox(height: 0),
+          buildGraphicText(
+            trackSkyTeaser,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: trackSkySpec!.detailColor.withValues(
+                alpha: isPreview ? 0.82 : 0.96,
+              ),
+            ),
+            maxLines: durationMinutes >= 90 ? 2 : 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+}

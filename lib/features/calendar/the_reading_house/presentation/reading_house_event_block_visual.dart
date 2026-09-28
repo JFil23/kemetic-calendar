@@ -216,6 +216,8 @@ class _CompactBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final artWidth = ((data.width ?? 300) * .30).clamp(18.0, 55.0);
+    final textLeft = (data.width ?? 300) < 130 ? 7.0 : 14.0;
     final content = Container(
       key: const ValueKey<String>('reading-house-event-block-compact'),
       width: data.width,
@@ -237,8 +239,8 @@ class _CompactBlock extends StatelessWidget {
         children: <Widget>[
           const Positioned.fill(child: _ReadingHouseCardSurface()),
           Positioned(
-            left: 14,
-            right: 70,
+            left: textLeft,
+            right: artWidth + 15,
             top: 9,
             child: Text(
               'THE READING HOUSE · SITTING ${data.sittingNumber.toString().padLeft(2, '0')}',
@@ -252,8 +254,8 @@ class _CompactBlock extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 14,
-            right: 70,
+            left: textLeft,
+            right: artWidth + 15,
             top: 20,
             child: Text(
               data.title,
@@ -268,12 +270,20 @@ class _CompactBlock extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 14,
-            right: 70,
+            left: textLeft,
+            right: artWidth + 15,
             bottom: 5,
             child: Row(
               children: <Widget>[
-                _ReaderStack(initials: data.memberInitials, compact: true),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _ReaderStack(
+                      initials: data.memberInitials,
+                      compact: true,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -289,12 +299,17 @@ class _CompactBlock extends StatelessWidget {
               ],
             ),
           ),
-          const Positioned(
+          Positioned(
             right: 8,
             top: 0,
             bottom: 0,
-            width: 55,
-            child: Center(child: _ReadingScrollArtwork(width: 55, height: 49)),
+            width: artWidth,
+            child: Center(
+              child: _ReadingScrollArtwork(
+                width: artWidth,
+                height: artWidth * 49 / 55,
+              ),
+            ),
           ),
         ],
       ),

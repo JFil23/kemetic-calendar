@@ -174,39 +174,26 @@ void main() {
       );
     });
 
-    test('landscape month build logging does not print raw note titles', () {
-      final buildEventsForDay = _sourceBetween(
-        landscapeSource,
-        'List<Widget> _buildEventsForDay(int day, double colW)',
-        'final notes = _dedupeNotesForUI(rawNotes);',
-      );
-
-      expect(buildEventsForDay, contains('Raw notes:'));
-      expect(buildEventsForDay, isNot(contains('note.title')));
-      expect(buildEventsForDay, isNot(contains('Note: "')));
-    });
-
-    test('landscape month builds event cards only for visible day range', () {
-      final gridBodyState = _sourceBetween(
-        landscapeSource,
-        'class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody>',
-        'Widget _buildDayHeader(int day, double colW)',
-      );
-      final eventLoop = _sourceBetween(gridBodyState, '// Event blocks', '],');
-
-      expect(gridBodyState, contains('_visibleEventStartDay'));
-      expect(gridBodyState, contains('_visibleEventEndDay'));
-      expect(gridBodyState, contains('_updateVisibleEventRange'));
-      expect(eventLoop, contains('int day = _visibleEventStartDay'));
-      expect(eventLoop, contains('day <= _visibleEventEndDay'));
-      expect(eventLoop, isNot(contains('int day = 1; day <= dayCount')));
-    });
+    test(
+      'landscape uses a lazy day viewport without logging private note content',
+      () {
+        expect(
+          landscapeSource,
+          contains("key: const ValueKey('landscape-days')"),
+        );
+        expect(landscapeSource, contains('ListView.builder('));
+        expect(landscapeSource, contains('itemExtent: _columnWidth'));
+        expect(landscapeSource, contains('cacheExtent: _columnWidth'));
+        expect(landscapeSource, contains('_buildDay(_dateAt(index))'));
+        expect(landscapeSource, isNot(contains('debugPrint')));
+      },
+    );
 
     test('Day View event block rendering does not log raw event titles', () {
       final buildEventBlock = _sourceBetween(
         dayViewSource,
         'Widget _buildEventBlock(',
-        'final int durationMinutes =',
+        'Widget _buildNowLine()',
       );
 
       expect(buildEventBlock, isNot(contains('debugPrint')));

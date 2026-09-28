@@ -90,6 +90,7 @@ Future<T?> showEditableModalBottomSheet<T>({
   Color? barrierColor,
   ShapeBorder? shape,
   Clip? clipBehavior,
+  BoxConstraints? constraints,
   bool isDismissible = true,
   bool enableDrag = true,
   bool useRootNavigator = false,
@@ -106,6 +107,7 @@ Future<T?> showEditableModalBottomSheet<T>({
     barrierColor: barrierColor,
     shape: shape,
     clipBehavior: clipBehavior,
+    constraints: constraints,
     builder: (modalContext) => KeyboardInsetBoundary(
       paddingKey: editableModalSystemInsetOwnerKey,
       child: builder(modalContext),

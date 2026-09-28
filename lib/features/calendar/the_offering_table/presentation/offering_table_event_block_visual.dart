@@ -66,6 +66,8 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
     final state = resolvedVisualState;
     final isTall = height >= 70;
     final compactDayView = dayViewFace && !isTall;
+    final narrow = compactDayView && (width ?? 300) < 150;
+    final narrowCupWidth = ((width ?? 300) * .32).clamp(16.0, 44.0);
     final radius = BorderRadius.circular(MaatEventBlockBorderTokens.radius);
     final face = Container(
       width: width,
@@ -107,7 +109,9 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
               dayViewFace: dayViewFace,
             ),
             Positioned(
-              left: dayViewFace
+              left: narrow
+                  ? 7
+                  : dayViewFace
                   ? 12
                   : isTall
                   ? 13
@@ -119,7 +123,9 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
                   : isTall
                   ? 9
                   : 5,
-              right: compactDayView
+              right: narrow
+                  ? narrowCupWidth + 12
+                  : compactDayView
                   ? 60
                   : dayViewFace
                   ? 72
@@ -161,13 +167,27 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
                   ? Center(
                       child: Opacity(
                         opacity: 0.86,
-                        child: OfferingTableCupVisual(
-                          stage: stage,
-                          state: state,
-                          tall: true,
-                          dayViewFace: true,
-                          animateRipple: animateRipple,
-                        ),
+                        child: narrow
+                            ? SizedBox(
+                                width: narrowCupWidth,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: OfferingTableCupVisual(
+                                    stage: stage,
+                                    state: state,
+                                    tall: true,
+                                    dayViewFace: true,
+                                    animateRipple: animateRipple,
+                                  ),
+                                ),
+                              )
+                            : OfferingTableCupVisual(
+                                stage: stage,
+                                state: state,
+                                tall: true,
+                                dayViewFace: true,
+                                animateRipple: animateRipple,
+                              ),
                       ),
                     )
                   : Center(
