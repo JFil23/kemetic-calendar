@@ -118,8 +118,9 @@ void main() {
               notes: 'maat=$_unsupportedMaatFlowKey',
             ),
           },
-          notesForDay: (ky, km, kd) =>
-              kd == 1 ? <NoteData>[_unsupportedMaatNote()] : const <NoteData>[],
+          notesForDay: (ky, km, kd) => ky == 6267 && km == 4 && kd == 1
+              ? <NoteData>[_unsupportedMaatNote()]
+              : const <NoteData>[],
           onRecordCompletion:
               ({
                 required String clientEventId,
@@ -137,7 +138,20 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await _openDetailSheet(tester, _unsupportedMaatFlowTitle);
+      final row = find.descendant(
+        of: find.byKey(const ValueKey('landscape-ledger')),
+        matching: find.text(_unsupportedMaatFlowTitle),
+      );
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      // This event is already visible in the tall landscape fixture, so one
+      // explicit row tap opens it. Offscreen locate-first is covered separately.
+      expect(find.byType(CalendarEventDetailSheet), findsOneWidget);
+      await tester.drag(
+        find.byKey(const ValueKey('landscape-detail-resize')),
+        const Offset(0, -200),
+      );
+      await tester.pumpAndSettle();
 
       expect(find.byKey(kMaatFlowResponseSectionKey), findsNothing);
       expect(find.text('Observed'), findsWidgets);
