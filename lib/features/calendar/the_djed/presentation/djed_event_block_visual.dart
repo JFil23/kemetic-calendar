@@ -57,6 +57,11 @@ class DjedEventBlockVisual extends StatelessWidget {
     final blockHeight = requestedHeight;
     final artWidth = compact ? ((width ?? 300) * .30).clamp(18.0, 56.0) : 70.0;
     final radius = BorderRadius.circular(MaatEventBlockBorderTokens.radius);
+    final sittingPips = _SittingPips(
+      sittingNumber: sittingNumber,
+      supportPipIndex: supportPipIndex,
+      dense: narrow,
+    );
     final content = Container(
       key: ValueKey<String>(
         'djed-event-block-${compact ? 'compact' : 'detail'}-$sittingNumber',
@@ -178,17 +183,16 @@ class DjedEventBlockVisual extends StatelessWidget {
                 SizedBox(height: compact ? 3 : 9),
                 Row(
                   children: <Widget>[
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: _SittingPips(
-                          sittingNumber: sittingNumber,
-                          supportPipIndex: supportPipIndex,
-                          dense: narrow,
+                    if (narrow)
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: sittingPips,
                         ),
-                      ),
-                    ),
+                      )
+                    else
+                      sittingPips,
                     SizedBox(width: compact ? 4 : 9),
                     Expanded(
                       child: Text(

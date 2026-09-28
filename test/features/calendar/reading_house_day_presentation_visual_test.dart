@@ -29,8 +29,10 @@ void main() {
     double initialExtent = instrumentEventSheetMinExtent,
     ReadingHouseDayVisualFixture fixture = kReadingHouseDayVisualFixture,
   }) async {
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark,
@@ -184,8 +186,10 @@ void main() {
   ) async {
     final sent = <String>[];
     const size = Size(390, 720);
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -242,8 +246,10 @@ void main() {
     'shared host keeps fixed actions behind system and Kemetic keyboards',
     (tester) async {
       const size = Size(390, 844);
-      await tester.binding.setSurfaceSize(size);
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
       Widget harness({
         required bool systemKeyboardVisible,
@@ -356,8 +362,10 @@ void main() {
   ) async {
     final selected = <ReadingHouseCompletionVisualState>[];
     const size = Size(390, 720);
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(

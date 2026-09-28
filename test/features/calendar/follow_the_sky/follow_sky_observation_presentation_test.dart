@@ -180,7 +180,8 @@ void main() {
   testWidgets('compact sheet host keeps the instrument clear and body usable', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 317);
+    // The sheet is short; its phone viewport remains portrait.
+    tester.view.physicalSize = const Size(390, 760);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -190,9 +191,12 @@ void main() {
         theme: ThemeData.dark(),
         home: Scaffold(
           backgroundColor: Colors.black,
-          body: FollowSkyObservationPresentation(
-            model: losAngelesFullMoonPresentationFixture,
-            now: _beforeRise,
+          body: SizedBox(
+            height: 317,
+            child: FollowSkyObservationPresentation(
+              model: losAngelesFullMoonPresentationFixture,
+              now: _beforeRise,
+            ),
           ),
         ),
       ),
@@ -280,7 +284,8 @@ void main() {
   testWidgets('foreground clamps at its bottom and reveals the hero downward', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 317);
+    // The sheet is short; its phone viewport remains portrait.
+    tester.view.physicalSize = const Size(390, 760);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -290,9 +295,12 @@ void main() {
         theme: ThemeData.dark(),
         home: Scaffold(
           backgroundColor: Colors.black,
-          body: FollowSkyObservationPresentation(
-            model: losAngelesFullMoonPresentationFixture,
-            now: _beforeRise,
+          body: SizedBox(
+            height: 317,
+            child: FollowSkyObservationPresentation(
+              model: losAngelesFullMoonPresentationFixture,
+              now: _beforeRise,
+            ),
           ),
         ),
       ),
