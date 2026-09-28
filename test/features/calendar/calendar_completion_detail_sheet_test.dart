@@ -748,7 +748,10 @@ void main() {
       ).readAsStringSync();
       expect(landscape, contains('CalendarEventDetailSheet('));
       expect(landscape, isNot(contains('_buildEventDetailInlineError(')));
-      expect(landscape, isNot(contains('ValueNotifier<String?>(null)')));
+      expect(
+        landscape.substring(landscape.indexOf('void _showEventDetail(')),
+        isNot(contains('ValueNotifier<String?>(null)')),
+      );
     },
   );
 

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
+import 'package:mobile/features/calendar/landscape_timeline_viewport.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/widgets/calendar_floating_shortcuts.dart';
@@ -51,14 +52,14 @@ Future<void> pumpLandscape(
   await tester.pump(const Duration(milliseconds: 100));
 }
 
-ListView dayList(WidgetTester tester) =>
-    tester.widget<ListView>(find.byKey(const ValueKey('landscape-days')));
+LandscapeTimeline timeline(WidgetTester tester) =>
+    tester.widget<LandscapeTimeline>(find.byType(LandscapeTimeline));
+ScrollController days(WidgetTester tester) =>
+    timeline(tester).horizontalDetails.controller!;
+ScrollController hours(WidgetTester tester) =>
+    timeline(tester).verticalDetails.controller!;
 ListView ledger(WidgetTester tester) =>
     tester.widget<ListView>(find.byKey(const ValueKey('landscape-ledger')));
-SingleChildScrollView hours(WidgetTester tester) =>
-    tester.widget<SingleChildScrollView>(
-      find.byKey(const ValueKey('landscape-hours')),
-    );
 
 void main() {
   setUpAll(loadMaatFlowVisualTestFonts);
@@ -81,19 +82,19 @@ void main() {
         day: lastDay,
         onDay: (y, m, d) => visible = (y: y, m: m, d: d),
       );
-      final days = dayList(tester);
-      final initialOffset = days.controller!.offset;
-      days.controller!.jumpTo(initialOffset + days.itemExtent!);
+      final dayScroll = days(tester);
+      final initialOffset = dayScroll.offset;
+      dayScroll.jumpTo(initialOffset + timeline(tester).columnWidth);
       await tester.pump();
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
       expect(visible, (y: year + 1, m: 1, d: 1));
       expect(
-        find.text(getMonthById(1).displayShort.toUpperCase()),
+        find.text(getMonthById(13).displayShort.toUpperCase()),
         findsOneWidget,
       );
-      days.controller!.jumpTo(initialOffset);
+      dayScroll.jumpTo(initialOffset);
       await tester.pump();
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
       expect(visible, (y: year, m: 13, d: lastDay));
       expect(
         find.text(getMonthById(13).displayShort.toUpperCase()),
@@ -108,15 +109,15 @@ void main() {
     'Today is inside the calendar pane and resets both linked views',
     (tester) async {
       await pumpLandscape(tester, notes: fixtureNotes, flows: fixtureFlows);
-      final days = dayList(tester);
-      final start = days.controller!.offset;
+      final dayScroll = days(tester);
+      final start = dayScroll.offset;
       final ledgerStart = ledger(tester).controller!.offset;
       await tester.drag(
         find.byKey(const ValueKey('landscape-ledger')),
         const Offset(0, -130),
       );
       await tester.pump(const Duration(seconds: 1));
-      days.controller!.jumpTo(start + days.itemExtent! * 2);
+      dayScroll.jumpTo(start + timeline(tester).columnWidth * 2);
       await tester.pump();
       await tester.pump();
       final button = tester.getRect(
@@ -130,13 +131,10 @@ void main() {
       expect(find.byType(CalendarFloatingTodayButton), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('landscape-today')));
       await tester.pump();
-      await tester.pump();
-      expect(days.controller!.offset, closeTo(start, .01));
+      await tester.pump(const Duration(milliseconds: 450));
+      expect(dayScroll.offset, closeTo(start, .01));
       expect(ledger(tester).controller!.offset, closeTo(ledgerStart, .01));
-      expect(
-        hours(tester).controller!.offset,
-        closeTo((8 * 60 + 30 - 45) / 60 * 58, .01),
-      );
+      expect(hours(tester).offset, closeTo((8 * 60 + 30 - 81) / 60 * 58, .01));
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },
@@ -163,14 +161,14 @@ void main() {
               ]
             : const [],
       );
-      final offset = dayList(tester).controller!.offset;
+      final offset = days(tester).offset;
       title = 'After edit';
       version.value++;
       await tester.pump();
       await tester.pump();
       expect(find.text('Before edit'), findsNothing);
       expect(find.text('After edit'), findsWidgets);
-      expect(dayList(tester).controller!.offset, offset);
+      expect(days(tester).offset, offset);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },
@@ -226,13 +224,13 @@ void main() {
             ]
           : const [],
     );
-    final header = find.byKey(const ValueKey('landscape-day-headers'));
+    final header = find.byType(LandscapeTimeline);
     final chip = find.descendant(
       of: header,
       matching: find.text('All-day event'),
     );
     final position = tester.getRect(chip);
-    hours(tester).controller!.jumpTo(900);
+    hours(tester).jumpTo(900);
     await tester.pump();
     expect(tester.getRect(chip), position);
     expect(find.byType(CalendarDayEventBlock), findsNothing);

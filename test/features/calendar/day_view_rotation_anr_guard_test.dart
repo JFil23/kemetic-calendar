@@ -177,13 +177,11 @@ void main() {
     test(
       'landscape uses a lazy day viewport without logging private note content',
       () {
-        expect(
-          landscapeSource,
-          contains("key: const ValueKey('landscape-days')"),
-        );
-        expect(landscapeSource, contains('ListView.builder('));
-        expect(landscapeSource, contains('itemExtent: _columnWidth'));
-        expect(landscapeSource, contains('cacheExtent: _columnWidth'));
+        final viewportSource = File(
+          'lib/features/calendar/landscape_timeline_viewport.dart',
+        ).readAsStringSync();
+        expect(viewportSource, contains('TwoDimensionalChildBuilderDelegate('));
+        expect(viewportSource, isNot(contains('debugPrint')));
         expect(landscapeSource, contains('_buildDay(_dateAt(index))'));
         expect(landscapeSource, isNot(contains('debugPrint')));
       },

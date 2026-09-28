@@ -10,6 +10,7 @@ import '../../widgets/month_name_text.dart';
 import 'day_view.dart';
 import 'calendar_page.dart' show CalendarPage, EndFlowOutcome, KemeticMath;
 import 'kemetic_month_metadata.dart';
+import 'landscape_timeline_viewport.dart';
 import 'maat_flow_response_journal_blocks.dart';
 
 const Color _landscapeGold = Color(0xFFD4AE43);
@@ -318,10 +319,23 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   late DateTime _originDate;
   late DateTime _visibleDate;
   ScrollController? _days;
-  ScrollController? _headers;
   late ScrollController _hours;
-  late ScrollController _hourLabels;
   final _ledger = ScrollController();
+  final _calendarNavigator = GlobalKey<NavigatorState>();
+  final _calendarPaneKey = GlobalKey();
+  final _visibleMonth = ValueNotifier<DateTime>(DateTime.utc(2000));
+  final _selectedEvent = ValueNotifier<String?>(null);
+  final _pulse = ValueNotifier<String?>(null);
+  final _ledgerHeights = <String, double>{};
+  List<double>? _ledgerOffsets;
+  Timer? _settleTimer, _pulseTimer;
+  DateTime? _reportedDate;
+  String? _syncKey;
+  Timer? _suppressLinkTimer;
+  Future<void>? _detailFuture;
+  VoidCallback? _releaseActiveDetail;
+  String? _openDetailKey;
+  int _openRequest = 0;
   final _events = <DateTime, List<EventItem>>{};
   final _ledgerRows = <({DateTime date, EventItem? event})>[];
   double _columnWidth = 0;
@@ -368,26 +382,30 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       widget.initialKm,
       (widget.initialDay ?? 1).clamp(1, maxDay),
     );
-    _visibleDate = _originDate;
-    final isToday = _visibleDate == _dateOnly(_now);
+    _visibleDate = _originDate.subtract(const Duration(days: 1));
+    _visibleMonth.value = _visibleDate;
+    final isToday = _originDate == _dateOnly(_now);
     final initialMinute = isToday
-        ? math.max(0, _now.hour * 60 + _now.minute - 60)
+        ? math.max(0, _now.hour * 60 + _now.minute - 81)
         : 0;
     _hours = ScrollController(
       initialScrollOffset: initialMinute / 60 * _hourHeight,
     )..addListener(_syncHours);
-    _hourLabels = ScrollController(
-      initialScrollOffset: initialMinute / 60 * _hourHeight,
-    );
     _resetLedger(_visibleDate);
     widget.dataVersion?.addListener(_dataChanged);
     _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(_updateUpcomingAnchor);
+      if (!mounted) return;
+      setState(_updateUpcomingAnchor);
+      _syncLinkedLedger();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       widget.onTodayActionChanged?.call(_jumpToToday);
-      _syncLedgerToDate(_visibleDate, upcoming: isToday);
+      if (isToday) {
+        _syncLedgerToUpcoming();
+      } else {
+        _syncLinkedLedger(smooth: false);
+      }
     });
     _scheduleInitialEventDetailRestore();
   }
@@ -399,8 +417,9 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       oldWidget.dataVersion?.removeListener(_dataChanged);
       widget.dataVersion?.addListener(_dataChanged);
     }
-    if (oldWidget.flowIndex != widget.flowIndex ||
-        oldWidget.notesForDay != widget.notesForDay) {
+    if (widget.dataVersion == null &&
+        (oldWidget.flowIndex != widget.flowIndex ||
+            oldWidget.notesForDay != widget.notesForDay)) {
       _events.clear();
       _buildLedgerRows();
     }
@@ -413,15 +432,20 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 
   @override
   void dispose() {
-    final k = _visibleKemetic;
+    final k = KemeticMath.fromGregorian(_focusedDate);
     widget.onVisibleMonthCommitted?.call(k.kYear, k.kMonth);
+    _releaseActiveDetail?.call();
+    _settleTimer?.cancel();
+    _pulseTimer?.cancel();
+    _suppressLinkTimer?.cancel();
+    _visibleMonth.dispose();
+    _selectedEvent.dispose();
+    _pulse.dispose();
     widget.onTodayActionChanged?.call(null);
     widget.dataVersion?.removeListener(_dataChanged);
     _clockTimer?.cancel();
     _days?.dispose();
-    _headers?.dispose();
     _hours.dispose();
-    _hourLabels.dispose();
     _ledger.dispose();
     super.dispose();
   }
@@ -455,7 +479,6 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     if (_days == null) {
       _days = ScrollController(initialScrollOffset: offset)
         ..addListener(_syncDays);
-      _headers = ScrollController(initialScrollOffset: offset);
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_days!.hasClients) return;
@@ -464,74 +487,196 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     }
   }
 
+  DateTime get _focusedDate => _visibleDate.add(const Duration(days: 1));
+
   void _syncDays() {
-    final days = _days!;
-    if (!days.hasClients) return;
-    if (_headers!.hasClients) {
-      _headers!.jumpTo(
-        days.offset.clamp(0, _headers!.position.maxScrollExtent),
-      );
+    if (!(_days?.hasClients ?? false)) return;
+    final date = _dateAt((_days!.offset / _columnWidth).round());
+    if (date != _visibleDate) {
+      _visibleDate = date;
+      _visibleMonth.value = date;
+      _dayKeys.removeWhere((d, _) => d.difference(date).inDays.abs() > 10);
     }
+    _scheduleViewportSync();
+    // Parent date/restoration updates happen after motion settles. Rebuilding
+    // Day View on every crossed day interrupted the same gesture it owned.
+    _settleTimer?.cancel();
+    _settleTimer = Timer(const Duration(milliseconds: 140), _reportViewport);
+  }
+
+  void _reportViewport() {
+    if (!mounted) return;
+    if ((_days?.position.isScrollingNotifier.value ?? false) ||
+        _hours.position.isScrollingNotifier.value) {
+      _settleTimer = Timer(const Duration(milliseconds: 140), _reportViewport);
+      return;
+    }
+    // Match the reference's proximity snapping only after free momentum ends.
+    final days = _days!;
+    final aligned = (days.offset / _columnWidth).round() * _columnWidth;
+    final distance = (aligned - days.offset).abs();
+    if (distance > .5 && distance < _columnWidth * .12) {
+      unawaited(
+        days.animateTo(
+          aligned,
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+        ),
+      );
+      return;
+    }
+    if (_reportedDate == _focusedDate) return;
+    final previous = _reportedDate == null
+        ? null
+        : KemeticMath.fromGregorian(_reportedDate!);
+    _reportedDate = _focusedDate;
+    final k = KemeticMath.fromGregorian(_focusedDate);
+    if (previous == null ||
+        previous.kYear != k.kYear ||
+        previous.kMonth != k.kMonth) {
+      widget.onMonthChanged?.call(k.kYear, k.kMonth);
+    }
+    widget.onVisibleDayChanged?.call(k.kYear, k.kMonth, k.kDay);
+    _events.removeWhere(
+      (d, _) =>
+          d.difference(_visibleDate).inDays.abs() > 150 &&
+          (d.isBefore(_ledgerStart) || d.isAfter(_ledgerEnd)),
+    );
+  }
+
+  void _syncHours() => _scheduleViewportSync();
+
+  void _scheduleViewportSync() {
     if (_scrollUpdateScheduled) return;
     _scrollUpdateScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollUpdateScheduled = false;
-      if (!mounted || !_days!.hasClients) return;
-      final date = _dateAt((_days!.offset / _columnWidth).round());
-      if (date == _visibleDate) return;
-      final previous = _visibleKemetic;
-      setState(() => _visibleDate = date);
-      final k = _visibleKemetic;
-      if (previous.kYear != k.kYear || previous.kMonth != k.kMonth) {
-        widget.onMonthChanged?.call(k.kYear, k.kMonth);
-      }
-      widget.onVisibleDayChanged?.call(k.kYear, k.kMonth, k.kDay);
-      if (_linkedLedger) {
-        _syncLedgerToDate(date, upcoming: date == _dateOnly(_now));
-      }
-      _dayKeys.removeWhere((d, _) => d.difference(date).inDays.abs() > 10);
-      // Keep the display cache bounded while both lists travel indefinitely.
-      _events.removeWhere(
-        (d, _) =>
-            d.difference(date).inDays.abs() > 90 &&
-            (d.isBefore(_ledgerStart) || d.isAfter(_ledgerEnd)),
-      );
+      if (mounted) _syncLinkedLedger();
     });
   }
 
-  void _syncHours() {
-    if (_hourLabels.hasClients) {
-      _hourLabels.jumpTo(
-        _hours.offset.clamp(0, _hourLabels.position.maxScrollExtent),
+  DateTime _eventEnd(DateTime date, EventItem event) {
+    final canonical = event.canonicalEnd?.toLocal();
+    if (canonical != null) {
+      return DateTime.utc(
+        canonical.year,
+        canonical.month,
+        canonical.day,
+        canonical.hour,
+        canonical.minute,
       );
+    }
+    var end = event.allDay ? 1440 : event.endMin;
+    if (!event.allDay && end < event.startMin) end += 1440;
+    return date.add(Duration(minutes: end));
+  }
+
+  ({DateTime date, EventItem event})? _firstEventAt(
+    DateTime target, {
+    int lookBack = 0,
+    int lookAhead = 120,
+  }) {
+    final start = _dateOnly(target).subtract(Duration(days: lookBack));
+    for (var i = 0; i < lookBack + lookAhead; i++) {
+      final date = start.add(Duration(days: i));
+      for (final event in _eventsForDate(date)) {
+        if (!_eventEnd(date, event).isBefore(target)) {
+          return (date: date, event: event);
+        }
+      }
+    }
+    return null;
+  }
+
+  DateTime get _civilNow =>
+      DateTime.utc(_now.year, _now.month, _now.day, _now.hour, _now.minute);
+
+  void _syncLinkedLedger({bool smooth = true}) {
+    if (!_linkedLedger || (_suppressLinkTimer?.isActive ?? false)) return;
+    final minute =
+        ((_hours.hasClients ? _hours.offset : _hours.initialScrollOffset) /
+                    _hourHeight *
+                    60 +
+                81)
+            .floor()
+            .clamp(0, 1439);
+    var target = _visibleDate.add(Duration(minutes: minute));
+    final today = _dateOnly(_now);
+    if (!today.isBefore(_visibleDate) &&
+        today.isBefore(_visibleDate.add(const Duration(days: 3))) &&
+        (minute - (_now.hour * 60 + _now.minute)).abs() <= 30) {
+      target = _civilNow;
+    }
+    final row = _firstEventAt(target);
+    if (row != null) _syncLedgerToEvent(row.date, row.event, smooth: smooth);
+  }
+
+  void _syncLedgerToUpcoming() {
+    final row = _firstEventAt(_civilNow, lookBack: 30, lookAhead: 500);
+    if (row != null) _syncLedgerToEvent(row.date, row.event, smooth: false);
+  }
+
+  void _moveScroll(
+    ScrollController controller,
+    double offset, {
+    bool smooth = true,
+  }) {
+    if (!controller.hasClients) return;
+    if (smooth && !MediaQuery.disableAnimationsOf(context)) {
+      unawaited(
+        controller.animateTo(
+          offset,
+          duration: const Duration(milliseconds: 380),
+          curve: Curves.easeInOutCubic,
+        ),
+      );
+    } else {
+      controller.jumpTo(offset);
     }
   }
 
-  void _locateDate(DateTime date, {int? minute}) {
+  void _locateDate(
+    DateTime date, {
+    int? minute,
+    bool center = false,
+    bool smooth = true,
+  }) {
+    _suppressLinkTimer?.cancel();
+    _suppressLinkTimer = Timer(const Duration(milliseconds: 450), () {});
     if (_days?.hasClients ?? false) {
-      _days!.jumpTo(
-        (_indexOf(date) * _columnWidth).clamp(
+      _moveScroll(
+        _days!,
+        ((_indexOf(date) - (center ? 1 : 0)) * _columnWidth).clamp(
           0,
           _days!.position.maxScrollExtent,
         ),
+        smooth: smooth,
       );
     }
     if (minute != null && _hours.hasClients) {
-      _hours.jumpTo(
-        (math.max(0, minute - 45) / 60 * _hourHeight).clamp(
+      _moveScroll(
+        _hours,
+        (math.max(0, minute) / 60 * _hourHeight).clamp(
           0,
           _hours.position.maxScrollExtent,
         ),
+        smooth: smooth,
       );
     }
   }
 
   void _jumpToToday() {
     _linkedLedger = true;
+    _syncKey = null;
+    if (_openDetailKey == null) _select(null);
     final now = _now;
-    final date = _dateOnly(now);
-    _locateDate(date, minute: now.hour * 60 + now.minute);
-    _syncLedgerToDate(date, upcoming: true);
+    _locateDate(
+      _dateOnly(now),
+      minute: now.hour * 60 + now.minute - 81,
+      center: true,
+      smooth: false,
+    );
+    _syncLedgerToUpcoming();
   }
 
   void _resetLedger(DateTime date) {
@@ -542,6 +687,8 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 
   void _buildLedgerRows() {
     _ledgerRows.clear();
+    _ledgerHeights.clear();
+    _ledgerOffsets = null;
     for (
       var date = _ledgerStart;
       !date.isAfter(_ledgerEnd);
@@ -558,56 +705,84 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   }
 
   void _updateUpcomingAnchor() {
+    final previous = _upcomingKey;
     _upcomingKey = null;
-    final today = _dateOnly(_now);
-    final minute = _now.hour * 60 + _now.minute;
     for (final row in _ledgerRows) {
       final event = row.event;
-      if (event == null || row.date.isBefore(today)) continue;
-      if (row.date == today && !event.allDay && event.endMin < minute) continue;
-      _upcomingKey = _keyFor(row.date, event);
-      break;
+      if (event != null && !_eventEnd(row.date, event).isBefore(_civilNow)) {
+        _upcomingKey = _keyFor(row.date, event);
+        break;
+      }
+    }
+    if (previous != _upcomingKey) {
+      _ledgerHeights.clear();
+      _ledgerOffsets = null;
     }
   }
 
   double _ledgerHeight(({DateTime date, EventItem? event}) row) {
     if (row.event == null) return 28;
-    final painter = TextPainter(
-      text: TextSpan(text: row.event!.title, style: _ledgerTitleStyle),
-      textDirection: Directionality.of(context),
-      textScaler: MediaQuery.textScalerOf(context),
-      maxLines: 2,
-      ellipsis: '…',
-    )..layout(maxWidth: math.max(1, _ledgerWidth - 53));
-    final textHeight = painter.height;
-    painter.dispose();
-    return textHeight +
-        13 +
-        (_keyFor(row.date, row.event!) == _upcomingKey ? 8 : 0);
+    final key = _keyFor(row.date, row.event!);
+    return _ledgerHeights.putIfAbsent(key, () {
+      final painter = TextPainter(
+        text: TextSpan(text: row.event!.title, style: _ledgerTitleStyle),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 2,
+        ellipsis: '…',
+      )..layout(maxWidth: math.max(1, _ledgerWidth - 53));
+      final textHeight = painter.height;
+      painter.dispose();
+      return textHeight + 13 + (key == _upcomingKey ? 8 : 0);
+    });
   }
 
-  void _syncLedgerToDate(DateTime date, {bool upcoming = false}) {
+  List<double> get _offsets => _ledgerOffsets ??= (() {
+    final offsets = <double>[0];
+    for (final row in _ledgerRows) {
+      offsets.add(offsets.last + _ledgerHeight(row));
+    }
+    return offsets;
+  })();
+
+  void _syncLedgerToEvent(
+    DateTime date,
+    EventItem event, {
+    bool smooth = true,
+  }) {
+    final key = _keyFor(date, event);
+    if (_syncKey == key) return;
+    _syncKey = key;
     if (date.isBefore(_ledgerStart) || date.isAfter(_ledgerEnd)) {
       setState(() => _resetLedger(date));
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_ledger.hasClients) return;
-      var offset = 0.0;
-      for (final row in _ledgerRows) {
-        final beforeDate = row.date.isBefore(date);
-        final beforeTime =
-            upcoming &&
-            row.date == date &&
-            (row.event == null ||
-                (!row.event!.allDay &&
-                    row.event!.endMin < _now.hour * 60 + _now.minute));
-        if (!beforeDate && !beforeTime) break;
-        offset += _ledgerHeight(row);
+      if (!mounted ||
+          !_linkedLedger ||
+          !_ledger.hasClients ||
+          _syncKey != key) {
+        return;
       }
+      final index = _ledgerRows.indexWhere(
+        (r) => r.event != null && _keyFor(r.date, r.event!) == key,
+      );
+      if (index < 0) return;
+      final offset = math.max(0.0, _offsets[index] - 18);
       _movingLedger = true;
-      _ledger.jumpTo(offset.clamp(0, _ledger.position.maxScrollExtent));
+      _moveScroll(_ledger, offset, smooth: smooth);
       _movingLedger = false;
     });
+    // A linked update can originate during the timeline's post-frame callback.
+    // Schedule the next frame even when the gesture ended on this frame.
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _releaseLedgerLink() {
+    _linkedLedger = false;
+    _syncKey = null;
+    if (_ledger.hasClients && _ledger.position.isScrollingNotifier.value) {
+      _ledger.jumpTo(_ledger.offset);
+    }
   }
 
   bool _ledgerScrolled(ScrollNotification n) {
@@ -659,9 +834,69 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     return '${h % 12 == 0 ? 12 : h % 12}${m == 0 ? '' : ':${m.toString().padLeft(2, '0')}'} ${h < 12 ? 'AM' : 'PM'}';
   }
 
-  void _openEvent(DateTime date, EventItem event) {
-    setState(() => _selection = _keyFor(date, event));
-    _locateDate(date, minute: event.allDay ? null : event.startMin);
+  void _select(String? key) {
+    _selection = key;
+    _selectedEvent.value = key;
+  }
+
+  bool _isEventVisible(DateTime date, EventItem event) {
+    if (!(_days?.hasClients ?? false) || !_hours.hasClients) return false;
+    final x = _indexOf(date) * _columnWidth - _days!.offset;
+    final width = _days!.position.viewportDimension;
+    final y = event.startMin / 60 * _hourHeight - _hours.offset;
+    return x >= -1 &&
+        x + _columnWidth <= width + 1 &&
+        (event.allDay ||
+            (y >= -1 &&
+                y + _eventHeight(event) <=
+                    _hours.position.viewportDimension - _headerHeight + 1));
+  }
+
+  Future<void> _closeDetail() async {
+    final future = _detailFuture;
+    if (future == null) return;
+    _calendarNavigator.currentState?.popUntil((route) => route.isFirst);
+    await future;
+  }
+
+  Future<void> _openEvent(
+    DateTime date,
+    EventItem event, {
+    bool fromLedger = false,
+  }) async {
+    final request = ++_openRequest;
+    final key = _keyFor(date, event);
+    _select(key);
+    if (fromLedger) {
+      _releaseLedgerLink();
+      if (!_isEventVisible(date, event)) {
+        await _closeDetail();
+        if (!mounted || request != _openRequest) return;
+        final x = _indexOf(date) * _columnWidth - _days!.offset;
+        final width = _days!.position.viewportDimension;
+        if (x < -1 || x + _columnWidth > width + 1) _locateDate(date);
+        if (!event.allDay) {
+          final top = event.startMin / 60 * _hourHeight;
+          final height = _hours.position.viewportDimension - _headerHeight;
+          if (top < _hours.offset ||
+              top + _eventHeight(event) > _hours.offset + height) {
+            _moveScroll(
+              _hours,
+              math.max(0.0, top - 22).clamp(0, _hours.position.maxScrollExtent),
+            );
+          }
+        }
+        _pulse.value = key;
+        _pulseTimer?.cancel();
+        _pulseTimer = Timer(const Duration(milliseconds: 1350), () {
+          if (mounted) _pulse.value = null;
+        });
+        return;
+      }
+    }
+    if (_openDetailKey == key) return;
+    await _closeDetail();
+    if (!mounted || request != _openRequest) return;
     final k = KemeticMath.fromGregorian(date);
     _showEventDetail(
       event,
@@ -675,137 +910,162 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     );
   }
 
-  Widget _buildLedger() => NotificationListener<ScrollNotification>(
-    onNotification: _ledgerScrolled,
-    child: ListView.builder(
-      key: const ValueKey('landscape-ledger'),
-      controller: _ledger,
-      padding: const EdgeInsets.fromLTRB(0, 0, 8, 80),
-      itemCount: _ledgerRows.isEmpty ? 1 : _ledgerRows.length,
-      itemBuilder: (context, index) {
-        if (_ledgerRows.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.only(top: 32),
-            child: Text(
-              'No events nearby',
-              style: TextStyle(color: _stone, fontSize: 12),
-            ),
-          );
-        }
-        final row = _ledgerRows[index];
-        final k = KemeticMath.fromGregorian(row.date);
-        final event = row.event;
-        if (event == null) {
-          return SizedBox(
-            height: 28,
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: Row(
-                children: [
-                  Flexible(
-                    child: MonthNameText(
-                      '${getMonthById(k.kMonth).displayShort} ${k.kDay}',
-                      maxLines: 1,
-                      style: const TextStyle(
-                        fontFamily: _serif,
-                        fontSize: 11,
-                        color: Color(0xB8D4AE43),
+  Widget _buildLedger() => Listener(
+    onPointerDown: (_) => _releaseLedgerLink(),
+    onPointerSignal: (_) => _releaseLedgerLink(),
+    onPointerPanZoomStart: (_) => _releaseLedgerLink(),
+    child: Focus(
+      onKeyEvent: (_, _) {
+        _releaseLedgerLink();
+        return KeyEventResult.ignored;
+      },
+      child: ValueListenableBuilder<String?>(
+        valueListenable: _selectedEvent,
+        builder: (context, selection, _) =>
+            NotificationListener<ScrollNotification>(
+              onNotification: _ledgerScrolled,
+              child: ListView.builder(
+                key: const ValueKey('landscape-ledger'),
+                controller: _ledger,
+                padding: const EdgeInsets.fromLTRB(0, 0, 8, 80),
+                itemCount: _ledgerRows.isEmpty ? 1 : _ledgerRows.length,
+                itemExtentBuilder: (index, _) => _ledgerRows.isEmpty
+                    ? 60
+                    : _ledgerHeight(_ledgerRows[index]),
+                itemBuilder: (context, index) {
+                  if (_ledgerRows.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.only(top: 32),
+                      child: Text(
+                        'No events nearby',
+                        style: TextStyle(color: _stone, fontSize: 12),
                       ),
-                    ),
-                  ),
-                  if (widget.showGregorian) ...[
-                    const SizedBox(width: 6),
-                    Text(
-                      '${row.date.month}/${row.date.day}',
-                      style: const TextStyle(
-                        fontSize: 7,
-                        color: Color(0xFF49453F),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        }
-        final selected = _selection == _keyFor(row.date, event);
-        return SizedBox(
-          height: _ledgerHeight(row),
-          child: Column(
-            children: [
-              if (_keyFor(row.date, event) == _upcomingKey)
-                const SizedBox(
-                  key: ValueKey('landscape-ledger-now'),
-                  height: 8,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 37,
-                        child: Text(
-                          'NOW',
-                          style: TextStyle(
-                            color: Color(0xC7D4AE43),
-                            fontSize: 6.5,
-                            letterSpacing: .8,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Divider(
-                          height: 1,
-                          thickness: 1,
-                          color: Color(0x4DD4AE43),
-                        ),
-                      ),
-                      SizedBox(width: 18),
-                    ],
-                  ),
-                ),
-              Expanded(
-                child: InkWell(
-                  key: ValueKey('landscape-ledger-${_keyFor(row.date, event)}'),
-                  onTap: () => _openEvent(row.date, event),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 6, bottom: 7),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: 37,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 3),
-                            child: Text(
-                              event.allDay
-                                  ? 'all-day'
-                                  : _timeLabel(event.startMin),
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: selected ? _landscapeGold : _stone,
+                    );
+                  }
+                  final row = _ledgerRows[index];
+                  final k = KemeticMath.fromGregorian(row.date);
+                  final event = row.event;
+                  if (event == null) {
+                    return SizedBox(
+                      height: 28,
+                      child: Align(
+                        alignment: Alignment.bottomLeft,
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: MonthNameText(
+                                '${getMonthById(k.kMonth).displayShort} ${k.kDay}',
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  fontFamily: _serif,
+                                  fontSize: 11,
+                                  color: Color(0xB8D4AE43),
+                                ),
                               ),
                             ),
-                          ),
+                            if (widget.showGregorian) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                '${row.date.month}/${row.date.day}',
+                                style: const TextStyle(
+                                  fontSize: 7,
+                                  color: Color(0xFF49453F),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(width: 8),
+                      ),
+                    );
+                  }
+                  final selected = _selection == _keyFor(row.date, event);
+                  return SizedBox(
+                    height: _ledgerHeight(row),
+                    child: Column(
+                      children: [
+                        if (_keyFor(row.date, event) == _upcomingKey)
+                          const SizedBox(
+                            key: ValueKey('landscape-ledger-now'),
+                            height: 8,
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 37,
+                                  child: Text(
+                                    'NOW',
+                                    style: TextStyle(
+                                      color: Color(0xC7D4AE43),
+                                      fontSize: 6.5,
+                                      letterSpacing: .8,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Divider(
+                                    height: 1,
+                                    thickness: 1,
+                                    color: Color(0x4DD4AE43),
+                                  ),
+                                ),
+                                SizedBox(width: 18),
+                              ],
+                            ),
+                          ),
                         Expanded(
-                          child: Text(
-                            event.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: _ledgerTitleStyle.copyWith(
-                              color: selected ? const Color(0xFFE2C45E) : _bone,
+                          child: InkWell(
+                            key: ValueKey(
+                              'landscape-ledger-${_keyFor(row.date, event)}',
+                            ),
+                            onTap: () =>
+                                _openEvent(row.date, event, fromLedger: true),
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 6, bottom: 7),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 37,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 3),
+                                      child: Text(
+                                        event.allDay
+                                            ? 'all-day'
+                                            : _timeLabel(event.startMin),
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          color: selected
+                                              ? _landscapeGold
+                                              : _stone,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      event.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: _ledgerTitleStyle.copyWith(
+                                        color: selected
+                                            ? const Color(0xFFE2C45E)
+                                            : _bone,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
-            ],
-          ),
-        );
-      },
+            ),
+      ),
     ),
   );
 
@@ -973,7 +1233,45 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
             height: height,
             child: KeyedSubtree(
               key: ValueKey('landscape-event-${_keyFor(date, event)}'),
-              child: card,
+              child: AnimatedBuilder(
+                animation: Listenable.merge([_selectedEvent, _pulse]),
+                child: card,
+                builder: (context, child) {
+                  final key = _keyFor(date, event);
+                  Widget decorate(double glow) => DecoratedBox(
+                    key: _selectedEvent.value == key
+                        ? ValueKey('landscape-selection-$key')
+                        : null,
+                    position: DecorationPosition.foreground,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      border: _selectedEvent.value == key
+                          ? Border.all(color: _landscapeGold)
+                          : null,
+                      boxShadow: glow > 0
+                          ? [
+                              BoxShadow(
+                                color: _landscapeGold.withValues(
+                                  alpha: glow * .35,
+                                ),
+                                blurRadius: 14,
+                              ),
+                            ]
+                          : const [],
+                    ),
+                    child: child,
+                  );
+                  if (_pulse.value == key) {
+                    return TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: 1),
+                      duration: const Duration(milliseconds: 1350),
+                      builder: (_, value, _) =>
+                          decorate(math.sin(value * math.pi)),
+                    );
+                  }
+                  return decorate(0);
+                },
+              ),
             ),
           ),
         );
@@ -1038,267 +1336,304 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
             final ledgerWidth =
                 (constraints.maxWidth + outerPadding.horizontal) / 3 -
                 outerPadding.left;
+            if (_ledgerWidth != ledgerWidth) {
+              _ledgerHeights.clear();
+              _ledgerOffsets = null;
+            }
             _ledgerWidth = ledgerWidth;
             final calendarWidth = constraints.maxWidth - ledgerWidth;
-            // Half-point extents remain exact at distant scroll offsets;
-            // repeating thirds can violate the fixed-sliver precision bound.
-            _configureColumns(
-              ((calendarWidth - _gutterWidth - 8) / 3 * 2).ceilToDouble() / 2,
-            );
-            final k = _visibleKemetic;
-            final month = getMonthById(k.kMonth);
+            _configureColumns((calendarWidth - _gutterWidth - 8) / 3);
             return Row(
               children: [
                 SizedBox(width: ledgerWidth, child: _buildLedger()),
                 Expanded(
-                  child: Stack(
-                    key: const ValueKey('landscape-calendar-pane'),
-                    children: [
-                      Positioned(
-                        left: _gutterWidth,
-                        right: 64,
-                        top: 0,
-                        height: _monthHeight,
-                        child: GestureDetector(
-                          onTap: widget.onToggleCalendar,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Flexible(
-                                child: MonthNameText(
-                                  month.displayShort.toUpperCase(),
-                                  maxLines: 1,
-                                  style: const TextStyle(
-                                    fontFamily: _serif,
-                                    fontSize: 13,
-                                    color: Color(0xCCD4AE43),
-                                    letterSpacing: .5,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 2),
-                                child: MonthNameText(
-                                  '${month.displayTransliteration} · ${KemeticMath.toGregorian(k.kYear, k.kMonth, 1).year}',
-                                  style: const TextStyle(
-                                    fontSize: 7,
-                                    color: Color(0xFF4C4842),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 32,
-                        top: 0,
-                        width: 32,
-                        height: 28,
-                        child: IconButton(
-                          tooltip: 'New note',
-                          padding: EdgeInsets.zero,
-                          iconSize: 17,
-                          color: _landscapeGold,
-                          icon: const Icon(Icons.add),
-                          onPressed: () async {
-                            final openQuickAdd = widget.onOpenQuickAdd;
-                            if (openQuickAdd != null) {
-                              await openQuickAdd(context);
-                              return;
-                            }
-                            await CalendarPage.openQuickAddFromAnyContext(
-                              context,
-                            );
-                          },
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        width: 32,
-                        height: 28,
-                        child: PopupMenuButton<String>(
-                          tooltip: 'Calendar actions',
-                          padding: EdgeInsets.zero,
-                          iconSize: 17,
-                          icon: const Icon(
-                            Icons.more_horiz,
-                            color: _landscapeGold,
-                          ),
-                          itemBuilder: (_) => [
-                            if (widget.onOpenCalendars != null)
-                              const PopupMenuItem(
-                                value: 'calendars',
-                                child: Text('Calendars'),
-                              ),
-                            if (widget.onOpenInbox != null)
-                              const PopupMenuItem(
-                                value: 'inbox',
-                                child: Text('Inbox'),
-                              ),
-                            const PopupMenuItem(
-                              value: 'menu',
-                              child: Text('Calendar menu'),
-                            ),
-                            const PopupMenuItem(
-                              value: 'search',
-                              child: Text('Search notes'),
-                            ),
-                            const PopupMenuItem(
-                              value: 'profile',
-                              child: Text('My Profile'),
-                            ),
-                            if (widget.onManageFlows != null)
-                              const PopupMenuItem(
-                                value: 'flows',
-                                child: Text('Flow Studio'),
-                              ),
-                            if (widget.onClose != null ||
-                                Navigator.of(context).canPop())
-                              PopupMenuItem(
-                                value: 'close',
-                                child: Text(
-                                  widget.embeddedInCalendarScaffold
-                                      ? 'Pages'
-                                      : 'Close Day View',
-                                ),
-                              ),
-                          ],
-                          onSelected: (value) async {
-                            switch (value) {
-                              case 'calendars':
-                                widget.onOpenCalendars?.call();
-                              case 'inbox':
-                                widget.onOpenInbox?.call();
-                              case 'menu':
-                                await CalendarPage.showActionsMenuFromAnyContext(
-                                  context,
-                                );
-                              case 'search':
-                                await (widget.onOpenSearch ??
-                                    CalendarPage.openSearchFromAnyContext)(
-                                  context,
-                                );
-                              case 'profile':
-                                await (widget.onOpenProfile ??
-                                    CalendarPage.openProfileFromAnyContext)(
-                                  context,
-                                );
-                              case 'flows':
-                                widget.onManageFlows?.call(null);
-                              case 'close':
-                                if (widget.onClose != null) {
-                                  widget.onClose!();
-                                } else {
-                                  Navigator.of(context).maybePop();
-                                }
-                            }
-                          },
-                        ),
-                      ),
-                      Positioned(
-                        left: 0,
-                        top: _monthHeight,
-                        width: _gutterWidth,
-                        height: _headerHeight,
-                        child: const Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding: EdgeInsets.only(right: 3, bottom: 6),
-                            child: Text(
-                              'all-day',
-                              style: TextStyle(
-                                fontSize: 7,
-                                color: Color(0xFF46423D),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: _gutterWidth,
-                        right: 8,
-                        top: _monthHeight,
-                        height: _headerHeight,
-                        child: IgnorePointer(
-                          ignoring: false,
-                          child: ListView.builder(
-                            key: const ValueKey('landscape-day-headers'),
-                            controller: _headers,
-                            scrollDirection: Axis.horizontal,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemExtent: _columnWidth,
-                            itemCount: _dayCount,
-                            itemBuilder: (context, index) =>
-                                _buildHeader(_dateAt(index)),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 0,
-                        top: _monthHeight + _headerHeight,
-                        bottom: 0,
-                        width: _gutterWidth,
-                        child: SingleChildScrollView(
-                          controller: _hourLabels,
-                          physics: const NeverScrollableScrollPhysics(),
-                          child: SizedBox(
-                            height: 24 * _hourHeight,
-                            child: Stack(
-                              children: [
-                                for (var hour = 2; hour < 24; hour += 2)
+                  child: MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      size: Size(calendarWidth, constraints.maxHeight),
+                    ),
+                    child: NavigatorPopHandler(
+                      onPopWithResult: (result) =>
+                          _calendarNavigator.currentState!.pop(result),
+                      child: Navigator(
+                        key: _calendarNavigator,
+                        onDidRemovePage: (_) {},
+                        pages: [
+                          MaterialPage<void>(
+                            key: const ValueKey('landscape-calendar-page'),
+                            child: KeyedSubtree(
+                              key: const ValueKey('landscape-calendar-pane'),
+                              child: Stack(
+                                key: _calendarPaneKey,
+                                children: [
                                   Positioned(
-                                    right: 3,
-                                    top: hour * _hourHeight - 5,
-                                    child: Text(
-                                      hour == 12
-                                          ? 'Noon'
-                                          : _timeLabel(hour * 60),
-                                      style: const TextStyle(
-                                        fontSize: 8,
-                                        color: Color(0xFF6B655E),
+                                    left: _gutterWidth,
+                                    right: 64,
+                                    top: 0,
+                                    height: _monthHeight,
+                                    child: ValueListenableBuilder<DateTime>(
+                                      valueListenable: _visibleMonth,
+                                      builder: (context, date, _) {
+                                        final k = KemeticMath.fromGregorian(
+                                          date,
+                                        );
+                                        final month = getMonthById(k.kMonth);
+                                        return GestureDetector(
+                                          onTap: widget.onToggleCalendar,
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              Flexible(
+                                                child: MonthNameText(
+                                                  month.displayShort
+                                                      .toUpperCase(),
+                                                  maxLines: 1,
+                                                  style: const TextStyle(
+                                                    fontFamily: _serif,
+                                                    fontSize: 13,
+                                                    color: Color(0xCCD4AE43),
+                                                    letterSpacing: .5,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 2,
+                                                ),
+                                                child: MonthNameText(
+                                                  '${month.displayTransliteration} · ${KemeticMath.toGregorian(k.kYear, k.kMonth, 1).year}',
+                                                  style: const TextStyle(
+                                                    fontSize: 7,
+                                                    color: Color(0xFF4C4842),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 32,
+                                    top: 0,
+                                    width: 32,
+                                    height: 28,
+                                    child: IconButton(
+                                      tooltip: 'New note',
+                                      padding: EdgeInsets.zero,
+                                      iconSize: 17,
+                                      color: _landscapeGold,
+                                      icon: const Icon(Icons.add),
+                                      onPressed: () async {
+                                        final openQuickAdd =
+                                            widget.onOpenQuickAdd;
+                                        if (openQuickAdd != null) {
+                                          await openQuickAdd(context);
+                                          return;
+                                        }
+                                        await CalendarPage.openQuickAddFromAnyContext(
+                                          context,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    width: 32,
+                                    height: 28,
+                                    child: PopupMenuButton<String>(
+                                      tooltip: 'Calendar actions',
+                                      padding: EdgeInsets.zero,
+                                      iconSize: 17,
+                                      icon: const Icon(
+                                        Icons.more_horiz,
+                                        color: _landscapeGold,
+                                      ),
+                                      itemBuilder: (_) => [
+                                        if (widget.onOpenCalendars != null)
+                                          const PopupMenuItem(
+                                            value: 'calendars',
+                                            child: Text('Calendars'),
+                                          ),
+                                        if (widget.onOpenInbox != null)
+                                          const PopupMenuItem(
+                                            value: 'inbox',
+                                            child: Text('Inbox'),
+                                          ),
+                                        const PopupMenuItem(
+                                          value: 'menu',
+                                          child: Text('Calendar menu'),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'search',
+                                          child: Text('Search notes'),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'profile',
+                                          child: Text('My Profile'),
+                                        ),
+                                        if (widget.onManageFlows != null)
+                                          const PopupMenuItem(
+                                            value: 'flows',
+                                            child: Text('Flow Studio'),
+                                          ),
+                                        if (widget.onClose != null ||
+                                            Navigator.of(context).canPop())
+                                          PopupMenuItem(
+                                            value: 'close',
+                                            child: Text(
+                                              widget.embeddedInCalendarScaffold
+                                                  ? 'Pages'
+                                                  : 'Close Day View',
+                                            ),
+                                          ),
+                                      ],
+                                      onSelected: (value) async {
+                                        switch (value) {
+                                          case 'calendars':
+                                            widget.onOpenCalendars?.call();
+                                          case 'inbox':
+                                            widget.onOpenInbox?.call();
+                                          case 'menu':
+                                            await CalendarPage.showActionsMenuFromAnyContext(
+                                              context,
+                                            );
+                                          case 'search':
+                                            await (widget.onOpenSearch ??
+                                                CalendarPage
+                                                    .openSearchFromAnyContext)(
+                                              context,
+                                            );
+                                          case 'profile':
+                                            await (widget.onOpenProfile ??
+                                                CalendarPage
+                                                    .openProfileFromAnyContext)(
+                                              context,
+                                            );
+                                          case 'flows':
+                                            widget.onManageFlows?.call(null);
+                                          case 'close':
+                                            if (widget.onClose != null) {
+                                              widget.onClose!();
+                                            } else {
+                                              Navigator.of(context).maybePop();
+                                            }
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: 0,
+                                    top: _monthHeight,
+                                    width: _gutterWidth,
+                                    height: _headerHeight,
+                                    child: const Align(
+                                      alignment: Alignment.bottomRight,
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          right: 3,
+                                          bottom: 6,
+                                        ),
+                                        child: Text(
+                                          'all-day',
+                                          style: TextStyle(
+                                            fontSize: 7,
+                                            color: Color(0xFF46423D),
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                              ],
+                                  Positioned(
+                                    left: 0,
+                                    top: _monthHeight + _headerHeight,
+                                    bottom: 0,
+                                    width: _gutterWidth,
+                                    child: ClipRect(
+                                      child: AnimatedBuilder(
+                                        animation: _hours,
+                                        child: SizedBox(
+                                          height: 24 * _hourHeight,
+                                          child: Stack(
+                                            children: [
+                                              for (
+                                                var hour = 2;
+                                                hour < 24;
+                                                hour += 2
+                                              )
+                                                Positioned(
+                                                  right: 3,
+                                                  top: hour * _hourHeight - 5,
+                                                  child: Text(
+                                                    hour == 12
+                                                        ? 'Noon'
+                                                        : _timeLabel(hour * 60),
+                                                    style: TextStyle(
+                                                      fontSize: 8,
+                                                      color: Color(
+                                                        hour % 6 == 0
+                                                            ? 0xFF6B655E
+                                                            : 0xFF55514B,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        builder: (context, child) => OverflowBox(
+                                          alignment: Alignment.topLeft,
+                                          maxHeight: 24 * _hourHeight,
+                                          child: Transform.translate(
+                                            offset: Offset(
+                                              0,
+                                              -(_hours.hasClients
+                                                  ? _hours.offset
+                                                  : _hours.initialScrollOffset),
+                                            ),
+                                            child: child,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: _gutterWidth,
+                                    right: 8,
+                                    top: _monthHeight,
+                                    bottom: 0,
+                                    child: LandscapeTimeline(
+                                      key: const ValueKey('landscape-timeline'),
+                                      days: _days!,
+                                      hours: _hours,
+                                      columnWidth: _columnWidth,
+                                      dayCount: _dayCount,
+                                      headerHeight: _headerHeight,
+                                      dayHeight: 24 * _hourHeight,
+                                      dayBuilder: (context, index) =>
+                                          _buildDay(_dateAt(index)),
+                                      headerBuilder: (context, index) =>
+                                          _buildHeader(_dateAt(index)),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: 28,
+                                    bottom: 28,
+                                    child: CalendarFloatingTodayButton(
+                                      key: const ValueKey('landscape-today'),
+                                      onPressed: _jumpToToday,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                      Positioned(
-                        left: _gutterWidth,
-                        right: 8,
-                        top: _monthHeight + _headerHeight,
-                        bottom: 0,
-                        child: SingleChildScrollView(
-                          key: const ValueKey('landscape-hours'),
-                          controller: _hours,
-                          child: SizedBox(
-                            height: 24 * _hourHeight,
-                            child: ListView.builder(
-                              key: const ValueKey('landscape-days'),
-                              controller: _days,
-                              cacheExtent: _columnWidth,
-                              scrollDirection: Axis.horizontal,
-                              itemExtent: _columnWidth,
-                              itemCount: _dayCount,
-                              itemBuilder: (context, index) =>
-                                  _buildDay(_dateAt(index)),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 28,
-                        bottom: 28,
-                        child: CalendarFloatingTodayButton(
-                          key: const ValueKey('landscape-today'),
-                          onPressed: _jumpToToday,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -1489,6 +1824,13 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       if (!mounted) return;
       final previousTarget = activeTarget;
       activeTarget = nextTarget;
+      final date = KemeticMath.toGregorian(
+        nextTarget.ky,
+        nextTarget.km,
+        nextTarget.kd,
+      );
+      _openDetailKey = _keyFor(date, nextTarget.event);
+      _select(_openDetailKey);
       _publishEventDetailRestorationTarget(nextTarget);
       if (nextTarget.ky != previousTarget.ky ||
           nextTarget.km != previousTarget.km ||
@@ -1504,11 +1846,19 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       sheetReleased = true;
       _clearEventDetailRestorationIfAllowed();
       CalendarEventDetailSheetCoordinator.markClosed();
+      _detailFuture = null;
+      _openDetailKey = null;
+      _releaseActiveDetail = null;
     }
 
+    _openDetailKey = _keyFor(
+      KemeticMath.toGregorian(sheetTarget.ky, sheetTarget.km, sheetTarget.kd),
+      sheetTarget.event,
+    );
+    _releaseActiveDetail = releaseSheet;
     try {
-      showCalendarEventDetailSheetModal(
-        context: context,
+      _detailFuture = showCalendarEventDetailSheetModal<void>(
+        context: _calendarPaneKey.currentContext!,
         builder: (sheetContext) => CalendarEventDetailSheet(
           hostContext: rootContext,
           initialTarget: sheetTarget,

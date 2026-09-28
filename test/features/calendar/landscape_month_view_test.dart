@@ -9,6 +9,7 @@ import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
+import 'package:mobile/features/calendar/landscape_timeline_viewport.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -209,6 +210,11 @@ void main() {
 
         await tester.tap(find.text('Landscape completion').last);
         await tester.pumpAndSettle();
+        await tester.drag(
+          find.byKey(const ValueKey('landscape-detail-resize')),
+          const Offset(0, -200),
+        );
+        await tester.pumpAndSettle();
 
         await tester.tap(find.text('Observed').last);
         await tester.pumpAndSettle();
@@ -271,6 +277,11 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Landscape pulse').last);
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(const ValueKey('landscape-detail-resize')),
+        const Offset(0, -200),
+      );
       await tester.pumpAndSettle();
 
       final hapticCalls = _capturePlatformHaptics(tester);
@@ -1786,9 +1797,10 @@ Future<void> _setTabletLandscapeViewport(WidgetTester tester) async {
 }
 
 ScrollController _landscapePagerController(WidgetTester tester) => tester
-    .widget<ListView>(find.byKey(const ValueKey('landscape-days')))
+    .widget<LandscapeTimeline>(find.byType(LandscapeTimeline))
+    .horizontalDetails
     .controller!;
 
 double _landscapeDayWidth(WidgetTester tester) => tester
-    .widget<ListView>(find.byKey(const ValueKey('landscape-days')))
-    .itemExtent!;
+    .widget<LandscapeTimeline>(find.byType(LandscapeTimeline))
+    .columnWidth;

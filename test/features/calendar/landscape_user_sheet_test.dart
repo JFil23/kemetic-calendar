@@ -88,7 +88,18 @@ void main() {
             .opacity,
         .24,
       );
-      expect(tester.getSize(find.byType(BottomSheet)).width, 852);
+      final pane = tester.getRect(
+        find.byKey(const ValueKey('landscape-calendar-pane')),
+      );
+      final sheetBounds = tester.getRect(find.byType(BottomSheet));
+      expect(sheetBounds.left, pane.left);
+      expect(sheetBounds.right, pane.right);
+      final scrim = tester.getRect(find.byType(ModalBarrier).last);
+      expect(scrim, pane);
+      expect(
+        find.byKey(const ValueKey('landscape-ledger')).hitTestable(),
+        findsOneWidget,
+      );
       final before = tester.getSize(sheet).height;
       await tester.drag(
         find.byKey(const ValueKey('landscape-detail-resize')),
