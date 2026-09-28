@@ -138,9 +138,31 @@ class JournalBadgesArea extends StatelessWidget {
                   )
                 : Align(
                     alignment: Alignment.topLeft,
-                    child: EventBadgeWidget(
-                      token: badges.first,
-                      expandable: false,
+                    child: LayoutBuilder(
+                      builder: (context, bounds) {
+                        // Journal sheet: 24px outer inset and 12px badge inset
+                        // on each side. Lay out the real pill at that width,
+                        // then reduce every part together to the pane width.
+                        final sheetBadgeWidth =
+                            MediaQuery.sizeOf(context).width - 2 * (24 + 12);
+                        return SizedBox(
+                          width: bounds.maxWidth,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.topLeft,
+                            child: SizedBox(
+                              width: sheetBadgeWidth,
+                              child: Align(
+                                alignment: Alignment.topLeft,
+                                child: EventBadgeWidget(
+                                  token: badges.first,
+                                  expandable: false,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
           ),

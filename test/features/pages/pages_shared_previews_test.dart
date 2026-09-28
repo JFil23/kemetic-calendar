@@ -126,6 +126,10 @@ void main() {
   testWidgets(
     'shared badge area renders actual tokens without preview controls taking taps',
     (tester) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       var taps = 0;
       final badge = EventBadgeToken(
         id: 'calendar:test',
@@ -167,8 +171,15 @@ void main() {
           of: find.byType(PagesTile),
           matching: find.byType(FittedBox),
         ),
-        findsNothing,
+        findsOneWidget,
       );
+      final title = tester.renderObject<RenderParagraph>(
+        find.text(badge.title),
+      );
+      expect(title.didExceedMaxLines, isFalse);
+      final fitted = tester.widget<FittedBox>(find.byType(FittedBox));
+      expect(fitted.fit, BoxFit.scaleDown);
+      expect((fitted.child! as SizedBox).width, 321);
       await capturePane(tester, 'journal-populated');
       await tester.tap(find.byType(PagesTile));
       expect(taps, 1);

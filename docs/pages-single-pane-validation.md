@@ -136,3 +136,12 @@ collapsed EventBadgeWidget pill as the Journal sheet, aligned top-left, includin
 the canonical glossy title, completion icon/color, rounded border and inline
 time. Long titles follow its existing single-line ellipsis behavior. Verified
 with the Household Table title and 7:30a time, plus the existing pane tap test.
+
+### Journal badge scale correction
+
+The pane lays out the canonical pill at the Journal sheet's available badge
+width (viewport minus its 24px outer and 12px inner insets on both sides), then
+uniformly scales that live widget into the pane content width. This preserves
+its full title and the proportions of its icon, text, border and padding, instead
+of retaining sheet-sized text in a half-width pane. The representative Household
+Table badge now fits without ellipsis; its inline time and pane navigation pass.
