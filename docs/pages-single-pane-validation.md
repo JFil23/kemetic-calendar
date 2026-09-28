@@ -113,3 +113,11 @@ Commons placeholder and truthful public-answer status. Tapping still opens the
 existing Commons page for editing. Other panes, data selection and reads are
 unchanged. Narrow and standard-width checks cover saved/unanswered states and
 verify the question's glyph boxes fit within its allocated height.
+
+### Full-pane Commons card
+
+The Feed pane now consists only of the Commons question card, filling its
+existing bounds. The section numeral, heading, separator and outer inset are
+removed. The reflection label, question, answer preview and answer status remain;
+the question uses the recovered space. Existing question selection and Commons
+navigation are unchanged.

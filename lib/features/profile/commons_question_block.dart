@@ -10,7 +10,6 @@ Widget buildCommonsSection({
   required String title,
   String? note,
   double topPadding = 28,
-  bool compact = false,
   required List<Widget> children,
 }) {
   return Padding(
@@ -22,14 +21,14 @@ Widget buildCommonsSection({
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(
-              width: compact ? 12 : 24,
+              width: 24,
               child: Text(
                 numeral,
                 style: TextStyle(
                   color: _profileGoldText.withValues(alpha: 0.68),
                   fontFamily: _profileSerifFont,
                   fontFamilyFallback: _profileSerifFallback,
-                  fontSize: compact ? 8 : 14,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,
                 ),
@@ -39,12 +38,12 @@ Widget buildCommonsSection({
               title.toUpperCase(),
               style: TextStyle(
                 color: _profileGoldText,
-                fontSize: compact ? 7 : 11,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
-                letterSpacing: compact ? .8 : 1.8,
+                letterSpacing: 1.8,
               ),
             ),
-            SizedBox(width: compact ? 5 : 10),
+            const SizedBox(width: 10),
             Expanded(
               child: Container(
                 height: 1,
@@ -70,7 +69,7 @@ Widget buildCommonsSection({
             ),
           ),
         ],
-        SizedBox(height: compact ? 4 : 14),
+        const SizedBox(height: 14),
         ...children,
       ],
     ),
@@ -81,13 +80,12 @@ Widget buildCommonsCard({
   required Widget child,
   EdgeInsetsGeometry padding = const EdgeInsets.all(16),
   Color? borderColor,
-  double radius = 16,
 }) {
   return Container(
     padding: padding,
     decoration: BoxDecoration(
       color: const Color(0xFF15110A).withValues(alpha: 0.66),
-      borderRadius: BorderRadius.circular(radius),
+      borderRadius: BorderRadius.circular(16),
       border: Border.all(
         color: borderColor ?? _profileGoldMid.withValues(alpha: 0.24),
       ),
@@ -206,111 +204,97 @@ class CommonsQuestionBlock extends StatelessWidget {
           final otherAnswers = question.answers
               .where((a) => a.id != answer?.id)
               .length;
-          return Padding(
-            padding: const EdgeInsets.all(6),
-            child: buildCommonsSection(
-              topPadding: 0,
-              compact: true,
-              numeral: 'II',
-              title: 'Question of the Day',
+          return buildCommonsCard(
+            padding: EdgeInsets.symmetric(
+              horizontal: small ? 10 : 12,
+              vertical: 8,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Text(
+                  hasQuestion
+                      ? "FROM TODAY'S DAILY REFLECTION"
+                      : 'DAILY REFLECTION',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _profileGoldText.withValues(alpha: .72),
+                    fontSize: 6,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .55,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 3),
                 Expanded(
-                  child: buildCommonsCard(
-                    radius: 11,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: small ? 6 : 8,
-                      vertical: small ? 3 : 4,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          hasQuestion
-                              ? "FROM TODAY'S DAILY REFLECTION"
-                              : 'DAILY REFLECTION',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: _profileGoldText.withValues(alpha: .72),
-                            fontSize: 6,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: .55,
-                            height: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              hasQuestion ? questionText : 'No question today.',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: .9),
-                                fontFamily: _profileSerifFont,
-                                fontFamilyFallback: _profileSerifFallback,
-                                fontSize: small ? 13 : 16,
-                                fontWeight: FontWeight.w600,
-                                height: 1.18,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (hasQuestion)
-                          Container(
-                            height: small ? 18 : 20,
-                            alignment: Alignment.centerLeft,
-                            padding: const EdgeInsets.symmetric(horizontal: 7),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0D0D0F),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: _profileGoldMid.withValues(alpha: .20),
-                              ),
-                            ),
-                            child: Text(
-                              answer?.bodyText ?? 'Answer in the Commons',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontFamily: _profileSerifFont,
-                                fontFamilyFallback: _profileSerifFallback,
-                                fontSize: small ? 9 : 10,
-                                fontStyle: answer == null
-                                    ? FontStyle.italic
-                                    : FontStyle.normal,
-                                color: Colors.white.withValues(
-                                  alpha: answer == null ? .42 : .9,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (!small) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            answer != null
-                                ? 'Your public answer'
-                                : otherAnswers == 0
-                                ? 'No public answers yet.'
-                                : '$otherAnswers public answer${otherAnswers == 1 ? '' : 's'}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: .48),
-                              fontFamily: _profileSerifFont,
-                              fontFamilyFallback: _profileSerifFallback,
-                              fontStyle: FontStyle.italic,
-                              fontSize: 8,
-                              height: 1.0,
-                            ),
-                          ),
-                        ],
-                      ],
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      hasQuestion ? questionText : 'No question today.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: .9),
+                        fontFamily: _profileSerifFont,
+                        fontFamilyFallback: _profileSerifFallback,
+                        fontSize: small ? 15 : 20,
+                        fontWeight: FontWeight.w600,
+                        height: 1.18,
+                      ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 4),
+                if (hasQuestion)
+                  Container(
+                    height: small ? 18 : 20,
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D0D0F),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: _profileGoldMid.withValues(alpha: .20),
+                      ),
+                    ),
+                    child: Text(
+                      answer?.bodyText ?? 'Answer in the Commons',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: _profileSerifFont,
+                        fontFamilyFallback: _profileSerifFallback,
+                        fontSize: small ? 9 : 10,
+                        fontStyle: answer == null
+                            ? FontStyle.italic
+                            : FontStyle.normal,
+                        color: Colors.white.withValues(
+                          alpha: answer == null ? .42 : .9,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (!small) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    answer != null
+                        ? 'Your public answer'
+                        : otherAnswers == 0
+                        ? 'No public answers yet.'
+                        : '$otherAnswers public answer${otherAnswers == 1 ? '' : 's'}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .48),
+                      fontFamily: _profileSerifFont,
+                      fontFamilyFallback: _profileSerifFallback,
+                      fontStyle: FontStyle.italic,
+                      fontSize: 8,
+                      height: 1.0,
+                    ),
+                  ),
+                ],
               ],
             ),
           );

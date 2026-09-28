@@ -60,7 +60,7 @@ void main() {
     expect(q.question, seed.text);
     expect(q.myAnswer?.bodyText, answer.bodyText);
   });
-  testWidgets('Commons pane retains its section and real answer states', (
+  testWidgets('Commons card fills the pane and retains real answer states', (
     tester,
   ) async {
     for (final width in [150.0, 186.5]) {
@@ -97,7 +97,8 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('II'), findsOneWidget);
+        expect(find.text('II'), findsNothing);
+        expect(find.text('QUESTION OF THE DAY'), findsNothing);
         expect(find.text("FROM TODAY'S DAILY REFLECTION"), findsOneWidget);
         expect(find.text('Is my seeing coarsening?'), findsOneWidget);
         final paragraph = tester.renderObject<RenderParagraph>(
