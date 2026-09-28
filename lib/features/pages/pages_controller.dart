@@ -561,11 +561,9 @@ class PagesController {
         PagesDestination.journal,
         state: PagesLoadState.ready,
         badges: j.tokensByDay[today] ?? const [],
-        meta: j.unsaved.contains(today)
-            ? 'Draft on this device'
-            : j.written.contains(today)
-            ? 'Today is saved'
-            : 'Today is open',
+        meta: (j.tokensByDay[today] ?? const []).isEmpty
+            ? 'No badges today'
+            : '${j.tokensByDay[today]!.length} ${j.tokensByDay[today]!.length == 1 ? 'badge' : 'badges'} today',
         primary:
             j.badges.firstOrNull ??
             PagesSignal(
@@ -621,7 +619,9 @@ class PagesController {
       PagesCard(
         PagesDestination.library,
         state: PagesLoadState.ready,
-        meta: current.isEmpty ? 'The canon' : 'Continue reading',
+        meta: current.isEmpty
+            ? 'Explore the canon'
+            : 'Continue · ${nodes[current.first.normalizedNodeId]!.title}, ${current.first.normalizedProgressPercent.round()}%',
         primary: current.isEmpty
             ? PagesSignal(
                 progress.isEmpty ? 'Begin the canon' : 'Explore the canon',
@@ -735,7 +735,9 @@ class PagesController {
                   ? PagesLoadState.failed
                   : PagesLoadState.loading
             : PagesLoadState.ready,
-        meta: f == null ? 'Your flows' : f.name,
+        meta: f == null || event == null
+            ? 'No upcoming flow'
+            : '${_when(event.at)} · ${f.name}',
         flow: f == null
             ? null
             : f.maatKey == null
@@ -788,6 +790,12 @@ class PagesController {
         rhythm: commons.rhythm,
         practice: selected.practice,
         feedDisplay: selected.display,
+        meta: switch (selected.display) {
+          PagesFeedDisplay.question => 'Question of the day',
+          PagesFeedDisplay.practice =>
+            'Public practice · ${selected.practice!.title}',
+          PagesFeedDisplay.publicRhythm => 'Today in the Commons',
+        },
       ),
     );
   }
@@ -862,7 +870,11 @@ class PagesController {
       PagesCard(
         PagesDestination.inbox,
         state: PagesLoadState.ready,
-        meta: 'Your latest updates',
+        meta: useShare
+            ? pagesShareUpdateLabel(update, uid)
+            : latest == null
+            ? 'All caught up'
+            : '${latest.actorName ?? latest.actorHandle ?? 'Someone'} ${reason(latest)}',
         unread: share.cachedUnreadStateOnly?.totalUnread ?? 0,
         primary: useShare
             ? PagesSignal(

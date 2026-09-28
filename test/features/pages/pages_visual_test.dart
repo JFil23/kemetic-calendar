@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'package:mobile/data/commons_models.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'dart:io';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flow_appearance.dart';
@@ -71,7 +69,7 @@ void main() {
           id: 'preview',
           question: 'Is my seeing coarsening?',
         ),
-        meta: 'Your shared flow · 3 days ago',
+        meta: 'Question of the day',
         upper: PagesSignal(
           'Latest shared flow',
           label: 'Your flows',
@@ -87,7 +85,7 @@ void main() {
       const PagesCard(
         PagesDestination.planner,
         state: PagesLoadState.ready,
-        meta: '0% aligned · no to-dos',
+        meta: '0% aligned',
         primary: PagesSignal('', progress: 0),
         upper: PagesSignal('Say no to burnout'),
         lower: PagesSignal(
@@ -99,7 +97,7 @@ void main() {
       const PagesCard(
         PagesDestination.journal,
         state: PagesLoadState.ready,
-        meta: '1 badge · 3 days this week',
+        meta: 'No badges today',
         primary: PagesSignal(
           'Evening Reflection',
           status: '✓',
@@ -112,7 +110,7 @@ void main() {
       const PagesCard(
         PagesDestination.studio,
         state: PagesLoadState.ready,
-        meta: 'Spanish Practice · 60%',
+        meta: '9/28 · 7:30 am · Spanish Practice',
         flow: writing,
         upper: PagesSignal(
           'Writing Practice',
@@ -125,7 +123,7 @@ void main() {
       const PagesCard(
         PagesDestination.inbox,
         state: PagesLoadState.ready,
-        meta: 'All caught up',
+        meta: 'Accepted your invitation',
         primary: PagesSignal(
           'producedbyearth',
           detail: 'Accepted your invite',
@@ -161,7 +159,7 @@ void main() {
       const PagesCard(
         PagesDestination.library,
         state: PagesLoadState.ready,
-        meta: 'Continue reading · 8%',
+        meta: 'Continue · Ptah, 8%',
         primary: PagesSignal(
           'Ptah',
           glyph: '𓁰',
@@ -198,20 +196,7 @@ void main() {
     expect(tester.takeException(), isNull);
     final capturePath = Platform.environment['HAW_PAGES_CAPTURE_PATH'];
     if (capturePath != null) {
-      final boundary =
-          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-      void repaint(RenderObject node) {
-        node.markNeedsPaint();
-        node.visitChildren(repaint);
-      }
-
-      repaint(boundary);
-      await tester.pump();
-      await tester.runAsync(() async {
-        final image = await boundary.toImage(pixelRatio: 2);
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        await File(capturePath).writeAsBytes(bytes!.buffer.asUint8List());
-      });
+      await expectLater(find.byKey(key), matchesGoldenFile(capturePath));
     }
     expect(find.text('Pages'), findsNothing);
     expect(tester.getCenter(find.text('bigjfil')).dx, lessThan(100));
@@ -228,6 +213,15 @@ void main() {
     expect(find.text('No badges yet'), findsOneWidget);
     expect(find.text('CALENDAR'), findsOneWidget);
     expect(find.text('FLOW STUDIO'), findsOneWidget);
+    for (final card in cards.map((notifier) => notifier.value)) {
+      if (card.meta.isEmpty) continue;
+      final caption = find.text(card.meta);
+      expect(caption, findsOneWidget);
+      final text = tester.widget<Text>(caption);
+      expect(text.style!.fontSize, 11.2);
+      expect(text.style!.color, const Color(0xffa39d92));
+    }
+
     final tiles = find.byType(PagesTile);
     final left = tester.getRect(tiles.at(0));
     final right = tester.getRect(tiles.at(1));

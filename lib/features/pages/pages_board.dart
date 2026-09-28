@@ -181,10 +181,7 @@ class PagesTile extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(10.6, 4, 6, 0),
             child: Text(
-              (card.destination == PagesDestination.calendar ||
-                      card.destination == PagesDestination.calendars)
-                  ? card.meta
-                  : ' ',
+              card.meta.isEmpty ? ' ' : card.meta,
               style: PlannerVisualTokens.inputHint.copyWith(
                 fontSize: 11.2,
                 color: const Color(0xffa39d92),
