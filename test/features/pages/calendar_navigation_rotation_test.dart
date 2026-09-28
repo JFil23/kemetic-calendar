@@ -78,7 +78,16 @@ void main() {
             tester.view.physicalSize = size;
             await tester.pumpAndSettle();
             expect(find.byKey(calendarFloatingTodaySurfaceKey), findsOneWidget);
-            expect(find.byKey(calendarFloatingShortcutsKey), findsOneWidget);
+            if (size.width > size.height) {
+              expect(
+                find.byKey(const ValueKey('landscape-today')),
+                findsOneWidget,
+              );
+              expect(find.byTooltip('Calendar actions'), findsOneWidget);
+              expect(find.byKey(calendarFloatingShortcutsKey), findsNothing);
+            } else {
+              expect(find.byKey(calendarFloatingShortcutsKey), findsOneWidget);
+            }
             expect(tester.takeException(), isNull);
           }
           unawaited(router.push<void>('/cover'));
