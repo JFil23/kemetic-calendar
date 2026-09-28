@@ -1861,7 +1861,10 @@ void main() {
         final landscapeView = await File(
           'lib/features/calendar/landscape_month_view.dart',
         ).readAsString();
-        expect(landscapeView, contains("tooltip: 'New note'"));
+        expect(
+          landscapeView,
+          contains("tooltip: 'Add note, reminder, or flow'"),
+        );
         expect(
           landscapeView,
           contains(

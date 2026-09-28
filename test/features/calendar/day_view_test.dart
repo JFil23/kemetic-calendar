@@ -838,7 +838,8 @@ void main() {
       expect(find.byType(LandscapeMonthView), findsOneWidget);
       expect(find.byType(DayViewGrid), findsNothing);
       expect(find.byKey(calendarFloatingTodaySurfaceKey), findsOneWidget);
-      expect(find.byTooltip('Calendar actions'), findsOneWidget);
+      expect(find.byTooltip('Calendar actions'), findsNothing);
+      expect(find.byTooltip('Add note, reminder, or flow'), findsOneWidget);
       expect(find.byKey(const ValueKey('landscape-today')), findsOneWidget);
     });
 
