@@ -1,5 +1,7 @@
 import 'package:mobile/services/session_resume_service.dart';
-import 'package:mobile/main.dart' show createAppRouterForTesting;
+import 'package:mobile/main.dart'
+    show createAppRouterForTesting, SharedFlowRoutePage;
+import 'package:mobile/features/inbox/shared_flow_details_page.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +10,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mobile/main.dart' show routeObserver, TelemetryRouteObserver;
 import 'package:mobile/features/pages/pages_page.dart';
+import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/pages/pages_collections.dart';
 import 'package:mobile/features/pages/pages_layout.dart';
 import 'package:mobile/features/pages/pages_board.dart';
 import 'package:mobile/features/pages/pages_models.dart';
@@ -65,6 +69,70 @@ void main() {
       expect(requests, isEmpty);
     },
   );
+  testWidgets('by-flow route uses the current canonical detail surface', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: SharedFlowRoutePage(
+          flowId: 42,
+          extra: {'fallbackLocation': '/pages'},
+        ),
+      ),
+    );
+    final detail = tester.widget<SharedFlowDetailsPage>(
+      find.byType(SharedFlowDetailsPage),
+    );
+    expect(detail.flowId, 42);
+    expect(detail.useCanonicalUserFlowDetail, isTrue);
+    expect(detail.fallbackLocation, '/pages');
+    expect(find.byTooltip('Back'), findsOneWidget);
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  for (final canonicalSurface in [false, true]) {
+    for (final restored in [false, true]) {
+      testWidgets(
+        'flow detail Back returns to Pages: canonical=$canonicalSurface restored=$restored',
+        (tester) async {
+          final router = GoRouter(
+            initialLocation: restored ? '/detail' : '/pages',
+            routes: [
+              GoRoute(
+                path: '/pages',
+                builder: (_, _) => const Scaffold(body: Text('Pages return')),
+              ),
+              GoRoute(
+                path: '/detail',
+                builder: (_, _) => CalendarPage.buildCanonicalCustomFlowDetail(
+                  name: 'Navigation fixture',
+                  color: 0xffd4af37,
+                  isSaved: true,
+                  useMySavedExpansionParity: canonicalSurface,
+                  backFallbackLocation: '/pages',
+                ),
+              ),
+            ],
+          );
+          await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+          if (!restored) {
+            unawaited(router.push<void>('/detail'));
+          }
+          await tester.pumpAndSettle();
+          final back = find.byTooltip('Back');
+          expect(back, findsOneWidget);
+          await tester.tap(back);
+          await tester.pumpAndSettle();
+          expect(find.text('Pages return'), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+          router.dispose();
+        },
+      );
+    }
+  }
+
   testWidgets('production route builders use canonical feature surfaces', (
     tester,
   ) async {
@@ -88,6 +156,7 @@ void main() {
       '/inbox': 'InboxSheetRoutePage',
       '/flows': '_FlowStudioRoutePage',
       '/calendars': '_SharedCalendarsRoutePage',
+      '/shared-flow/by-flow/:flowId': 'SharedFlowRoutePage',
     }.entries) {
       final route = router.configuration.routes
           .whereType<GoRoute>()
@@ -97,7 +166,9 @@ void main() {
         uri: Uri.parse(entry.key),
         matchedLocation: entry.key,
         fullPath: entry.key,
-        pathParameters: const {},
+        pathParameters: entry.key.contains(':flowId')
+            ? const {'flowId': '42'}
+            : const {},
         pageKey: ValueKey(entry.key),
       );
       final page = route.pageBuilder!(context, state) as CustomTransitionPage;
@@ -144,6 +215,14 @@ void main() {
             builder: (context, state) =>
                 const Scaffold(body: Text('Library destination')),
           ),
+          GoRoute(
+            path: '/shared-flow/by-flow/:flowId',
+            builder: (context, state) {
+              expect(state.pathParameters['flowId'], '42');
+              expect(state.extra, {'fallbackLocation': '/pages'});
+              return const Scaffold(body: Text('Canonical flow detail route'));
+            },
+          ),
           for (final path in [
             '/rhythm/today',
             '/journal',
@@ -180,6 +259,15 @@ void main() {
         await tester.tap(finder);
         await tester.pumpAndSettle();
       }
+
+      tester.widget<PagesLayout>(find.byType(PagesLayout)).onCollectionItem!(
+        const PagesCollectionItem(id: 'flow:42', title: 'My flow', flowId: 42),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Canonical flow detail route'), findsOneWidget);
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(find.byType(PagesLayout), findsOneWidget);
 
       await open(PagesDestination.feed);
       expect(find.text('Profile feed=1'), findsOneWidget);

@@ -102,7 +102,7 @@ void main() {
   });
 
   test(
-    'canonical saved-flow detail parity is opt-in for social posts only',
+    'canonical saved-flow detail parity is explicit at entry boundaries',
     () async {
       final calendar = await File(
         'lib/features/calendar/calendar_page.dart',

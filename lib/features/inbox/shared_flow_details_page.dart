@@ -561,9 +561,17 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         }
 
         if (!snapshot.hasData) {
-          return const Scaffold(
+          return Scaffold(
             backgroundColor: _bg,
-            body: Center(child: CircularProgressIndicator()),
+            appBar: AppBar(
+              backgroundColor: _bg,
+              leading: IconButton(
+                tooltip: 'Back',
+                icon: KemeticGold.icon(Icons.arrow_back),
+                onPressed: () => popOrGo(context, widget.fallbackLocation),
+              ),
+            ),
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
 
@@ -602,6 +610,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           actionPolicy: actionPolicy,
           useMySavedExpansionParity: widget.useCanonicalUserFlowDetail,
           showFlowOptions: false,
+          backFallbackLocation: widget.fallbackLocation,
           appearance: data.appearance,
         );
       },

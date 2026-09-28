@@ -84,7 +84,10 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
               size: 40,
               iconSize: 27,
               icon: Icons.chevron_left,
-              onPressed: () => unawaited(Navigator.of(context).maybePop()),
+              onPressed: () => popMaatFlowDetailOrGo(
+                context,
+                fallbackLocation: widget.backFallbackLocation,
+              ),
             ),
           ),
           if (widget.showFlowOptions)

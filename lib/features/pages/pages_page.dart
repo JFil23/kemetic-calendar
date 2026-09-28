@@ -184,14 +184,13 @@ class _PagesPageState extends State<PagesPage>
             CalendarPage.openOwnedFiledItemFromAnyContext(context, item.event!);
           } else if (item.flowId != null) {
             unawaited(
-              _present(
-                () => CalendarPage.openFlowEditorFromAnyContext(
+              _present(() async {
+                await openDetailRoute<void>(
                   context,
-                  flowId: item.flowId!,
-                  fallbackLocation: '/pages',
-                  source: 'pages-flow-list',
-                ),
-              ),
+                  '/shared-flow/by-flow/${item.flowId!}',
+                  extra: const {'fallbackLocation': '/pages'},
+                );
+              }),
             );
           }
         },

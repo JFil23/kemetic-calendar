@@ -426,6 +426,7 @@ class _FlowPreviewPage extends StatefulWidget {
     this.initialEventsByFlow,
     this.actionPolicy,
     this.showFlowOptions = true,
+    this.backFallbackLocation = kMaatFlowsListRoute,
     this.useMySavedExpansionParity = false,
     this.appearanceImageBytesForTesting,
     this.calendarPreviewForWindow,
@@ -441,6 +442,7 @@ class _FlowPreviewPage extends StatefulWidget {
   final Map<int, List<FlowEventRow>>? initialEventsByFlow;
   final FlowDetailActionPolicy? actionPolicy;
   final bool showFlowOptions;
+  final String backFallbackLocation;
   final bool useMySavedExpansionParity;
   final Uint8List? appearanceImageBytesForTesting;
   final _CalendarPreviewForWindow? calendarPreviewForWindow;
@@ -2496,6 +2498,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
               surfaceTintColor: Colors.transparent,
               shadowColor: Colors.transparent,
               elevation: usesDashboard ? 0 : 0.5,
+              leading: IconButton(
+                tooltip: 'Back',
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => popMaatFlowDetailOrGo(
+                  context,
+                  fallbackLocation: widget.backFallbackLocation,
+                ),
+              ),
               centerTitle: usesDashboard,
               toolbarHeight: usesDashboard ? 64 : null,
               iconTheme: IconThemeData(

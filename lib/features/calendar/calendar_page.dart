@@ -5045,6 +5045,7 @@ class CalendarPage extends StatefulWidget {
     FlowDetailActionPolicy? actionPolicy,
     bool useMySavedExpansionParity = false,
     bool showFlowOptions = false,
+    String backFallbackLocation = kMaatFlowsListRoute,
     FlowAppearance appearance = FlowAppearance.empty,
   }) {
     final syntheticId = flowId ?? _syntheticFlowIdForSnapshot(name, eventsJson);
@@ -5097,6 +5098,7 @@ class CalendarPage extends StatefulWidget {
       onEndMaatFlow: null,
       actionPolicy: actionPolicy,
       showFlowOptions: showFlowOptions,
+      backFallbackLocation: backFallbackLocation,
       useMySavedExpansionParity: useMySavedExpansionParity,
       calendarPreviewForWindow:
           CalendarPage._mountedState?._userFlowCalendarPreviewForWindow,
