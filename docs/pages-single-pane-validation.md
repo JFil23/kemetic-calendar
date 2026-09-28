@@ -145,3 +145,24 @@ uniformly scales that live widget into the pane content width. This preserves
 its full title and the proportions of its icon, text, border and padding, instead
 of retaining sheet-sized text in a half-width pane. The representative Household
 Table badge now fits without ellipsis; its inline time and pane navigation pass.
+
+### Hourly Feed rotation
+
+Feed alternates by local wall-clock hour: even hours show the existing Question
+of the Day; odd hours show Public Rhythm. The latter reuses the Commons rhythm
+summary from the same already-loaded `social.commons` snapshot. Commons and Pages
+share the rhythm presentation; the pane uses compact labels and the exact count
+labels supplied by Commons, including privacy ranges and optional top flow.
+
+`PagesFeedRotation` is presentation-only. It owns one one-shot timer until the
+next local hour, cancels on inactivity/disposal, and recalculates on return. Its
+callback only projects cached data into the Feed notifier. It does not invoke the
+existing calendar/event boundary callback, invalidate caches, query, poll, write,
+or persist rotation state. Existing Commons freshness/notification rules remain
+the sole data-refresh authority; an hourly display switch is not a data refresh.
+
+Verified the rhythm layout at 150 and 186.5 logical pixels. The resource test
+advances across hours and inactivity, asserts only Feed repaints, keeps the same
+rhythm snapshot, observes zero HTTP calls, and checks timer cancellation. All
+38 Pages/Commons focused tests pass. The fake-clock test utility was already
+locked; it is now declared directly under dev dependencies with no version change.

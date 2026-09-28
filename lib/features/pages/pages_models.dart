@@ -1,3 +1,4 @@
+import 'pages_feed_rotation.dart';
 import 'pages_arrangement.dart' show PagesUpcomingEvent;
 import 'pages_studio_graphic.dart' show PagesStudioSnapshot;
 import '../../data/commons_models.dart';
@@ -100,6 +101,8 @@ class PagesCard {
     this.calendars = const [],
     this.unread = 0,
     this.question,
+    this.rhythm,
+    this.feedDisplay = PagesFeedDisplay.question,
     this.badges = const [],
     this.calendarDate,
     this.showGregorian = false,
@@ -123,6 +126,8 @@ class PagesCard {
   final List<({int color, bool visible})> calendars;
   final int unread;
   final CommonsQuestion? question;
+  final CommonsRhythmSummary? rhythm;
+  final PagesFeedDisplay feedDisplay;
   final List<EventBadgeToken> badges;
   String get title => switch (destination) {
     PagesDestination.calendar => 'Calendar',

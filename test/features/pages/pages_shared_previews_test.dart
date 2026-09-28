@@ -1,3 +1,4 @@
+import 'package:mobile/features/profile/commons_rhythm_block.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -186,6 +187,50 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('public rhythm fits the pane with real Commons metric labels', (
+    tester,
+  ) async {
+    const summary = CommonsRhythmSummary(
+      activeUsersTodayLabel: '10–19',
+      flowsKeptTodayLabel: '42',
+      publicFragmentsTodayLabel: '0',
+      publicRoomsOpenLabel: '3',
+      topFlowTitle: 'Follow the Sky',
+      topFlowCountLabel: '12',
+    );
+    for (final width in [150.0, 186.5]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: Scaffold(
+            body: Center(
+              child: RepaintBoundary(
+                key: const ValueKey('rhythm-capture'),
+                child: SizedBox(
+                  width: width,
+                  height: width / 1.49,
+                  child: const CommonsRhythmBlock(summary: summary, pane: true),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('PUBLIC RHYTHM'), findsOneWidget);
+      expect(find.text('10–19'), findsOneWidget);
+      expect(find.text('42'), findsOneWidget);
+      expect(find.text('Top flow: Follow the Sky'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      if (width == 186.5) {
+        await capturePane(
+          tester,
+          'feed-rhythm',
+          boundaryFinder: find.byKey(const ValueKey('rhythm-capture')),
+        );
+      }
+    }
+  });
   testWidgets('all five Ma’at previews mount their actual Day View graphics', (
     tester,
   ) async {
@@ -284,16 +329,21 @@ void main() {
   });
 }
 
-Future<void> capturePane(WidgetTester tester, String name) async {
+Future<void> capturePane(
+  WidgetTester tester,
+  String name, {
+  Finder? boundaryFinder,
+}) async {
   final dir = Platform.environment['HAW_PANES_CAPTURE_DIR'];
   if (dir == null) return;
   final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find
-        .descendant(
-          of: find.byType(PagesTile),
-          matching: find.byType(RepaintBoundary),
-        )
-        .first,
+    boundaryFinder ??
+        find
+            .descendant(
+              of: find.byType(PagesTile),
+              matching: find.byType(RepaintBoundary),
+            )
+            .first,
   );
   void repaint(RenderObject node) {
     node.markNeedsPaint();

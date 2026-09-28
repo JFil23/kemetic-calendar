@@ -1,3 +1,6 @@
+import 'package:fake_async/fake_async.dart';
+import 'package:mobile/data/commons_models.dart';
+import 'package:mobile/features/pages/pages_feed_rotation.dart';
 import 'package:mobile/features/pages/pages_arrangement.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -48,6 +51,65 @@ Future<void> drain() async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'hourly feed rotation uses cached Commons and makes zero requests',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final requests = <http.Request>[];
+      final client = SupabaseClient(
+        'https://example.supabase.co',
+        'test-key',
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+        httpClient: MockClient((request) async {
+          requests.add(request);
+          return http.Response('[]', 200);
+        }),
+      );
+      await client.auth.recoverSession(session());
+      final cache = AccountViewCache()..enterAccount(uid);
+      final snapshot = CommonsHomeSnapshot(
+        rhythm: CommonsRhythmSummary.empty(),
+      );
+      cache.publish(uid, 'social.commons', snapshot);
+      fakeAsync((time) {
+        final start = DateTime(2026, 9, 28, 10, 59, 59);
+        final rotation = PagesFeedRotation(now: () => start.add(time.elapsed));
+        final controller = PagesController(
+          client,
+          cache: cache,
+          feedRotation: rotation,
+        );
+        final feed = controller.cards[PagesDestination.feed.index];
+        var feedPaints = 0;
+        var otherPaints = 0;
+        feed.addListener(() => feedPaints++);
+        for (final card in controller.cards) {
+          if (card != feed) card.addListener(() => otherPaints++);
+        }
+        requests.clear();
+        rotation.setActive(true);
+        expect(feed.value.feedDisplay, PagesFeedDisplay.question);
+        time.elapse(const Duration(seconds: 2));
+        expect(feed.value.feedDisplay, PagesFeedDisplay.publicRhythm);
+        expect(identical(feed.value.rhythm, snapshot.rhythm), isTrue);
+        time.elapse(const Duration(hours: 1));
+        expect(feed.value.feedDisplay, PagesFeedDisplay.question);
+        expect(feedPaints, 2);
+        expect(otherPaints, 0);
+        expect(requests, isEmpty);
+        controller.setVisible(false);
+        expect(time.nonPeriodicTimerCount, 0);
+        time.elapse(const Duration(hours: 3));
+        expect(feedPaints, 2);
+        rotation.setActive(true);
+        expect(feed.value.feedDisplay, PagesFeedDisplay.publicRhythm);
+        expect(requests, isEmpty);
+        controller.dispose();
+        expect(time.nonPeriodicTimerCount, 0);
+      });
+      await client.dispose();
+    },
+  );
   test(
     'filed upcoming events select Sky before tomorrow Offering and retain its artwork key',
     () async {

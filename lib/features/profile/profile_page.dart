@@ -1,3 +1,4 @@
+import 'commons_rhythm_block.dart';
 import '../../data/commons_question_selection.dart';
 import 'commons_question_block.dart';
 // lib/features/profile/profile_page.dart
@@ -3131,54 +3132,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     context.go('/flows');
   }
 
-  Widget _buildCommonsRhythmSection() {
-    final rhythm = _commonsHome?.rhythm;
-    if (_commonsLoading && rhythm == null) {
-      return buildCommonsSection(
-        numeral: 'I',
-        title: 'Public Rhythm',
-        children: [
-          _buildCommonsPulseRow(
-            count: '...',
-            text: 'the public rhythm is loading',
-            quiet: true,
-          ),
-        ],
-      );
-    }
-
-    final summary = rhythm ?? CommonsRhythmSummary.empty();
-    return buildCommonsSection(
-      numeral: 'I',
-      title: 'Public Rhythm',
-      note: _commonsErrorMessage,
-      children: [
-        _buildCommonsPulseRow(
-          count: summary.activeUsersTodayLabel,
-          text: 'people kept a Ma\'at flow today.',
-        ),
-        _buildCommonsPulseRow(
-          count: summary.flowsKeptTodayLabel,
-          text: 'flow steps were recorded in public rhythm.',
-        ),
-        _buildCommonsPulseRow(
-          count: summary.publicFragmentsTodayLabel,
-          text: 'public fragments were shared.',
-          quiet: summary.publicFragmentsTodayLabel == '0',
-        ),
-        _buildCommonsPulseRow(
-          count: summary.publicRoomsOpenLabel,
-          text: 'public practices are open to join.',
-          quiet: summary.publicRoomsOpenLabel == '0',
-        ),
-        if (summary.topFlowTitle?.trim().isNotEmpty == true)
-          _buildCommonsPulseRow(
-            count: summary.topFlowCountLabel ?? '',
-            text: 'most active flow today: ${summary.topFlowTitle}.',
-          ),
-      ],
-    );
-  }
+  Widget _buildCommonsRhythmSection() => CommonsRhythmBlock(
+    summary: _commonsHome?.rhythm,
+    loading: _commonsLoading,
+    errorMessage: _commonsErrorMessage,
+  );
 
   Widget _buildCommonsMasthead() {
     return Padding(
@@ -3204,58 +3162,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.8,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCommonsPulseRow({
-    required String count,
-    required String text,
-    bool quiet = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-      decoration: BoxDecoration(
-        color: const Color(0xFF15110A).withValues(alpha: 0.62),
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 62,
-            child: Text(
-              count,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: quiet
-                    ? Colors.white.withValues(alpha: 0.58)
-                    : _profileGoldText,
-                fontFamily: _profileSerifFont,
-                fontFamilyFallback: _profileSerifFallback,
-                fontSize: quiet ? 18 : 30,
-                fontWeight: quiet ? FontWeight.w500 : FontWeight.w700,
-                fontStyle: quiet ? FontStyle.italic : FontStyle.normal,
-                height: 1,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.82),
-                fontFamily: _profileSerifFont,
-                fontFamilyFallback: _profileSerifFallback,
-                fontSize: 18,
-                height: 1.25,
-              ),
             ),
           ),
         ],

@@ -1,3 +1,5 @@
+import 'pages_feed_rotation.dart';
+import '../profile/commons_rhythm_block.dart';
 import 'pages_studio_graphic.dart';
 import '../journal/journal_badges_area.dart';
 import '../rhythm/widgets/planner/planner_visual_tokens.dart';
@@ -222,7 +224,10 @@ class PagesTile extends StatelessWidget {
   Widget _large() {
     switch (card.destination) {
       case PagesDestination.feed:
-        return PagesQuestionPreview(question: card.question);
+        return card.feedDisplay == PagesFeedDisplay.publicRhythm &&
+                card.rhythm != null
+            ? CommonsRhythmBlock(summary: card.rhythm, pane: true)
+            : PagesQuestionPreview(question: card.question);
       case PagesDestination.planner:
         final percent = card.primary.progress;
         if (percent == null) return _signal(card.primary);

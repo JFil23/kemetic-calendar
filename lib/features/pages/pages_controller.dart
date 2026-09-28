@@ -1,3 +1,4 @@
+import 'pages_feed_rotation.dart';
 import '../../data/pages_studio_read_repository.dart';
 import 'pages_studio_graphic.dart';
 import '../../data/commons_question_selection.dart';
@@ -30,8 +31,13 @@ import 'pages_models.dart';
 
 /// A visible-only projection. The cache survives the route; listeners do not.
 class PagesController {
-  PagesController(this.client, {AccountViewCache? cache, this.onLocalBoundary})
-    : cache = cache ?? AccountViewCache.instance {
+  PagesController(
+    this.client, {
+    AccountViewCache? cache,
+    this.onLocalBoundary,
+    PagesFeedRotation? feedRotation,
+  }) : cache = cache ?? AccountViewCache.instance,
+       _feedRotation = feedRotation ?? PagesFeedRotation() {
     uid = client.auth.currentUser!.id;
     repository = PagesReadRepository(client, mayFetch: () => active);
     share = ShareRepo(client);
@@ -61,6 +67,7 @@ class PagesController {
       }
       if (active) unawaited(_loadSocial());
     });
+    _feedRotation.addListener(_paintFeed);
     _seed();
   }
   final VoidCallback? onLocalBoundary;
@@ -73,6 +80,7 @@ class PagesController {
     for (final d in PagesDestination.values) ValueNotifier(PagesCard(d)),
   ];
   StreamSubscription? _calendarChanges, _unreadChanges;
+  final PagesFeedRotation _feedRotation;
   Timer? _boundary;
   bool _visible = false, _disposed = false;
   bool get active =>
@@ -164,6 +172,7 @@ class PagesController {
     if (_disposed) return;
     final entering = visible && !_visible;
     _visible = visible;
+    _feedRotation.setActive(active);
     if (!visible) {
       _boundary?.cancel();
       return;
@@ -448,6 +457,16 @@ class PagesController {
       c.week,
       c.calendars,
       c.unread,
+      c.feedDisplay,
+      if (c.rhythm != null)
+        [
+          c.rhythm!.activeUsersTodayLabel,
+          c.rhythm!.flowsKeptTodayLabel,
+          c.rhythm!.publicFragmentsTodayLabel,
+          c.rhythm!.publicRoomsOpenLabel,
+          c.rhythm!.topFlowTitle,
+          c.rhythm!.topFlowCountLabel,
+        ],
       c.event?.id,
       c.event?.at,
       c.event?.behavior,
@@ -736,6 +755,11 @@ class PagesController {
 
   void _paintSocial() {
     _paintInbox();
+    _paintFeed();
+  }
+
+  void _paintFeed() {
+    if (_disposed || client.auth.currentUser?.id != uid) return;
     final commons = _peek<CommonsHomeSnapshot>('social.commons');
     if (commons == null || cache.failed('social.commons')) {
       _missing(PagesDestination.feed, ['social.commons']);
@@ -746,6 +770,8 @@ class PagesController {
         PagesDestination.feed,
         state: PagesLoadState.ready,
         question: activeCommonsQuestion(commons, DateTime.now()),
+        rhythm: commons.rhythm,
+        feedDisplay: _feedRotation.display,
       ),
     );
   }
@@ -964,6 +990,7 @@ class PagesController {
       PagesSearchRecord(c.name, 'Calendars', '/calendars'),
   ];
   void dispose() {
+    _feedRotation.dispose();
     _disposed = true;
     _visible = false;
     _boundary?.cancel();

@@ -21,7 +21,11 @@ void main() {
       File('lib/data/commons_question_selection.dart').readAsStringSync(),
       contains('dailyReflectionQuestionForDate'),
     );
-    expect(source, contains('Public Rhythm'));
+    expect(source, contains('CommonsRhythmBlock('));
+    expect(
+      File('lib/features/profile/commons_rhythm_block.dart').readAsStringSync(),
+      contains('Public Rhythm'),
+    );
     expect(source, contains('_loadCommonsHome'));
     expect(source, contains('CommonsRepo'));
     expect(source, contains('_commonsInsightFragments'));
