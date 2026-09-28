@@ -236,7 +236,7 @@ void main() {
     final rect = tester.getRect(board);
     expect(rect.width / rect.height, closeTo(1.49, .001));
     final secondRow = tester.getRect(tiles.at(2));
-    expect(secondRow.top - left.bottom, closeTo(22, .001));
+    expect(secondRow.top - left.bottom, closeTo(3, .001));
     // Only the pane viewport scrolls; header and search retain their bounds.
     tester.view.physicalSize = const Size(1179, 1950);
     await tester.pumpAndSettle();

@@ -223,7 +223,8 @@ class _PagesLayoutState extends State<PagesLayout> {
                                 SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
                                   crossAxisSpacing: 8,
-                                  mainAxisSpacing: 22,
+                                  // Caption space is already reserved in the tile extent.
+                                  mainAxisSpacing: 3,
                                   mainAxisExtent: width / 1.49 + 43,
                                 ),
                           );
