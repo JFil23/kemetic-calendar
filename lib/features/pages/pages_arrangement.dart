@@ -1,3 +1,4 @@
+import 'pages_feed_rotation.dart';
 import '../../data/share_models.dart';
 import 'pages_models.dart';
 import '../../data/commons_models.dart';
@@ -23,36 +24,71 @@ class PagesEventWindow {
   final DateTime end;
 }
 
-class PagesFeedCandidate {
-  const PagesFeedCandidate({
-    required this.flow,
-    required this.at,
-    required this.reason,
-    this.unresolved = false,
-    this.joinable = false,
-    this.ownShared = false,
-    this.actor = '',
-    this.actorId,
-  });
-  final PagesFlow flow;
-  final DateTime at;
-  final String reason, actor;
-  final String? actorId;
-  final bool unresolved, joinable, ownShared;
-}
-
-PagesFeedCandidate? selectPagesFeed(Iterable<PagesFeedCandidate> records) {
-  final rows = records.toList()..sort((a, b) => b.at.compareTo(a.at));
-  for (final predicate in <bool Function(PagesFeedCandidate)>[
-    (r) => r.unresolved,
-    (r) => r.joinable,
-    (r) => r.ownShared,
+/// Stable within a local day/edition, independent of payload ordering. Eligibility
+/// is rechecked on each existing cache update; nothing is recorded as "seen".
+({PagesFeedDisplay display, CommonsPracticeRoom? practice})
+selectPagesFeedEdition({
+  required DateTime now,
+  required CommonsQuestion question,
+  required CommonsHomeSnapshot commons,
+}) {
+  final edition = PagesFeedRotation.editionAt(now);
+  final byId = <String, CommonsPracticeRoom>{};
+  // Prefer the viewer-specific record when the same room appears in both lists.
+  for (final room in [
+    ...commons.mySharedPractices,
+    ...commons.publicSharedPractices,
   ]) {
-    for (final row in rows) {
-      if (predicate(row)) return row;
+    if (room.id.isNotEmpty) byId.putIfAbsent(room.id, () => room);
+  }
+  final rooms =
+      byId.values
+          .where(
+            (room) =>
+                room.title.trim().isNotEmpty &&
+                room.memberCount >= 2 &&
+                !room.viewerCanManage &&
+                room.viewerRequestStatus != 'approved' &&
+                isPagesJoinable(room),
+          )
+          .toList()
+        ..sort((a, b) => a.id.compareTo(b.id));
+  final day = now.toLocal();
+  final seed = '${day.year}-${day.month}-${day.day}:${edition.name}';
+  var hash = 0;
+  for (final unit in seed.codeUnits) {
+    hash = (hash * 31 + unit) & 0x7fffffff;
+  }
+  final room = rooms.isEmpty ? null : rooms[hash % rooms.length];
+  final unanswered =
+      question.question.trim().isNotEmpty &&
+      question.myAnswer == null &&
+      !question.answers.any((answer) => answer.isMine);
+  final priorities = switch (edition) {
+    PagesFeedEdition.dawn => [
+      PagesFeedDisplay.question,
+      PagesFeedDisplay.practice,
+      PagesFeedDisplay.publicRhythm,
+    ],
+    PagesFeedEdition.midday => [
+      PagesFeedDisplay.practice,
+      PagesFeedDisplay.question,
+      PagesFeedDisplay.publicRhythm,
+    ],
+    PagesFeedEdition.dusk => [PagesFeedDisplay.publicRhythm],
+  };
+  for (final display in priorities) {
+    if (display == PagesFeedDisplay.question && unanswered) {
+      return (display: display, practice: null);
+    }
+    if (display == PagesFeedDisplay.practice && room != null) {
+      return (display: display, practice: room);
+    }
+    if (display == PagesFeedDisplay.publicRhythm) {
+      return (display: display, practice: null);
     }
   }
-  return null;
+  return (display: PagesFeedDisplay.publicRhythm, practice: null);
 }
 
 class PagesUpcomingEvent {

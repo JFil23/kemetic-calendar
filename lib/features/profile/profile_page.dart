@@ -1,3 +1,4 @@
+import 'commons_practice_card.dart';
 import 'commons_rhythm_block.dart';
 import '../../data/commons_question_selection.dart';
 import 'commons_question_block.dart';
@@ -28,7 +29,6 @@ import '../../services/app_haptics.dart';
 import '../../services/navigation_trace.dart';
 import '../../services/restoration_coordinator.dart';
 import '../../widgets/keyboard_aware.dart';
-import '../../widgets/profile_avatar.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
 import '../calendar/calendar_invalidation.dart';
@@ -3080,10 +3080,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     );
   }
 
-  String _plural(int count, String singular, [String? plural]) {
-    return count == 1 ? singular : plural ?? '${singular}s';
-  }
-
   String _compactInsightText(String value, {int maxLength = 150}) {
     final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (normalized.length <= maxLength) return normalized;
@@ -3391,175 +3387,16 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               ? 1
               : -1),
     );
-    final viewerAction = _buildCommonsPracticeViewerAction(room);
-    return buildCommonsCard(
-      borderColor: _profileGoldMid.withValues(alpha: 0.22),
-      padding: const EdgeInsets.all(15),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildCommonsStatusPill(
-                      'Public group flow',
-                      color: const Color(0xFF30D5C8),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      room.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontFamily: _profileSerifFont,
-                        fontFamilyFallback: _profileSerifFallback,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        height: 1.05,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              if (room.viewerIsMember || room.viewerCanManage)
-                IconButton(
-                  onPressed: () => context.push(
-                    '/shared-practice/${Uri.encodeComponent(room.id)}',
-                  ),
-                  tooltip: 'Open group flow',
-                  icon: const Icon(Icons.open_in_new_rounded, size: 20),
-                  color: _profileGoldText,
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withValues(alpha: 0.28),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            [
-              if (room.calendarName?.trim().isNotEmpty == true)
-                room.calendarName!.trim(),
-              '${room.memberCount} ${_plural(room.memberCount, 'member')}',
-            ].join(' · '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.58),
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildCommonsPublicMemberRoster(room),
-          const Spacer(),
-          Row(
-            children: [
-              TextButton.icon(
-                key: ValueKey<String>('commons_group_like_${room.id}'),
-                onPressed: _commonsLikeBusyIds.contains(room.id)
-                    ? null
-                    : () => unawaited(_toggleCommonsRoomLike(room)),
-                icon: Icon(
-                  liked
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  size: 18,
-                ),
-                label: Text(likeCount > 0 ? '$likeCount' : 'Like'),
-                style: TextButton.styleFrom(
-                  foregroundColor: liked
-                      ? const Color(0xFFC4DCE8)
-                      : Colors.white.withValues(alpha: 0.62),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: const Size(0, 40),
-                ),
-              ),
-              const Spacer(),
-              viewerAction,
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'The group is public here; its conversation stays with the people practicing inside it.',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.50),
-              fontFamily: _profileSerifFont,
-              fontFamilyFallback: _profileSerifFallback,
-              fontStyle: FontStyle.italic,
-              fontSize: 14,
-              height: 1.24,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCommonsPublicMemberRoster(CommonsPracticeRoom room) {
-    final visibleMembers = room.publicMembers.take(3).toList(growable: false);
-    if (visibleMembers.isEmpty) {
-      return Text(
-        '${room.memberCount} practicing · names kept private',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.52),
-          fontFamily: _profileSerifFont,
-          fontFamilyFallback: _profileSerifFallback,
-          fontSize: 14,
-          fontStyle: FontStyle.italic,
-        ),
-      );
-    }
-    final privateCount = math.max(0, room.memberCount - visibleMembers.length);
-    return Row(
-      children: [
-        SizedBox(
-          width: 28.0 + ((visibleMembers.length - 1) * 19),
-          height: 30,
-          child: Stack(
-            children: [
-              for (var index = 0; index < visibleMembers.length; index++)
-                Positioned(
-                  left: index * 19,
-                  child: ProfileAvatar(
-                    radius: 14,
-                    displayName: visibleMembers[index].label,
-                    avatarUrl: visibleMembers[index].avatarUrl,
-                    avatarGlyphIds: visibleMembers[index].avatarGlyphIds,
-                    backgroundColor: const Color(0xFF163C32),
-                    foregroundColor: const Color(0xFFB9E5D7),
-                    borderColor: const Color(0xFF090704),
-                    borderWidth: 1,
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            [
-              visibleMembers.map((member) => member.label).join(', '),
-              if (privateCount > 0) '+ $privateCount private',
-            ].join(' · '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.62),
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
+    return CommonsPracticeCard(
+      room: room,
+      liked: liked,
+      likeCount: likeCount,
+      onLike: _commonsLikeBusyIds.contains(room.id)
+          ? null
+          : () => unawaited(_toggleCommonsRoomLike(room)),
+      onOpen: () =>
+          context.push('/shared-practice/${Uri.encodeComponent(room.id)}'),
+      viewerAction: _buildCommonsPracticeViewerAction(room),
     );
   }
 

@@ -51,29 +51,6 @@ void main() {
     );
   });
 
-  test('new join request outranks older unseen like across activity types', () {
-    final selected = selectPagesFeed([
-      PagesFeedCandidate(
-        flow: flow,
-        at: DateTime(2026, 9, 25),
-        reason: 'Liked',
-        unresolved: true,
-      ),
-      PagesFeedCandidate(
-        flow: flow,
-        at: DateTime(2026, 9, 26),
-        reason: 'Wants to join',
-        unresolved: true,
-      ),
-      PagesFeedCandidate(
-        flow: flow,
-        at: DateTime(2026, 9, 27),
-        reason: 'Public',
-        joinable: true,
-      ),
-    ]);
-    expect(selected!.reason, 'Wants to join');
-  });
   test('public visibility does not imply join eligibility', () {
     CommonsPracticeRoom room({
       bool eligible = true,

@@ -102,6 +102,7 @@ class PagesCard {
     this.unread = 0,
     this.question,
     this.rhythm,
+    this.practice,
     this.feedDisplay = PagesFeedDisplay.question,
     this.badges = const [],
     this.calendarDate,
@@ -127,6 +128,7 @@ class PagesCard {
   final int unread;
   final CommonsQuestion? question;
   final CommonsRhythmSummary? rhythm;
+  final CommonsPracticeRoom? practice;
   final PagesFeedDisplay feedDisplay;
   final List<EventBadgeToken> badges;
   String get title => switch (destination) {

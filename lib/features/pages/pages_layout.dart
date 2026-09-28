@@ -291,13 +291,19 @@ class _PagesLayoutState extends State<PagesLayout> {
                           final width = (constraints.crossAxisExtent - 8) / 2;
                           return SliverGrid(
                             delegate: SliverChildBuilderDelegate(
-                              (context, i) => ValueListenableBuilder<PagesCard>(
-                                valueListenable: widget.cards[i],
-                                builder: (context, card, _) => PagesTile(
-                                  card: card,
-                                  onTap: () => widget.onOpen(card.destination),
-                                ),
-                              ),
+                              (context, i) => i == PagesDestination.feed.index
+                                  ? _SteadyFeedTile(
+                                      card: widget.cards[i],
+                                      onOpen: widget.onOpen,
+                                    )
+                                  : ValueListenableBuilder<PagesCard>(
+                                      valueListenable: widget.cards[i],
+                                      builder: (context, card, _) => PagesTile(
+                                        card: card,
+                                        onTap: () =>
+                                            widget.onOpen(card.destination),
+                                      ),
+                                    ),
                               childCount: widget.cards.length,
                             ),
                             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -445,4 +451,62 @@ class _PagesLayoutState extends State<PagesLayout> {
       ),
     );
   }
+}
+
+/// Defer an incoming card while it is being touched; no persisted seen state.
+class _SteadyFeedTile extends StatefulWidget {
+  const _SteadyFeedTile({required this.card, required this.onOpen});
+  final ValueListenable<PagesCard> card;
+  final ValueChanged<PagesDestination> onOpen;
+  @override
+  State<_SteadyFeedTile> createState() => _SteadyFeedTileState();
+}
+
+class _SteadyFeedTileState extends State<_SteadyFeedTile> {
+  late PagesCard _shown;
+  final _pointers = <int>{};
+  @override
+  void initState() {
+    super.initState();
+    _shown = widget.card.value;
+    widget.card.addListener(_refresh);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SteadyFeedTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.card != widget.card) {
+      oldWidget.card.removeListener(_refresh);
+      widget.card.addListener(_refresh);
+      _refresh();
+    }
+  }
+
+  void _refresh() {
+    if (mounted && _pointers.isEmpty && !identical(_shown, widget.card.value)) {
+      setState(() => _shown = widget.card.value);
+    }
+  }
+
+  void _release(PointerEvent event) {
+    _pointers.remove(event.pointer);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+  }
+
+  @override
+  void dispose() {
+    widget.card.removeListener(_refresh);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Listener(
+    onPointerDown: (event) => _pointers.add(event.pointer),
+    onPointerUp: _release,
+    onPointerCancel: _release,
+    child: PagesTile(
+      card: _shown,
+      onTap: () => widget.onOpen(_shown.destination),
+    ),
+  );
 }

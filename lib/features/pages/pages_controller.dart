@@ -458,6 +458,14 @@ class PagesController {
       c.calendars,
       c.unread,
       c.feedDisplay,
+      if (c.practice != null)
+        [
+          c.practice!.id,
+          c.practice!.title,
+          c.practice!.memberCount,
+          for (final member in c.practice!.publicMembers.take(3))
+            [member.userId, member.label, member.avatarGlyphIds],
+        ],
       if (c.rhythm != null)
         [
           c.rhythm!.activeUsersTodayLabel,
@@ -765,13 +773,21 @@ class PagesController {
       _missing(PagesDestination.feed, ['social.commons']);
       return;
     }
+    final now = _feedRotation.now;
+    final question = activeCommonsQuestion(commons, now);
+    final selected = selectPagesFeedEdition(
+      now: now,
+      question: question,
+      commons: commons,
+    );
     _set(
       PagesCard(
         PagesDestination.feed,
         state: PagesLoadState.ready,
-        question: activeCommonsQuestion(commons, DateTime.now()),
+        question: question,
         rhythm: commons.rhythm,
-        feedDisplay: _feedRotation.display,
+        practice: selected.practice,
+        feedDisplay: selected.display,
       ),
     );
   }

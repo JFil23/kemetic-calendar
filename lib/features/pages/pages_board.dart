@@ -1,3 +1,4 @@
+import '../profile/commons_practice_card.dart';
 import 'pages_feed_rotation.dart';
 import '../profile/commons_rhythm_block.dart';
 import 'pages_studio_graphic.dart';
@@ -224,6 +225,10 @@ class PagesTile extends StatelessWidget {
   Widget _large() {
     switch (card.destination) {
       case PagesDestination.feed:
+        if (card.feedDisplay == PagesFeedDisplay.practice &&
+            card.practice != null) {
+          return CommonsPracticeCard(room: card.practice!, pane: true);
+        }
         return card.feedDisplay == PagesFeedDisplay.publicRhythm &&
                 card.rhythm != null
             ? CommonsRhythmBlock(summary: card.rhythm, pane: true)

@@ -112,7 +112,7 @@ void main() {
       final cardSource = _methodSource(
         source,
         'Widget _buildCommonsPracticeRoomCard(CommonsPracticeRoom room)',
-        'Widget _buildCommonsPublicMemberRoster(CommonsPracticeRoom room)',
+        'Widget _buildCommonsPracticeViewerAction(CommonsPracticeRoom room)',
       );
       final viewerActionSource = _methodSource(
         source,
@@ -137,10 +137,14 @@ void main() {
       expect(sectionSource, contains('BouncingScrollPhysics'));
       expect(sectionSource, contains('onPageChanged'));
       expect(sectionSource, contains('_buildCommonsCarouselDots'));
-      expect(cardSource, contains("'Public group flow'"));
-      expect(cardSource, contains('room.memberCount'));
-      expect(cardSource, contains('_buildCommonsPublicMemberRoster(room)'));
-      expect(cardSource, contains('commons_group_like_'));
+      expect(cardSource, contains('CommonsPracticeCard('));
+      final sharedCard = File(
+        'lib/features/profile/commons_practice_card.dart',
+      ).readAsStringSync();
+      expect(sharedCard, contains("'Public group flow'"));
+      expect(sharedCard, contains('room.memberCount'));
+      expect(sharedCard, contains('_buildCommonsPublicMemberRoster(room)'));
+      expect(sharedCard, contains('commons_group_like_'));
       expect(viewerActionSource, contains("'Open flow'"));
       expect(
         viewerActionSource,

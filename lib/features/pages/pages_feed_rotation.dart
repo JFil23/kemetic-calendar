@@ -1,22 +1,42 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
-enum PagesFeedDisplay { question, publicRhythm }
+enum PagesFeedDisplay { question, practice, publicRhythm }
 
-/// Local presentation only: no repository, cache invalidation or persistence.
-/// Even local hours show the question; odd hours show public rhythm.
+enum PagesFeedEdition { dawn, midday, dusk }
+
+/// Local presentation only. A boundary never fetches, invalidates or persists.
 class PagesFeedRotation extends ChangeNotifier {
   PagesFeedRotation({DateTime Function()? now}) : _now = now ?? DateTime.now {
-    display = displayAt(_now());
+    edition = editionAt(this.now);
   }
   final DateTime Function() _now;
-  late PagesFeedDisplay display;
+  DateTime get now => _now().toLocal();
+  late PagesFeedEdition edition;
   Timer? _timer;
   bool _active = false;
 
-  static PagesFeedDisplay displayAt(DateTime now) => now.hour.isEven
-      ? PagesFeedDisplay.question
-      : PagesFeedDisplay.publicRhythm;
+  static PagesFeedEdition editionAt(DateTime time) {
+    final local = time.toLocal();
+    final minute = local.hour * 60 + local.minute;
+    if (minute < 300 || minute >= 1050) return PagesFeedEdition.dusk;
+    return minute < 690 ? PagesFeedEdition.dawn : PagesFeedEdition.midday;
+  }
+
+  static DateTime nextBoundary(DateTime time) {
+    final local = time.toLocal();
+    for (final minute in [300, 690, 1050]) {
+      final at = DateTime(
+        local.year,
+        local.month,
+        local.day,
+        minute ~/ 60,
+        minute % 60,
+      );
+      if (at.isAfter(local)) return at;
+    }
+    return DateTime(local.year, local.month, local.day + 1, 5);
+  }
 
   void setActive(bool active) {
     _timer?.cancel();
@@ -27,23 +47,18 @@ class PagesFeedRotation extends ChangeNotifier {
   }
 
   void _refresh() {
-    final next = displayAt(_now());
-    if (display == next) return;
-    display = next;
+    final next = editionAt(now);
+    if (edition == next) return;
+    edition = next;
     notifyListeners();
   }
 
   void _schedule() {
     if (!_active) return;
-    final now = _now();
-    final elapsed = Duration(
-      minutes: now.minute,
-      seconds: now.second,
-      milliseconds: now.millisecond,
-      microseconds: now.microsecond,
-    );
+    final current = now;
     _timer = Timer(
-      const Duration(hours: 1) - elapsed + const Duration(milliseconds: 20),
+      nextBoundary(current).difference(current) +
+          const Duration(milliseconds: 20),
       () {
         if (!_active) return;
         _refresh();
