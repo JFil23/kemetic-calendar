@@ -128,3 +128,11 @@ The reflection label and question now form a top-aligned stack, with consistent
 outer padding, tighter question leading, and a taller answer preview. The footer
 has its own gap and bottom inset. Verified rendered proportions and clipping at
 150 and 186.5 logical pixels, including saved and unanswered states.
+
+### Journal badge presentation
+
+Removed the alternate Pages-only badge card. The pane now renders the same
+collapsed EventBadgeWidget pill as the Journal sheet, aligned top-left, including
+the canonical glossy title, completion icon/color, rounded border and inline
+time. Long titles follow its existing single-line ellipsis behavior. Verified
+with the Household Table title and 7:30a time, plus the existing pane tap test.

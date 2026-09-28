@@ -136,11 +136,11 @@ class JournalBadgesArea extends StatelessWidget {
                     height: 40,
                     fontSize: 40,
                   )
-                : Center(
+                : Align(
+                    alignment: Alignment.topLeft,
                     child: EventBadgeWidget(
                       token: badges.first,
                       expandable: false,
-                      pane: true,
                     ),
                   ),
           ),

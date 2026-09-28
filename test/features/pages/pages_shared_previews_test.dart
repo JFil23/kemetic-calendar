@@ -127,10 +127,11 @@ void main() {
     'shared badge area renders actual tokens without preview controls taking taps',
     (tester) async {
       var taps = 0;
-      const badge = EventBadgeToken(
+      final badge = EventBadgeToken(
         id: 'calendar:test',
-        title: 'Actual badge',
-        color: Colors.purple,
+        title: 'Day 11: The Household Table Opens',
+        start: DateTime(2026, 9, 27, 7, 30),
+        color: const Color(0xFFB98042),
       );
       await tester.pumpWidget(
         MaterialApp(
@@ -141,7 +142,7 @@ void main() {
                 width: 186.5,
                 height: 170,
                 child: PagesTile(
-                  card: const PagesCard(
+                  card: PagesCard(
                     PagesDestination.journal,
                     state: PagesLoadState.ready,
                     badges: [badge],
@@ -155,7 +156,12 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('1 badge'), findsOneWidget);
-      expect(find.text('Actual badge'), findsOneWidget);
+      expect(find.text(badge.title), findsOneWidget);
+      expect(find.text('7:30a'), findsOneWidget);
+      expect(
+        tester.getCenter(find.text(badge.title)).dy,
+        closeTo(tester.getCenter(find.text('7:30a')).dy, 1),
+      );
       expect(
         find.descendant(
           of: find.byType(PagesTile),

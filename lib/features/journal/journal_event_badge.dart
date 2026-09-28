@@ -245,7 +245,6 @@ class EventBadgeWidget extends StatefulWidget {
   final EventBadgeToken token;
   final bool initialExpanded;
   final bool expandable;
-  final bool pane;
   final ValueChanged<bool>? onToggle;
   final VoidCallback? onDelete;
 
@@ -254,7 +253,6 @@ class EventBadgeWidget extends StatefulWidget {
     required this.token,
     this.initialExpanded = false,
     this.expandable = true,
-    this.pane = false,
     this.onToggle,
     this.onDelete,
   });
@@ -301,11 +299,7 @@ class _EventBadgeWidgetState extends State<EventBadgeWidget>
               onTap: _toggle,
               onDelete: widget.onDelete,
             )
-          : _CollapsedEventBadge(
-              token: widget.token,
-              onTap: _toggle,
-              pane: widget.pane,
-            ),
+          : _CollapsedEventBadge(token: widget.token, onTap: _toggle),
     );
   }
 }
@@ -314,63 +308,11 @@ class _CollapsedEventBadge extends StatelessWidget {
   final EventBadgeToken token;
   final VoidCallback onTap;
 
-  const _CollapsedEventBadge({
-    required this.token,
-    required this.onTap,
-    this.pane = false,
-  });
-  final bool pane;
+  const _CollapsedEventBadge({required this.token, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final color = _badgeColorFor(token);
-    if (pane) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: .14),
-          border: Border.all(color: color.withValues(alpha: .7)),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(_badgeIconFor(token), size: 20, color: color),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    token.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'CormorantGaramond',
-                      fontSize: 17,
-                      height: 1.05,
-                      color: Color(0xFFE8CF80),
-                    ),
-                  ),
-                  if (token.start != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      _shortTime(token.start!),
-                      style: const TextStyle(
-                        fontFamily: 'GentiumPlus',
-                        fontSize: 10,
-                        color: Color(0xFFA39D92),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
