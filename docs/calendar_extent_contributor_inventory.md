@@ -443,3 +443,26 @@ colors, and scales the result inside its own fixed board; it is not a year
 sliver or extent-index consumer. The contributor list, environment inputs,
 section topology and equations above remain unchanged. The
 `year_and_month_sections` hash was updated only after this comparison.
+
+## 2026-09-28 preview anchor identity re-audit
+
+The navigation repair moves current-decan header key allocation out of the
+shared `_MonthCard` renderer. `_YearSection` supplies the same global key to the
+main calendar; read-only previews supply no navigation key. The existing
+`KeyedSubtree`, label row, gesture child, and all layout widgets remain in place.
+
+The affected `year_and_month_sections` fragment was compared against
+`fc00d6f2887363b855566b8c6925caf0a4c940fa`. Its only executable changes are the
+optional key provider, main-calendar provider wiring, and key lookup. No
+vertical padding, fixed height, text style/scaler, details cap, chip projection,
+month enumeration, Heriu rendering, or fractional expansion equation changed.
+The closed contributor list and both month-body equations remain unchanged.
+Eight app-font preview captures (four expansion levels at 393x852 and 852x393)
+are byte-identical before and after the key isolation.
+
+The correction mailbox now also retains the render anchor selected before
+layout, rather than calling a geometry-dependent selector during layout.
+Correction still uses the same object's before/after viewport coordinate and
+`ViewportOffset.correctBy` inside the same layout transaction. Existing extent
+and fractional-day tests verify anchor preservation without scroll events;
+removed anchors continue to fail closed without applying a correction.

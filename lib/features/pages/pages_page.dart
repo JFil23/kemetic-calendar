@@ -25,7 +25,9 @@ class _PagesPageState extends State<PagesPage>
   PageRoute? _route;
   StreamSubscription? _auth;
   DateTime? _backgroundedAt;
-  bool _covered = false, _opening = false;
+  bool _covered = false;
+  Object? _openingOperation;
+  bool get _opening => _openingOperation != null;
   bool get _foreground =>
       WidgetsBinding.instance.lifecycleState == null ||
       WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
@@ -89,6 +91,9 @@ class _PagesPageState extends State<PagesPage>
   @override
   void didPopNext() {
     _covered = false;
+    // Browser history can remove a pushed route without completing its Future.
+    // Becoming the visible page ends that operation's ownership of the guard.
+    _openingOperation = null;
     _activate();
   }
 
@@ -116,14 +121,15 @@ class _PagesPageState extends State<PagesPage>
   }
 
   Future<void> _present(Future<void> Function() action) async {
-    if (_opening) return;
-    _opening = true;
+    if (_opening || _covered) return;
+    final operation = Object();
+    _openingOperation = operation;
     _activate();
     try {
       await action();
     } finally {
-      if (mounted) {
-        _opening = false;
+      if (mounted && identical(_openingOperation, operation)) {
+        _openingOperation = null;
         _activate();
       }
     }

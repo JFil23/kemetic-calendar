@@ -49,9 +49,19 @@ void main() {
     final beforePixels = scroll.position.pixels;
     scrollNotifications = 0;
 
+    var selections = 0;
     correction.request(
       geometryRevision: 'geometry-2',
-      resolveAnchor: () => anchor.currentContext?.findRenderObject(),
+      resolveAnchor: () {
+        selections++;
+        // Anchor selection may inspect ancestor geometry in this phase, but
+        // must not be repeated from the viewport's performLayout callback.
+        final box =
+            Scrollable.of(anchor.currentContext!).context.findRenderObject()!
+                as RenderBox;
+        expect(box.size.height, greaterThan(0));
+        return anchor.currentContext?.findRenderObject();
+      },
     );
     height.value = 260;
     await tester.pump();
@@ -61,6 +71,7 @@ void main() {
     expect(scrollNotifications, 0);
     expect(correction.pending, isNull);
     expect(correction.debugLastCorrection, closeTo(140, 0.001));
+    expect(selections, 1);
   });
 
   testWidgets('missing anchor fails closed without a scroll correction', (
@@ -87,6 +98,50 @@ void main() {
     expect(correction.pending, isNull);
     expect(correction.debugMissingAnchorCount, 1);
     expect(correction.debugLastCorrection, 0);
+  });
+
+  testWidgets('removed anchor cannot correct against a replacement widget', (
+    tester,
+  ) async {
+    final correction = CalendarLayoutCorrectionController();
+    final scroll = ScrollController(initialScrollOffset: 50);
+    final anchor = GlobalKey();
+    final showAnchor = ValueNotifier<bool>(true);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ValueListenableBuilder<bool>(
+          valueListenable: showAnchor,
+          builder: (_, visible, _) => CalendarEpochScrollView(
+            controller: scroll,
+            correctionController: correction,
+            slivers: [
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              SliverToBoxAdapter(
+                child: visible
+                    ? SizedBox(key: anchor, height: 80)
+                    : const SizedBox(height: 160),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 1200)),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final before = scroll.position.pixels;
+    correction.request(
+      geometryRevision: 'removed-anchor',
+      resolveAnchor: () => anchor.currentContext?.findRenderObject(),
+    );
+    showAnchor.value = false;
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(scroll.position.pixels, before);
+    expect(correction.debugMissingAnchorCount, 1);
+    expect(correction.debugLastCorrection, 0);
+    await tester.pumpWidget(const SizedBox());
+    scroll.dispose();
+    showAnchor.dispose();
   });
 
   testWidgets(

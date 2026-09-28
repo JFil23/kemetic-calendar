@@ -237,6 +237,8 @@ class _YearSection extends StatelessWidget {
     };
 
     return _MonthCard(
+      currentDecanHeaderKeyProvider: (decan) =>
+          keyForCurrentDecanHeader(kYear, kMonth, decan),
       anchorKey: monthAnchorKeyProvider?.call(kMonth),
       monthHeaderKey: monthHeaderKeyProvider?.call(kMonth),
       dayAnchorKeyProvider: dayAnchorKeyProvider,
@@ -972,6 +974,9 @@ class _SoftMonthNameTitle extends StatelessWidget {
 }
 
 class _MonthCard extends StatelessWidget {
+  // Only the main calendar supplies navigation/coachmark anchors. Previews
+  // share the visuals, but must never claim those global widget identities.
+  final Key? Function(int decan)? currentDecanHeaderKeyProvider;
   final Key? anchorKey;
   final Key? monthHeaderKey;
   final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
@@ -1008,6 +1013,7 @@ class _MonthCard extends StatelessWidget {
   final void Function(BuildContext context, int decanIndex)? onDecanTap;
 
   const _MonthCard({
+    this.currentDecanHeaderKeyProvider,
     this.anchorKey,
     this.monthHeaderKey,
     this.dayAnchorKeyProvider,
@@ -1339,7 +1345,7 @@ class _MonthCard extends StatelessWidget {
                             children: [
                               KeyedSubtree(
                                 key: currentDecanIndex == i
-                                    ? keyForCurrentDecanHeader(kYear, kMonth, i)
+                                    ? currentDecanHeaderKeyProvider?.call(i)
                                     : null,
                                 child: GestureDetector(
                                   onTap: () {

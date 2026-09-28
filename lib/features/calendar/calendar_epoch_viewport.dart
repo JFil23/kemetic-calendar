@@ -57,14 +57,16 @@ final class CalendarLayoutCorrectionRequest {
   const CalendarLayoutCorrectionRequest({
     required this.serial,
     required this.geometryRevision,
-    required this.resolveAnchor,
+    required this.anchor,
     required this.alignment,
     required this.beforeViewportCoordinate,
   });
 
   final int serial;
   final String geometryRevision;
-  final CalendarLayoutAnchorResolver resolveAnchor;
+  // Identity is captured before layout: geometry-dependent selection must not
+  // run from performLayout, or switch the reference midway through correction.
+  final RenderObject? anchor;
   final double alignment;
   final double? beforeViewportCoordinate;
 }
@@ -82,6 +84,8 @@ final class CalendarLayoutCorrectionController {
   int get debugMissingAnchorCount => _missingAnchorCount;
   double get debugLastCorrection => _lastCorrection;
 
+  /// Selects the anchor once in the caller's phase, before geometry changes.
+  /// The viewport subsequently measures only that same render object.
   void request({
     required String geometryRevision,
     required CalendarLayoutAnchorResolver resolveAnchor,
@@ -118,7 +122,7 @@ final class CalendarLayoutCorrectionController {
     _pending = CalendarLayoutCorrectionRequest(
       serial: ++_nextSerial,
       geometryRevision: geometryRevision.trim(),
-      resolveAnchor: resolveAnchor,
+      anchor: anchor,
       alignment: alignment,
       beforeViewportCoordinate: beforeViewportCoordinate,
     );
@@ -268,8 +272,7 @@ class RenderCalendarEpochViewport extends RenderViewport {
     final before = request.beforeViewportCoordinate;
     super.performLayout();
 
-    final afterAnchor = request.resolveAnchor();
-    final after = _viewportCoordinate(afterAnchor);
+    final after = _viewportCoordinate(request.anchor);
     if (before == null || after == null) {
       _correctionController.complete(
         request,
