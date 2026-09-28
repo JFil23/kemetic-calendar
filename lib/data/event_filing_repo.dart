@@ -29,6 +29,26 @@ class EventFilingRepo {
     }
   }
 
+  /// A bounded page from the existing filing authority; no hydration or writes.
+  Future<List<FiledEvent>> getOwnedItemsPage({
+    required FiledItemKind kind,
+    required int offset,
+    int pageSize = 50,
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return const [];
+    final rows = await _client
+        .from(viewName)
+        .select(selectColumns)
+        .eq('user_id', uid)
+        .eq('item_kind', kind.name)
+        .neq('lifecycle', 'deleted')
+        .order('starts_at', ascending: false)
+        .order('id', ascending: false)
+        .range(offset, offset + pageSize - 1);
+    return rows.map((row) => FiledEvent.fromBackendRow(row)).toList();
+  }
+
   Future<FiledEventCabinet> getEventCabinet({
     String? calendarId,
     bool liveOnly = false,

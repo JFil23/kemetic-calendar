@@ -7,6 +7,8 @@ import '../../core/navigation_fallback.dart';
 import '../../data/profile_repo.dart';
 import '../calendar/calendar_page.dart';
 import 'pages_controller.dart';
+import 'pages_collections.dart';
+import 'pages_collections_controller.dart';
 import 'pages_layout.dart';
 import 'pages_models.dart';
 
@@ -19,6 +21,7 @@ class PagesPage extends StatefulWidget {
 class _PagesPageState extends State<PagesPage>
     with WidgetsBindingObserver, RouteAware {
   PagesController? _controller;
+  PagesCollectionsController? _collections;
   PageRoute? _route;
   StreamSubscription? _auth;
   DateTime? _backgroundedAt;
@@ -32,6 +35,7 @@ class _PagesPageState extends State<PagesPage>
     WidgetsBinding.instance.addObserver(this);
     final client = Supabase.instance.client;
     if (client.auth.currentUser != null) {
+      _collections = PagesCollectionsController(client);
       _controller = PagesController(
         client,
         onLocalBoundary: CalendarPage.publishPagesSnapshot,
@@ -42,6 +46,8 @@ class _PagesPageState extends State<PagesPage>
           _controller != null &&
           event.session?.user.id != _controller!.uid) {
         _controller!.dispose();
+        _collections?.dispose();
+        _collections = null;
         setState(() => _controller = null);
       }
     });
@@ -63,6 +69,7 @@ class _PagesPageState extends State<PagesPage>
 
   void _activate({bool resumed = false}) {
     if (mounted) {
+      _collections?.setVisible(!_covered && !_opening && _foreground);
       _controller?.setVisible(
         !_covered && !_opening && _foreground,
         resumed: resumed,
@@ -101,6 +108,7 @@ class _PagesPageState extends State<PagesPage>
     routeObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
+    _collections?.dispose();
     super.dispose();
   }
 
@@ -161,33 +169,56 @@ class _PagesPageState extends State<PagesPage>
     final profile = ProfileRepo(
       Supabase.instance.client,
     ).getCachedProfileSync(controller.uid);
-    return PagesLayout(
-      cards: controller.cards,
-      onOpen: (d) => unawaited(_open(d)),
-      profileName: profile?.effectiveName ?? '',
-      profileHandle: profile?.handle ?? '',
-      profileGlyphIds: profile?.avatarGlyphIds ?? const [],
-      searchRecords: controller.searchRecords,
-      onProfile: () => unawaited(
-        _present(() async {
-          await openDetailRoute<void>(context, '/profile/me');
-        }),
-      ),
-      onNewNote: () => unawaited(
-        _present(() => CalendarPage.openQuickAddFromAnyContext(context)),
-      ),
-      onSearchResult: (r) => unawaited(
-        _present(() async {
-          if ([
-            '/rhythm/today',
-            '/journal',
-            '/calendars',
-          ].contains(r.location)) {
-            await openUtilityRoute<void>(context, r.location);
-          } else {
-            await openDetailRoute<void>(context, r.location);
+    return ValueListenableBuilder<PagesCollectionState>(
+      valueListenable: _collections!,
+      builder: (context, collection, _) => PagesLayout(
+        collectionState: collection,
+        onCollectionChanged: _collections!.select,
+        onLoadMore: () => unawaited(_collections!.loadMore()),
+        onRetry: () => unawaited(_collections!.retry()),
+        onCollectionItem: (item) {
+          if (item.event != null) {
+            CalendarPage.openOwnedFiledItemFromAnyContext(context, item.event!);
+          } else if (item.flowId != null) {
+            unawaited(
+              _present(
+                () => CalendarPage.openFlowEditorFromAnyContext(
+                  context,
+                  flowId: item.flowId!,
+                  fallbackLocation: '/pages',
+                  source: 'pages-flow-list',
+                ),
+              ),
+            );
           }
-        }),
+        },
+        cards: controller.cards,
+        onOpen: (d) => unawaited(_open(d)),
+        profileName: profile?.effectiveName ?? '',
+        profileHandle: profile?.handle ?? '',
+        profileGlyphIds: profile?.avatarGlyphIds ?? const [],
+        searchRecords: controller.searchRecords,
+        onProfile: () => unawaited(
+          _present(() async {
+            await openDetailRoute<void>(context, '/profile/me');
+          }),
+        ),
+        onNewNote: () => unawaited(
+          _present(() => CalendarPage.openQuickAddFromAnyContext(context)),
+        ),
+        onSearchResult: (r) => unawaited(
+          _present(() async {
+            if ([
+              '/rhythm/today',
+              '/journal',
+              '/calendars',
+            ].contains(r.location)) {
+              await openUtilityRoute<void>(context, r.location);
+            } else {
+              await openDetailRoute<void>(context, r.location);
+            }
+          }),
+        ),
       ),
     );
   }

@@ -6523,6 +6523,28 @@ class CalendarPage extends StatefulWidget {
     return null;
   }
 
+  /// Reuses the calendar search identity bridge for an owned filing-list item.
+  static void openOwnedFiledItemFromAnyContext(
+    BuildContext context,
+    FiledEvent item,
+  ) {
+    final date = KemeticMath.fromGregorian(item.event.startsAt.toLocal());
+    final detail = _eventDetailRestorationStateForFiledCalendarEvent(
+      kYear: date.kYear,
+      kMonth: date.kMonth,
+      kDay: date.kDay,
+      filedEvent: item,
+    );
+    if (detail == null) return;
+    _routeHomeForSearchResult(
+      context,
+      ky: date.kYear,
+      km: date.kMonth,
+      kd: date.kDay,
+      eventDetail: detail,
+    );
+  }
+
   static Future<void> openFiledCalendarEventFromAnyContext(
     BuildContext context, {
     required SharedCalendarSummary calendar,

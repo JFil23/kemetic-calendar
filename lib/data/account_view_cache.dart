@@ -73,6 +73,13 @@ class AccountViewCache {
     if (!failed(key)) _attemptedEntry.remove(key);
   }
 
+  void invalidatePrefix(String userId, String prefix) {
+    if (_account != userId) return;
+    for (final key in {..._values.keys, ..._pending.keys}) {
+      if (key.startsWith(prefix)) invalidate(userId, key);
+    }
+  }
+
   Future<T?> load<T extends Object>(
     String userId,
     String key,

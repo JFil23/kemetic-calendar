@@ -214,7 +214,10 @@ void main() {
       });
     }
     expect(find.text('Pages'), findsNothing);
-    expect(tester.getCenter(find.text('bigjfil')).dx, closeTo(393 / 2, .1));
+    expect(tester.getCenter(find.text('bigjfil')).dx, lessThan(100));
+    expect(find.text('Notes'), findsOneWidget);
+    expect(find.text('Reminders'), findsOneWidget);
+    expect(find.text('Flows'), findsOneWidget);
     final searchRect = tester.getRect(find.byType(TextField).first);
     expect(searchRect.left, 6);
     expect(searchRect.right, 387);
