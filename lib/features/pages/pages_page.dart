@@ -38,7 +38,10 @@ class _PagesPageState extends State<PagesPage>
       _collections = PagesCollectionsController(client);
       _controller = PagesController(
         client,
-        onLocalBoundary: CalendarPage.publishPagesSnapshot,
+        onLocalBoundary: () {
+          CalendarPage.publishPagesSnapshot();
+          _collections?.refreshDate();
+        },
       );
     }
     _auth = client.auth.onAuthStateChange.listen((event) {

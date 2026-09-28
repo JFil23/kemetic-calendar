@@ -13,10 +13,14 @@ import 'pages_collections.dart';
 /// Visible, on-demand projections only. Classification and persistence remain
 /// in the existing filing view and flow repository.
 class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
-  PagesCollectionsController(this.client, {AccountViewCache? cache})
-    : cache = cache ?? AccountViewCache.instance,
-      uid = client.auth.currentUser!.id,
-      super(const PagesCollectionState()) {
+  PagesCollectionsController(
+    this.client, {
+    AccountViewCache? cache,
+    DateTime Function()? now,
+  }) : now = now ?? DateTime.now,
+       cache = cache ?? AccountViewCache.instance,
+       uid = client.auth.currentUser!.id,
+       super(const PagesCollectionState()) {
     this.cache.enterAccount(uid);
     _changes = CalendarInvalidationBus.instance.stream.listen((_) {
       this.cache.invalidatePrefix(uid, 'pages.collection.');
@@ -27,6 +31,21 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
   final SupabaseClient client;
   final AccountViewCache cache;
   final String uid;
+  final DateTime Function() now;
+  DateTime? _notesDay;
+  DateTime get _today {
+    final local = now().toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
+
+  void refreshDate() {
+    if (_active &&
+        value.collection == PagesCollection.notes &&
+        _notesDay != _today) {
+      unawaited(_load());
+    }
+  }
+
   final _pages = <PagesCollection, List<PagesCollectionItem>>{};
   StreamSubscription? _changes;
   bool _visible = false, _disposed = false;
@@ -56,6 +75,7 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
   Future<List<PagesCollectionItem>> _fetch(
     PagesCollection kind,
     int offset,
+    DateTime? notesDay,
   ) async {
     if (kind == PagesCollection.flows) {
       final repo = FlowsRepo(client);
@@ -83,6 +103,7 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
           ? FiledItemKind.note
           : FiledItemKind.reminder,
       offset: offset,
+      startsOnOrAfterUtc: notesDay?.toUtc(),
     );
     return rows
         .map(
@@ -108,12 +129,19 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
         (more && (value.loading || !value.hasMore))) {
       return;
     }
+    final notesDay = kind == PagesCollection.notes ? _today : null;
+    if (notesDay != null && notesDay != _notesDay) {
+      _notesDay = notesDay;
+      _pages.remove(PagesCollection.notes);
+      more = false;
+    }
     final token = ++_request;
     final prior = more
         ? (_pages[kind] ?? const <PagesCollectionItem>[])
         : const <PagesCollectionItem>[];
     final offset = prior.length;
-    final key = 'pages.collection.${kind.name}.$offset';
+    final dateScope = notesDay == null ? '' : '.${notesDay.toIso8601String()}';
+    final key = 'pages.collection.${kind.name}$dateScope.$offset';
     final at = cache.loadedAt(uid, key);
     final stale =
         at != null &&
@@ -154,7 +182,7 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
     final result = await cache.load<List<PagesCollectionItem>>(
       uid,
       key,
-      () => _fetch(kind, offset),
+      () => _fetch(kind, offset, notesDay),
       stale: stale,
       mayFetch: () => _active && value.collection == kind,
     );

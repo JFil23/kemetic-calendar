@@ -34,15 +34,23 @@ class EventFilingRepo {
     required FiledItemKind kind,
     required int offset,
     int pageSize = 50,
+    DateTime? startsOnOrAfterUtc,
   }) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return const [];
-    final rows = await _client
+    var query = _client
         .from(viewName)
         .select(selectColumns)
         .eq('user_id', uid)
         .eq('item_kind', kind.name)
-        .neq('lifecycle', 'deleted')
+        .neq('lifecycle', 'deleted');
+    if (startsOnOrAfterUtc != null) {
+      query = query.gte(
+        'starts_at',
+        startsOnOrAfterUtc.toUtc().toIso8601String(),
+      );
+    }
+    final rows = await query
         .order('starts_at', ascending: false)
         .order('id', ascending: false)
         .range(offset, offset + pageSize - 1);
