@@ -83,7 +83,11 @@ void main() {
                 find.byKey(const ValueKey('landscape-today')),
                 findsOneWidget,
               );
-              expect(find.byTooltip('Calendar actions'), findsOneWidget);
+              expect(find.byTooltip('Calendar actions'), findsNothing);
+              expect(
+                find.byTooltip('Add note, reminder, or flow'),
+                findsOneWidget,
+              );
               expect(find.byKey(calendarFloatingShortcutsKey), findsNothing);
             } else {
               expect(find.byKey(calendarFloatingShortcutsKey), findsOneWidget);

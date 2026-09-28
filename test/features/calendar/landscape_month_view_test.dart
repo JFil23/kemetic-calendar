@@ -40,10 +40,22 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('New note'));
-      await tester.pump();
+      expect(find.byTooltip('Calendar actions'), findsNothing);
+      final add = find.byTooltip('Add note, reminder, or flow');
+      final target = tester.getRect(add);
+      expect(target.size, const Size(48, 48));
+      // Include the lower corners over the pinned day-header layer.
+      for (final point in [
+        target.topLeft + const Offset(2, 2),
+        target.topRight + const Offset(-2, 2),
+        target.bottomLeft + const Offset(2, -2),
+        target.bottomRight + const Offset(-2, -2),
+      ]) {
+        await tester.tapAt(point);
+        await tester.pump();
+      }
 
-      expect(quickAddOpenCount, 1);
+      expect(quickAddOpenCount, 4);
       expect(dateEditorOpenCount, 0);
     });
 

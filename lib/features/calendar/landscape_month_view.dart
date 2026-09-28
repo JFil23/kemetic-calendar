@@ -1333,9 +1333,12 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
         bottom: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final ledgerWidth =
-                (constraints.maxWidth + outerPadding.horizontal) / 3 -
-                outerPadding.left;
+            final ledgerWidth = math.max(
+              144.0,
+              (constraints.maxWidth + outerPadding.horizontal) / 3 -
+                  outerPadding.left -
+                  48,
+            );
             if (_ledgerWidth != ledgerWidth) {
               _ledgerHeights.clear();
               _ledgerOffsets = null;
@@ -1367,7 +1370,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                                 children: [
                                   Positioned(
                                     left: _gutterWidth,
-                                    right: 64,
+                                    right: 48,
                                     top: 0,
                                     height: _monthHeight,
                                     child: ValueListenableBuilder<DateTime>(
@@ -1412,116 +1415,6 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                                             ],
                                           ),
                                         );
-                                      },
-                                    ),
-                                  ),
-                                  Positioned(
-                                    right: 32,
-                                    top: 0,
-                                    width: 32,
-                                    height: 28,
-                                    child: IconButton(
-                                      tooltip: 'New note',
-                                      padding: EdgeInsets.zero,
-                                      iconSize: 17,
-                                      color: _landscapeGold,
-                                      icon: const Icon(Icons.add),
-                                      onPressed: () async {
-                                        final openQuickAdd =
-                                            widget.onOpenQuickAdd;
-                                        if (openQuickAdd != null) {
-                                          await openQuickAdd(context);
-                                          return;
-                                        }
-                                        await CalendarPage.openQuickAddFromAnyContext(
-                                          context,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    width: 32,
-                                    height: 28,
-                                    child: PopupMenuButton<String>(
-                                      tooltip: 'Calendar actions',
-                                      padding: EdgeInsets.zero,
-                                      iconSize: 17,
-                                      icon: const Icon(
-                                        Icons.more_horiz,
-                                        color: _landscapeGold,
-                                      ),
-                                      itemBuilder: (_) => [
-                                        if (widget.onOpenCalendars != null)
-                                          const PopupMenuItem(
-                                            value: 'calendars',
-                                            child: Text('Calendars'),
-                                          ),
-                                        if (widget.onOpenInbox != null)
-                                          const PopupMenuItem(
-                                            value: 'inbox',
-                                            child: Text('Inbox'),
-                                          ),
-                                        const PopupMenuItem(
-                                          value: 'menu',
-                                          child: Text('Calendar menu'),
-                                        ),
-                                        const PopupMenuItem(
-                                          value: 'search',
-                                          child: Text('Search notes'),
-                                        ),
-                                        const PopupMenuItem(
-                                          value: 'profile',
-                                          child: Text('My Profile'),
-                                        ),
-                                        if (widget.onManageFlows != null)
-                                          const PopupMenuItem(
-                                            value: 'flows',
-                                            child: Text('Flow Studio'),
-                                          ),
-                                        if (widget.onClose != null ||
-                                            Navigator.of(context).canPop())
-                                          PopupMenuItem(
-                                            value: 'close',
-                                            child: Text(
-                                              widget.embeddedInCalendarScaffold
-                                                  ? 'Pages'
-                                                  : 'Close Day View',
-                                            ),
-                                          ),
-                                      ],
-                                      onSelected: (value) async {
-                                        switch (value) {
-                                          case 'calendars':
-                                            widget.onOpenCalendars?.call();
-                                          case 'inbox':
-                                            widget.onOpenInbox?.call();
-                                          case 'menu':
-                                            await CalendarPage.showActionsMenuFromAnyContext(
-                                              context,
-                                            );
-                                          case 'search':
-                                            await (widget.onOpenSearch ??
-                                                CalendarPage
-                                                    .openSearchFromAnyContext)(
-                                              context,
-                                            );
-                                          case 'profile':
-                                            await (widget.onOpenProfile ??
-                                                CalendarPage
-                                                    .openProfileFromAnyContext)(
-                                              context,
-                                            );
-                                          case 'flows':
-                                            widget.onManageFlows?.call(null);
-                                          case 'close':
-                                            if (widget.onClose != null) {
-                                              widget.onClose!();
-                                            } else {
-                                              Navigator.of(context).maybePop();
-                                            }
-                                        }
                                       },
                                     ),
                                   ),
@@ -1617,6 +1510,32 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                                           _buildDay(_dateAt(index)),
                                       headerBuilder: (context, index) =>
                                           _buildHeader(_dateAt(index)),
+                                    ),
+                                  ),
+                                  // Keep the entire touch target above the pinned
+                                  // day header, which starts below the month label.
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    width: 48,
+                                    height: 48,
+                                    child: IconButton(
+                                      tooltip: 'Add note, reminder, or flow',
+                                      padding: EdgeInsets.zero,
+                                      iconSize: 24,
+                                      color: _landscapeGold,
+                                      icon: const Icon(Icons.add),
+                                      onPressed: () async {
+                                        final openQuickAdd =
+                                            widget.onOpenQuickAdd;
+                                        if (openQuickAdd != null) {
+                                          await openQuickAdd(context);
+                                          return;
+                                        }
+                                        await CalendarPage.openQuickAddFromAnyContext(
+                                          context,
+                                        );
+                                      },
                                     ),
                                   ),
                                   Positioned(

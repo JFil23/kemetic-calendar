@@ -4,7 +4,7 @@ Reference: approved `landscape-calendar-real-sheets-v5.html`, the supplied `mock
 
 Required behavior:
 
-- The left third is a continuous, independently scrollable chronological event list. The right two thirds contain three continuous calendar days, a pinned month/day/all-day header and hour gutter.
+- The continuous, independently scrollable chronological event list ends 48 logical pixels left of the original one-third split (with a 144px minimum list width). The expanded calendar pane contains three continuous calendar days, a pinned month/day/all-day header and hour gutter.
 - Calendar gestures move both axes with momentum. Headers and events move together. Crossing dates must not rebuild every event or interrupt motion.
 - While linked, horizontal **and vertical** calendar movement smoothly brings the corresponding event into the list. Touching, scrolling, or using the keyboard on the list releases the link immediately. Today restores it.
 - Tapping an offscreen list event selects it and smoothly locates its calendar block; tapping the now-visible event opens its native detail sheet. An already visible event opens immediately. Tapping a calendar block opens it without repositioning the calendar.
@@ -13,6 +13,7 @@ Required behavior:
 - The **sheet and scrim are confined to the calendar pane**. The list remains visible and usable. Shared native Day View sheet contents, image headers, colors, completion, actions, keyboard ownership, and restoration remain authoritative.
 - Five Ma’at housing extents remain .71 for Offering Table/Kꜣr and .58 for Sky/Reading House/Djed. Custom flows retain separate native housing (.68 in landscape). Resizing and body scrolling must expose the entire native composition without covering the list.
 - Past items retain full color. Native event artwork has reserved space; visual block heights participate in overlap placement. Canonical Kemetic metadata/date math owns month names and year boundaries.
+- The landscape header has one 48 × 48 quick-add button for the existing note/reminder/flow sheet, with its entire hit target above the pinned day-header layer. The secondary three-dot menu is removed.
 - Main Calendar and Day View both use this surface; rotating and returning from another route preserve their date context and sheet target.
 
 The audit identified missing vertical list linkage, abrupt programmatic scrolling, competing one-axis gestures, unconditional list-tap sheet opening, missing block selection feedback, non-centered Today, repeated ledger text measurement, parent rebuilds during horizontal movement, and a full-screen sheet navigator. Verification must exercise these behaviors against the reference, including pointer drags and pane bounds; an initial static golden alone is insufficient.

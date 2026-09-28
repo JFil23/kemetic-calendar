@@ -198,6 +198,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(tester.takeException(), isNull);
+    final calendarPane = tester.getRect(
+      find.byKey(const ValueKey('landscape-calendar-pane')),
+    );
+    expect(calendarPane.left, 852 / 3 - 48);
+    expect(calendarPane.right, 852 - 44);
     await expectLater(
       find.byKey(const ValueKey('fixture')),
       matchesGoldenFile(
