@@ -99,7 +99,8 @@
       "precision": "phase",
       "source": "NASA Eclipse",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"NASA GSFC lunar eclipse catalog","sourceVersion":"Five Millennium Canon 2001–2100","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"lunarEclipse":{"type":"partial","umbralMagnitude":0.9299,"penumbralMagnitude":1.9645}}
     },
     {
       "id": "full-moon-2026-09-26",
@@ -184,7 +185,8 @@
       "precision": "phase",
       "source": "NASA Eclipse",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"NASA GSFC lunar eclipse catalog","sourceVersion":"Five Millennium Canon 2001–2100","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"lunarEclipse":{"type":"penumbral","umbralMagnitude":-0.0569,"penumbralMagnitude":0.9266}}
     },
     {
       "id": "full-moon-2027-03-22",
@@ -259,7 +261,8 @@
       "sourceVersion": "2026-08",
       "specialNotification": false,
       "notes": "Extremely slight penumbral; keep in catalog but do not special-notify",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"NASA GSFC lunar eclipse catalog","sourceVersion":"Five Millennium Canon 2001–2100","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"lunarEclipse":{"type":"penumbral","umbralMagnitude":-1.068,"penumbralMagnitude":0.0014}}
     },
     {
       "id": "full-moon-2027-08-17",
@@ -284,7 +287,8 @@
       "precision": "phase",
       "source": "NASA Eclipse",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"NASA GSFC lunar eclipse catalog","sourceVersion":"Five Millennium Canon 2001–2100","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"lunarEclipse":{"type":"penumbral","umbralMagnitude":-0.5254,"penumbralMagnitude":0.5456}}
     },
     {
       "id": "full-moon-2027-09-15",
@@ -357,7 +361,8 @@
       "precision": "phase",
       "source": "NASA Eclipse",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"NASA GSFC lunar eclipse catalog","sourceVersion":"Five Millennium Canon 2001–2100","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"lunarEclipse":{"type":"partial","umbralMagnitude":0.0662,"penumbralMagnitude":1.0468}}
     },
     {
       "id": "full-moon-2028-02-10",
@@ -382,7 +387,8 @@
       "source": "NASA Eclipse",
       "sourceVersion": "2026-08",
       "notes": "Visibility depends on where you are",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"NASA GSFC solar eclipse catalog","sourceVersion":"Five Millennium Canon 2001–2100","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"solarEclipse":{"type":"annular","magnitude":0.9281,"lunarSolarRadiusRatio":0.9281}}
     },
     {
       "id": "solar-eclipse-2027-08-02",
@@ -395,7 +401,8 @@
       "source": "NASA Eclipse",
       "sourceVersion": "2026-08",
       "notes": "Visibility depends on where you are",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"NASA GSFC solar eclipse catalog","sourceVersion":"Five Millennium Canon 2001–2100","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"solarEclipse":{"type":"total","magnitude":1.079,"lunarSolarRadiusRatio":1.079}}
     },
     {
       "id": "solar-eclipse-2028-01-26",
@@ -408,7 +415,8 @@
       "source": "NASA Eclipse",
       "sourceVersion": "2026-08",
       "notes": "Visibility depends on where you are",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"NASA GSFC solar eclipse catalog","sourceVersion":"Five Millennium Canon 2001–2100","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"solarEclipse":{"type":"annular","magnitude":0.9208,"lunarSolarRadiusRatio":0.9208}}
     },
     {
       "id": "orionids-2026",
@@ -423,7 +431,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2026",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Orion","rightAscensionDegrees":95.388414496,"declinationDegrees":15.988621602,"velocityKmPerSecond":66,"zenithalHourlyRate":20,"peakShape":"moderate","halfMaximumHours":18,"fireballs":"ordinary","trains":"notable"},"epochUtc":"2026-10-19T11:59:59.500Z"}
     },
     {
       "id": "southern-taurids-2026",
@@ -439,7 +448,8 @@
       "source": "IMO",
       "sourceVersion": "2026",
       "notes": "Notable fireball producers",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Taurus","rightAscensionDegrees":52.377586683,"declinationDegrees":15.093853523,"velocityKmPerSecond":27,"zenithalHourlyRate":5,"peakShape":"plateau","halfMaximumHours":120,"fireballs":"notable","trains":"low"},"epochUtc":"2026-11-03T11:59:59.500Z"}
     },
     {
       "id": "northern-taurids-2026",
@@ -455,7 +465,8 @@
       "source": "IMO",
       "sourceVersion": "2026",
       "notes": "Notable fireball producers",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Taurus","rightAscensionDegrees":58.397597476,"declinationDegrees":22.081012214,"velocityKmPerSecond":29,"zenithalHourlyRate":5,"peakShape":"plateau","halfMaximumHours":96,"fireballs":"notable","trains":"low"},"epochUtc":"2026-11-10T11:59:59.500Z"}
     },
     {
       "id": "leonids-2026",
@@ -467,7 +478,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2026",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Leo","rightAscensionDegrees":152.375567599,"declinationDegrees":21.867772567,"velocityKmPerSecond":71,"zenithalHourlyRate":15,"peakShape":"moderate","halfMaximumHours":12,"fireballs":"ordinary","trains":"notable"},"epochUtc":"2026-11-15T23:45:00.000Z"}
     },
     {
       "id": "geminids-2026",
@@ -483,7 +495,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2026",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Gemini","rightAscensionDegrees":112.43905165,"declinationDegrees":32.944619878,"velocityKmPerSecond":35,"zenithalHourlyRate":150,"peakShape":"broad","halfMaximumHours":24,"fireballs":"ordinary","trains":"low"},"epochUtc":"2026-12-12T14:00:00.000Z"}
     },
     {
       "id": "ursids-2026",
@@ -495,7 +508,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2026",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Ursa Minor","rightAscensionDegrees":216.990640528,"declinationDegrees":75.878057617,"velocityKmPerSecond":33,"zenithalHourlyRate":10,"peakShape":"moderate","halfMaximumHours":12,"fireballs":"low","trains":"low"},"epochUtc":"2026-12-20T22:00:00.000Z"}
     },
     {
       "id": "quadrantids-2027",
@@ -511,7 +525,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2027",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Boötes","rightAscensionDegrees":230.216616632,"declinationDegrees":48.901380804,"velocityKmPerSecond":41,"zenithalHourlyRate":120,"peakShape":"narrow","halfMaximumHours":3,"fireballs":"notable","trains":"low"},"epochUtc":"2027-01-02T03:25:00.000Z"}
     },
     {
       "id": "lyrids-2027",
@@ -523,7 +538,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2027",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Lyra","rightAscensionDegrees":271.249177599,"declinationDegrees":34.00107668,"velocityKmPerSecond":49,"zenithalHourlyRate":18,"peakShape":"moderate","halfMaximumHours":12,"fireballs":"ordinary","trains":"low"},"epochUtc":"2027-04-21T01:40:00.000Z"}
     },
     {
       "id": "eta-aquariids-2027",
@@ -535,7 +551,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2027",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Aquarius","rightAscensionDegrees":338.353903003,"declinationDegrees":-0.858319847,"velocityKmPerSecond":66,"zenithalHourlyRate":50,"peakShape":"broad","halfMaximumHours":72,"fireballs":"low","trains":"notable"},"epochUtc":"2027-05-04T09:00:00.000Z"}
     },
     {
       "id": "southern-delta-aquariids-2027",
@@ -550,7 +567,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2027",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Aquarius","rightAscensionDegrees":340.372355795,"declinationDegrees":-15.854661096,"velocityKmPerSecond":41,"zenithalHourlyRate":25,"peakShape":"broad","halfMaximumHours":72,"fireballs":"low","trains":"low"},"epochUtc":"2027-07-29T11:59:59.500Z"}
     },
     {
       "id": "alpha-capricornids-2027",
@@ -566,7 +584,8 @@
       "source": "IMO",
       "sourceVersion": "2027",
       "notes": "Notable fireballs",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Capricornus","rightAscensionDegrees":307.378769333,"declinationDegrees":-9.907571199,"velocityKmPerSecond":23,"zenithalHourlyRate":5,"peakShape":"plateau","halfMaximumHours":72,"fireballs":"notable","trains":"low"},"epochUtc":"2027-07-29T11:59:59.500Z"}
     },
     {
       "id": "perseids-2027",
@@ -581,7 +600,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2027",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Perseus","rightAscensionDegrees":48.541399784,"declinationDegrees":58.104610739,"velocityKmPerSecond":59,"zenithalHourlyRate":100,"peakShape":"broad","halfMaximumHours":24,"fireballs":"notable","trains":"notable"},"epochUtc":"2027-08-11T09:00:00.000Z"}
     },
     {
       "id": "orionids-2027",
@@ -596,7 +616,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2027",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Orion","rightAscensionDegrees":95.404038088,"declinationDegrees":15.987447773,"velocityKmPerSecond":66,"zenithalHourlyRate":20,"peakShape":"moderate","halfMaximumHours":18,"fireballs":"ordinary","trains":"notable"},"epochUtc":"2027-10-20T11:59:59.500Z"}
     },
     {
       "id": "southern-taurids-2027",
@@ -611,7 +632,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2027",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Taurus","rightAscensionDegrees":52.392928663,"declinationDegrees":15.097067924,"velocityKmPerSecond":27,"zenithalHourlyRate":5,"peakShape":"plateau","halfMaximumHours":120,"fireballs":"notable","trains":"low"},"epochUtc":"2027-11-04T11:59:59.500Z"}
     },
     {
       "id": "northern-taurids-2027",
@@ -626,7 +648,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2027",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Taurus","rightAscensionDegrees":58.413647973,"declinationDegrees":22.083684227,"velocityKmPerSecond":29,"zenithalHourlyRate":5,"peakShape":"plateau","halfMaximumHours":96,"fireballs":"notable","trains":"low"},"epochUtc":"2027-11-11T11:59:59.500Z"}
     },
     {
       "id": "leonids-2027",
@@ -661,7 +684,8 @@
           "endUtc": "2027-11-20T10:10:00Z"
         }
       ],
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Leo","rightAscensionDegrees":152.390326028,"declinationDegrees":21.862147503,"velocityKmPerSecond":71,"zenithalHourlyRate":15,"peakShape":"moderate","halfMaximumHours":12,"fireballs":"ordinary","trains":"notable"},"epochUtc":"2027-11-16T06:00:00.000Z"}
     },
     {
       "id": "geminids-2027",
@@ -673,7 +697,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2027",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Gemini","rightAscensionDegrees":112.456294699,"declinationDegrees":32.941740009,"velocityKmPerSecond":35,"zenithalHourlyRate":150,"peakShape":"broad","halfMaximumHours":24,"fireballs":"ordinary","trains":"low"},"epochUtc":"2027-12-12T20:00:00.000Z"}
     },
     {
       "id": "ursids-2027",
@@ -685,7 +710,8 @@
       "precision": "approximate",
       "source": "IMO",
       "sourceVersion": "2027",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"meteor":{"constellation":"Ursa Minor","rightAscensionDegrees":216.988306273,"declinationDegrees":75.873608716,"velocityKmPerSecond":33,"zenithalHourlyRate":10,"peakShape":"moderate","halfMaximumHours":12,"fireballs":"low","trains":"low"},"epochUtc":"2027-12-21T04:00:00.000Z"}
     },
     {
       "id": "quadrantids-2028",
@@ -698,7 +724,8 @@
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
       "provisional": true,
-      "notes": "IMO 2028 calendar not yet published; provisional"
+      "notes": "IMO 2028 calendar not yet published; provisional",
+      "graphicAstronomy": {"source":"IMO working list + AMS shower characteristics + Astronomy Engine","sourceVersion":"IMO 2026 table 5; AMS 2026/2027; engine 2.1.19; typical-envelope-v1","calculationVersion":"sky-graphic-astronomy-v1","provisional":true,"meteor":{"constellation":"Boötes","rightAscensionDegrees":230.224745636,"declinationDegrees":48.897972764,"velocityKmPerSecond":41,"zenithalHourlyRate":120,"peakShape":"narrow","halfMaximumHours":3,"fireballs":"notable","trains":"low"},"epochUtc":"2028-01-02T10:00:00.000Z"}
     },
     {
       "id": "saturn-opposition-2026-10-04",
@@ -710,7 +737,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"saturn","angularDiameterArcseconds":19.704746167,"apparentMagnitude":0.199047748}]}
     },
     {
       "id": "mercury-elongation-2026-10-12",
@@ -722,7 +750,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mercury","angularDiameterArcseconds":6.70957135,"apparentMagnitude":-0.082416547}],"elongationDegrees":25.161226871,"elongationDirection":"eastern"}
     },
     {
       "id": "mars-jupiter-conjunction-2026-11-16",
@@ -735,7 +764,8 @@
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
       "notes": "~1.2°; visibility depends on where you are",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mars","angularDiameterArcseconds":7.171122316,"apparentMagnitude":0.699775367},{"body":"jupiter","angularDiameterArcseconds":37.445037467,"apparentMagnitude":-2.109233899}],"separations":[[-72,1.602915627],[-69,1.572543896],[-66,1.542964258],[-63,1.514221149],[-60,1.486361068],[-57,1.459432506],[-54,1.433485835],[-51,1.40857314],[-48,1.384748004],[-45,1.362065228],[-42,1.340580479],[-39,1.320349875],[-36,1.301429489],[-33,1.283874793],[-30,1.267740017],[-27,1.253077471],[-24,1.2399368],[-21,1.228364228],[-18,1.218401785],[-15,1.210086554],[-12,1.203449968],[-9,1.198517175],[-6,1.195306513],[-3,1.193829101],[0,1.194088588],[3,1.196081047],[6,1.199795045],[9,1.205211867],[12,1.212305889],[15,1.22104509],[18,1.231391662],[21,1.24330271],[24,1.256731003],[27,1.271625744],[30,1.287933349],[33,1.305598192],[36,1.324563313],[39,1.344771071],[42,1.366163723],[45,1.388683938],[48,1.412275237],[51,1.436882355],[54,1.46245154],[57,1.488930786],[60,1.516270003],[63,1.544421145],[66,1.573338285],[69,1.602977654],[72,1.633297653]],"minimumSeparationDegrees":1.194088588}
     },
     {
       "id": "mercury-elongation-2026-11-20",
@@ -747,7 +777,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mercury","angularDiameterArcseconds":6.727808488,"apparentMagnitude":-0.595194651}],"elongationDegrees":19.621778479,"elongationDirection":"western"}
     },
     {
       "id": "venus-elongation-2027-01-03",
@@ -759,7 +790,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"venus","angularDiameterArcseconds":24.735384043,"apparentMagnitude":-4.5650895}],"elongationDegrees":46.950303092,"elongationDirection":"western"}
     },
     {
       "id": "mercury-elongation-2027-02-03",
@@ -771,7 +803,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mercury","angularDiameterArcseconds":7.025366792,"apparentMagnitude":-0.641087845}],"elongationDegrees":18.315278028,"elongationDirection":"eastern"}
     },
     {
       "id": "jupiter-opposition-2027-02-11",
@@ -783,7 +816,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"jupiter","angularDiameterArcseconds":45.204193837,"apparentMagnitude":-2.560048955}]}
     },
     {
       "id": "mars-opposition-2027-02-19",
@@ -795,7 +829,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mars","angularDiameterArcseconds":13.814692083,"apparentMagnitude":-1.214382944}]}
     },
     {
       "id": "mercury-elongation-2027-03-17",
@@ -807,7 +842,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mercury","angularDiameterArcseconds":7.294771038,"apparentMagnitude":0.112997524}],"elongationDegrees":27.630078335,"elongationDirection":"western"}
     },
     {
       "id": "venus-saturn-conjunction-2027-05-07",
@@ -820,7 +856,8 @@
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
       "notes": "~0.6°; visibility depends on where you are",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"venus","angularDiameterArcseconds":11.195731327,"apparentMagnitude":-3.829145777},{"body":"saturn","angularDiameterArcseconds":16.184702312,"apparentMagnitude":0.538851164}],"separations":[[-72,3.461810796],[-69,3.327174277],[-66,3.192714271],[-63,3.058455311],[-60,2.924426399],[-57,2.790662059],[-54,2.657203696],[-51,2.524101374],[-48,2.391416161],[-45,2.259223264],[-42,2.127616276],[-39,1.996713003],[-36,1.86666359],[-33,1.737662008],[-30,1.609962589],[-27,1.483904196],[-24,1.359946138],[-21,1.238722298],[-18,1.121123488],[-15,1.008422658],[-12,0.902461094],[-9,0.805906417],[-6,0.722545245],[-3,0.65742184],[0,0.616351137],[3,0.604264379],[6,0.622857696],[9,0.669586174],[12,0.73913827],[15,0.825771814],[18,0.924702631],[21,1.032405542],[24,1.146414444],[27,1.265028798],[30,1.387070603],[33,1.51171274],[36,1.638364394],[39,1.766595793],[42,1.896088678],[45,2.026603339],[48,2.157956362],[51,2.290005353],[54,2.422638281],[57,2.555765923],[60,2.689316419],[63,2.823231301],[66,2.957462549],[69,3.091970377],[72,3.226721564]],"minimumSeparationDegrees":0.616351137}
     },
     {
       "id": "mercury-elongation-2027-05-28",
@@ -832,7 +869,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mercury","angularDiameterArcseconds":8.146675981,"apparentMagnitude":0.399244827}],"elongationDegrees":22.918227199,"elongationDirection":"eastern"}
     },
     {
       "id": "mercury-elongation-2027-07-15",
@@ -844,7 +882,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mercury","angularDiameterArcseconds":7.868491489,"apparentMagnitude":0.25310326}],"elongationDegrees":20.701674868,"elongationDirection":"western"}
     },
     {
       "id": "mercury-elongation-2027-09-24",
@@ -856,7 +895,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mercury","angularDiameterArcseconds":6.868542123,"apparentMagnitude":0.026773458}],"elongationDegrees":26.26034553,"elongationDirection":"eastern"}
     },
     {
       "id": "saturn-opposition-2027-10-18",
@@ -868,7 +908,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"saturn","angularDiameterArcseconds":19.961358531,"apparentMagnitude":-0.058279092}]}
     },
     {
       "id": "mercury-elongation-2027-11-04",
@@ -880,7 +921,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mercury","angularDiameterArcseconds":6.807710776,"apparentMagnitude":-0.63603022}],"elongationDegrees":18.766156168,"elongationDirection":"western"}
     },
     {
       "id": "venus-mars-conjunction-2027-11-25",
@@ -893,7 +935,8 @@
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
       "notes": "~0.3°; visibility depends on where you are",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"venus","angularDiameterArcseconds":11.473441042,"apparentMagnitude":-3.865641612},{"body":"mars","angularDiameterArcseconds":4.198570936,"apparentMagnitude":1.281010274}],"separations":[[-72,1.483176052],[-69,1.423650613],[-66,1.364266182],[-63,1.3050395],[-60,1.24599044],[-57,1.187142754],[-54,1.12852505],[-51,1.070172071],[-48,1.012126384],[-45,0.954440642],[-42,0.897180645],[-39,0.840429547],[-36,0.784293678],[-33,0.728910735],[-30,0.674461401],[-27,0.621186002],[-24,0.569408439],[-21,0.519570455],[-18,0.472279609],[-15,0.428372739],[-12,0.38898908],[-9,0.355625446],[-6,0.330102395],[-3,0.314325368],[0,0.30977658],[3,0.316929652],[6,0.335026269],[9,0.362421937],[12,0.397189031],[15,0.437566615],[18,0.482140496],[21,0.529846599],[24,0.579906869],[27,0.631756823],[30,0.684985469],[33,0.739290711],[36,0.794447752],[39,0.850287052],[42,0.906679015],[45,0.963523264],[48,1.020741086],[51,1.078270025],[54,1.136059983],[57,1.194070365],[60,1.252267968],[63,1.310625394],[66,1.369119855],[69,1.42773225],[72,1.486446464]],"minimumSeparationDegrees":0.30977658}
     },
     {
       "id": "mercury-mars-conjunction-2028-01-09",
@@ -906,7 +949,8 @@
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
       "notes": "~0.7°; visibility depends on where you are",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mercury","angularDiameterArcseconds":5.675113334,"apparentMagnitude":-0.807191127},{"body":"mars","angularDiameterArcseconds":4.05816934,"apparentMagnitude":1.189754165}],"separations":[[-72,2.394294157],[-69,2.299628622],[-66,2.205512687],[-63,2.111999217],[-60,2.019149361],[-57,1.927034338],[-54,1.835737673],[-51,1.745358053],[-48,1.656012949],[-45,1.567843263],[-42,1.481019298],[-39,1.395748456],[-36,1.31228515],[-33,1.230943526],[-30,1.152113623],[-27,1.076281464],[-24,1.004053131],[-21,0.936181569],[-18,0.873592313],[-15,0.817399531],[-12,0.768896755],[-9,0.72949942],[-6,0.700616115],[-3,0.68344446],[0,0.678731973],[3,0.686590609],[6,0.706456172],[9,0.737215765],[12,0.777437854],[15,0.825605331],[18,0.8802843],[21,0.940213594],[24,1.00433265],[27,1.071773088],[30,1.141834006],[33,1.213953074],[36,1.287679319],[39,1.362649887],[42,1.438571148],[45,1.515203738],[48,1.592350903],[51,1.669849444],[54,1.747562722],[57,1.825375229],[60,1.903188359],[63,1.980917117],[66,2.058487515],[69,2.13583453],[72,2.212900471]],"minimumSeparationDegrees":0.678731973}
     },
     {
       "id": "mercury-elongation-2028-01-17",
@@ -918,7 +962,8 @@
       "precision": "approximate",
       "source": "AstroPixels",
       "sourceVersion": "2026-08",
-      "provisional": false
+      "provisional": false,
+      "graphicAstronomy": {"source":"Astronomy Engine","sourceVersion":"2.1.19","calculationVersion":"sky-graphic-astronomy-v1","provisional":false,"planets":[{"body":"mercury","angularDiameterArcseconds":6.893914112,"apparentMagnitude":-0.658257843}],"elongationDegrees":18.8092548,"elongationDirection":"eastern"}
     }
   ]
 }

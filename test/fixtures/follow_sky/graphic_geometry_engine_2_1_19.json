@@ -1,0 +1,110 @@
+[
+  {
+    "event": "orionids-2026",
+    "latitude": 34.0522,
+    "longitude": -118.2437,
+    "zone": "America/Los_Angeles",
+    "at": "2026-10-21T06:00:00Z",
+    "radiantAltitude": 5.720365113203499,
+    "radiantAzimuth": 74.54884281243116,
+    "moonAltitude": 33.04522669536395,
+    "sunAltitude": -57.7151327763861,
+    "illumination": 0.7411135149556787
+  },
+  {
+    "event": "orionids-2026",
+    "latitude": 34.0522,
+    "longitude": -118.2437,
+    "zone": "America/Los_Angeles",
+    "at": "2026-10-21T10:30:00Z",
+    "radiantAltitude": 60.29817896399767,
+    "radiantAzimuth": 120.91823637365295,
+    "moonAltitude": -14.138762538057875,
+    "sunAltitude": -44.35222069327426,
+    "illumination": 0.7574222567507145
+  },
+  {
+    "event": "orionids-2026",
+    "latitude": 34.0522,
+    "longitude": -118.2437,
+    "zone": "America/Los_Angeles",
+    "at": "2026-10-21T14:00:00Z",
+    "radiantAltitude": 60.186350070884615,
+    "radiantAzimuth": 239.28643961874036,
+    "moonAltitude": -54.10173011258533,
+    "sunAltitude": -1.4797636044139892,
+    "illumination": 0.7699134559665926
+  },
+  {
+    "event": "orionids-2026",
+    "latitude": -33.8688,
+    "longitude": 151.2093,
+    "zone": "Australia/Sydney",
+    "at": "2026-10-21T06:00:00Z",
+    "radiantAltitude": -71.6711499394124,
+    "radiantAzimuth": 193.79919001433484,
+    "moonAltitude": 32.81428587454681,
+    "sunAltitude": 26.60328444082556,
+    "illumination": 0.7411135149556787
+  },
+  {
+    "event": "orionids-2026",
+    "latitude": -33.8688,
+    "longitude": 151.2093,
+    "zone": "Australia/Sydney",
+    "at": "2026-10-21T10:30:00Z",
+    "radiantAltitude": -30.882049556723672,
+    "radiantAzimuth": 90.85204767896933,
+    "moonAltitude": 66.48597861627444,
+    "sunAltitude": -26.575718512016238,
+    "illumination": 0.7574222567507145
+  },
+  {
+    "event": "orionids-2026",
+    "latitude": -33.8688,
+    "longitude": 151.2093,
+    "zone": "Australia/Sydney",
+    "at": "2026-10-21T14:00:00Z",
+    "radiantAltitude": 11.219353457863122,
+    "radiantAzimuth": 61.879118078764115,
+    "moonAltitude": 31.325802359052517,
+    "sunAltitude": -45.04447386961357,
+    "illumination": 0.7699134559665926
+  },
+  {
+    "event": "orionids-2026",
+    "latitude": 51.5074,
+    "longitude": -0.1278,
+    "zone": "Europe/London",
+    "at": "2026-10-21T06:00:00Z",
+    "radiantAltitude": 49.587386505755426,
+    "radiantAzimuth": 217.41390120340645,
+    "moonAltitude": -45.29688660722297,
+    "sunAltitude": -6.085580863120228,
+    "illumination": 0.7411135149556787
+  },
+  {
+    "event": "orionids-2026",
+    "latitude": 51.5074,
+    "longitude": -0.1278,
+    "zone": "Europe/London",
+    "at": "2026-10-21T10:30:00Z",
+    "radiantAltitude": 11.305290645776651,
+    "radiantAzimuth": 281.53154190217754,
+    "moonAltitude": -41.33083939044755,
+    "sunAltitude": 25.62250297042098,
+    "illumination": 0.7574222567507145
+  },
+  {
+    "event": "orionids-2026",
+    "latitude": 51.5074,
+    "longitude": -0.1278,
+    "zone": "Europe/London",
+    "at": "2026-10-21T14:00:00Z",
+    "radiantAltitude": -15.761002398516325,
+    "radiantAzimuth": 324.562454359082,
+    "moonAltitude": -11.229070545685943,
+    "sunAltitude": 21.184977350218276,
+    "illumination": 0.7699134559665926
+  }
+]

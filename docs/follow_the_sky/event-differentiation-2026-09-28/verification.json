@@ -1,0 +1,47 @@
+{
+  "baseCommit": "4f8888e963a6f8da0746961f5a28998a97434e31",
+  "references": {
+    "/Users/jaralephillips/Downloads/follow_the_sky_current_behavior_mockups_v2.html": "9cccb1c00235d0aa802ba0157c18ae36279d81227200424bd30ef2f8db325364",
+    "/Users/jaralephillips/.codex/attachments/78918830-b338-4294-892c-cc8f63be8274/Pasted text.txt": "d49a189f240e6ad4ae24b0a463b2074ef18afdbd4a58f081842467f5b78d0d3e"
+  },
+  "housingPixelAudit": [
+    {
+      "platform": "macOS",
+      "path": "test/visual_reference/maat_flows/goldens/maat-day-housing-follow-sky-lowered-390x844.png",
+      "changedPixels": 1857,
+      "changedBoundsExclusive": [
+        171,
+        539,
+        219,
+        588
+      ],
+      "sha256": "f490d99c1a643a455bdf4f235b1e94e3fe6f61d88d08a4e8d222a2e305d001e6"
+    },
+    {
+      "platform": "linux",
+      "path": "test/visual_reference/maat_flows/goldens/linux/maat-day-housing-follow-sky-lowered-390x844.png",
+      "changedPixels": 1857,
+      "changedBoundsExclusive": [
+        171,
+        539,
+        219,
+        588
+      ],
+      "sha256": "92f3f45ae9dc7c3ca71e61cab293e15eb78b199236b76b83cd91684746c6c9e4"
+    },
+    {
+      "platform": "linux-x64",
+      "path": "test/visual_reference/maat_flows/goldens/linux-x64/maat-day-housing-follow-sky-lowered-390x844.png",
+      "changedPixels": 1857,
+      "changedBoundsExclusive": [
+        171,
+        539,
+        219,
+        588
+      ],
+      "sha256": "1dce9d0e5250cb2d11e53654017165003abbdd8b14b7d0c10127e2195c22aac0"
+    }
+  ],
+  "catalogRenderCount": 216,
+  "staticRenderCount": 10
+}

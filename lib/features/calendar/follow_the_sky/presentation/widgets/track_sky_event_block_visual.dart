@@ -3,6 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../calendar_event_visual_style.dart';
+import '../../domain/sky_graphic_astronomy.dart';
+import '../../domain/sky_catalog.dart';
+import '../../services/sky_catalog_repository.dart';
 import '../../../presentation/graphic_event_block_shell.dart';
 
 /// Shared production Track Sky event-card visual body for Day View and Follow Sky.
@@ -19,9 +22,14 @@ class TrackSkyEventBlockVisual extends StatelessWidget {
     this.overlay,
     this.opacity = 1,
     this.dashedBorder = false,
+    this.skyEventId,
+    this.astronomy,
   });
 
   final String title;
+  final String? skyEventId;
+  final SkyGraphicAstronomy? astronomy;
+  static Future<SkyCatalog>? _catalog;
   final CalendarEventGraphicStyle graphic;
   final double height;
   final double? width;
@@ -34,6 +42,23 @@ class TrackSkyEventBlockVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (astronomy != null || skyEventId == null) return _build(astronomy);
+    return FutureBuilder<SkyCatalog>(
+      future: _catalog ??= SkyCatalogRepository().load(),
+      builder: (context, snapshot) {
+        final catalog = snapshot.data;
+        final event = catalog?.byId(skyEventId!);
+        final facts = event == null
+            ? null
+            : event.mergedIntoId != null
+            ? event.graphicAstronomy
+            : catalog!.observingNight(event).windowSource.graphicAstronomy;
+        return _build(facts);
+      },
+    );
+  }
+
+  Widget _build(SkyGraphicAstronomy? facts) {
     return GraphicEventBlockShell(
       graphic: graphic,
       width: width,
@@ -76,6 +101,7 @@ class TrackSkyEventBlockVisual extends StatelessWidget {
                 graphic,
                 title,
                 size: math.min(height - 18, 24),
+                astronomy: facts,
               ),
             ),
           ),
@@ -133,7 +159,15 @@ Widget buildTrackSkyCardAccent(
   CalendarEventGraphicStyle spec,
   String title, {
   double size = 24,
+  SkyGraphicAstronomy? astronomy,
 }) {
+  if (astronomy != null) {
+    return SizedBox(
+      width: size + 8,
+      height: size,
+      child: CustomPaint(painter: _SkyCardAstronomyPainter(astronomy)),
+    );
+  }
   final lower = title.toLowerCase();
 
   Widget planet({
@@ -394,4 +428,123 @@ Widget buildTrackSkyCardAccent(
         ],
       );
   }
+}
+
+/// Compact projection of the same typed facts used by the detailed instruments.
+class _SkyCardAstronomyPainter extends CustomPainter {
+  const _SkyCardAstronomyPainter(this.facts);
+  final SkyGraphicAstronomy facts;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.height * 0.4;
+    final meteor = facts.meteor;
+    final solar = facts.solarEclipse;
+    final lunar = facts.lunarEclipse;
+    if (meteor != null) {
+      final count = (meteor.zenithalHourlyRate / 30).ceil().clamp(1, 5);
+      final angle = -0.3 - meteor.declinationDegrees / 180;
+      final direction = Offset(math.cos(angle), math.sin(angle));
+      for (var i = 0; i < count; i++) {
+        final end = Offset(
+          size.width * (0.6 + i % 2 * 0.2),
+          size.height * (i + 1) / (count + 1),
+        );
+        final fireball = meteor.fireballs == MeteorCharacter.notable && i == 0;
+        canvas.drawLine(
+          end - direction * (meteor.streakLength / 5),
+          end,
+          Paint()
+            ..color = const Color(
+              0xFFE5C3C6,
+            ).withValues(alpha: fireball ? 1 : 0.65)
+            ..strokeWidth = fireball ? 2 : 0.7
+            ..strokeCap = StrokeCap.round,
+        );
+      }
+    } else if (solar != null) {
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..color = solar.hasTotality
+              ? const Color(0xFFE8E2D6)
+              : const Color(0xFFD4AE43)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = solar.hasTotality ? 2.5 : 1.5
+          ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal,
+            solar.hasTotality ? 2 : 0,
+          ),
+      );
+      canvas.drawCircle(
+        center,
+        radius * 0.82,
+        Paint()..color = const Color(0xFF080706),
+      );
+    } else if (lunar != null) {
+      final disk = Rect.fromCircle(center: center, radius: radius);
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()..color = const Color(0xFFF6EEE3),
+      );
+      canvas.save();
+      canvas.clipPath(Path()..addOval(disk));
+      if (lunar.type == LunarEclipseType.penumbral) {
+        canvas.drawRect(
+          disk,
+          Paint()
+            ..shader = LinearGradient(
+              colors: [
+                const Color(0xFF43364B).withValues(
+                  alpha: lunar.penumbralMagnitude.clamp(0, 1) * 0.48,
+                ),
+                Colors.transparent,
+              ],
+            ).createShader(disk),
+        );
+      } else {
+        canvas.drawCircle(
+          center.translate(radius * (3.4 - 2 * lunar.umbralMagnitude), 0),
+          radius * 2.4,
+          Paint()..color = const Color(0xFF572D3A),
+        );
+      }
+      canvas.restore();
+    } else {
+      final planets = facts.planets;
+      for (var i = 0; i < planets.length; i++) {
+        final p = planets[i];
+        final r = p.visualRadius * (planets.length > 1 ? 0.28 : 0.4);
+        final c = planets.length == 1
+            ? center
+            : Offset(
+                size.width * (i == 0 ? 0.3 : 0.75),
+                size.height * (i == 0 ? 0.65 : 0.35),
+              );
+        final color = switch (p.body) {
+          SkyBody.mars => const Color(0xFFD58C7A),
+          SkyBody.jupiter => const Color(0xFFE0C49A),
+          SkyBody.venus => const Color(0xFFF1DDAF),
+          SkyBody.mercury => const Color(0xFFC7C1B8),
+          SkyBody.saturn => const Color(0xFFD7C8A5),
+        };
+        canvas.drawCircle(c, r, Paint()..color = color);
+        if (p.body == SkyBody.saturn) {
+          canvas.drawOval(
+            Rect.fromCenter(center: c, width: r * 3.2, height: r * 0.9),
+            Paint()
+              ..color = const Color(0xFFE8E2D6)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 0.7,
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SkyCardAstronomyPainter oldDelegate) =>
+      oldDelegate.facts != facts;
 }

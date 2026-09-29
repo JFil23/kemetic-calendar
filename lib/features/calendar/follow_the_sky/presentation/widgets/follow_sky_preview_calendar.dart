@@ -214,6 +214,7 @@ class _SkyPreviewCard extends StatelessWidget {
         child: Stack(
           children: [
             TrackSkyEventBlockVisual(
+              astronomy: night.windowSource.graphicAstronomy,
               title: title,
               graphic: graphic,
               height: height,

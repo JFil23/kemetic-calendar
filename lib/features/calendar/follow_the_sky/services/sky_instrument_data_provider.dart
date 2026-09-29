@@ -1,3 +1,5 @@
+import '../domain/sky_graphic_astronomy.dart';
+import 'sky_graphic_geometry.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -17,9 +19,9 @@ abstract interface class SkyInstrumentDataProvider {
 
 /// Catalog-backed deterministic presentation data.
 ///
-/// It intentionally does not claim observer-specific ephemeris accuracy. A
-/// later astronomy engine can implement [SkyInstrumentDataProvider] without
-/// changing the sheet or domain models.
+/// Existing timing, visibility copy and readouts retain their catalog authority.
+/// Separate graphic astronomy resolves observer geometry from pinned ephemerides
+/// without changing that presentation or scheduling contract.
 class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
   const CatalogSkyInstrumentDataProvider({
     this.familyResolver = const InstrumentFamilyResolver(),
@@ -51,7 +53,8 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
       calculationVersion: calculationVersion,
     );
     final visibility = SkyInstrumentVisibility(
-      // The catalog fallback never uses latitude/longitude for geometry.
+      // Existing visibility copy remains a catalog fallback; observer geometry
+      // is carried separately in graphic astronomy below.
       isLocal: false,
       isTimeFallback: locationResolution.isFallback,
       summary: locationResolution.isFallback
@@ -61,6 +64,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
           : 'Local time for ${place.label} · sky position unavailable',
     );
     final family = familyResolver.resolve(night);
+    final graphics = resolveSkyGraphicAstronomy(event, place);
 
     return switch (family) {
       SkyInstrumentFamily.lunarPath => _lunar(
@@ -69,6 +73,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
         window.endLocal,
         provenance,
         visibility,
+        graphics,
       ),
       SkyInstrumentFamily.meteorWindow => _meteor(
         event,
@@ -78,6 +83,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
         window.endLocal,
         provenance,
         visibility,
+        graphics,
       ),
       SkyInstrumentFamily.opposition => _opposition(
         event,
@@ -86,6 +92,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
         window.endLocal,
         provenance,
         visibility,
+        graphics,
       ),
       SkyInstrumentFamily.elongation => _elongation(
         event,
@@ -94,6 +101,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
         window.endLocal,
         provenance,
         visibility,
+        graphics,
       ),
       SkyInstrumentFamily.conjunction => _conjunction(
         event,
@@ -102,6 +110,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
         window.endLocal,
         provenance,
         visibility,
+        graphics,
       ),
       SkyInstrumentFamily.solarThreshold => _solarThreshold(
         event,
@@ -110,6 +119,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
         window.endLocal,
         provenance,
         visibility,
+        graphics,
       ),
       SkyInstrumentFamily.solarEclipse => _solarEclipse(
         event,
@@ -118,6 +128,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
         window.endLocal,
         provenance,
         visibility,
+        graphics,
       ),
     };
   }
@@ -139,6 +150,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
     DateTime viewingEnd,
     SkyInstrumentProvenance provenance,
     SkyInstrumentVisibility visibility,
+    SkyInstrumentAstronomy? graphics,
   ) {
     return LunarPathData(
       viewingWindowStart: viewingStart,
@@ -151,6 +163,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
       phaseInstant: instant,
       provenance: provenance,
       visibility: visibility,
+      astronomy: graphics,
     );
   }
 
@@ -162,6 +175,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
     DateTime viewingEnd,
     SkyInstrumentProvenance provenance,
     SkyInstrumentVisibility visibility,
+    SkyInstrumentAstronomy? graphics,
   ) {
     final peak = event.peakWindowUtc;
     final start = peak == null
@@ -177,6 +191,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
       estimatedZenithalHourlyRate: null,
       provenance: provenance,
       visibility: visibility,
+      astronomy: graphics,
     );
   }
 
@@ -187,6 +202,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
     DateTime viewingEnd,
     SkyInstrumentProvenance provenance,
     SkyInstrumentVisibility visibility,
+    SkyInstrumentAstronomy? graphics,
   ) {
     return OppositionData(
       bodyName: event.name.replaceAll(' Opposition', ''),
@@ -196,6 +212,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
       viewingWindowEnd: viewingEnd,
       provenance: provenance,
       visibility: visibility,
+      astronomy: graphics,
     );
   }
 
@@ -206,6 +223,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
     DateTime viewingEnd,
     SkyInstrumentProvenance provenance,
     SkyInstrumentVisibility visibility,
+    SkyInstrumentAstronomy? graphics,
   ) {
     final western = event.name.toLowerCase().contains('western');
     return ElongationData(
@@ -217,6 +235,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
       viewingWindowEnd: viewingEnd,
       provenance: provenance,
       visibility: visibility,
+      astronomy: graphics,
     );
   }
 
@@ -227,6 +246,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
     DateTime viewingEnd,
     SkyInstrumentProvenance provenance,
     SkyInstrumentVisibility visibility,
+    SkyInstrumentAstronomy? graphics,
   ) {
     final names = event.name.replaceAll(' Conjunction', '').split('/');
     final minimumSeparation = _separationFromNotes(event.notes);
@@ -243,6 +263,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
       viewingWindowEnd: viewingEnd,
       provenance: provenance,
       visibility: visibility,
+      astronomy: graphics,
     );
   }
 
@@ -253,6 +274,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
     DateTime viewingEnd,
     SkyInstrumentProvenance provenance,
     SkyInstrumentVisibility visibility,
+    SkyInstrumentAstronomy? graphics,
   ) {
     return SolarThresholdData(
       thresholdKind: event.kind,
@@ -262,6 +284,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
       viewingWindowEnd: viewingEnd,
       provenance: provenance,
       visibility: visibility,
+      astronomy: graphics,
     );
   }
 
@@ -272,6 +295,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
     DateTime viewingEnd,
     SkyInstrumentProvenance provenance,
     SkyInstrumentVisibility visibility,
+    SkyInstrumentAstronomy? graphics,
   ) {
     return SolarEclipseData(
       greatestEclipse: instant,
@@ -283,6 +307,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
       viewingWindowEnd: viewingEnd,
       provenance: provenance,
       visibility: visibility,
+      astronomy: graphics,
     );
   }
 

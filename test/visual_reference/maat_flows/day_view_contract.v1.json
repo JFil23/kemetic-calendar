@@ -14,7 +14,7 @@
         "files": [
           {
             "path": "test/visual_reference/maat_flows/goldens/maat-day-housing-follow-sky-lowered-390x844.png",
-            "sha256": "f092f2527b4516ccca9dcfa01ab93e76465df510655de0662cc58ffa0b6999da"
+            "sha256": "f490d99c1a643a455bdf4f235b1e94e3fe6f61d88d08a4e8d222a2e305d001e6"
           },
           {
             "path": "test/visual_reference/maat_flows/goldens/maat-day-housing-follow-sky-raised-390x844.png",

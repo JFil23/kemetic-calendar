@@ -13756,6 +13756,7 @@ class _CalendarDayEventBlockState extends State<CalendarDayEventBlock> {
 
     if (isTrackSky) {
       return TrackSkyEventBlockVisual(
+        skyEventId: TrackSkyEventOwnership.skyEventIdFromPayload(event.behaviorPayload),
         title: event.title,
         graphic: trackSkySpec!,
         width: widget.width,

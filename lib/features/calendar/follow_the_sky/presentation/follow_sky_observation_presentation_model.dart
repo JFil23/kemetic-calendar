@@ -1,3 +1,5 @@
+import '../domain/sky_graphic_astronomy.dart';
+import '../services/sky_graphic_geometry.dart';
 import 'package:flutter/foundation.dart';
 
 import '../domain/follow_sky_track_definition.dart';
@@ -130,7 +132,12 @@ class FollowSkyObservationPresentationModelFactory {
       night: night,
       place: context.place,
     );
-    final instrument = _asWallTime(resolved);
+    final instrument = _asWallTime(
+      resolved,
+      fallbackAstronomy: resolved.astronomy == null
+          ? resolveSkyGraphicAstronomy(night.windowSource, context.place)
+          : null,
+    );
     final track = trackResolver.resolve(
       night: night,
       instrument: instrument,
@@ -270,7 +277,22 @@ SkyPositionSample _wallPosition(SkyPositionSample sample) => SkyPositionSample(
   altitudeDegrees: sample.altitudeDegrees,
 );
 
-SkyInstrumentData _asWallTime(SkyInstrumentData data) => switch (data) {
+SkyInstrumentAstronomy? _wallAstronomy(SkyInstrumentAstronomy? data) =>
+    data == null
+    ? null
+    : SkyInstrumentAstronomy(
+        facts: data.facts,
+        anchor: _wall(data.anchor),
+        peakUncertaintyHours: data.peakUncertaintyHours,
+        meteorSamples: data.meteorSamples
+            .map((s) => s.atTime(_wall(s.at)))
+            .toList(growable: false),
+      );
+
+SkyInstrumentData _asWallTime(
+  SkyInstrumentData data, {
+  SkyInstrumentAstronomy? fallbackAstronomy,
+}) => switch (data) {
   LunarPathData value => LunarPathData(
     viewingWindowStart: _wall(value.viewingWindowStart),
     viewingWindowEnd: _wall(value.viewingWindowEnd),
@@ -292,6 +314,7 @@ SkyInstrumentData _asWallTime(SkyInstrumentData data) => switch (data) {
     phaseInstant: _wall(value.phaseInstant),
     provenance: value.provenance,
     visibility: value.visibility,
+    astronomy: _wallAstronomy(value.astronomy ?? fallbackAstronomy),
   ),
   MeteorWindowData value => MeteorWindowData(
     radiantName: value.radiantName,
@@ -300,6 +323,7 @@ SkyInstrumentData _asWallTime(SkyInstrumentData data) => switch (data) {
     estimatedZenithalHourlyRate: value.estimatedZenithalHourlyRate,
     provenance: value.provenance,
     visibility: value.visibility,
+    astronomy: _wallAstronomy(value.astronomy ?? fallbackAstronomy),
   ),
   OppositionData value => OppositionData(
     bodyName: value.bodyName,
@@ -311,6 +335,7 @@ SkyInstrumentData _asWallTime(SkyInstrumentData data) => switch (data) {
     viewingWindowEnd: _wall(value.viewingWindowEnd),
     provenance: value.provenance,
     visibility: value.visibility,
+    astronomy: _wallAstronomy(value.astronomy ?? fallbackAstronomy),
   ),
   ElongationData value => ElongationData(
     bodyName: value.bodyName,
@@ -321,6 +346,7 @@ SkyInstrumentData _asWallTime(SkyInstrumentData data) => switch (data) {
     viewingWindowEnd: _wall(value.viewingWindowEnd),
     provenance: value.provenance,
     visibility: value.visibility,
+    astronomy: _wallAstronomy(value.astronomy ?? fallbackAstronomy),
   ),
   ConjunctionData value => ConjunctionData(
     bodyA: value.bodyA,
@@ -337,6 +363,7 @@ SkyInstrumentData _asWallTime(SkyInstrumentData data) => switch (data) {
     viewingWindowEnd: _wall(value.viewingWindowEnd),
     provenance: value.provenance,
     visibility: value.visibility,
+    astronomy: _wallAstronomy(value.astronomy ?? fallbackAstronomy),
   ),
   SolarThresholdData value => SolarThresholdData(
     thresholdKind: value.thresholdKind,
@@ -346,6 +373,7 @@ SkyInstrumentData _asWallTime(SkyInstrumentData data) => switch (data) {
     viewingWindowEnd: _wall(value.viewingWindowEnd),
     provenance: value.provenance,
     visibility: value.visibility,
+    astronomy: _wallAstronomy(value.astronomy ?? fallbackAstronomy),
   ),
   SolarEclipseData value => SolarEclipseData(
     greatestEclipse: _wall(value.greatestEclipse),
@@ -355,5 +383,6 @@ SkyInstrumentData _asWallTime(SkyInstrumentData data) => switch (data) {
     viewingWindowEnd: _wall(value.viewingWindowEnd),
     provenance: value.provenance,
     visibility: value.visibility,
+    astronomy: _wallAstronomy(value.astronomy ?? fallbackAstronomy),
   ),
 };

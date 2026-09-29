@@ -1,0 +1,271 @@
+00:00 +0: loading /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/sky_observation_window_policy_test.dart
+00:00 +0: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/sky_observation_window_policy_test.dart: (setUpAll)
+00:00 +0: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_catalog_audit_test.dart: (setUpAll)
+00:00 +1: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_catalog_audit_test.dart: (setUpAll)
+00:00 +2: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_catalog_audit_test.dart: (setUpAll)
+00:00 +3: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_catalog_audit_test.dart: (setUpAll)
+00:00 +4: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_catalog_audit_test.dart: (setUpAll)
+00:00 +5: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_catalog_audit_test.dart: (setUpAll)
+00:00 +5: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_catalog_audit_test.dart: inventory summary (kind / function / visibility / provisional)
+CATALOG_AUDIT counts byKind={equinox: 3, solstice: 3, fullMoon: 19, lunarEclipse: 5, solarEclipse: 3, meteorShower: 19, planetOpposition: 4, planetElongation: 10, planetConjunction: 4}
+CATALOG_AUDIT counts byFunction={measure: 3, turn: 3, reveal: 19, reconsider: 8, attend: 37}
+CATALOG_AUDIT counts byVisibility={global: 63, locationGated: 7}
+CATALOG_AUDIT provisional=1 total=70
+00:00 +6: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +7: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +8: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +9: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +10: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +11: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +12: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +13: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +14: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +15: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +16: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +17: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +18: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +19: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (setUpAll)
+00:00 +19: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_catalog_audit_test.dart: Pacific civil dates derive from source UTC, not placeholder noon
+00:00 +20: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: compact calendar graphics share typed astronomy and preserve card text
+00:00 +21: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: compact calendar graphics share typed astronomy and preserve card text
+00:00 +22: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: compact calendar graphics share typed astronomy and preserve card text
+00:04 +23: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +24: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +25: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +26: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +26: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_sheet_resize_test.dart: (setUpAll)
+supabase.supabase_flutter: INFO: ***** Supabase init completed *****
+00:07 +26: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +27: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +28: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +29: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +30: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +31: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +32: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +33: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +34: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +35: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +36: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +37: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +38: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +39: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +40: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +41: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +42: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +43: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +44: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:07 +45: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:08 +46: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:08 +47: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:08 +48: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:10 +49: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:10 +50: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:10 +51: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:10 +52: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +53: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +54: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +55: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +56: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +57: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +58: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +59: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +60: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +61: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +62: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +63: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +64: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +65: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +66: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +67: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +68: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:11 +69: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:12 +70: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:12 +71: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:13 +72: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:13 +73: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:13 +74: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:13 +75: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +76: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +77: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +78: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +79: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +80: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +81: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +82: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +82: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_sheet_resize_test.dart: Day View Follow Sky block reopens after shared barrier dismissal
+[EventLayoutEngine] Layout for day 1: 1 notes
+[EventLayoutEngine] Generated 1 positioned blocks for day 1
+00:14 +83: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +84: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +85: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +86: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +87: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +88: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +89: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +90: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +90: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_sheet_resize_test.dart: Day View Follow Sky block reopens after shared barrier dismissal
+[_showEventDetail] Event title=<redacted chars=33>
+[_showEventDetail] Event flowId: 73 (int)
+[_showEventDetail] Event color: Color(alpha: 1.0000, red: 0.6157, green: 0.6588, blue: 1.0000, colorSpace: ColorSpace.sRGB)
+[_showEventDetail] FlowIndex keys: [73]
+[_showEventDetail] FlowIndex length: 1
+00:14 +91: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:14 +91: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_sheet_resize_test.dart: Day View Follow Sky block reopens after shared barrier dismissal
+[DayView] detail sheet opened title=<redacted chars=33>
+00:15 +92: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:15 +92: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_sheet_resize_test.dart: Day View Follow Sky block reopens after shared barrier dismissal
+[_showEventDetail] Event title=<redacted chars=33>
+[_showEventDetail] Event flowId: 73 (int)
+[_showEventDetail] Event color: Color(alpha: 1.0000, red: 0.6157, green: 0.6588, blue: 1.0000, colorSpace: ColorSpace.sRGB)
+[_showEventDetail] FlowIndex keys: [73]
+[_showEventDetail] FlowIndex length: 1
+00:16 +93: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:16 +93: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_sheet_resize_test.dart: Day View Follow Sky block reopens after shared barrier dismissal
+[DayView] detail sheet opened title=<redacted chars=33>
+00:16 +94: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: catalog graphics at selected times fit narrow, phone and wide surfaces
+00:16 +95: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_sheet_resize_test.dart: Day View Follow Sky block reopens after shared barrier dismissal
+00:16 +96: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: static astronomy reference states use the existing seven painters
+00:17 +97: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: static astronomy reference states use the existing seven painters
+00:17 +98: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_differentiation_visual_test.dart: (tearDownAll)
+00:18 +98: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/turning_meaning_resolver_test.dart: (setUpAll)
+00:18 +98: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: (setUpAll)
+00:18 +99: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: (setUpAll)
+00:18 +100: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: (setUpAll)
+00:18 +101: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: (setUpAll)
+00:18 +101: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/turning_meaning_resolver_test.dart: Aug eclipse companion aliases to one ENDURE meaning
+00:18 +102: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:18 +103: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:18 +104: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:18 +105: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:18 +106: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:18 +107: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +108: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +109: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +110: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +111: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +112: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +113: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +114: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +115: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +116: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +117: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +118: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +119: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +120: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +121: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +122: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +123: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:19 +124: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:20 +125: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:20 +126: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +126: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: (setUpAll)
+supabase.supabase_flutter: INFO: ***** Supabase init completed *****
+00:22 +126: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +127: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +128: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +129: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +130: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +131: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +132: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +133: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +134: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +135: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +136: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +137: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +138: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +139: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +140: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v2_shell_visual_test.dart: V11 detail hierarchy replaces Course-era marketing shell
+00:22 +141: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_observation_presentation_test.dart: presentation starts on the HTML mockup hierarchy
+00:22 +142: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_observation_presentation_test.dart: presentation starts on the HTML mockup hierarchy
+00:22 +143: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_observation_presentation_test.dart: presentation starts on the HTML mockup hierarchy
+00:22 +144: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_observation_presentation_test.dart: presentation starts on the HTML mockup hierarchy
+00:23 +145: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:25 +146: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:25 +147: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:25 +148: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:25 +149: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:25 +150: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:25 +151: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:25 +152: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:25 +153: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:26 +154: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:26 +155: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:26 +156: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:26 +157: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:26 +158: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:26 +159: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:26 +160: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:27 +161: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:27 +162: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:27 +163: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:27 +164: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: discovery opens its authored inline detail on the same route
+00:27 +165: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_cut2_connect_lifecycle_test.dart: (setUpAll)
+00:27 +165: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: restored detail route preserves a discoverable list route beneath it
+00:28 +166: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: restored detail route preserves a discoverable list route beneath it
+00:28 +167: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: restored detail route preserves a discoverable list route beneath it
+00:28 +168: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/maat_list_to_detail_transition_test.dart: restored detail route preserves a discoverable list route beneath it
+00:28 +169: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_cut2_connect_lifecycle_test.dart: V11 does not revive renamed legacy-source presentation
+00:29 +170: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_the_sky_v2_cut2_connect_lifecycle_test.dart: V11 does not revive renamed legacy-source presentation
+00:31 +171: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +172: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +173: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +174: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +175: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +176: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +177: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +178: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +179: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +180: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +181: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:32 +182: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:33 +183: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:34 +184: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:35 +185: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:35 +186: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:35 +187: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:36 +188: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:36 +189: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:36 +190: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:36 +191: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:36 +192: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:36 +193: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:36 +194: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:36 +195: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow
+00:36 +196: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +197: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +198: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +199: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +200: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +201: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +202: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +203: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +204: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +205: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +206: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders one review image for each sealed instrument family
+00:36 +207: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_presentation_system_test.dart: lunarPath uses the shared shell at min and max height
+00:37 +208: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_presentation_system_test.dart: lunarPath uses the shared shell at min and max height
+00:37 +209: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_presentation_system_test.dart: lunarPath uses the shared shell at min and max height
+00:37 +210: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_presentation_system_test.dart: lunarPath uses the shared shell at min and max height
+00:37 +211: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_presentation_system_test.dart: lunarPath uses the shared shell at min and max height
+00:37 +212: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_presentation_system_test.dart: lunarPath uses the shared shell at min and max height
+00:37 +213: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_presentation_system_test.dart: lunarPath uses the shared shell at min and max height
+00:38 +214: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_presentation_system_test.dart: lunarPath uses the shared shell at min and max height
+00:39 +215: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_presentation_system_test.dart: lunarPath uses the shared shell at min and max height
+00:39 +216: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:39 +217: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:40 +218: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:40 +219: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:40 +220: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:40 +221: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:40 +222: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:40 +223: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:41 +224: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:41 +225: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:41 +226: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:42 +227: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_instrument_visual_harness_test.dart: renders start 25 peak 75 end without explanatory copy for all modes
+00:42 +228: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: worked intention stays visible above keyboard without focus-cycle drift
+00:43 +229: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: embedded worked intention reserves the shared keyboard occlusion once
+00:44 +230: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: focused embedded intention fills visual and layout-sized iOS viewports
+00:44 +231: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: standalone worked intention remains visible through Scaffold resize
+00:45 +232: /Users/jaralephillips/dev/kemetic-calendar-rc/test/features/calendar/follow_the_sky/follow_sky_v11_interaction_test.dart: (tearDownAll)
+00:45 +232: All tests passed!

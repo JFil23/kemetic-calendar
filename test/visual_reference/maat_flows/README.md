@@ -169,3 +169,13 @@ flutter test --update-goldens \
   test/features/calendar/maat_flow_discovery_view_test.dart \
   test/features/inbox/reading_house_inbox_section_visual_test.dart
 ```
+
+### Follow the Sky graphic enrichment — September 28, 2026
+
+The user's graphic-only astronomy differentiation request updates the lunar
+shadow inside the supplemental lowered Follow the Sky housing reference.
+All three platform captures were independently regenerated with Flutter 3.35.3
+and compared: exactly 1,857 pixels changed, confined to `(171,539)–(219,588)`.
+The housing, header, prompts and surrounding copy retain identical pixels.
+The raised reference is unchanged. The contract checksum records this reviewed
+scoped change; see `docs/follow_the_sky/event-differentiation-2026-09-28.md`.

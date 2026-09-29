@@ -1,4 +1,5 @@
 import 'sky_event_kind.dart';
+import 'sky_graphic_astronomy.dart';
 
 enum SkyInstrumentFamily {
   lunarPath,
@@ -102,6 +103,7 @@ sealed class SkyInstrumentData {
     required this.viewingWindowEnd,
     required this.provenance,
     required this.visibility,
+    this.astronomy,
   });
 
   final SkyInstrumentFamily family;
@@ -109,6 +111,7 @@ sealed class SkyInstrumentData {
   final DateTime viewingWindowEnd;
   final SkyInstrumentProvenance provenance;
   final SkyInstrumentVisibility visibility;
+  final SkyInstrumentAstronomy? astronomy;
 }
 
 /// Absolute civil-time domain for the observation scrubber.
@@ -146,6 +149,7 @@ final class LunarPathData extends SkyInstrumentData {
     required this.phaseInstant,
     required super.provenance,
     required super.visibility,
+    super.astronomy,
   }) : super(family: SkyInstrumentFamily.lunarPath);
 
   final DateTime? rise;
@@ -166,6 +170,7 @@ final class MeteorWindowData extends SkyInstrumentData {
     required this.estimatedZenithalHourlyRate,
     required super.provenance,
     required super.visibility,
+    super.astronomy,
   }) : super(
          family: SkyInstrumentFamily.meteorWindow,
          viewingWindowStart: peakWindowStart,
@@ -187,6 +192,7 @@ final class OppositionData extends SkyInstrumentData {
     required super.viewingWindowEnd,
     required super.provenance,
     required super.visibility,
+    super.astronomy,
   }) : super(family: SkyInstrumentFamily.opposition);
 
   final String bodyName;
@@ -204,6 +210,7 @@ final class ElongationData extends SkyInstrumentData {
     required super.viewingWindowEnd,
     required super.provenance,
     required super.visibility,
+    super.astronomy,
   }) : super(family: SkyInstrumentFamily.elongation);
 
   final String bodyName;
@@ -229,6 +236,7 @@ final class ConjunctionData extends SkyInstrumentData {
     required super.viewingWindowEnd,
     required super.provenance,
     required super.visibility,
+    super.astronomy,
   }) : super(family: SkyInstrumentFamily.conjunction);
 
   final String bodyA;
@@ -247,6 +255,7 @@ final class SolarThresholdData extends SkyInstrumentData {
     required super.viewingWindowEnd,
     required super.provenance,
     required super.visibility,
+    super.astronomy,
   }) : super(family: SkyInstrumentFamily.solarThreshold);
 
   final SkyEventKind thresholdKind;
@@ -263,6 +272,7 @@ final class SolarEclipseData extends SkyInstrumentData {
     required super.viewingWindowEnd,
     required super.provenance,
     required super.visibility,
+    super.astronomy,
   }) : super(family: SkyInstrumentFamily.solarEclipse);
 
   final DateTime greatestEclipse;
