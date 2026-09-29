@@ -62,7 +62,13 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
 
   void select(PagesCollection? collection) {
     _request++;
-    value = PagesCollectionState(collection: collection);
+    final retained = collection == PagesCollection.notes && _notesDay != _today
+        ? null
+        : _pages[collection];
+    value = PagesCollectionState(
+      collection: collection,
+      items: retained ?? const [],
+    );
     if (collection != null && _active) unawaited(_load());
   }
 

@@ -276,6 +276,12 @@ void main() {
       ),
     );
 
+    expect(
+      find.byType(CircularProgressIndicator),
+      findsNothing,
+      reason: 'A complete supplied payload must render on its first frame',
+    );
+    expect(find.text('CODEX_PROFILE_POLICY_SMOKE'), findsOneWidget);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 

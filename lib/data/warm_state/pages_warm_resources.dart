@@ -43,15 +43,19 @@ class PagesWarmResources {
       'pages.hiddenCalendars': calendars.getHiddenCalendarIds,
       'pages.calendar': () async {
         final uid = client.auth.currentUser!.id;
-        final flows = cache.peek<List<PagesFlow>>(uid, 'pages.flows');
-        final hidden = cache.peek<Set<String>>(uid, 'pages.hiddenCalendars');
-        if (flows == null || hidden == null) return null;
+        final flows =
+            cache.peek<List<PagesFlow>>(uid, 'pages.flows') ??
+            await repo.flows();
+        final hidden =
+            cache.peek<Set<String>>(uid, 'pages.hiddenCalendars') ??
+            await calendars.getHiddenCalendarIds();
         return repo.calendar(DateTime.now(), flows, hidden);
       },
       'pages.events': () async {
         final uid = client.auth.currentUser!.id;
-        final hidden = cache.peek<Set<String>>(uid, 'pages.hiddenCalendars');
-        if (hidden == null) return null;
+        final hidden =
+            cache.peek<Set<String>>(uid, 'pages.hiddenCalendars') ??
+            await calendars.getHiddenCalendarIds();
         return repo.events(DateTime.now(), hidden: hidden);
       },
     };

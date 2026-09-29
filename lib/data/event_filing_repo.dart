@@ -40,24 +40,17 @@ class EventFilingRepo {
   }) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return const [];
-    var query = _client
-        .from(viewName)
-        .select(selectColumns)
-        .eq('user_id', uid)
-        .eq('item_kind', kind.name)
-        .neq('lifecycle', 'deleted');
-    if (startsOnOrAfterUtc != null) {
-      query = query.gte(
-        'starts_at',
-        startsOnOrAfterUtc.toUtc().toIso8601String(),
-      );
-    }
     final rows = await WarmJsonReads(_client, cachedOnly: cachedOnly).rows(
       'filing.${kind.name}.$offset.$pageSize.${startsOnOrAfterUtc?.toIso8601String()}',
-      () async => query
-          .order('starts_at', ascending: false)
-          .order('id', ascending: false)
-          .range(offset, offset + pageSize - 1),
+      () => _client.rpc(
+        'get_owned_filing_page_v1',
+        params: {
+          'p_kind': kind.name,
+          'p_offset': offset,
+          'p_limit': pageSize,
+          'p_starts_on_or_after': startsOnOrAfterUtc?.toUtc().toIso8601String(),
+        },
+      ),
     );
     return rows.map((row) => FiledEvent.fromBackendRow(row)).toList();
   }

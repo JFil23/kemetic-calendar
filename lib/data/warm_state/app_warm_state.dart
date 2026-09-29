@@ -1,3 +1,4 @@
+import '../../features/calendar/the_reading_house/reading_house_room_repository.dart';
 import '../flow_post_model.dart';
 import 'dart:async';
 import 'package:flutter/widgets.dart';
@@ -144,7 +145,29 @@ class AppWarmState with WidgetsBindingObserver {
     }
     final rhythm = RhythmRepo(client);
     final profile = ProfileRepo(client);
+    final rooms = SupabaseReadingHouseRoomRepository(client);
     final jobs = <String, Future<Object?> Function()>{
+      'readingHouse': () async {
+        final summaries = await rooms.listSummaries();
+        for (final room in summaries.where((s) => !s.ended).take(6)) {
+          _queue.enqueue(
+            '$uid:readingHouse:${room.identity.calendarId}:${room.identity.flowId}',
+            () async {
+              if (current()) await rooms.listMessages(identity: room.identity);
+            },
+          );
+        }
+        return null;
+      },
+      'profile.posts': () async {
+        final posts = await profile.getFlowPosts(uid);
+        for (final post in posts) {
+          _queue.enqueue('$uid:post:${post.id}', () async {
+            if (current()) await profile.getFlowPostById(post.id, strict: true);
+          });
+        }
+        return null;
+      },
       'planner.alignment': rhythm.fetchTodaysAlignment,
       'planner.todos': rhythm.fetchTodos,
       'planner.tracker': rhythm.fetchContinuity,
@@ -157,9 +180,10 @@ class AppWarmState with WidgetsBindingObserver {
         final posts = feed.data
             .map((item) => item.flowPost)
             .whereType<FlowPost>();
-        for (final post in posts.take(3)) {
-          if (!current()) return null;
-          await profile.getFlowPostById(post.id, strict: true);
+        for (final post in posts) {
+          _queue.enqueue('$uid:post:${post.id}', () async {
+            if (current()) await profile.getFlowPostById(post.id, strict: true);
+          });
         }
         return null;
       },
@@ -186,20 +210,19 @@ class AppWarmState with WidgetsBindingObserver {
       ).getOwnedItemsPage(kind: FiledItemKind.reminder, offset: 0),
       'flow.details': () async {
         final rows = await FlowsRepo(client).listMyFiledFlows();
-        for (final flow
-            in rows
-                .where(
-                  (f) => f.visibleInActiveList && !f.isHidden && !f.isReminder,
-                )
-                .take(3)) {
-          if (!current()) return null;
-          await FlowsRepo(client).getFlowById(flow.id);
-          if (!current()) return null;
-          await UserEventsRepo(client).getFlowDetailEvents(flow.id);
-          final path = flow.appearance.imageObjectPath;
-          if (path != null && current()) {
-            await FlowAppearanceStore(client).imageBytes(path);
-          }
+        for (final flow in rows.where(
+          (f) => f.visibleInActiveList && !f.isHidden && !f.isReminder,
+        )) {
+          _queue.enqueue('$uid:flow:${flow.id}', () async {
+            if (!current()) return;
+            await FlowsRepo(client).getFlowById(flow.id);
+            if (!current()) return;
+            await UserEventsRepo(client).getFlowDetailEvents(flow.id);
+            final path = flow.appearance.imageObjectPath;
+            if (path != null && current()) {
+              await FlowAppearanceStore(client).imageBytes(path);
+            }
+          });
         }
         return null;
       },

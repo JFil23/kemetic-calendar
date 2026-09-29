@@ -44,11 +44,9 @@ void main() {
         authOptions: const AuthClientOptions(autoRefreshToken: false),
         httpClient: MockClient((r) async {
           requests.add(r);
-          final kind = r.url.queryParameters['item_kind']!.replaceFirst(
-            'eq.',
-            '',
-          );
-          final offset = int.parse(r.url.queryParameters['offset'] ?? '0');
+          final params = jsonDecode(r.body) as Map<String, dynamic>;
+          final kind = params['p_kind'] as String;
+          final offset = params['p_offset'] as int;
           return http.Response(
             jsonEncode(
               List.generate(offset == 0 ? 50 : 1, (i) => row(offset + i, kind)),
@@ -75,9 +73,12 @@ void main() {
       await drain();
       expect(c.value.items, hasLength(50));
       expect(c.value.hasMore, isTrue);
-      expect(requests.single.method, 'GET');
-      expect(requests.single.url.queryParameters['user_id'], 'eq.$uid');
-      expect(requests.single.url.queryParameters['lifecycle'], 'neq.deleted');
+      expect(requests.single.method, 'POST');
+      expect(
+        requests.single.url.path,
+        endsWith('/rpc/get_owned_filing_page_v1'),
+      );
+      expect(jsonDecode(requests.single.body)['p_kind'], 'note');
       await c.loadMore();
       expect(c.value.items, hasLength(51));
       expect(c.value.hasMore, isFalse);
@@ -112,13 +113,11 @@ void main() {
         authOptions: const AuthClientOptions(autoRefreshToken: false),
         httpClient: MockClient((r) async {
           requests.add(r);
-          final cutoff = r.url.queryParameters['starts_at'];
+          final cutoff = jsonDecode(r.body)['p_starts_on_or_after'] as String?;
           final rows = [
             for (var i = 0; i < dates.length; i++)
               if (cutoff == null ||
-                  !dates[i].toUtc().isBefore(
-                    DateTime.parse(cutoff.substring(4)),
-                  ))
+                  !dates[i].toUtc().isBefore(DateTime.parse(cutoff)))
                 {
                   ...row(i, 'note'),
                   'starts_at': dates[i].toUtc().toIso8601String(),
@@ -143,8 +142,8 @@ void main() {
       await drain();
       expect(c.value.items.map((i) => i.title), ['note 1', 'note 2']);
       expect(
-        requests.single.url.queryParameters['starts_at'],
-        'gte.${DateTime(2026, 9, 27).toUtc().toIso8601String()}',
+        jsonDecode(requests.single.body)['p_starts_on_or_after'],
+        DateTime(2026, 9, 27).toUtc().toIso8601String(),
       );
       c.refreshDate();
       await drain();
@@ -156,10 +155,7 @@ void main() {
       expect(c.value.items.map((i) => i.title), ['note 2']);
       c.select(PagesCollection.reminders);
       await drain();
-      expect(
-        requests.last.url.queryParameters.containsKey('starts_at'),
-        isFalse,
-      );
+      expect(jsonDecode(requests.last.body)['p_starts_on_or_after'], isNull);
       c.dispose();
       await client.dispose();
     },

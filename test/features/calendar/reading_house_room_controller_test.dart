@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:mobile/data/warm_state/warm_snapshot_store.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,43 @@ import 'package:mobile/features/calendar/the_reading_house/reading_house_room_re
 void main() {
   const roomA = ReadingHouseRoomIdentity(calendarId: 'calendar-a', flowId: 41);
   const roomB = ReadingHouseRoomIdentity(calendarId: 'calendar-b', flowId: 42);
+
+  test('warm room stays populated while refresh is delayed or fails', () async {
+    final source = _CachedRoomSource(roomA);
+    final controller = ReadingHouseRoomController(
+      dataSource: source,
+      identity: roomA,
+    );
+    addTearDown(controller.dispose);
+    expect(controller.status, ReadingHouseRoomStatus.ready);
+    expect(controller.messages.single.id, 'cached');
+    final opening = controller.start();
+    expect(controller.status, ReadingHouseRoomStatus.ready);
+    source.pending.completeError(StateError('offline'));
+    await opening;
+    expect(controller.status, ReadingHouseRoomStatus.ready);
+    expect(controller.messages.single.id, 'cached');
+    expect(
+      source.markedAt,
+      isEmpty,
+      reason: 'Restoring or warming must not mark messages read',
+    );
+  });
+
+  test('confirmed permission denial removes a cached room', () async {
+    final source = _CachedRoomSource(roomA);
+    final controller = ReadingHouseRoomController(
+      dataSource: source,
+      identity: roomA,
+    );
+    addTearDown(controller.dispose);
+    final opening = controller.start();
+    source.pending.completeError(const WarmAccessDenied());
+    await opening;
+    expect(controller.status, ReadingHouseRoomStatus.error);
+    expect(controller.messages, isEmpty);
+    expect(controller.summary, isNull);
+  });
 
   test(
     'room controller loads and marks only its exact House identity',
@@ -332,4 +370,29 @@ class _FakeRoomDataSource implements ReadingHouseRoomDataSource {
   @override
   Stream<List<ReadingHouseRoomSummary>> watchSummaries() =>
       Stream<List<ReadingHouseRoomSummary>>.value(summaries);
+}
+
+class _CachedRoomSource extends _FakeRoomDataSource
+    implements CachedReadingHouseRoomDataSource {
+  _CachedRoomSource(this.identity)
+    : super({
+        identity: [_message('cached', identity, minute: 1)],
+      });
+  final ReadingHouseRoomIdentity identity;
+  final pending = Completer<List<ReadingHouseRoomMessage>>();
+  @override
+  ReadingHouseRoomSnapshot? cachedRoom(ReadingHouseRoomIdentity requested) =>
+      requested == identity
+      ? ReadingHouseRoomSnapshot(summaries, messages[identity]!)
+      : null;
+  @override
+  Future<ReadingHouseRoomSnapshot?> restoreRoom(
+    ReadingHouseRoomIdentity requested,
+  ) async => cachedRoom(requested);
+  @override
+  Future<List<ReadingHouseRoomMessage>> listMessages({
+    required ReadingHouseRoomIdentity identity,
+    DateTime? before,
+    int limit = 50,
+  }) => pending.future;
 }

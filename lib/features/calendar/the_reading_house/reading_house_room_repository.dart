@@ -1,4 +1,7 @@
 import 'dart:async';
+import '../../../../data/warm_state/warm_json_reads.dart';
+import '../../../../data/warm_state/warm_snapshot_store.dart';
+import '../../../../data/warm_state/warm_mutation.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -197,7 +200,21 @@ abstract interface class ReadingHouseRoomDataSource {
   Stream<List<ReadingHouseRoomSummary>> watchSummaries();
 }
 
-class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
+class ReadingHouseRoomSnapshot {
+  const ReadingHouseRoomSnapshot(this.summaries, this.messages);
+  final List<ReadingHouseRoomSummary> summaries;
+  final List<ReadingHouseRoomMessage> messages;
+}
+
+abstract interface class CachedReadingHouseRoomDataSource {
+  ReadingHouseRoomSnapshot? cachedRoom(ReadingHouseRoomIdentity identity);
+  Future<ReadingHouseRoomSnapshot?> restoreRoom(
+    ReadingHouseRoomIdentity identity,
+  );
+}
+
+class SupabaseReadingHouseRoomRepository
+    implements ReadingHouseRoomDataSource, CachedReadingHouseRoomDataSource {
   SupabaseReadingHouseRoomRepository(this._client);
 
   final SupabaseClient _client;
@@ -215,14 +232,64 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
   @override
   String? get currentUserId => _client.auth.currentUser?.id;
 
+  String _messageKey(
+    ReadingHouseRoomIdentity identity,
+    DateTime? before,
+    int limit,
+  ) =>
+      'readingHouse.messages.${identity.calendarId.trim()}.${identity.flowId}.${before?.toUtc().toIso8601String()}.$limit';
+
+  @override
+  ReadingHouseRoomSnapshot? cachedRoom(ReadingHouseRoomIdentity identity) {
+    final uid = currentUserId;
+    if (uid == null) return null;
+    final store = WarmSnapshotStore.instance;
+    final summaries = store.peek(uid, 'readingHouse.summaries')?.data;
+    final messages = store.peek(uid, _messageKey(identity, null, 50))?.data;
+    if (summaries is! List || messages is! List) return null;
+    return ReadingHouseRoomSnapshot(
+      summaries
+          .map(
+            (r) => ReadingHouseRoomSummary.fromJson(
+              Map<String, dynamic>.from(r as Map),
+            ),
+          )
+          .toList(),
+      messages
+          .map(
+            (r) => ReadingHouseRoomMessage.fromJson(
+              Map<String, dynamic>.from(r as Map),
+            ),
+          )
+          .toList()
+        ..sort((a, b) {
+          final order = a.createdAt.compareTo(b.createdAt);
+          return order != 0 ? order : a.id.compareTo(b.id);
+        }),
+    );
+  }
+
+  @override
+  Future<ReadingHouseRoomSnapshot?> restoreRoom(
+    ReadingHouseRoomIdentity identity,
+  ) async {
+    final uid = currentUserId;
+    if (uid == null) return null;
+    await WarmSnapshotStore.instance.restore(uid);
+    return currentUserId == uid ? cachedRoom(identity) : null;
+  }
+
   @override
   Future<List<ReadingHouseRoomSummary>> listSummaries() async {
     if (currentUserId == null) return const <ReadingHouseRoomSummary>[];
-    final rows = await _client
-        .from('reading_house_room_summaries')
-        .select()
-        .order('ended', ascending: true)
-        .order('latest_message_at', ascending: false, nullsFirst: false);
+    final rows = await WarmJsonReads(_client).rows(
+      'readingHouse.summaries',
+      () => _client
+          .from('reading_house_room_summaries')
+          .select()
+          .order('ended', ascending: true)
+          .order('latest_message_at', ascending: false, nullsFirst: false),
+    );
     return (rows as List)
         .whereType<Map>()
         .map(
@@ -250,9 +317,10 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
     if (before != null) {
       query = query.lt('created_at', before.toUtc().toIso8601String());
     }
-    final rows = await query
-        .order('created_at', ascending: false)
-        .limit(boundedLimit);
+    final rows = await WarmJsonReads(_client).rows(
+      _messageKey(identity, before, boundedLimit),
+      () => query.order('created_at', ascending: false).limit(boundedLimit),
+    );
     final messages =
         (rows as List)
             .whereType<Map>()
@@ -284,14 +352,20 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
     if (trimmed.isEmpty || trimmed.length > 4000) {
       throw ArgumentError.value(body, 'body', 'Enter 1–4000 characters.');
     }
-    await _client.rpc(
-      'create_reading_house_chat_message',
-      params: <String, dynamic>{
-        'p_calendar_id': identity.calendarId.trim(),
-        'p_flow_id': identity.flowId,
-        'p_body': trimmed,
-      },
-    );
+    final account = currentUserId;
+    invalidateWarmDomains(account, ['readingHouse.']);
+    try {
+      await _client.rpc(
+        'create_reading_house_chat_message',
+        params: <String, dynamic>{
+          'p_calendar_id': identity.calendarId.trim(),
+          'p_flow_id': identity.flowId,
+          'p_body': trimmed,
+        },
+      );
+    } finally {
+      invalidateWarmDomains(account, ['readingHouse.']);
+    }
   }
 
   @override
@@ -309,13 +383,19 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
     if (trimmedBody.isEmpty || trimmedBody.length > 4000) {
       throw ArgumentError.value(body, 'body', 'Enter 1–4000 characters.');
     }
-    await _client.rpc(
-      'update_reading_house_chat_message',
-      params: <String, dynamic>{
-        'p_message_id': trimmedId,
-        'p_body': trimmedBody,
-      },
-    );
+    final account = currentUserId;
+    invalidateWarmDomains(account, ['readingHouse.']);
+    try {
+      await _client.rpc(
+        'update_reading_house_chat_message',
+        params: <String, dynamic>{
+          'p_message_id': trimmedId,
+          'p_body': trimmedBody,
+        },
+      );
+    } finally {
+      invalidateWarmDomains(account, ['readingHouse.']);
+    }
   }
 
   @override
@@ -328,10 +408,16 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
     if (trimmedId.isEmpty) {
       throw ArgumentError.value(messageId, 'messageId', 'Message required.');
     }
-    await _client.rpc(
-      'delete_reading_house_chat_message',
-      params: <String, dynamic>{'p_message_id': trimmedId},
-    );
+    final account = currentUserId;
+    invalidateWarmDomains(account, ['readingHouse.']);
+    try {
+      await _client.rpc(
+        'delete_reading_house_chat_message',
+        params: <String, dynamic>{'p_message_id': trimmedId},
+      );
+    } finally {
+      invalidateWarmDomains(account, ['readingHouse.']);
+    }
   }
 
   @override

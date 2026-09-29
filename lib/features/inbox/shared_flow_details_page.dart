@@ -196,11 +196,14 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         }());
       }
     } else if (widget.payloadJson != null) {
-      _flowFuture = Future.value(_fromPayload(widget.payloadJson!));
+      _warmData = _fromPayload(widget.payloadJson!);
+      _flowFuture = Future.value(_warmData);
     } else {
-      _flowFuture = Future.value(
-        _fromShare(widget.share!, importedFlowId: _effectiveImportedFlowId),
+      _warmData = _fromShare(
+        widget.share!,
+        importedFlowId: _effectiveImportedFlowId,
       );
+      _flowFuture = Future.value(_warmData);
     }
   }
 

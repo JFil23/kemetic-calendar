@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../../data/warm_state/warm_snapshot_store.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -10,9 +11,43 @@ class ReadingHouseRoomController extends ChangeNotifier {
   ReadingHouseRoomController({
     required ReadingHouseRoomDataSource dataSource,
     required this.identity,
-  }) : _dataSource = dataSource;
+  }) : _dataSource = dataSource,
+       _account = dataSource.currentUserId {
+    if (dataSource is CachedReadingHouseRoomDataSource) {
+      _applyCached(
+        (dataSource as CachedReadingHouseRoomDataSource).cachedRoom(identity),
+      );
+    }
+  }
 
   final ReadingHouseRoomDataSource _dataSource;
+  final String? _account;
+  bool _hasSnapshot = false;
+  bool get _current => !_disposed && _dataSource.currentUserId == _account;
+
+  void _applyCached(ReadingHouseRoomSnapshot? cached) {
+    if (!_current || cached == null || _hasSnapshot) return;
+    messages = cached.messages;
+    summary = _summaryFor(cached.summaries);
+    hasOlder = messages.length == 50;
+    _hasSnapshot = true;
+    status = ReadingHouseRoomStatus.ready;
+  }
+
+  void _failed(Object nextError) {
+    if (!_current) return;
+    error = nextError;
+    if (nextError is WarmAccessDenied) {
+      messages = const [];
+      summary = null;
+      _hasSnapshot = false;
+    }
+    status = _hasSnapshot
+        ? ReadingHouseRoomStatus.ready
+        : ReadingHouseRoomStatus.error;
+    notifyListeners();
+  }
+
   final ReadingHouseRoomIdentity identity;
 
   ReadingHouseRoomStatus status = ReadingHouseRoomStatus.idle;
@@ -32,23 +67,34 @@ class ReadingHouseRoomController extends ChangeNotifier {
 
   Future<void> start() async {
     if (_activitySubscription != null || _disposed) return;
-    status = ReadingHouseRoomStatus.loading;
+    if (!_hasSnapshot) status = ReadingHouseRoomStatus.loading;
     notifyListeners();
     _activitySubscription = _dataSource
         .watchRoom(identity)
         .listen(
           (_) => unawaited(refresh()),
           onError: (Object nextError, StackTrace stackTrace) {
-            error = nextError;
-            status = ReadingHouseRoomStatus.error;
-            notifyListeners();
+            _failed(nextError);
           },
         );
+    final source = _dataSource;
+    if (!_hasSnapshot && source is CachedReadingHouseRoomDataSource) {
+      unawaited(
+        (source as CachedReadingHouseRoomDataSource)
+            .restoreRoom(identity)
+            .then((snapshot) {
+              if (!_current || _hasSnapshot) return;
+              _applyCached(snapshot);
+              if (_hasSnapshot) notifyListeners();
+            })
+            .catchError((Object _) {}),
+      );
+    }
     await refresh();
   }
 
   Future<void> refresh() async {
-    if (_disposed) return;
+    if (!_current) return;
     if (_refreshing) {
       _refreshQueued = true;
       return;
@@ -59,7 +105,7 @@ class ReadingHouseRoomController extends ChangeNotifier {
         _dataSource.listMessages(identity: identity, limit: 50),
         _dataSource.listSummaries(),
       ]);
-      if (_disposed) return;
+      if (!_current) return;
       final nextMessages = results[0] as List<ReadingHouseRoomMessage>;
       final nextSummaries = results[1] as List<ReadingHouseRoomSummary>;
       final previousIds = messages.map((message) => message.id).toSet();
@@ -74,19 +120,17 @@ class ReadingHouseRoomController extends ChangeNotifier {
       summary = _summaryFor(nextSummaries);
       hasOlder = nextMessages.length == 50;
       error = null;
+      _hasSnapshot = true;
       status = ReadingHouseRoomStatus.ready;
       if (!followingLatest && previousIds.isNotEmpty) {
         newMessageCount += added;
       } else {
         newMessageCount = 0;
-        await _markLatestRead();
+        unawaited(_markLatestRead());
       }
       notifyListeners();
     } catch (nextError) {
-      if (_disposed) return;
-      error = nextError;
-      status = ReadingHouseRoomStatus.error;
-      notifyListeners();
+      _failed(nextError);
     } finally {
       _refreshing = false;
       if (_refreshQueued && !_disposed) {
@@ -97,7 +141,7 @@ class ReadingHouseRoomController extends ChangeNotifier {
   }
 
   Future<void> loadOlder() async {
-    if (_disposed || loadingOlder || !hasOlder || messages.isEmpty) return;
+    if (!_current || loadingOlder || !hasOlder || messages.isEmpty) return;
     loadingOlder = true;
     notifyListeners();
     try {
@@ -106,7 +150,7 @@ class ReadingHouseRoomController extends ChangeNotifier {
         before: messages.first.createdAt,
         limit: 50,
       );
-      if (_disposed) return;
+      if (!_current) return;
       final byId = <String, ReadingHouseRoomMessage>{
         for (final message in older) message.id: message,
         for (final message in messages) message.id: message,
@@ -130,7 +174,7 @@ class ReadingHouseRoomController extends ChangeNotifier {
   }
 
   Future<void> send(String body) async {
-    if (_disposed ||
+    if (!_current ||
         sending ||
         summary == null ||
         summary!.locked ||
@@ -158,7 +202,7 @@ class ReadingHouseRoomController extends ChangeNotifier {
   }
 
   Future<void> updateMessage(String messageId, String body) async {
-    if (_disposed || sending || summary?.ended == true) return;
+    if (!_current || sending || summary?.ended == true) return;
     sending = true;
     notifyListeners();
     try {
@@ -180,7 +224,7 @@ class ReadingHouseRoomController extends ChangeNotifier {
   }
 
   Future<void> deleteMessage(String messageId) async {
-    if (_disposed || sending || summary?.ended == true) return;
+    if (!_current || sending || summary?.ended == true) return;
     sending = true;
     notifyListeners();
     try {
@@ -198,7 +242,7 @@ class ReadingHouseRoomController extends ChangeNotifier {
   }
 
   void setFollowingLatest(bool value) {
-    if (_disposed || followingLatest == value) return;
+    if (!_current || followingLatest == value) return;
     followingLatest = value;
     if (value) {
       newMessageCount = 0;
@@ -222,7 +266,7 @@ class ReadingHouseRoomController extends ChangeNotifier {
   }
 
   Future<void> _markLatestRead() async {
-    if (_disposed || messages.isEmpty) return;
+    if (!_current || messages.isEmpty) return;
     final latest = messages.last.createdAt;
     try {
       await _dataSource.markRead(identity: identity, through: latest);
