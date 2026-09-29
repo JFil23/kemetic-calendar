@@ -1,5 +1,3 @@
-import 'package:mobile/features/calendar/pronunciation/pronunciation_catalog.dart';
-import 'package:mobile/widgets/pronounce_icon_button.dart';
 import 'package:flutter/material.dart';
 
 import '../../shared/glossy_text.dart';
@@ -68,7 +66,7 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
             SizedBox(
               height: monthBandHeight,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
+                padding: const EdgeInsets.fromLTRB(18, 6, 18, 7),
                 child: Row(
                   children: [
                     Expanded(
@@ -133,13 +131,7 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (!showGregorian)
-                      PronounceIconButton(
-                        pronunciationKey: PronunciationKey.month(month.id),
-                        color: KemeticGold.base,
-                        size: 18,
-                      ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Text(
                       contextLabel,
                       key: const Key('scrolling-calendar-season-year'),

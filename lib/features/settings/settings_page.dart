@@ -14,12 +14,12 @@ import '../../main.dart' show Events, appEnvironmentEnv;
 import '../../services/calendar_sync_service.dart';
 import '../../services/navigation_trace.dart';
 import '../../services/push_notifications.dart';
-import 'package:mobile/features/calendar/pronunciation/pronunciation_service.dart';
+import '../../services/speech/speech_service.dart';
 import '../../utils/external_link_utils.dart';
 import '../calendar/calendar_page.dart';
 import '../calendar/calendar_hydration_diagnostics.dart';
 import '../calendar/notify.dart';
-import '../calendar/pronunciation/pronunciation_catalog.dart';
+import '../calendar/speech_resolver.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
 import 'settings_prefs.dart';
@@ -54,8 +54,7 @@ class _SettingsBuildInfo {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  static final _speechPreviewKey = PronunciationKey.decan(1, 1);
-  final Object _previewOwner = Object();
+  static const String _speechPreviewUtteranceId = 'settings:speech-preview';
   static const String _privacyPolicyUrl = 'https://maat.app/privacy';
   static const String _termsUrl = 'https://maat.app/terms';
   static const String _supportUrl = 'https://maat.app/support';
@@ -161,21 +160,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (ModalRoute.of(context)?.isCurrent == false) {
-      unawaited(
-        PronunciationService.instance
-            .stop(owner: _previewOwner)
-            .catchError((Object _) {}),
-      );
-    }
-  }
-
-  @override
   void dispose() {
     _buildMarkerTapResetTimer?.cancel();
-    unawaited(PronunciationService.instance.stop(owner: _previewOwner));
+    unawaited(
+      SpeechService.instance.stop(utteranceId: _speechPreviewUtteranceId),
+    );
     super.dispose();
   }
 
@@ -277,7 +266,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
 
     try {
-      final speech = PronunciationService.instance;
+      final speech = SpeechService.instance;
       final voices = await speech.getAvailableVoices(
         localePrefix: 'en',
         reload: true,
@@ -420,7 +409,7 @@ class _SettingsPageState extends State<SettingsPage> {
     });
 
     try {
-      await PronunciationService.instance.setPreferredVoice(selectedVoice);
+      await SpeechService.instance.setPreferredVoice(selectedVoice);
       if (!mounted) return;
       setState(() {
         _selectedSpeechVoiceId = selectedVoice?.id;
@@ -450,15 +439,21 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _previewSpeechVoice() async {
-    final speech = PronunciationService.instance;
+    final speech = SpeechService.instance;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      if (speech.activeKey.value == _speechPreviewKey) {
-        await speech.stop(key: _speechPreviewKey);
+      if (speech.activeUtteranceId.value == _speechPreviewUtteranceId) {
+        await speech.stop(utteranceId: _speechPreviewUtteranceId);
         return;
       }
 
-      await speech.previewFallback(_speechPreviewKey, owner: _previewOwner);
+      await speech.speakPhonetic(
+        SpeechResolver.prose(
+          base: 'Tepi-a Sebau',
+          englishCue: 'Foremost of the Stars',
+        ),
+        utteranceId: _speechPreviewUtteranceId,
+      );
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -2003,12 +1998,12 @@ class _SettingsPageState extends State<SettingsPage> {
             _sectionCard(
               title: 'Speech',
               description:
-                  'Pronunciation uses bundled recordings. The device or browser voice is used only if a recording cannot play. Choose and preview an English fallback voice here.',
+                  'Pronunciation still runs through the device or browser TTS engine. You can choose an English voice on this device and preview it here.',
               children: [
                 DropdownButtonFormField<String?>(
                   key: ValueKey(_selectedSpeechVoiceId),
                   initialValue: _selectedSpeechVoiceId,
-                  decoration: _dropdownDecoration('Fallback voice'),
+                  decoration: _dropdownDecoration('Pronunciation voice'),
                   dropdownColor: const Color(0xFF101010),
                   style: const TextStyle(color: Colors.white),
                   items: [
@@ -2028,11 +2023,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       : _setSpeechVoice,
                 ),
                 const SizedBox(height: 12),
-                ValueListenableBuilder<PronunciationKey?>(
-                  valueListenable: PronunciationService.instance.activeKey,
+                ValueListenableBuilder<String?>(
+                  valueListenable: SpeechService.instance.activeUtteranceId,
                   builder: (context, activeUtteranceId, child) {
                     final previewActive =
-                        activeUtteranceId == _speechPreviewKey;
+                        activeUtteranceId == _speechPreviewUtteranceId;
                     return SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
@@ -2055,7 +2050,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               ? 'Stop voice preview'
                               : (_loadingSpeechVoices
                                     ? 'Loading available voices...'
-                                    : 'Preview fallback voice'),
+                                    : 'Preview selected voice'),
                         ),
                       ),
                     );

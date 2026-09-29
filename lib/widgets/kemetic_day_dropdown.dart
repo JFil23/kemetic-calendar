@@ -38,6 +38,7 @@ class _KemeticDayDropdownState extends State<KemeticDayDropdown> {
     final bool isEpagomenal =
         parsedKey?.month == 13 || widget.dayKey.startsWith('epagomenal_');
     final int? epagomenalDay = isEpagomenal ? parsedKey?.day : null;
+    final parsedDecan = _parseDayKeyForDecan(widget.dayKey);
 
     final String monthLine = isEpagomenal
         ? (widget.dayInfo.month.isNotEmpty
@@ -63,10 +64,46 @@ class _KemeticDayDropdownState extends State<KemeticDayDropdown> {
       kYearParam: widget.kYear,
     );
 
-    final monthKey = parsedKey == null
-        ? null
-        : PronunciationKey.month(parsedKey.month);
-    final dayPronunciationKey = PronunciationIdentity.dayKey(widget.dayKey);
+    // Build speech lines (prefer curated speechName overrides when available)
+    final monthId = parsedDecan?.kMonth;
+    final KemeticMonth? monthMeta =
+        (monthId != null && monthId >= 1 && monthId <= 13)
+        ? getMonthById(monthId)
+        : null;
+
+    final String monthSpeakLine = monthMeta != null
+        ? SpeechResolver.month(
+            month: monthMeta,
+            displayName: _stripEnglishCue(monthLine),
+          )
+        : _stripEnglishCue(widget.dayInfo.month);
+
+    String decanSpeakLine;
+    if (!isEpagomenal &&
+        parsedDecan != null &&
+        parsedDecan.kMonth >= 1 &&
+        parsedDecan.kMonth <= 12 &&
+        parsedDecan.decan >= 1 &&
+        parsedDecan.decan <= 3) {
+      final decanId = decanIdFromMonthAndIndex(
+        monthIndex: parsedDecan.kMonth,
+        decanInMonth: parsedDecan.decan,
+      );
+      final decanNames = DecanMetadata.decanNames[parsedDecan.kMonth];
+      final decanLabel =
+          (decanNames != null && decanNames.length >= parsedDecan.decan)
+          ? decanNames[parsedDecan.decan - 1]
+          : 'Decan ${parsedDecan.decan}';
+      decanSpeakLine = SpeechResolver.decan(
+        decanId: decanId,
+        displayName: decanLabel,
+      );
+    } else {
+      decanSpeakLine = SpeechResolver.decan(
+        decanId: 0,
+        displayName: _stripEnglishCue(decanLine),
+      );
+    }
 
     return Material(
       color: Colors.transparent,
@@ -122,7 +159,7 @@ class _KemeticDayDropdownState extends State<KemeticDayDropdown> {
                           IconButton(
                             icon: KemeticGold.icon(Icons.close),
                             onPressed: () {
-                              PronunciationService.instance.stop();
+                              SpeechService.instance.stop();
                               widget.onClose();
                             },
                             padding: expandedIconButtonPadding(context),
@@ -166,14 +203,18 @@ class _KemeticDayDropdownState extends State<KemeticDayDropdown> {
                           _buildInfoSectionWithSpeech(
                             label: 'Month:',
                             value: monthLine,
-                            pronunciationKey: monthKey,
+                            englishCue: null,
+                            speakOverride: monthSpeakLine,
+                            isPhonetic: true,
                           ),
                           _buildInfoSectionWithSpeech(
                             label: isEpagomenal
                                 ? 'Epagomenal Day:'
                                 : 'Decan Name:',
                             value: decanLine,
-                            pronunciationKey: dayPronunciationKey,
+                            englishCue: null,
+                            speakOverride: decanSpeakLine,
+                            isPhonetic: true,
                           ),
                           if (!isEpagomenal)
                             _buildInfoSection(
@@ -295,11 +336,25 @@ class _KemeticDayDropdownState extends State<KemeticDayDropdown> {
     );
   }
 
+  String _stripEnglishCue(String s) {
+    // Remove anything in parentheses and trim.
+    return s.split('(').first.trim();
+  }
+
   Widget _buildInfoSectionWithSpeech({
     required String label,
     required String value,
-    required PronunciationKey? pronunciationKey,
+    String? englishCue,
+    String? speakOverride,
+    bool isPhonetic = false,
   }) {
+    final hasOverride =
+        speakOverride != null && speakOverride.trim().isNotEmpty;
+    final speakLine = hasOverride
+        ? speakOverride.trim()
+        : SpeechResolver.prose(base: value.trim(), englishCue: englishCue);
+    final utteranceId = '${label.trim().toLowerCase()}:$speakLine';
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -327,12 +382,13 @@ class _KemeticDayDropdownState extends State<KemeticDayDropdown> {
             ),
           ),
           const SizedBox(width: 8),
-          if (pronunciationKey != null)
-            PronounceIconButton(
-              pronunciationKey: pronunciationKey,
-              color: KemeticGold.base,
-              size: 22,
-            ),
+          PronounceIconButton(
+            speakText: speakLine,
+            utteranceId: utteranceId,
+            color: KemeticGold.base,
+            size: 22,
+            isPhonetic: isPhonetic,
+          ),
         ],
       ),
     );

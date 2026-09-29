@@ -1,5 +1,3 @@
-import 'package:mobile/features/calendar/pronunciation/pronunciation_identity.dart';
-import 'package:mobile/widgets/pronounce_icon_button.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -885,16 +883,6 @@ class _OrientationSlide extends StatelessWidget {
                       fontWeight: FontWeight.w400,
                     ),
                   ),
-                  if (PronunciationIdentity.compass(copy.decanKey)
-                      case final key?)
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.middle,
-                      child: PronounceIconButton(
-                        pronunciationKey: key,
-                        color: _HawColors.goldStrong,
-                        size: 18,
-                      ),
-                    ),
                   const TextSpan(text: ' —\n'),
                   TextSpan(
                     text:

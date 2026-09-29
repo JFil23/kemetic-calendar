@@ -1,5 +1,3 @@
-import 'package:mobile/widgets/pronounce_icon_button.dart';
-import 'package:mobile/features/calendar/pronunciation/pronunciation_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/onboarding/decan_compass_copy_repo.dart';
@@ -78,7 +76,6 @@ void main() {
 
     await tester.pump(const Duration(seconds: 4));
     expect(find.text('Today is Hathor 27'), findsOneWidget);
-    expect(tester.widget<PronounceIconButton>(find.byType(PronounceIconButton)).pronunciationKey, PronunciationKey.decan(3,3));
     expect(_richTextContaining('What has been deposited.'), findsOneWidget);
     expect(
       slides,

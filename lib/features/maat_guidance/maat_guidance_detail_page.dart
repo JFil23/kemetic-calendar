@@ -1,5 +1,3 @@
-import 'package:mobile/features/calendar/pronunciation/pronunciation_identity.dart';
-import 'package:mobile/widgets/pronounce_icon_button.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -268,14 +266,9 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PronunciationLabel(
-            pronunciationKey: delivery.kind == MaatGuidanceKind.decanOpening
-                ? PronunciationIdentity.period(delivery.decanPeriodKey)
-                : null,
-            child: KemeticGold.text(
-              delivery.kind.title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
+          KemeticGold.text(
+            delivery.kind.title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 16),
           if (openingContext != null) ...[

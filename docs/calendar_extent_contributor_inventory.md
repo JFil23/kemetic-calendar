@@ -49,7 +49,7 @@ For ordinary months 1–12, the body is:
 + measured month-title/right-label row
 + 8 header gap
 + sum for decans 1..3:
-     48 fixed decan-label/speaker row
+     15.3 fixed decan-label row
    + (0 in details, otherwise 4) label-to-weekday gap
    + measured weekday-row height
    + 3 weekday-to-tile gap
@@ -57,7 +57,7 @@ For ordinary months 1–12, the body is:
 + 12 between-decan gaps
 ```
 
-The 48-pixel label/speaker row is fixed by a `SizedBox`; text overflow cannot change its
+The 15.3 label row is fixed by a `SizedBox`; text overflow cannot change its
 extent. The weekday row is intrinsic text layout and therefore must use the
 shared text primitive.
 
@@ -466,36 +466,3 @@ Correction still uses the same object's before/after viewport coordinate and
 `ViewportOffset.correctBy` inside the same layout transaction. Existing extent
 and fractional-day tests verify anchor preservation without scroll events;
 removed anchors continue to fail closed without applying a correction.
-
-
-## 2026-09-28 pronunciation control re-audit
-
-The authorized speakers add a 44-pixel desktop / 48-pixel touch minimum to
-Kemetic month title rows. Their extent is the maximum of that control and the
-existing measured title/right label; Gregorian rows have no month speaker.
-The ordinary decan label row is now a fixed 48 pixels instead of 15.3, adding
-98.1 pixels across three decans. All label-to-grid gaps, chip-height projections,
-event caps, expansion interpolation, season/divider contributions, and 13-month
-section topology remain unchanged. Geometry markers continue to collect actual
-rendered extents, including the new header heights; no estimated offsets were
-introduced. Restored positions continue to use semantic day anchors.
-
-Focused detail bands allocate 48 pixels to the label/speaker and retain their
-existing 78-pixel day area, for 126 pixels total. Heriu's separate 336-pixel day
-row remains unchanged. These detail grids are not the scrolling year sliver.
-The scrolling banner stays exactly 82 pixels: 58 month + 24 weekday. Its inner
-padding now leaves 50 pixels for the 48-pixel touch target; the new sibling
-speaker only changes horizontal title allocation.
-
-Only the year/month renderer and fixed banner fragments changed. Their hashes
-were refreshed after this contributor audit. The focused-grid, uniform-section,
-cross-version restoration, epoch-anchor, and full regression tests exercise the
-rendered geometry; these checks remain mandatory, rather than bypassing the
-inventory guard.
-
-The focused detail split additionally derives its minimum band size from the
-scaled day number plus the unchanged padding and marker stack. This prevents
-large text from consuming the day area when the info panel takes more height.
-The month season/year label scales down within its existing allocation instead
-of fading away its final digits beside the new speaker. This affects the
-already-measured title row, not the contributor list or chip equations.
