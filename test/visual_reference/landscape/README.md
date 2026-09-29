@@ -7,3 +7,5 @@ The root images are the reviewed macOS references. Linux x64 and ARM64 reference
 All 52 existing native Ma'at portrait reference images in each capture are byte-identical to their checked-in references. Only landscape references were adopted from these captures.
 
 The time-zoom extension adds `zoom-intermediate-852x393.png` and `zoom-full-day-852x393.png`. These are generated through real pinch gestures, with the full-day fixture including midnight and late-night notes. Native faces retain their proportions, the full day clears the Today control and safe area, and the original-scale references are unchanged.
+
+The two zoom references for Linux x64 and ARM64 were reviewed from [App capture run 36522301728](https://github.com/JFil23/kemetic-calendar/actions/runs/36522301728), source commit `05e395d8b5ccb9b883a50cd984ba58a9a4441aef`, using the same pinned toolchain. All three original landscape references and all 52 native portrait references per architecture remained byte-identical. Only the four new zoom images were adopted.
