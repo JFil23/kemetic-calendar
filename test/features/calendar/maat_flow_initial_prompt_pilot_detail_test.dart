@@ -20,7 +20,7 @@ void main() {
 
   setUpAll(() async {
     followSkyCatalog = SkyCatalogRepository.parseJsonString(
-      File('assets/follow_the_sky/sky_catalog_v2.json').readAsStringSync(),
+      File('assets/follow_the_sky/sky_catalog_v2_graphics_v1.json').readAsStringSync(),
     );
     SharedPreferences.setMockInitialValues(<String, Object>{});
     try {

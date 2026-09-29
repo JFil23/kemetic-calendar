@@ -4,7 +4,7 @@
 const fs = require('fs');
 const A = require('astronomy-engine');
 if (JSON.parse(fs.readFileSync(require('path').join(require('path').dirname(require.resolve('astronomy-engine')), 'package.json'))).version !== '2.1.19') throw Error('Pinned engine required');
-const path = 'assets/follow_the_sky/sky_catalog_v2.json';
+const path = 'assets/follow_the_sky/sky_catalog_v2_graphics_v1.json';
 const catalog = JSON.parse(fs.readFileSync(path));
 const round = n => Number(n.toFixed(9));
 const hour = 3600000;

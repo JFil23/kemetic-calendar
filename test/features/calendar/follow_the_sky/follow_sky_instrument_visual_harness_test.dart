@@ -42,7 +42,7 @@ void main() {
     tester,
   ) async {
     final catalog = SkyCatalogRepository.parseJsonString(
-      File('assets/follow_the_sky/sky_catalog_v2.json').readAsStringSync(),
+      File('assets/follow_the_sky/sky_catalog_v2_graphics_v1.json').readAsStringSync(),
     );
     const factory = FollowSkyObservationPresentationModelFactory(
       instrumentProvider: CatalogSkyInstrumentDataProvider(),
@@ -121,7 +121,7 @@ void main() {
     'renders start 25 peak 75 end without explanatory copy for all modes',
     (tester) async {
       final catalog = SkyCatalogRepository.parseJsonString(
-        File('assets/follow_the_sky/sky_catalog_v2.json').readAsStringSync(),
+        File('assets/follow_the_sky/sky_catalog_v2_graphics_v1.json').readAsStringSync(),
       );
       const factory = FollowSkyObservationPresentationModelFactory(
         instrumentProvider: CatalogSkyInstrumentDataProvider(),

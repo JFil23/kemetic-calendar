@@ -24,7 +24,7 @@ Paths below are relative to the RC checkout. The pre-edit file/field assessment 
 | Existing calendar graphics | `.../presentation/widgets/track_sky_event_block_visual.dart`, `.../presentation/widgets/follow_sky_preview_calendar.dart`, `lib/features/calendar/day_view.dart` | Use the same typed facts for compact accents. Day View adds only the existing ownership payload's event ID to the graphic widget. |
 | Typed data | `.../domain/sky_event.dart`, `.../domain/sky_instrument_data.dart`, new `.../domain/sky_graphic_astronomy.dart` | Add optional graphic astronomy, preserving existing fields and consumers. |
 | Provider boundary | `.../services/sky_instrument_data_provider.dart`, `.../presentation/follow_sky_observation_presentation_model.dart`, new `.../services/sky_graphic_geometry.dart` | Attach and normalize graphic samples to the existing wall-time timeline. Preserve timing, readout, copy and visibility authorities. |
-| Sourced inputs | `assets/follow_the_sky/sky_catalog_v2.json`, new `.../services/sky_graphic_ephemeris.g.dart`, `tool/follow_sky/enrich_astronomy.cjs` | Add graphic metadata to 45 events and reproducible pinned ephemerides. Keep the discovery catalog small by storing bulk samples separately. |
+| Sourced inputs | `assets/follow_the_sky/sky_catalog_v2_graphics_v1.json`, new `.../services/sky_graphic_ephemeris.g.dart`, `tool/follow_sky/enrich_astronomy.cjs` | Add graphic metadata to 45 events and reproducible pinned ephemerides. Keep the discovery catalog small by storing bulk samples separately. |
 | Verification | Two new Follow the Sky tests, independent engine fixture, three affected housing PNGs, their checksum and documentation | Verify typed geometry, visual states, regression behavior and graphic-only pixel changes. |
 
 Already available typed data included observer coordinates/time zone/elevation, event kinds and source precision, peak/observation windows, provenance, Moon rise/transit/set and position samples, lunar contacts, planet identity strings, elongation direction/angle, conjunction separation samples, solar eclipse contacts, and the existing seasonal thresholds. Some catalog-provider values were placeholders or absent; their displayed values were deliberately not rewritten by this task.
@@ -111,3 +111,18 @@ NODE_PATH=/path/to/temporary/node_modules node tool/follow_sky/enrich_astronomy.
 ```
 
 The script verifies the engine version and writes only graphic metadata, generated ephemerides and the independent test fixture. It does not rewrite scheduling fields.
+
+## Deployment continuity check
+
+The catalog is now bundled as `sky_catalog_v2_graphics_v1.json`. The old
+`sky_catalog_v2.json` URL is served under an immutable one-year asset cache;
+changing its contents in place would allow an existing browser to retain the
+old facts. A new asset URL makes the updated app load the enriched data on a
+normal reload. Only the asset name, loader reference and corresponding test
+and generator paths change. Catalog IDs, stored ownership schema and calendar
+records remain identical. Existing carried events need no migration or Carry
+operation. The signed-in pre-deployment RC session confirmed the flow is
+already in the calendar and its Saturn Opposition entry opens normally.
+
+After rebuilding the local asset manifest, all 284 Follow the Sky and related
+flow compatibility tests passed with the new asset path.

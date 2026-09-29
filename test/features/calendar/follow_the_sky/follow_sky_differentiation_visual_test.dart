@@ -27,7 +27,7 @@ void main() {
     'compact calendar graphics share typed astronomy and preserve card text',
     (tester) async {
       final catalog = SkyCatalogRepository.parseJsonString(
-        File('assets/follow_the_sky/sky_catalog_v2.json').readAsStringSync(),
+        File('assets/follow_the_sky/sky_catalog_v2_graphics_v1.json').readAsStringSync(),
       );
       final ids = [
         'orionids-2026',
@@ -132,7 +132,7 @@ void main() {
     'catalog graphics at selected times fit narrow, phone and wide surfaces',
     (tester) async {
       final catalog = SkyCatalogRepository.parseJsonString(
-        File('assets/follow_the_sky/sky_catalog_v2.json').readAsStringSync(),
+        File('assets/follow_the_sky/sky_catalog_v2_graphics_v1.json').readAsStringSync(),
       );
       const factory = FollowSkyObservationPresentationModelFactory(
         instrumentProvider: CatalogSkyInstrumentDataProvider(),

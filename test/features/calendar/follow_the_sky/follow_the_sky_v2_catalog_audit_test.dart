@@ -5,14 +5,14 @@ import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-/// Table-driven audit of `sky_catalog_v2.json` against locked inclusion rules.
+/// Table-driven audit of `sky_catalog_v2_graphics_v1.json` against locked inclusion rules.
 void main() {
   late SkyCatalog catalog;
 
   setUpAll(() {
     tzdata.initializeTimeZones();
     final raw = File(
-      'assets/follow_the_sky/sky_catalog_v2.json',
+      'assets/follow_the_sky/sky_catalog_v2_graphics_v1.json',
     ).readAsStringSync();
     catalog = SkyCatalogRepository.parseJsonString(raw);
   });

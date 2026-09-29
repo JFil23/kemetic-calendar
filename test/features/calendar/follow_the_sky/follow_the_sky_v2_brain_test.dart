@@ -7,7 +7,7 @@ void main() {
   late SkyCatalog catalog;
 
   setUpAll(() {
-    final file = File('assets/follow_the_sky/sky_catalog_v2.json');
+    final file = File('assets/follow_the_sky/sky_catalog_v2_graphics_v1.json');
     catalog = SkyCatalogRepository.parseJsonString(file.readAsStringSync());
   });
 

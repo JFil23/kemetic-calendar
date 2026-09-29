@@ -366,7 +366,7 @@ void main() {
   });
 
   test('V2-backed load returns materializable catalog events', () async {
-    final catalogFile = File('assets/follow_the_sky/sky_catalog_v2.json');
+    final catalogFile = File('assets/follow_the_sky/sky_catalog_v2_graphics_v1.json');
     expect(catalogFile.existsSync(), isTrue);
 
     final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);

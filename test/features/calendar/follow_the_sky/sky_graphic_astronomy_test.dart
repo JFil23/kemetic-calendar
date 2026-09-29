@@ -16,7 +16,7 @@ void main() {
   final raw =
       jsonDecode(
             File(
-              'assets/follow_the_sky/sky_catalog_v2.json',
+              'assets/follow_the_sky/sky_catalog_v2_graphics_v1.json',
             ).readAsStringSync(),
           )
           as Map<String, dynamic>;

@@ -4,9 +4,12 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../domain/sky_catalog.dart';
 
+// Web assets are cached as immutable. Bump this catalog asset filename whenever
+// its bytes change so installed clients load new facts without clearing storage.
+// The filename version does not change event IDs, ownership or schema version.
 class SkyCatalogRepository {
   SkyCatalogRepository({
-    this.assetPath = 'assets/follow_the_sky/sky_catalog_v2.json',
+    this.assetPath = 'assets/follow_the_sky/sky_catalog_v2_graphics_v1.json',
     String Function(String path)? assetLoader,
   }) : _assetLoader = assetLoader;
 
