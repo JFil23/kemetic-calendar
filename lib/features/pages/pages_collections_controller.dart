@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../data/warm_state/warm_snapshot_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -75,11 +76,15 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
   Future<List<PagesCollectionItem>> _fetch(
     PagesCollection kind,
     int offset,
-    DateTime? notesDay,
-  ) async {
+    DateTime? notesDay, {
+    bool cachedOnly = false,
+  }) async {
     if (kind == PagesCollection.flows) {
       final repo = FlowsRepo(client);
-      final rows = await repo.listMyFiledFlows();
+      final rows = cachedOnly
+          ? await repo.restoreCachedFiledFlows()
+          : await repo.listMyFiledFlows();
+      if (rows == null) throw const WarmCacheMiss('pages.flows');
       return rows
           .where(
             (f) =>
@@ -103,6 +108,7 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
           ? FiledItemKind.note
           : FiledItemKind.reminder,
       offset: offset,
+      cachedOnly: cachedOnly,
       startsOnOrAfterUtc: notesDay?.toUtc(),
     );
     return rows
@@ -133,6 +139,7 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
     if (notesDay != null && notesDay != _notesDay) {
       _notesDay = notesDay;
       _pages.remove(PagesCollection.notes);
+      value = PagesCollectionState(collection: kind, loading: true);
       more = false;
     }
     final token = ++_request;
@@ -146,7 +153,17 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
     final stale =
         at != null &&
         DateTime.now().difference(at) > const Duration(minutes: 5);
-    final cached = cache.peek<List<PagesCollectionItem>>(uid, key);
+    var cached = cache.peek<List<PagesCollectionItem>>(uid, key);
+    if (cached == null) {
+      try {
+        cached = await _fetch(kind, offset, notesDay, cachedOnly: true);
+        if (_disposed || token != _request || !_active) return;
+        cache.publish(uid, key, cached);
+        cache.invalidate(uid, key);
+      } catch (_) {
+        /* no complete local page yet */
+      }
+    }
     // Reuse the existing account-scoped flow snapshot on first entry.
     if (kind == PagesCollection.flows && cached == null && at == null) {
       final rows = FlowsRepo(client).cachedMyFiledFlowsSync();
@@ -177,7 +194,7 @@ class PagesCollectionsController extends ValueNotifier<PagesCollectionState> {
     value = PagesCollectionState(
       collection: kind,
       items: more ? prior : (cached ?? _pages[kind] ?? const []),
-      loading: true,
+      loading: more || (cached == null && !_pages.containsKey(kind)),
     );
     final result = await cache.load<List<PagesCollectionItem>>(
       uid,

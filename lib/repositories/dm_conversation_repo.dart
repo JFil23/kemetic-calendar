@@ -1,4 +1,6 @@
+import '../data/warm_state/warm_mutation.dart';
 import 'dart:async';
+import '../data/warm_state/warm_json_reads.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -187,39 +189,45 @@ class DmConversationRepo {
     required List<String> participantIds,
     String? initialText,
   }) async {
-    final uid = currentUserId;
-    if (uid == null) throw Exception('Not signed in');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, ['dm.summaries']);
     try {
-      final response = await _client.functions.invoke(
-        'create_dm_conversation',
-        body: {
-          'participantIds': participantIds,
-          if (initialText?.trim().isNotEmpty == true)
-            'initialText': initialText!.trim(),
-        },
-      );
-      final body = _map(response.data);
-      final conversation = _map(body?['conversation']);
-      final conversationId = _string(conversation?['id']);
-      if (conversationId == null) {
-        throw _failureFor(
-          operation: DmConversationOperation.createConversation,
-          status: response.status,
-          data: response.data,
+      final uid = currentUserId;
+      if (uid == null) throw Exception('Not signed in');
+      try {
+        final response = await _client.functions.invoke(
+          'create_dm_conversation',
+          body: {
+            'participantIds': participantIds,
+            if (initialText?.trim().isNotEmpty == true)
+              'initialText': initialText!.trim(),
+          },
         );
+        final body = _map(response.data);
+        final conversation = _map(body?['conversation']);
+        final conversationId = _string(conversation?['id']);
+        if (conversationId == null) {
+          throw _failureFor(
+            operation: DmConversationOperation.createConversation,
+            status: response.status,
+            data: response.data,
+          );
+        }
+        return conversationId;
+      } on DmConversationFailure catch (failure) {
+        _logFailure(failure);
+        rethrow;
+      } catch (e) {
+        final failure = _failureFor(
+          operation: DmConversationOperation.createConversation,
+          data: e is FunctionException ? e.details : null,
+          error: e,
+        );
+        _logFailure(failure);
+        throw failure;
       }
-      return conversationId;
-    } on DmConversationFailure catch (failure) {
-      _logFailure(failure);
-      rethrow;
-    } catch (e) {
-      final failure = _failureFor(
-        operation: DmConversationOperation.createConversation,
-        data: e is FunctionException ? e.details : null,
-        error: e,
-      );
-      _logFailure(failure);
-      throw failure;
+    } finally {
+      invalidateWarmDomains(warmAccount, ['dm.summaries']);
     }
   }
 
@@ -228,61 +236,79 @@ class DmConversationRepo {
     required String text,
     String? clientMessageId,
   }) async {
-    final uid = currentUserId;
-    if (uid == null) throw Exception('Not signed in');
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) return;
-
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, ['dm.']);
     try {
-      await _client.functions.invoke(
-        'send_dm_message_v2',
-        body: {
-          'conversationId': conversationId,
-          'text': trimmed,
-          if (clientMessageId?.trim().isNotEmpty == true)
-            'clientMessageId': clientMessageId!.trim(),
-        },
-      );
-    } catch (e) {
-      final failure = _failureFor(
-        operation: DmConversationOperation.sendMessage,
-        data: e is FunctionException ? e.details : null,
-        error: e,
-      );
-      _logFailure(failure);
-      throw failure;
+      final uid = currentUserId;
+      if (uid == null) throw Exception('Not signed in');
+      final trimmed = text.trim();
+      if (trimmed.isEmpty) return;
+
+      try {
+        await _client.functions.invoke(
+          'send_dm_message_v2',
+          body: {
+            'conversationId': conversationId,
+            'text': trimmed,
+            if (clientMessageId?.trim().isNotEmpty == true)
+              'clientMessageId': clientMessageId!.trim(),
+          },
+        );
+      } catch (e) {
+        final failure = _failureFor(
+          operation: DmConversationOperation.sendMessage,
+          data: e is FunctionException ? e.details : null,
+          error: e,
+        );
+        _logFailure(failure);
+        throw failure;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, ['dm.']);
     }
   }
 
   Future<bool> markRead(String conversationId) async {
-    final uid = currentUserId;
-    if (uid == null) return false;
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, ['dm.summaries', 'dm.summary.']);
     try {
-      final response = await _client.functions.invoke(
-        'mark_dm_conversation_read',
-        body: {'conversationId': conversationId},
-      );
-      return response.status < 400;
-    } catch (e) {
-      _logFailure(
-        _failureFor(
-          operation: DmConversationOperation.markRead,
-          data: e is FunctionException ? e.details : null,
-          error: e,
-        ),
-      );
-      return false;
+      final uid = currentUserId;
+      if (uid == null) return false;
+      try {
+        final response = await _client.functions.invoke(
+          'mark_dm_conversation_read',
+          body: {'conversationId': conversationId},
+        );
+        return response.status < 400;
+      } catch (e) {
+        _logFailure(
+          _failureFor(
+            operation: DmConversationOperation.markRead,
+            data: e is FunctionException ? e.details : null,
+            error: e,
+          ),
+        );
+        return false;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, ['dm.summaries', 'dm.summary.']);
     }
   }
 
-  Future<List<DmConversationSummary>> getConversationSummaries() async {
+  Future<List<DmConversationSummary>> getConversationSummaries({
+    bool cachedOnly = false,
+  }) async {
     final uid = currentUserId;
     if (uid == null) return const [];
     try {
-      final response = await _client
-          .from('dm_conversation_summaries')
-          .select()
-          .order('updated_at', ascending: false);
+      final response = await WarmJsonReads(_client, cachedOnly: cachedOnly)
+          .rows(
+            'dm.summaries',
+            () => _client
+                .from('dm_conversation_summaries')
+                .select()
+                .order('updated_at', ascending: false),
+          );
       return (response as List<dynamic>? ?? const [])
           .whereType<Map>()
           .map(
@@ -329,15 +355,22 @@ class DmConversationRepo {
     }
   }
 
-  Future<List<DmConversationMessage>> getMessages(String conversationId) async {
+  Future<List<DmConversationMessage>> getMessages(
+    String conversationId, {
+    bool cachedOnly = false,
+  }) async {
     final uid = currentUserId;
     if (uid == null) return const [];
     try {
-      final response = await _client
-          .from('dm_conversation_messages_client')
-          .select()
-          .eq('conversation_id', conversationId)
-          .order('created_at', ascending: true);
+      final response = await WarmJsonReads(_client, cachedOnly: cachedOnly)
+          .rows(
+            'dm.messages.$conversationId',
+            () => _client
+                .from('dm_conversation_messages_client')
+                .select()
+                .eq('conversation_id', conversationId)
+                .order('created_at', ascending: true),
+          );
       return (response as List<dynamic>? ?? const [])
           .whereType<Map>()
           .map(
@@ -367,6 +400,16 @@ class DmConversationRepo {
     bool refreshInFlight = false;
     bool refreshQueued = false;
     List<DmConversationSummary> lastSummaries = const [];
+    bool liveReceived = false;
+    unawaited(() async {
+      try {
+        final local = await getConversationSummaries(cachedOnly: true);
+        if (!liveReceived && !controller.isClosed && currentUserId == uid) {
+          lastSummaries = local;
+          controller.add(local);
+        }
+      } catch (_) {}
+    }());
 
     Future<void> emitLatest() async {
       if (refreshInFlight) {
@@ -376,6 +419,8 @@ class DmConversationRepo {
       refreshInFlight = true;
       try {
         final summaries = await getConversationSummaries();
+        if (currentUserId != uid) return;
+        liveReceived = true;
         lastSummaries = summaries;
         if (!controller.isClosed) controller.add(summaries);
       } catch (_) {
@@ -451,13 +496,33 @@ class DmConversationRepo {
     final controller = StreamController<List<DmConversationMessage>>();
     final channelName = _nextRealtimeChannelName('dm_messages');
     Timer? refreshDebounce;
+    List<DmConversationMessage>? lastMessages;
+    bool liveReceived = false;
+    unawaited(() async {
+      try {
+        final local = await getMessages(conversationId, cachedOnly: true);
+        if (!liveReceived && !controller.isClosed && currentUserId == uid) {
+          lastMessages = local;
+          controller.add(local);
+        }
+      } catch (_) {}
+    }());
 
     Future<void> emitLatest() async {
       try {
         final messages = await getMessages(conversationId);
+        if (currentUserId != uid) return;
+        liveReceived = true;
+        lastMessages = messages;
         if (!controller.isClosed) controller.add(messages);
       } catch (_) {
-        if (!controller.isClosed) controller.add(const []);
+        if (!controller.isClosed && currentUserId == uid) {
+          if (lastMessages != null) {
+            controller.add(lastMessages!);
+          } else {
+            controller.addError(StateError("Messages unavailable"));
+          }
+        }
       }
     }
 

@@ -1,3 +1,4 @@
+import '../../data/warm_state/warm_snapshot_store.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -52,7 +53,38 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
   }
 
   Future<void> _load() async {
-    final delivery = await _repo.getById(widget.deliveryId);
+    final repo = _repo;
+    if (repo is MaatGuidanceRepo) {
+      try {
+        final cached = await repo.getCachedById(widget.deliveryId);
+        if (!mounted) return;
+        if (cached != null) {
+          setState(() {
+            _delivery = cached;
+            _loading = false;
+          });
+        }
+      } catch (_) {}
+    }
+    MaatGuidanceDelivery? delivery;
+    try {
+      delivery = await _repo.getById(widget.deliveryId);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          if (error is WarmAccessDenied) {
+            _delivery = null;
+          }
+          _loading = false;
+        });
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _delivery = delivery;
+      _loading = false;
+    });
     if (delivery != null) {
       final controller = _controller;
       if (controller != null) {

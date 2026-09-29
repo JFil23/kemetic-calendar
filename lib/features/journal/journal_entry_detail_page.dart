@@ -1,3 +1,4 @@
+import '../../data/warm_state/warm_snapshot_store.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -33,7 +34,37 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
 
   Future<void> _load() async {
     final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
-    final entry = await _repo.getById(widget.entryId);
+    if (_entry == null) {
+      try {
+        final local = await _repo.getById(widget.entryId, cachedOnly: true);
+        if (!mounted) return;
+        if (local != null) {
+          setState(() {
+            _entry = local;
+            _loading = false;
+          });
+        }
+      } catch (_) {}
+    }
+    JournalEntry? entry;
+    try {
+      entry = await _repo.getById(widget.entryId, strict: true);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          if (error is WarmAccessDenied) {
+            _entry = null;
+          }
+          _loading = false;
+        });
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _entry = entry;
+      _loading = false;
+    });
     final links = await _insightRepo.fetchLinks(userId);
     if (!mounted) return;
     setState(() {

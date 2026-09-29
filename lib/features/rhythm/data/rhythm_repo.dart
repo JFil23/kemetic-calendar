@@ -1,3 +1,5 @@
+import '../../../data/warm_state/warm_mutation.dart';
+import '../../../data/warm_state/warm_json_reads.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -23,7 +25,9 @@ class RhythmRepoResult<T> {
 }
 
 class RhythmRepo {
-  RhythmRepo(this._client);
+  RhythmRepo(this._client, {this.cachedOnly = false});
+  final bool cachedOnly;
+  WarmJsonReads get _warm => WarmJsonReads(_client, cachedOnly: cachedOnly);
 
   final SupabaseClient _client;
 
@@ -70,21 +74,27 @@ class RhythmRepo {
       return RhythmRepoResult(data: const []);
     }
     try {
-      final fields = await _client
-          .from('cycle_fields')
-          .select(
-            'id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json',
-          )
-          .eq('user_id', uid)
-          .order('created_at', ascending: true);
+      final fields = await _warm.rows(
+        'rhythm.cycle.fields',
+        () async => _client
+            .from('cycle_fields')
+            .select(
+              'id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json',
+            )
+            .eq('user_id', uid)
+            .order('created_at', ascending: true),
+      );
 
-      final rules = await _client
-          .from('cycle_schedule_rules')
-          .select(
-            'id, field_id, title, days_of_week, all_day, start_time_local, end_time_local, reminder_offset_minutes, is_optional',
-          )
-          .eq('user_id', uid)
-          .order('created_at', ascending: true);
+      final rules = await _warm.rows(
+        'rhythm.cycle.rules',
+        () async => _client
+            .from('cycle_schedule_rules')
+            .select(
+              'id, field_id, title, days_of_week, all_day, start_time_local, end_time_local, reminder_offset_minutes, is_optional',
+            )
+            .eq('user_id', uid)
+            .order('created_at', ascending: true),
+      );
 
       final ruleByField = <String, List<Map<String, dynamic>>>{};
       for (final r in rules) {
@@ -98,6 +108,7 @@ class RhythmRepo {
       final sections = _groupFieldsIntoSections(fields, ruleByField);
       return RhythmRepoResult(data: sections);
     } catch (e) {
+      if (cachedOnly) rethrow;
       if (_isMissingTable(e)) {
         return const RhythmRepoResult(
           data: <RhythmSection>[],
@@ -123,26 +134,32 @@ class RhythmRepo {
         'yyyy-MM-dd',
       ).format(DateTime(today.year, today.month, today.day));
 
-      final fields = await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('cycle_fields')
-            .select(
-              'id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json',
-            )
-            .eq('user_id', uid)
-            .eq('checklist_enabled', true),
+      final fields = await _warm.rows(
+        'rhythm.alignment.fields.${DateTime.now().toLocal().toIso8601String().substring(0, 10)}',
+        () async => withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('cycle_fields')
+              .select(
+                'id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json',
+              )
+              .eq('user_id', uid)
+              .eq('checklist_enabled', true),
+        ),
       );
 
       Map<String, String> statusByFieldId = {};
       try {
-        final checklistRows = await withSupabaseAuthRetry(
-          _client,
-          () => _client
-              .from('checklist_items')
-              .select('field_id, status')
-              .eq('user_id', uid)
-              .eq('local_date', todayIso),
+        final checklistRows = await _warm.rows(
+          'rhythm.alignment.checklistRows.${DateTime.now().toLocal().toIso8601String().substring(0, 10)}',
+          () async => withSupabaseAuthRetry(
+            _client,
+            () => _client
+                .from('checklist_items')
+                .select('field_id, status')
+                .eq('user_id', uid)
+                .eq('local_date', todayIso),
+          ),
         );
         statusByFieldId = {
           for (final row in checklistRows)
@@ -150,6 +167,7 @@ class RhythmRepo {
               row['field_id'] as String: row['status'] as String,
         };
       } catch (e) {
+        if (cachedOnly) rethrow;
         // Missing checklist table is acceptable; leave empty.
         if (!_isMissingTable(e)) rethrow;
       }
@@ -176,6 +194,7 @@ class RhythmRepo {
       }
       return RhythmRepoResult(data: items);
     } catch (e) {
+      if (cachedOnly) rethrow;
       if (_isMissingTable(e)) {
         return const RhythmRepoResult(
           data: <RhythmItem>[],
@@ -193,15 +212,18 @@ class RhythmRepo {
     final uid = _userId;
     if (uid == null) return RhythmRepoResult(data: const []);
     try {
-      final rows = await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('todos')
-            .select(
-              'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
-            )
-            .eq('user_id', uid)
-            .order('created_at', ascending: true),
+      final rows = await _warm.rows(
+        'rhythm.todos.rows',
+        () async => withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('todos')
+              .select(
+                'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+              )
+              .eq('user_id', uid)
+              .order('created_at', ascending: true),
+        ),
       );
 
       final todos = rows
@@ -211,6 +233,7 @@ class RhythmRepo {
           .toList();
       return RhythmRepoResult(data: todos);
     } catch (e) {
+      if (cachedOnly) rethrow;
       if (_isMissingTable(e)) {
         return const RhythmRepoResult(
           data: <RhythmTodo>[],
@@ -230,111 +253,143 @@ class RhythmRepo {
     String title, {
     DateTime? dueDate,
   }) async {
-    final uid = _userId;
-    if (uid == null) {
-      return const RhythmRepoResult(data: null, friendlyError: 'Not signed in');
-    }
-    final trimmed = title.trim();
-    if (trimmed.isEmpty) {
-      return const RhythmRepoResult(data: null);
-    }
-    final target = DateUtils.dateOnly(dueDate ?? DateTime.now());
-    final todayIso = DateFormat('yyyy-MM-dd').format(target);
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'rhythm.',
+      'pages.planner.',
+      'planner.',
+    ]);
     try {
-      final row = await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('todos')
-            .insert({
-              'user_id': uid,
-              'title': trimmed,
-              'due_date': todayIso,
-              'show_on_checklist': true,
-              'show_on_calendar': true,
-              'status': 'pending',
-            })
-            .select(
-              'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
-            )
-            .maybeSingle(),
-      );
-      if (row == null) {
+      final uid = _userId;
+      if (uid == null) {
+        return const RhythmRepoResult(
+          data: null,
+          friendlyError: 'Not signed in',
+        );
+      }
+      final trimmed = title.trim();
+      if (trimmed.isEmpty) {
         return const RhythmRepoResult(data: null);
       }
-      return RhythmRepoResult(
-        data: _todoFromRow(Map<String, dynamic>.from(row)),
-      );
-    } catch (e) {
-      if (_isMissingTable(e)) {
-        return const RhythmRepoResult(data: null, missingTables: true);
+      final target = DateUtils.dateOnly(dueDate ?? DateTime.now());
+      final todayIso = DateFormat('yyyy-MM-dd').format(target);
+      try {
+        final row = await withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('todos')
+              .insert({
+                'user_id': uid,
+                'title': trimmed,
+                'due_date': todayIso,
+                'show_on_checklist': true,
+                'show_on_calendar': true,
+                'status': 'pending',
+              })
+              .select(
+                'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+              )
+              .maybeSingle(),
+        );
+        if (row == null) {
+          return const RhythmRepoResult(data: null);
+        }
+        return RhythmRepoResult(
+          data: _todoFromRow(Map<String, dynamic>.from(row)),
+        );
+      } catch (e) {
+        if (_isMissingTable(e)) {
+          return const RhythmRepoResult(data: null, missingTables: true);
+        }
+        return RhythmRepoResult(data: null, friendlyError: _friendlyMessage(e));
       }
-      return RhythmRepoResult(data: null, friendlyError: _friendlyMessage(e));
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'rhythm.',
+        'pages.planner.',
+        'planner.',
+      ]);
     }
   }
 
   Future<RhythmRepoResult<List<RhythmTodo>>> insertTodos(
     List<RhythmTodoDraft> drafts,
   ) async {
-    final uid = _userId;
-    if (uid == null) {
-      return const RhythmRepoResult(
-        data: <RhythmTodo>[],
-        friendlyError: 'Not signed in',
-      );
-    }
-    final rows = drafts
-        .map((draft) {
-          final title = draft.title.trim();
-          if (title.isEmpty) return null;
-          final dueDate = draft.dueDate == null
-              ? null
-              : DateFormat(
-                  'yyyy-MM-dd',
-                ).format(DateUtils.dateOnly(draft.dueDate!));
-          return <String, dynamic>{
-            'user_id': uid,
-            'title': title,
-            if (draft.notes?.trim().isNotEmpty == true)
-              'notes': draft.notes!.trim(),
-            if (dueDate != null) 'due_date': dueDate,
-            if (draft.dueTime != null) 'due_time': _formatDbTime(draft.dueTime),
-            'show_on_checklist': true,
-            'show_on_calendar': true,
-            'status': 'pending',
-            if (draft.metadata.isNotEmpty) 'metadata': draft.metadata,
-          };
-        })
-        .whereType<Map<String, dynamic>>()
-        .toList(growable: false);
-    if (rows.isEmpty) return const RhythmRepoResult(data: <RhythmTodo>[]);
-
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'rhythm.',
+      'pages.planner.',
+      'planner.',
+    ]);
     try {
-      final response = await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('todos')
-            .insert(rows)
-            .select(
-              'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
-            ),
-      );
-      final todos = response
-          .map<RhythmTodo>(
-            (row) => _todoFromRow(Map<String, dynamic>.from(row)),
-          )
-          .toList(growable: false);
-      return RhythmRepoResult(data: todos);
-    } catch (e) {
-      if (_isMissingTable(e)) {
+      final uid = _userId;
+      if (uid == null) {
         return const RhythmRepoResult(
           data: <RhythmTodo>[],
-          missingTables: true,
+          friendlyError: 'Not signed in',
         );
       }
-      return RhythmRepoResult(
-        data: const <RhythmTodo>[],
-        friendlyError: _friendlyMessage(e),
-      );
+      final rows = drafts
+          .map((draft) {
+            final title = draft.title.trim();
+            if (title.isEmpty) return null;
+            final dueDate = draft.dueDate == null
+                ? null
+                : DateFormat(
+                    'yyyy-MM-dd',
+                  ).format(DateUtils.dateOnly(draft.dueDate!));
+            return <String, dynamic>{
+              'user_id': uid,
+              'title': title,
+              if (draft.notes?.trim().isNotEmpty == true)
+                'notes': draft.notes!.trim(),
+              if (dueDate != null) 'due_date': dueDate,
+              if (draft.dueTime != null)
+                'due_time': _formatDbTime(draft.dueTime),
+              'show_on_checklist': true,
+              'show_on_calendar': true,
+              'status': 'pending',
+              if (draft.metadata.isNotEmpty) 'metadata': draft.metadata,
+            };
+          })
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+      if (rows.isEmpty) return const RhythmRepoResult(data: <RhythmTodo>[]);
+
+      try {
+        final response = await withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('todos')
+              .insert(rows)
+              .select(
+                'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+              ),
+        );
+        final todos = response
+            .map<RhythmTodo>(
+              (row) => _todoFromRow(Map<String, dynamic>.from(row)),
+            )
+            .toList(growable: false);
+        return RhythmRepoResult(data: todos);
+      } catch (e) {
+        if (_isMissingTable(e)) {
+          return const RhythmRepoResult(
+            data: <RhythmTodo>[],
+            missingTables: true,
+          );
+        }
+        return RhythmRepoResult(
+          data: const <RhythmTodo>[],
+          friendlyError: _friendlyMessage(e),
+        );
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'rhythm.',
+        'pages.planner.',
+        'planner.',
+      ]);
     }
   }
 
@@ -342,58 +397,95 @@ class RhythmRepo {
     String todoId,
     RhythmItemState state,
   ) async {
-    final uid = _userId;
-    if (uid == null) {
-      return const RhythmRepoResult(
-        data: false,
-        friendlyError: 'Not signed in',
-      );
-    }
-    final status = _stateToDbString(state);
-    final payload = <String, dynamic>{
-      'status': status,
-      'completed_at': state == RhythmItemState.done
-          ? DateTime.now().toUtc().toIso8601String()
-          : null,
-    };
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'rhythm.',
+      'pages.planner.',
+      'planner.',
+    ]);
     try {
-      await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('todos')
-            .update(payload)
-            .eq('id', todoId)
-            .eq('user_id', uid),
-      );
-      return const RhythmRepoResult(data: true);
-    } catch (e) {
-      if (_isMissingTable(e)) {
-        return const RhythmRepoResult(data: false, missingTables: true);
+      final uid = _userId;
+      if (uid == null) {
+        return const RhythmRepoResult(
+          data: false,
+          friendlyError: 'Not signed in',
+        );
       }
-      return RhythmRepoResult(data: false, friendlyError: _friendlyMessage(e));
+      final status = _stateToDbString(state);
+      final payload = <String, dynamic>{
+        'status': status,
+        'completed_at': state == RhythmItemState.done
+            ? DateTime.now().toUtc().toIso8601String()
+            : null,
+      };
+      try {
+        await withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('todos')
+              .update(payload)
+              .eq('id', todoId)
+              .eq('user_id', uid),
+        );
+        return const RhythmRepoResult(data: true);
+      } catch (e) {
+        if (_isMissingTable(e)) {
+          return const RhythmRepoResult(data: false, missingTables: true);
+        }
+        return RhythmRepoResult(
+          data: false,
+          friendlyError: _friendlyMessage(e),
+        );
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'rhythm.',
+        'pages.planner.',
+        'planner.',
+      ]);
     }
   }
 
   Future<RhythmRepoResult<bool>> deleteTodo(String todoId) async {
-    final uid = _userId;
-    if (uid == null) {
-      return const RhythmRepoResult(
-        data: false,
-        friendlyError: 'Not signed in',
-      );
-    }
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'rhythm.',
+      'pages.planner.',
+      'planner.',
+    ]);
     try {
-      await withSupabaseAuthRetry(
-        _client,
-        () =>
-            _client.from('todos').delete().eq('id', todoId).eq('user_id', uid),
-      );
-      return const RhythmRepoResult(data: true);
-    } catch (e) {
-      if (_isMissingTable(e)) {
-        return const RhythmRepoResult(data: false, missingTables: true);
+      final uid = _userId;
+      if (uid == null) {
+        return const RhythmRepoResult(
+          data: false,
+          friendlyError: 'Not signed in',
+        );
       }
-      return RhythmRepoResult(data: false, friendlyError: _friendlyMessage(e));
+      try {
+        await withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('todos')
+              .delete()
+              .eq('id', todoId)
+              .eq('user_id', uid),
+        );
+        return const RhythmRepoResult(data: true);
+      } catch (e) {
+        if (_isMissingTable(e)) {
+          return const RhythmRepoResult(data: false, missingTables: true);
+        }
+        return RhythmRepoResult(
+          data: false,
+          friendlyError: _friendlyMessage(e),
+        );
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'rhythm.',
+        'pages.planner.',
+        'planner.',
+      ]);
     }
   }
 
@@ -417,13 +509,16 @@ class RhythmRepo {
     final uid = _userId;
     if (uid == null) return RhythmRepoResult(data: const []);
     try {
-      final fields = await _client
-          .from('cycle_fields')
-          .select(
-            'id, title, tracker_enabled, reminder_enabled, checklist_enabled',
-          )
-          .eq('user_id', uid)
-          .eq('tracker_enabled', true);
+      final fields = await _warm.rows(
+        'rhythm.tracker.fields.${DateTime.now().toLocal().toIso8601String().substring(0, 10)}.$scope',
+        () async => _client
+            .from('cycle_fields')
+            .select(
+              'id, title, tracker_enabled, reminder_enabled, checklist_enabled',
+            )
+            .eq('user_id', uid)
+            .eq('tracker_enabled', true),
+      );
 
       final today = DateTime.now();
       final todayStr = DateFormat(
@@ -440,13 +535,17 @@ class RhythmRepo {
       ).format(DateTime(start.year, start.month, start.day));
       List<Map<String, dynamic>> checklist = [];
       try {
-        checklist = await _client
-            .from('checklist_items')
-            .select('field_id, status, local_date')
-            .eq('user_id', uid)
-            .gte('local_date', startStr)
-            .lte('local_date', todayStr);
+        checklist = await _warm.rows(
+          'rhythm.tracker.checklist.${DateTime.now().toLocal().toIso8601String().substring(0, 10)}.$scope',
+          () async => _client
+              .from('checklist_items')
+              .select('field_id, status, local_date')
+              .eq('user_id', uid)
+              .gte('local_date', startStr)
+              .lte('local_date', todayStr),
+        );
       } catch (e) {
+        if (cachedOnly) rethrow;
         if (!_isMissingTable(e)) rethrow;
       }
 
@@ -484,6 +583,7 @@ class RhythmRepo {
 
       return RhythmRepoResult(data: snapshots);
     } catch (e) {
+      if (cachedOnly) rethrow;
       if (_isMissingTable(e)) {
         return const RhythmRepoResult(
           data: <ContinuitySnapshot>[],
@@ -499,82 +599,96 @@ class RhythmRepo {
 
   /// Upsert a rhythm field (timed or untimed). Returns field id on success.
   Future<RhythmRepoResult<String>> saveDraft(RhythmDraft draft) async {
-    final uid = _userId;
-    if (uid == null) return RhythmRepoResult(data: '');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'rhythm.',
+      'pages.planner.',
+      'planner.',
+    ]);
     try {
-      final slug = _slugify(draft.title, draft.id);
-      final sectionKey = _displayCategoryToSectionKey(draft.category);
-      final payload = {
-        'user_id': uid,
-        'slug': slug,
-        'title': draft.title,
-        'description': draft.description,
-        'checklist_enabled': draft.showInAlignment,
-        'reminder_enabled': draft.sendReminders,
-        'tracker_enabled': draft.trackContinuity,
-        'metadata': {
-          'category': draft.category,
-          'section_key': sectionKey,
-          'is_timed': draft.isTimed,
-        },
-        'value_json': {
-          'category': draft.category,
-          'section_key': sectionKey,
-          'is_timed': draft.isTimed,
-        },
-      };
-
-      String fieldId;
-      final existingId = draft.id;
-      if (existingId != null) {
-        final res = await _client
-            .from('cycle_fields')
-            .update(payload)
-            .eq('id', existingId)
-            .eq('user_id', uid)
-            .select('id')
-            .maybeSingle();
-        fieldId = (res?['id'] as String?) ?? existingId;
-      } else {
-        final res = await _client
-            .from('cycle_fields')
-            .insert(payload)
-            .select('id')
-            .maybeSingle();
-        fieldId = res?['id'] as String? ?? '';
-      }
-
-      // Replace schedule rules for this field based on patterns.
+      final uid = _userId;
+      if (uid == null) return RhythmRepoResult(data: '');
       try {
-        await _client
-            .from('cycle_schedule_rules')
-            .delete()
-            .eq('field_id', fieldId)
-            .eq('user_id', uid);
-        if (draft.patterns.isNotEmpty) {
-          final rows = draft.patterns.map((p) {
-            return {
-              'user_id': uid,
-              'field_id': fieldId,
-              'days_of_week': p.daysOfWeek,
-              'all_day': p.allDay,
-              'start_time_local': _formatDbTime(p.start),
-              'end_time_local': _formatDbTime(p.end),
-              'is_optional': p.isOptional,
-            };
-          }).toList();
-          await _client.from('cycle_schedule_rules').insert(rows);
-        }
-      } catch (e) {
-        if (!_isMissingTable(e)) rethrow;
-      }
+        final slug = _slugify(draft.title, draft.id);
+        final sectionKey = _displayCategoryToSectionKey(draft.category);
+        final payload = {
+          'user_id': uid,
+          'slug': slug,
+          'title': draft.title,
+          'description': draft.description,
+          'checklist_enabled': draft.showInAlignment,
+          'reminder_enabled': draft.sendReminders,
+          'tracker_enabled': draft.trackContinuity,
+          'metadata': {
+            'category': draft.category,
+            'section_key': sectionKey,
+            'is_timed': draft.isTimed,
+          },
+          'value_json': {
+            'category': draft.category,
+            'section_key': sectionKey,
+            'is_timed': draft.isTimed,
+          },
+        };
 
-      return RhythmRepoResult(data: fieldId);
-    } catch (e) {
-      if (_isMissingTable(e)) {
-        return const RhythmRepoResult(data: '', missingTables: true);
+        String fieldId;
+        final existingId = draft.id;
+        if (existingId != null) {
+          final res = await _client
+              .from('cycle_fields')
+              .update(payload)
+              .eq('id', existingId)
+              .eq('user_id', uid)
+              .select('id')
+              .maybeSingle();
+          fieldId = (res?['id'] as String?) ?? existingId;
+        } else {
+          final res = await _client
+              .from('cycle_fields')
+              .insert(payload)
+              .select('id')
+              .maybeSingle();
+          fieldId = res?['id'] as String? ?? '';
+        }
+
+        // Replace schedule rules for this field based on patterns.
+        try {
+          await _client
+              .from('cycle_schedule_rules')
+              .delete()
+              .eq('field_id', fieldId)
+              .eq('user_id', uid);
+          if (draft.patterns.isNotEmpty) {
+            final rows = draft.patterns.map((p) {
+              return {
+                'user_id': uid,
+                'field_id': fieldId,
+                'days_of_week': p.daysOfWeek,
+                'all_day': p.allDay,
+                'start_time_local': _formatDbTime(p.start),
+                'end_time_local': _formatDbTime(p.end),
+                'is_optional': p.isOptional,
+              };
+            }).toList();
+            await _client.from('cycle_schedule_rules').insert(rows);
+          }
+        } catch (e) {
+          if (!_isMissingTable(e)) rethrow;
+        }
+
+        return RhythmRepoResult(data: fieldId);
+      } catch (e) {
+        if (_isMissingTable(e)) {
+          return const RhythmRepoResult(data: '', missingTables: true);
+        }
+        return RhythmRepoResult(data: '', friendlyError: _friendlyMessage(e));
       }
-      return RhythmRepoResult(data: '', friendlyError: _friendlyMessage(e));
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'rhythm.',
+        'pages.planner.',
+        'planner.',
+      ]);
     }
   }
 
@@ -590,14 +704,17 @@ class RhythmRepo {
     }
     _logNoteAction('fetch_alignment_notes:start');
     try {
-      final rows = await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('alignment_notes')
-            .select('id, body, position, created_at')
-            .eq('user_id', uid)
-            .order('position', ascending: true)
-            .order('created_at', ascending: true),
+      final rows = await _warm.rows(
+        'rhythm.notes.rows',
+        () async => withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('alignment_notes')
+              .select('id, body, position, created_at')
+              .eq('user_id', uid)
+              .order('position', ascending: true)
+              .order('created_at', ascending: true),
+        ),
       );
 
       final notes = rows.map<RhythmNote>((r) {
@@ -618,6 +735,7 @@ class RhythmRepo {
       );
       return RhythmRepoResult(data: notes);
     } catch (e) {
+      if (cachedOnly) rethrow;
       if (_isMissingTable(e)) {
         _logNoteAction(
           'fetch_alignment_notes:missing',
@@ -644,64 +762,84 @@ class RhythmRepo {
     String text, {
     int position = 0,
   }) async {
-    final uid = _userId;
-    if (uid == null) {
-      _logNoteAction(
-        'insert_alignment_note',
-        friendlyError: 'Not signed in',
-        detail: 'skipped Supabase insert (uid missing)',
-      );
-      return const RhythmRepoResult(data: null, friendlyError: 'Not signed in');
-    }
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) {
-      return const RhythmRepoResult(data: null);
-    }
-    _logNoteAction('insert_alignment_note:start', detail: 'position=$position');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'rhythm.',
+      'pages.planner.',
+      'planner.',
+    ]);
     try {
-      final row = await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('alignment_notes')
-            .insert({'user_id': uid, 'body': trimmed, 'position': position})
-            .select('id, body, position, created_at')
-            .maybeSingle(),
-      );
-
-      if (row == null) return const RhythmRepoResult(data: null);
-
-      _logNoteAction(
-        'insert_alignment_note:success',
-        missingTables: false,
-        detail: 'noteId=${row['id'] ?? ''}',
-      );
-      return RhythmRepoResult(
-        data: RhythmNote(
-          id: row['id'] as String? ?? '',
-          text: row['body'] as String? ?? trimmed,
-          position: (row['position'] as num?)?.toInt() ?? position,
-          createdAt:
-              DateTime.tryParse(row['created_at'] as String? ?? '') ??
-              DateTime.now(),
-        ),
-      );
-    } catch (e) {
-      if (_isMissingTable(e)) {
+      final uid = _userId;
+      if (uid == null) {
         _logNoteAction(
-          'insert_alignment_note:missing',
-          missingTables: true,
+          'insert_alignment_note',
+          friendlyError: 'Not signed in',
+          detail: 'skipped Supabase insert (uid missing)',
+        );
+        return const RhythmRepoResult(
+          data: null,
+          friendlyError: 'Not signed in',
+        );
+      }
+      final trimmed = text.trim();
+      if (trimmed.isEmpty) {
+        return const RhythmRepoResult(data: null);
+      }
+      _logNoteAction(
+        'insert_alignment_note:start',
+        detail: 'position=$position',
+      );
+      try {
+        final row = await withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('alignment_notes')
+              .insert({'user_id': uid, 'body': trimmed, 'position': position})
+              .select('id, body, position, created_at')
+              .maybeSingle(),
+        );
+
+        if (row == null) return const RhythmRepoResult(data: null);
+
+        _logNoteAction(
+          'insert_alignment_note:success',
+          missingTables: false,
+          detail: 'noteId=${row['id'] ?? ''}',
+        );
+        return RhythmRepoResult(
+          data: RhythmNote(
+            id: row['id'] as String? ?? '',
+            text: row['body'] as String? ?? trimmed,
+            position: (row['position'] as num?)?.toInt() ?? position,
+            createdAt:
+                DateTime.tryParse(row['created_at'] as String? ?? '') ??
+                DateTime.now(),
+          ),
+        );
+      } catch (e) {
+        if (_isMissingTable(e)) {
+          _logNoteAction(
+            'insert_alignment_note:missing',
+            missingTables: true,
+            error: e,
+          );
+          return const RhythmRepoResult(data: null, missingTables: true);
+        }
+        final friendly = _friendlyMessage(e);
+        _logNoteAction(
+          'insert_alignment_note:error',
+          missingTables: false,
+          friendlyError: friendly,
           error: e,
         );
-        return const RhythmRepoResult(data: null, missingTables: true);
+        return RhythmRepoResult(data: null, friendlyError: friendly);
       }
-      final friendly = _friendlyMessage(e);
-      _logNoteAction(
-        'insert_alignment_note:error',
-        missingTables: false,
-        friendlyError: friendly,
-        error: e,
-      );
-      return RhythmRepoResult(data: null, friendlyError: friendly);
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'rhythm.',
+        'pages.planner.',
+        'planner.',
+      ]);
     }
   }
 
@@ -709,155 +847,202 @@ class RhythmRepo {
     String noteId,
     String text,
   ) async {
-    final uid = _userId;
-    if (uid == null) {
-      _logNoteAction(
-        'update_alignment_note',
-        friendlyError: 'Not signed in',
-        detail: 'skipped Supabase update (uid missing) noteId=$noteId',
-      );
-      return const RhythmRepoResult(
-        data: false,
-        friendlyError: 'Not signed in',
-      );
-    }
-    _logNoteAction('update_alignment_note:start', detail: 'noteId=$noteId');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'rhythm.',
+      'pages.planner.',
+      'planner.',
+    ]);
     try {
-      await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('alignment_notes')
-            .update({'body': text.trim()})
-            .eq('id', noteId)
-            .eq('user_id', uid),
-      );
-      _logNoteAction(
-        'update_alignment_note:success',
-        missingTables: false,
-        detail: 'noteId=$noteId',
-      );
-      return const RhythmRepoResult(data: true);
-    } catch (e) {
-      if (_isMissingTable(e)) {
+      final uid = _userId;
+      if (uid == null) {
         _logNoteAction(
-          'update_alignment_note:missing',
-          missingTables: true,
+          'update_alignment_note',
+          friendlyError: 'Not signed in',
+          detail: 'skipped Supabase update (uid missing) noteId=$noteId',
+        );
+        return const RhythmRepoResult(
+          data: false,
+          friendlyError: 'Not signed in',
+        );
+      }
+      _logNoteAction('update_alignment_note:start', detail: 'noteId=$noteId');
+      try {
+        await withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('alignment_notes')
+              .update({'body': text.trim()})
+              .eq('id', noteId)
+              .eq('user_id', uid),
+        );
+        _logNoteAction(
+          'update_alignment_note:success',
+          missingTables: false,
+          detail: 'noteId=$noteId',
+        );
+        return const RhythmRepoResult(data: true);
+      } catch (e) {
+        if (_isMissingTable(e)) {
+          _logNoteAction(
+            'update_alignment_note:missing',
+            missingTables: true,
+            error: e,
+          );
+          return const RhythmRepoResult(data: false, missingTables: true);
+        }
+        final friendly = _friendlyMessage(e);
+        _logNoteAction(
+          'update_alignment_note:error',
+          missingTables: false,
+          friendlyError: friendly,
           error: e,
         );
-        return const RhythmRepoResult(data: false, missingTables: true);
+        return RhythmRepoResult(data: false, friendlyError: friendly);
       }
-      final friendly = _friendlyMessage(e);
-      _logNoteAction(
-        'update_alignment_note:error',
-        missingTables: false,
-        friendlyError: friendly,
-        error: e,
-      );
-      return RhythmRepoResult(data: false, friendlyError: friendly);
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'rhythm.',
+        'pages.planner.',
+        'planner.',
+      ]);
     }
   }
 
   Future<RhythmRepoResult<bool>> deleteAlignmentNote(String noteId) async {
-    final uid = _userId;
-    if (uid == null) {
-      _logNoteAction(
-        'delete_alignment_note',
-        friendlyError: 'Not signed in',
-        detail: 'skipped Supabase delete (uid missing) noteId=$noteId',
-      );
-      return const RhythmRepoResult(
-        data: false,
-        friendlyError: 'Not signed in',
-      );
-    }
-    _logNoteAction('delete_alignment_note:start', detail: 'noteId=$noteId');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'rhythm.',
+      'pages.planner.',
+      'planner.',
+    ]);
     try {
-      await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('alignment_notes')
-            .delete()
-            .eq('id', noteId)
-            .eq('user_id', uid),
-      );
-      _logNoteAction(
-        'delete_alignment_note:success',
-        missingTables: false,
-        detail: 'noteId=$noteId',
-      );
-      return const RhythmRepoResult(data: true);
-    } catch (e) {
-      if (_isMissingTable(e)) {
+      final uid = _userId;
+      if (uid == null) {
         _logNoteAction(
-          'delete_alignment_note:missing',
-          missingTables: true,
+          'delete_alignment_note',
+          friendlyError: 'Not signed in',
+          detail: 'skipped Supabase delete (uid missing) noteId=$noteId',
+        );
+        return const RhythmRepoResult(
+          data: false,
+          friendlyError: 'Not signed in',
+        );
+      }
+      _logNoteAction('delete_alignment_note:start', detail: 'noteId=$noteId');
+      try {
+        await withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('alignment_notes')
+              .delete()
+              .eq('id', noteId)
+              .eq('user_id', uid),
+        );
+        _logNoteAction(
+          'delete_alignment_note:success',
+          missingTables: false,
+          detail: 'noteId=$noteId',
+        );
+        return const RhythmRepoResult(data: true);
+      } catch (e) {
+        if (_isMissingTable(e)) {
+          _logNoteAction(
+            'delete_alignment_note:missing',
+            missingTables: true,
+            error: e,
+          );
+          return const RhythmRepoResult(data: false, missingTables: true);
+        }
+        final friendly = _friendlyMessage(e);
+        _logNoteAction(
+          'delete_alignment_note:error',
+          missingTables: false,
+          friendlyError: friendly,
           error: e,
         );
-        return const RhythmRepoResult(data: false, missingTables: true);
+        return RhythmRepoResult(data: false, friendlyError: friendly);
       }
-      final friendly = _friendlyMessage(e);
-      _logNoteAction(
-        'delete_alignment_note:error',
-        missingTables: false,
-        friendlyError: friendly,
-        error: e,
-      );
-      return RhythmRepoResult(data: false, friendlyError: friendly);
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'rhythm.',
+        'pages.planner.',
+        'planner.',
+      ]);
     }
   }
 
   Future<RhythmRepoResult<bool>> reorderAlignmentNotes(
     List<RhythmNote> notes,
   ) async {
-    final uid = _userId;
-    if (uid == null) {
-      _logNoteAction(
-        'reorder_alignment_notes',
-        friendlyError: 'Not signed in',
-        detail: 'skipped Supabase reorder (uid missing)',
-      );
-      return const RhythmRepoResult(
-        data: false,
-        friendlyError: 'Not signed in',
-      );
-    }
-    if (notes.isEmpty) return const RhythmRepoResult(data: true);
-    _logNoteAction(
-      'reorder_alignment_notes:start',
-      detail: 'count=${notes.length}',
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'rhythm.',
+      'pages.planner.',
+      'planner.',
+    ]);
     try {
-      final payload = [
-        for (final n in notes)
-          {'id': n.id, 'user_id': uid, 'position': n.position, 'body': n.text},
-      ];
-      await withSupabaseAuthRetry(
-        _client,
-        () => _client.from('alignment_notes').upsert(payload),
-      );
+      final uid = _userId;
+      if (uid == null) {
+        _logNoteAction(
+          'reorder_alignment_notes',
+          friendlyError: 'Not signed in',
+          detail: 'skipped Supabase reorder (uid missing)',
+        );
+        return const RhythmRepoResult(
+          data: false,
+          friendlyError: 'Not signed in',
+        );
+      }
+      if (notes.isEmpty) return const RhythmRepoResult(data: true);
       _logNoteAction(
-        'reorder_alignment_notes:success',
-        missingTables: false,
+        'reorder_alignment_notes:start',
         detail: 'count=${notes.length}',
       );
-      return const RhythmRepoResult(data: true);
-    } catch (e) {
-      if (_isMissingTable(e)) {
+      try {
+        final payload = [
+          for (final n in notes)
+            {
+              'id': n.id,
+              'user_id': uid,
+              'position': n.position,
+              'body': n.text,
+            },
+        ];
+        await withSupabaseAuthRetry(
+          _client,
+          () => _client.from('alignment_notes').upsert(payload),
+        );
         _logNoteAction(
-          'reorder_alignment_notes:missing',
-          missingTables: true,
+          'reorder_alignment_notes:success',
+          missingTables: false,
+          detail: 'count=${notes.length}',
+        );
+        return const RhythmRepoResult(data: true);
+      } catch (e) {
+        if (_isMissingTable(e)) {
+          _logNoteAction(
+            'reorder_alignment_notes:missing',
+            missingTables: true,
+            error: e,
+          );
+          return const RhythmRepoResult(data: false, missingTables: true);
+        }
+        final friendly = _friendlyMessage(e);
+        _logNoteAction(
+          'reorder_alignment_notes:error',
+          missingTables: false,
+          friendlyError: friendly,
           error: e,
         );
-        return const RhythmRepoResult(data: false, missingTables: true);
+        return RhythmRepoResult(data: false, friendlyError: friendly);
       }
-      final friendly = _friendlyMessage(e);
-      _logNoteAction(
-        'reorder_alignment_notes:error',
-        missingTables: false,
-        friendlyError: friendly,
-        error: e,
-      );
-      return RhythmRepoResult(data: false, friendlyError: friendly);
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'rhythm.',
+        'pages.planner.',
+        'planner.',
+      ]);
     }
   }
 

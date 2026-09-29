@@ -515,7 +515,17 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       _eventsByFlow[initialFlow.id] ?? const <FlowEventRow>[],
     );
     _scheduleUserFlowDayBoundaryRefresh();
-    _loadEventsFor(_flowSequence[_currentIndex]);
+    final cachedEvents = _eventsByFlow.containsKey(initialFlow.id)
+        ? null
+        : _eventsRepo.cachedFlowDetailEvents(initialFlow.id);
+    if (!_eventsByFlow.containsKey(initialFlow.id) && cachedEvents != null) {
+      _eventsByFlow[initialFlow.id] = cachedEvents;
+      _seedDashboardExpansion(initialFlow, cachedEvents);
+    }
+    _loadEventsFor(
+      _flowSequence[_currentIndex],
+      refresh: cachedEvents != null && initialEventsByFlow == null,
+    );
   }
 
   @override
@@ -528,6 +538,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   @override
   void didUpdateWidget(covariant _FlowPreviewPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.initialEventsByFlow, widget.initialEventsByFlow)) {
+      _eventsByFlow.addAll(widget.initialEventsByFlow ?? const {});
+    }
+    final updatedIndex = _flowSequence.indexWhere(
+      (f) => f.id == widget.flow.id,
+    );
+    if (updatedIndex >= 0) _flowSequence[updatedIndex] = widget.flow;
+    _metricsByFlow.addAll(widget.metricsByFlow);
     if (oldWidget.flow.id != widget.flow.id ||
         oldWidget.mode != widget.mode ||
         oldWidget.useMySavedExpansionParity !=
@@ -778,9 +796,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     return deduped;
   }
 
-  Future<void> _loadEventsFor(_Flow flow) async {
+  Future<void> _loadEventsFor(_Flow flow, {bool refresh = false}) async {
     final flowId = flow.id;
-    if (_loadingFlowIds.contains(flowId) || _eventsByFlow.containsKey(flowId)) {
+    if (_loadingFlowIds.contains(flowId) ||
+        (!refresh && _eventsByFlow.containsKey(flowId))) {
       return;
     }
 
@@ -791,7 +810,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     });
 
     try {
-      final events = await repo.getEventsForFlow(flowId);
+      final events = await repo.getFlowDetailEvents(flowId);
       final normalized = _isTrackSkyFlowName(flow.name)
           ? events.map(_normalizeTrackSkyFlowEventRow).toList()
           : events;

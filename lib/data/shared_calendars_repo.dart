@@ -1,3 +1,5 @@
+import 'warm_state/warm_json_reads.dart';
+import 'warm_state/warm_mutation.dart';
 import 'dart:async';
 import 'account_view_cache.dart';
 import 'dart:convert';
@@ -430,6 +432,7 @@ class SharedCalendarsRepo {
   Future<List<FiledEvent>> getCalendarFiledEvents(
     String calendarId, {
     int pageSize = 1000,
+    bool cachedOnly = false,
     int? maxRows,
     DateTime? startsOnOrAfterUtc,
   }) async {
@@ -440,6 +443,8 @@ class SharedCalendarsRepo {
       return await EventFilingRepo(_client).getLiveFiledCalendarEvents(
         trimmed,
         pageSize: pageSize,
+        cachedOnly: cachedOnly,
+        warm: true,
         maxRows: maxRows,
         startsOnOrAfterUtc: startsOnOrAfterUtc,
       );
@@ -847,14 +852,30 @@ class SharedCalendarsRepo {
     required String name,
     required int colorValue,
   }) async {
-    final response = await _client.rpc(
-      'create_shared_calendar',
-      params: <String, dynamic>{'p_name': name.trim(), 'p_color': colorValue},
-    );
-    if (response is String && response.trim().isNotEmpty) {
-      return response.trim();
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'filing.calendar.',
+      'pages.calendar',
+      'calendars.',
+      'pages.member',
+    ]);
+    try {
+      final response = await _client.rpc(
+        'create_shared_calendar',
+        params: <String, dynamic>{'p_name': name.trim(), 'p_color': colorValue},
+      );
+      if (response is String && response.trim().isNotEmpty) {
+        return response.trim();
+      }
+      throw StateError('Calendar was created but no id was returned.');
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'filing.calendar.',
+        'pages.calendar',
+        'calendars.',
+        'pages.member',
+      ]);
     }
-    throw StateError('Calendar was created but no id was returned.');
   }
 
   Future<void> updateCalendar({
@@ -862,14 +883,30 @@ class SharedCalendarsRepo {
     required String name,
     int? colorValue,
   }) async {
-    await _client.rpc(
-      'update_shared_calendar',
-      params: <String, dynamic>{
-        'p_calendar_id': calendarId,
-        'p_name': name.trim(),
-        if (colorValue != null) 'p_color': colorValue,
-      },
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'filing.calendar.',
+      'pages.calendar',
+      'calendars.',
+      'pages.member',
+    ]);
+    try {
+      await _client.rpc(
+        'update_shared_calendar',
+        params: <String, dynamic>{
+          'p_calendar_id': calendarId,
+          'p_name': name.trim(),
+          if (colorValue != null) 'p_color': colorValue,
+        },
+      );
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'filing.calendar.',
+        'pages.calendar',
+        'calendars.',
+        'pages.member',
+      ]);
+    }
   }
 
   Future<void> inviteUser({
@@ -880,41 +917,92 @@ class SharedCalendarsRepo {
     String? calendarName,
     int? calendarColorValue,
   }) async {
-    final trimmedCalendarId = calendarId.trim();
-    final trimmedUserId = userId.trim();
-    await _client.rpc(
-      'invite_user_to_shared_calendar',
-      params: <String, dynamic>{
-        'p_calendar_id': trimmedCalendarId,
-        'p_user_id': trimmedUserId,
-        'p_role': role.name,
-        if (sourceFlowId != null && sourceFlowId > 0)
-          'p_source_flow_id': sourceFlowId,
-      },
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'filing.calendar.',
+      'pages.calendar',
+      'calendars.',
+      'pages.member',
+    ]);
+    try {
+      final trimmedCalendarId = calendarId.trim();
+      final trimmedUserId = userId.trim();
+      await _client.rpc(
+        'invite_user_to_shared_calendar',
+        params: <String, dynamic>{
+          'p_calendar_id': trimmedCalendarId,
+          'p_user_id': trimmedUserId,
+          'p_role': role.name,
+          if (sourceFlowId != null && sourceFlowId > 0)
+            'p_source_flow_id': sourceFlowId,
+        },
+      );
 
-    final metadata = await _calendarPushMetadata(
-      calendarId: trimmedCalendarId,
-      fallbackName: calendarName,
-      fallbackColorValue: calendarColorValue,
-    );
-    final title = metadata.name.isNotEmpty ? metadata.name : 'Calendar invite';
-    await sendCalendarPush(
-      userIds: <String>[trimmedUserId],
-      title: title,
-      body: 'You were invited to join $title.',
-      data: <String, dynamic>{
-        'type': 'calendar_invite',
-        'kind': 'calendar_invite',
-        'calendar_id': trimmedCalendarId,
-        'calendar_name': title,
-        if (metadata.colorValue != null) 'calendar_color': metadata.colorValue,
-        'role': role.name,
-      },
-    );
+      final metadata = await _calendarPushMetadata(
+        calendarId: trimmedCalendarId,
+        fallbackName: calendarName,
+        fallbackColorValue: calendarColorValue,
+      );
+      final title = metadata.name.isNotEmpty
+          ? metadata.name
+          : 'Calendar invite';
+      await sendCalendarPush(
+        userIds: <String>[trimmedUserId],
+        title: title,
+        body: 'You were invited to join $title.',
+        data: <String, dynamic>{
+          'type': 'calendar_invite',
+          'kind': 'calendar_invite',
+          'calendar_id': trimmedCalendarId,
+          'calendar_name': title,
+          if (metadata.colorValue != null)
+            'calendar_color': metadata.colorValue,
+          'role': role.name,
+        },
+      );
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'filing.calendar.',
+        'pages.calendar',
+        'calendars.',
+        'pages.member',
+      ]);
+    }
+  }
+
+  Future<List<SharedCalendarMember>> restoreCachedMembers(
+    String calendarId, {
+    bool includePending = false,
+  }) async {
+    final rows = await WarmJsonReads(
+      _client,
+      cachedOnly: true,
+    ).rows('calendars.members.$calendarId.$includePending', () async => []);
+    return rows.map(SharedCalendarMember.fromRow).toList();
   }
 
   Future<List<SharedCalendarMember>> listMembers(
+    String calendarId, {
+    bool includePending = false,
+    int? expectedMemberCount,
+    int? expectedPendingCount,
+  }) async {
+    final rows = await WarmJsonReads(_client).rows(
+      'calendars.members.$calendarId.$includePending',
+      () async {
+        final members = await _fetchMembers(
+          calendarId,
+          includePending: includePending,
+          expectedMemberCount: expectedMemberCount,
+          expectedPendingCount: expectedPendingCount,
+        );
+        return members.map((m) => m.toCacheJson()).toList();
+      },
+    );
+    return rows.map(SharedCalendarMember.fromRow).toList();
+  }
+
+  Future<List<SharedCalendarMember>> _fetchMembers(
     String calendarId, {
     bool includePending = false,
     int? expectedMemberCount,
@@ -1020,40 +1108,88 @@ class SharedCalendarsRepo {
     required String userId,
     required SharedCalendarRole role,
   }) async {
-    await _client.rpc(
-      'update_shared_calendar_member_role',
-      params: <String, dynamic>{
-        'p_calendar_id': calendarId.trim(),
-        'p_user_id': userId.trim(),
-        'p_role': role.name,
-      },
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'filing.calendar.',
+      'pages.calendar',
+      'calendars.',
+      'pages.member',
+    ]);
+    try {
+      await _client.rpc(
+        'update_shared_calendar_member_role',
+        params: <String, dynamic>{
+          'p_calendar_id': calendarId.trim(),
+          'p_user_id': userId.trim(),
+          'p_role': role.name,
+        },
+      );
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'filing.calendar.',
+        'pages.calendar',
+        'calendars.',
+        'pages.member',
+      ]);
+    }
   }
 
   Future<void> removeMember({
     required String calendarId,
     required String userId,
   }) async {
-    await _client.rpc(
-      'remove_shared_calendar_member',
-      params: <String, dynamic>{
-        'p_calendar_id': calendarId.trim(),
-        'p_user_id': userId.trim(),
-      },
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'filing.calendar.',
+      'pages.calendar',
+      'calendars.',
+      'pages.member',
+    ]);
+    try {
+      await _client.rpc(
+        'remove_shared_calendar_member',
+        params: <String, dynamic>{
+          'p_calendar_id': calendarId.trim(),
+          'p_user_id': userId.trim(),
+        },
+      );
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'filing.calendar.',
+        'pages.calendar',
+        'calendars.',
+        'pages.member',
+      ]);
+    }
   }
 
   Future<void> revokeInvite({
     required String calendarId,
     required String userId,
   }) async {
-    await _client.rpc(
-      'revoke_shared_calendar_invite',
-      params: <String, dynamic>{
-        'p_calendar_id': calendarId.trim(),
-        'p_user_id': userId.trim(),
-      },
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'filing.calendar.',
+      'pages.calendar',
+      'calendars.',
+      'pages.member',
+    ]);
+    try {
+      await _client.rpc(
+        'revoke_shared_calendar_invite',
+        params: <String, dynamic>{
+          'p_calendar_id': calendarId.trim(),
+          'p_user_id': userId.trim(),
+        },
+      );
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'filing.calendar.',
+        'pages.calendar',
+        'calendars.',
+        'pages.member',
+      ]);
+    }
   }
 
   Future<void> respondToInvite({
@@ -1061,45 +1197,77 @@ class SharedCalendarsRepo {
     required bool accept,
     SharedCalendarInvite? invite,
   }) async {
-    final trimmedCalendarId = calendarId.trim();
-    final pendingInvite =
-        invite ?? await getPendingInviteForCalendar(trimmedCalendarId);
-    await _client.rpc(
-      'respond_to_shared_calendar_invite',
-      params: <String, dynamic>{
-        'p_calendar_id': trimmedCalendarId,
-        'p_accept': accept,
-      },
-    );
-    unawaited(_removePendingInviteFromCache(trimmedCalendarId));
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'filing.calendar.',
+      'pages.calendar',
+      'calendars.',
+      'pages.member',
+    ]);
+    try {
+      final trimmedCalendarId = calendarId.trim();
+      final pendingInvite =
+          invite ?? await getPendingInviteForCalendar(trimmedCalendarId);
+      await _client.rpc(
+        'respond_to_shared_calendar_invite',
+        params: <String, dynamic>{
+          'p_calendar_id': trimmedCalendarId,
+          'p_accept': accept,
+        },
+      );
+      unawaited(_removePendingInviteFromCache(trimmedCalendarId));
 
-    final inviterId = pendingInvite?.invitedBy?.trim();
-    if (inviterId == null || inviterId.isEmpty) return;
+      final inviterId = pendingInvite?.invitedBy?.trim();
+      if (inviterId == null || inviterId.isEmpty) return;
 
-    final title = pendingInvite!.calendarName.trim().isNotEmpty
-        ? pendingInvite.calendarName.trim()
-        : 'Calendar invite';
-    final status = accept ? 'accepted' : 'declined';
-    await sendCalendarPush(
-      userIds: <String>[inviterId],
-      title: title,
-      body: 'Your calendar invitation was $status.',
-      data: <String, dynamic>{
-        'type': 'calendar_invite_response',
-        'kind': 'calendar_invite_response',
-        'calendar_id': trimmedCalendarId,
-        'calendar_name': title,
-        'calendar_color': pendingInvite.calendarColorValue,
-        'invite_status': status,
-      },
-    );
+      final title = pendingInvite!.calendarName.trim().isNotEmpty
+          ? pendingInvite.calendarName.trim()
+          : 'Calendar invite';
+      final status = accept ? 'accepted' : 'declined';
+      await sendCalendarPush(
+        userIds: <String>[inviterId],
+        title: title,
+        body: 'Your calendar invitation was $status.',
+        data: <String, dynamic>{
+          'type': 'calendar_invite_response',
+          'kind': 'calendar_invite_response',
+          'calendar_id': trimmedCalendarId,
+          'calendar_name': title,
+          'calendar_color': pendingInvite.calendarColorValue,
+          'invite_status': status,
+        },
+      );
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'filing.calendar.',
+        'pages.calendar',
+        'calendars.',
+        'pages.member',
+      ]);
+    }
   }
 
   Future<void> leaveCalendar(String calendarId) async {
-    await _client.rpc(
-      'leave_shared_calendar',
-      params: <String, dynamic>{'p_calendar_id': calendarId},
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'filing.calendar.',
+      'pages.calendar',
+      'calendars.',
+      'pages.member',
+    ]);
+    try {
+      await _client.rpc(
+        'leave_shared_calendar',
+        params: <String, dynamic>{'p_calendar_id': calendarId},
+      );
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'filing.calendar.',
+        'pages.calendar',
+        'calendars.',
+        'pages.member',
+      ]);
+    }
   }
 
   Future<List<String>> getAcceptedMemberIds(

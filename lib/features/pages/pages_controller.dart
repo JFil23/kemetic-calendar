@@ -1,3 +1,4 @@
+import '../../data/warm_state/pages_warm_resources.dart';
 import 'pages_feed_rotation.dart';
 import '../../data/pages_studio_read_repository.dart';
 import 'pages_studio_graphic.dart';
@@ -69,6 +70,7 @@ class PagesController {
     });
     _feedRotation.addListener(_paintEditions);
     _seed();
+    unawaited(_restorePersisted());
   }
   final VoidCallback? onLocalBoundary;
   final SupabaseClient client;
@@ -129,6 +131,12 @@ class PagesController {
     _paintAll();
   }
 
+  Future<void> _restorePersisted() => PagesWarmResources(
+    client,
+    cache,
+    () => !_disposed && client.auth.currentUser?.id == uid,
+  ).restore();
+
   static PagesFlow flowFromRow(FlowRow f) => PagesFlow(
     id: '${f.id}',
     name: f.name,
@@ -157,6 +165,7 @@ class PagesController {
     Future<T> Function() fetch, {
     bool stale = false,
   }) async {
+    if (_disposed || client.auth.currentUser?.id != uid) return null;
     final result = await cache.load<T>(
       uid,
       key,
@@ -537,7 +546,7 @@ class PagesController {
       at == null ? '' : '${at.month}/${at.day} · ${_time(at)}';
   void _paintPlanner() {
     final p = _peek<PlannerOverview>('planner.overview');
-    if (p == null || cache.failed('planner.overview')) {
+    if (p == null) {
       _missing(PagesDestination.planner, ['planner.overview']);
       return;
     }
@@ -584,7 +593,7 @@ class PagesController {
 
   void _paintJournal() {
     final j = _peek<JournalOverview>('journal.overview');
-    if (j == null || cache.failed('journal.overview')) {
+    if (j == null) {
       _missing(PagesDestination.journal, ['journal.overview']);
       return;
     }
@@ -743,10 +752,7 @@ class PagesController {
   void _paintStudio() {
     final flows = _peek<List<PagesFlow>>('pages.flows'),
         window = _peek<PagesEventWindow>('pages.events');
-    if (flows == null ||
-        window == null ||
-        cache.failed('pages.flows') ||
-        cache.failed('pages.events')) {
+    if (flows == null || window == null) {
       _missing(PagesDestination.studio, ['pages.events', 'pages.flows']);
       return;
     }
@@ -806,7 +812,7 @@ class PagesController {
   void _paintFeed() {
     if (_disposed || client.auth.currentUser?.id != uid) return;
     final commons = _peek<CommonsHomeSnapshot>('social.commons');
-    if (commons == null || cache.failed('social.commons')) {
+    if (commons == null) {
       _missing(PagesDestination.feed, ['social.commons']);
       return;
     }
@@ -861,14 +867,7 @@ class PagesController {
     final rows = _peek<List<InboxActivityItem>>('social.activity'),
         together = _peek<TogetherInboxSnapshot>('social.together');
     final shares = _peek<List<InboxShareItem>>('social.inbox');
-    if (rows == null ||
-        together == null ||
-        shares == null ||
-        [
-          'social.activity',
-          'social.together',
-          'social.inbox',
-        ].any(cache.failed)) {
+    if (rows == null || together == null || shares == null) {
       _missing(PagesDestination.inbox, [
         'social.activity',
         'social.together',
@@ -958,7 +957,7 @@ class PagesController {
   void _paintCalendars() {
     final rows = _peek<List<SharedCalendarSummary>>('calendars.list'),
         hidden = _peek<Set<String>>('pages.hiddenCalendars');
-    if (rows == null || hidden == null || cache.failed('calendars.list')) {
+    if (rows == null || hidden == null) {
       _missing(PagesDestination.calendars, [
         'calendars.list',
         'pages.hiddenCalendars',

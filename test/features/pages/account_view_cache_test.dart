@@ -3,6 +3,32 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/account_view_cache.dart';
 
 void main() {
+  test(
+    'a new bounded background cycle can recover after the retry cap',
+    () async {
+      final cache = AccountViewCache()..enterAccount('a');
+      for (var i = 0; i < 3; i++) {
+        cache.beginVisibleEntry();
+        await cache.load<int>(
+          'a',
+          'value',
+          () async => throw StateError('offline'),
+          mayFetch: () => true,
+        );
+      }
+      cache.beginRefreshCycle();
+      expect(
+        await cache.load<int>(
+          'a',
+          'value',
+          () async => 42,
+          mayFetch: () => true,
+        ),
+        42,
+      );
+    },
+  );
+
   test('fresh revisit and concurrent requests reuse one read', () async {
     final cache = AccountViewCache()
       ..enterAccount('u')

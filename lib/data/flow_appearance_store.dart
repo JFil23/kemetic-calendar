@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'warm_state/warm_snapshot_store.dart';
 import 'dart:collection';
 import 'dart:typed_data';
 
@@ -49,14 +51,47 @@ class FlowAppearanceStore {
     if (cached?.bytes != null) return Future<Uint8List>.value(cached!.bytes!);
     if (cached?.future != null) return cached!.future!;
 
+    final uid = _client.auth.currentUser?.id;
+    final requestKey = _cacheKey(objectPath);
     final entry = _FlowAppearanceImageCacheEntry();
     Future<Uint8List> load() async {
       try {
+        if (uid != null) {
+          try {
+            final raw = await WarmSnapshotStore.instance.cached(
+              uid,
+              'image.$objectPath',
+            );
+            if (_client.auth.currentUser?.id != uid) {
+              throw const WarmReadCancelled();
+            }
+            if (raw is String) {
+              final bytes = base64Decode(raw);
+              entry
+                ..bytes = bytes
+                ..future = null;
+              return bytes;
+            }
+          } on WarmReadCancelled {
+            rethrow;
+          } catch (_) {}
+        }
         final override = debugDownloadImageForTesting;
         final bytes = override == null
             ? await _client.storage.from(bucket).download(objectPath)
             : await override(_client, objectPath);
-        if (identical(_imageCache[_cacheKey(objectPath)], entry)) {
+        if (_client.auth.currentUser?.id != uid) {
+          throw const WarmReadCancelled();
+        }
+        if (uid != null && bytes.length <= 512 * 1024) {
+          await WarmSnapshotStore.instance.refresh(
+            uid,
+            'image.$objectPath',
+            () async => base64Encode(bytes),
+            isCurrent: () => _client.auth.currentUser?.id == uid,
+          );
+        }
+        if (identical(_imageCache[requestKey], entry)) {
           entry
             ..bytes = bytes
             ..future = null;
@@ -64,7 +99,7 @@ class FlowAppearanceStore {
         }
         return bytes;
       } catch (_) {
-        final key = _cacheKey(objectPath);
+        final key = requestKey;
         if (identical(_imageCache[key], entry)) _imageCache.remove(key);
         rethrow;
       }
@@ -77,6 +112,10 @@ class FlowAppearanceStore {
 
   void rememberImageBytes(String objectPath, Uint8List bytes) {
     _storeCachedEntry(objectPath, _FlowAppearanceImageCacheEntry(bytes: bytes));
+  }
+
+  static void forgetAccount(String uid) {
+    _imageCache.removeWhere((key, _) => key.startsWith('$uid::'));
   }
 
   static void debugResetImageCacheForTesting() {

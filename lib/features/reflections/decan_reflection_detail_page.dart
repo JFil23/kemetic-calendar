@@ -1,3 +1,4 @@
+import '../../data/warm_state/warm_snapshot_store.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -102,7 +103,37 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   }
 
   Future<void> _load() async {
-    final data = await _repo.getById(widget.reflectionId);
+    try {
+      final cached = await _repo.getById(widget.reflectionId, cachedOnly: true);
+      if (!mounted) return;
+      if (cached != null) {
+        setState(() {
+          _reflection = cached;
+          _loading = false;
+          _rebuildReflectionSpans();
+        });
+      }
+    } catch (_) {}
+    DecanReflection? data;
+    try {
+      data = await _repo.getById(widget.reflectionId, strict: true);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          if (error is WarmAccessDenied) {
+            _reflection = null;
+          }
+          _loading = false;
+        });
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _reflection = data;
+      _loading = false;
+      _rebuildReflectionSpans();
+    });
     final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
     final links = await _insightRepo.fetchLinks(userId);
     final graphHints = data == null

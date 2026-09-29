@@ -1,3 +1,4 @@
+import 'warm_state/warm_mutation.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -213,7 +214,8 @@ class BirthdayOccurrence {
 }
 
 class BirthdayCalendarRepo {
-  BirthdayCalendarRepo(this._client);
+  BirthdayCalendarRepo(this._client, {this.strict = false});
+  final bool strict;
 
   final SupabaseClient _client;
 
@@ -241,24 +243,33 @@ class BirthdayCalendarRepo {
     required DateTime birthday,
     required int alertOffsetMinutes,
   }) async {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) {
-      throw ArgumentError.value(name, 'name', 'Must not be empty.');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, ['filing.calendar.', 'pages.calendar']);
+    try {
+      final trimmed = name.trim();
+      if (trimmed.isEmpty) {
+        throw ArgumentError.value(name, 'name', 'Must not be empty.');
+      }
+      final response = await _client.rpc(
+        'create_birthday_item',
+        params: <String, dynamic>{
+          'p_name': trimmed,
+          'p_month': birthday.month,
+          'p_day': birthday.day,
+          'p_birth_year': birthday.year,
+          'p_alert_offset_minutes': alertOffsetMinutes,
+        },
+      );
+      if (response is String && response.trim().isNotEmpty) {
+        return response.trim();
+      }
+      throw StateError('Birthday was created but no id was returned.');
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'filing.calendar.',
+        'pages.calendar',
+      ]);
     }
-    final response = await _client.rpc(
-      'create_birthday_item',
-      params: <String, dynamic>{
-        'p_name': trimmed,
-        'p_month': birthday.month,
-        'p_day': birthday.day,
-        'p_birth_year': birthday.year,
-        'p_alert_offset_minutes': alertOffsetMinutes,
-      },
-    );
-    if (response is String && response.trim().isNotEmpty) {
-      return response.trim();
-    }
-    throw StateError('Birthday was created but no id was returned.');
   }
 
   Future<List<BirthdayItem>> getBirthdays({String? calendarId}) async {
@@ -294,6 +305,7 @@ class BirthdayCalendarRepo {
           )
           .toList(growable: false);
     } catch (e) {
+      if (strict) rethrow;
       _log('getBirthdays failed: $e');
       return const <BirthdayItem>[];
     }

@@ -29,11 +29,29 @@ class _CommitmentTrackerPageState extends State<CommitmentTrackerPage> {
   final RhythmRepo _repo = RhythmRepo(Supabase.instance.client);
   late Future<RhythmRepoResult<List<ContinuitySnapshot>>> _future;
   String _scope = 'Yearly';
+  final _warm = <String, RhythmRepoResult<List<ContinuitySnapshot>>>{};
+
+  Future<RhythmRepoResult<List<ContinuitySnapshot>>> _loadScope() async {
+    final scope = _scope;
+    try {
+      final local = await RhythmRepo(
+        Supabase.instance.client,
+        cachedOnly: true,
+      ).fetchContinuity(scope: scope);
+      if (mounted) setState(() => _warm[scope] = local);
+    } catch (_) {}
+    final result = await _repo.fetchContinuity(scope: scope);
+    if (result.friendlyError != null && _warm[scope] != null) {
+      return _warm[scope]!;
+    }
+    if (result.friendlyError == null) _warm[scope] = result;
+    return result;
+  }
 
   @override
   void initState() {
     super.initState();
-    _future = _repo.fetchContinuity(scope: _scope);
+    _future = _loadScope();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(
         RhythmTelemetry.trackScreen(
@@ -46,7 +64,7 @@ class _CommitmentTrackerPageState extends State<CommitmentTrackerPage> {
 
   void _reload() {
     setState(() {
-      _future = _repo.fetchContinuity(scope: _scope);
+      _future = _loadScope();
     });
   }
 
@@ -65,8 +83,10 @@ class _CommitmentTrackerPageState extends State<CommitmentTrackerPage> {
       body: SafeArea(
         child: FutureBuilder<RhythmRepoResult<List<ContinuitySnapshot>>>(
           future: _future,
+          initialData: _warm[_scope],
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                _warm[_scope] == null) {
               return const Padding(
                 padding: EdgeInsets.all(16.0),
                 child: RhythmLoadingShell(),
@@ -84,7 +104,9 @@ class _CommitmentTrackerPageState extends State<CommitmentTrackerPage> {
               );
             }
 
-            final result = snapshot.data;
+            final result = snapshot.connectionState == ConnectionState.waiting
+                ? _warm[_scope]
+                : snapshot.data;
             if (result == null) {
               return Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -162,7 +184,7 @@ class _CommitmentTrackerPageState extends State<CommitmentTrackerPage> {
                             selected: _scope == 'Weekly',
                             onTap: () => setState(() {
                               _scope = 'Weekly';
-                              _future = _repo.fetchContinuity(scope: _scope);
+                              _future = _loadScope();
                             }),
                           ),
                           const SizedBox(width: 8),
@@ -171,7 +193,7 @@ class _CommitmentTrackerPageState extends State<CommitmentTrackerPage> {
                             selected: _scope == 'Monthly',
                             onTap: () => setState(() {
                               _scope = 'Monthly';
-                              _future = _repo.fetchContinuity(scope: _scope);
+                              _future = _loadScope();
                             }),
                           ),
                           const SizedBox(width: 8),
@@ -180,7 +202,7 @@ class _CommitmentTrackerPageState extends State<CommitmentTrackerPage> {
                             selected: _scope == 'Yearly',
                             onTap: () => setState(() {
                               _scope = 'Yearly';
-                              _future = _repo.fetchContinuity(scope: _scope);
+                              _future = _loadScope();
                             }),
                           ),
                           const Spacer(),

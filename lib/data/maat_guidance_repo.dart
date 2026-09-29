@@ -1,3 +1,4 @@
+import 'warm_state/warm_json_reads.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -87,23 +88,30 @@ class MaatGuidanceRepo implements MaatGuidanceDataSource {
     }
   }
 
+  Future<MaatGuidanceDelivery?> getCachedById(String id) async {
+    final raw = await WarmJsonReads(
+      _client,
+      cachedOnly: true,
+    ).value('guidance.$id', () async => null);
+    return raw is Map
+        ? MaatGuidanceDelivery.fromJson(Map<String, dynamic>.from(raw))
+        : null;
+  }
+
   @override
   Future<MaatGuidanceDelivery?> getById(String id) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null || id.trim().isEmpty) return null;
-    try {
+    final raw = await WarmJsonReads(_client).value('guidance.$id', () async {
       final res = await _client.functions.invoke(
         'fetch_maat_guidance_pending',
         body: <String, dynamic>{'delivery_id': id.trim()},
       );
-      final data = _asMap(res.data);
-      final delivery = _asMap(data?['delivery']);
-      if (delivery == null) return null;
-      return MaatGuidanceDelivery.fromJson(delivery);
-    } catch (error) {
-      debugPrint('[MaatGuidanceRepo] getById skipped: $error');
-      return null;
-    }
+      return _asMap(_asMap(res.data)?['delivery']);
+    });
+    return raw is Map
+        ? MaatGuidanceDelivery.fromJson(Map<String, dynamic>.from(raw))
+        : null;
   }
 
   @override
@@ -153,7 +161,9 @@ class MaatGuidanceRepo implements MaatGuidanceDataSource {
     }
   }
 
-  Future<MaatGuidanceListResult> listDecanOpeningsForArchive() async {
+  Future<MaatGuidanceListResult> listDecanOpeningsForArchive({
+    bool cachedOnly = false,
+  }) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) {
       return const MaatGuidanceListResult(
@@ -162,17 +172,20 @@ class MaatGuidanceRepo implements MaatGuidanceDataSource {
       );
     }
     try {
-      final res = await _client
-          .from('maat_guidance_deliveries')
-          .select()
-          .eq('user_id', uid)
-          .eq('kind', MaatGuidanceKind.decanOpening.dbValue)
-          .inFilter('status', <String>[
-            MaatGuidanceStatus.opened.dbValue,
-            MaatGuidanceStatus.acted.dbValue,
-            MaatGuidanceStatus.archiveOnly.dbValue,
-          ])
-          .order('created_at', ascending: false);
+      final res = await WarmJsonReads(_client, cachedOnly: cachedOnly).rows(
+        'guidance.archive',
+        () => _client
+            .from('maat_guidance_deliveries')
+            .select()
+            .eq('user_id', uid)
+            .eq('kind', MaatGuidanceKind.decanOpening.dbValue)
+            .inFilter('status', <String>[
+              MaatGuidanceStatus.opened.dbValue,
+              MaatGuidanceStatus.acted.dbValue,
+              MaatGuidanceStatus.archiveOnly.dbValue,
+            ])
+            .order('created_at', ascending: false),
+      );
       final rows = (res as List)
           .map(
             (row) => MaatGuidanceDelivery.fromJson(row as Map<String, dynamic>),
@@ -180,6 +193,7 @@ class MaatGuidanceRepo implements MaatGuidanceDataSource {
           .toList(growable: false);
       return MaatGuidanceListResult(data: rows);
     } catch (error) {
+      if (cachedOnly) rethrow;
       debugPrint(
         '[MaatGuidanceRepo] listDecanOpeningsForArchive skipped: $error',
       );

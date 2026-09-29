@@ -37,6 +37,11 @@ class AccountViewCache {
     _entry++;
   }
 
+  void beginRefreshCycle() {
+    _failures.clear();
+    beginVisibleEntry();
+  }
+
   T? peek<T>(String userId, String key) =>
       _account == userId ? _values[key] as T? : null;
   DateTime? loadedAt(String userId, String key) =>
@@ -77,6 +82,19 @@ class AccountViewCache {
     if (_account != userId) return;
     for (final key in {..._values.keys, ..._pending.keys}) {
       if (key.startsWith(prefix)) invalidate(userId, key);
+    }
+  }
+
+  void evictPrefix(String userId, String prefix) {
+    if (_account != userId) return;
+    for (final key in {
+      ..._values.keys,
+      ..._pending.keys,
+    }.where((key) => key.startsWith(prefix)).toList()) {
+      invalidate(userId, key);
+      _values.remove(key);
+      changes.value = null;
+      changes.value = key;
     }
   }
 

@@ -1,3 +1,4 @@
+import 'warm_state/warm_json_reads.dart';
 import 'commons_question_selection.dart';
 import '../features/journal/journal_event_badge.dart';
 import '../features/calendar/day_view.dart' show NoteData;
@@ -32,7 +33,14 @@ import 'shared_practice_models.dart';
 /// Only bounded, authenticated reads. No ensure, sync, insert, update or RPC
 /// that mutates state belongs on this passive overview boundary.
 class PagesReadRepository {
-  PagesReadRepository(this.client, {required this.mayFetch});
+  PagesReadRepository(
+    this.client, {
+    required this.mayFetch,
+    this.cachedOnly = false,
+  });
+  final bool cachedOnly;
+  WarmJsonReads get _warm =>
+      WarmJsonReads(client, cachedOnly: cachedOnly, mayFetch: mayFetch);
   final bool Function() mayFetch;
   void checkActive() {
     if (!mayFetch()) throw const ViewReadCancelled();
@@ -44,17 +52,20 @@ class PagesReadRepository {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   Future<PlannerOverview> planner(DateTime now) async {
     final owner = uid;
-    final rows = await client
-        .from('todos')
-        .select(
-          'id,title,due_date,due_time,status,show_on_checklist,show_on_calendar',
-        )
-        .eq('user_id', owner)
-        .or(
-          'due_date.gte.${dayKey(now)},due_date.is.null,status.is.null,status.not.in.(done,skipped,archived)',
-        )
-        .order('created_at')
-        .limit(200);
+    final rows = await _warm.rows(
+      'pages.planner.${dayKey(now)}.todos',
+      () async => client
+          .from('todos')
+          .select(
+            'id,title,due_date,due_time,status,show_on_checklist,show_on_calendar',
+          )
+          .eq('user_id', owner)
+          .or(
+            'due_date.gte.${dayKey(now)},due_date.is.null,status.is.null,status.not.in.(done,skipped,archived)',
+          )
+          .order('created_at')
+          .limit(200),
+    );
     if (rows.length == 200) {
       throw StateError('Planner preview coverage unavailable');
     }
@@ -85,36 +96,48 @@ class PagesReadRepository {
         )
         .toList();
     checkActive();
-    final nutrients = await client
-        .from('nutrition_items')
-        .select(
-          'id,nutrient,source,mode,days_of_week,decan_days,repeat,time_h,time_m,enabled',
-        )
-        .eq('user_id', owner)
-        .or('enabled.eq.true,enabled.is.null')
-        .order('created_at')
-        .limit(100);
+    final nutrients = await _warm.rows(
+      'pages.planner.${dayKey(now)}.nutrition',
+      () async => client
+          .from('nutrition_items')
+          .select(
+            'id,nutrient,source,mode,days_of_week,decan_days,repeat,time_h,time_m,enabled',
+          )
+          .eq('user_id', owner)
+          .or('enabled.eq.true,enabled.is.null')
+          .order('created_at')
+          .limit(100),
+    );
     if (nutrients.length == 100) {
       throw StateError('Nutrition preview coverage unavailable');
     }
     final nutrition = nutrients.map(NutritionItem.fromRow).toList();
     checkActive();
-    final notes = await client
-        .from('alignment_notes')
-        .select('body')
-        .eq('user_id', owner)
-        .order('position')
-        .order('created_at')
-        .limit(1);
+    final notes = await _warm.rows(
+      'pages.planner.${dayKey(now)}.note',
+      () async => client
+          .from('alignment_notes')
+          .select('body')
+          .eq('user_id', owner)
+          .order('position')
+          .order('created_at')
+          .limit(1),
+    );
     checkActive();
-    final badgeRows = await client
-        .from('journal_badges')
-        .select('event_id,tags')
-        .eq('user_id', owner)
-        .gte('occurred_on', dayKey(now))
-        .lte('occurred_on', dayKey(DateTime(now.year, now.month, now.day + 9)))
-        .like('event_id', 'planner-nutrition:%')
-        .limit(201);
+    final badgeRows = await _warm.rows(
+      'pages.planner.${dayKey(now)}.badges',
+      () async => client
+          .from('journal_badges')
+          .select('event_id,tags')
+          .eq('user_id', owner)
+          .gte('occurred_on', dayKey(now))
+          .lte(
+            'occurred_on',
+            dayKey(DateTime(now.year, now.month, now.day + 9)),
+          )
+          .like('event_id', 'planner-nutrition:%')
+          .limit(201),
+    );
     if (badgeRows.length == 201) {
       throw StateError('Nutrition status coverage unavailable');
     }
@@ -140,22 +163,28 @@ class PagesReadRepository {
     );
     if (!preview.hasTrackedItems(now)) {
       checkActive();
-      final fields = await client
-          .from('cycle_fields')
-          .select('id,title')
-          .eq('user_id', owner)
-          .eq('checklist_enabled', true)
-          .limit(201);
+      final fields = await _warm.rows(
+        'pages.planner.${dayKey(now)}.fields',
+        () async => client
+            .from('cycle_fields')
+            .select('id,title')
+            .eq('user_id', owner)
+            .eq('checklist_enabled', true)
+            .limit(201),
+      );
       if (fields.length == 201) {
         throw StateError('Alignment coverage unavailable');
       }
       checkActive();
-      final checks = await client
-          .from('checklist_items')
-          .select('field_id,status')
-          .eq('user_id', owner)
-          .eq('local_date', dayKey(now))
-          .limit(201);
+      final checks = await _warm.rows(
+        'pages.planner.${dayKey(now)}.checks',
+        () async => client
+            .from('checklist_items')
+            .select('field_id,status')
+            .eq('user_id', owner)
+            .eq('local_date', dayKey(now))
+            .limit(201),
+      );
       if (checks.length == 201) {
         throw StateError('Alignment status coverage unavailable');
       }
@@ -183,11 +212,14 @@ class PagesReadRepository {
   }
 
   Future<List<PagesFlow>> flows() async {
-    final rows = await client
-        .rpc('get_my_filed_flows_v1', params: {'p_limit': 100})
-        .select(
-          'id,user_id,name,color,appearance,notes,start_date,end_date,active,is_hidden,is_reminder,visible_in_active_list,total_event_count,remaining_event_count',
-        );
+    final rows = await _warm.rows(
+      'pages.flows',
+      () async => client
+          .rpc('get_my_filed_flows_v1', params: {'p_limit': 100})
+          .select(
+            'id,user_id,name,color,appearance,notes,start_date,end_date,active,is_hidden,is_reminder,visible_in_active_list,total_event_count,remaining_event_count',
+          ),
+    );
     if (rows.length == 100) {
       throw StateError('Flow preview coverage unavailable');
     }
@@ -224,7 +256,10 @@ class PagesReadRepository {
         .eq('is_hidden', false);
     if (postId != null) query = query.eq('id', postId);
     if (flowId != null) query = query.eq('flow_id', flowId);
-    final rows = await query.order('created_at', ascending: false).limit(1);
+    final rows = await _warm.rows(
+      'pages.activityPost.$postId.$flowId',
+      () async => query.order('created_at', ascending: false).limit(1),
+    );
     return rows
         .map(
           (r) => FlowPost.fromJson({
@@ -238,23 +273,29 @@ class PagesReadRepository {
   /// Selected people only; no profile bootstrap or progress writes.
   Future<List<String>> personGlyphs(String personId) async {
     checkActive();
-    final rows = await client
-        .from('profiles')
-        .select('avatar_glyphs')
-        .eq('id', personId)
-        .limit(1);
+    final rows = await _warm.rows(
+      'pages.glyphs.$personId',
+      () async => client
+          .from('profiles')
+          .select('avatar_glyphs')
+          .eq('id', personId)
+          .limit(1),
+    );
     return parseProfileAvatarGlyphIds(rows.firstOrNull?['avatar_glyphs']);
   }
 
   Future<List<PagesPerson>> calendarMembers(String calendarId) async {
-    final rows = await client
-        .rpc(
-          'list_shared_calendar_members',
-          params: {'p_calendar_id': calendarId},
-        )
-        .eq('status', 'accepted')
-        .select('user_id,handle,display_name')
-        .limit(3);
+    final rows = await _warm.rows(
+      'pages.members.$calendarId',
+      () async => client
+          .rpc(
+            'list_shared_calendar_members',
+            params: {'p_calendar_id': calendarId},
+          )
+          .eq('status', 'accepted')
+          .select('user_id,handle,display_name')
+          .limit(3),
+    );
     final members = (rows as List)
         .map((r) => Map<String, dynamic>.from(r))
         .toList();
@@ -267,11 +308,14 @@ class PagesReadRepository {
     checkActive();
     final profiles = missing.isEmpty
         ? <Map<String, dynamic>>[]
-        : await client
-              .from('profiles')
-              .select('id,display_name,handle,avatar_glyphs')
-              .inFilter('id', missing)
-              .limit(3);
+        : await _warm.rows(
+            'pages.memberProfiles.$calendarId',
+            () async => client
+                .from('profiles')
+                .select('id,display_name,handle,avatar_glyphs')
+                .inFilter('id', missing)
+                .limit(3),
+          );
     final byId = {for (final p in profiles) p['id']: p};
     return members.map((m) {
       final id = m['user_id'] as String;
@@ -289,15 +333,18 @@ class PagesReadRepository {
   }
 
   Future<List<FlowPost>> ownPosts() async {
-    final rows = await client
-        .from('flow_posts')
-        .select(
-          'id,user_id,flow_id,name,color,start_date,end_date,is_hidden,created_at,appearance:ai_metadata->payload->appearance',
-        )
-        .eq('user_id', uid)
-        .eq('is_hidden', false)
-        .order('created_at', ascending: false)
-        .limit(20);
+    final rows = await _warm.rows(
+      'pages.posts',
+      () async => client
+          .from('flow_posts')
+          .select(
+            'id,user_id,flow_id,name,color,start_date,end_date,is_hidden,created_at,appearance:ai_metadata->payload->appearance',
+          )
+          .eq('user_id', uid)
+          .eq('is_hidden', false)
+          .order('created_at', ascending: false)
+          .limit(20),
+    );
     return rows
         .map(
           (r) => FlowPost.fromJson({
@@ -309,22 +356,25 @@ class PagesReadRepository {
   }
 
   Future<List<FlowRow>> publicAppearance(int flowId) async {
-    final rows = await client
-        .from('flows')
-        .select(
-          'id,user_id,name,color,appearance,start_date,end_date,active,is_hidden,is_reminder',
-        )
-        .eq('id', flowId)
-        .eq('is_hidden', false)
-        .limit(1);
+    final rows = await _warm.rows(
+      'pages.appearance.$flowId',
+      () async => client
+          .from('flows')
+          .select(
+            'id,user_id,name,color,appearance,start_date,end_date,active,is_hidden,is_reminder',
+          )
+          .eq('id', flowId)
+          .eq('is_hidden', false)
+          .limit(1),
+    );
     return rows.map(FlowRow.fromRow).toList();
   }
 
   Future<TogetherInboxSnapshot> together() async {
     // Pages only needs the inbox card payload, not quote approvals or decisions.
-    final json = await client.rpc(
-      'get_together_inbox',
-      params: {'p_limit': 20},
+    final json = await _warm.value(
+      'pages.together',
+      () async => client.rpc('get_together_inbox', params: {'p_limit': 20}),
     );
     if (json is! Map) throw StateError('Together preview unavailable');
     return TogetherInboxSnapshot.fromJson(Map<String, dynamic>.from(json));
@@ -332,14 +382,17 @@ class PagesReadRepository {
 
   Future<CommonsHomeSnapshot> commons() async {
     final seed = commonsQuestionSeed(DateTime.now());
-    final json = await client.rpc(
-      'get_commons_together_home_cards',
-      params: {
-        'p_local_date': dayKey(DateTime.now()),
-        'p_question_id': seed.id,
-        'p_question_text': seed.text,
-        'p_limit': 6,
-      },
+    final json = await _warm.value(
+      'pages.commons.${dayKey(DateTime.now())}',
+      () async => client.rpc(
+        'get_commons_together_home_cards',
+        params: {
+          'p_local_date': dayKey(DateTime.now()),
+          'p_question_id': seed.id,
+          'p_question_text': seed.text,
+          'p_limit': 6,
+        },
+      ),
     );
     if (json is! Map) throw StateError('Commons preview unavailable');
     return CommonsHomeSnapshot.fromJson(Map<String, dynamic>.from(json));
@@ -357,16 +410,19 @@ class PagesReadRepository {
     final last = k.kMonth == 13
         ? KemeticMath.toGregorian(k.kYear + 1, 1, 1)
         : KemeticMath.toGregorian(k.kYear, k.kMonth + 1, 1);
-    final rows = await client
-        .from('user_event_filing_items_client')
-        .select(
-          'id,client_event_id,title,detail,starts_at,ends_at,all_day,calendar_id,calendar_color,calendar_is_personal,flow_local_id,filed_flow_id,item_kind,category,behavior_payload',
-        )
-        .eq('live_on_calendar', true)
-        .gte('starts_at', first.toUtc().toIso8601String())
-        .lt('starts_at', last.toUtc().toIso8601String())
-        .order('starts_at', ascending: true)
-        .limit(501);
+    final rows = await _warm.rows(
+      'pages.calendar.${dayKey(first)}',
+      () async => client
+          .from('user_event_filing_items_client')
+          .select(
+            'id,client_event_id,title,detail,starts_at,ends_at,all_day,calendar_id,calendar_color,calendar_is_personal,flow_local_id,filed_flow_id,item_kind,category,behavior_payload',
+          )
+          .eq('live_on_calendar', true)
+          .gte('starts_at', first.toUtc().toIso8601String())
+          .lt('starts_at', last.toUtc().toIso8601String())
+          .order('starts_at', ascending: true)
+          .limit(501),
+    );
     if (rows.length == 501) {
       throw StateError('Calendar preview coverage unavailable');
     }
@@ -454,16 +510,19 @@ class PagesReadRepository {
     Set<String> hidden = const {},
   }) async {
     final end = DateTime(now.year, now.month, now.day + 31);
-    final rows = await client
-        .from('user_event_filing_items_client')
-        .select(
-          'id,client_event_id,title,starts_at,calendar_id,flow_local_id,filed_flow_id,behavior_payload,category,item_kind',
-        )
-        .eq('live_on_calendar', true)
-        .gte('starts_at', now.toUtc().toIso8601String())
-        .lt('starts_at', end.toUtc().toIso8601String())
-        .order('starts_at', ascending: true)
-        .limit(201);
+    final rows = await _warm.rows(
+      'pages.events.${dayKey(now)}',
+      () async => client
+          .from('user_event_filing_items_client')
+          .select(
+            'id,client_event_id,title,starts_at,calendar_id,flow_local_id,filed_flow_id,behavior_payload,category,item_kind',
+          )
+          .eq('live_on_calendar', true)
+          .gte('starts_at', now.toUtc().toIso8601String())
+          .lt('starts_at', end.toUtc().toIso8601String())
+          .order('starts_at', ascending: true)
+          .limit(201),
+    );
     final seen = <String>{};
     final events = rows
         .where(
@@ -502,13 +561,16 @@ class PagesReadRepository {
     final owner = uid;
     // Inspect a bounded recent document window; never scan body text across
     // journal history. Older badge coverage remains explicitly unknown.
-    final rows = await client
-        .from('journal_entries')
-        .select('greg_date,body,meta,updated_at')
-        .eq('user_id', owner)
-        .lte('greg_date', dayKey(now))
-        .order('greg_date', ascending: false)
-        .limit(14);
+    final rows = await _warm.rows(
+      'pages.journal.${dayKey(now)}',
+      () async => client
+          .from('journal_entries')
+          .select('greg_date,body,meta,updated_at')
+          .eq('user_id', owner)
+          .lte('greg_date', dayKey(now))
+          .order('greg_date', ascending: false)
+          .limit(14),
+    );
     final written = <String>{};
     final badgesByDay = <String, List<PagesSignal>>{};
     final tokensByDay = <String, List<EventBadgeToken>>{};

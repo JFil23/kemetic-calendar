@@ -516,6 +516,20 @@ class JournalController {
       }
     }
 
+    // Local presentation is independent of the server read. The revision/date/
+    // account guard below still prevents a refresh from replacing new edits.
+    if (localDocument != null &&
+        !_shouldAbortReloadApply(
+          dateKey: dateKey,
+          cacheScope: cacheScope,
+          editRevision: editRevision,
+          source: 'warm_document',
+        )) {
+      await _applyDocument(localDocument);
+      _hasUnsavedChanges = localDirty;
+      onDraftChanged?.call();
+    }
+
     JournalEntry? entry;
     var serverReadFailed = false;
     Object? serverError;

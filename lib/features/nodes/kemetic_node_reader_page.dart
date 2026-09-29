@@ -149,6 +149,13 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     KemeticNode node, {
     required int requestId,
   }) async {
+    final local = await _readProgressStore.readCachedSnapshotOnly();
+    if (!_isActiveRestoreRequest(node, requestId)) return;
+    final cached = local?.progressFor(node.id);
+    if (cached != null) {
+      _setBookmarkActiveFor(node.id, cached);
+      _restoreScrollPositionFor(node.id, cached.resumeScrollOffset);
+    }
     final progress = await _readProgressStore.recordOpened(node.id);
     if (!_isActiveRestoreRequest(node, requestId)) return;
     _setBookmarkActiveFor(node.id, progress);

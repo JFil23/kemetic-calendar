@@ -57,9 +57,25 @@ class _DecanReflectionArchivePageState
 
   Future<void> _load() async {
     setState(() {
-      _loading = true;
+      _loading = _items.isEmpty;
       _errorMessage = null;
     });
+    if (_items.isEmpty) {
+      try {
+        final local = await _repo.listMineResult(cachedOnly: true);
+        final openings = await _maatRepo.listDecanOpeningsForArchive(
+          cachedOnly: true,
+        );
+        if (!mounted) return;
+        setState(() {
+          _items = _buildArchiveEntries(
+            reflections: local.data,
+            openings: openings.data,
+          );
+          _loading = false;
+        });
+      } catch (_) {}
+    }
     final result = await _repo.listMineResult();
     final openingResult = await _maatRepo.listDecanOpeningsForArchive();
     final entries = _buildArchiveEntries(
@@ -75,7 +91,7 @@ class _DecanReflectionArchivePageState
     );
     if (!mounted) return;
     setState(() {
-      _items = entries;
+      if (!result.hasError && !openingResult.hasError) _items = entries;
       _errorMessage = decanReflectionArchiveVisibleError(
         hasVisibleItems: entries.isNotEmpty,
         reflectionErrorMessage: result.errorMessage,

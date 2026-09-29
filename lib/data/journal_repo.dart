@@ -1,3 +1,5 @@
+import 'warm_state/warm_mutation.dart';
+import 'warm_state/warm_json_reads.dart';
 // ============================================================================
 // IMPLEMENTATION GUIDE
 // ============================================================================
@@ -158,26 +160,38 @@ class JournalRepo {
     }
   }
 
-  Future<JournalEntry?> getById(String id) async {
+  Future<JournalEntry?> getById(
+    String id, {
+    bool cachedOnly = false,
+    bool strict = false,
+  }) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return null;
-      final res = await _client
-          .from('journal_entries')
-          .select()
-          .eq('user_id', userId)
-          .eq('id', id)
-          .maybeSingle();
+      final res = await WarmJsonReads(_client, cachedOnly: cachedOnly).value(
+        'journal.entry.$id',
+        () async => _client
+            .from('journal_entries')
+            .select()
+            .eq('user_id', userId)
+            .eq('id', id)
+            .maybeSingle(),
+      );
       if (res == null) return null;
-      return JournalEntry.fromJson(res);
+      return JournalEntry.fromJson(Map<String, dynamic>.from(res as Map));
     } catch (e) {
+      if (cachedOnly || strict) rethrow;
       _log('getById error: $e');
       return null;
     }
   }
 
   /// Get recent entries (for future features like browsing history)
-  Future<List<JournalEntry>> listRecent({int days = 30}) async {
+  Future<List<JournalEntry>> listRecent({
+    int days = 30,
+    bool cachedOnly = false,
+    bool strict = false,
+  }) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) {
@@ -190,12 +204,16 @@ class JournalRepo {
 
       _log('listRecent: fetching entries since $cutoffStr');
 
-      final response = await _client
-          .from('journal_entries')
-          .select()
-          .eq('user_id', userId)
-          .gte('greg_date', cutoffStr)
-          .order('greg_date', ascending: false);
+      final response = await WarmJsonReads(_client, cachedOnly: cachedOnly)
+          .rows(
+            'journal.recent.$days.$cutoffStr',
+            () async => _client
+                .from('journal_entries')
+                .select()
+                .eq('user_id', userId)
+                .gte('greg_date', cutoffStr)
+                .order('greg_date', ascending: false),
+          );
 
       final entries = (response as List)
           .map((json) => JournalEntry.fromJson(json as Map<String, dynamic>))
@@ -204,6 +222,7 @@ class JournalRepo {
       _log('listRecent: found ${entries.length} entries');
       return entries;
     } catch (e) {
+      if (cachedOnly || strict) rethrow;
       _log('listRecent error: $e');
       return [];
     }
@@ -253,53 +272,65 @@ class JournalRepo {
     Map<String, dynamic>? meta,
     String? category,
   }) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, ['journal.', 'pages.journal.']);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) {
-        _log('upsert: no user logged in, cannot save');
-        throw Exception('User not authenticated');
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) {
+          _log('upsert: no user logged in, cannot save');
+          throw Exception('User not authenticated');
+        }
+
+        final dateStr = JournalEntry._formatDate(localDate);
+        _log('upsert: saving entry for $dateStr (${body.length} chars)');
+
+        await _client.from('journal_entries').upsert({
+          'user_id': userId,
+          'greg_date': dateStr,
+          'body': body,
+          'meta': meta ?? {},
+          if (category != null) 'category': category,
+        }, onConflict: 'user_id,greg_date');
+
+        publishJournalOverview(userId, localDate, body);
+        _log('upsert: ✓ saved entry for $dateStr');
+      } catch (e) {
+        _log('upsert error: $e');
+        rethrow;
       }
-
-      final dateStr = JournalEntry._formatDate(localDate);
-      _log('upsert: saving entry for $dateStr (${body.length} chars)');
-
-      await _client.from('journal_entries').upsert({
-        'user_id': userId,
-        'greg_date': dateStr,
-        'body': body,
-        'meta': meta ?? {},
-        if (category != null) 'category': category,
-      }, onConflict: 'user_id,greg_date');
-
-      publishJournalOverview(userId, localDate, body);
-      _log('upsert: ✓ saved entry for $dateStr');
-    } catch (e) {
-      _log('upsert error: $e');
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, ['journal.', 'pages.journal.']);
     }
   }
 
   /// Delete entry for a specific date (for future features)
   Future<void> deleteByDate(DateTime localDate) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, ['journal.', 'pages.journal.']);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) {
-        _log('deleteByDate: no user logged in');
-        return;
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) {
+          _log('deleteByDate: no user logged in');
+          return;
+        }
+
+        final dateStr = JournalEntry._formatDate(localDate);
+        _log('deleteByDate: deleting $dateStr');
+
+        await _client
+            .from('journal_entries')
+            .delete()
+            .eq('user_id', userId)
+            .eq('greg_date', dateStr);
+
+        _log('deleteByDate: ✓ deleted $dateStr');
+      } catch (e) {
+        _log('deleteByDate error: $e');
       }
-
-      final dateStr = JournalEntry._formatDate(localDate);
-      _log('deleteByDate: deleting $dateStr');
-
-      await _client
-          .from('journal_entries')
-          .delete()
-          .eq('user_id', userId)
-          .eq('greg_date', dateStr);
-
-      _log('deleteByDate: ✓ deleted $dateStr');
-    } catch (e) {
-      _log('deleteByDate error: $e');
+    } finally {
+      invalidateWarmDomains(warmAccount, ['journal.', 'pages.journal.']);
     }
   }
 }

@@ -172,10 +172,16 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     await SettingsPrefs.clearLegacyReminderPrefs(prefs);
 
-    CalendarSyncStatus? calendarStatus;
     if (_nativeCalendarSyncAvailable) {
       final sync = sharedCalendarSyncService(Supabase.instance.client);
-      calendarStatus = await sync.getStatus();
+      unawaited(
+        sync
+            .getStatus()
+            .then((status) {
+              if (mounted) setState(() => _calendarSyncStatus = status);
+            })
+            .catchError((Object _) {}),
+      );
     }
 
     if (!mounted) return;
@@ -187,7 +193,6 @@ class _SettingsPageState extends State<SettingsPage> {
       _usHolidaysEnabled = SettingsPrefs.usHolidaysEnabledFrom(prefs);
       _dailyCosmicContextBadgeEnabled =
           SettingsPrefs.dailyCosmicContextBadgeEnabledFrom(prefs);
-      _calendarSyncStatus = calendarStatus;
       _pushTestDeliveryKey = prefs
           .getString(_lastPushTestDeliveryKeyPref)
           ?.trim();

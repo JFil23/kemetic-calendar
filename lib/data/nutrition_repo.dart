@@ -1,3 +1,4 @@
+import 'warm_state/warm_mutation.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/supabase_auth_retry.dart';
@@ -228,43 +229,79 @@ class NutritionRepo {
   /// Inserts or updates a nutrition item. When [item.id] is empty or a temp ID,
   /// the database generates a new UUID and returns it in the response.
   Future<NutritionItem> upsert(NutritionItem item) async {
-    final user = _client.auth.currentUser;
-    if (user == null) throw StateError('No user session');
-
-    final payload = item.toInsert(userId: user.id)
-      ..removeWhere((k, v) => v == null);
-
-    // ✅ Only include id when it's a real UUID (not a temp/string placeholder)
-    if (item.id.isNotEmpty && _isRealUuid(item.id)) {
-      payload['id'] = item.id;
-    }
-
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'pages.planner.',
+      'planner.',
+      'pages.journal.',
+      'journal.overview',
+      'rhythm.',
+    ]);
     try {
-      final row = await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('nutrition_items')
-            .upsert(payload, onConflict: 'id')
-            .select()
-            .single()
-            .timeout(_requestTimeout),
-      );
-      return NutritionItem.fromRow(row);
-    } catch (e) {
-      debugPrint('[NutritionRepo] upsert error: $e');
-      rethrow;
+      final user = _client.auth.currentUser;
+      if (user == null) throw StateError('No user session');
+
+      final payload = item.toInsert(userId: user.id)
+        ..removeWhere((k, v) => v == null);
+
+      // ✅ Only include id when it's a real UUID (not a temp/string placeholder)
+      if (item.id.isNotEmpty && _isRealUuid(item.id)) {
+        payload['id'] = item.id;
+      }
+
+      try {
+        final row = await withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('nutrition_items')
+              .upsert(payload, onConflict: 'id')
+              .select()
+              .single()
+              .timeout(_requestTimeout),
+        );
+        return NutritionItem.fromRow(row);
+      } catch (e) {
+        debugPrint('[NutritionRepo] upsert error: $e');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'pages.planner.',
+        'planner.',
+        'pages.journal.',
+        'journal.overview',
+        'rhythm.',
+      ]);
     }
   }
 
   /// Deletes a nutrition item by id.
   Future<void> delete(String id) async {
-    await withSupabaseAuthRetry(
-      _client,
-      () => _client
-          .from('nutrition_items')
-          .delete()
-          .eq('id', id)
-          .timeout(_requestTimeout),
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'pages.planner.',
+      'planner.',
+      'pages.journal.',
+      'journal.overview',
+      'rhythm.',
+    ]);
+    try {
+      await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('nutrition_items')
+            .delete()
+            .eq('id', id)
+            .timeout(_requestTimeout),
+      );
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'pages.planner.',
+        'planner.',
+        'pages.journal.',
+        'journal.overview',
+        'rhythm.',
+      ]);
+    }
   }
 }

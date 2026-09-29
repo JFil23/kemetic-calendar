@@ -1,3 +1,6 @@
+import 'warm_state/warm_mutation.dart';
+import 'warm_state/warm_json_reads.dart';
+import 'warm_state/warm_snapshot_store.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -643,46 +646,68 @@ class FlowsRepo {
     String? reminderUuid,
     FlowAppearance? appearance,
   }) async {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      throw StateError('No user session. Please sign in.');
-    }
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        throw StateError('No user session. Please sign in.');
+      }
 
-    final payload = <String, dynamic>{
-      'user_id': user.id,
-      if (calendarId != null) 'calendar_id': calendarId,
-      'name': name,
-      'color': color,
-      'active': active,
-      'is_saved': isSaved,
-      'rules': rulesJson ?? <dynamic>[],
-      'is_hidden': isHidden,
-      'is_reminder': isReminder,
-      if (appearance != null) 'appearance': appearance.toJsonOrNull(),
-    };
-    if (startDate != null) {
-      payload['start_date'] = startDate.toUtc().toIso8601String();
-    }
-    payload['end_date'] = endDate?.toUtc().toIso8601String();
-    if (notes != null) {
-      payload['notes'] = notes;
-    }
-    if (reminderUuid != null) {
-      payload['reminder_uuid'] = reminderUuid;
-    }
+      final payload = <String, dynamic>{
+        'user_id': user.id,
+        if (calendarId != null) 'calendar_id': calendarId,
+        'name': name,
+        'color': color,
+        'active': active,
+        'is_saved': isSaved,
+        'rules': rulesJson ?? <dynamic>[],
+        'is_hidden': isHidden,
+        'is_reminder': isReminder,
+        if (appearance != null) 'appearance': appearance.toJsonOrNull(),
+      };
+      if (startDate != null) {
+        payload['start_date'] = startDate.toUtc().toIso8601String();
+      }
+      payload['end_date'] = endDate?.toUtc().toIso8601String();
+      if (notes != null) {
+        payload['notes'] = notes;
+      }
+      if (reminderUuid != null) {
+        payload['reminder_uuid'] = reminderUuid;
+      }
 
-    if (id == null) {
-      final row = await _client.from(_kFlows).insert(payload).select().single();
-      return FlowRow.fromRow(row);
-    } else {
-      final patch = Map<String, dynamic>.from(payload)..remove('user_id');
-      final row = await _client
-          .from(_kFlows)
-          .update(patch)
-          .eq('id', id)
-          .select()
-          .single();
-      return FlowRow.fromRow(row);
+      if (id == null) {
+        final row = await _client
+            .from(_kFlows)
+            .insert(payload)
+            .select()
+            .single();
+        return FlowRow.fromRow(row);
+      } else {
+        final patch = Map<String, dynamic>.from(payload)..remove('user_id');
+        final row = await _client
+            .from(_kFlows)
+            .update(patch)
+            .eq('id', id)
+            .select()
+            .single();
+        return FlowRow.fromRow(row);
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -701,29 +726,47 @@ class FlowsRepo {
     String? reminderUuid,
     FlowAppearance? appearance,
   }) async {
-    final user = _client.auth.currentUser;
-    if (user == null) throw StateError('No user session.');
-    final payload = {
-      'user_id': user.id,
-      if (calendarId != null) 'calendar_id': calendarId,
-      'name': name,
-      'color': color,
-      'active': active,
-      'is_saved': isSaved,
-      'start_date': startDate?.toIso8601String(),
-      'end_date': endDate?.toIso8601String(),
-      'notes': notes,
-      'rules': rulesJson,
-      'is_hidden': isHidden,
-      'is_reminder': isReminder,
-      'reminder_uuid': reminderUuid,
-      if (appearance != null) 'appearance': appearance.toJsonOrNull(),
-    };
-    _log('insert → $payload');
-    final row = await _client.from(_kFlows).insert(payload).select().single();
-    final id = (row['id'] as num).toInt();
-    _log('insert ✓ id=$id');
-    return id;
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) throw StateError('No user session.');
+      final payload = {
+        'user_id': user.id,
+        if (calendarId != null) 'calendar_id': calendarId,
+        'name': name,
+        'color': color,
+        'active': active,
+        'is_saved': isSaved,
+        'start_date': startDate?.toIso8601String(),
+        'end_date': endDate?.toIso8601String(),
+        'notes': notes,
+        'rules': rulesJson,
+        'is_hidden': isHidden,
+        'is_reminder': isReminder,
+        'reminder_uuid': reminderUuid,
+        if (appearance != null) 'appearance': appearance.toJsonOrNull(),
+      };
+      _log('insert → $payload');
+      final row = await _client.from(_kFlows).insert(payload).select().single();
+      final id = (row['id'] as num).toInt();
+      _log('insert ✓ id=$id');
+      return id;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
+    }
   }
 
   Future<void> update({
@@ -740,45 +783,103 @@ class FlowsRepo {
     String? reminderUuid,
     FlowAppearance? appearance,
   }) async {
-    final patch = {
-      if (calendarId != null) 'calendar_id': calendarId,
-      'name': name,
-      'color': color,
-      'active': active,
-      'start_date': startDate?.toIso8601String(),
-      'end_date': endDate?.toIso8601String(),
-      'notes': notes,
-      'rules': rulesJson,
-      'is_reminder': isReminder,
-      'reminder_uuid': reminderUuid,
-      if (appearance != null) 'appearance': appearance.toJsonOrNull(),
-    };
-    _log('update($id) → $patch');
-    await _client.from(_kFlows).update(patch).eq('id', id);
-    _log('update ✓');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
+    try {
+      final patch = {
+        if (calendarId != null) 'calendar_id': calendarId,
+        'name': name,
+        'color': color,
+        'active': active,
+        'start_date': startDate?.toIso8601String(),
+        'end_date': endDate?.toIso8601String(),
+        'notes': notes,
+        'rules': rulesJson,
+        'is_reminder': isReminder,
+        'reminder_uuid': reminderUuid,
+        if (appearance != null) 'appearance': appearance.toJsonOrNull(),
+      };
+      _log('update($id) → $patch');
+      await _client.from(_kFlows).update(patch).eq('id', id);
+      _log('update ✓');
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
+    }
   }
 
   Future<void> updateCalendar({
     required int id,
     required String calendarId,
   }) async {
-    final trimmed = calendarId.trim();
-    if (trimmed.isEmpty) {
-      throw ArgumentError.value(calendarId, 'calendarId', 'Must not be empty.');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
+    try {
+      final trimmed = calendarId.trim();
+      if (trimmed.isEmpty) {
+        throw ArgumentError.value(
+          calendarId,
+          'calendarId',
+          'Must not be empty.',
+        );
+      }
+      final patch = <String, dynamic>{'calendar_id': trimmed};
+      _log('updateCalendar($id) → $patch');
+      await _client.from(_kFlows).update(patch).eq('id', id);
+      _log('updateCalendar ✓');
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
-    final patch = <String, dynamic>{'calendar_id': trimmed};
-    _log('updateCalendar($id) → $patch');
-    await _client.from(_kFlows).update(patch).eq('id', id);
-    _log('updateCalendar ✓');
   }
 
   Future<void> delete(int id) async {
-    _log('delete($id)');
-    await _client
-        .from(_kFlows)
-        .update({'is_hidden': true, 'active': false})
-        .eq('id', id);
-    _log('delete ✓ (soft)');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
+    try {
+      _log('delete($id)');
+      await _client
+          .from(_kFlows)
+          .update({'is_hidden': true, 'active': false})
+          .eq('id', id);
+      _log('delete ✓ (soft)');
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
+    }
   }
 
   Future<List<FlowRow>> fetchAll() async {
@@ -815,7 +916,28 @@ class FlowsRepo {
   }
 
   /// Fetch a single flow by ID
-  Future<FlowRow?> getFlowById(int id) async {
+  FlowRow? cachedFlowById(int id) {
+    final uid = _currentUserId;
+    if (uid == null) return null;
+    final cached = WarmSnapshotStore.instance.peek(uid, 'flow.detail.$id');
+    if (cached != null) {
+      final data = cached.data;
+      return data is Map
+          ? FlowRow.fromRow(Map<String, dynamic>.from(data))
+          : null;
+    }
+    return cachedMyFiledFlowsSync()?.where((f) => f.id == id).firstOrNull;
+  }
+
+  Future<FlowRow?> getFlowById(int id, {bool cachedOnly = false}) async {
+    final raw = await WarmJsonReads(_client, cachedOnly: cachedOnly).value(
+      'flow.detail.$id',
+      () async => (await _fetchFlowById(id))?.toCacheJson(),
+    );
+    return raw is Map ? FlowRow.fromRow(Map<String, dynamic>.from(raw)) : null;
+  }
+
+  Future<FlowRow?> _fetchFlowById(int id) async {
     final response = await _client
         .from(_kFlows)
         .select()

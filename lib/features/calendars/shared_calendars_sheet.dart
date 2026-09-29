@@ -153,7 +153,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
 
   Future<void> _restoreCachedSnapshot() async {
     final snapshot = await widget.repo.restoreCachedSnapshot();
-    if (!mounted || snapshot == null) return;
+    if (!mounted || snapshot == null || _snapshot != null) return;
     setState(() {
       _snapshot = snapshot;
       _loading = false;
@@ -162,7 +162,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   }
 
   Future<void> _reload({bool showLoading = true}) async {
-    if (showLoading || _snapshot == null) {
+    if (_snapshot == null) {
       setState(() => _loading = true);
     }
     final snapshot = await widget.repo.loadSnapshot();
@@ -424,9 +424,11 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   Future<List<FiledEvent>> _fetchCalendarEvents(
     String calendarId, {
     required bool fullLoad,
+    bool cachedOnly = false,
   }) {
     return widget.repo.getCalendarFiledEvents(
       calendarId,
+      cachedOnly: cachedOnly,
       pageSize: fullLoad
           ? _calendarEventFullPageSize
           : _calendarEventPreviewLimit,
@@ -467,6 +469,18 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       _calendarEventErrorsById.remove(trimmed);
       _loadingCalendarEventIds.add(trimmed);
     });
+
+    if (!_calendarEventsById.containsKey(trimmed)) {
+      try {
+        final cached = await _fetchCalendarEvents(
+          trimmed,
+          fullLoad: fullLoad,
+          cachedOnly: true,
+        );
+        if (!mounted) return;
+        setState(() => _calendarEventsById[trimmed] = cached);
+      } catch (_) {}
+    }
 
     try {
       final events = await _fetchCalendarEventsWithRetry(
@@ -1976,7 +1990,20 @@ class _CalendarMembersSheetState extends State<CalendarMembersSheet> {
   }
 
   Future<void> _reload() async {
-    setState(() => _loading = true);
+    setState(() => _loading = _members.isEmpty);
+    if (_members.isEmpty) {
+      try {
+        final cached = await widget.repo.restoreCachedMembers(
+          widget.calendar.id,
+          includePending: widget.calendar.canSeePendingInvites,
+        );
+        if (!mounted) return;
+        setState(() {
+          _members = cached;
+          _loading = false;
+        });
+      } catch (_) {}
+    }
     try {
       final members = await widget.repo.listMembers(
         widget.calendar.id,

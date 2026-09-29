@@ -915,7 +915,22 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     if (_feedLoading || _feedLoadingMore) return;
     if (!reset && !_feedHasMore) return;
 
+    if (reset) {
+      _feedLoading = true;
+    } else {
+      _feedLoadingMore = true;
+    }
     final nextOffset = reset ? 0 : _feedItems.length;
+    if (reset && _feedItems.isEmpty) {
+      try {
+        final local = await _repo.getProfileFeedResult(
+          limit: _profileFeedPageSize,
+          cachedOnly: true,
+        );
+        if (!mounted) return;
+        setState(() => _feedItems = local.data);
+      } catch (_) {}
+    }
     if (reset) {
       setState(() {
         _feedLoading = true;
@@ -984,11 +999,24 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       _commonsLoading = true;
       _commonsErrorMessage = null;
     });
+    if (_commonsHome == null) {
+      try {
+        final local = await _commonsRepo.getCommonsHome(
+          localDate: DateTime.now(),
+          questionId: seed.id,
+          questionText: seed.text,
+          cachedOnly: true,
+        );
+        if (!mounted) return;
+        setState(() => _commonsHome = local);
+      } catch (_) {}
+    }
     try {
       final snapshot = await _commonsRepo.getCommonsHome(
         localDate: DateTime.now(),
         questionId: seed.id,
         questionText: seed.text,
+        strict: _commonsHome != null,
       );
       if (!mounted) return;
       final question = snapshot.questions.isNotEmpty

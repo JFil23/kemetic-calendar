@@ -31,10 +31,13 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
   int _lastMessageCount = 0;
   bool _sending = false;
 
+  late Stream<List<DmConversationMessage>> _messages;
+
   @override
   void initState() {
     super.initState();
     _repo = DmConversationRepo(Supabase.instance.client);
+    _messages = _repo.watchMessages(widget.conversationId);
     _summaryFuture = _repo.getConversationSummary(widget.conversationId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_repo.markRead(widget.conversationId));
@@ -45,6 +48,7 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
   void didUpdateWidget(covariant InboxDmConversationPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.conversationId != widget.conversationId) {
+      _messages = _repo.watchMessages(widget.conversationId);
       _summaryFuture = _repo.getConversationSummary(widget.conversationId);
       _lastMessageCount = 0;
       unawaited(_repo.markRead(widget.conversationId));
@@ -141,7 +145,7 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
                   child: CandlelitMahoganyBackground(
                     paintBottomScrimAboveChild: false,
                     child: StreamBuilder<List<DmConversationMessage>>(
-                      stream: _repo.watchMessages(widget.conversationId),
+                      stream: _messages,
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
                           if (kDebugMode) {

@@ -339,17 +339,41 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     });
   }
 
+  bool _hasWarmPlanner = false;
   Future<void> _load() async {
+    final owner = _currentUserId;
+    if (!_hasWarmPlanner && owner != null) {
+      try {
+        final local = RhythmRepo(Supabase.instance.client, cachedOnly: true);
+        final items = await local.fetchTodaysAlignment();
+        final todos = await local.fetchTodos();
+        if (!mounted || _currentUserId != owner) return;
+        if (items.friendlyError == null && todos.friendlyError == null) {
+          setState(() {
+            _alignmentItems = items.data;
+            _missingTables = false;
+            _friendlyError = null;
+            _hasWarmPlanner = true;
+          });
+          _hydrateTodos(todos.data, focusDay: _activeTodoDay);
+        }
+      } catch (_) {}
+    }
+    final todosAtRead = _todosByDay;
     try {
       final itemsFuture = _repo.fetchTodaysAlignment();
       final todosFuture = _repo.fetchTodos();
       final items = await itemsFuture;
       final todos = await todosFuture;
       if (!mounted) return;
+      if (!identical(todosAtRead, _todosByDay)) return;
       final focusDay = _sameDay(_currentTodoWindowAnchorDay(), _todayLocal)
           ? _activeTodoDay
           : _todayLocal;
       final repoErr = items.friendlyError ?? todos.friendlyError;
+      if (_currentUserId != owner) return;
+      if (repoErr != null && _hasWarmPlanner) return;
+      _hasWarmPlanner = repoErr == null;
       setState(() {
         _missingTables = items.missingTables || todos.missingTables;
         _friendlyError = repoErr != null
@@ -361,6 +385,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       _persistSessionStateSoon();
       unawaited(_reconcileTodoPlannerBadges(todos.data));
     } catch (_) {
+      if (_hasWarmPlanner) return;
       final windowDays = buildTodoDayWindow(anchorDay: _todayLocal);
       if (!mounted) return;
       setState(() {
@@ -422,6 +447,14 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       _nutritionMissingTable = false;
     });
     final cachedFuture = NutritionItemsCache.load(uid);
+    final warmNutrition = await cachedFuture;
+    if (!mounted || _currentUserId != uid) return;
+    if (warmNutrition.isNotEmpty) {
+      setState(() {
+        _nutritionItems = warmNutrition;
+        _nutritionLoading = false;
+      });
+    }
     if (uid == null) {
       final cached = await cachedFuture;
       if (!mounted) return;
@@ -974,6 +1007,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       end: range.end,
     );
     final localStates = await localStatesFuture;
+    if (!mounted) return;
+    setState(() {
+      _nutritionStatesByKey = localStates;
+      _nutritionStatesLoaded = true;
+    });
+    final statesAtRead = _nutritionStatesByKey;
     final migrated = await migratedFuture;
     Map<String, RhythmItemState> remoteStates = const {};
     var remoteLoaded = false;
@@ -984,6 +1023,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       remoteStates = const {};
       remoteLoaded = false;
     }
+    if (!mounted || !identical(statesAtRead, _nutritionStatesByKey)) return;
     final mergedStates = remoteLoaded && migrated
         ? _mergeNutritionStatesWithServerAuthority(
             localStates,
@@ -995,7 +1035,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       await _markNutritionBadgeStateMigrated();
     }
     await _saveNutritionStatesToPrefs(mergedStates);
-    if (!mounted) return;
+    if (!mounted || !identical(statesAtRead, _nutritionStatesByKey)) return;
     setState(() {
       _nutritionStatesByKey = mergedStates;
       _nutritionStatesLoaded = true;
@@ -1657,10 +1697,20 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     final uid = _currentUserId;
     final resultFuture = _repo.fetchAlignmentNotes();
     final cachedFuture = _loadNotesFromPrefs(uid);
-    final result = await resultFuture;
-    if (!mounted) return;
-
     final cached = await cachedFuture;
+    if (!mounted || _currentUserId != uid) return;
+    if (cached.isNotEmpty) {
+      setState(() {
+        _notes = cached;
+        _activeNoteIndex = _clampNoteIndex(cached.length);
+      });
+      _syncNotePageToActiveIndex();
+    }
+    final notesAtRead = _notes;
+    final result = await resultFuture;
+    if (!mounted || _currentUserId != uid || !identical(notesAtRead, _notes)) {
+      return;
+    }
 
     final useLocalOnly =
         result.missingTables || result.friendlyError != null || uid == null;
@@ -3096,7 +3146,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       future: _future,
       builder: (context, snapshot) {
         final plannerLoading =
-            snapshot.connectionState == ConnectionState.waiting;
+            snapshot.connectionState == ConnectionState.waiting &&
+            !_hasWarmPlanner;
 
         if (!plannerLoading && snapshot.hasError) {
           return Padding(

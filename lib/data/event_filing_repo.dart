@@ -1,3 +1,4 @@
+import 'warm_state/warm_json_reads.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -35,6 +36,7 @@ class EventFilingRepo {
     required int offset,
     int pageSize = 50,
     DateTime? startsOnOrAfterUtc,
+    bool cachedOnly = false,
   }) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return const [];
@@ -50,10 +52,13 @@ class EventFilingRepo {
         startsOnOrAfterUtc.toUtc().toIso8601String(),
       );
     }
-    final rows = await query
-        .order('starts_at', ascending: false)
-        .order('id', ascending: false)
-        .range(offset, offset + pageSize - 1);
+    final rows = await WarmJsonReads(_client, cachedOnly: cachedOnly).rows(
+      'filing.${kind.name}.$offset.$pageSize.${startsOnOrAfterUtc?.toIso8601String()}',
+      () async => query
+          .order('starts_at', ascending: false)
+          .order('id', ascending: false)
+          .range(offset, offset + pageSize - 1),
+    );
     return rows.map((row) => FiledEvent.fromBackendRow(row)).toList();
   }
 
@@ -63,6 +68,33 @@ class EventFilingRepo {
     int pageSize = 1000,
     int? maxRows,
     DateTime? startsOnOrAfterUtc,
+    bool cachedOnly = false,
+    bool warm = false,
+  }) async {
+    Future<List<Map<String, dynamic>>> read() => _readCabinetRows(
+      calendarId: calendarId,
+      liveOnly: liveOnly,
+      pageSize: pageSize,
+      maxRows: maxRows,
+      startsOnOrAfterUtc: startsOnOrAfterUtc,
+      strict: warm,
+    );
+    final rows = warm || cachedOnly
+        ? await WarmJsonReads(_client, cachedOnly: cachedOnly).rows(
+            'filing.calendar.$calendarId.$liveOnly.$pageSize.$maxRows.${startsOnOrAfterUtc?.toIso8601String()}',
+            read,
+          )
+        : await read();
+    return FiledEventCabinet.fromBackendRows(rows);
+  }
+
+  Future<List<Map<String, dynamic>>> _readCabinetRows({
+    String? calendarId,
+    bool liveOnly = false,
+    int pageSize = 1000,
+    int? maxRows,
+    DateTime? startsOnOrAfterUtc,
+    bool strict = false,
   }) async {
     final trimmedCalendarId = calendarId?.trim();
     final boundedPageSize = pageSize <= 0 ? 1000 : pageSize;
@@ -112,8 +144,11 @@ class EventFilingRepo {
     }
 
     try {
-      final birthdayOccurrences = await BirthdayCalendarRepo(_client)
-          .getUpcomingOccurrences(
+      final birthdayOccurrences =
+          await BirthdayCalendarRepo(
+            _client,
+            strict: strict,
+          ).getUpcomingOccurrences(
             calendarId: trimmedCalendarId,
             startsOnOrAfterUtc: startsOnOrAfterUtc,
           );
@@ -123,6 +158,7 @@ class EventFilingRepo {
         ),
       );
     } catch (e) {
+      if (strict) rethrow;
       _log('birthday occurrence merge failed: $e');
     }
 
@@ -138,7 +174,7 @@ class EventFilingRepo {
       rows.removeRange(boundedMaxRows, rows.length);
     }
 
-    return FiledEventCabinet.fromBackendRows(rows);
+    return rows;
   }
 
   Future<List<UserEvent>> getLiveCalendarEvents(
@@ -159,6 +195,8 @@ class EventFilingRepo {
   Future<List<FiledEvent>> getLiveFiledCalendarEvents(
     String calendarId, {
     int pageSize = 1000,
+    bool cachedOnly = false,
+    bool warm = false,
     int? maxRows,
     DateTime? startsOnOrAfterUtc,
   }) async {
@@ -166,6 +204,8 @@ class EventFilingRepo {
     if (trimmed.isEmpty) return const [];
     final cabinet = await getEventCabinet(
       calendarId: trimmed,
+      cachedOnly: cachedOnly,
+      warm: warm,
       liveOnly: true,
       pageSize: pageSize,
       maxRows: maxRows,

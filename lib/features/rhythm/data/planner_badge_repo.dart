@@ -1,3 +1,4 @@
+import '../../../data/warm_state/warm_mutation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -216,35 +217,71 @@ class PlannerBadgeRepo {
     required String todoId,
     required DateTime date,
   }) async {
-    final uid = _userId;
-    if (uid == null || todoId.isEmpty) return;
-    final eventId = todoEventId(todoId, date);
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'pages.planner.',
+      'planner.',
+      'pages.journal.',
+      'journal.overview',
+      'rhythm.',
+    ]);
     try {
-      await _deleteByEventId(eventId);
-    } catch (error) {
-      if (_isUnavailable(error)) {
-        debugPrint('[PlannerBadgeRepo] todo delete skipped: $error');
-        return;
+      final uid = _userId;
+      if (uid == null || todoId.isEmpty) return;
+      final eventId = todoEventId(todoId, date);
+      try {
+        await _deleteByEventId(eventId);
+      } catch (error) {
+        if (_isUnavailable(error)) {
+          debugPrint('[PlannerBadgeRepo] todo delete skipped: $error');
+          return;
+        }
+        rethrow;
       }
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'pages.planner.',
+        'planner.',
+        'pages.journal.',
+        'journal.overview',
+        'rhythm.',
+      ]);
     }
   }
 
   Future<void> deleteNutritionBadgesForItem(String itemId) async {
-    final uid = _userId;
-    if (uid == null || itemId.isEmpty) return;
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'pages.planner.',
+      'planner.',
+      'pages.journal.',
+      'journal.overview',
+      'rhythm.',
+    ]);
     try {
-      await _client
-          .from('journal_badges')
-          .delete()
-          .eq('user_id', uid)
-          .like('event_id', 'planner-nutrition:%:$itemId');
-    } catch (error) {
-      if (_isUnavailable(error)) {
-        debugPrint('[PlannerBadgeRepo] nutrition delete skipped: $error');
-        return;
+      final uid = _userId;
+      if (uid == null || itemId.isEmpty) return;
+      try {
+        await _client
+            .from('journal_badges')
+            .delete()
+            .eq('user_id', uid)
+            .like('event_id', 'planner-nutrition:%:$itemId');
+      } catch (error) {
+        if (_isUnavailable(error)) {
+          debugPrint('[PlannerBadgeRepo] nutrition delete skipped: $error');
+          return;
+        }
+        rethrow;
       }
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'pages.planner.',
+        'planner.',
+        'pages.journal.',
+        'journal.overview',
+        'rhythm.',
+      ]);
     }
   }
 
@@ -296,28 +333,46 @@ class PlannerBadgeRepo {
     required RhythmTodo todo,
     required DateTime date,
   }) async {
-    final uid = _userId;
-    if (uid == null || todo.id.isEmpty) return;
-    final eventId = todoEventId(todo.id, date);
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'pages.planner.',
+      'planner.',
+      'pages.journal.',
+      'journal.overview',
+      'rhythm.',
+    ]);
     try {
-      await _deleteByEventId(eventId);
-      if (todo.state == RhythmItemState.pending) {
-        return;
+      final uid = _userId;
+      if (uid == null || todo.id.isEmpty) return;
+      final eventId = todoEventId(todo.id, date);
+      try {
+        await _deleteByEventId(eventId);
+        if (todo.state == RhythmItemState.pending) {
+          return;
+        }
+        await _insertBadge(
+          badgeId: eventId,
+          eventId: eventId,
+          title: _todoTitle(todo, todo.state),
+          details: _todoDetails(todo, date, todo.state),
+          tags: _buildTags(PlannerBadgeKind.todo, todo.state),
+          occurredOn: date,
+        );
+      } catch (error) {
+        if (_isUnavailable(error)) {
+          debugPrint('[PlannerBadgeRepo] todo sync skipped: $error');
+          return;
+        }
+        rethrow;
       }
-      await _insertBadge(
-        badgeId: eventId,
-        eventId: eventId,
-        title: _todoTitle(todo, todo.state),
-        details: _todoDetails(todo, date, todo.state),
-        tags: _buildTags(PlannerBadgeKind.todo, todo.state),
-        occurredOn: date,
-      );
-    } catch (error) {
-      if (_isUnavailable(error)) {
-        debugPrint('[PlannerBadgeRepo] todo sync skipped: $error');
-        return;
-      }
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'pages.planner.',
+        'planner.',
+        'pages.journal.',
+        'journal.overview',
+        'rhythm.',
+      ]);
     }
   }
 
@@ -326,28 +381,46 @@ class PlannerBadgeRepo {
     required DateTime date,
     required RhythmItemState state,
   }) async {
-    final uid = _userId;
-    if (uid == null || item.id.isEmpty) return;
-    final eventId = nutritionEventId(item.id, date);
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'pages.planner.',
+      'planner.',
+      'pages.journal.',
+      'journal.overview',
+      'rhythm.',
+    ]);
     try {
-      await _deleteByEventId(eventId);
-      if (state == RhythmItemState.pending) {
-        return;
+      final uid = _userId;
+      if (uid == null || item.id.isEmpty) return;
+      final eventId = nutritionEventId(item.id, date);
+      try {
+        await _deleteByEventId(eventId);
+        if (state == RhythmItemState.pending) {
+          return;
+        }
+        await _insertBadge(
+          badgeId: eventId,
+          eventId: eventId,
+          title: _nutritionTitle(item, state),
+          details: _nutritionDetails(item, date, state),
+          tags: _buildTags(PlannerBadgeKind.nutrition, state),
+          occurredOn: date,
+        );
+      } catch (error) {
+        if (_isUnavailable(error)) {
+          debugPrint('[PlannerBadgeRepo] nutrition sync skipped: $error');
+          return;
+        }
+        rethrow;
       }
-      await _insertBadge(
-        badgeId: eventId,
-        eventId: eventId,
-        title: _nutritionTitle(item, state),
-        details: _nutritionDetails(item, date, state),
-        tags: _buildTags(PlannerBadgeKind.nutrition, state),
-        occurredOn: date,
-      );
-    } catch (error) {
-      if (_isUnavailable(error)) {
-        debugPrint('[PlannerBadgeRepo] nutrition sync skipped: $error');
-        return;
-      }
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'pages.planner.',
+        'planner.',
+        'pages.journal.',
+        'journal.overview',
+        'rhythm.',
+      ]);
     }
   }
 

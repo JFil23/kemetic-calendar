@@ -97,16 +97,25 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   }
 
   Future<void> _loadEntries() async {
-    setState(() => _loading = true);
-
+    if (_entries.isEmpty) {
+      try {
+        final local = await widget.repo.listRecent(days: 90, cachedOnly: true);
+        if (!mounted) return;
+        setState(() {
+          _entries = local;
+          _loading = false;
+        });
+      } catch (_) {}
+    }
     try {
-      final entries = await widget.repo.listRecent(days: 90);
+      final entries = await widget.repo.listRecent(days: 90, strict: true);
+      if (!mounted) return;
       setState(() {
         _entries = entries;
         _loading = false;
       });
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 

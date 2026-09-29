@@ -212,6 +212,19 @@ class SharedCalendarMember {
     );
   }
 
+  Map<String, dynamic> toCacheJson() => {
+    'user_id': userId,
+    'role': role.name,
+    'status': status.name,
+    'invited_by': invitedBy,
+    'invited_at': invitedAt?.toIso8601String(),
+    'responded_at': respondedAt?.toIso8601String(),
+    'updated_at': updatedAt?.toIso8601String(),
+    'handle': handle,
+    'display_name': displayName,
+    'avatar_url': avatarUrl,
+  };
+
   bool get isOwner => role == SharedCalendarRole.owner;
 
   bool get isPending => status == SharedCalendarInviteStatus.pending;

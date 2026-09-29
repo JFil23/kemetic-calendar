@@ -5042,6 +5042,7 @@ class CalendarPage extends StatefulWidget {
     bool showFlowOptions = false,
     String backFallbackLocation = kMaatFlowsListRoute,
     FlowAppearance appearance = FlowAppearance.empty,
+    List<FlowEventRow>? initialFlowEvents,
   }) {
     final syntheticId = flowId ?? _syntheticFlowIdForSnapshot(name, eventsJson);
     final flow = _Flow(
@@ -5058,12 +5059,14 @@ class CalendarPage extends StatefulWidget {
       appearance: appearance,
     );
 
-    final events = _canonicalFlowDetailEventsFromSnapshot(
-      eventsJson,
-      flowId: syntheticId,
-      flowName: flow.name,
-      baseStart: flow.start,
-    );
+    final events =
+        initialFlowEvents ??
+        _canonicalFlowDetailEventsFromSnapshot(
+          eventsJson,
+          flowId: syntheticId,
+          flowName: flow.name,
+          baseStart: flow.start,
+        );
     final metrics = events.isEmpty
         ? const <int, _FlowPreviewMetrics>{}
         : <int, _FlowPreviewMetrics>{
@@ -5072,7 +5075,7 @@ class CalendarPage extends StatefulWidget {
               template: previewAsTemplate || isSaved || !active,
             ),
           };
-    final initialEventsByFlow = events.isEmpty
+    final initialEventsByFlow = events.isEmpty && initialFlowEvents == null
         ? null
         : <int, List<FlowEventRow>>{syntheticId: events};
     final mode = previewAsTemplate || isSaved || !active

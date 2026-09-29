@@ -1,3 +1,5 @@
+import 'warm_state/warm_mutation.dart';
+import 'warm_state/warm_json_reads.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mobile/core/supabase_auth_retry.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -28,7 +30,9 @@ class DecanReflectionRepo {
   String _fmtStoredDate(DateTime date) =>
       date.toIso8601String().split('T').first;
 
-  Future<DecanReflectionListResult> listMineResult() async {
+  Future<DecanReflectionListResult> listMineResult({
+    bool cachedOnly = false,
+  }) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) {
       return const DecanReflectionListResult(
@@ -37,19 +41,23 @@ class DecanReflectionRepo {
       );
     }
     try {
-      final res = await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('decan_reflections')
-            .select()
-            .eq('user_id', uid)
-            .order('decan_start', ascending: false),
+      final res = await WarmJsonReads(_client, cachedOnly: cachedOnly).value(
+        'reflection.list',
+        () => withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('decan_reflections')
+              .select()
+              .eq('user_id', uid)
+              .order('decan_start', ascending: false),
+        ),
       );
       final reflections = (res as List)
           .map((row) => DecanReflection.fromJson(row as Map<String, dynamic>))
           .toList(growable: false);
       return DecanReflectionListResult(data: reflections);
     } catch (e, st) {
+      if (cachedOnly) rethrow;
       debugPrint('[DecanReflectionRepo] listMine error: $e');
       debugPrint('$st');
       return DecanReflectionListResult(
@@ -64,22 +72,30 @@ class DecanReflectionRepo {
     return result.data;
   }
 
-  Future<DecanReflection?> getById(String id) async {
+  Future<DecanReflection?> getById(
+    String id, {
+    bool cachedOnly = false,
+    bool strict = false,
+  }) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
     try {
-      final res = await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('decan_reflections')
-            .select()
-            .eq('id', id)
-            .eq('user_id', uid)
-            .maybeSingle(),
+      final res = await WarmJsonReads(_client, cachedOnly: cachedOnly).value(
+        'reflection.$id',
+        () => withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('decan_reflections')
+              .select()
+              .eq('id', id)
+              .eq('user_id', uid)
+              .maybeSingle(),
+        ),
       );
       if (res == null) return null;
-      return DecanReflection.fromJson(res);
+      return DecanReflection.fromJson(Map<String, dynamic>.from(res as Map));
     } catch (e) {
+      if (cachedOnly || strict) rethrow;
       debugPrint('[DecanReflectionRepo] getById error: $e');
       return null;
     }
@@ -303,39 +319,45 @@ class DecanReflectionRepo {
     required int badgeCount,
     required String reflectionText,
   }) async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) return null;
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, ['reflection.']);
     try {
-      final existing = await findByWindow(decanStart, decanEnd);
-      if (existing != null) return existing;
+      final uid = _client.auth.currentUser?.id;
+      if (uid == null) return null;
+      try {
+        final existing = await findByWindow(decanStart, decanEnd);
+        if (existing != null) return existing;
 
-      final payload = <String, dynamic>{
-        'user_id': uid,
-        'decan_name': decanName,
-        'decan_start': _fmtDate(decanStart),
-        'decan_end': _fmtDate(decanEnd),
-        'badge_count': badgeCount,
-        'reflection_text': reflectionText,
-      };
+        final payload = <String, dynamic>{
+          'user_id': uid,
+          'decan_name': decanName,
+          'decan_start': _fmtDate(decanStart),
+          'decan_end': _fmtDate(decanEnd),
+          'badge_count': badgeCount,
+          'reflection_text': reflectionText,
+        };
 
-      if (decanTheme != null && decanTheme.trim().isNotEmpty) {
-        payload['decan_theme'] = decanTheme;
+        if (decanTheme != null && decanTheme.trim().isNotEmpty) {
+          payload['decan_theme'] = decanTheme;
+        }
+
+        final res = await withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('decan_reflections')
+              .insert(payload)
+              .select()
+              .maybeSingle(),
+        );
+        if (res == null) return null;
+        return DecanReflection.fromJson(res);
+      } catch (e, st) {
+        debugPrint('[DecanReflectionRepo] saveReflection error: $e');
+        debugPrint('$st');
+        rethrow;
       }
-
-      final res = await withSupabaseAuthRetry(
-        _client,
-        () => _client
-            .from('decan_reflections')
-            .insert(payload)
-            .select()
-            .maybeSingle(),
-      );
-      if (res == null) return null;
-      return DecanReflection.fromJson(res);
-    } catch (e, st) {
-      debugPrint('[DecanReflectionRepo] saveReflection error: $e');
-      debugPrint('$st');
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, ['reflection.']);
     }
   }
 
@@ -344,35 +366,43 @@ class DecanReflectionRepo {
     required DecanReflectionRenderMetadata renderMetadata,
     required String modelVersion,
   }) async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) return;
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, ['reflection.']);
     try {
-      final start = _fmtStoredDate(reflection.decanStart);
-      final end = _fmtStoredDate(reflection.decanEnd);
-      final sourceSnapshot = <String, dynamic>{
-        'decan_name': reflection.decanName,
-        'decan_theme': reflection.decanTheme,
-        'decan_start': start,
-        'decan_end': end,
-        'decan_reflection_id': reflection.id,
-        ...renderMetadata.raw,
-      };
-      await withSupabaseAuthRetry(
-        _client,
-        () => _client.from('reflection_generations').insert({
-          'user_id': uid,
-          'period_type': 'decan',
-          'period_key':
-              '$start:$end:${renderMetadata.renderer ?? modelVersion}',
-          'anchor_nodes': <String>[],
-          'source_snapshot': sourceSnapshot,
-          'generated_text': reflection.reflectionText,
-          'model_version': modelVersion,
-          'metadata': renderMetadata.raw,
-        }),
-      );
-    } catch (e) {
-      debugPrint('[DecanReflectionRepo] saveCompositionalGeneration error: $e');
+      final uid = _client.auth.currentUser?.id;
+      if (uid == null) return;
+      try {
+        final start = _fmtStoredDate(reflection.decanStart);
+        final end = _fmtStoredDate(reflection.decanEnd);
+        final sourceSnapshot = <String, dynamic>{
+          'decan_name': reflection.decanName,
+          'decan_theme': reflection.decanTheme,
+          'decan_start': start,
+          'decan_end': end,
+          'decan_reflection_id': reflection.id,
+          ...renderMetadata.raw,
+        };
+        await withSupabaseAuthRetry(
+          _client,
+          () => _client.from('reflection_generations').insert({
+            'user_id': uid,
+            'period_type': 'decan',
+            'period_key':
+                '$start:$end:${renderMetadata.renderer ?? modelVersion}',
+            'anchor_nodes': <String>[],
+            'source_snapshot': sourceSnapshot,
+            'generated_text': reflection.reflectionText,
+            'model_version': modelVersion,
+            'metadata': renderMetadata.raw,
+          }),
+        );
+      } catch (e) {
+        debugPrint(
+          '[DecanReflectionRepo] saveCompositionalGeneration error: $e',
+        );
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, ['reflection.']);
     }
   }
 

@@ -369,8 +369,11 @@ class _ArchiveRepo extends JournalRepo {
   final deletedDates = <DateTime>[];
 
   @override
-  Future<List<JournalEntry>> listRecent({int days = 30}) async =>
-      List<JournalEntry>.of(entries);
+  Future<List<JournalEntry>> listRecent({
+    int days = 30,
+    bool cachedOnly = false,
+    bool strict = false,
+  }) async => List<JournalEntry>.of(entries);
 
   @override
   Future<JournalEntry?> getByDate(DateTime localDate) async {

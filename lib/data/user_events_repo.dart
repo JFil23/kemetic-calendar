@@ -1,3 +1,6 @@
+import 'warm_state/warm_mutation.dart';
+import 'warm_state/warm_json_reads.dart';
+import 'warm_state/warm_snapshot_store.dart';
 // lib/data/user_events_repo.dart
 import 'dart:async';
 import 'dart:convert';
@@ -709,33 +712,55 @@ class UserEventsRepo {
     String? category,
     String? calendarId,
   }) async {
-    final user = _client.auth.currentUser;
-    if (user == null) throw StateError('No user session. Please sign in.');
-
-    final payload = <String, dynamic>{
-      'user_id': user.id,
-      if (calendarId != null) 'calendar_id': calendarId,
-      'title': title,
-      'detail': detail,
-      'location': location,
-      'all_day': allDay,
-      'starts_at': startsAtUtc.toIso8601String(),
-      if (endsAtUtc != null) 'ends_at': endsAtUtc.toIso8601String(),
-      if (clientEventId != null) 'client_event_id': clientEventId,
-      if (category != null) 'category': category,
-    };
-
-    _log('insert → ${safeLogMapSummary(payload)}');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      final row = await _client.from(_kTable).insert(payload).select().single();
-      _log('insert ✓ id=${row['id']}');
-      return UserEvent.fromRow(row);
-    } on PostgrestException catch (e) {
-      _log('insert ✗ ${e.code} ${e.message}');
-      rethrow;
-    } catch (e) {
-      _log('insert ✗ $e');
-      rethrow;
+      final user = _client.auth.currentUser;
+      if (user == null) throw StateError('No user session. Please sign in.');
+
+      final payload = <String, dynamic>{
+        'user_id': user.id,
+        if (calendarId != null) 'calendar_id': calendarId,
+        'title': title,
+        'detail': detail,
+        'location': location,
+        'all_day': allDay,
+        'starts_at': startsAtUtc.toIso8601String(),
+        if (endsAtUtc != null) 'ends_at': endsAtUtc.toIso8601String(),
+        if (clientEventId != null) 'client_event_id': clientEventId,
+        if (category != null) 'category': category,
+      };
+
+      _log('insert → ${safeLogMapSummary(payload)}');
+      try {
+        final row = await _client
+            .from(_kTable)
+            .insert(payload)
+            .select()
+            .single();
+        _log('insert ✓ id=${row['id']}');
+        return UserEvent.fromRow(row);
+      } on PostgrestException catch (e) {
+        _log('insert ✗ ${e.code} ${e.message}');
+        rethrow;
+      } catch (e) {
+        _log('insert ✗ $e');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -792,85 +817,103 @@ class UserEventsRepo {
     String? calendarId,
     String? caller,
   }) async {
-    final pending = _registerPendingUpsert(clientEventId);
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
+      final pending = _registerPendingUpsert(clientEventId);
       try {
-        final existing = await _client
-            .from(_kTable)
-            .select()
-            .eq('client_event_id', clientEventId)
-            .maybeSingle();
+        try {
+          final existing = await _client
+              .from(_kTable)
+              .select()
+              .eq('client_event_id', clientEventId)
+              .maybeSingle();
+          if (pending?.cancelled ?? false) {
+            throw UserEventUpsertCancelledException(clientEventId);
+          }
+          if (existing != null &&
+              (existing['category'] as String?) == 'tombstone') {
+            final callerTag = caller == null || caller.isEmpty
+                ? 'unspecified'
+                : caller;
+            _log(
+              'upsert blocked by tombstone '
+              'client_event_id=${safeLogIdentifier(clientEventId)} '
+              'caller=$callerTag',
+            );
+            return UserEvent.fromRow(existing);
+          }
+        } on UserEventUpsertCancelledException {
+          rethrow;
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint(
+              '[user_events] tombstone check failed for '
+              'cid=${safeLogIdentifier(clientEventId)}: ${redactLogText('$e')}',
+            );
+          }
+        }
+
         if (pending?.cancelled ?? false) {
           throw UserEventUpsertCancelledException(clientEventId);
         }
-        if (existing != null &&
-            (existing['category'] as String?) == 'tombstone') {
-          final callerTag = caller == null || caller.isEmpty
-              ? 'unspecified'
-              : caller;
-          _log(
-            'upsert blocked by tombstone '
-            'client_event_id=${safeLogIdentifier(clientEventId)} '
-            'caller=$callerTag',
-          );
-          return UserEvent.fromRow(existing);
-        }
-      } on UserEventUpsertCancelledException {
-        rethrow;
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint(
-            '[user_events] tombstone check failed for '
-            'cid=${safeLogIdentifier(clientEventId)}: ${redactLogText('$e')}',
-          );
-        }
-      }
+        final payload = deterministicUpsertPayload(
+          clientEventId: clientEventId,
+          title: title,
+          startsAtUtc: startsAtUtc,
+          detail: detail,
+          location: location,
+          allDay: allDay,
+          endsAtUtc: endsAtUtc,
+          flowLocalId: flowLocalId,
+          category: category,
+          actionId: actionId,
+          behaviorPayload: behaviorPayload,
+          calendarId: calendarId,
+        );
 
-      if (pending?.cancelled ?? false) {
-        throw UserEventUpsertCancelledException(clientEventId);
-      }
-      final payload = deterministicUpsertPayload(
-        clientEventId: clientEventId,
-        title: title,
-        startsAtUtc: startsAtUtc,
-        detail: detail,
-        location: location,
-        allDay: allDay,
-        endsAtUtc: endsAtUtc,
-        flowLocalId: flowLocalId,
-        category: category,
-        actionId: actionId,
-        behaviorPayload: behaviorPayload,
-        calendarId: calendarId,
-      );
-
-      final callerTag = caller == null || caller.isEmpty
-          ? 'unspecified'
-          : caller;
-      _log(
-        'upsert(client_event_id=${safeLogIdentifier(clientEventId)} '
-        'caller=$callerTag) → ${safeLogMapSummary(payload)}',
-      );
-      try {
-        final row = await _client
-            .from(_kTable)
-            .upsert(payload, onConflict: 'client_event_id')
-            .select()
-            .single();
-        if (pending?.cancelled ?? false) {
-          throw UserEventUpsertCancelledException(clientEventId);
+        final callerTag = caller == null || caller.isEmpty
+            ? 'unspecified'
+            : caller;
+        _log(
+          'upsert(client_event_id=${safeLogIdentifier(clientEventId)} '
+          'caller=$callerTag) → ${safeLogMapSummary(payload)}',
+        );
+        try {
+          final row = await _client
+              .from(_kTable)
+              .upsert(payload, onConflict: 'client_event_id')
+              .select()
+              .single();
+          if (pending?.cancelled ?? false) {
+            throw UserEventUpsertCancelledException(clientEventId);
+          }
+          _log('upsert ✓ id=${row['id']} caller=$callerTag');
+          return UserEvent.fromRow(row);
+        } on PostgrestException catch (e) {
+          _log('upsert ✗ ${e.code} ${e.message}');
+          rethrow;
+        } catch (e) {
+          _log('upsert ✗ $e');
+          rethrow;
         }
-        _log('upsert ✓ id=${row['id']} caller=$callerTag');
-        return UserEvent.fromRow(row);
-      } on PostgrestException catch (e) {
-        _log('upsert ✗ ${e.code} ${e.message}');
-        rethrow;
-      } catch (e) {
-        _log('upsert ✗ $e');
-        rethrow;
+      } finally {
+        _settlePendingUpsert(pending);
       }
     } finally {
-      _settlePendingUpsert(pending);
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -889,51 +932,69 @@ class UserEventsRepo {
     String? actionId,
     Map<String, dynamic>? behaviorPayload,
   }) async {
-    final patch = <String, dynamic>{};
-    if (clientEventId != null) patch['client_event_id'] = clientEventId;
-    if (calendarId != null) patch['calendar_id'] = calendarId;
-    if (title != null) patch['title'] = title;
-    if (detail != null) patch['detail'] = detail;
-    if (location != null) patch['location'] = location;
-    if (allDay != null) patch['all_day'] = allDay;
-    if (startsAt != null) {
-      patch['starts_at'] = startsAt.toUtc().toIso8601String();
-    }
-    if (endsAt != null) patch['ends_at'] = endsAt.toUtc().toIso8601String();
-    if (category != null) patch['category'] = category;
-    if (actionId != null) patch['action_id'] = actionId;
-    if (behaviorPayload != null) patch['behavior_payload'] = behaviorPayload;
-    if (patch.isEmpty) throw ArgumentError('Nothing to update.');
-
-    _log('update(${safeLogIdentifier(id)}) → ${safeLogMapSummary(patch)}');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      final row = await _client
-          .from(_kTable)
-          .update(patch)
-          .eq('id', id)
-          .select()
-          .single();
-      _log('update ✓ id=$id');
-      final updated = UserEvent.fromRow(row);
-      if (updated.flowLocalId != null && updated.flowLocalId! > 0) {
-        unawaited(
-          track(
-            event: 'event_updated',
-            properties: {
-              'flow_id': updated.flowLocalId,
-              'event_id': id,
-              'v': kAppEventsSchemaVersion,
-            },
-          ),
-        );
+      final patch = <String, dynamic>{};
+      if (clientEventId != null) patch['client_event_id'] = clientEventId;
+      if (calendarId != null) patch['calendar_id'] = calendarId;
+      if (title != null) patch['title'] = title;
+      if (detail != null) patch['detail'] = detail;
+      if (location != null) patch['location'] = location;
+      if (allDay != null) patch['all_day'] = allDay;
+      if (startsAt != null) {
+        patch['starts_at'] = startsAt.toUtc().toIso8601String();
       }
-      return updated;
-    } on PostgrestException catch (e) {
-      _log('update ✗ ${e.code} ${e.message}');
-      rethrow;
-    } catch (e) {
-      _log('update ✗ $e');
-      rethrow;
+      if (endsAt != null) patch['ends_at'] = endsAt.toUtc().toIso8601String();
+      if (category != null) patch['category'] = category;
+      if (actionId != null) patch['action_id'] = actionId;
+      if (behaviorPayload != null) patch['behavior_payload'] = behaviorPayload;
+      if (patch.isEmpty) throw ArgumentError('Nothing to update.');
+
+      _log('update(${safeLogIdentifier(id)}) → ${safeLogMapSummary(patch)}');
+      try {
+        final row = await _client
+            .from(_kTable)
+            .update(patch)
+            .eq('id', id)
+            .select()
+            .single();
+        _log('update ✓ id=$id');
+        final updated = UserEvent.fromRow(row);
+        if (updated.flowLocalId != null && updated.flowLocalId! > 0) {
+          unawaited(
+            track(
+              event: 'event_updated',
+              properties: {
+                'flow_id': updated.flowLocalId,
+                'event_id': id,
+                'v': kAppEventsSchemaVersion,
+              },
+            ),
+          );
+        }
+        return updated;
+      } on PostgrestException catch (e) {
+        _log('update ✗ ${e.code} ${e.message}');
+        rethrow;
+      } catch (e) {
+        _log('update ✗ $e');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -986,37 +1047,55 @@ class UserEventsRepo {
     String? actionId,
     Map<String, dynamic>? behaviorPayload,
   }) async {
-    final patch = <String, dynamic>{
-      'client_event_id': clientEventId,
-      if (calendarId != null) 'calendar_id': calendarId,
-      'title': title,
-      'detail': detail,
-      'location': location,
-      'all_day': allDay,
-      'starts_at': startsAt.toUtc().toIso8601String(),
-      'ends_at': endsAt?.toUtc().toIso8601String(),
-      'category': category,
-      // Behavior stamps are preserved, never cleared, by an editor round-trip.
-      if (actionId != null) 'action_id': actionId,
-      if (behaviorPayload != null) 'behavior_payload': behaviorPayload,
-    };
-
-    _log('replace(${safeLogIdentifier(id)}) → ${safeLogMapSummary(patch)}');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      final row = await _client
-          .from(_kTable)
-          .update(patch)
-          .eq('id', id)
-          .select()
-          .single();
-      _log('replace ✓ id=$id');
-      return UserEvent.fromRow(row);
-    } on PostgrestException catch (e) {
-      _log('replace ✗ ${e.code} ${e.message}');
-      rethrow;
-    } catch (e) {
-      _log('replace ✗ $e');
-      rethrow;
+      final patch = <String, dynamic>{
+        'client_event_id': clientEventId,
+        if (calendarId != null) 'calendar_id': calendarId,
+        'title': title,
+        'detail': detail,
+        'location': location,
+        'all_day': allDay,
+        'starts_at': startsAt.toUtc().toIso8601String(),
+        'ends_at': endsAt?.toUtc().toIso8601String(),
+        'category': category,
+        // Behavior stamps are preserved, never cleared, by an editor round-trip.
+        if (actionId != null) 'action_id': actionId,
+        if (behaviorPayload != null) 'behavior_payload': behaviorPayload,
+      };
+
+      _log('replace(${safeLogIdentifier(id)}) → ${safeLogMapSummary(patch)}');
+      try {
+        final row = await _client
+            .from(_kTable)
+            .update(patch)
+            .eq('id', id)
+            .select()
+            .single();
+        _log('replace ✓ id=$id');
+        return UserEvent.fromRow(row);
+      } on PostgrestException catch (e) {
+        _log('replace ✗ ${e.code} ${e.message}');
+        rethrow;
+      } catch (e) {
+        _log('replace ✗ $e');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -1024,85 +1103,103 @@ class UserEventsRepo {
     String id, {
     String? clientEventId,
   }) async {
-    String? cidForLog = clientEventId?.trim();
-    final cancelledPendingUpserts = <_PendingUserEventUpsert>{
-      ..._cancelPendingUpserts(cidForLog),
-    };
-    int? flowIdForLog;
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      final user = _client.auth.currentUser;
-      if (user != null) {
-        final row = await _client
-            .from(_kTable)
-            .select('client_event_id,flow_local_id')
-            .eq('user_id', user.id)
-            .eq('id', id)
-            .maybeSingle();
-        cidForLog = (row?['client_event_id'] as String?) ?? cidForLog;
-        cancelledPendingUpserts.addAll(_cancelPendingUpserts(cidForLog));
-        flowIdForLog = (row?['flow_local_id'] as num?)?.toInt();
-      }
-    } catch (_) {}
-    final cancelledPendingUpsertList = cancelledPendingUpserts.toList(
-      growable: false,
-    );
-    _log('delete($id) cid=${cidForLog ?? 'unknown'}');
-    try {
-      final deletedCount = await _deleteUserEventIdsSemantic(
-        [id],
-        semantic: 'user_delete',
-        suppressesClient: true,
-        sourceFeature: 'UserEventsRepo.delete',
-        deleteScope: 'exact_occurrence',
+      String? cidForLog = clientEventId?.trim();
+      final cancelledPendingUpserts = <_PendingUserEventUpsert>{
+        ..._cancelPendingUpserts(cidForLog),
+      };
+      int? flowIdForLog;
+      try {
+        final user = _client.auth.currentUser;
+        if (user != null) {
+          final row = await _client
+              .from(_kTable)
+              .select('client_event_id,flow_local_id')
+              .eq('user_id', user.id)
+              .eq('id', id)
+              .maybeSingle();
+          cidForLog = (row?['client_event_id'] as String?) ?? cidForLog;
+          cancelledPendingUpserts.addAll(_cancelPendingUpserts(cidForLog));
+          flowIdForLog = (row?['flow_local_id'] as num?)?.toInt();
+        }
+      } catch (_) {}
+      final cancelledPendingUpsertList = cancelledPendingUpserts.toList(
+        growable: false,
       );
-
-      if (deletedCount <= 0) {
-        _log('delete ⚠️ no rows for id=$id');
-        final cid = cidForLog?.trim();
-        if (cid != null && cid.isNotEmpty) {
-          await recordDeletionTombstone(
-            clientEventId: cid,
-            reason: 'delete_by_id_missing_row',
-          );
-          await _waitForCancelledUpserts(cancelledPendingUpsertList);
-          return const UserEventDeleteResult.alreadyAbsentSuppressed();
-        }
-        return const UserEventDeleteResult.failed();
-      }
-
-      _log('delete ✓ deleted=$deletedCount');
-
-      if (flowIdForLog != null && flowIdForLog > 0) {
-        unawaited(
-          track(
-            event: 'event_deleted',
-            properties: {
-              'flow_id': flowIdForLog,
-              'event_id': id,
-              'v': kAppEventsSchemaVersion,
-            },
-          ),
+      _log('delete($id) cid=${cidForLog ?? 'unknown'}');
+      try {
+        final deletedCount = await _deleteUserEventIdsSemantic(
+          [id],
+          semantic: 'user_delete',
+          suppressesClient: true,
+          sourceFeature: 'UserEventsRepo.delete',
+          deleteScope: 'exact_occurrence',
         );
-      }
-      await _waitForCancelledUpserts(cancelledPendingUpsertList);
-      return UserEventDeleteResult.deleted(deletedCount);
-    } on PostgrestException catch (e) {
-      if (e.code == 'PGRST116' ||
-          e.message.contains('Results contain 0 rows')) {
-        _log('delete ⚠️ no rows for id=$id');
-        final cid = cidForLog?.trim();
-        if (cid != null && cid.isNotEmpty) {
-          await recordDeletionTombstone(
-            clientEventId: cid,
-            reason: 'delete_by_id_missing_row',
-          );
-          await _waitForCancelledUpserts(cancelledPendingUpsertList);
-          return const UserEventDeleteResult.alreadyAbsentSuppressed();
+
+        if (deletedCount <= 0) {
+          _log('delete ⚠️ no rows for id=$id');
+          final cid = cidForLog?.trim();
+          if (cid != null && cid.isNotEmpty) {
+            await recordDeletionTombstone(
+              clientEventId: cid,
+              reason: 'delete_by_id_missing_row',
+            );
+            await _waitForCancelledUpserts(cancelledPendingUpsertList);
+            return const UserEventDeleteResult.alreadyAbsentSuppressed();
+          }
+          return const UserEventDeleteResult.failed();
         }
-        return const UserEventDeleteResult.failed();
+
+        _log('delete ✓ deleted=$deletedCount');
+
+        if (flowIdForLog != null && flowIdForLog > 0) {
+          unawaited(
+            track(
+              event: 'event_deleted',
+              properties: {
+                'flow_id': flowIdForLog,
+                'event_id': id,
+                'v': kAppEventsSchemaVersion,
+              },
+            ),
+          );
+        }
+        await _waitForCancelledUpserts(cancelledPendingUpsertList);
+        return UserEventDeleteResult.deleted(deletedCount);
+      } on PostgrestException catch (e) {
+        if (e.code == 'PGRST116' ||
+            e.message.contains('Results contain 0 rows')) {
+          _log('delete ⚠️ no rows for id=$id');
+          final cid = cidForLog?.trim();
+          if (cid != null && cid.isNotEmpty) {
+            await recordDeletionTombstone(
+              clientEventId: cid,
+              reason: 'delete_by_id_missing_row',
+            );
+            await _waitForCancelledUpserts(cancelledPendingUpsertList);
+            return const UserEventDeleteResult.alreadyAbsentSuppressed();
+          }
+          return const UserEventDeleteResult.failed();
+        }
+        _log('delete ✗ ${e.code} ${e.message}');
+        rethrow;
       }
-      _log('delete ✗ ${e.code} ${e.message}');
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -1110,21 +1207,43 @@ class UserEventsRepo {
     required int flowId,
     required String calendarId,
   }) async {
-    final trimmed = calendarId.trim();
-    if (trimmed.isEmpty) {
-      throw ArgumentError.value(calendarId, 'calendarId', 'Must not be empty.');
-    }
-    final patch = <String, dynamic>{'calendar_id': trimmed};
-    _log('updateCalendarForFlowEvents($flowId) → $patch');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      await _client.from(_kTable).update(patch).eq('flow_local_id', flowId);
-      _log('updateCalendarForFlowEvents ✓ flow=$flowId');
-    } on PostgrestException catch (e) {
-      _log('updateCalendarForFlowEvents ✗ ${e.code} ${e.message}');
-      rethrow;
-    } catch (e) {
-      _log('updateCalendarForFlowEvents ✗ $e');
-      rethrow;
+      final trimmed = calendarId.trim();
+      if (trimmed.isEmpty) {
+        throw ArgumentError.value(
+          calendarId,
+          'calendarId',
+          'Must not be empty.',
+        );
+      }
+      final patch = <String, dynamic>{'calendar_id': trimmed};
+      _log('updateCalendarForFlowEvents($flowId) → $patch');
+      try {
+        await _client.from(_kTable).update(patch).eq('flow_local_id', flowId);
+        _log('updateCalendarForFlowEvents ✓ flow=$flowId');
+      } on PostgrestException catch (e) {
+        _log('updateCalendarForFlowEvents ✗ ${e.code} ${e.message}');
+        rethrow;
+      } catch (e) {
+        _log('updateCalendarForFlowEvents ✗ $e');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -1135,89 +1254,107 @@ class UserEventsRepo {
     String sourceFeature = 'UserEventsRepo.deleteByClientId',
     String deleteScope = 'exact_occurrence',
   }) async {
-    _log('deleteByClientId($clientEventId)');
-    final cancelledPendingUpserts = _cancelPendingUpserts(clientEventId);
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      await Notify.cancelNotificationsForClientEventIds([clientEventId]);
+      _log('deleteByClientId($clientEventId)');
+      final cancelledPendingUpserts = _cancelPendingUpserts(clientEventId);
+      try {
+        await Notify.cancelNotificationsForClientEventIds([clientEventId]);
 
-      final existingRows = await _client
-          .from(_kTable)
-          .select('id, flow_local_id')
-          .eq('client_event_id', clientEventId);
+        final existingRows = await _client
+            .from(_kTable)
+            .select('id, flow_local_id')
+            .eq('client_event_id', clientEventId);
 
-      final rows = existingRows.cast<Map<String, dynamic>>();
-      if (rows.isEmpty) {
-        _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
-        if (suppressesClient) {
-          await recordDeletionTombstone(
-            clientEventId: clientEventId,
-            reason: 'delete_by_client_id_missing_row',
-          );
-          await _waitForCancelledUpserts(cancelledPendingUpserts);
-          return const UserEventDeleteResult.alreadyAbsentSuppressed();
+        final rows = existingRows.cast<Map<String, dynamic>>();
+        if (rows.isEmpty) {
+          _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
+          if (suppressesClient) {
+            await recordDeletionTombstone(
+              clientEventId: clientEventId,
+              reason: 'delete_by_client_id_missing_row',
+            );
+            await _waitForCancelledUpserts(cancelledPendingUpserts);
+            return const UserEventDeleteResult.alreadyAbsentSuppressed();
+          }
+          return const UserEventDeleteResult.failed();
         }
-        return const UserEventDeleteResult.failed();
-      }
 
-      final deletedCount = await _deleteUserEventsByClientIdSemantic(
-        clientEventId,
-        semantic: semantic,
-        suppressesClient: suppressesClient,
-        sourceFeature: sourceFeature,
-        deleteScope: deleteScope,
-      );
-      if (deletedCount <= 0) {
-        _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
-        if (suppressesClient) {
-          await recordDeletionTombstone(
-            clientEventId: clientEventId,
-            reason: 'delete_by_client_id_missing_row',
-          );
-          await _waitForCancelledUpserts(cancelledPendingUpserts);
-          return const UserEventDeleteResult.alreadyAbsentSuppressed();
-        }
-        return const UserEventDeleteResult.failed();
-      }
-
-      final deletedId = rows.first['id'] as String?;
-      final flowId = (rows.first['flow_local_id'] as num?)?.toInt();
-      _log(
-        'deleteByClientId ✓ id=${deletedId ?? 'unknown'} cid=$clientEventId deleted=$deletedCount semantic=$semantic suppresses=$suppressesClient',
-      );
-
-      if (flowId != null && flowId > 0 && deletedId != null) {
-        unawaited(
-          track(
-            event: 'event_deleted',
-            properties: {
-              'flow_id': flowId,
-              'event_id': deletedId,
-              'v': kAppEventsSchemaVersion,
-            },
-          ),
+        final deletedCount = await _deleteUserEventsByClientIdSemantic(
+          clientEventId,
+          semantic: semantic,
+          suppressesClient: suppressesClient,
+          sourceFeature: sourceFeature,
+          deleteScope: deleteScope,
         );
-      }
-      await _waitForCancelledUpserts(cancelledPendingUpserts);
-      return UserEventDeleteResult.deleted(
-        deletedCount,
-        suppressionRecorded: suppressesClient,
-      );
-    } on PostgrestException catch (e) {
-      if (e.code == 'PGRST116' ||
-          e.message.contains('Results contain 0 rows')) {
-        _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
-        if (suppressesClient) {
-          await recordDeletionTombstone(
-            clientEventId: clientEventId,
-            reason: 'delete_by_client_id_missing_row',
-          );
-          await _waitForCancelledUpserts(cancelledPendingUpserts);
-          return const UserEventDeleteResult.alreadyAbsentSuppressed();
+        if (deletedCount <= 0) {
+          _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
+          if (suppressesClient) {
+            await recordDeletionTombstone(
+              clientEventId: clientEventId,
+              reason: 'delete_by_client_id_missing_row',
+            );
+            await _waitForCancelledUpserts(cancelledPendingUpserts);
+            return const UserEventDeleteResult.alreadyAbsentSuppressed();
+          }
+          return const UserEventDeleteResult.failed();
         }
-        return const UserEventDeleteResult.failed();
+
+        final deletedId = rows.first['id'] as String?;
+        final flowId = (rows.first['flow_local_id'] as num?)?.toInt();
+        _log(
+          'deleteByClientId ✓ id=${deletedId ?? 'unknown'} cid=$clientEventId deleted=$deletedCount semantic=$semantic suppresses=$suppressesClient',
+        );
+
+        if (flowId != null && flowId > 0 && deletedId != null) {
+          unawaited(
+            track(
+              event: 'event_deleted',
+              properties: {
+                'flow_id': flowId,
+                'event_id': deletedId,
+                'v': kAppEventsSchemaVersion,
+              },
+            ),
+          );
+        }
+        await _waitForCancelledUpserts(cancelledPendingUpserts);
+        return UserEventDeleteResult.deleted(
+          deletedCount,
+          suppressionRecorded: suppressesClient,
+        );
+      } on PostgrestException catch (e) {
+        if (e.code == 'PGRST116' ||
+            e.message.contains('Results contain 0 rows')) {
+          _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
+          if (suppressesClient) {
+            await recordDeletionTombstone(
+              clientEventId: clientEventId,
+              reason: 'delete_by_client_id_missing_row',
+            );
+            await _waitForCancelledUpserts(cancelledPendingUpserts);
+            return const UserEventDeleteResult.alreadyAbsentSuppressed();
+          }
+          return const UserEventDeleteResult.failed();
+        }
+        _log('deleteByClientId ✗ ${e.code} ${e.message}');
+        rethrow;
       }
-      _log('deleteByClientId ✗ ${e.code} ${e.message}');
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -1260,58 +1397,76 @@ class UserEventsRepo {
     String sourceFeature = 'UserEventsRepo.deleteByClientIdPrefix',
     String deleteScope = 'client_id_prefix',
   }) async {
-    _log(
-      'deleteByClientIdPrefix($prefix, fromUtc=$fromUtc, untilUtc=$untilUtc, semantic=$semantic, suppresses=$suppressesClient)',
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      final user = _client.auth.currentUser;
-      if (user == null) return;
-
-      var selectQuery = _client
-          .from(_kTable)
-          .select('client_event_id')
-          .eq('user_id', user.id)
-          .like('client_event_id', '$prefix%');
-      if (fromUtc != null) {
-        selectQuery = selectQuery.gte(
-          'starts_at',
-          fromUtc.toUtc().toIso8601String(),
-        );
-      }
-      if (untilUtc != null) {
-        selectQuery = selectQuery.lt(
-          'starts_at',
-          untilUtc.toUtc().toIso8601String(),
-        );
-      }
-      final rowsToCancel = await selectQuery;
-      final cidsToCancel = (rowsToCancel as List)
-          .cast<Map<String, dynamic>>()
-          .map((row) => row['client_event_id'] as String?)
-          .whereType<String>()
-          .where((cid) => cid.trim().isNotEmpty)
-          .toSet();
-      if (cidsToCancel.isNotEmpty) {
-        await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
-      }
-
-      final deletedCount = await _deleteUserEventsByClientIdPrefixSemantic(
-        prefix,
-        fromUtc: fromUtc,
-        untilUtc: untilUtc,
-        semantic: semantic,
-        suppressesClient: suppressesClient,
-        sourceFeature: sourceFeature,
-        deleteScope: deleteScope,
+      _log(
+        'deleteByClientIdPrefix($prefix, fromUtc=$fromUtc, untilUtc=$untilUtc, semantic=$semantic, suppresses=$suppressesClient)',
       );
+      try {
+        final user = _client.auth.currentUser;
+        if (user == null) return;
 
-      _log('deleteByClientIdPrefix ✓ deleted=$deletedCount');
-    } on PostgrestException catch (e) {
-      _log('deleteByClientIdPrefix ✗ ${e.code} ${e.message}');
-      rethrow;
-    } catch (e) {
-      _log('deleteByClientIdPrefix ✗ $e');
-      rethrow;
+        var selectQuery = _client
+            .from(_kTable)
+            .select('client_event_id')
+            .eq('user_id', user.id)
+            .like('client_event_id', '$prefix%');
+        if (fromUtc != null) {
+          selectQuery = selectQuery.gte(
+            'starts_at',
+            fromUtc.toUtc().toIso8601String(),
+          );
+        }
+        if (untilUtc != null) {
+          selectQuery = selectQuery.lt(
+            'starts_at',
+            untilUtc.toUtc().toIso8601String(),
+          );
+        }
+        final rowsToCancel = await selectQuery;
+        final cidsToCancel = (rowsToCancel as List)
+            .cast<Map<String, dynamic>>()
+            .map((row) => row['client_event_id'] as String?)
+            .whereType<String>()
+            .where((cid) => cid.trim().isNotEmpty)
+            .toSet();
+        if (cidsToCancel.isNotEmpty) {
+          await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
+        }
+
+        final deletedCount = await _deleteUserEventsByClientIdPrefixSemantic(
+          prefix,
+          fromUtc: fromUtc,
+          untilUtc: untilUtc,
+          semantic: semantic,
+          suppressesClient: suppressesClient,
+          sourceFeature: sourceFeature,
+          deleteScope: deleteScope,
+        );
+
+        _log('deleteByClientIdPrefix ✓ deleted=$deletedCount');
+      } on PostgrestException catch (e) {
+        _log('deleteByClientIdPrefix ✗ ${e.code} ${e.message}');
+        rethrow;
+      } catch (e) {
+        _log('deleteByClientIdPrefix ✗ $e');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -1323,42 +1478,60 @@ class UserEventsRepo {
     String sourceFeature = 'UserEventsRepo.deleteByCategory',
     String deleteScope = 'category',
   }) async {
-    _log(
-      'deleteByCategory($category, semantic=$semantic, suppresses=$suppressesClient)',
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      final user = _client.auth.currentUser;
-      if (user == null) return;
-
-      final rowsToCancel = await _client
-          .from(_kTable)
-          .select('client_event_id')
-          .eq('user_id', user.id)
-          .eq('category', category);
-      final cidsToCancel = (rowsToCancel as List)
-          .cast<Map<String, dynamic>>()
-          .map((row) => row['client_event_id'] as String?)
-          .whereType<String>()
-          .where((cid) => cid.trim().isNotEmpty)
-          .toSet();
-      if (cidsToCancel.isNotEmpty) {
-        await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
-      }
-
-      final deletedCount = await _deleteUserEventsByCategorySemantic(
-        category,
-        semantic: semantic,
-        suppressesClient: suppressesClient,
-        sourceFeature: sourceFeature,
-        deleteScope: deleteScope,
+      _log(
+        'deleteByCategory($category, semantic=$semantic, suppresses=$suppressesClient)',
       );
-      _log('deleteByCategory ✓ deleted=$deletedCount');
-    } on PostgrestException catch (e) {
-      _log('deleteByCategory ✗ ${e.code} ${e.message}');
-      rethrow;
-    } catch (e) {
-      _log('deleteByCategory ✗ $e');
-      rethrow;
+      try {
+        final user = _client.auth.currentUser;
+        if (user == null) return;
+
+        final rowsToCancel = await _client
+            .from(_kTable)
+            .select('client_event_id')
+            .eq('user_id', user.id)
+            .eq('category', category);
+        final cidsToCancel = (rowsToCancel as List)
+            .cast<Map<String, dynamic>>()
+            .map((row) => row['client_event_id'] as String?)
+            .whereType<String>()
+            .where((cid) => cid.trim().isNotEmpty)
+            .toSet();
+        if (cidsToCancel.isNotEmpty) {
+          await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
+        }
+
+        final deletedCount = await _deleteUserEventsByCategorySemantic(
+          category,
+          semantic: semantic,
+          suppressesClient: suppressesClient,
+          sourceFeature: sourceFeature,
+          deleteScope: deleteScope,
+        );
+        _log('deleteByCategory ✓ deleted=$deletedCount');
+      } on PostgrestException catch (e) {
+        _log('deleteByCategory ✗ ${e.code} ${e.message}');
+        rethrow;
+      } catch (e) {
+        _log('deleteByCategory ✗ $e');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -1370,46 +1543,64 @@ class UserEventsRepo {
     String sourceFeature = 'UserEventsRepo.deleteByIds',
     String deleteScope = 'exact_occurrence',
   }) async {
-    if (ids.isEmpty) return;
-    List<({String id, String? clientEventId})> rowsForLog = const [];
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      rowsForLog = await getClientEventIdsByIds(ids);
-    } catch (_) {}
-    if (rowsForLog.isNotEmpty) {
-      final cidLog = rowsForLog
-          .map((r) => '${r.id}:${r.clientEventId ?? 'null'}')
-          .join(',');
-      _log('deleteByIds(count=${ids.length}) idsWithCid=[$cidLog]');
-    } else {
-      _log('deleteByIds(count=${ids.length}) ids=${ids.join(",")}');
-    }
-    try {
-      final user = _client.auth.currentUser;
-      if (user == null) return;
-      final cidsToCancel = rowsForLog
-          .map((row) => row.clientEventId)
-          .whereType<String>()
-          .where((cid) => cid.trim().isNotEmpty)
-          .toSet();
-      if (cidsToCancel.isNotEmpty) {
-        await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
+      if (ids.isEmpty) return;
+      List<({String id, String? clientEventId})> rowsForLog = const [];
+      try {
+        rowsForLog = await getClientEventIdsByIds(ids);
+      } catch (_) {}
+      if (rowsForLog.isNotEmpty) {
+        final cidLog = rowsForLog
+            .map((r) => '${r.id}:${r.clientEventId ?? 'null'}')
+            .join(',');
+        _log('deleteByIds(count=${ids.length}) idsWithCid=[$cidLog]');
+      } else {
+        _log('deleteByIds(count=${ids.length}) ids=${ids.join(",")}');
       }
-      final deletedCount = await _deleteUserEventIdsSemantic(
-        ids,
-        semantic: semantic,
-        suppressesClient: suppressesClient,
-        sourceFeature: sourceFeature,
-        deleteScope: deleteScope,
-      );
-      _log(
-        'deleteByIds ✓ deleted=$deletedCount semantic=$semantic suppresses=$suppressesClient',
-      );
-    } on PostgrestException catch (e) {
-      _log('deleteByIds ✗ ${e.code} ${e.message}');
-      rethrow;
-    } catch (e) {
-      _log('deleteByIds ✗ $e');
-      rethrow;
+      try {
+        final user = _client.auth.currentUser;
+        if (user == null) return;
+        final cidsToCancel = rowsForLog
+            .map((row) => row.clientEventId)
+            .whereType<String>()
+            .where((cid) => cid.trim().isNotEmpty)
+            .toSet();
+        if (cidsToCancel.isNotEmpty) {
+          await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
+        }
+        final deletedCount = await _deleteUserEventIdsSemantic(
+          ids,
+          semantic: semantic,
+          suppressesClient: suppressesClient,
+          sourceFeature: sourceFeature,
+          deleteScope: deleteScope,
+        );
+        _log(
+          'deleteByIds ✓ deleted=$deletedCount semantic=$semantic suppresses=$suppressesClient',
+        );
+      } on PostgrestException catch (e) {
+        _log('deleteByIds ✗ ${e.code} ${e.message}');
+        rethrow;
+      } catch (e) {
+        _log('deleteByIds ✗ $e');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -1422,146 +1613,166 @@ class UserEventsRepo {
     String sourceFeature = 'UserEventsRepo.deleteByFlowId',
     String deleteScope = 'flow',
   }) async {
-    _log(
-      'deleteByFlowId(flowId=$flowId, fromDate=$fromDate, semantic=$semantic, suppresses=$suppressesClient)',
-    );
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      DateTime? startDate;
-      DateTime? endDateInclusive; // end date as stored (date at 00:00)
-      final rows = await _client
-          .from('flows')
-          .select('start_date,end_date')
-          .eq('id', flowId)
-          .limit(1);
-      if (rows.isNotEmpty) {
-        final row = rows.first;
-        startDate = row['start_date'] == null
-            ? null
-            : DateTime.parse(row['start_date'] as String).toUtc();
-        endDateInclusive = row['end_date'] == null
-            ? null
-            : DateTime.parse(row['end_date'] as String).toUtc();
-      }
-
-      // Build a half-open time window: [windowStart, windowEndExclusive)
-      // so the entire last day is *included* even if your events are at 16:00 UTC.
-      final windowStart = (fromDate ?? startDate)?.toUtc();
-      final windowEndExclusive = endDateInclusive?.toUtc().add(
-        const Duration(days: 1),
-      ); // next day at 00:00Z
-
-      final user = _client.auth.currentUser;
-      final cidsToCancel = <String>{};
-      List<Map<String, dynamic>> orphanRows = const [];
-
-      try {
-        final taggedEvents = await getEventsForFlow(
-          flowId,
-          startUtc: fromDate?.toUtc(),
-        );
-        for (final event in taggedEvents) {
-          final cid = event.clientEventId?.trim();
-          if (cid != null && cid.isNotEmpty) {
-            cidsToCancel.add(cid);
-          }
-        }
-      } catch (_) {
-        // Best effort only; deletion should still proceed.
-      }
-
-      if (user != null) {
-        orphanRows = await _loadStandaloneGhostRowsForFlow(
-          userId: user.id,
-          flowId: flowId,
-          startUtc: windowStart,
-          endUtc: windowEndExclusive,
-        );
-        for (final row in orphanRows) {
-          final cid = (row['client_event_id'] as String?)?.trim();
-          if (cid != null && cid.isNotEmpty) {
-            cidsToCancel.add(cid);
-          }
-        }
-      }
-
-      if (user != null && (windowStart != null || windowEndExclusive != null)) {
-        var legacySelect = _client
-            .from(_kTable)
-            .select('client_event_id')
-            .eq('user_id', user.id)
-            .like('client_event_id', 'maat:%');
-        if (windowStart != null) {
-          legacySelect = legacySelect.gte(
-            'starts_at',
-            windowStart.toIso8601String(),
-          );
-        }
-        if (windowEndExclusive != null) {
-          legacySelect = legacySelect.lt(
-            'starts_at',
-            windowEndExclusive.toIso8601String(),
-          );
-        }
-        final legacyRows = await legacySelect;
-        for (final row in (legacyRows as List).cast<Map<String, dynamic>>()) {
-          final cid = (row['client_event_id'] as String?)?.trim();
-          if (cid != null && cid.isNotEmpty) {
-            cidsToCancel.add(cid);
-          }
-        }
-      }
-
-      if (cidsToCancel.isNotEmpty) {
-        await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
-      }
-
-      // 1) delete events explicitly tagged with flow_local_id
-      await _deleteUserEventsByFlowSemantic(
-        flowId,
-        fromUtc: fromDate?.toUtc(),
-        semantic: semantic,
-        suppressesClient: suppressesClient,
-        sourceFeature: sourceFeature,
-        deleteScope: deleteScope,
+      _log(
+        'deleteByFlowId(flowId=$flowId, fromDate=$fromDate, semantic=$semantic, suppresses=$suppressesClient)',
       );
+      try {
+        DateTime? startDate;
+        DateTime? endDateInclusive; // end date as stored (date at 00:00)
+        final rows = await _client
+            .from('flows')
+            .select('start_date,end_date')
+            .eq('id', flowId)
+            .limit(1);
+        if (rows.isNotEmpty) {
+          final row = rows.first;
+          startDate = row['start_date'] == null
+              ? null
+              : DateTime.parse(row['start_date'] as String).toUtc();
+          endDateInclusive = row['end_date'] == null
+              ? null
+              : DateTime.parse(row['end_date'] as String).toUtc();
+        }
 
-      // 2) also delete Ma'at-generated events in the flow's date window (handles legacy rows with no flow_local_id)
-      if (user != null && (windowStart != null || windowEndExclusive != null)) {
-        await _deleteUserEventsByClientIdPrefixSemantic(
-          'maat:',
-          fromUtc: windowStart,
-          untilUtc: windowEndExclusive,
+        // Build a half-open time window: [windowStart, windowEndExclusive)
+        // so the entire last day is *included* even if your events are at 16:00 UTC.
+        final windowStart = (fromDate ?? startDate)?.toUtc();
+        final windowEndExclusive = endDateInclusive?.toUtc().add(
+          const Duration(days: 1),
+        ); // next day at 00:00Z
+
+        final user = _client.auth.currentUser;
+        final cidsToCancel = <String>{};
+        List<Map<String, dynamic>> orphanRows = const [];
+
+        try {
+          final taggedEvents = await getEventsForFlow(
+            flowId,
+            startUtc: fromDate?.toUtc(),
+          );
+          for (final event in taggedEvents) {
+            final cid = event.clientEventId?.trim();
+            if (cid != null && cid.isNotEmpty) {
+              cidsToCancel.add(cid);
+            }
+          }
+        } catch (_) {
+          // Best effort only; deletion should still proceed.
+        }
+
+        if (user != null) {
+          orphanRows = await _loadStandaloneGhostRowsForFlow(
+            userId: user.id,
+            flowId: flowId,
+            startUtc: windowStart,
+            endUtc: windowEndExclusive,
+          );
+          for (final row in orphanRows) {
+            final cid = (row['client_event_id'] as String?)?.trim();
+            if (cid != null && cid.isNotEmpty) {
+              cidsToCancel.add(cid);
+            }
+          }
+        }
+
+        if (user != null &&
+            (windowStart != null || windowEndExclusive != null)) {
+          var legacySelect = _client
+              .from(_kTable)
+              .select('client_event_id')
+              .eq('user_id', user.id)
+              .like('client_event_id', 'maat:%');
+          if (windowStart != null) {
+            legacySelect = legacySelect.gte(
+              'starts_at',
+              windowStart.toIso8601String(),
+            );
+          }
+          if (windowEndExclusive != null) {
+            legacySelect = legacySelect.lt(
+              'starts_at',
+              windowEndExclusive.toIso8601String(),
+            );
+          }
+          final legacyRows = await legacySelect;
+          for (final row in (legacyRows as List).cast<Map<String, dynamic>>()) {
+            final cid = (row['client_event_id'] as String?)?.trim();
+            if (cid != null && cid.isNotEmpty) {
+              cidsToCancel.add(cid);
+            }
+          }
+        }
+
+        if (cidsToCancel.isNotEmpty) {
+          await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
+        }
+
+        // 1) delete events explicitly tagged with flow_local_id
+        await _deleteUserEventsByFlowSemantic(
+          flowId,
+          fromUtc: fromDate?.toUtc(),
           semantic: semantic,
           suppressesClient: suppressesClient,
           sourceFeature: sourceFeature,
-          deleteScope: 'legacy_maat_flow_window',
+          deleteScope: deleteScope,
         );
-      }
 
-      if (user != null && orphanRows.isNotEmpty) {
-        final orphanIds = orphanRows
-            .map((row) => row['id'] as String?)
-            .whereType<String>()
-            .where((id) => id.trim().isNotEmpty)
-            .toList(growable: false);
-        for (final chunk in _chunkList(orphanIds, 200)) {
-          await _deleteUserEventIdsSemantic(
-            chunk,
+        // 2) also delete Ma'at-generated events in the flow's date window (handles legacy rows with no flow_local_id)
+        if (user != null &&
+            (windowStart != null || windowEndExclusive != null)) {
+          await _deleteUserEventsByClientIdPrefixSemantic(
+            'maat:',
+            fromUtc: windowStart,
+            untilUtc: windowEndExclusive,
             semantic: semantic,
             suppressesClient: suppressesClient,
             sourceFeature: sourceFeature,
-            deleteScope: 'orphan_flow_cleanup',
+            deleteScope: 'legacy_maat_flow_window',
           );
         }
-      }
 
-      _log('deleteByFlowId ✓');
-    } on PostgrestException catch (e) {
-      _log('deleteByFlowId ✗ ${e.code} ${e.message}');
-      rethrow;
-    } catch (e) {
-      _log('deleteByFlowId ✗ $e');
-      rethrow;
+        if (user != null && orphanRows.isNotEmpty) {
+          final orphanIds = orphanRows
+              .map((row) => row['id'] as String?)
+              .whereType<String>()
+              .where((id) => id.trim().isNotEmpty)
+              .toList(growable: false);
+          for (final chunk in _chunkList(orphanIds, 200)) {
+            await _deleteUserEventIdsSemantic(
+              chunk,
+              semantic: semantic,
+              suppressesClient: suppressesClient,
+              sourceFeature: sourceFeature,
+              deleteScope: 'orphan_flow_cleanup',
+            );
+          }
+        }
+
+        _log('deleteByFlowId ✓');
+      } on PostgrestException catch (e) {
+        _log('deleteByFlowId ✗ ${e.code} ${e.message}');
+        rethrow;
+      } catch (e) {
+        _log('deleteByFlowId ✗ $e');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -1569,24 +1780,42 @@ class UserEventsRepo {
   /// Calls are chunked at 200 rows; producers own rollback semantics if a
   /// multi-chunk write fails after an earlier chunk committed.
   Future<void> upsertManyDeterministic(List<Map<String, dynamic>> rows) async {
-    if (rows.isEmpty) return;
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      for (final chunk in _chunkList(rows, 200)) {
-        await _client
-            .from(_kTable)
-            .upsert(chunk, onConflict: 'user_id,client_event_id');
+      if (rows.isEmpty) return;
+      try {
+        for (final chunk in _chunkList(rows, 200)) {
+          await _client
+              .from(_kTable)
+              .upsert(chunk, onConflict: 'user_id,client_event_id');
+        }
+        if (kDebugMode) {
+          debugPrint(
+            '[user_events] upsertManyDeterministic ✓ ${rows.length} rows',
+          );
+        }
+      } on PostgrestException catch (e) {
+        _log('upsertManyDeterministic ✗ ${e.code} ${e.message}');
+        rethrow;
+      } catch (e) {
+        _log('upsertManyDeterministic ✗ $e');
+        rethrow;
       }
-      if (kDebugMode) {
-        debugPrint(
-          '[user_events] upsertManyDeterministic ✓ ${rows.length} rows',
-        );
-      }
-    } on PostgrestException catch (e) {
-      _log('upsertManyDeterministic ✗ ${e.code} ${e.message}');
-      rethrow;
-    } catch (e) {
-      _log('upsertManyDeterministic ✗ $e');
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -2218,6 +2447,55 @@ class UserEventsRepo {
         .toList();
   }
 
+  List<FlowEventRow>? cachedFlowDetailEvents(int flowId) {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    final raw = WarmSnapshotStore.instance
+        .peek(uid, 'flow.events.$flowId')
+        ?.data;
+    if (raw is! List) return null;
+    return raw
+        .map(
+          (r) =>
+              _flowEventRowFromFilingRow(Map<String, dynamic>.from(r as Map)),
+        )
+        .toList();
+  }
+
+  /// Complete detail coverage, unlike a dashboard's bounded event window.
+  /// Errors remain errors; they never become a successful empty snapshot.
+  Future<List<FlowEventRow>> getFlowDetailEvents(
+    int flowId, {
+    bool cachedOnly = false,
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    final rows = await WarmJsonReads(_client, cachedOnly: cachedOnly).rows(
+      'flow.events.$flowId',
+      () async {
+        final all = <Map<String, dynamic>>[];
+        const pageSize = 500;
+        for (var offset = 0; ; offset += pageSize) {
+          if (_client.auth.currentUser?.id != uid) {
+            throw const WarmReadCancelled();
+          }
+          final page = await _client
+              .from(_kReadableEventsTable)
+              .select(_flowEventReadSelect)
+              .eq('filed_flow_id', flowId)
+              .order('starts_at')
+              .order('id')
+              .range(offset, offset + pageSize - 1);
+          all.addAll(page);
+          if (page.length < pageSize) return all;
+        }
+      },
+    );
+    return rows
+        .where((row) => canonicalFiledFlowIdForEventRow(row) == flowId)
+        .map(_flowEventRowFromFilingRow)
+        .toList();
+  }
+
   Future<List<FlowEventRow>> getEventsForFlow(
     int flowId, {
     DateTime? startUtc,
@@ -2679,32 +2957,50 @@ class UserEventsRepo {
     required DateTime endedAtLocal,
     bool deleteAllMaterialized = false,
   }) async {
-    final response = await _client.rpc(
-      'end_flow',
-      params: {
-        'p_flow_id': flowId,
-        'p_ended_at': endedAtLocal.toUtc().toIso8601String(),
-        'p_ended_on': _formatDateOnlyLocal(endedAtLocal),
-        'p_delete_all_materialized': deleteAllMaterialized,
-      },
-    );
-
-    Map<String, dynamic>? row;
-    if (response is List && response.isNotEmpty && response.first is Map) {
-      row = Map<String, dynamic>.from(response.first as Map);
-    } else if (response is Map) {
-      row = Map<String, dynamic>.from(response);
-    }
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      await Notify.syncLocalDeliveryMode();
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('[UserEventsRepo] endFlow notify sync failed: $e');
-        debugPrint('$st');
-      }
-    }
+      final response = await _client.rpc(
+        'end_flow',
+        params: {
+          'p_flow_id': flowId,
+          'p_ended_at': endedAtLocal.toUtc().toIso8601String(),
+          'p_ended_on': _formatDateOnlyLocal(endedAtLocal),
+          'p_delete_all_materialized': deleteAllMaterialized,
+        },
+      );
 
-    return EndFlowRpcResponse.fromRow(row);
+      Map<String, dynamic>? row;
+      if (response is List && response.isNotEmpty && response.first is Map) {
+        row = Map<String, dynamic>.from(response.first as Map);
+      } else if (response is Map) {
+        row = Map<String, dynamic>.from(response);
+      }
+      try {
+        await Notify.syncLocalDeliveryMode();
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('[UserEventsRepo] endFlow notify sync failed: $e');
+          debugPrint('$st');
+        }
+      }
+
+      return EndFlowRpcResponse.fromRow(row);
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
+    }
   }
 
   /// Upsert a flow (jsonb rules). Returns server id.
@@ -2733,92 +3029,111 @@ class UserEventsRepo {
     Map<String, dynamic>? aiMetadata,
     FlowAppearance? appearance,
   }) async {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      throw StateError('No user session');
-    }
-
-    final payload = <String, dynamic>{
-      'user_id': user.id,
-      if (calendarId != null) 'calendar_id': calendarId,
-      'name': name,
-      'color': (color & 0x00FFFFFF), // 24-bit guard
-      'active': active,
-      'rules': jsonDecode(rules),
-      'is_hidden': isHidden,
-    };
-    if (clearStartDate) {
-      payload['start_date'] = null;
-    } else if (startDate != null) {
-      payload['start_date'] = startDate.toIso8601String();
-    }
-    if (clearEndDate) {
-      payload['end_date'] = null;
-    } else if (endDate != null) {
-      payload['end_date'] = endDate.toIso8601String();
-    }
-    if (notes != null) payload['notes'] = notes;
-    if (isSaved != null) payload['is_saved'] = isSaved;
-    if (_isUuid(shareId)) payload['share_id'] = shareId;
-    if (isReminder != null) payload['is_reminder'] = isReminder;
-    if (_isUuid(reminderUuid)) payload['reminder_uuid'] = reminderUuid;
-    const allowedOriginTypes = {
-      'manual',
-      'ai',
-      'share_import',
-      'profile_import',
-      'saved_import',
-      'fork',
-      'template',
-    };
-    if (originType != null && allowedOriginTypes.contains(originType.trim())) {
-      payload['origin_type'] = originType.trim();
-    }
-    if (originFlowId != null && originFlowId > 0) {
-      payload['origin_flow_id'] = originFlowId;
-    }
-    if (_isUuid(originShareId)) {
-      payload['origin_share_id'] = originShareId;
-    }
-    if (_isUuid(originGenerationId)) {
-      payload['origin_generation_id'] = originGenerationId;
-    }
-    if (rootFlowId != null && rootFlowId > 0) {
-      payload['root_flow_id'] = rootFlowId;
-    }
-    if (aiMetadata != null) {
-      payload['ai_metadata'] = aiMetadata;
-    }
-    if (appearance != null) {
-      payload['appearance'] = appearance.toJsonOrNull();
-    }
-
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      if (id == null || id <= 0) {
-        final inserted = await _client
-            .from('flows')
-            .insert(payload)
-            .select('id')
-            .single();
-        return (inserted['id'] as num).toInt();
-      } else {
-        final patch = Map<String, dynamic>.from(payload)..remove('user_id');
-        final updated = await _client
-            .from('flows')
-            .update(patch)
-            .eq('id', id)
-            .select('id')
-            .single();
-        return (updated['id'] as num).toInt();
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        throw StateError('No user session');
       }
-    } on PostgrestException catch (e, st) {
-      _log('upsertFlow ✗ ${e.code} ${e.message}');
-      _log('$st');
-      rethrow;
-    } catch (e, st) {
-      _log('upsertFlow ✗ $e');
-      _log('$st');
-      rethrow;
+
+      final payload = <String, dynamic>{
+        'user_id': user.id,
+        if (calendarId != null) 'calendar_id': calendarId,
+        'name': name,
+        'color': (color & 0x00FFFFFF), // 24-bit guard
+        'active': active,
+        'rules': jsonDecode(rules),
+        'is_hidden': isHidden,
+      };
+      if (clearStartDate) {
+        payload['start_date'] = null;
+      } else if (startDate != null) {
+        payload['start_date'] = startDate.toIso8601String();
+      }
+      if (clearEndDate) {
+        payload['end_date'] = null;
+      } else if (endDate != null) {
+        payload['end_date'] = endDate.toIso8601String();
+      }
+      if (notes != null) payload['notes'] = notes;
+      if (isSaved != null) payload['is_saved'] = isSaved;
+      if (_isUuid(shareId)) payload['share_id'] = shareId;
+      if (isReminder != null) payload['is_reminder'] = isReminder;
+      if (_isUuid(reminderUuid)) payload['reminder_uuid'] = reminderUuid;
+      const allowedOriginTypes = {
+        'manual',
+        'ai',
+        'share_import',
+        'profile_import',
+        'saved_import',
+        'fork',
+        'template',
+      };
+      if (originType != null &&
+          allowedOriginTypes.contains(originType.trim())) {
+        payload['origin_type'] = originType.trim();
+      }
+      if (originFlowId != null && originFlowId > 0) {
+        payload['origin_flow_id'] = originFlowId;
+      }
+      if (_isUuid(originShareId)) {
+        payload['origin_share_id'] = originShareId;
+      }
+      if (_isUuid(originGenerationId)) {
+        payload['origin_generation_id'] = originGenerationId;
+      }
+      if (rootFlowId != null && rootFlowId > 0) {
+        payload['root_flow_id'] = rootFlowId;
+      }
+      if (aiMetadata != null) {
+        payload['ai_metadata'] = aiMetadata;
+      }
+      if (appearance != null) {
+        payload['appearance'] = appearance.toJsonOrNull();
+      }
+
+      try {
+        if (id == null || id <= 0) {
+          final inserted = await _client
+              .from('flows')
+              .insert(payload)
+              .select('id')
+              .single();
+          return (inserted['id'] as num).toInt();
+        } else {
+          final patch = Map<String, dynamic>.from(payload)..remove('user_id');
+          final updated = await _client
+              .from('flows')
+              .update(patch)
+              .eq('id', id)
+              .select('id')
+              .single();
+          return (updated['id'] as num).toInt();
+        }
+      } on PostgrestException catch (e, st) {
+        _log('upsertFlow ✗ ${e.code} ${e.message}');
+        _log('$st');
+        rethrow;
+      } catch (e, st) {
+        _log('upsertFlow ✗ $e');
+        _log('$st');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -2826,23 +3141,41 @@ class UserEventsRepo {
     required String generationId,
     required int flowId,
   }) async {
-    if (!_isUuid(generationId)) {
-      return;
-    }
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      await _client.rpc(
-        'flow_commit',
-        params: {'p_generation_id': generationId, 'p_flow_id': flowId},
-      );
-      _log('flow_commit ✓ gen=$generationId flow=$flowId');
-    } on PostgrestException catch (e, st) {
-      _log('flow_commit ✗ ${e.code} ${e.message}');
-      _log('$st');
-      rethrow;
-    } catch (e, st) {
-      _log('flow_commit ✗ $e');
-      _log('$st');
-      rethrow;
+      if (!_isUuid(generationId)) {
+        return;
+      }
+      try {
+        await _client.rpc(
+          'flow_commit',
+          params: {'p_generation_id': generationId, 'p_flow_id': flowId},
+        );
+        _log('flow_commit ✓ gen=$generationId flow=$flowId');
+      } on PostgrestException catch (e, st) {
+        _log('flow_commit ✗ ${e.code} ${e.message}');
+        _log('$st');
+        rethrow;
+      } catch (e, st) {
+        _log('flow_commit ✗ $e');
+        _log('$st');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -3118,30 +3451,48 @@ class UserEventsRepo {
 
   /// Delete a single flow row.
   Future<void> deleteFlow(int flowId) async {
-    _log('deleteFlow($flowId)');
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      // Canonical delete path: purge linked event rows before the flow is
-      // soft-deleted so local notification cleanup does not rely solely on the
-      // backend trigger.
-      await deleteByFlowId(flowId);
+      _log('deleteFlow($flowId)');
+      try {
+        // Canonical delete path: purge linked event rows before the flow is
+        // soft-deleted so local notification cleanup does not rely solely on the
+        // backend trigger.
+        await deleteByFlowId(flowId);
 
-      final row = await _client
-          .from('flows')
-          .select('id, is_saved')
-          .eq('id', flowId)
-          .maybeSingle();
-      final isSaved = (row?['is_saved'] as bool?) ?? false;
+        final row = await _client
+            .from('flows')
+            .select('id, is_saved')
+            .eq('id', flowId)
+            .maybeSingle();
+        final isSaved = (row?['is_saved'] as bool?) ?? false;
 
-      // Soft delete: hide and deactivate even for saved flows so they disappear from UI.
-      // Saved flows intentionally keep their row; the UI uses is_hidden/active to filter.
-      await _client
-          .from('flows')
-          .update({'is_hidden': true, 'active': false})
-          .eq('id', flowId);
-      _log('deleteFlow ✓ (soft${isSaved ? ', saved flow' : ''})');
-    } on PostgrestException catch (e) {
-      _log('deleteFlow ✗ ${e.code} ${e.message}');
-      rethrow;
+        // Soft delete: hide and deactivate even for saved flows so they disappear from UI.
+        // Saved flows intentionally keep their row; the UI uses is_hidden/active to filter.
+        await _client
+            .from('flows')
+            .update({'is_hidden': true, 'active': false})
+            .eq('id', flowId);
+        _log('deleteFlow ✓ (soft${isSaved ? ', saved flow' : ''})');
+      } on PostgrestException catch (e) {
+        _log('deleteFlow ✗ ${e.code} ${e.message}');
+        rethrow;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -3150,22 +3501,40 @@ class UserEventsRepo {
     required int flowId,
     required String shareId,
   }) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      await _client
-          .from('flows')
-          .update({'share_id': shareId})
-          .eq('id', flowId);
+      try {
+        await _client
+            .from('flows')
+            .update({'share_id': shareId})
+            .eq('id', flowId);
 
-      if (kDebugMode) {
-        debugPrint(
-          '[UserEventsRepo] Updated flow $flowId with share_id: $shareId',
-        );
+        if (kDebugMode) {
+          debugPrint(
+            '[UserEventsRepo] Updated flow $flowId with share_id: $shareId',
+          );
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[UserEventsRepo] Error updating flow share_id: $e');
+        }
+        rethrow;
       }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[UserEventsRepo] Error updating flow share_id: $e');
-      }
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 
@@ -3174,54 +3543,72 @@ class UserEventsRepo {
     required int flowId,
     required bool isSaved,
   }) async {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      throw StateError('No user session. Please sign in.');
-    }
-
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'flow.',
+      'filing.',
+      'pages.flows',
+      'pages.events',
+      'pages.calendar',
+    ]);
     try {
-      final updated = await _client
-          .from('flows')
-          .update({'is_saved': isSaved})
-          .eq('id', flowId)
-          .select('id, is_saved, active, updated_at')
-          .single();
-
-      if (isSaved) {
-        await _client.from('flow_saves').upsert({
-          'user_id': user.id,
-          'flow_id': flowId,
-          'saved_from': 'self',
-          'saved_at': DateTime.now().toUtc().toIso8601String(),
-        }, onConflict: 'user_id,flow_id');
-      } else {
-        await _client
-            .from('flow_saves')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('flow_id', flowId);
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        throw StateError('No user session. Please sign in.');
       }
 
-      if (kDebugMode) {
-        debugPrint(
-          '[UserEventsRepo] setFlowSaved DB row '
-          '${safeLogMapSummary(updated)}',
-        );
+      try {
+        final updated = await _client
+            .from('flows')
+            .update({'is_saved': isSaved})
+            .eq('id', flowId)
+            .select('id, is_saved, active, updated_at')
+            .single();
+
+        if (isSaved) {
+          await _client.from('flow_saves').upsert({
+            'user_id': user.id,
+            'flow_id': flowId,
+            'saved_from': 'self',
+            'saved_at': DateTime.now().toUtc().toIso8601String(),
+          }, onConflict: 'user_id,flow_id');
+        } else {
+          await _client
+              .from('flow_saves')
+              .delete()
+              .eq('user_id', user.id)
+              .eq('flow_id', flowId);
+        }
+
+        if (kDebugMode) {
+          debugPrint(
+            '[UserEventsRepo] setFlowSaved DB row '
+            '${safeLogMapSummary(updated)}',
+          );
+        }
+      } on PostgrestException catch (e, st) {
+        if (kDebugMode) {
+          debugPrint(
+            '[UserEventsRepo] setFlowSaved FAILED: ${e.code} ${e.message} ${e.details}',
+          );
+          debugPrint('$st');
+        }
+        rethrow;
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('[UserEventsRepo] setFlowSaved FAILED: $e');
+          debugPrint('$st');
+        }
+        rethrow;
       }
-    } on PostgrestException catch (e, st) {
-      if (kDebugMode) {
-        debugPrint(
-          '[UserEventsRepo] setFlowSaved FAILED: ${e.code} ${e.message} ${e.details}',
-        );
-        debugPrint('$st');
-      }
-      rethrow;
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('[UserEventsRepo] setFlowSaved FAILED: $e');
-        debugPrint('$st');
-      }
-      rethrow;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'flow.',
+        'filing.',
+        'pages.flows',
+        'pages.events',
+        'pages.calendar',
+      ]);
     }
   }
 

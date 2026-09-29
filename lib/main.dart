@@ -1,3 +1,4 @@
+import 'data/warm_state/app_warm_state.dart';
 // lib/main.dart
 import 'dart:async';
 import 'dart:convert';
@@ -2058,6 +2059,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  AppWarmState? _warmState;
   StreamSubscription<AuthState>? _authSub;
   StreamSubscription<Uri>? _linkSub;
   AppLinks? _appLinks;
@@ -2083,10 +2085,14 @@ class _MyAppState extends State<MyApp> {
       },
     );
     _initAuthDeepLinks();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) (_warmState = AppWarmState(supabase)).start();
+    });
   }
 
   @override
   void dispose() {
+    _warmState?.dispose();
     _authSub?.cancel();
     _linkSub?.cancel();
     super.dispose();
@@ -3669,7 +3675,15 @@ class _FlowPostRoutePageState extends State<FlowPostRoutePage> {
         return (post: raw, posts: posts, initialIndex: initialIndex);
       }
     }
-    final post = await ProfileRepo(supabase).getFlowPostById(widget.postId);
+    try {
+      await ProfileRepo(
+        supabase,
+      ).getFlowPostById(widget.postId, cachedOnly: true);
+      if (mounted) setState(() {});
+    } catch (_) {}
+    final post = await ProfileRepo(
+      supabase,
+    ).getFlowPostById(widget.postId, strict: true);
     if (post == null) {
       return null;
     }
@@ -3683,7 +3697,16 @@ class _FlowPostRoutePageState extends State<FlowPostRoutePage> {
     >(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data;
+        final cached = ProfileRepo(supabase).cachedFlowPostById(widget.postId);
+        final gone =
+            snapshot.connectionState == ConnectionState.done &&
+            !snapshot.hasError &&
+            snapshot.data == null;
+        final data =
+            snapshot.data ??
+            (!gone && cached != null
+                ? (post: cached, posts: null, initialIndex: 0)
+                : null);
         if (data != null) {
           final currentUserId = supabase.auth.currentUser?.id;
           return FlowPostDetailPage(

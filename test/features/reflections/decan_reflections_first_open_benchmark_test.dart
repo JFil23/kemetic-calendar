@@ -67,7 +67,9 @@ class _DelayedAcknowledgementRepo extends DecanReflectionRepo {
   bool acknowledgementCompleted = false;
 
   @override
-  Future<DecanReflectionListResult> listMineResult() async {
+  Future<DecanReflectionListResult> listMineResult({
+    bool cachedOnly = false,
+  }) async {
     return DecanReflectionListResult(
       data: <DecanReflection>[
         DecanReflection(
@@ -107,7 +109,9 @@ class _ImmediateMaatRepo extends MaatGuidanceRepo {
       );
 
   @override
-  Future<MaatGuidanceListResult> listDecanOpeningsForArchive() async {
+  Future<MaatGuidanceListResult> listDecanOpeningsForArchive({
+    bool cachedOnly = false,
+  }) async {
     return const MaatGuidanceListResult(data: <MaatGuidanceDelivery>[]);
   }
 }

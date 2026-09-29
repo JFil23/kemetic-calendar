@@ -1,3 +1,4 @@
+import '../../data/warm_state/warm_snapshot_store.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -38,7 +39,7 @@ class FlowPostDetailPage extends StatefulWidget {
 
 class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
   final _repo = ProfileRepo(Supabase.instance.client);
-  late final List<FlowPost> _posts;
+  late List<FlowPost> _posts;
   late final PageController _pageController;
   late int _activeIndex;
   bool _saving = false;
@@ -61,11 +62,31 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     _activeIndex = widget.initialIndex.clamp(0, _posts.length - 1);
     _pageController = PageController(initialPage: _activeIndex);
     _refreshSavedStateFor(_activePost);
+    unawaited(() async {
+      try {
+        await _repo.getFlowPostById(_activePost.id, cachedOnly: true);
+        if (mounted) setState(() {});
+      } catch (_) {}
+    }());
     if (widget.openCommentsOnLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         showFlowPostCommentsSheet(context: context, post: _activePost);
       });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant FlowPostDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post != widget.post || oldWidget.posts != widget.posts) {
+      final selectedId = _activePost.id;
+      _posts = widget.posts != null && widget.posts!.isNotEmpty
+          ? List<FlowPost>.of(widget.posts!)
+          : [widget.post];
+      final selected = _posts.indexWhere((post) => post.id == selectedId);
+      _activeIndex = selected >= 0 ? selected : 0;
+      _fullPostFutures.remove(widget.post.id);
     }
   }
 
@@ -96,7 +117,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     if (_hasCompleteSnapshot(post)) return Future<FlowPost?>.value(post);
     return _fullPostFutures.putIfAbsent(
       post.id,
-      () => _repo.getFlowPostById(post.id),
+      () => _repo.getFlowPostById(post.id, strict: true),
     );
   }
 
@@ -106,11 +127,19 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     }
     return FutureBuilder<FlowPost?>(
       future: _fullPostFor(post),
+      initialData: _repo.cachedFlowPostById(post.id),
       builder: (context, snapshot) {
-        final hydrated = snapshot.data;
+        final confirmedGone =
+            snapshot.error is WarmAccessDenied ||
+            (snapshot.connectionState == ConnectionState.done &&
+                !snapshot.hasError &&
+                snapshot.data == null);
+        final hydrated = confirmedGone
+            ? null
+            : snapshot.data ?? _repo.cachedFlowPostById(post.id);
         if (hydrated != null) return _buildHydratedDetail(hydrated);
         if (snapshot.connectionState == ConnectionState.done) {
-          return _buildHydratedDetail(post);
+          return const Center(child: Text('This flow is unavailable.'));
         }
         return const ColoredBox(
           color: Color(0xFF000000),

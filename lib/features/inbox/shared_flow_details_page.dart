@@ -1,3 +1,4 @@
+import '../../data/warm_state/warm_snapshot_store.dart';
 // lib/features/inbox/shared_flow_details_page.dart
 // Dual-mode details page: supports both imported flows (flowId) and non-imported shares (share)
 
@@ -65,6 +66,8 @@ class SharedFlowDetailsPage extends StatefulWidget {
 class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   late final UserEventsRepo _userEventsRepo;
   late Future<_SharedFlowData> _flowFuture;
+  _SharedFlowData? _warmData;
+  int _loadGeneration = 0;
   bool _trackedShareViewed = false;
   DateTime? _selectedStart;
   bool _isImporting = false;
@@ -167,8 +170,31 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   }
 
   void _configureFutures() {
+    final generation = ++_loadGeneration;
+    _warmData = null;
     if (widget.flowId != null) {
-      _flowFuture = _loadFromDb(widget.flowId!);
+      final flowId = widget.flowId!;
+      final row = FlowsRepo(Supabase.instance.client).cachedFlowById(flowId);
+      final events = _userEventsRepo.cachedFlowDetailEvents(flowId);
+      _warmData = row != null && events != null
+          ? _fromRow(row, flowId, events)
+          : null;
+      _flowFuture = _loadFromDb(flowId).then((data) {
+        if (generation == _loadGeneration) _warmData = data;
+        return data;
+      });
+      if (_warmData == null) {
+        unawaited(() async {
+          try {
+            final local = await _loadFromDb(flowId, cachedOnly: true);
+            if (mounted && generation == _loadGeneration && _warmData == null) {
+              setState(() => _warmData = local);
+            }
+          } catch (_) {
+            /* first visit */
+          }
+        }());
+      }
     } else if (widget.payloadJson != null) {
       _flowFuture = Future.value(_fromPayload(widget.payloadJson!));
     } else {
@@ -213,14 +239,23 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     return DateTime.tryParse(value.toString());
   }
 
-  Future<_SharedFlowData> _loadFromDb(int flowId) async {
+  Future<_SharedFlowData> _loadFromDb(
+    int flowId, {
+    bool cachedOnly = false,
+  }) async {
     final repo = FlowsRepo(Supabase.instance.client);
-    final row = await repo.getFlowById(flowId);
-    if (row == null) {
-      throw Exception('Flow not found');
-    }
+    final results = await Future.wait<Object?>([
+      repo.getFlowById(flowId, cachedOnly: cachedOnly),
+      _userEventsRepo.getFlowDetailEvents(flowId, cachedOnly: cachedOnly),
+    ]);
+    final row = results[0] as FlowRow?;
+    if (row == null) throw const _FlowNoLongerAvailable();
+    return _fromRow(row, flowId, results[1] as List<FlowEventRow>);
+  }
 
+  _SharedFlowData _fromRow(FlowRow row, int flowId, List<FlowEventRow> events) {
     return _SharedFlowData(
+      loadedEvents: events,
       name: row.name,
       color: row.color,
       notes: row.notes ?? '',
@@ -545,9 +580,15 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<_SharedFlowData>(
+      key: ValueKey(
+        widget.flowId ?? widget.share?.shareId ?? widget.payloadJson?['id'],
+      ),
       future: _flowFuture,
+      initialData: _warmData,
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
+        if (snapshot.error is _FlowNoLongerAvailable ||
+            snapshot.error is WarmAccessDenied ||
+            (snapshot.hasError && !snapshot.hasData && _warmData == null)) {
           return Scaffold(
             appBar: AppBar(
               backgroundColor: Colors.black,
@@ -560,7 +601,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           );
         }
 
-        if (!snapshot.hasData) {
+        if (!snapshot.hasData && _warmData == null) {
           return Scaffold(
             backgroundColor: _bg,
             appBar: AppBar(
@@ -575,7 +616,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           );
         }
 
-        final data = snapshot.data!;
+        final data = snapshot.data ?? _warmData!;
         final eventsJson = _dedupeEvents(
           data.eventsJson.whereType<Map<String, dynamic>>().toList(),
         );
@@ -612,6 +653,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           showFlowOptions: false,
           backFallbackLocation: widget.fallbackLocation,
           appearance: data.appearance,
+          initialFlowEvents: data.loadedEvents,
         );
       },
     );
@@ -619,7 +661,14 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 }
 
 /// Simple container for the data we need to render the details page.
+class _FlowNoLongerAvailable implements Exception {
+  const _FlowNoLongerAvailable();
+  @override
+  String toString() => "This flow is no longer available.";
+}
+
 class _SharedFlowData {
+  final List<FlowEventRow>? loadedEvents;
   final String name;
   final int color;
   final String notes;
@@ -636,6 +685,7 @@ class _SharedFlowData {
   final InboxShareItem? share;
 
   _SharedFlowData({
+    this.loadedEvents,
     required this.name,
     required this.color,
     required this.notes,

@@ -105,6 +105,9 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage>
       _nodeKeys.putIfAbsent(nodeId, GlobalKey.new);
 
   Future<void> _loadReadSnapshot() async {
+    final local = await _readProgressStore.readCachedSnapshotOnly();
+    if (!mounted) return;
+    if (local != null) setState(() => _readSnapshot = local);
     final snapshot = await _readProgressStore.readSnapshot();
     if (!mounted) return;
     setState(() {

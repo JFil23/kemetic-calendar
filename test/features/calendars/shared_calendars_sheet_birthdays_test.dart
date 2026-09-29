@@ -235,6 +235,7 @@ class _FakeSharedCalendarsRepo extends SharedCalendarsRepo {
   Future<List<FiledEvent>> getCalendarFiledEvents(
     String calendarId, {
     int pageSize = 1000,
+    bool cachedOnly = false,
     int? maxRows,
     DateTime? startsOnOrAfterUtc,
   }) async {

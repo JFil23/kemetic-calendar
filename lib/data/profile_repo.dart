@@ -1,3 +1,6 @@
+import 'warm_state/warm_mutation.dart';
+import 'warm_state/warm_json_reads.dart';
+import 'warm_state/warm_snapshot_store.dart';
 // lib/data/profile_repo.dart
 
 import 'dart:async';
@@ -537,42 +540,74 @@ class ProfileRepo {
 
   /// Follow another user
   Future<bool> followUser(String targetUserId) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final currentUserId = _client.auth.currentUser?.id;
-      if (currentUserId == null) return false;
-      if (currentUserId == targetUserId) return false;
+      try {
+        final currentUserId = _client.auth.currentUser?.id;
+        if (currentUserId == null) return false;
+        if (currentUserId == targetUserId) return false;
 
-      final wasFollowing = await isFollowing(targetUserId);
-      await _client.from('follows').upsert({
-        'follower_id': currentUserId,
-        'followee_id': targetUserId,
-      });
-      if (!wasFollowing) {
-        unawaited(sendFollowPush(targetUserId: targetUserId));
+        final wasFollowing = await isFollowing(targetUserId);
+        await _client.from('follows').upsert({
+          'follower_id': currentUserId,
+          'followee_id': targetUserId,
+        });
+        if (!wasFollowing) {
+          unawaited(sendFollowPush(targetUserId: targetUserId));
+        }
+        return true;
+      } catch (e) {
+        _log('[ProfileRepo] Error following user: $e');
+        return false;
       }
-      return true;
-    } catch (e) {
-      _log('[ProfileRepo] Error following user: $e');
-      return false;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
   /// Unfollow another user
   Future<bool> unfollowUser(String targetUserId) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final currentUserId = _client.auth.currentUser?.id;
-      if (currentUserId == null) return false;
-      if (currentUserId == targetUserId) return false;
+      try {
+        final currentUserId = _client.auth.currentUser?.id;
+        if (currentUserId == null) return false;
+        if (currentUserId == targetUserId) return false;
 
-      await _client
-          .from('follows')
-          .delete()
-          .eq('follower_id', currentUserId)
-          .eq('followee_id', targetUserId);
-      return true;
-    } catch (e) {
-      _log('[ProfileRepo] Error unfollowing user: $e');
-      return false;
+        await _client
+            .from('follows')
+            .delete()
+            .eq('follower_id', currentUserId)
+            .eq('followee_id', targetUserId);
+        return true;
+      } catch (e) {
+        _log('[ProfileRepo] Error unfollowing user: $e');
+        return false;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
@@ -917,6 +952,43 @@ class ProfileRepo {
   Future<ProfileFeedResult> getProfileFeedResult({
     int limit = 24,
     int offset = 0,
+    bool cachedOnly = false,
+  }) async {
+    try {
+      final rows = await WarmJsonReads(_client, cachedOnly: cachedOnly).rows(
+        'social.feed.$limit.$offset',
+        () async {
+          final result = await _fetchProfileFeedResult(
+            limit: limit,
+            offset: offset,
+          );
+          if (result.hasError) throw StateError(result.errorMessage!);
+          return result.data
+              .map(
+                (item) => <String, dynamic>{
+                  'post_type': item.kind.name,
+                  ...?item.flowPost?.toJson(),
+                  ...?item.insightPost?.toJson(),
+                },
+              )
+              .toList();
+        },
+      );
+      return ProfileFeedResult(
+        data: rows.map(ProfileFeedItem.fromJson).toList(),
+      );
+    } catch (_) {
+      if (cachedOnly) rethrow;
+      return const ProfileFeedResult(
+        data: [],
+        errorMessage: 'Feed could not refresh.',
+      );
+    }
+  }
+
+  Future<ProfileFeedResult> _fetchProfileFeedResult({
+    int limit = 24,
+    int offset = 0,
   }) async {
     try {
       final response = await withSupabaseAuthRetry(
@@ -1019,19 +1091,44 @@ class ProfileRepo {
   }
 
   /// Fetch a single flow post by id.
-  Future<FlowPost?> getFlowPostById(String postId) async {
+  FlowPost? cachedFlowPostById(String postId) {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    final raw = WarmSnapshotStore.instance
+        .peek(uid, 'social.post.$postId')
+        ?.data;
+    return raw is Map
+        ? FlowPost.fromJson(Map<String, dynamic>.from(raw))
+        : null;
+  }
+
+  Future<FlowPost?> getFlowPostById(
+    String postId, {
+    bool cachedOnly = false,
+    bool strict = false,
+  }) async {
     try {
-      final row = await _client
-          .from('flow_posts')
-          .select()
-          .eq('id', postId)
-          .maybeSingle();
+      final row = await WarmJsonReads(_client, cachedOnly: cachedOnly).value(
+        'social.post.$postId',
+        () async {
+          final row = await _client
+              .from('flow_posts')
+              .select()
+              .eq('id', postId)
+              .maybeSingle();
+          if (row == null) return null;
+          final visible = await _filterBlockedFlowPosts([
+            FlowPost.fromJson(row),
+          ]);
+          return visible.isEmpty ? null : visible.single.toJson();
+        },
+      );
 
       if (row == null) return null;
       final post = FlowPost.fromJson(Map<String, dynamic>.from(row as Map));
-      final visiblePosts = await _filterBlockedFlowPosts(<FlowPost>[post]);
-      return visiblePosts.isEmpty ? null : visiblePosts.single;
+      return post;
     } catch (e) {
+      if (strict || cachedOnly) rethrow;
       if (kDebugMode) {
         debugPrint('[ProfileRepo] Error fetching flow post by id: $e');
       }
@@ -1041,90 +1138,106 @@ class ProfileRepo {
 
   /// Create a flow post for the current user from an existing flow.
   Future<FlowPost?> postFlow(int flowId, {String? sharedNote}) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return null;
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) return null;
 
-      final flow = await FlowsRepo(_client).getFlowById(flowId);
-      if (flow == null || flow.userId != userId) return null;
+        final flow = await FlowsRepo(_client).getFlowById(flowId);
+        if (flow == null || flow.userId != userId) return null;
 
-      final events = await UserEventsRepo(_client).getEventsForFlow(flow.id);
-      final startDate = flow.startDate;
-      Map<String, dynamic> eventToPayload(e) {
-        int offset = 0;
-        if (startDate != null) {
-          offset = DateUtils.dateOnly(
-            e.startsAtUtc.toLocal(),
-          ).difference(DateUtils.dateOnly(startDate)).inDays;
+        final events = await UserEventsRepo(_client).getEventsForFlow(flow.id);
+        final startDate = flow.startDate;
+        Map<String, dynamic> eventToPayload(e) {
+          int offset = 0;
+          if (startDate != null) {
+            offset = DateUtils.dateOnly(
+              e.startsAtUtc.toLocal(),
+            ).difference(DateUtils.dateOnly(startDate)).inDays;
+          }
+
+          String formatTime(DateTime dt) {
+            final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+            final m = dt.minute.toString().padLeft(2, '0');
+            final mer = dt.hour >= 12 ? 'PM' : 'AM';
+            return '$h:$m $mer';
+          }
+
+          final startLocal = e.startsAtUtc.toLocal();
+          final endLocal = e.endsAtUtc?.toLocal();
+
+          final detail = cleanFlowDetail(e.detail);
+          final location = e.location?.trim();
+
+          return {
+            'offset_days': offset,
+            'title': e.title,
+            'detail': detail,
+            'location': location == null || location.isEmpty ? null : location,
+            'all_day': e.allDay,
+            'start_time': e.allDay ? null : formatTime(startLocal),
+            'end_time': e.allDay || endLocal == null
+                ? null
+                : formatTime(endLocal),
+          };
         }
 
-        String formatTime(DateTime dt) {
-          final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-          final m = dt.minute.toString().padLeft(2, '0');
-          final mer = dt.hour >= 12 ? 'PM' : 'AM';
-          return '$h:$m $mer';
-        }
-
-        final startLocal = e.startsAtUtc.toLocal();
-        final endLocal = e.endsAtUtc?.toLocal();
-
-        final detail = cleanFlowDetail(e.detail);
-        final location = e.location?.trim();
-
-        return {
-          'offset_days': offset,
-          'title': e.title,
-          'detail': detail,
-          'location': location == null || location.isEmpty ? null : location,
-          'all_day': e.allDay,
-          'start_time': e.allDay ? null : formatTime(startLocal),
-          'end_time': e.allDay || endLocal == null
-              ? null
-              : formatTime(endLocal),
+        final normalizedSharedNote = sharedNote?.trim();
+        final payload = {
+          'name': flow.name,
+          'color': flow.color,
+          'notes': flow.notes,
+          'rules': flow.rules,
+          'appearance': flow.appearance.toJsonOrNull(),
+          'events': events.map(eventToPayload).toList(),
+          'start_date': startDate?.toIso8601String(),
+          'end_date': flow.endDate?.toIso8601String(),
+          if (normalizedSharedNote != null && normalizedSharedNote.isNotEmpty)
+            'shared_note': normalizedSharedNote,
         };
+
+        final inserted = await _client
+            .from('flow_posts')
+            .insert({
+              'user_id': userId,
+              'flow_id': flow.id,
+              'name': flow.name,
+              'color': flow.color,
+              'notes': flow.notes,
+              'rules': flow.rules,
+              'start_date': flow.startDate?.toIso8601String(),
+              'end_date': flow.endDate?.toIso8601String(),
+              'is_hidden': flow.isHidden,
+              'ai_metadata': {
+                'payload': payload,
+                if (normalizedSharedNote != null &&
+                    normalizedSharedNote.isNotEmpty)
+                  'shared_note': normalizedSharedNote,
+                if (flow.aiMetadata != null) 'source_ai': flow.aiMetadata,
+              },
+            })
+            .select()
+            .single();
+
+        return FlowPost.fromJson(inserted);
+      } catch (e) {
+        _log('[ProfileRepo] Error creating flow post: $e');
+        return null;
       }
-
-      final normalizedSharedNote = sharedNote?.trim();
-      final payload = {
-        'name': flow.name,
-        'color': flow.color,
-        'notes': flow.notes,
-        'rules': flow.rules,
-        'appearance': flow.appearance.toJsonOrNull(),
-        'events': events.map(eventToPayload).toList(),
-        'start_date': startDate?.toIso8601String(),
-        'end_date': flow.endDate?.toIso8601String(),
-        if (normalizedSharedNote != null && normalizedSharedNote.isNotEmpty)
-          'shared_note': normalizedSharedNote,
-      };
-
-      final inserted = await _client
-          .from('flow_posts')
-          .insert({
-            'user_id': userId,
-            'flow_id': flow.id,
-            'name': flow.name,
-            'color': flow.color,
-            'notes': flow.notes,
-            'rules': flow.rules,
-            'start_date': flow.startDate?.toIso8601String(),
-            'end_date': flow.endDate?.toIso8601String(),
-            'is_hidden': flow.isHidden,
-            'ai_metadata': {
-              'payload': payload,
-              if (normalizedSharedNote != null &&
-                  normalizedSharedNote.isNotEmpty)
-                'shared_note': normalizedSharedNote,
-              if (flow.aiMetadata != null) 'source_ai': flow.aiMetadata,
-            },
-          })
-          .select()
-          .single();
-
-      return FlowPost.fromJson(inserted);
-    } catch (e) {
-      _log('[ProfileRepo] Error creating flow post: $e');
-      return null;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
@@ -1137,104 +1250,168 @@ class ProfileRepo {
     FlowPost post, {
     String? sharedNote,
   }) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null || post.userId != userId) return false;
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null || post.userId != userId) return false;
 
-      final normalized = sharedNote?.trim();
-      final payload = <String, dynamic>{
-        ...?post.payloadJson,
-        'name': post.name,
-        'color': post.color,
-        'notes': post.notes,
-        'rules': post.rules,
-        'start_date': post.startDate?.toIso8601String(),
-        'end_date': post.endDate?.toIso8601String(),
-      };
-      final metadata = <String, dynamic>{...?post.aiMetadata};
-      if (normalized == null || normalized.isEmpty) {
-        payload.remove('shared_note');
-        metadata.remove('shared_note');
-      } else {
-        payload['shared_note'] = normalized;
-        metadata['shared_note'] = normalized;
+        final normalized = sharedNote?.trim();
+        final payload = <String, dynamic>{
+          ...?post.payloadJson,
+          'name': post.name,
+          'color': post.color,
+          'notes': post.notes,
+          'rules': post.rules,
+          'start_date': post.startDate?.toIso8601String(),
+          'end_date': post.endDate?.toIso8601String(),
+        };
+        final metadata = <String, dynamic>{...?post.aiMetadata};
+        if (normalized == null || normalized.isEmpty) {
+          payload.remove('shared_note');
+          metadata.remove('shared_note');
+        } else {
+          payload['shared_note'] = normalized;
+          metadata['shared_note'] = normalized;
+        }
+        metadata['payload'] = payload;
+
+        final updated = await _client
+            .from('flow_posts')
+            .update(<String, dynamic>{'ai_metadata': metadata})
+            .eq('id', post.id)
+            .eq('user_id', userId)
+            .select('id')
+            .maybeSingle();
+        return updated != null;
+      } catch (e) {
+        _log('[ProfileRepo] Error updating flow post caption: $e');
+        return false;
       }
-      metadata['payload'] = payload;
-
-      final updated = await _client
-          .from('flow_posts')
-          .update(<String, dynamic>{'ai_metadata': metadata})
-          .eq('id', post.id)
-          .eq('user_id', userId)
-          .select('id')
-          .maybeSingle();
-      return updated != null;
-    } catch (e) {
-      _log('[ProfileRepo] Error updating flow post caption: $e');
-      return false;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
   /// Create or refresh an insight post for the current user from an insight entry.
   Future<InsightPost?> postInsightEntry(String entryId) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return null;
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) return null;
 
-      final entry = await _client
-          .from('node_insight_entries')
-          .select('id, user_id, node_id, body_text, entry_date')
-          .eq('id', entryId)
-          .eq('user_id', userId)
-          .maybeSingle();
-      if (entry == null) return null;
+        final entry = await _client
+            .from('node_insight_entries')
+            .select('id, user_id, node_id, body_text, entry_date')
+            .eq('id', entryId)
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (entry == null) return null;
 
-      final inserted = await _client
-          .from('insight_posts')
-          .upsert({
-            'user_id': userId,
-            'insight_entry_id': entry['id'],
-            'node_id': entry['node_id'],
-            'body_text': entry['body_text'],
-            'entry_date': entry['entry_date'],
-          }, onConflict: 'user_id,insight_entry_id')
-          .select(
-            'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
-          )
-          .single();
+        final inserted = await _client
+            .from('insight_posts')
+            .upsert({
+              'user_id': userId,
+              'insight_entry_id': entry['id'],
+              'node_id': entry['node_id'],
+              'body_text': entry['body_text'],
+              'entry_date': entry['entry_date'],
+            }, onConflict: 'user_id,insight_entry_id')
+            .select(
+              'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
+            )
+            .single();
 
-      return InsightPost.fromJson(Map<String, dynamic>.from(inserted as Map));
-    } catch (e) {
-      _log('[ProfileRepo] Error creating insight post: $e');
-      return null;
+        return InsightPost.fromJson(Map<String, dynamic>.from(inserted as Map));
+      } catch (e) {
+        _log('[ProfileRepo] Error creating insight post: $e');
+        return null;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
   Future<bool> deleteFlowPost(String postId) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return false;
-      final hidden = await _client
-          .from('flow_posts')
-          .update(<String, dynamic>{'is_hidden': true})
-          .eq('id', postId)
-          .eq('user_id', userId)
-          .select('id')
-          .maybeSingle();
-      return hidden != null;
-    } catch (e) {
-      _log('[ProfileRepo] Error hiding flow post: $e');
-      return false;
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) return false;
+        final hidden = await _client
+            .from('flow_posts')
+            .update(<String, dynamic>{'is_hidden': true})
+            .eq('id', postId)
+            .eq('user_id', userId)
+            .select('id')
+            .maybeSingle();
+        return hidden != null;
+      } catch (e) {
+        _log('[ProfileRepo] Error hiding flow post: $e');
+        return false;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
   Future<bool> deleteInsightPost(String postId) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      await _client.from('insight_posts').delete().eq('id', postId);
-      return true;
-    } catch (e) {
-      _log('[ProfileRepo] Error deleting insight post: $e');
-      return false;
+      try {
+        await _client.from('insight_posts').delete().eq('id', postId);
+        return true;
+      } catch (e) {
+        _log('[ProfileRepo] Error deleting insight post: $e');
+        return false;
+      }
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
@@ -1607,30 +1784,46 @@ class ProfileRepo {
 
   /// Like or unlike a flow post for the current user.
   Future<bool> setFlowPostLike(String postId, {required bool like}) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return false;
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) return false;
 
-      if (like) {
-        await _client.from('flow_post_likes').upsert({
-          'flow_post_id': postId,
-          'user_id': userId,
-        }, onConflict: 'flow_post_id,user_id');
-      } else {
-        await _client
-            .from('flow_post_likes')
-            .delete()
-            .eq('flow_post_id', postId)
-            .eq('user_id', userId);
-      }
+        if (like) {
+          await _client.from('flow_post_likes').upsert({
+            'flow_post_id': postId,
+            'user_id': userId,
+          }, onConflict: 'flow_post_id,user_id');
+        } else {
+          await _client
+              .from('flow_post_likes')
+              .delete()
+              .eq('flow_post_id', postId)
+              .eq('user_id', userId);
+        }
 
-      return true;
-    } catch (e) {
-      if (_isMissingTable(e, 'flow_post_likes')) {
-        throw const FlowPostEngagementUnavailable('flow_post_likes');
+        return true;
+      } catch (e) {
+        if (_isMissingTable(e, 'flow_post_likes')) {
+          throw const FlowPostEngagementUnavailable('flow_post_likes');
+        }
+        _log('[ProfileRepo] Error updating flow post like: $e');
+        return false;
       }
-      _log('[ProfileRepo] Error updating flow post like: $e');
-      return false;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
@@ -1655,22 +1848,38 @@ class ProfileRepo {
   }
 
   Future<bool> blockUser(String blockedUserId) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null || blockedUserId == userId) return false;
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null || blockedUserId == userId) return false;
 
-      await _client.from('user_blocks').upsert({
-        'blocker_user_id': userId,
-        'blocked_user_id': blockedUserId,
-      }, onConflict: 'blocker_user_id,blocked_user_id');
-      return true;
-    } catch (e) {
-      if (_isMissingTable(e, 'user_blocks')) {
-        _log('[ProfileRepo] user_blocks table is missing.');
+        await _client.from('user_blocks').upsert({
+          'blocker_user_id': userId,
+          'blocked_user_id': blockedUserId,
+        }, onConflict: 'blocker_user_id,blocked_user_id');
+        return true;
+      } catch (e) {
+        if (_isMissingTable(e, 'user_blocks')) {
+          _log('[ProfileRepo] user_blocks table is missing.');
+          return false;
+        }
+        _log('[ProfileRepo] Error blocking user: $e');
         return false;
       }
-      _log('[ProfileRepo] Error blocking user: $e');
-      return false;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
@@ -1782,78 +1991,110 @@ class ProfileRepo {
     String body, {
     String? parentCommentId,
   }) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return null;
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) return null;
 
-      final trimmed = body.trim();
-      if (trimmed.isEmpty || trimmed.length > 150) return null;
+        final trimmed = body.trim();
+        if (trimmed.isEmpty || trimmed.length > 150) return null;
 
-      final payload = <String, dynamic>{
-        'flow_post_id': postId,
-        'user_id': userId,
-        'body': trimmed,
-        if (parentCommentId != null && parentCommentId.isNotEmpty)
-          'parent_comment_id': parentCommentId,
-      };
+        final payload = <String, dynamic>{
+          'flow_post_id': postId,
+          'user_id': userId,
+          'body': trimmed,
+          if (parentCommentId != null && parentCommentId.isNotEmpty)
+            'parent_comment_id': parentCommentId,
+        };
 
-      final inserted = await _insertFlowPostCommentRow(
-        payload,
-        includeParentCommentId: true,
-      );
+        final inserted = await _insertFlowPostCommentRow(
+          payload,
+          includeParentCommentId: true,
+        );
 
-      return FlowPostComment.fromJson(inserted);
-    } catch (e) {
-      if (_isMissingColumn(e, 'parent_comment_id')) {
-        if (parentCommentId != null && parentCommentId.isNotEmpty) {
-          throw const FlowPostEngagementUnavailable(
-            'flow_post_comment_replies',
-          );
-        }
-        try {
-          final inserted = await _insertFlowPostCommentRow({
-            'flow_post_id': postId,
-            'user_id': _client.auth.currentUser?.id,
-            'body': body.trim(),
-          }, includeParentCommentId: false);
-          return FlowPostComment.fromJson(inserted);
-        } catch (fallbackError) {
-          if (_isMissingTable(fallbackError, 'flow_post_comments')) {
-            throw const FlowPostEngagementUnavailable('flow_post_comments');
+        return FlowPostComment.fromJson(inserted);
+      } catch (e) {
+        if (_isMissingColumn(e, 'parent_comment_id')) {
+          if (parentCommentId != null && parentCommentId.isNotEmpty) {
+            throw const FlowPostEngagementUnavailable(
+              'flow_post_comment_replies',
+            );
           }
-          _log(
-            '[ProfileRepo] Error adding flow post comment (fallback): $fallbackError',
-          );
-          return null;
+          try {
+            final inserted = await _insertFlowPostCommentRow({
+              'flow_post_id': postId,
+              'user_id': _client.auth.currentUser?.id,
+              'body': body.trim(),
+            }, includeParentCommentId: false);
+            return FlowPostComment.fromJson(inserted);
+          } catch (fallbackError) {
+            if (_isMissingTable(fallbackError, 'flow_post_comments')) {
+              throw const FlowPostEngagementUnavailable('flow_post_comments');
+            }
+            _log(
+              '[ProfileRepo] Error adding flow post comment (fallback): $fallbackError',
+            );
+            return null;
+          }
         }
+        if (_isMissingTable(e, 'flow_post_comments')) {
+          throw const FlowPostEngagementUnavailable('flow_post_comments');
+        }
+        _log('[ProfileRepo] Error adding flow post comment: $e');
+        return null;
       }
-      if (_isMissingTable(e, 'flow_post_comments')) {
-        throw const FlowPostEngagementUnavailable('flow_post_comments');
-      }
-      _log('[ProfileRepo] Error adding flow post comment: $e');
-      return null;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
   /// Delete one of the current user's flow post comments.
   Future<bool> deleteFlowPostComment(String commentId) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return false;
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) return false;
 
-      await _client
-          .from('flow_post_comments')
-          .delete()
-          .eq('id', commentId)
-          .eq('user_id', userId);
+        await _client
+            .from('flow_post_comments')
+            .delete()
+            .eq('id', commentId)
+            .eq('user_id', userId);
 
-      return true;
-    } catch (e) {
-      if (_isMissingTable(e, 'flow_post_comments')) {
-        throw const FlowPostEngagementUnavailable('flow_post_comments');
+        return true;
+      } catch (e) {
+        if (_isMissingTable(e, 'flow_post_comments')) {
+          throw const FlowPostEngagementUnavailable('flow_post_comments');
+        }
+        _log('[ProfileRepo] Error deleting flow post comment: $e');
+        return false;
       }
-      _log('[ProfileRepo] Error deleting flow post comment: $e');
-      return false;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 
@@ -1862,30 +2103,46 @@ class ProfileRepo {
     String commentId, {
     required bool like,
   }) async {
+    final warmAccount = _client.auth.currentUser?.id;
+    invalidateWarmDomains(warmAccount, [
+      'social.',
+      'commons.',
+      'pages.posts',
+      'pages.commons',
+    ]);
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return false;
+      try {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) return false;
 
-      if (like) {
-        await _client.from('flow_post_comment_likes').upsert({
-          'comment_id': commentId,
-          'user_id': userId,
-        }, onConflict: 'comment_id,user_id');
-      } else {
-        await _client
-            .from('flow_post_comment_likes')
-            .delete()
-            .eq('comment_id', commentId)
-            .eq('user_id', userId);
-      }
+        if (like) {
+          await _client.from('flow_post_comment_likes').upsert({
+            'comment_id': commentId,
+            'user_id': userId,
+          }, onConflict: 'comment_id,user_id');
+        } else {
+          await _client
+              .from('flow_post_comment_likes')
+              .delete()
+              .eq('comment_id', commentId)
+              .eq('user_id', userId);
+        }
 
-      return true;
-    } catch (e) {
-      if (_isMissingTable(e, 'flow_post_comment_likes')) {
-        throw const FlowPostEngagementUnavailable('flow_post_comment_likes');
+        return true;
+      } catch (e) {
+        if (_isMissingTable(e, 'flow_post_comment_likes')) {
+          throw const FlowPostEngagementUnavailable('flow_post_comment_likes');
+        }
+        _log('[ProfileRepo] Error updating flow post comment like: $e');
+        return false;
       }
-      _log('[ProfileRepo] Error updating flow post comment like: $e');
-      return false;
+    } finally {
+      invalidateWarmDomains(warmAccount, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
     }
   }
 

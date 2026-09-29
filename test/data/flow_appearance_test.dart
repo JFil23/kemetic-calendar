@@ -37,8 +37,10 @@ void main() {
 
       expect(userEventsRepo, contains('FlowAppearance? appearance'));
       expect(
-        userEventsRepo,
-        contains("if (appearance != null) {\n      payload['appearance']"),
+        RegExp(
+          r"if\s*\(appearance != null\)\s*\{\s*payload\['appearance'\]",
+        ).hasMatch(userEventsRepo),
+        isTrue,
       );
       expect(flowsRepo, contains('FlowAppearance? appearance'));
       expect(flowsRepo, contains("if (appearance != null) 'appearance':"));
