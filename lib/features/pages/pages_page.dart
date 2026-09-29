@@ -145,6 +145,7 @@ class _PagesPageState extends State<PagesPage>
         case PagesDestination.calendar:
           break;
         case PagesDestination.feed:
+          _controller?.didOpenFeed();
           await openDetailRoute<void>(context, '/profile/me?feed=1&commons=1');
         case PagesDestination.library:
           await openDetailRoute<void>(context, '/nodes');

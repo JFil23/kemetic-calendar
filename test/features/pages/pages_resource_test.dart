@@ -1,3 +1,7 @@
+import 'package:flutter/material.dart' show TimeOfDay;
+import 'package:mobile/data/nutrition_repo.dart';
+import 'package:mobile/features/rhythm/planner/planner_overview.dart';
+import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'package:fake_async/fake_async.dart';
 import 'package:mobile/data/commons_models.dart';
 import 'package:mobile/features/pages/pages_feed_rotation.dart';
@@ -51,74 +55,137 @@ Future<void> drain() async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  test('Feed editions use cached Commons and make zero requests', () async {
-    SharedPreferences.setMockInitialValues({});
-    final requests = <http.Request>[];
-    final client = SupabaseClient(
-      'https://example.supabase.co',
-      'test-key',
-      authOptions: const AuthClientOptions(autoRefreshToken: false),
-      httpClient: MockClient((request) async {
-        requests.add(request);
-        return http.Response('[]', 200);
-      }),
-    );
-    await client.auth.recoverSession(session());
-    final cache = AccountViewCache()..enterAccount(uid);
-    final snapshot = CommonsHomeSnapshot(
-      rhythm: CommonsRhythmSummary.empty(),
-      publicSharedPractices: [
-        CommonsPracticeRoom.fromJson({
-          'id': 'room',
-          'title': 'Actual public practice',
-          'visibility': 'public',
-          'status': 'active',
-          'join_policy': 'owner_approval',
-          'member_count': 3,
-          'viewer_can_request_join': true,
+  test(
+    'Planner and Feed editions use cached data and make zero requests',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final requests = <http.Request>[];
+      final client = SupabaseClient(
+        'https://example.supabase.co',
+        'test-key',
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+        httpClient: MockClient((request) async {
+          requests.add(request);
+          return http.Response('[]', 200);
         }),
-      ],
-    );
-    cache.publish(uid, 'social.commons', snapshot);
-    fakeAsync((time) {
-      final start = DateTime(2026, 9, 28, 11, 29, 59);
-      final rotation = PagesFeedRotation(now: () => start.add(time.elapsed));
-      final controller = PagesController(
-        client,
-        cache: cache,
-        feedRotation: rotation,
       );
-      final feed = controller.cards[PagesDestination.feed.index];
-      var feedPaints = 0;
-      var otherPaints = 0;
-      feed.addListener(() => feedPaints++);
-      for (final card in controller.cards) {
-        if (card != feed) card.addListener(() => otherPaints++);
-      }
-      requests.clear();
-      rotation.setActive(true);
-      expect(feed.value.feedDisplay, PagesFeedDisplay.question);
-      time.elapse(const Duration(seconds: 2));
-      expect(feed.value.feedDisplay, PagesFeedDisplay.practice);
-      expect(feed.value.practice?.id, 'room');
-      expect(identical(feed.value.rhythm, snapshot.rhythm), isTrue);
-      time.elapse(const Duration(hours: 6));
-      expect(feed.value.feedDisplay, PagesFeedDisplay.publicRhythm);
-      expect(feedPaints, 2);
-      expect(otherPaints, 0);
-      expect(requests, isEmpty);
-      controller.setVisible(false);
-      expect(time.nonPeriodicTimerCount, 0);
-      time.elapse(const Duration(hours: 12));
-      expect(feedPaints, 2);
-      rotation.setActive(true);
-      expect(feed.value.feedDisplay, PagesFeedDisplay.question);
-      expect(requests, isEmpty);
-      controller.dispose();
-      expect(time.nonPeriodicTimerCount, 0);
-    });
-    await client.dispose();
-  });
+      await client.auth.recoverSession(session());
+      final cache = AccountViewCache()..enterAccount(uid);
+      final snapshot = CommonsHomeSnapshot(
+        rhythm: CommonsRhythmSummary.empty(),
+        publicSharedPractices: [
+          CommonsPracticeRoom.fromJson({
+            'id': 'room',
+            'title': 'Actual public practice',
+            'visibility': 'public',
+            'status': 'active',
+            'join_policy': 'owner_approval',
+            'member_count': 3,
+            'viewer_can_request_join': true,
+          }),
+        ],
+      );
+      cache.publish(uid, 'social.commons', snapshot);
+      final day = DateTime(2026, 9, 28);
+      final decan = (KemeticMath.fromGregorian(day).kDay - 1) % 10 + 1;
+      cache.publish(
+        uid,
+        'planner.overview',
+        PlannerOverview(
+          todos: const [],
+          alignment: const [],
+          note: 'Say no to burnout',
+          nutritionStates: const {},
+          nutrition: [
+            NutritionItem(
+              id: 'food',
+              nutrient: 'Magnesium',
+              source: 'Pumpkin seeds',
+              purpose: 'Support',
+              schedule: IntakeSchedule(
+                mode: IntakeMode.decan,
+                decanDays: {decan},
+                repeat: true,
+                time: const TimeOfDay(hour: 7, minute: 0),
+              ),
+            ),
+          ],
+        ),
+      );
+      fakeAsync((time) {
+        final start = DateTime(2026, 9, 28, 11, 29, 59);
+        final rotation = PagesFeedRotation(now: () => start.add(time.elapsed));
+        final controller = PagesController(
+          client,
+          cache: cache,
+          feedRotation: rotation,
+        );
+        final feed = controller.cards[PagesDestination.feed.index];
+        final planner = controller.cards[PagesDestination.planner.index];
+        var plannerPaints = 0;
+        planner.addListener(() => plannerPaints++);
+        var feedPaints = 0;
+        var otherPaints = 0;
+        feed.addListener(() => feedPaints++);
+        for (final card in controller.cards) {
+          if (card != feed && card != planner) {
+            card.addListener(() => otherPaints++);
+          }
+        }
+        requests.clear();
+        rotation.setActive(true);
+        expect(feed.value.feedDisplay, PagesFeedDisplay.question);
+        expect(planner.value.plannerDisplay, PagesPlannerDisplay.note);
+        time.elapse(const Duration(seconds: 2));
+        expect(feed.value.feedDisplay, PagesFeedDisplay.practice);
+        expect(feed.value.practice?.id, 'room');
+        expect(planner.value.plannerDisplay, PagesPlannerDisplay.nutrition);
+        expect(planner.value.primary.title, 'Magnesium');
+        expect(identical(feed.value.rhythm, snapshot.rhythm), isTrue);
+        time.elapse(const Duration(hours: 6));
+        expect(feed.value.feedDisplay, PagesFeedDisplay.publicRhythm);
+        expect(feedPaints, 2);
+        expect(plannerPaints, 2);
+        expect(planner.value.plannerDisplay, PagesPlannerDisplay.scale);
+        expect(otherPaints, 0);
+        expect(requests, isEmpty);
+        controller.setVisible(false);
+        expect(time.nonPeriodicTimerCount, 0);
+        time.elapse(const Duration(hours: 12));
+        expect(feedPaints, 2);
+        rotation.setActive(true);
+        expect(feed.value.feedDisplay, PagesFeedDisplay.question);
+        expect(requests, isEmpty);
+        final freshSnapshot = CommonsHomeSnapshot(
+          rhythm: snapshot.rhythm,
+          publicSharedPractices: [
+            CommonsPracticeRoom.fromJson({
+              'id': 'fresh',
+              'title': 'New eligible room',
+              'status': 'active',
+              'visibility': 'public',
+              'join_policy': 'owner_approval',
+              'viewer_can_request_join': true,
+              'created_at': rotation.now
+                  .subtract(const Duration(minutes: 10))
+                  .toIso8601String(),
+            }),
+          ],
+        );
+        cache.publish(uid, 'social.commons', freshSnapshot);
+        expect(feed.value.practice?.id, 'fresh');
+        expect(feed.value.meta, startsWith('New public practice'));
+        controller.didOpenFeed();
+        expect(feed.value.feedDisplay, PagesFeedDisplay.question);
+        cache.publish(uid, 'social.commons', freshSnapshot);
+        expect(feed.value.feedDisplay, PagesFeedDisplay.question);
+        expect(requests, isEmpty);
+        controller.dispose();
+        expect(time.nonPeriodicTimerCount, 0);
+      });
+      await client.dispose();
+    },
+  );
   test(
     'filed upcoming events select Sky before tomorrow Offering and retain its artwork key',
     () async {

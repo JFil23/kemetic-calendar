@@ -86,37 +86,6 @@ void main() {
     expect(pagesCommonsSignal(room()).title, 'Group');
     expect(pagesCommonsSignal(null).title, 'Find a group');
   });
-  test('planner chooses an open todo, then future nutrition, never a flow', () {
-    final now = DateTime(2026, 9, 26, 12);
-    final food = PagesPlannerItem(
-      'Nutrition',
-      isNutrition: true,
-      at: now.add(const Duration(hours: 1)),
-    );
-    final todo = PagesPlannerItem(
-      'Commitment',
-      isNutrition: false,
-      at: now.add(const Duration(hours: 2)),
-    );
-    expect(selectPagesPlanner([food, todo], now), same(todo));
-    expect(
-      selectPagesPlanner([
-        const PagesPlannerItem('Done', done: true, isNutrition: false),
-        food,
-      ], now),
-      same(food),
-    );
-    expect(
-      selectPagesPlanner([
-        PagesPlannerItem(
-          'Past food',
-          isNutrition: true,
-          at: now.subtract(const Duration(hours: 1)),
-        ),
-      ], now),
-      isNull,
-    );
-  });
   test(
     'studio chooses earliest scheduled flow and never invents an unscheduled fallback',
     () {

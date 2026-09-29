@@ -1,4 +1,6 @@
 import '../profile/commons_practice_card.dart';
+import '../profile/commons_question_block.dart';
+import '../rhythm/widgets/planner/planner_note_text.dart';
 import 'pages_feed_rotation.dart';
 import '../profile/commons_rhythm_block.dart';
 import 'pages_studio_graphic.dart';
@@ -222,6 +224,14 @@ class PagesTile extends StatelessWidget {
   Widget _large() {
     switch (card.destination) {
       case PagesDestination.feed:
+        if (card.feedDisplay == PagesFeedDisplay.answer &&
+            card.answer != null) {
+          return CommonsAnswerCard(
+            answer: card.answer!,
+            pane: true,
+            onAction: (_) {},
+          );
+        }
         if (card.feedDisplay == PagesFeedDisplay.practice &&
             card.practice != null) {
           return CommonsPracticeCard(room: card.practice!, pane: true);
@@ -231,6 +241,50 @@ class PagesTile extends StatelessWidget {
             ? CommonsRhythmBlock(summary: card.rhythm, pane: true)
             : PagesQuestionPreview(question: card.question);
       case PagesDestination.planner:
+        if (card.plannerDisplay != PagesPlannerDisplay.scale) {
+          return _ground(
+            const Color(0xff100d08),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _micro(card.primary.label.toUpperCase(), tracked: true),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: Center(
+                      child: card.plannerDisplay == PagesPlannerDisplay.note
+                          ? PlannerNoteText(
+                              card.primary.title,
+                              fontSize: 18,
+                              maxLines: 3,
+                            )
+                          : Text(
+                              card.primary.title,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: PlannerVisualTokens.plateBody.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
+                  ),
+                  if (card.primary.detail.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      card.primary.detail,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: pagesSerif(11, color: const Color(0xffb0b0b0)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        }
         final percent = card.primary.progress;
         if (percent == null) return _signal(card.primary);
         return _ground(

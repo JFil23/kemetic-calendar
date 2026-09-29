@@ -110,6 +110,11 @@ class PlannerOverview {
           PagesPlannerItem(
             n.nutrient.trim().isEmpty ? n.source : n.nutrient,
             isNutrition: true,
+            isDecanNutrition: schedule.mode == IntakeMode.decan,
+            detail: [
+              n.source.trim(),
+              n.purpose.trim(),
+            ].where((s) => s.isNotEmpty).join(' · '),
             done:
                 status == RhythmItemState.done ||
                 status == RhythmItemState.skipped,

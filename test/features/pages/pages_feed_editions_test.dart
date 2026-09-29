@@ -129,7 +129,7 @@ void main() {
         question: question,
         commons: home([]),
       ).display,
-      PagesFeedDisplay.question,
+      PagesFeedDisplay.publicRhythm,
     );
     expect(
       selectPagesFeedEdition(
@@ -173,7 +173,6 @@ void main() {
       {'viewer_request_status': 'pending'},
       {'viewer_request_status': 'blocked'},
       {'viewer_request_status': 'approved'},
-      {'member_count': 1},
       {'id': ''},
     ]) {
       final selected = selectPagesFeedEdition(
@@ -181,7 +180,11 @@ void main() {
         question: question,
         commons: home([room('a', fields)]),
       );
-      expect(selected.display, PagesFeedDisplay.question, reason: '$fields');
+      expect(
+        selected.display,
+        PagesFeedDisplay.publicRhythm,
+        reason: '$fields',
+      );
       expect(selected.practice, isNull);
     }
     final duplicate = home(
@@ -225,4 +228,147 @@ void main() {
       isNot(first.practice?.id),
     );
   });
+  test(
+    'single-member practices are eligible and fresh priority expires or dismisses',
+    () {
+      final now = DateTime(2026, 9, 28, 8);
+      final fresh = room('fresh', {
+        'member_count': 1,
+        'created_at': DateTime(2026, 9, 28, 7).toIso8601String(),
+      });
+      final commons = home([fresh]);
+      final selected = selectPagesFeedEdition(
+        now: now,
+        question: question,
+        commons: commons,
+      );
+      expect(selected.practice?.id, 'fresh');
+      expect(selected.fresh, isTrue);
+      expect(
+        selectPagesFeedEdition(
+          now: now,
+          question: question,
+          commons: commons,
+          allowFresh: false,
+        ).display,
+        PagesFeedDisplay.question,
+      );
+      expect(
+        selectPagesFeedEdition(
+          now: DateTime(2026, 9, 28, 12),
+          question: question,
+          commons: commons,
+        ).fresh,
+        isFalse,
+      );
+      expect(
+        selectPagesFeedEdition(
+          now: DateTime(2026, 9, 28, 12),
+          question: question,
+          commons: commons,
+        ).practice?.id,
+        'fresh',
+      );
+      final newer = room('newer', {
+        'created_at': DateTime(2026, 9, 28, 7, 30).toIso8601String(),
+      });
+      expect(
+        selectPagesFeedEdition(
+          now: now,
+          question: question,
+          commons: home([newer, fresh]),
+          heldPracticeId: 'fresh',
+        ).practice?.id,
+        'fresh',
+      );
+      for (final fields in [
+        {'created_at': DateTime(2026, 9, 28, 9).toIso8601String()},
+        {'created_at': DateTime(2026, 9, 27, 7).toIso8601String()},
+        {'updated_at': DateTime(2026, 9, 28, 7).toIso8601String()},
+        {
+          'created_at': DateTime(2026, 9, 28, 7).toIso8601String(),
+          'viewer_can_request_join': false,
+        },
+      ]) {
+        expect(
+          selectPagesFeedEdition(
+            now: now,
+            question: question,
+            commons: home([room('a', fields)]),
+          ).fresh,
+          isFalse,
+        );
+      }
+    },
+  );
+  test(
+    'public answers belong to today and another viewer, with useful content',
+    () {
+      CommonsAnswer answer(
+        String id, {
+        String q = 'today',
+        String user = 'other',
+        String? text,
+        bool mine = false,
+      }) => CommonsAnswer(
+        id: id,
+        questionId: q,
+        userId: user,
+        isMine: mine,
+        bodyText:
+            text ??
+            'I am slowing down enough to notice the people around me when the day becomes busy.',
+      );
+      final eligible = answer('eligible');
+      final q = CommonsQuestion(
+        id: 'today',
+        question: question.question,
+        myAnswer: answered.myAnswer,
+        answers: [
+          answer('wrong', q: 'yesterday'),
+          answer('own', user: 'viewer'),
+          answer('flagged', mine: true),
+          answer('brief', text: 'Yes'),
+          eligible,
+        ],
+      );
+      for (final hour in [7, 12]) {
+        final selected = selectPagesFeedEdition(
+          now: DateTime(2026, 9, 28, hour),
+          question: q,
+          commons: home([]),
+          viewerId: 'viewer',
+        );
+        expect(selected.display, PagesFeedDisplay.answer);
+        expect(selected.answer, same(eligible));
+      }
+      expect(
+        selectPagesFeedEdition(
+          now: DateTime(2026, 9, 28, 19),
+          question: q,
+          commons: home([]),
+          viewerId: 'viewer',
+        ).display,
+        PagesFeedDisplay.publicRhythm,
+      );
+    },
+  );
+  test(
+    'resuming in the same edition on another day repaints from local time',
+    () {
+      fakeAsync((time) {
+        final start = DateTime(2026, 9, 28, 7);
+        final rotation = PagesFeedRotation(now: () => start.add(time.elapsed));
+        var paints = 0;
+        rotation.addListener(() => paints++);
+        rotation.setActive(true);
+        rotation.setActive(false);
+        time.elapse(const Duration(days: 1));
+        rotation.setActive(true);
+        expect(paints, 1);
+        expect(time.nonPeriodicTimerCount, 1);
+        rotation.dispose();
+      });
+    },
+  );
 }

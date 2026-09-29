@@ -478,10 +478,11 @@ class CommonsAnswerCard extends StatelessWidget {
     super.key,
     required this.answer,
     this.isMine = false,
+    this.pane = false,
     required this.onAction,
   });
   final CommonsAnswer answer;
-  final bool isMine;
+  final bool isMine, pane;
   final ValueChanged<String> onAction;
   @override
   Widget build(BuildContext context) {
@@ -515,7 +516,7 @@ class CommonsAnswerCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (isMine)
+              if (!pane && isMine)
                 PopupMenuButton<String>(
                   onSelected: onAction,
                   icon: Icon(
@@ -528,7 +529,7 @@ class CommonsAnswerCard extends StatelessWidget {
                     PopupMenuItem(value: 'delete', child: Text('Delete')),
                   ],
                 )
-              else
+              else if (!pane)
                 PopupMenuButton<String>(
                   onSelected: onAction,
                   icon: Icon(
@@ -543,16 +544,41 @@ class CommonsAnswerCard extends StatelessWidget {
                 ),
             ],
           ),
-          Text(
-            answer.bodyText,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.82),
-              fontFamily: _profileSerifFont,
-              fontFamilyFallback: _profileSerifFallback,
-              fontSize: 17,
-              height: 1.32,
+          if (pane) const SizedBox(height: 8),
+          if (pane)
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) => Text(
+                  answer.bodyText,
+                  maxLines:
+                      (constraints.maxHeight /
+                              (14 *
+                                  1.2 *
+                                  MediaQuery.textScalerOf(context).scale(1)))
+                          .floor()
+                          .clamp(1, 5),
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    fontFamily: _profileSerifFont,
+                    fontFamilyFallback: _profileSerifFallback,
+                    fontSize: 14,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            )
+          else
+            Text(
+              answer.bodyText,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.82),
+                fontFamily: _profileSerifFont,
+                fontFamilyFallback: _profileSerifFallback,
+                fontSize: 17,
+                height: 1.32,
+              ),
             ),
-          ),
         ],
       ),
     );

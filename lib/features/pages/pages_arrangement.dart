@@ -26,11 +26,19 @@ class PagesEventWindow {
 
 /// Stable within a local day/edition, independent of payload ordering. Eligibility
 /// is rechecked on each existing cache update; nothing is recorded as "seen".
-({PagesFeedDisplay display, CommonsPracticeRoom? practice})
+({
+  PagesFeedDisplay display,
+  CommonsPracticeRoom? practice,
+  CommonsAnswer? answer,
+  bool fresh,
+})
 selectPagesFeedEdition({
   required DateTime now,
   required CommonsQuestion question,
   required CommonsHomeSnapshot commons,
+  bool allowFresh = true,
+  String? heldPracticeId,
+  String? viewerId,
 }) {
   final edition = PagesFeedRotation.editionAt(now);
   final byId = <String, CommonsPracticeRoom>{};
@@ -46,7 +54,6 @@ selectPagesFeedEdition({
           .where(
             (room) =>
                 room.title.trim().isNotEmpty &&
-                room.memberCount >= 2 &&
                 !room.viewerCanManage &&
                 room.viewerRequestStatus != 'approved' &&
                 isPagesJoinable(room),
@@ -60,35 +67,87 @@ selectPagesFeedEdition({
     hash = (hash * 31 + unit) & 0x7fffffff;
   }
   final room = rooms.isEmpty ? null : rooms[hash % rooms.length];
+  final start = PagesFeedRotation.editionStart(now);
+  final freshRooms =
+      rooms
+          .where(
+            (r) =>
+                r.createdAt != null &&
+                !r.createdAt!.isBefore(start) &&
+                !r.createdAt!.isAfter(now),
+          )
+          .toList()
+        ..sort((a, b) {
+          final order = b.createdAt!.compareTo(a.createdAt!);
+          return order == 0 ? a.id.compareTo(b.id) : order;
+        });
+  if (allowFresh && freshRooms.isNotEmpty) {
+    final fresh =
+        freshRooms.where((r) => r.id == heldPracticeId).firstOrNull ??
+        freshRooms.first;
+    return (
+      display: PagesFeedDisplay.practice,
+      practice: fresh,
+      answer: null,
+      fresh: true,
+    );
+  }
+  // Only today's server-visible public answers. A minimum of 12 words avoids
+  // empty/one-word responses; this is a transparent length filter, not a
+  // semantic quality score. Stable daily selection avoids recency churn.
+  final answers =
+      question.answers
+          .where(
+            (a) =>
+                !a.isMine &&
+                a.id != question.myAnswer?.id &&
+                a.userId != viewerId &&
+                a.questionId == question.id &&
+                a.bodyText.trim().split(RegExp(r'\s+')).length >= 12,
+          )
+          .toList()
+        ..sort((a, b) => a.id.compareTo(b.id));
+  final answer = answers.isEmpty ? null : answers[hash % answers.length];
   final unanswered =
       question.question.trim().isNotEmpty &&
       question.myAnswer == null &&
-      !question.answers.any((answer) => answer.isMine);
+      !question.answers.any(
+        (answer) => answer.isMine || answer.userId == viewerId,
+      );
   final priorities = switch (edition) {
     PagesFeedEdition.dawn => [
       PagesFeedDisplay.question,
+      PagesFeedDisplay.answer,
       PagesFeedDisplay.practice,
       PagesFeedDisplay.publicRhythm,
     ],
     PagesFeedEdition.midday => [
       PagesFeedDisplay.practice,
-      PagesFeedDisplay.question,
+      PagesFeedDisplay.answer,
       PagesFeedDisplay.publicRhythm,
     ],
     PagesFeedEdition.dusk => [PagesFeedDisplay.publicRhythm],
   };
   for (final display in priorities) {
+    if (display == PagesFeedDisplay.answer && answer != null) {
+      return (display: display, practice: null, answer: answer, fresh: false);
+    }
     if (display == PagesFeedDisplay.question && unanswered) {
-      return (display: display, practice: null);
+      return (display: display, practice: null, answer: null, fresh: false);
     }
     if (display == PagesFeedDisplay.practice && room != null) {
-      return (display: display, practice: room);
+      return (display: display, practice: room, answer: null, fresh: false);
     }
     if (display == PagesFeedDisplay.publicRhythm) {
-      return (display: display, practice: null);
+      return (display: display, practice: null, answer: null, fresh: false);
     }
   }
-  return (display: PagesFeedDisplay.publicRhythm, practice: null);
+  return (
+    display: PagesFeedDisplay.publicRhythm,
+    practice: null,
+    answer: null,
+    fresh: false,
+  );
 }
 
 class PagesUpcomingEvent {
@@ -130,34 +189,82 @@ class PagesPlannerItem {
     this.title, {
     this.at,
     this.done = false,
+    this.isDecanNutrition = false,
+    this.detail = '',
     required this.isNutrition,
   });
   final String title;
   final DateTime? at;
-  final bool done, isNutrition;
+  final bool done, isNutrition, isDecanNutrition;
+  final String detail;
 }
 
+/// Current-day unfinished items; earlier times today remain actionable.
 PagesPlannerItem? selectPagesPlanner(
   Iterable<PagesPlannerItem> records,
   DateTime now,
 ) {
-  final todos = records.where((r) => !r.done && !r.isNutrition).toList()
-    ..sort(
-      (a, b) => (a.at ?? DateTime(9999)).compareTo(b.at ?? DateTime(9999)),
+  final local = now.toLocal();
+  final tomorrow = DateTime(local.year, local.month, local.day + 1);
+  final today = DateTime(local.year, local.month, local.day);
+  final pending = records
+      .where((r) => !r.done && r.title.trim().isNotEmpty)
+      .toList();
+  final todos = pending
+      .where(
+        (r) => !r.isNutrition && (r.at == null || r.at!.isBefore(tomorrow)),
+      )
+      .toList();
+  final nutrition = pending
+      .where(
+        (r) =>
+            r.isNutrition &&
+            r.isDecanNutrition &&
+            r.at != null &&
+            !r.at!.isBefore(today) &&
+            r.at!.isBefore(tomorrow),
+      )
+      .toList();
+  int order(PagesPlannerItem a, PagesPlannerItem b) {
+    final at = (a.at ?? DateTime(9999)).compareTo(b.at ?? DateTime(9999));
+    return at == 0 ? a.title.compareTo(b.title) : at;
+  }
+
+  todos.sort(order);
+  nutrition.sort(order);
+  return switch (PagesFeedRotation.editionAt(now)) {
+    PagesFeedEdition.dawn => todos.firstOrNull,
+    PagesFeedEdition.midday => nutrition.firstOrNull ?? todos.firstOrNull,
+    PagesFeedEdition.dusk => null,
+  };
+}
+
+({PagesPlannerDisplay display, PagesPlannerItem? item})
+selectPagesPlannerEdition({
+  required DateTime now,
+  required String note,
+  required Iterable<PagesPlannerItem> records,
+}) {
+  final edition = PagesFeedRotation.editionAt(now);
+  if (edition == PagesFeedEdition.dusk) {
+    return (display: PagesPlannerDisplay.scale, item: null);
+  }
+  if (edition == PagesFeedEdition.dawn && note.trim().isNotEmpty) {
+    return (display: PagesPlannerDisplay.note, item: null);
+  }
+  final item = selectPagesPlanner(records, now);
+  if (item != null) {
+    return (
+      display: item.isNutrition
+          ? PagesPlannerDisplay.nutrition
+          : PagesPlannerDisplay.todo,
+      item: item,
     );
-  if (todos.isNotEmpty) return todos.first;
-  final nutrition =
-      records
-          .where(
-            (r) =>
-                !r.done &&
-                r.isNutrition &&
-                r.at != null &&
-                !r.at!.isBefore(now),
-          )
-          .toList()
-        ..sort((a, b) => a.at!.compareTo(b.at!));
-  return nutrition.firstOrNull;
+  }
+  if (note.trim().isNotEmpty) {
+    return (display: PagesPlannerDisplay.note, item: null);
+  }
+  return (display: PagesPlannerDisplay.scale, item: null);
 }
 
 /// The subject is the other person, so outgoing actions cannot be attributed to them.

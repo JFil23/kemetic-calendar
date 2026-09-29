@@ -83,6 +83,8 @@ class PagesCalendarDay {
   final List<int> colors;
 }
 
+enum PagesPlannerDisplay { note, todo, nutrition, scale }
+
 @immutable
 class PagesCard {
   const PagesCard(
@@ -101,6 +103,8 @@ class PagesCard {
     this.calendars = const [],
     this.unread = 0,
     this.question,
+    this.answer,
+    this.plannerDisplay = PagesPlannerDisplay.scale,
     this.rhythm,
     this.practice,
     this.feedDisplay = PagesFeedDisplay.question,
@@ -127,6 +131,8 @@ class PagesCard {
   final List<({int color, bool visible})> calendars;
   final int unread;
   final CommonsQuestion? question;
+  final CommonsAnswer? answer;
+  final PagesPlannerDisplay plannerDisplay;
   final CommonsRhythmSummary? rhythm;
   final CommonsPracticeRoom? practice;
   final PagesFeedDisplay feedDisplay;

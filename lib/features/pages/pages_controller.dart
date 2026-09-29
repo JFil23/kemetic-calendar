@@ -67,7 +67,7 @@ class PagesController {
       }
       if (active) unawaited(_loadSocial());
     });
-    _feedRotation.addListener(_paintFeed);
+    _feedRotation.addListener(_paintEditions);
     _seed();
   }
   final VoidCallback? onLocalBoundary;
@@ -81,6 +81,22 @@ class PagesController {
   ];
   StreamSubscription? _calendarChanges, _unreadChanges;
   final PagesFeedRotation _feedRotation;
+  DateTime? _freshEdition, _dismissedFreshEdition;
+  String? _heldFreshPractice;
+
+  void _paintEditions() {
+    if (_disposed || client.auth.currentUser?.id != uid) return;
+    _paintPlanner();
+    _paintFeed();
+  }
+
+  /// Transient presentation state only; opening Commons does not write a seen row.
+  void didOpenFeed() {
+    _dismissedFreshEdition = PagesFeedRotation.editionStart(_feedRotation.now);
+    _heldFreshPractice = null;
+    _paintFeed();
+  }
+
   Timer? _boundary;
   bool _visible = false, _disposed = false;
   bool get active =>
@@ -458,6 +474,9 @@ class PagesController {
       c.calendars,
       c.unread,
       c.feedDisplay,
+      c.plannerDisplay,
+      if (c.answer != null)
+        [c.answer!.id, c.answer!.bodyText, c.answer!.authorLabel],
       if (c.practice != null)
         [
           c.practice!.id,
@@ -522,27 +541,43 @@ class PagesController {
       _missing(PagesDestination.planner, ['planner.overview']);
       return;
     }
-    final now = DateTime.now(),
-        next = selectPagesPlanner(p.candidates(DateTime.now()), DateTime.now());
+    final now = _feedRotation.now;
+    final selected = selectPagesPlannerEdition(
+      now: now,
+      note: p.note,
+      records: p.candidates(now),
+    );
+    final item = selected.item;
+    final percent = p.percent(now);
+    final primary = switch (selected.display) {
+      PagesPlannerDisplay.note => PagesSignal(p.note.trim(), label: 'Note'),
+      PagesPlannerDisplay.todo => PagesSignal(
+        item!.title,
+        label: 'To do',
+        detail: _when(item.at),
+      ),
+      PagesPlannerDisplay.nutrition => PagesSignal(
+        item!.title,
+        label: 'Nutrition',
+        detail: item.detail,
+      ),
+      PagesPlannerDisplay.scale => PagesSignal(
+        'Aligned',
+        progress: percent.toDouble(),
+      ),
+    };
     _set(
       PagesCard(
         PagesDestination.planner,
         state: PagesLoadState.ready,
-        meta: '${p.percent(now)}% aligned',
-        primary: PagesSignal('Aligned', progress: p.percent(now).toDouble()),
-        upper: PagesSignal(
-          p.note.isEmpty ? 'Name a commitment' : p.note,
-          label: 'Note',
-        ),
-        lower: PagesSignal(
-          next?.title ?? 'All caught up',
-          label: next == null
-              ? ''
-              : next.isNutrition
-              ? 'Nutrition'
-              : 'To do',
-          detail: _when(next?.at),
-        ),
+        plannerDisplay: selected.display,
+        primary: primary,
+        meta: switch (selected.display) {
+          PagesPlannerDisplay.note => 'Today’s alignment note',
+          PagesPlannerDisplay.todo => 'Next unfinished to-do',
+          PagesPlannerDisplay.nutrition => 'Today’s decan nutrition',
+          PagesPlannerDisplay.scale => '$percent% aligned',
+        },
       ),
     );
   }
@@ -777,23 +812,34 @@ class PagesController {
     }
     final now = _feedRotation.now;
     final question = activeCommonsQuestion(commons, now);
+    final edition = PagesFeedRotation.editionStart(now);
+    if (_freshEdition != edition) {
+      _freshEdition = edition;
+      _heldFreshPractice = null;
+    }
     final selected = selectPagesFeedEdition(
       now: now,
       question: question,
       commons: commons,
+      viewerId: uid,
+      allowFresh: _dismissedFreshEdition != edition,
+      heldPracticeId: _heldFreshPractice,
     );
+    _heldFreshPractice = selected.fresh ? selected.practice!.id : null;
     _set(
       PagesCard(
         PagesDestination.feed,
         state: PagesLoadState.ready,
         question: question,
+        answer: selected.answer,
         rhythm: commons.rhythm,
         practice: selected.practice,
         feedDisplay: selected.display,
         meta: switch (selected.display) {
           PagesFeedDisplay.question => 'Question of the day',
+          PagesFeedDisplay.answer => 'Question of the day · public answer',
           PagesFeedDisplay.practice =>
-            'Public practice · ${selected.practice!.title}',
+            '${selected.fresh ? 'New public practice' : 'Public practice'} · ${selected.practice!.title}',
           PagesFeedDisplay.publicRhythm => 'Today in the Commons',
         },
       ),

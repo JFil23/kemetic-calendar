@@ -1,3 +1,4 @@
+import '../widgets/planner/planner_note_text.dart';
 import 'dart:async';
 import '../../../data/account_view_cache.dart';
 import '../planner/planner_overview.dart';
@@ -2905,21 +2906,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 );
               },
             )
-          : Center(
-              child: KemeticGold.text(
-                note.text,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: PlannerVisualTokens.serifFamily,
-                  fontFamilyFallback: PlannerVisualTokens.serifFallback,
-                  height: 1.15,
-                ),
-                maxLines: 6,
-                softWrap: true,
-              ),
-            ),
+          : Center(child: PlannerNoteText(note.text)),
     );
 
     return GestureDetector(

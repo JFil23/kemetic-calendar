@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
-enum PagesFeedDisplay { question, practice, publicRhythm }
+enum PagesFeedDisplay { question, answer, practice, publicRhythm }
 
 enum PagesFeedEdition { dawn, midday, dusk }
 
@@ -9,10 +9,12 @@ enum PagesFeedEdition { dawn, midday, dusk }
 class PagesFeedRotation extends ChangeNotifier {
   PagesFeedRotation({DateTime Function()? now}) : _now = now ?? DateTime.now {
     edition = editionAt(this.now);
+    _editionStart = editionStart(this.now);
   }
   final DateTime Function() _now;
   DateTime get now => _now().toLocal();
   late PagesFeedEdition edition;
+  late DateTime _editionStart;
   Timer? _timer;
   bool _active = false;
 
@@ -21,6 +23,18 @@ class PagesFeedRotation extends ChangeNotifier {
     final minute = local.hour * 60 + local.minute;
     if (minute < 300 || minute >= 1050) return PagesFeedEdition.dusk;
     return minute < 690 ? PagesFeedEdition.dawn : PagesFeedEdition.midday;
+  }
+
+  static DateTime editionStart(DateTime time) {
+    final t = time.toLocal();
+    final edition = editionAt(t);
+    if (edition == PagesFeedEdition.dawn) {
+      return DateTime(t.year, t.month, t.day, 5);
+    }
+    if (edition == PagesFeedEdition.midday) {
+      return DateTime(t.year, t.month, t.day, 11, 30);
+    }
+    return DateTime(t.year, t.month, t.day - (t.hour < 5 ? 1 : 0), 17, 30);
   }
 
   static DateTime nextBoundary(DateTime time) {
@@ -48,7 +62,9 @@ class PagesFeedRotation extends ChangeNotifier {
 
   void _refresh() {
     final next = editionAt(now);
-    if (edition == next) return;
+    final start = editionStart(now);
+    if (_editionStart == start) return;
+    _editionStart = start;
     edition = next;
     notifyListeners();
   }
