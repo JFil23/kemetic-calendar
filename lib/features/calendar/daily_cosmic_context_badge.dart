@@ -1,3 +1,5 @@
+import 'package:mobile/features/calendar/pronunciation/pronunciation_identity.dart';
+import 'package:mobile/widgets/pronounce_icon_button.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -423,12 +425,17 @@ class _DailyCosmicContextCard extends StatelessWidget {
                       ),
                       if (decanName.isNotEmpty) ...[
                         const SizedBox(height: 3),
-                        Text(
-                          decanName,
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 12.5,
-                            height: 1.35,
+                        PronunciationLabel(
+                          pronunciationKey: PronunciationIdentity.dayKey(
+                            badge.dayKey,
+                          ),
+                          child: Text(
+                            decanName,
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 12.5,
+                              height: 1.35,
+                            ),
                           ),
                         ),
                       ],

@@ -7,7 +7,7 @@
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Detail Page (single-window behavior, flows-aware) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */",
-      "sha256": "fda41b5eda6c47cf41fecbadca3fbaf3640de89d46f156609d808761835aee8d"
+      "sha256": "d41530f0d1a70f4159c7f539ef4679fb9e3d7e318668236759ef8fce88dd7c6a"
     },
     {
       "name": "calendar_text_styles",
@@ -84,7 +84,7 @@
       "file": "lib/features/calendar/scrolling_calendar_month_header.dart",
       "start": "class ScrollingCalendarMonthHeader extends StatelessWidget {",
       "end": null,
-      "sha256": "fa535225073349df60c7a49471ffdae3b4101a5971e4e6789a4295b5e0108273"
+      "sha256": "99ac63f8b6b7fea92a7c140086306aed6c0aca3d4af7562e66519c53b53a353d"
     },
     {
       "name": "logical_section_domain",
@@ -100,5 +100,6 @@
       "end": null,
       "sha256": "fbbca375036c4346f6172286bfce83d316f5fde4450496053647a1a5080ca572"
     }
-  ]
+  ],
+  "pronunciation_audit": "2026-09-28; contributor inventory pronunciation control re-audit"
 }

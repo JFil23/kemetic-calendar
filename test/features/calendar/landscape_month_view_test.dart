@@ -770,7 +770,9 @@ void main() {
       await _setViewport(tester, const Size(430, 932));
       await _pumpMonthCard(tester, expansionLevel: MonthExpansionLevel.details);
 
-      expect(find.byType(IconButton), findsNothing);
+      final icons = tester.widgetList<IconButton>(find.byType(IconButton));
+      expect(icons, hasLength(4));
+      expect(icons.map((icon) => icon.tooltip), everyElement('Play pronunciation'));
       expect(find.byType(TextButton), findsNothing);
       expect(find.byType(ElevatedButton), findsNothing);
       expect(find.byType(OutlinedButton), findsNothing);

@@ -68,9 +68,9 @@ import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/pronounce_icon_button.dart';
 import '../../widgets/utility_sheet_route_scaffold.dart';
-import '../../services/speech/speech_service.dart';
-import 'speech_resolver.dart';
-import 'decan_id.dart';
+import 'package:mobile/features/calendar/pronunciation/pronunciation_service.dart';
+import 'pronunciation/pronunciation_catalog.dart';
+import 'pronunciation/pronunciation_identity.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'calendar_user_scoped_prefs.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
@@ -33964,6 +33964,8 @@ class CalendarPageState extends State<CalendarPage>
   void _showReflectionSheet() {
     final prompt = _reflectionPrompt;
     if (prompt == null) return;
+    final date = KemeticMath.fromGregorian(prompt.decanStart.toLocal());
+    final pronunciationKey = PronunciationIdentity.day(date.kMonth, date.kDay);
     final dateRange =
         '${_formatDateOnlyLocal(prompt.decanStart)} → ${_formatDateOnlyLocal(prompt.decanEnd)}';
 
@@ -33994,13 +33996,14 @@ class CalendarPageState extends State<CalendarPage>
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(
+                  PronunciationLabel(pronunciationKey: pronunciationKey, child: Text(
                     prompt.decanName,
                     style: const TextStyle(
                       color: _gold,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
+                  ),
                   ),
                   const SizedBox(height: 4),
                   Text(

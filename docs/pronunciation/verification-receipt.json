@@ -1,0 +1,48 @@
+{
+  "verifiedAtUtc": "2026-09-29T02:45:28.413688+00:00",
+  "checkout": "/Users/jaralephillips/dev/kemetic-calendar-rc",
+  "branch": "rc",
+  "baselineCommit": "b07af9c3169bf9716a2ede32aacce85c14d468b3",
+  "changeState": "uncommitted implementation; not deployed",
+  "catalog": {
+    "entries": 54,
+    "textApproved": 54,
+    "recordingStatus": "rendered replaceable first-pass; no final listening approval",
+    "audioBytes": 2190732,
+    "allDecoded": true,
+    "allChecksumsMatch": true
+  },
+  "fullRegression": {
+    "command": "flutter test --no-pub --reporter expanded",
+    "passed": 3072,
+    "skipped": 1,
+    "failed": 0,
+    "duration": "7m48s"
+  },
+  "analyzer": {
+    "command": "flutter analyze --no-pub --no-fatal-infos",
+    "errors": 0,
+    "warnings": 0,
+    "existingInfos": 6,
+    "existingInfoFile": "lib/features/calendar/calendar_active_maat_flows.dart"
+  },
+  "web": {
+    "fullAppDebugBuild": "passed",
+    "packagedAudioHashMatches": 54,
+    "localBrowserPrimaryPlayback": [
+      "month.12",
+      "decan.01.02"
+    ],
+    "forced404FallbackCompleted": "month.01",
+    "temporaryFaultRestored": true
+  },
+  "ios": {
+    "status": "blocked before launch",
+    "device": "Haw RC Verification iOS 26.2 simulator",
+    "command": "flutter test integration_test/pronunciation_playback_test.dart -d 63779929-2DC4-4714-904F-1B3B92893BDF --no-pub --reporter expanded",
+    "error": "speech_to_text/speech_to_text-Swift.h file not found in speech_to_text-6.6.2/ios/Classes/SpeechToTextPlugin.m"
+  },
+  "extentInventory": "re-audited and guard passed",
+  "legacyRuntime": "removed",
+  "visibleSpelling": "unchanged; snapshot guards passed"
+}

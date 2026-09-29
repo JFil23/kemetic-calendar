@@ -20,9 +20,9 @@ import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/pronounce_icon_button.dart';
-import 'package:mobile/services/speech/speech_service.dart';
-import 'package:mobile/features/calendar/speech_resolver.dart';
-import 'package:mobile/features/calendar/decan_id.dart';
+import 'package:mobile/features/calendar/pronunciation/pronunciation_service.dart';
+import 'package:mobile/features/calendar/pronunciation/pronunciation_catalog.dart';
+import 'package:mobile/features/calendar/pronunciation/pronunciation_identity.dart';
 import 'package:mobile/shared/kemetic_text.dart';
 
 part 'kemetic_day_models.dart';

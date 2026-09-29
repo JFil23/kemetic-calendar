@@ -577,8 +577,9 @@ const double _kDetailsPillRadius = 7.0;
 const int _kTextlessPillVisibleCap = 2;
 const int _kLabeledPillVisibleCap = 2;
 const double _kFocusedMonthHeaderHeight = 64.0;
-const double _kFocusedDecanHeight = 112.0;
-const double _kFocusedDecanLabelHeight = 34.0;
+// Keep the existing 78 px day area below the 48 px speaker header.
+const double _kFocusedDecanHeight = 126.0;
+const double _kFocusedDecanLabelHeight = 48.0;
 
 bool _usesTabletLandscapeMonthGrid(BuildContext context) {
   final media = MediaQuery.of(context);
@@ -861,7 +862,7 @@ Widget buildFocusedEpagomenalGridForTesting({
   int? todayDay,
   int? selectedDay,
   bool showGregorian = false,
-  double dayRowHeight = _kFocusedDecanHeight * 3,
+  double dayRowHeight = 336.0, // Heriu has no decan speaker headers.
   void Function(int day)? onDayTap,
 }) {
   _Note convert(NoteData note) {
@@ -1205,7 +1206,7 @@ class _MonthCard extends StatelessWidget {
       letterSpacing: 0,
     );
     const decanLabelFontSize = _CalendarScale.decanLabelMain;
-    final decanLabelRowHeight = decanLabelFontSize + 3.0;
+    final decanLabelRowHeight = math.max(48.0, decanLabelFontSize + 3.0);
     final decanLabelStrut = StrutStyle(
       fontFamily: 'GentiumPlus',
       fontSize: decanLabelFontSize,
@@ -1306,17 +1307,27 @@ class _MonthCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (!showGregorian)
+                        PronounceIconButton(
+                          pronunciationKey: PronunciationKey.month(kMonth),
+                          color: _CalendarTone.antiqueGold,
+                          size: 18,
+                        ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: Text(
-                            rightLabel,
-                            style: rightLabelStyle,
-                            maxLines: 1,
-                            overflow: TextOverflow.fade,
-                            softWrap: false,
-                            textAlign: TextAlign.right,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              rightLabel,
+                              style: rightLabelStyle,
+                              maxLines: 1,
+                              overflow: TextOverflow.fade,
+                              softWrap: false,
+                              textAlign: TextAlign.right,
+                            ),
                           ),
                         ),
                       ),
@@ -1360,6 +1371,14 @@ class _MonthCard extends StatelessWidget {
                                     decanLabelStyle,
                                   ),
                                 ),
+                              ),
+                              PronounceIconButton(
+                                pronunciationKey: PronunciationKey.decan(
+                                  kMonth,
+                                  i + 1,
+                                ),
+                                color: _CalendarTone.decanLabel,
+                                size: 16,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -1546,6 +1565,12 @@ class _FocusedMonthGrid extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (!showGregorian)
+                      PronounceIconButton(
+                        pronunciationKey: PronunciationKey.month(month.id),
+                        color: _CalendarTone.antiqueGold,
+                        size: 18,
+                      ),
                     const SizedBox(width: 10),
                     Flexible(
                       child: Text(
@@ -1684,6 +1709,12 @@ class _FocusedEpagomenalGrid extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (!showGregorian)
+                      PronounceIconButton(
+                        pronunciationKey: PronunciationKey.month(month.id),
+                        color: _CalendarTone.antiqueGold,
+                        size: 18,
+                      ),
                     const SizedBox(width: 10),
                     Flexible(
                       child: Text(
@@ -1809,22 +1840,28 @@ class _FocusedDecanBand extends StatelessWidget {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => onDecanTap(context, decanIndex),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    decanName,
-                    maxLines: 1,
-                    overflow: TextOverflow.fade,
-                    softWrap: false,
-                    style: const TextStyle(
-                      color: _CalendarTone.decanLabel,
-                      fontSize: 15.5,
-                      height: 1,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: 'GentiumPlus',
-                      fontFamilyFallback: ['NotoSans', 'Roboto'],
+              child: PronunciationLabel(
+                pronunciationKey: PronunciationKey.decan(
+                  kMonth,
+                  decanIndex + 1,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      decanName,
+                      maxLines: 1,
+                      overflow: TextOverflow.fade,
+                      softWrap: false,
+                      style: const TextStyle(
+                        color: _CalendarTone.decanLabel,
+                        fontSize: 15.5,
+                        height: 1,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'GentiumPlus',
+                        fontFamilyFallback: ['NotoSans', 'Roboto'],
+                      ),
                     ),
                   ),
                 ),
@@ -4304,6 +4341,12 @@ class _EpagomenalCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (!showGregorian)
+                    PronounceIconButton(
+                      pronunciationKey: PronunciationKey.month(13),
+                      color: _CalendarTone.antiqueGold,
+                      size: 18,
+                    ),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Align(

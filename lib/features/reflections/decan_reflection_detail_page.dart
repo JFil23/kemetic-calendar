@@ -1,3 +1,4 @@
+import 'package:mobile/features/calendar/pronunciation/pronunciation_identity.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -449,6 +450,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         DecanReflectionTokens.scrollBottomPadding +
         MediaQuery.paddingOf(context).bottom;
     final subtitle = _folioSubtitleFor(reflection);
+    final date = KemeticMath.fromGregorian(reflection.decanStart.toLocal());
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(30, 14, 30, bottomPadding),
@@ -457,6 +459,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         children: <Widget>[
           DecanFolioMasthead(
             title: reflection.decanName,
+            pronunciationKey: PronunciationIdentity.day(date.kMonth, date.kDay),
             subtitle: subtitle,
             dateRange: dateRange,
           ),

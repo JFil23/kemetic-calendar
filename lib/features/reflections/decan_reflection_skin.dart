@@ -1,3 +1,5 @@
+import 'package:mobile/features/calendar/pronunciation/pronunciation_catalog.dart';
+import 'package:mobile/widgets/pronounce_icon_button.dart';
 import 'package:flutter/material.dart';
 
 import '../../shared/candlelit_mahogany_background.dart';
@@ -718,8 +720,10 @@ class DecanFolioMasthead extends StatelessWidget {
     required this.title,
     required this.dateRange,
     this.subtitle,
+    this.pronunciationKey,
   });
 
+  final PronunciationKey? pronunciationKey;
   final String title;
   final String dateRange;
   final String? subtitle;
@@ -752,7 +756,10 @@ class DecanFolioMasthead extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              DecanTitleText(title: title, folio: true),
+              PronunciationLabel(
+                pronunciationKey: pronunciationKey,
+                child: DecanTitleText(title: title, folio: true),
+              ),
               if (cleanSubtitle != null && cleanSubtitle.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(

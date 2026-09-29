@@ -159,40 +159,15 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
 
   @override
   void dispose() {
-    SpeechService.instance.stop();
+    PronunciationService.instance.stop();
     _pageController.dispose();
     super.dispose();
   }
 
-  String? _extractEnglishCue(String? title) {
-    if (title == null) return null;
-    final match = RegExp(r'"([^"]+)"').firstMatch(title);
-    return match?.group(1);
-  }
-
-  String _buildSpeakLine(int month, int? decanIndex) {
-    final monthMeta = getMonthById(month);
-    if (decanIndex == null) {
-      return SpeechResolver.month(
-        month: monthMeta,
-        displayName: monthMeta.displayShort,
-      );
-    }
-    if (month < 1 || month > 12) return monthMeta.displayFull;
-    final decanInMonth = decanIndex + 1;
-    final decanId = decanIdFromMonthAndIndex(
-      monthIndex: month,
-      decanInMonth: decanInMonth,
-    );
-    final shortName =
-        (DecanMetadata.decanNames[month] ?? const [''])[decanInMonth - 1];
-    final englishCue = _extractEnglishCue(DecanMetadata.decanTitles[shortName]);
-    return SpeechResolver.decan(
-      decanId: decanId,
-      displayName: shortName,
-      englishCue: englishCue,
-    );
-  }
+  PronunciationKey _pronunciationKey(int month, int? decanIndex) =>
+      decanIndex == null || month == 13
+      ? PronunciationKey.month(month)
+      : PronunciationKey.decan(month, decanIndex + 1);
 
   int _floorDiv(int a, int b) {
     // Dart's integer division truncates toward zero; adjust to true floor.
@@ -282,7 +257,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
       _selectedDay = today.kDay;
       _infoSelectionSerial++;
     });
-    SpeechService.instance.stop();
+    PronunciationService.instance.stop();
   }
 
   void _handleFocusedTodayPressed() {
@@ -322,7 +297,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
       _selectedDay = selectedDay;
       _infoSelectionSerial++;
     });
-    SpeechService.instance.stop();
+    PronunciationService.instance.stop();
   }
 
   void _handleDayTap(BuildContext ctx, int ky, int km, int kd) {
@@ -341,7 +316,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
         AppSection.library,
       ),
     );
-    SpeechService.instance.stop();
+    PronunciationService.instance.stop();
     Navigator.of(context).pop();
     router.go('/nodes');
   }
@@ -477,7 +452,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
             _selectedDay = null;
             _infoSelectionSerial++;
           });
-          SpeechService.instance.stop();
+          PronunciationService.instance.stop();
         },
         itemBuilder: (ctx, index) {
           final (pageYear, month) = _yearMonthForPage(index);
@@ -504,13 +479,23 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
+                    final minimumDecanHeight = math.max(
+                      98.0,
+                      _kFocusedDecanLabelHeight +
+                          34.6 +
+                          MediaQuery.textScalerOf(context).scale(16.4),
+                    );
                     final focusedDecanHeight =
                         ((constraints.maxHeight -
                                     _kFocusedMonthHeaderHeight -
                                     _kMonthCardBottomInset -
                                     10) /
                                 3)
-                            .clamp(84.0, 126.0);
+                            .clamp(
+                              minimumDecanHeight,
+                              math.max(minimumDecanHeight, 140.0),
+                            )
+                            .toDouble();
                     final focusedEpagomenalHeight =
                         (constraints.maxHeight -
                                 _kFocusedMonthHeaderHeight -
@@ -618,7 +603,10 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                                   ? monthMeta.displayTransliteration
                                   : null,
                               body: infoBody,
-                              speakText: _buildSpeakLine(month, decanIndex),
+                              pronunciationKey: _pronunciationKey(
+                                month,
+                                decanIndex,
+                              ),
                               linkMap: infoLinks,
                               backLabel: backLabel,
                               inlineNodes: _decanInlineNodes,
@@ -682,7 +670,7 @@ class _InfoTab extends StatefulWidget {
   final String? monthTitleShort;
   final String? monthTitleTransliteration;
   final String body;
-  final String speakText;
+  final PronunciationKey pronunciationKey;
   final List<KemeticNodeLink> linkMap;
   final String backLabel;
   final Map<String, _InlineNodeContent> inlineNodes;
@@ -693,7 +681,7 @@ class _InfoTab extends StatefulWidget {
     this.monthTitleShort,
     this.monthTitleTransliteration,
     required this.body,
-    required this.speakText,
+    required this.pronunciationKey,
     required this.linkMap,
     required this.backLabel,
     required this.inlineNodes,
@@ -740,7 +728,7 @@ class _InfoTabState extends State<_InfoTab> {
     if (widget.selectionSerial == oldWidget.selectionSerial) {
       return;
     }
-    SpeechService.instance.stop();
+    PronunciationService.instance.stop();
     _history.clear();
     _infoOffset = 0;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -811,12 +799,9 @@ class _InfoTabState extends State<_InfoTab> {
               if (!isNodeView) ...[
                 const SizedBox(width: 8),
                 PronounceIconButton(
-                  speakText: widget.speakText,
-                  utteranceId:
-                      'calendar-info:${widget.selectionSerial}:${widget.title}',
+                  pronunciationKey: widget.pronunciationKey,
                   color: _CalendarTone.antiqueGold.withValues(alpha: 0.72),
                   size: 16,
-                  isPhonetic: true,
                 ),
               ],
             ],
@@ -1034,7 +1019,7 @@ class _InfoTabState extends State<_InfoTab> {
     if (_history.isEmpty && _infoController.hasClients) {
       _infoOffset = _infoController.offset;
     }
-    SpeechService.instance.stop();
+    PronunciationService.instance.stop();
     setState(() {
       _history.add(entry);
     });
@@ -1060,7 +1045,7 @@ class _InfoTabState extends State<_InfoTab> {
 
   bool _popNode() {
     if (_history.isEmpty) return false;
-    SpeechService.instance.stop();
+    PronunciationService.instance.stop();
     setState(() {
       _history.removeLast();
     });

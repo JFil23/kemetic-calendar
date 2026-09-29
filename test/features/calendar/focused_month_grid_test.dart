@@ -46,7 +46,7 @@ void main() {
       final band = tester.getRect(
         find.byKey(ValueKey<String>('focused-decan-$decan')),
       );
-      expect(band.height, 112);
+      expect(band.height, 126);
     }
     for (var day = 1; day <= 30; day++) {
       expect(

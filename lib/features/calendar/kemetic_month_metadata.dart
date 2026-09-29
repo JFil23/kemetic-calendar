@@ -41,7 +41,6 @@ class KemeticMonth {
   final String hellenized; // UI: Greek/Coptic form
   final KemeticSeason season; // Derived enum
   final List<String> searchAliases; // All known variants for search/migration
-  final String speechName; // Speech-only friendly name for TTS
 
   const KemeticMonth({
     required this.id,
@@ -52,7 +51,6 @@ class KemeticMonth {
     required this.hellenized,
     required this.season,
     required this.searchAliases,
-    required this.speechName,
   });
 
   String get displayFull => '$displayShort ($displayTransliteration)';
@@ -137,7 +135,6 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: '',
     season: KemeticSeason.transition,
     searchAliases: [],
-    speechName: '',
   ),
 
   // Month 1: Thoth
@@ -148,7 +145,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Ḏḥwty',
     transliterationFull: 'Djehuty',
     hellenized: 'Thoth',
-    speechName: 'Thoth, Jehuty',
     season: KemeticSeason.akhet,
     searchAliases: [
       'Thoth',
@@ -171,7 +167,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Mnḫt', // ✅ CORRECTED from 'Pȝ ỉp.t'
     transliterationFull: 'Menkhet',
     hellenized: 'Phaophi',
-    speechName: 'Paopi, Menkhet',
     season: KemeticSeason.akhet,
     searchAliases: [
       'Paopi',
@@ -191,7 +186,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Ḥwt-Ḥr',
     transliterationFull: 'Hwt-Hr',
     hellenized: 'Athyr',
-    speechName: 'Hathor, Hut-Her',
     season: KemeticSeason.akhet,
     searchAliases: ['Hathor', 'Ḥwt-Ḥr', 'Athyr', 'Hathor (Ḥwt-Ḥr)'],
   ),
@@ -204,7 +198,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Kȝ-ḥr-Kȝ',
     transliterationFull: 'Ka-her-Ka',
     hellenized: 'Choiak',
-    speechName: 'Ka-her-Ka',
     season: KemeticSeason.akhet,
     searchAliases: ['Ka-ḥer-Ka', 'Choiak', 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ)'],
   ),
@@ -217,7 +210,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Šf-bdt',
     transliterationFull: 'Shef-Bedet',
     hellenized: 'Tybi',
-    speechName: 'Shef-Bedet',
     season: KemeticSeason.peret,
     searchAliases: ['Shefbedet', 'Šef-Bedet', 'Tybi', 'Šef-Bedet (Šf-bdt)'],
   ),
@@ -230,7 +222,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Rḫ-wr',
     transliterationFull: 'Rekh-Wer',
     hellenized: 'Mechir',
-    speechName: 'Rekh-Wer',
     season: KemeticSeason.peret,
     searchAliases: ['Rekh-Wer', 'Mechir', 'Rekh-Wer (Rḫ-wr)'],
   ),
@@ -243,7 +234,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Rḫ-nḏs',
     transliterationFull: 'Rekh-Nedjes',
     hellenized: 'Phamenoth',
-    speechName: 'Rekh-Nedjes',
     season: KemeticSeason.peret,
     searchAliases: ['Rekh-Nedjes', 'Phamenoth', 'Rekh-Nedjes (Rḫ-nḏs)'],
   ),
@@ -256,7 +246,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Rnnwt',
     transliterationFull: 'Renenutet',
     hellenized: 'Pharmuthi',
-    speechName: 'Renwet',
     season: KemeticSeason.peret,
     searchAliases: [
       'Renwet',
@@ -275,7 +264,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Ḥnsw',
     transliterationFull: 'Khonsu',
     hellenized: 'Pachons',
-    speechName: 'Hensu',
     season: KemeticSeason.shemu,
     searchAliases: ['Ḥnsw', 'Khonsu', 'Pachons', 'Hnsw (Ḥnsw)'],
   ),
@@ -288,7 +276,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Ḥnt-ḥtj',
     transliterationFull: 'Henti-het',
     hellenized: 'Payni',
-    speechName: 'Henti-Het',
     season: KemeticSeason.shemu,
     searchAliases: ['Ḥenti-ḥet', 'Ḥnt-ḥtj', 'Payni', 'Ḥenti-ḥet (Ḥnt-ḥtj)'],
   ),
@@ -302,7 +289,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'ỉpt-ḥmt',
     transliterationFull: 'Ipet-hemet',
     hellenized: 'Epiphi',
-    speechName: 'Pa-Ipi, Ipet-Hemet',
     season: KemeticSeason.shemu,
     searchAliases: [
       'Pa-Ipi',
@@ -324,7 +310,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'Mswt-Rꜥ',
     transliterationFull: 'Mesut-Ra',
     hellenized: 'Mesore',
-    speechName: 'Mesut-Ra',
     season: KemeticSeason.shemu,
     searchAliases: ['Mesut-Ra', 'Mswt-Rꜥ', 'Mesore', 'Mesut-Ra (Mswt-Rꜥ)'],
   ),
@@ -337,7 +322,6 @@ const List<KemeticMonth> kKemeticMonths = [
     displayTransliteration: 'ḥr.w rnpt',
     transliterationFull: 'Heriu Renpet',
     hellenized: 'Epagomenai',
-    speechName: 'Heriu Renpet',
     season: KemeticSeason.transition,
     searchAliases: [
       'Epagomenal',
