@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
+import '../../core/pinch_gesture_surface.dart';
 import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
 import '../../widgets/calendar_floating_shortcuts.dart';
@@ -309,10 +311,21 @@ class LandscapeMonthPager extends StatefulWidget {
 class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   static const _origin = 100000;
   static const _dayCount = 200001;
-  static const _hourHeight = 58.0;
+  static const _maximumHourHeight = 58.0;
+  double _hourHeight = _maximumHourHeight;
+  double _minimumHourHeight = 0;
+  double _timedViewportHeight = 0;
+  bool _isTimePinching = false;
+  final _calendarTouchPointers = <int>{};
+  double _pinchStartHourHeight = _maximumHourHeight;
+  double _pinchAnchorMinute = 0;
+  int _pinchPointerCount = 0;
+  int _pinchGeneration = 0;
+  double _trackpadScaleBaseline = 1;
   static const _gutterWidth = 38.0;
   static const _monthHeight = 26.0;
   static const _headerHeight = 58.0;
+  static const _todayBottom = 28.0;
   static const _bone = Color(0xFFE5DED3);
   static const _stone = Color(0xFF7A746C);
   static const _serif = 'CormorantGaramond';
@@ -506,7 +519,8 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 
   void _reportViewport() {
     if (!mounted) return;
-    if ((_days?.position.isScrollingNotifier.value ?? false) ||
+    if (_isTimePinching ||
+        (_days?.position.isScrollingNotifier.value ?? false) ||
         _hours.position.isScrollingNotifier.value) {
       _settleTimer = Timer(const Duration(milliseconds: 140), _reportViewport);
       return;
@@ -544,14 +558,146 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     );
   }
 
+  double _timeFocalY(Offset globalPoint) {
+    final box =
+        _calendarPaneKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return 0;
+    return (box.globalToLocal(globalPoint).dy - _monthHeight - _headerHeight)
+        .clamp(0.0, _timedViewportHeight);
+  }
+
+  void _startTimePinch(ScaleStartDetails details) {
+    if (details.pointerCount < 2 || !_hours.hasClients) return;
+    ++_pinchGeneration;
+    _settleTimer?.cancel();
+    (_days?.position as ScrollPositionWithSingleContext?)?.goIdle();
+    (_hours.position as ScrollPositionWithSingleContext).goIdle();
+    _pinchStartHourHeight = _hourHeight;
+    _pinchAnchorMinute =
+        (_hours.offset + _timeFocalY(details.focalPoint)) / _hourHeight * 60;
+    _pinchPointerCount = details.pointerCount;
+    setState(() => _isTimePinching = true);
+  }
+
+  void _updateTimePinch(ScaleUpdateDetails details) {
+    if (!_isTimePinching || !details.scale.isFinite || details.scale <= 0) {
+      return;
+    }
+    final focalY = _timeFocalY(details.focalPoint);
+    // The shared recognizer rebases when another finger joins or leaves.
+    if (details.pointerCount != _pinchPointerCount) {
+      _pinchPointerCount = details.pointerCount;
+      _pinchStartHourHeight = _hourHeight / details.scale;
+      _pinchAnchorMinute = (_hours.offset + focalY) / _hourHeight * 60;
+    }
+    final height = (_pinchStartHourHeight * details.scale).clamp(
+      _minimumHourHeight,
+      _maximumHourHeight,
+    );
+    final offset = (_pinchAnchorMinute / 60 * height - focalY)
+        .clamp(0.0, math.max(0.0, 24 * height - _timedViewportHeight))
+        .toDouble();
+    if ((height - _hourHeight).abs() < .0001 &&
+        (offset - _hours.offset).abs() < .0001) {
+      return;
+    }
+    setState(() => _hourHeight = height);
+    // Update the shared scroll offset in the same frame as the scale. A zoom
+    // in can exceed the old extent until layout catches up; cancel jumpTo's
+    // old-extent ballistic correction immediately rather than fighting it.
+    _hours.jumpTo(offset);
+    (_hours.position as ScrollPositionWithSingleContext).goIdle();
+  }
+
+  void _endTimePinch() {
+    if (!_isTimePinching || _calendarTouchPointers.isNotEmpty) return;
+    final generation = _pinchGeneration;
+    // Keep taps suppressed through the final pointer-up dispatch. A stationary
+    // second finger must not open the event underneath it when pinch ends.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !_isTimePinching ||
+          generation != _pinchGeneration ||
+          _calendarTouchPointers.isNotEmpty) {
+        return;
+      }
+      setState(() => _isTimePinching = false);
+      _settleTimer?.cancel();
+      _settleTimer = Timer(const Duration(milliseconds: 140), _reportViewport);
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _calendarPointerFinished(PointerEvent event) {
+    _calendarTouchPointers.remove(event.pointer);
+    _endTimePinch();
+  }
+
+  Widget _timePinchSurface(Widget child) => Listener(
+    behavior: HitTestBehavior.translucent,
+    onPointerDown: (event) {
+      if (event.kind == PointerDeviceKind.touch) {
+        _calendarTouchPointers.add(event.pointer);
+      }
+    },
+    onPointerUp: _calendarPointerFinished,
+    onPointerCancel: _calendarPointerFinished,
+    onPointerPanZoomStart: (_) => _trackpadScaleBaseline = 1,
+    onPointerPanZoomUpdate: (event) {
+      if (!_isTimePinching) {
+        if ((event.scale - 1).abs() < .01) return;
+        _trackpadScaleBaseline = event.scale;
+        _startTimePinch(
+          ScaleStartDetails(
+            focalPoint: event.position + event.pan,
+            pointerCount: 2,
+          ),
+        );
+      }
+      _updateTimePinch(
+        ScaleUpdateDetails(
+          focalPoint: event.position + event.pan,
+          scale: event.scale / _trackpadScaleBaseline,
+          pointerCount: 2,
+        ),
+      );
+    },
+    onPointerPanZoomEnd: (_) => _endTimePinch(),
+    onPointerSignal: (event) {
+      if (event is! PointerScaleEvent) return;
+      GestureBinding.instance.pointerSignalResolver.register(event, (_) {
+        _startTimePinch(
+          ScaleStartDetails(focalPoint: event.position, pointerCount: 2),
+        );
+        _updateTimePinch(
+          ScaleUpdateDetails(
+            focalPoint: event.position,
+            scale: event.scale,
+            pointerCount: 2,
+          ),
+        );
+        _endTimePinch();
+      });
+    },
+    child: PinchGestureSurface(
+      key: const ValueKey('landscape-time-pinch'),
+      touchScaleSlop: 3,
+      touchScaleRatioSlop: .01,
+      onScaleStart: _startTimePinch,
+      onScaleUpdate: _updateTimePinch,
+      onScaleEnd: (_) => _endTimePinch(),
+      child: child,
+    ),
+  );
+
   void _syncHours() => _scheduleViewportSync();
 
   void _scheduleViewportSync() {
-    if (_scrollUpdateScheduled) return;
+    if (_isTimePinching || _scrollUpdateScheduled) return;
     _scrollUpdateScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollUpdateScheduled = false;
-      if (mounted) _syncLinkedLedger();
+      if (mounted && !_isTimePinching) _syncLinkedLedger();
     });
   }
 
@@ -592,7 +738,11 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       DateTime.utc(_now.year, _now.month, _now.day, _now.hour, _now.minute);
 
   void _syncLinkedLedger({bool smooth = true}) {
-    if (!_linkedLedger || (_suppressLinkTimer?.isActive ?? false)) return;
+    if (_isTimePinching ||
+        !_linkedLedger ||
+        (_suppressLinkTimer?.isActive ?? false)) {
+      return;
+    }
     final minute =
         ((_hours.hasClients ? _hours.offset : _hours.initialScrollOffset) /
                     _hourHeight *
@@ -1138,7 +1288,9 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
             itemBuilder: (context, i) => SizedBox(
               height: 24,
               child: InkWell(
-                onTap: () => _openEvent(date, allDay[i]),
+                onTap: () {
+                  if (!_isTimePinching) unawaited(_openEvent(date, allDay[i]));
+                },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 5,
@@ -1159,11 +1311,13 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     );
   }
 
-  double _eventHeight(EventItem event) => calendarLandscapeEventHeight(
-    event,
-    _chromeFlowForId(event.flowId),
-    hourHeight: _hourHeight,
-  );
+  double _eventHeight(EventItem event) =>
+      calendarLandscapeEventHeight(
+        event,
+        _chromeFlowForId(event.flowId),
+        hourHeight: _maximumHourHeight,
+      ) *
+      (_hourHeight / _maximumHourHeight);
 
   List<Widget> _buildEventsForDay(DateTime date) {
     final events = _eventsForDate(date).where((e) => !e.allDay).toList();
@@ -1196,21 +1350,40 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       final width = (_columnWidth - 4) / laneEnds.length - 3;
       for (final event in group) {
         final height = _eventHeight(event);
-        Widget face() => CalendarDayEventBlock(
-          event: event,
-          flow: _chromeFlowForId(event.flowId),
-          ky: k.kYear,
-          km: k.kMonth,
-          kd: k.kDay,
-          width: width,
-          height: height,
-          clock: widget.clock,
-        );
+        Widget face() {
+          final scale = _hourHeight / _maximumHourHeight;
+          final nativeFace = CalendarDayEventBlock(
+            event: event,
+            flow: _chromeFlowForId(event.flowId),
+            ky: k.kYear,
+            km: k.kMonth,
+            kd: k.kDay,
+            width: width / scale,
+            height: height / scale,
+            clock: widget.clock,
+          );
+          return SizedBox(
+            width: width,
+            height: height,
+            child: FittedBox(
+              fit: BoxFit.contain,
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: width / scale,
+                height: height / scale,
+                child: nativeFace,
+              ),
+            ),
+          );
+        }
+
         Widget card = Semantics(
           label: '${event.title}, ${_timeLabel(event.startMin)}',
           button: true,
           child: GestureDetector(
-            onTap: () => _openEvent(date, event),
+            onTap: () {
+              if (!_isTimePinching) unawaited(_openEvent(date, event));
+            },
             child: face(),
           ),
         );
@@ -1219,6 +1392,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
             !event.isReminder) {
           card = LongPressDraggable<({DateTime date, EventItem event})>(
             data: (date: date, event: event),
+            maxSimultaneousDrags: _isTimePinching ? 0 : 1,
             feedback: Material(color: Colors.transparent, child: face()),
             onDragStarted: () => unawaited(AppHaptics.selection()),
             childWhenDragging: Opacity(opacity: .35, child: face()),
@@ -1282,8 +1456,9 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 
   Widget _buildDay(DateTime date) =>
       DragTarget<({DateTime date, EventItem event})>(
-        onWillAcceptWithDetails: (d) => d.data.date == date,
+        onWillAcceptWithDetails: (d) => !_isTimePinching && d.data.date == date,
         onAcceptWithDetails: (details) {
+          if (_isTimePinching) return;
           final box =
               _dayKeys[date]?.currentContext?.findRenderObject() as RenderBox?;
           if (box == null) return;
@@ -1313,9 +1488,11 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                   left: 2,
                   right: 2,
                   top: (_now.hour + _now.minute / 60) * _hourHeight,
-                  child: Container(
-                    height: 1,
-                    color: _landscapeGold.withValues(alpha: .54),
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 1,
+                      color: _landscapeGold.withValues(alpha: .54),
+                    ),
                   ),
                 ),
             ],
@@ -1333,6 +1510,26 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
         bottom: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final wasFullDay = (_hourHeight - _minimumHourHeight).abs() < .001;
+            _timedViewportHeight = math.max(
+              0.0,
+              constraints.maxHeight - _monthHeight - _headerHeight,
+            );
+            _minimumHourHeight = math.min(
+              _maximumHourHeight,
+              math.max(
+                    1.0,
+                    _timedViewportHeight -
+                        math.max(
+                          outerPadding.bottom,
+                          _todayBottom + kCalendarFloatingShortcutsHeight + 8,
+                        ),
+                  ) /
+                  24,
+            );
+            _hourHeight = wasFullDay
+                ? _minimumHourHeight
+                : _hourHeight.clamp(_minimumHourHeight, _maximumHourHeight);
             final ledgerWidth = math.max(
               144.0,
               (constraints.maxWidth + outerPadding.horizontal) / 3 -
@@ -1365,188 +1562,219 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                             key: const ValueKey('landscape-calendar-page'),
                             child: KeyedSubtree(
                               key: const ValueKey('landscape-calendar-pane'),
-                              child: Stack(
-                                key: _calendarPaneKey,
-                                children: [
-                                  Positioned(
-                                    left: _gutterWidth,
-                                    right: 48,
-                                    top: 0,
-                                    height: _monthHeight,
-                                    child: ValueListenableBuilder<DateTime>(
-                                      valueListenable: _visibleMonth,
-                                      builder: (context, date, _) {
-                                        final k = KemeticMath.fromGregorian(
-                                          date,
-                                        );
-                                        final month = getMonthById(k.kMonth);
-                                        return GestureDetector(
-                                          onTap: widget.onToggleCalendar,
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.end,
-                                            children: [
-                                              Flexible(
-                                                child: MonthNameText(
-                                                  month.displayShort
-                                                      .toUpperCase(),
-                                                  maxLines: 1,
-                                                  style: const TextStyle(
-                                                    fontFamily: _serif,
-                                                    fontSize: 13,
-                                                    color: Color(0xCCD4AE43),
-                                                    letterSpacing: .5,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                  bottom: 2,
-                                                ),
-                                                child: MonthNameText(
-                                                  '${month.displayTransliteration} · ${KemeticMath.toGregorian(k.kYear, k.kMonth, 1).year}',
-                                                  style: const TextStyle(
-                                                    fontSize: 7,
-                                                    color: Color(0xFF4C4842),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  Positioned(
-                                    left: 0,
-                                    top: _monthHeight,
-                                    width: _gutterWidth,
-                                    height: _headerHeight,
-                                    child: const Align(
-                                      alignment: Alignment.bottomRight,
-                                      child: Padding(
-                                        padding: EdgeInsets.only(
-                                          right: 3,
-                                          bottom: 6,
-                                        ),
-                                        child: Text(
-                                          'all-day',
-                                          style: TextStyle(
-                                            fontSize: 7,
-                                            color: Color(0xFF46423D),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    left: 0,
-                                    top: _monthHeight + _headerHeight,
-                                    bottom: 0,
-                                    width: _gutterWidth,
-                                    child: ClipRect(
-                                      child: AnimatedBuilder(
-                                        animation: _hours,
-                                        child: SizedBox(
-                                          height: 24 * _hourHeight,
-                                          child: Stack(
-                                            children: [
-                                              for (
-                                                var hour = 2;
-                                                hour < 24;
-                                                hour += 2
-                                              )
-                                                Positioned(
-                                                  right: 3,
-                                                  top: hour * _hourHeight - 5,
-                                                  child: Text(
-                                                    hour == 12
-                                                        ? 'Noon'
-                                                        : _timeLabel(hour * 60),
-                                                    style: TextStyle(
-                                                      fontSize: 8,
-                                                      color: Color(
-                                                        hour % 6 == 0
-                                                            ? 0xFF6B655E
-                                                            : 0xFF55514B,
-                                                      ),
+                              child: _timePinchSurface(
+                                Stack(
+                                  key: _calendarPaneKey,
+                                  children: [
+                                    Positioned(
+                                      left: _gutterWidth,
+                                      right: 48,
+                                      top: 0,
+                                      height: _monthHeight,
+                                      child: ValueListenableBuilder<DateTime>(
+                                        valueListenable: _visibleMonth,
+                                        builder: (context, date, _) {
+                                          final k = KemeticMath.fromGregorian(
+                                            date,
+                                          );
+                                          final month = getMonthById(k.kMonth);
+                                          return GestureDetector(
+                                            onTap: () {
+                                              if (!_isTimePinching) {
+                                                widget.onToggleCalendar?.call();
+                                              }
+                                            },
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Flexible(
+                                                  child: MonthNameText(
+                                                    month.displayShort
+                                                        .toUpperCase(),
+                                                    maxLines: 1,
+                                                    style: const TextStyle(
+                                                      fontFamily: _serif,
+                                                      fontSize: 13,
+                                                      color: Color(0xCCD4AE43),
+                                                      letterSpacing: .5,
                                                     ),
                                                   ),
                                                 ),
-                                            ],
-                                          ),
-                                        ),
-                                        builder: (context, child) => OverflowBox(
-                                          alignment: Alignment.topLeft,
-                                          maxHeight: 24 * _hourHeight,
-                                          child: Transform.translate(
-                                            offset: Offset(
-                                              0,
-                                              -(_hours.hasClients
-                                                  ? _hours.offset
-                                                  : _hours.initialScrollOffset),
+                                                const SizedBox(width: 6),
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        bottom: 2,
+                                                      ),
+                                                  child: MonthNameText(
+                                                    '${month.displayTransliteration} · ${KemeticMath.toGregorian(k.kYear, k.kMonth, 1).year}',
+                                                    style: const TextStyle(
+                                                      fontSize: 7,
+                                                      color: Color(0xFF4C4842),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            child: child,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    Positioned(
+                                      left: 0,
+                                      top: _monthHeight,
+                                      width: _gutterWidth,
+                                      height: _headerHeight,
+                                      child: const Align(
+                                        alignment: Alignment.bottomRight,
+                                        child: Padding(
+                                          padding: EdgeInsets.only(
+                                            right: 3,
+                                            bottom: 6,
+                                          ),
+                                          child: Text(
+                                            'all-day',
+                                            style: TextStyle(
+                                              fontSize: 7,
+                                              color: Color(0xFF46423D),
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  Positioned(
-                                    left: _gutterWidth,
-                                    right: 8,
-                                    top: _monthHeight,
-                                    bottom: 0,
-                                    child: LandscapeTimeline(
-                                      key: const ValueKey('landscape-timeline'),
-                                      days: _days!,
-                                      hours: _hours,
-                                      columnWidth: _columnWidth,
-                                      dayCount: _dayCount,
-                                      headerHeight: _headerHeight,
-                                      dayHeight: 24 * _hourHeight,
-                                      dayBuilder: (context, index) =>
-                                          _buildDay(_dateAt(index)),
-                                      headerBuilder: (context, index) =>
-                                          _buildHeader(_dateAt(index)),
+                                    Positioned(
+                                      left: 0,
+                                      top: _monthHeight + _headerHeight,
+                                      bottom: 0,
+                                      width: _gutterWidth,
+                                      child: ClipRect(
+                                        child: AnimatedBuilder(
+                                          animation: _hours,
+                                          child: SizedBox(
+                                            height: 24 * _hourHeight,
+                                            child: Stack(
+                                              children: [
+                                                for (
+                                                  var hour =
+                                                      _hourHeight <
+                                                          _maximumHourHeight
+                                                      ? 0
+                                                      : 2;
+                                                  hour <=
+                                                      (_hourHeight <
+                                                              _maximumHourHeight
+                                                          ? 24
+                                                          : 22);
+                                                  hour += 2
+                                                )
+                                                  Positioned(
+                                                    right: 3,
+                                                    top:
+                                                        (hour * _hourHeight - 5)
+                                                            .clamp(
+                                                              0.0,
+                                                              24 * _hourHeight -
+                                                                  10,
+                                                            ),
+                                                    child: Text(
+                                                      hour == 12
+                                                          ? 'Noon'
+                                                          : _timeLabel(
+                                                              (hour % 24) * 60,
+                                                            ),
+                                                      style: TextStyle(
+                                                        fontSize: 8,
+                                                        color: Color(
+                                                          hour % 6 == 0
+                                                              ? 0xFF6B655E
+                                                              : 0xFF55514B,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                          builder: (context, child) => OverflowBox(
+                                            alignment: Alignment.topLeft,
+                                            minHeight: 24 * _hourHeight,
+                                            maxHeight: 24 * _hourHeight,
+                                            child: Transform.translate(
+                                              offset: Offset(
+                                                0,
+                                                -(_hours.hasClients
+                                                    ? _hours.offset
+                                                    : _hours
+                                                          .initialScrollOffset),
+                                              ),
+                                              child: child,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  // Keep the entire touch target above the pinned
-                                  // day header, which starts below the month label.
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    width: 48,
-                                    height: 48,
-                                    child: IconButton(
-                                      tooltip: 'Add note, reminder, or flow',
-                                      padding: EdgeInsets.zero,
-                                      iconSize: 24,
-                                      color: _landscapeGold,
-                                      icon: const Icon(Icons.add),
-                                      onPressed: () async {
-                                        final openQuickAdd =
-                                            widget.onOpenQuickAdd;
-                                        if (openQuickAdd != null) {
-                                          await openQuickAdd(context);
-                                          return;
-                                        }
-                                        await CalendarPage.openQuickAddFromAnyContext(
-                                          context,
-                                        );
-                                      },
+                                    Positioned(
+                                      left: _gutterWidth,
+                                      right: 8,
+                                      top: _monthHeight,
+                                      bottom: 0,
+                                      child: LandscapeTimeline(
+                                        key: const ValueKey(
+                                          'landscape-timeline',
+                                        ),
+                                        days: _days!,
+                                        hours: _hours,
+                                        columnWidth: _columnWidth,
+                                        dayCount: _dayCount,
+                                        headerHeight: _headerHeight,
+                                        dayHeight: 24 * _hourHeight,
+                                        scrollEnabled: !_isTimePinching,
+                                        dayBuilder: (context, index) =>
+                                            _buildDay(_dateAt(index)),
+                                        headerBuilder: (context, index) =>
+                                            _buildHeader(_dateAt(index)),
+                                      ),
                                     ),
-                                  ),
-                                  Positioned(
-                                    left: 28,
-                                    bottom: 28,
-                                    child: CalendarFloatingTodayButton(
-                                      key: const ValueKey('landscape-today'),
-                                      onPressed: _jumpToToday,
+                                    // Keep the entire touch target above the pinned
+                                    // day header, which starts below the month label.
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      width: 48,
+                                      height: 48,
+                                      child: IconButton(
+                                        tooltip: 'Add note, reminder, or flow',
+                                        padding: EdgeInsets.zero,
+                                        iconSize: 24,
+                                        color: _landscapeGold,
+                                        icon: const Icon(Icons.add),
+                                        onPressed: () async {
+                                          if (_isTimePinching) return;
+                                          final openQuickAdd =
+                                              widget.onOpenQuickAdd;
+                                          if (openQuickAdd != null) {
+                                            await openQuickAdd(context);
+                                            return;
+                                          }
+                                          await CalendarPage.openQuickAddFromAnyContext(
+                                            context,
+                                          );
+                                        },
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    Positioned(
+                                      left: 28,
+                                      bottom: _todayBottom,
+                                      child: CalendarFloatingTodayButton(
+                                        key: const ValueKey('landscape-today'),
+                                        onPressed: () {
+                                          if (!_isTimePinching) _jumpToToday();
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),

@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../support/maat_flow_visual_test_fonts.dart';
 import '../../support/maat_flow_visual_goldens.dart';
+import '../../support/landscape_pinch_test_gesture.dart';
 
 const fixtureFlows = <int, FlowData>{
   1: FlowData(
@@ -161,43 +162,7 @@ void main() {
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
   testWidgets('approved landscape split surface at phone size', (tester) async {
-    tester.view.physicalSize = const Size(852, 393);
-    tester.view.devicePixelRatio = 1;
-    tester.view.padding = const FakeViewPadding(
-      left: 52,
-      right: 44,
-      bottom: 21,
-    );
-    addTearDown(tester.view.resetPadding);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final now = DateTime(2026, 9, 28, 8, 30);
-    final k = KemeticMath.fromGregorian(now);
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData.dark().copyWith(
-          textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Inter'),
-        ),
-        home: Scaffold(
-          body: RepaintBoundary(
-            key: const ValueKey('fixture'),
-            child: LandscapeMonthView(
-              initialKy: k.kYear,
-              initialKm: k.kMonth,
-              initialKd: k.kDay,
-              showGregorian: true,
-              clock: () => now,
-              notesForDay: fixtureNotes,
-              flowIndex: fixtureFlows,
-              getMonthName: (_) => 'Unused',
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(tester.takeException(), isNull);
+    await pumpSplitFixture(tester);
     final calendarPane = tester.getRect(
       find.byKey(const ValueKey('landscape-calendar-pane')),
     );
@@ -269,6 +234,62 @@ void main() {
     }
     await tester.pumpWidget(const SizedBox.shrink());
   });
+  testWidgets('landscape time zoom at intermediate scale', (tester) async {
+    await pumpSplitFixture(tester);
+    await pinchLandscapeTime(tester, factor: .6);
+    await tester.pump(const Duration(milliseconds: 500));
+    await expectLater(
+      find.byKey(const ValueKey('fixture')),
+      matchesGoldenFile(
+        '${platformVisualGoldenRoot('../../visual_reference/landscape')}/zoom-intermediate-852x393.png',
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+  testWidgets('landscape time zoom shows the full day', (tester) async {
+    await pumpSplitFixture(tester, includeDayEdges: true);
+    await pinchLandscapeTime(tester, factor: .1);
+    await tester.pump(const Duration(milliseconds: 500));
+    final timeline = tester.widget<LandscapeTimeline>(
+      find.byType(LandscapeTimeline),
+    );
+    final midnight = find
+        .byWidgetPredicate(
+          (w) => w is CalendarDayEventBlock && w.event.title == 'Start of day',
+        )
+        .hitTestable()
+        .first;
+    final late = find
+        .byWidgetPredicate(
+          (w) =>
+              w is CalendarDayEventBlock && w.event.title == 'Late reflection',
+        )
+        .hitTestable()
+        .first;
+    expect(
+      tester.getTopLeft(midnight).dy,
+      closeTo(
+        tester.getTopLeft(find.byType(LandscapeTimeline)).dy +
+            timeline.headerHeight,
+        .01,
+      ),
+    );
+    expect(
+      tester.getBottomRight(late).dy,
+      lessThanOrEqualTo(
+        tester.getTopLeft(find.byKey(const ValueKey('landscape-today'))).dy - 8,
+      ),
+    );
+    await expectLater(
+      find.byKey(const ValueKey('fixture')),
+      matchesGoldenFile(
+        '${platformVisualGoldenRoot('../../visual_reference/landscape')}/zoom-full-day-852x393.png',
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }
 
 class _EmptySupabaseClient extends http.BaseClient {
@@ -287,4 +308,61 @@ class _EmptySupabaseClient extends http.BaseClient {
       },
     );
   }
+}
+
+Future<void> pumpSplitFixture(
+  WidgetTester tester, {
+  bool includeDayEdges = false,
+}) async {
+  tester.view.physicalSize = const Size(852, 393);
+  tester.view.devicePixelRatio = 1;
+  tester.view.padding = const FakeViewPadding(left: 52, right: 44, bottom: 21);
+  addTearDown(tester.view.resetPadding);
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  final now = DateTime(2026, 9, 28, 8, 30);
+  final k = KemeticMath.fromGregorian(now);
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: ThemeData.dark().copyWith(
+        textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Inter'),
+      ),
+      home: Scaffold(
+        body: RepaintBoundary(
+          key: const ValueKey('fixture'),
+          child: LandscapeMonthView(
+            initialKy: k.kYear,
+            initialKm: k.kMonth,
+            initialKd: k.kDay,
+            showGregorian: true,
+            clock: () => now,
+            notesForDay: (y, m, d) => [
+              ...fixtureNotes(y, m, d),
+              if (includeDayEdges) ...[
+                NoteData(
+                  clientEventId: 'midnight-$d',
+                  title: 'Start of day',
+                  allDay: false,
+                  start: const TimeOfDay(hour: 0, minute: 0),
+                  end: const TimeOfDay(hour: 1, minute: 0),
+                ),
+                NoteData(
+                  clientEventId: 'late-$d',
+                  title: 'Late reflection',
+                  allDay: false,
+                  start: const TimeOfDay(hour: 23, minute: 0),
+                  end: const TimeOfDay(hour: 23, minute: 59),
+                ),
+              ],
+            ],
+            flowIndex: fixtureFlows,
+            getMonthName: (_) => 'Unused',
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 100));
+  expect(tester.takeException(), isNull);
 }

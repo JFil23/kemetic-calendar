@@ -16,14 +16,21 @@ class LandscapeTimeline extends TwoDimensionalScrollView {
     required this.dayCount,
     required this.headerHeight,
     required this.dayHeight,
+    bool scrollEnabled = true,
     required IndexedWidgetBuilder dayBuilder,
     required IndexedWidgetBuilder headerBuilder,
   }) : super(
          primary: false,
          mainAxis: Axis.vertical,
          diagonalDragBehavior: DiagonalDragBehavior.free,
-         horizontalDetails: ScrollableDetails.horizontal(controller: days),
-         verticalDetails: ScrollableDetails.vertical(controller: hours),
+         horizontalDetails: ScrollableDetails.horizontal(
+           controller: days,
+           physics: scrollEnabled ? null : const NeverScrollableScrollPhysics(),
+         ),
+         verticalDetails: ScrollableDetails.vertical(
+           controller: hours,
+           physics: scrollEnabled ? null : const NeverScrollableScrollPhysics(),
+         ),
          delegate: TwoDimensionalChildBuilderDelegate(
            maxXIndex: dayCount - 1,
            maxYIndex: 1,

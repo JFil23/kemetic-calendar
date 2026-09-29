@@ -23,6 +23,7 @@ Future<void> pumpLandscape(
   List<NoteData> Function(int, int, int)? notes,
   Map<int, FlowData> flows = const {},
   void Function(int, int, int)? onDay,
+  Future<void> Function(int, int, int, EventItem, int)? onMove,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -44,6 +45,7 @@ Future<void> pumpLandscape(
           flowIndex: flows,
           getMonthName: (_) => 'must use canonical metadata',
           onVisibleDayChanged: onDay,
+          onMoveEventTime: onMove,
         ),
       ),
     ),

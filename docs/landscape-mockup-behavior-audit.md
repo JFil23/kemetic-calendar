@@ -5,6 +5,8 @@ Reference: approved `landscape-calendar-real-sheets-v5.html`, the supplied `mock
 Required behavior:
 
 - The continuous, independently scrollable chronological event list ends 48 logical pixels left of the original one-third split (with a 144px minimum list width). The expanded calendar pane contains three continuous calendar days, a pinned month/day/all-day header and hour gutter.
+- Pinching inside the calendar pane continuously changes the time scale from the original 58px/hour maximum to a full 24-hour day. The minimum uses the real viewport and clears both the phone safe area and the floating Today button. Day widths, the ledger, pinned headers, controls, and native sheets retain their dimensions.
+- Zoom anchors the time under the fingers, preserves date position and the ledger's position, and reuses native event faces with proportional scaling. Both touch and browser/trackpad pinch are supported. Single-finger scrolling, wheel motion, taps, 15-minute note dragging, Today, and sheet behavior continue to use the current scale. Today retains the selected zoom; returning to landscape starts at the original scale.
 - Calendar gestures move both axes with momentum. Headers and events move together. Crossing dates must not rebuild every event or interrupt motion.
 - While linked, horizontal **and vertical** calendar movement smoothly brings the corresponding event into the list. Touching, scrolling, or using the keyboard on the list releases the link immediately. Today restores it.
 - Tapping an offscreen list event selects it and smoothly locates its calendar block; tapping the now-visible event opens its native detail sheet. An already visible event opens immediately. Tapping a calendar block opens it without repositioning the calendar.
@@ -19,6 +21,8 @@ Required behavior:
 The audit identified missing vertical list linkage, abrupt programmatic scrolling, competing one-axis gestures, unconditional list-tap sheet opening, missing block selection feedback, non-centered Today, repeated ledger text measurement, parent rebuilds during horizontal movement, and a full-screen sheet navigator. Verification must exercise these behaviors against the reference, including pointer drags and pane bounds; an initial static golden alone is insufficient.
 
 ## Verification evidence
+
+- `landscape_pinch_zoom_test.dart` exercises real touch pinches, maximum/minimum bounds, focal anchoring, pane isolation, scrolling after zoom, pointer cancellation and stationary-finger release, native sheets, Today, viewport changes, note dragging, and browser/trackpad scale input. The zoom visual captures include midnight and late-night events and verify that the full day clears Today. The original three landscape references remain unchanged.
 
 - `landscape_scroll_contract_test.dart` exercises physical diagonal drags and momentum, pinned headers, no parent date report while a finger is held, cached note projections, diagonal trackpad wheel input, smooth vertical list linkage, immediate list disengagement, Today relinking/centering, locate-before-open, unchanged scroll positions on block opening/dismissal, a usable list behind an open sheet, system Back, and proximity-only snapping.
 - `landscape_split_behavior_test.dart` covers epagomenal/year boundaries, native Today placement, live-data refresh, full-color past events, painted-height overlap lanes, pinned all-day events, narrow native faces, and natural instrument height through resize/scroll.
