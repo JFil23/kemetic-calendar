@@ -70,3 +70,36 @@ pass. Disposable backend smoke verifies concurrent updates, duplicate requests,
 deletes, privacy boundaries and nutrition badge retry/reset. No physical-device
 background execution or offline-to-online browser replay is claimed from those
 tests alone.
+
+## September 30 event editor corrections
+
+The full event editor continues to use its existing DaySheet restoration owner.
+`NoteDraftInvitations` adds optional account-fenced invitee selections to that
+editor payload; older payloads without `invitations` restore an empty selection.
+Selecting people and cancelling the picker perform no sharing writes. Save uses
+the existing UserEventsRepo note writer, waits for its acknowledgement, and then
+uses ShareRepo's event invitation boundary. A confirmed target is retained for
+manual retries so a partial invitation failure cannot create another note.
+Repeating notes retain the acknowledged hidden-flow identity while their first
+occurrence is being materialized. The editor locks acknowledged note fields
+and offers Retry for unconfirmed invitations. This is an editor draft, not an
+automatic background invitation queue. Existing account repositories remain the
+owners of saved notes and invitations; no warm namespace, resource schema,
+old-release fixture, inventory minimum, or backend contract changes.
+
+The obsolete AI generation modal and its launcher are removed. Pure prompt
+normalization helpers now live in `ai_flow_prompt_input.dart`; the existing
+Flow Studio Compose screen owns generation. Legacy modal UI tests are migrated
+to Compose: keyboard/rotation, Build color controls, calendar switching,
+Gregorian/Kemetic Cancel/Done/reopen, deterministic 23-note itinerary import,
+and generic generation with inferred duration. Assertions about the retired
+modal's hidden color picker and Cupertino styling are replaced by checks for
+Compose's established spectrum and absence of the old screen/launcher. The
+existing Compose save/failure/planned-note tests remain in place.
+
+Focused invitation tests cover selection restore, account changes, save
+acknowledgement, concurrent Save, failed saves, partial sends, lost invitation
+acknowledgement and retries after restoration. Layout checks cover full sheet
+background coverage with short reminders and the complete Gregorian label at
+phone width. Capture-only checks write new evidence to `/tmp`; approved visual
+references are not regenerated.

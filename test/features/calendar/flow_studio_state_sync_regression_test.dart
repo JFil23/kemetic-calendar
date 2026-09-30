@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../support/maat_flow_visual_test_fonts.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/share_models.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
@@ -32,6 +34,11 @@ void main() {
 
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('com.llfbandit.app_links/events'),
+          (_) async => null,
+        );
     await _ensureSupabaseInitialized();
   });
 
@@ -42,6 +49,43 @@ void main() {
 
   tearDown(() async {
     AIFlowGenerationService.debugFlowStudioOverride = null;
+  });
+
+  testWidgets('studio header and calendar system fit the reference phone', (
+    tester,
+  ) async {
+    _useMobilePortraitSurface(tester);
+    await loadMaatFlowVisualTestFonts();
+    await _openFlowStudio(tester);
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.byIcon(Icons.auto_awesome),
+      ),
+      findsNothing,
+    );
+    if (const bool.fromEnvironment('CAPTURE_EDITOR_FIXES')) {
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('/tmp/editor-studio-header.png'),
+      );
+    }
+    await _scrollStudioTo(tester, find.text('Gregorian'));
+    final label = tester.renderObject<RenderBox>(find.text('Gregorian'));
+    final text = tester.widget<Text>(find.text('Gregorian'));
+    final painter = TextPainter(
+      text: TextSpan(text: text.data, style: text.style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    expect(label.size.width, greaterThanOrEqualTo(painter.width));
+    expect(tester.takeException(), isNull);
+    if (const bool.fromEnvironment('CAPTURE_EDITOR_FIXES')) {
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('/tmp/editor-studio-system.png'),
+      );
+    }
+    await _closeFlowStudio(tester);
   });
 
   testWidgets('user-flow Studio shows live previews and optional appearance', (
@@ -1258,6 +1302,7 @@ Future<void> _openFlowStudio(
 }) async {
   await tester.pumpWidget(
     MaterialApp(
+      theme: ThemeData(fontFamily: 'GentiumPlus'),
       home: debugBuildFlowStudioPageForTest(
         importData: importData,
         initialDraftJson: initialDraftJson,

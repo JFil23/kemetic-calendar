@@ -21,6 +21,8 @@ class ShareFlowSheet extends StatefulWidget {
   final String? noteShareText; // When present, share a note instead of a flow
   final String? eventId; // When present, call create_event_share
   final bool sendTextInInbox;
+  final bool selectForDraft;
+  final List<UserSearchResult> initialPeople;
 
   const ShareFlowSheet({
     super.key,
@@ -29,6 +31,8 @@ class ShareFlowSheet extends StatefulWidget {
     this.noteShareText,
     this.eventId,
     this.sendTextInInbox = false,
+    this.selectForDraft = false,
+    this.initialPeople = const [],
   });
 
   @override
@@ -51,7 +55,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   bool _loadingInvitees = false;
   Timer? _searchDebounce;
 
-  bool get _isEventShare => widget.eventId != null;
+  bool get _isEventShare => widget.eventId != null || widget.selectForDraft;
   bool get _isTextShare =>
       widget.flowId == null && widget.noteShareText != null && !_isEventShare;
   bool get _isInboxTextShare => _isTextShare && widget.sendTextInInbox;
@@ -64,7 +68,8 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     return 'Share Flow';
   }
 
-  String get _sendLabel => _isEventShare ? 'Invite' : 'Send';
+  String get _sendLabel =>
+      widget.selectForDraft ? 'Done' : (_isEventShare ? 'Invite' : 'Send');
 
   bool get _showNoUserResults {
     final query = _searchQuery.trim();
@@ -78,7 +83,12 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   @override
   void initState() {
     super.initState();
-    if (_isEventShare) {
+    for (final person in widget.initialPeople) {
+      if (_recipientUsersById.containsKey(person.userId)) continue;
+      _recipientUsersById[person.userId] = person;
+      _recipients.add(person.toRecipient());
+    }
+    if (_isEventShare && !widget.selectForDraft) {
       _loadExistingInvitees();
     }
   }
@@ -139,10 +149,21 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                   ),
                   ElevatedButton(
                     onPressed:
-                        ((_isFlowShare || _isEventShare || _isInboxTextShare) &&
+                        (!widget.selectForDraft &&
+                                (_isFlowShare ||
+                                    _isEventShare ||
+                                    _isInboxTextShare) &&
                                 _recipients.isEmpty) ||
                             _sending
                         ? null
+                        : widget.selectForDraft
+                        ? () => Navigator.pop(
+                            context,
+                            _recipients
+                                .map((r) => _recipientUsersById[r.value])
+                                .whereType<UserSearchResult>()
+                                .toList(),
+                          )
                         : _sendShares,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: KemeticGold.base,
@@ -176,7 +197,13 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (_isEventShare) ...[
-                      _buildEventModeInfo(),
+                      if (widget.selectForDraft)
+                        const Text(
+                          'Invitations are sent when you save the note.',
+                          style: TextStyle(color: Colors.white70),
+                        )
+                      else
+                        _buildEventModeInfo(),
                       const SizedBox(height: 16),
                     ],
                     // Search field
@@ -200,7 +227,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
 
                     const SizedBox(height: 24),
 
-                    if (_isEventShare) ...[
+                    if (_isEventShare && !widget.selectForDraft) ...[
                       _buildExistingInviteesSection(),
                       const SizedBox(height: 24),
                     ],

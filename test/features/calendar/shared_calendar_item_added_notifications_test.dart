@@ -53,7 +53,7 @@ void main() {
 
     final repeatingNoteSave = _sourceBetween(
       calendarSource,
-      'Future<void> _saveRepeatingNoteAsHiddenFlow',
+      'Future<String?> _saveRepeatingNoteAsHiddenFlow',
       'Future<void> _triggerFlowSchedule',
     );
     expect(repeatingNoteSave, contains("itemType: 'note'"));

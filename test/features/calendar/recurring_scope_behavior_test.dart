@@ -222,7 +222,7 @@ void main() {
 
       final saveRepeatingNote = _sourceBetween(
         calendarPage,
-        'Future<void> _saveRepeatingNoteAsHiddenFlow',
+        'Future<String?> _saveRepeatingNoteAsHiddenFlow',
         'Future<void> _triggerFlowSchedule',
       );
       expect(saveRepeatingNote, contains('_buildNoteRuleDates'));

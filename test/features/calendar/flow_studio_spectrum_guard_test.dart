@@ -42,13 +42,13 @@ void main() {
     final studio = File(
       'lib/features/calendar/calendar_flow_studio_page.dart',
     ).readAsStringSync();
-    final modal = File(
-      'lib/features/ai_generation/ai_flow_generation_modal.dart',
+    final helpers = File(
+      'lib/features/ai_generation/ai_flow_prompt_input.dart',
     ).readAsStringSync();
 
-    expect(modal, contains('splitAiFlowPromptForApi'));
-    expect(modal, contains('aiFlowColorHexFromColor'));
-    expect(modal, contains('aiFlowIanaTimezoneForLocal'));
+    expect(helpers, contains('splitAiFlowPromptForApi'));
+    expect(helpers, contains('aiFlowColorHexFromColor'));
+    expect(helpers, contains('aiFlowIanaTimezoneForLocal'));
 
     expect(studio, contains('splitAiFlowPromptForApi(rawPrompt)'));
     expect(studio, contains('AIFlowGenerationService'));

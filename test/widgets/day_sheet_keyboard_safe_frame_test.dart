@@ -1,9 +1,66 @@
 import 'package:flutter/material.dart';
+import '../support/maat_flow_visual_test_fonts.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/widgets/day_sheet_components.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
 void main() {
+  testWidgets('short reminders paint the entire sheet housing', (tester) async {
+    await loadMaatFlowVisualTestFonts();
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(fontFamily: 'GentiumPlus'),
+        home: Scaffold(
+          backgroundColor: Colors.red,
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: DaySheetKeyboardSafeFrame(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DaySheetTabBar(
+                    activeTab: DaySheetTab.reminders,
+                    accent: Colors.cyan,
+                    onSelected: (_) {},
+                  ),
+                  const DaySheetSectionHeader(label: 'Reminders', count: 2),
+                  for (final name in [
+                    'journal every day',
+                    'journal every night',
+                  ])
+                    DaySheetReminderRow(
+                      color: Colors.green,
+                      name: name,
+                      enabled: true,
+                      rulePrimary: 'Every 1d',
+                      onTap: () {},
+                      menu: const Icon(Icons.more_vert, color: Colors.white54),
+                    ),
+                  const SizedBox(height: 18),
+                  DaySheetFab.pill(label: 'Add reminder', onPressed: () {}),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final frame = tester.getRect(find.byKey(daySheetKeyboardSafeFrameKey));
+    expect(frame.bottom, 844);
+    expect(frame.height, closeTo(844 * .9, .01));
+    expect(tester.takeException(), isNull);
+    if (const bool.fromEnvironment('CAPTURE_EDITOR_FIXES')) {
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('/tmp/editor-reminders.png'),
+      );
+    }
+  });
+
   testWidgets('day sheet tab bar exposes Notes, Reminders, and Flows', (
     tester,
   ) async {

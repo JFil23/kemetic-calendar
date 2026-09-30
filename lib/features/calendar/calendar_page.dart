@@ -1,3 +1,4 @@
+import 'note_draft_invitations.dart';
 import 'dart:async';
 import '../pages/pages_models.dart';
 import '../pages/pages_arrangement.dart';
@@ -52,7 +53,7 @@ import '../../main.dart'
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
-import '../ai_generation/ai_flow_generation_modal.dart';
+import '../ai_generation/ai_flow_prompt_input.dart';
 import '../ai_generation/ai_flow_import_payload.dart';
 import '../ai_generation/flow_duration_parser.dart';
 import '../ai_generation/flow_prompt_classifier.dart';
@@ -15205,6 +15206,7 @@ class CalendarPageState extends State<CalendarPage>
         editingSourceKMonth: (payload['editingSourceKMonth'] as num?)?.toInt(),
         editingSourceKDay: (payload['editingSourceKDay'] as num?)?.toInt(),
         initialTab: _daySheetTabFromSession(payload['activeTab']),
+        initialInvitations: payload['invitations'],
       );
     });
   }
@@ -28526,6 +28528,7 @@ class CalendarPageState extends State<CalendarPage>
     int? editingSourceKMonth,
     int? editingSourceKDay,
     DaySheetTab? initialTab,
+    Object? initialInvitations,
   }) {
     if (_daySheetOpenOrOpening) return;
     _daySheetOpenOrOpening = true;
@@ -28628,6 +28631,10 @@ class CalendarPageState extends State<CalendarPage>
       debugLabel: 'day_sheet_flow_studio_navigator',
     );
     bool flowStudioTabVisited = activeDaySheetTab == DaySheetTab.flows;
+    final draftInvitations = NoteDraftInvitations.restore(
+      initialInvitations,
+      Supabase.instance.client.auth.currentUser?.id,
+    );
     bool sheetClosing = false;
     bool sheetControllersDisposed = false;
 
@@ -28657,6 +28664,7 @@ class CalendarPageState extends State<CalendarPage>
             : sourceEditingKMonth,
         'editingSourceKDay': editingIndex == null ? null : sourceEditingKDay,
         'activeTab': activeDaySheetTab.name,
+        'invitations': draftInvitations.toJson(),
       };
     }
 
@@ -29269,620 +29277,699 @@ class CalendarPageState extends State<CalendarPage>
                           topMargin: 22,
                         ),
 
-                        DaySheetTextField(
-                          controller: controllerTitle,
-                          hint: 'Title',
-                        ),
-
-                        DaySheetTextField(
-                          controller: controllerLocation,
-                          hint: 'Location or video call',
-                        ),
-
-                        DaySheetTextField(
-                          controller: controllerDetail,
-                          hint: 'Details (optional)',
-                          minLines: 4,
-                          maxLines: 6,
-                        ),
-
-                        DaySheetCategoryChips(
-                          categories: NoteCategory.all,
-                          selected: selectedCategory,
-                          accent: selectedColor,
-                          onSelected: (value) {
-                            setSheetState(() {
-                              selectedCategory = value;
-                            });
-                            persistDaySheetSession();
-                          },
-                        ),
-
-                        DaySheetToggleRow(
-                          label: 'All-day',
-                          value: allDay,
-                          accent: selectedColor,
-                          onChanged: (v) {
-                            setSheetState(() => allDay = v);
-                            persistDaySheetSession();
-                          },
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DaySheetTimePill(
-                                caption: 'Starts',
-                                label: startTime == null
-                                    ? '--:--'
-                                    : _formatTimeOfDay(startTime!),
-                                onTap: pickStart,
-                                enabled: !allDay,
+                        AbsorbPointer(
+                          absorbing:
+                              draftInvitations.busy ||
+                              draftInvitations.savedTargetId != null,
+                          child: Column(
+                            children: [
+                              DaySheetTextField(
+                                controller: controllerTitle,
+                                hint: 'Title',
                               ),
-                            ),
-                            const SizedBox(width: 30),
-                            Expanded(
-                              child: DaySheetTimePill(
-                                caption: 'Ends',
-                                label: endTime == null
-                                    ? '--:--'
-                                    : _formatTimeOfDay(endTime!),
-                                onTap: pickEnd,
-                                enabled: !allDay,
+
+                              DaySheetTextField(
+                                controller: controllerLocation,
+                                hint: 'Location or video call',
                               ),
-                            ),
-                          ],
-                        ),
 
-                        const SizedBox(height: 12),
+                              DaySheetTextField(
+                                controller: controllerDetail,
+                                hint: 'Details (optional)',
+                                minLines: 4,
+                                maxLines: 6,
+                              ),
 
-                        InkWell(
-                          onTap: availableCalendars.isEmpty
-                              ? null
-                              : () async {
-                                  final chosenId =
-                                      await showCupertinoModalPopup<String>(
-                                        context: sheetCtx,
-                                        builder: (popupCtx) {
-                                          return CupertinoActionSheet(
-                                            title: const GlossyText(
-                                              text: 'Calendar',
-                                              gradient: silverGloss,
-                                              style: TextStyle(fontSize: 18),
-                                            ),
-                                            actions: [
-                                              for (final calendar
-                                                  in availableCalendars)
-                                                CupertinoActionSheetAction(
-                                                  onPressed: () {
-                                                    Navigator.of(
-                                                      popupCtx,
-                                                    ).pop(calendar.id);
-                                                  },
-                                                  child: Text(
-                                                    calendar.name,
-                                                    style: TextStyle(
-                                                      color: calendar.color,
-                                                      fontSize: 17,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                            cancelButton:
-                                                CupertinoActionSheetAction(
-                                                  isDestructiveAction: true,
-                                                  onPressed: () => Navigator.of(
-                                                    popupCtx,
-                                                  ).pop(),
-                                                  child: const Text('Cancel'),
-                                                ),
-                                          );
-                                        },
-                                      );
-                                  if (chosenId == null) return;
+                              DaySheetCategoryChips(
+                                categories: NoteCategory.all,
+                                selected: selectedCategory,
+                                accent: selectedColor,
+                                onSelected: (value) {
                                   setSheetState(() {
-                                    selectedCalendarId = chosenId;
-                                    selectedCalendarName =
-                                        _calendarSummariesById[chosenId]?.name;
+                                    selectedCategory = value;
                                   });
                                   persistDaySheetSession();
                                 },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const GlossyText(
-                                  text: 'Calendar',
-                                  gradient: silverGloss,
-                                  style: TextStyle(fontSize: 14),
-                                ),
-                                Row(
-                                  children: [
-                                    Text(
-                                      selectedCalendarLabel,
-                                      style: TextStyle(
-                                        color: selectedCalendar?.color ?? _gold,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      Icons.chevron_right,
-                                      size: 18,
-                                      color: Colors.white54,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                              ),
 
-                        const SizedBox(height: 8),
+                              DaySheetToggleRow(
+                                label: 'All-day',
+                                value: allDay,
+                                accent: selectedColor,
+                                onChanged: (v) {
+                                  setSheetState(() => allDay = v);
+                                  persistDaySheetSession();
+                                },
+                              ),
 
-                        // Alert row
-                        InkWell(
-                          onTap: () async {
-                            final picked = await _pickAlertMinutes(
-                              sheetCtx,
-                              alertMinutesBefore,
-                            );
-                            if (picked != null) {
-                              setSheetState(() {
-                                alertMinutesBefore = picked;
-                              });
-                              persistDaySheetSession();
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const GlossyText(
-                                  text: 'Alert',
-                                  gradient: silverGloss,
-                                  style: TextStyle(fontSize: 14),
-                                ),
-                                Row(
-                                  children: [
-                                    GlossyText(
-                                      text: _alertLabelFor(alertMinutesBefore),
-                                      gradient: goldGloss,
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      Icons.chevron_right,
-                                      size: 18,
-                                      color: Colors.white54,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                              const SizedBox(height: 18),
 
-                        const SizedBox(height: 8),
-
-                        InkWell(
-                          onTap: () async {
-                            final title = controllerTitle.text.trim();
-                            final editingEventId = editingNote?.id;
-                            if (editingEventId == null ||
-                                editingEventId.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Save this event first, then invite people inside the app.',
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
-
-                            await _openEventInviteSheet(
-                              eventId: editingEventId,
-                              title: title.isEmpty ? 'Event' : title,
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const GlossyText(
-                                  text: 'Invitees',
-                                  gradient: silverGloss,
-                                  style: TextStyle(fontSize: 14),
-                                ),
-                                Row(
-                                  children: [
-                                    Text(
-                                      editingNote?.id == null
-                                          ? 'Save first'
-                                          : 'Invite people',
-                                      style: const TextStyle(
-                                        color: _gold,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      Icons.chevron_right,
-                                      size: 18,
-                                      color: Colors.white54,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        if (!editingRepeatingNote) ...[
-                          // Repeat row
-                          InkWell(
-                            onTap: () async {
-                              final result =
-                                  await showCupertinoModalPopup<
-                                    NoteRepeatOption
-                                  >(
-                                    context: sheetCtx,
-                                    builder: (_) {
-                                      return CupertinoActionSheet(
-                                        title: const GlossyText(
-                                          text: 'Repeat',
-                                          gradient: silverGloss,
-                                          style: TextStyle(fontSize: 18),
-                                        ),
-                                        actions: [
-                                          CupertinoActionSheetAction(
-                                            onPressed: () => Navigator.pop(
-                                              sheetCtx,
-                                              NoteRepeatOption.never,
-                                            ),
-                                            child: const GlossyText(
-                                              text: 'Never',
-                                              gradient: goldGloss,
-                                              style: TextStyle(fontSize: 17),
-                                            ),
-                                          ),
-                                          CupertinoActionSheetAction(
-                                            onPressed: () => Navigator.pop(
-                                              sheetCtx,
-                                              NoteRepeatOption.everyDay,
-                                            ),
-                                            child: const GlossyText(
-                                              text: 'Every Day',
-                                              gradient: goldGloss,
-                                              style: TextStyle(fontSize: 17),
-                                            ),
-                                          ),
-                                          CupertinoActionSheetAction(
-                                            onPressed: () => Navigator.pop(
-                                              sheetCtx,
-                                              NoteRepeatOption.everyWeek,
-                                            ),
-                                            child: const GlossyText(
-                                              text: 'Every Week',
-                                              gradient: goldGloss,
-                                              style: TextStyle(fontSize: 17),
-                                            ),
-                                          ),
-                                          CupertinoActionSheetAction(
-                                            onPressed: () => Navigator.pop(
-                                              sheetCtx,
-                                              NoteRepeatOption.every2Weeks,
-                                            ),
-                                            child: const GlossyText(
-                                              text: 'Every 2 Weeks',
-                                              gradient: goldGloss,
-                                              style: TextStyle(fontSize: 17),
-                                            ),
-                                          ),
-                                          CupertinoActionSheetAction(
-                                            onPressed: () => Navigator.pop(
-                                              sheetCtx,
-                                              NoteRepeatOption.everyMonth,
-                                            ),
-                                            child: const GlossyText(
-                                              text: 'Every Month',
-                                              gradient: goldGloss,
-                                              style: TextStyle(fontSize: 17),
-                                            ),
-                                          ),
-                                          CupertinoActionSheetAction(
-                                            onPressed: () => Navigator.pop(
-                                              sheetCtx,
-                                              NoteRepeatOption.everyYear,
-                                            ),
-                                            child: const GlossyText(
-                                              text: 'Every Year',
-                                              gradient: goldGloss,
-                                              style: TextStyle(fontSize: 17),
-                                            ),
-                                          ),
-                                          CupertinoActionSheetAction(
-                                            onPressed: () async {
-                                              Navigator.pop(sheetCtx);
-                                              final customResult =
-                                                  await Navigator.of(
-                                                    context,
-                                                  ).push<Map<String, dynamic>>(
-                                                    MaterialPageRoute(
-                                                      builder: (_) =>
-                                                          _CustomRepeatPage(
-                                                            initialFrequency:
-                                                                customFrequency,
-                                                            initialInterval:
-                                                                customInterval,
-                                                          ),
-                                                    ),
-                                                  );
-                                              if (customResult != null) {
-                                                setSheetState(() {
-                                                  repeatOption =
-                                                      NoteRepeatOption.custom;
-                                                  customFrequency =
-                                                      customResult['frequency']
-                                                          as SimpleRecurrenceFrequency;
-                                                  customInterval =
-                                                      customResult['interval']
-                                                          as int;
-                                                });
-                                                persistDaySheetSession();
-                                              }
-                                            },
-                                            child: const GlossyText(
-                                              text: 'Custom…',
-                                              gradient: goldGloss,
-                                              style: TextStyle(fontSize: 17),
-                                            ),
-                                          ),
-                                        ],
-                                        cancelButton:
-                                            CupertinoActionSheetAction(
-                                              isDestructiveAction: true,
-                                              onPressed: () =>
-                                                  Navigator.pop(sheetCtx),
-                                              child: const Text('Cancel'),
-                                            ),
-                                      );
-                                    },
-                                  );
-                              if (result != null) {
-                                setSheetState(() {
-                                  repeatOption = result;
-                                  if (result == NoteRepeatOption.never) {
-                                    endType = NoteRepeatEndType.never;
-                                    endDate = null;
-                                  }
-                                });
-                                persistDaySheetSession();
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                              Row(
                                 children: [
-                                  const GlossyText(
-                                    text: 'Repeat',
-                                    gradient: silverGloss,
-                                    style: TextStyle(fontSize: 14),
+                                  Expanded(
+                                    child: DaySheetTimePill(
+                                      caption: 'Starts',
+                                      label: startTime == null
+                                          ? '--:--'
+                                          : _formatTimeOfDay(startTime!),
+                                      onTap: pickStart,
+                                      enabled: !allDay,
+                                    ),
                                   ),
-                                  Row(
-                                    children: [
-                                      GlossyText(
-                                        text: _repeatOptionLabel(
-                                          repeatOption,
-                                          customFrequency,
-                                          customInterval,
-                                        ),
-                                        gradient: goldGloss,
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      const Icon(
-                                        Icons.chevron_right,
-                                        size: 18,
-                                        color: Colors.white54,
-                                      ),
-                                    ],
+                                  const SizedBox(width: 30),
+                                  Expanded(
+                                    child: DaySheetTimePill(
+                                      caption: 'Ends',
+                                      label: endTime == null
+                                          ? '--:--'
+                                          : _formatTimeOfDay(endTime!),
+                                      onTap: pickEnd,
+                                      enabled: !allDay,
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ),
 
-                          // End Repeat row
-                          InkWell(
-                            onTap: repeatOption == NoteRepeatOption.never
-                                ? null
-                                : () async {
-                                    final result =
-                                        await showCupertinoModalPopup<
-                                          NoteRepeatEndType
+                              const SizedBox(height: 12),
+
+                              InkWell(
+                                onTap: availableCalendars.isEmpty
+                                    ? null
+                                    : () async {
+                                        final chosenId =
+                                            await showCupertinoModalPopup<
+                                              String
+                                            >(
+                                              context: sheetCtx,
+                                              builder: (popupCtx) {
+                                                return CupertinoActionSheet(
+                                                  title: const GlossyText(
+                                                    text: 'Calendar',
+                                                    gradient: silverGloss,
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                    ),
+                                                  ),
+                                                  actions: [
+                                                    for (final calendar
+                                                        in availableCalendars)
+                                                      CupertinoActionSheetAction(
+                                                        onPressed: () {
+                                                          Navigator.of(
+                                                            popupCtx,
+                                                          ).pop(calendar.id);
+                                                        },
+                                                        child: Text(
+                                                          calendar.name,
+                                                          style: TextStyle(
+                                                            color:
+                                                                calendar.color,
+                                                            fontSize: 17,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                  cancelButton:
+                                                      CupertinoActionSheetAction(
+                                                        isDestructiveAction:
+                                                            true,
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                              popupCtx,
+                                                            ).pop(),
+                                                        child: const Text(
+                                                          'Cancel',
+                                                        ),
+                                                      ),
+                                                );
+                                              },
+                                            );
+                                        if (chosenId == null) return;
+                                        setSheetState(() {
+                                          selectedCalendarId = chosenId;
+                                          selectedCalendarName =
+                                              _calendarSummariesById[chosenId]
+                                                  ?.name;
+                                        });
+                                        persistDaySheetSession();
+                                      },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const GlossyText(
+                                        text: 'Calendar',
+                                        gradient: silverGloss,
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            selectedCalendarLabel,
+                                            style: TextStyle(
+                                              color:
+                                                  selectedCalendar?.color ??
+                                                  _gold,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Icon(
+                                            Icons.chevron_right,
+                                            size: 18,
+                                            color: Colors.white54,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 8),
+
+                              // Alert row
+                              InkWell(
+                                onTap: () async {
+                                  final picked = await _pickAlertMinutes(
+                                    sheetCtx,
+                                    alertMinutesBefore,
+                                  );
+                                  if (picked != null) {
+                                    setSheetState(() {
+                                      alertMinutesBefore = picked;
+                                    });
+                                    persistDaySheetSession();
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const GlossyText(
+                                        text: 'Alert',
+                                        gradient: silverGloss,
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                      Row(
+                                        children: [
+                                          GlossyText(
+                                            text: _alertLabelFor(
+                                              alertMinutesBefore,
+                                            ),
+                                            gradient: goldGloss,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Icon(
+                                            Icons.chevron_right,
+                                            size: 18,
+                                            color: Colors.white54,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 8),
+
+                              InkWell(
+                                onTap: () async {
+                                  final title = controllerTitle.text.trim();
+                                  final editingEventId = editingNote?.id;
+                                  if (editingEventId == null ||
+                                      editingEventId.isEmpty) {
+                                    final selected =
+                                        await showEditableModalBottomSheet<
+                                          List<UserSearchResult>
                                         >(
                                           context: sheetCtx,
-                                          builder: (_) {
-                                            return CupertinoActionSheet(
-                                              title: const GlossyText(
-                                                text: 'End Repeat',
-                                                gradient: silverGloss,
-                                                style: TextStyle(fontSize: 18),
-                                              ),
-                                              actions: [
-                                                CupertinoActionSheetAction(
-                                                  onPressed: () =>
-                                                      Navigator.pop(
-                                                        sheetCtx,
-                                                        NoteRepeatEndType.never,
-                                                      ),
-                                                  child: const GlossyText(
-                                                    text: 'Never',
-                                                    gradient: goldGloss,
-                                                    style: TextStyle(
-                                                      fontSize: 17,
-                                                    ),
-                                                  ),
-                                                ),
-                                                CupertinoActionSheetAction(
-                                                  onPressed: () async {
-                                                    Navigator.pop(sheetCtx);
-                                                    final gDay =
-                                                        KemeticMath.toGregorian(
-                                                          selYear,
-                                                          selMonth,
-                                                          selDay,
-                                                        );
-                                                    final picked =
-                                                        await RecurrenceUntilDatePicker.show(
-                                                          context,
-                                                          initialDate:
-                                                              endDate ??
-                                                              gDay.add(
-                                                                const Duration(
-                                                                  days: 30,
-                                                                ),
-                                                              ),
-                                                          allowPast: false,
-                                                          firstDate: gDay,
-                                                          lastDate: gDay.add(
-                                                            const Duration(
-                                                              days: 365 * 10,
-                                                            ),
-                                                          ),
-                                                        );
-                                                    if (picked != null) {
-                                                      setSheetState(() {
-                                                        endType =
-                                                            NoteRepeatEndType
-                                                                .onDate;
-                                                        endDate = picked;
-                                                      });
-                                                      persistDaySheetSession();
-                                                    }
-                                                  },
-                                                  child: const GlossyText(
-                                                    text: 'On Date…',
-                                                    gradient: goldGloss,
-                                                    style: TextStyle(
-                                                      fontSize: 17,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                              cancelButton:
-                                                  CupertinoActionSheetAction(
-                                                    isDestructiveAction: true,
-                                                    onPressed: () =>
-                                                        Navigator.pop(sheetCtx),
-                                                    child: const Text('Cancel'),
-                                                  ),
-                                            );
-                                          },
+                                          backgroundColor: Colors.transparent,
+                                          builder: (_) => ShareFlowSheet(
+                                            flowId: null,
+                                            flowTitle: title.isEmpty
+                                                ? 'New note'
+                                                : title,
+                                            selectForDraft: true,
+                                            initialPeople:
+                                                draftInvitations.people,
+                                          ),
                                         );
+                                    if (!sheetCtx.mounted || selected == null) {
+                                      return;
+                                    }
+                                    setSheetState(
+                                      () => draftInvitations.people = selected,
+                                    );
+                                    persistDaySheetSession();
+                                    return;
+                                  }
+
+                                  await _openEventInviteSheet(
+                                    eventId: editingEventId,
+                                    title: title.isEmpty ? 'Event' : title,
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const GlossyText(
+                                        text: 'Invitees',
+                                        gradient: silverGloss,
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            editingNote?.id == null
+                                                ? (draftInvitations
+                                                          .people
+                                                          .isEmpty
+                                                      ? 'Choose people'
+                                                      : '${draftInvitations.people.length} selected')
+                                                : 'Invite people',
+                                            style: const TextStyle(
+                                              color: _gold,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Icon(
+                                            Icons.chevron_right,
+                                            size: 18,
+                                            color: Colors.white54,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 8),
+
+                              if (!editingRepeatingNote) ...[
+                                // Repeat row
+                                InkWell(
+                                  onTap: () async {
+                                    final result = await showCupertinoModalPopup<NoteRepeatOption>(
+                                      context: sheetCtx,
+                                      builder: (_) {
+                                        return CupertinoActionSheet(
+                                          title: const GlossyText(
+                                            text: 'Repeat',
+                                            gradient: silverGloss,
+                                            style: TextStyle(fontSize: 18),
+                                          ),
+                                          actions: [
+                                            CupertinoActionSheetAction(
+                                              onPressed: () => Navigator.pop(
+                                                sheetCtx,
+                                                NoteRepeatOption.never,
+                                              ),
+                                              child: const GlossyText(
+                                                text: 'Never',
+                                                gradient: goldGloss,
+                                                style: TextStyle(fontSize: 17),
+                                              ),
+                                            ),
+                                            CupertinoActionSheetAction(
+                                              onPressed: () => Navigator.pop(
+                                                sheetCtx,
+                                                NoteRepeatOption.everyDay,
+                                              ),
+                                              child: const GlossyText(
+                                                text: 'Every Day',
+                                                gradient: goldGloss,
+                                                style: TextStyle(fontSize: 17),
+                                              ),
+                                            ),
+                                            CupertinoActionSheetAction(
+                                              onPressed: () => Navigator.pop(
+                                                sheetCtx,
+                                                NoteRepeatOption.everyWeek,
+                                              ),
+                                              child: const GlossyText(
+                                                text: 'Every Week',
+                                                gradient: goldGloss,
+                                                style: TextStyle(fontSize: 17),
+                                              ),
+                                            ),
+                                            CupertinoActionSheetAction(
+                                              onPressed: () => Navigator.pop(
+                                                sheetCtx,
+                                                NoteRepeatOption.every2Weeks,
+                                              ),
+                                              child: const GlossyText(
+                                                text: 'Every 2 Weeks',
+                                                gradient: goldGloss,
+                                                style: TextStyle(fontSize: 17),
+                                              ),
+                                            ),
+                                            CupertinoActionSheetAction(
+                                              onPressed: () => Navigator.pop(
+                                                sheetCtx,
+                                                NoteRepeatOption.everyMonth,
+                                              ),
+                                              child: const GlossyText(
+                                                text: 'Every Month',
+                                                gradient: goldGloss,
+                                                style: TextStyle(fontSize: 17),
+                                              ),
+                                            ),
+                                            CupertinoActionSheetAction(
+                                              onPressed: () => Navigator.pop(
+                                                sheetCtx,
+                                                NoteRepeatOption.everyYear,
+                                              ),
+                                              child: const GlossyText(
+                                                text: 'Every Year',
+                                                gradient: goldGloss,
+                                                style: TextStyle(fontSize: 17),
+                                              ),
+                                            ),
+                                            CupertinoActionSheetAction(
+                                              onPressed: () async {
+                                                Navigator.pop(sheetCtx);
+                                                final customResult =
+                                                    await Navigator.of(
+                                                      context,
+                                                    ).push<
+                                                      Map<String, dynamic>
+                                                    >(
+                                                      MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            _CustomRepeatPage(
+                                                              initialFrequency:
+                                                                  customFrequency,
+                                                              initialInterval:
+                                                                  customInterval,
+                                                            ),
+                                                      ),
+                                                    );
+                                                if (customResult != null) {
+                                                  setSheetState(() {
+                                                    repeatOption =
+                                                        NoteRepeatOption.custom;
+                                                    customFrequency =
+                                                        customResult['frequency']
+                                                            as SimpleRecurrenceFrequency;
+                                                    customInterval =
+                                                        customResult['interval']
+                                                            as int;
+                                                  });
+                                                  persistDaySheetSession();
+                                                }
+                                              },
+                                              child: const GlossyText(
+                                                text: 'Custom…',
+                                                gradient: goldGloss,
+                                                style: TextStyle(fontSize: 17),
+                                              ),
+                                            ),
+                                          ],
+                                          cancelButton:
+                                              CupertinoActionSheetAction(
+                                                isDestructiveAction: true,
+                                                onPressed: () =>
+                                                    Navigator.pop(sheetCtx),
+                                                child: const Text('Cancel'),
+                                              ),
+                                        );
+                                      },
+                                    );
                                     if (result != null) {
                                       setSheetState(() {
-                                        endType = result;
-                                        if (result == NoteRepeatEndType.never) {
+                                        repeatOption = result;
+                                        if (result == NoteRepeatOption.never) {
+                                          endType = NoteRepeatEndType.never;
                                           endDate = null;
                                         }
                                       });
                                       persistDaySheetSession();
                                     }
                                   },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  GlossyText(
-                                    text: 'End Repeat',
-                                    gradient:
-                                        repeatOption == NoteRepeatOption.never
-                                        ? silverGloss
-                                        : silverGloss,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color:
-                                          repeatOption == NoteRepeatOption.never
-                                          ? Colors.white54
-                                          : Colors.white,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const GlossyText(
+                                          text: 'Repeat',
+                                          gradient: silverGloss,
+                                          style: TextStyle(fontSize: 14),
+                                        ),
+                                        Row(
+                                          children: [
+                                            GlossyText(
+                                              text: _repeatOptionLabel(
+                                                repeatOption,
+                                                customFrequency,
+                                                customInterval,
+                                              ),
+                                              gradient: goldGloss,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Icon(
+                                              Icons.chevron_right,
+                                              size: 18,
+                                              color: Colors.white54,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  Row(
-                                    children: [
-                                      if (repeatOption !=
-                                          NoteRepeatOption.never)
+                                ),
+
+                                // End Repeat row
+                                InkWell(
+                                  onTap: repeatOption == NoteRepeatOption.never
+                                      ? null
+                                      : () async {
+                                          final result = await showCupertinoModalPopup<NoteRepeatEndType>(
+                                            context: sheetCtx,
+                                            builder: (_) {
+                                              return CupertinoActionSheet(
+                                                title: const GlossyText(
+                                                  text: 'End Repeat',
+                                                  gradient: silverGloss,
+                                                  style: TextStyle(
+                                                    fontSize: 18,
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  CupertinoActionSheetAction(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          sheetCtx,
+                                                          NoteRepeatEndType
+                                                              .never,
+                                                        ),
+                                                    child: const GlossyText(
+                                                      text: 'Never',
+                                                      gradient: goldGloss,
+                                                      style: TextStyle(
+                                                        fontSize: 17,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  CupertinoActionSheetAction(
+                                                    onPressed: () async {
+                                                      Navigator.pop(sheetCtx);
+                                                      final gDay =
+                                                          KemeticMath.toGregorian(
+                                                            selYear,
+                                                            selMonth,
+                                                            selDay,
+                                                          );
+                                                      final picked =
+                                                          await RecurrenceUntilDatePicker.show(
+                                                            context,
+                                                            initialDate:
+                                                                endDate ??
+                                                                gDay.add(
+                                                                  const Duration(
+                                                                    days: 30,
+                                                                  ),
+                                                                ),
+                                                            allowPast: false,
+                                                            firstDate: gDay,
+                                                            lastDate: gDay.add(
+                                                              const Duration(
+                                                                days: 365 * 10,
+                                                              ),
+                                                            ),
+                                                          );
+                                                      if (picked != null) {
+                                                        setSheetState(() {
+                                                          endType =
+                                                              NoteRepeatEndType
+                                                                  .onDate;
+                                                          endDate = picked;
+                                                        });
+                                                        persistDaySheetSession();
+                                                      }
+                                                    },
+                                                    child: const GlossyText(
+                                                      text: 'On Date…',
+                                                      gradient: goldGloss,
+                                                      style: TextStyle(
+                                                        fontSize: 17,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                                cancelButton:
+                                                    CupertinoActionSheetAction(
+                                                      isDestructiveAction: true,
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            sheetCtx,
+                                                          ),
+                                                      child: const Text(
+                                                        'Cancel',
+                                                      ),
+                                                    ),
+                                              );
+                                            },
+                                          );
+                                          if (result != null) {
+                                            setSheetState(() {
+                                              endType = result;
+                                              if (result ==
+                                                  NoteRepeatEndType.never) {
+                                                endDate = null;
+                                              }
+                                            });
+                                            persistDaySheetSession();
+                                          }
+                                        },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
                                         GlossyText(
-                                          text: _endRepeatLabel(
-                                            endType,
-                                            endDate,
-                                            endCount,
-                                          ),
-                                          gradient: goldGloss,
-                                          style: const TextStyle(fontSize: 14),
-                                        )
-                                      else
-                                        const Text(
-                                          'Never',
+                                          text: 'End Repeat',
+                                          gradient:
+                                              repeatOption ==
+                                                  NoteRepeatOption.never
+                                              ? silverGloss
+                                              : silverGloss,
                                           style: TextStyle(
                                             fontSize: 14,
-                                            color: Colors.white54,
+                                            color:
+                                                repeatOption ==
+                                                    NoteRepeatOption.never
+                                                ? Colors.white54
+                                                : Colors.white,
                                           ),
                                         ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        Icons.chevron_right,
-                                        size: 18,
-                                        color:
-                                            repeatOption ==
-                                                NoteRepeatOption.never
-                                            ? Colors.white24
-                                            : Colors.white54,
-                                      ),
-                                    ],
+                                        Row(
+                                          children: [
+                                            if (repeatOption !=
+                                                NoteRepeatOption.never)
+                                              GlossyText(
+                                                text: _endRepeatLabel(
+                                                  endType,
+                                                  endDate,
+                                                  endCount,
+                                                ),
+                                                gradient: goldGloss,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                ),
+                                              )
+                                            else
+                                              const Text(
+                                                'Never',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.white54,
+                                                ),
+                                              ),
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              Icons.chevron_right,
+                                              size: 18,
+                                              color:
+                                                  repeatOption ==
+                                                      NoteRepeatOption.never
+                                                  ? Colors.white24
+                                                  : Colors.white54,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ],
+                                ),
+                              ],
+
+                              const SizedBox(height: 12),
+
+                              DaySheetSpectrumColorPicker(
+                                selectedColor: selectedColor,
+                                onChanged: (color) {
+                                  setSheetState(() {
+                                    selectedColor = color;
+                                  });
+                                  persistDaySheetSession();
+                                },
                               ),
-                            ),
+
+                              const SizedBox(height: 12),
+                            ],
                           ),
-                        ],
-
-                        const SizedBox(height: 12),
-
-                        DaySheetSpectrumColorPicker(
-                          selectedColor: selectedColor,
-                          onChanged: (color) {
-                            setSheetState(() {
-                              selectedColor = color;
-                            });
-                            persistDaySheetSession();
-                          },
                         ),
-
-                        const SizedBox(height: 12),
+                        if (draftInvitations.savedTargetId != null &&
+                            draftInvitations.people.isNotEmpty)
+                          const Text(
+                            'Note saved. Retry the remaining invitations.',
+                            style: TextStyle(color: Colors.white70),
+                          ),
                         Align(
                           alignment: Alignment.centerRight,
                           child: DaySheetSaveButton(
-                            label: 'Save',
+                            label: draftInvitations.busy
+                                ? 'Saving…'
+                                : draftInvitations.savedTargetId != null
+                                ? 'Retry'
+                                : 'Save',
                             accent: selectedColor,
                             onPressed: () async {
+                              if (draftInvitations.busy) return;
                               final t = controllerTitle.text.trim();
                               final loc = controllerLocation.text.trim();
                               final d = controllerDetail.text.trim();
@@ -29974,6 +30061,136 @@ class CalendarPageState extends State<CalendarPage>
                                       ),
                                     ),
                                   );
+                                  return;
+                                }
+
+                                if (editingIndex == null &&
+                                    draftInvitations.people.isNotEmpty) {
+                                  final saving = draftInvitations.saveAndInvite(
+                                    currentAccountId: () => Supabase
+                                        .instance
+                                        .client
+                                        .auth
+                                        .currentUser
+                                        ?.id,
+                                    saveEvent: () async {
+                                      if (isRepeating) {
+                                        return await _saveRepeatingNoteAsHiddenFlow(
+                                              onConfirmed: (targetId) {
+                                                draftInvitations.savedTargetId =
+                                                    targetId;
+                                                persistDaySheetSession();
+                                              },
+                                              selYear: selYear,
+                                              selMonth: selMonth,
+                                              selDay: selDay,
+                                              title: t,
+                                              detail: detailForSave.isEmpty
+                                                  ? null
+                                                  : detailForSave,
+                                              location: loc.isEmpty
+                                                  ? null
+                                                  : loc,
+                                              calendarId: selectedCalendarId,
+                                              calendarName:
+                                                  selectedCalendarLabel,
+                                              allDay: allDay,
+                                              startTime: startTime,
+                                              endTime: endTime,
+                                              repeatOption: repeatOption,
+                                              customFrequency: customFrequency,
+                                              customInterval: customInterval,
+                                              endType: endType,
+                                              endDate: endDate,
+                                              endCount: endCount,
+                                              color: selectedColor,
+                                              category: selectedCategory,
+                                              alertMinutesBefore:
+                                                  alertMinutesBefore,
+                                            ) ??
+                                            (throw StateError(
+                                              'The repeating note has no confirmed occurrence to invite people to.',
+                                            ));
+                                      }
+                                      final saved = await _saveSingleNoteOnly(
+                                        selYear: selYear,
+                                        selMonth: selMonth,
+                                        selDay: selDay,
+                                        title: t,
+                                        detail: detailForSave.isEmpty
+                                            ? null
+                                            : detailForSave,
+                                        location: loc.isEmpty ? null : loc,
+                                        calendarId: selectedCalendarId,
+                                        calendarName: selectedCalendarLabel,
+                                        allDay: allDay,
+                                        startTime: startTime,
+                                        endTime: endTime,
+                                        color: selectedColor,
+                                        category: selectedCategory,
+                                        alertMinutesBefore: alertMinutesBefore,
+                                      );
+                                      return saved.eventId;
+                                    },
+                                    send: (targetId, recipients) async {
+                                      var eventId = targetId;
+                                      if (targetId.startsWith('flow:')) {
+                                        final events =
+                                            await UserEventsRepo(
+                                              Supabase.instance.client,
+                                            ).getEventsForFlow(
+                                              int.parse(targetId.substring(5)),
+                                            );
+                                        if (events.isEmpty) {
+                                          throw StateError(
+                                            'The repeating note is saved. Its first occurrence is still loading; retry invitations.',
+                                          );
+                                        }
+                                        eventId =
+                                            events.first.id ??
+                                            (throw StateError(
+                                              'The occurrence is not confirmed yet. Retry invitations.',
+                                            ));
+                                      }
+                                      if (draftInvitations.accountId !=
+                                          Supabase
+                                              .instance
+                                              .client
+                                              .auth
+                                              .currentUser
+                                              ?.id) {
+                                        throw StateError(
+                                          'The account changed. Reopen the note in its account.',
+                                        );
+                                      }
+                                      return ShareRepo(
+                                        Supabase.instance.client,
+                                      ).shareEvent(
+                                        eventId: eventId,
+                                        recipients: recipients,
+                                      );
+                                    },
+                                    checkpoint: () async {
+                                      persistDaySheetSession();
+                                      if (sheetCtx.mounted) {
+                                        setSheetState(() {});
+                                      }
+                                    },
+                                  );
+                                  setSheetState(() {});
+                                  try {
+                                    final complete = await saving;
+                                    if (!sheetCtx.mounted) {
+                                      return;
+                                    }
+                                    if (complete) {
+                                      Navigator.pop(sheetCtx);
+                                    } else {
+                                      setSheetState(() {});
+                                    }
+                                  } finally {
+                                    if (sheetCtx.mounted) setSheetState(() {});
+                                  }
                                   return;
                                 }
 
@@ -30147,7 +30364,11 @@ class CalendarPageState extends State<CalendarPage>
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Failed to save note: $e'),
+                                      content: Text(
+                                        draftInvitations.savedTargetId != null
+                                            ? 'Note saved. Invitations need a retry: $e'
+                                            : 'Failed to save note: $e',
+                                      ),
                                       backgroundColor: Colors.red,
                                       duration: const Duration(seconds: 3),
                                     ),
@@ -32142,7 +32363,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   // Save a repeating note as a hidden micro-flow
-  Future<void> _saveRepeatingNoteAsHiddenFlow({
+  Future<String?> _saveRepeatingNoteAsHiddenFlow({
     required int selYear,
     required int selMonth,
     required int selDay,
@@ -32163,6 +32384,7 @@ class CalendarPageState extends State<CalendarPage>
     required Color color,
     String? category,
     int alertMinutesBefore = _alertNoneMinutes,
+    ValueChanged<String>? onConfirmed,
   }) async {
     // 1. First occurrence = selected Kemetic day -> Gregorian
     final DateTime firstOccurrence = KemeticMath.toGregorian(
@@ -32205,7 +32427,7 @@ class CalendarPageState extends State<CalendarPage>
           '[RepeatNote] Empty date set for repeating note "$title"; falling back to single note.',
         );
       }
-      await _saveSingleNoteOnly(
+      final saved = await _saveSingleNoteOnly(
         selYear: selYear,
         selMonth: selMonth,
         selDay: selDay,
@@ -32221,7 +32443,7 @@ class CalendarPageState extends State<CalendarPage>
         category: category,
         alertMinutesBefore: alertMinutesBefore,
       );
-      return;
+      return saved.eventId;
     }
 
     // 5. Create a hidden flow object in memory (micro-flow just for this note pattern).
@@ -32262,6 +32484,8 @@ class CalendarPageState extends State<CalendarPage>
       rules: rulesJson,
       isHidden: flow.isHidden,
     );
+
+    onConfirmed?.call('flow:$flowId');
 
     // 7. Insert into in-memory _flows list with correct ID.
     final savedFlow = _Flow(
@@ -32324,6 +32548,7 @@ class CalendarPageState extends State<CalendarPage>
         _CalendarHydrationRequest.catalogReconcile(reason: 'repeat_note_save'),
       ),
     );
+    return firstEventId ?? 'flow:$flowId';
   }
 
   /// Trigger function: central place to (re)schedule events for a flow.

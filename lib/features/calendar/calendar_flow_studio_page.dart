@@ -300,7 +300,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   // date range (Gregorian local, date-only)
   DateTime? _startDate, _endDate;
-  bool _dateRangeEditedInCurrentEditor = false;
   bool get _hasFullRange => _startDate != null && _endDate != null;
 
   // Readiness gate: only allow sync when the editor's state is fully initialized.
@@ -770,7 +769,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _useKemetic = _composeUseKemetic;
       _startDate = range.startDate;
       _endDate = range.endDate;
-      _dateRangeEditedInCurrentEditor = true;
       final fallbackTitle = _composePromptTitleFallback();
       if (_nameCtrl.text.trim().isEmpty && fallbackTitle.isNotEmpty) {
         _nameCtrl.text = fallbackTitle;
@@ -1017,7 +1015,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _useKemetic = draft.useKemetic;
       _startDate = draft.startDate;
       _endDate = draft.endDate;
-      _dateRangeEditedInCurrentEditor = draft.editingFlowId != null;
       _splitByPeriod = draft.splitByPeriod;
       _selectedDecanDays
         ..clear()
@@ -1546,7 +1543,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     if (picked != null) {
       setState(() {
         _startDate = _dateOnly(picked);
-        _dateRangeEditedInCurrentEditor = true;
       });
       _applySelectionToDrafts();
     }
@@ -1559,20 +1555,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     if (picked != null) {
       setState(() {
         _endDate = _dateOnly(picked);
-        _dateRangeEditedInCurrentEditor = true;
       });
       _applySelectionToDrafts();
     }
   }
-
-  bool get _isEditingFlowContext =>
-      _editing != null ||
-      widget.editFlowId != null ||
-      widget.importData != null;
-
-  bool get _shouldSeedAiGenerationModalWithManualRange =>
-      _hasFullRange &&
-      (_isEditingFlowContext || _dateRangeEditedInCurrentEditor);
 
   // ---------- Overview support ----------
 
@@ -1977,59 +1963,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   // ---------- save/delete ----------
-
-  /// Show AI Flow Generation Modal
-  Future<void> _showAIGenerationModal() async {
-    final seedManualRange = _shouldSeedAiGenerationModalWithManualRange;
-    final seedCurrentStart = seedManualRange || _dateRangeEditedInCurrentEditor;
-    final result = await showEditableModalBottomSheet<AIFlowGenerationResponse>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AIFlowGenerationModal(
-        initialStartDate: seedCurrentStart ? _startDate : null,
-        initialEndDate: seedManualRange ? _endDate : null,
-        initialDateRangeIsManual: seedManualRange,
-      ),
-    );
-
-    if (!mounted || result == null) return;
-
-    _FlowStudioResult? edited;
-
-    // Prefer DB-loaded flow if flowId is present
-    if (result.flowId != null) {
-      edited = await Navigator.of(context).push<_FlowStudioResult>(
-        MaterialPageRoute(
-          builder: (_) => _FlowStudioPage(
-            existingFlows: widget.existingFlows,
-            editFlowId: result.flowId,
-            resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
-          ),
-        ),
-      );
-    } else {
-      // Fallback: seed Flow Studio directly from AI response (no DB flowId)
-      final baseStart =
-          result.requestedStartDate ?? _startDate ?? DateTime.now();
-      final importData = _aiImportDataFromResponse(result, baseStart);
-      if (importData == null) return;
-
-      edited = await Navigator.of(context).push<_FlowStudioResult>(
-        MaterialPageRoute(
-          builder: (_) => _FlowStudioPage(
-            existingFlows: widget.existingFlows,
-            editFlowId: null,
-            importData: importData,
-            resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
-          ),
-        ),
-      );
-    }
-
-    if (!mounted || edited == null) return;
-
-    await _finishWithResult(edited);
-  }
 
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
@@ -2531,7 +2464,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _useKemetic = false;
       _startDate = null;
       _endDate = null;
-      _dateRangeEditedInCurrentEditor = false;
       _splitByPeriod = false;
 
       _selectedDecanDays.clear();
@@ -2593,7 +2525,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
       _startDate = f.start == null ? null : _dateOnly(f.start!);
       _endDate = f.end == null ? null : _dateOnly(f.end!);
-      _dateRangeEditedInCurrentEditor = _hasFullRange;
 
       final meta = notesDecode(f.notes);
       _useKemetic = meta.kemetic;
@@ -2744,7 +2675,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       final meta = notesDecode(flowObj.notes);
       _startDate = flowObj.start == null ? null : _dateOnly(flowObj.start!);
       _endDate = flowObj.end == null ? null : _dateOnly(flowObj.end!);
-      _dateRangeEditedInCurrentEditor = _hasFullRange;
       _useKemetic = meta.kemetic;
       _splitByPeriod = true; // Force customize mode for AI flows
 
@@ -3039,7 +2969,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     // Match AI flow path EXACTLY: set dates OUTSIDE setState
     _startDate = startDate;
     _endDate = endDate;
-    _dateRangeEditedInCurrentEditor = _hasFullRange;
     _useKemetic = meta.kemetic;
     _splitByPeriod = true; // imported flows behave like customize mode
     _syncReady = true;
@@ -3378,7 +3307,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       final requestedEndDate = data.suggestedEndDate != null
           ? _dateOnly(data.suggestedEndDate!)
           : null;
-      _dateRangeEditedInCurrentEditor = data.suggestedStartDate != null;
 
       // For AI imports (payloadId == 'ai-local'), force Gregorian/simple mode
       final isAiImport = data.share.payloadId == 'ai-local';
@@ -3532,7 +3460,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         if (!hasImportSchedule) {
           _startDate = null;
           _endDate = null;
-          _dateRangeEditedInCurrentEditor = false;
         } else {
           _endDate = requestedEndDate ?? _startDate;
         }
@@ -5638,27 +5565,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: OutlinedButton(
-                onPressed: _showAIGenerationModal,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _gold,
-                  side: BorderSide(color: tone.ctaBorder),
-                  backgroundColor: tone.ctaBg,
-                  minimumSize: const Size(32, 32),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Icon(Icons.auto_awesome, size: 16),
-              ),
-            ),
           ],
         ),
         actions: [
@@ -5927,9 +5833,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             Row(
               children: [
                 _studioSectionLabel('System'),
-                const Spacer(),
-                Flexible(
-                  fit: FlexFit.loose,
+                const SizedBox(width: 20),
+                Expanded(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 200),
                     child: _modeToggle(tone),
@@ -5992,9 +5897,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             Row(
               children: [
                 _studioSectionLabel('System'),
-                const Spacer(),
-                Flexible(
-                  fit: FlexFit.loose,
+                const SizedBox(width: 20),
+                Expanded(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 200),
                     child: _composeSystemToggle(tone),

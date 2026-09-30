@@ -125,6 +125,7 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
         resizeToAvoidBottomInset: false,
         body: Container(
           key: daySheetKeyboardSafeFrameKey,
+          constraints: const BoxConstraints.expand(),
           decoration: const BoxDecoration(
             color: DaySheetTokens.bg,
             borderRadius: BorderRadius.vertical(top: Radius.circular(22)),

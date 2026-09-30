@@ -276,7 +276,7 @@ void main() {
       final update = _section(
         calendar,
         'Future<({String clientEventId, String eventId})> _updateSingleNoteOnly(',
-        'Future<void> _saveRepeatingNoteAsHiddenFlow(',
+        'Future<String?> _saveRepeatingNoteAsHiddenFlow(',
       );
 
       expect(calendar, isNot(contains('detachImportedDeviceEvent')));
