@@ -1,3 +1,4 @@
+import 'warm_resource_contract.dart';
 import 'dart:async';
 import 'dart:convert';
 import '../account_view_cache.dart';
@@ -34,9 +35,11 @@ class WarmSnapshotStore {
   WarmSnapshotStore({
     Future<SharedPreferences> Function()? preferences,
     DateTime Function()? now,
+    WarmResourceSchema? Function(String)? schemaFor,
     this.maxEntries = 96,
     this.maxBytes = 2 * 1024 * 1024,
-  }) : _preferences = preferences ?? SharedPreferences.getInstance,
+  }) : _schemaFor = schemaFor ?? WarmResourceContract.find,
+       _preferences = preferences ?? SharedPreferences.getInstance,
        _now = now ?? DateTime.now;
 
   static final instance = WarmSnapshotStore();
@@ -44,6 +47,7 @@ class WarmSnapshotStore {
   final Future<SharedPreferences> Function() _preferences;
   final DateTime Function() _now;
   final int maxEntries, maxBytes;
+  final WarmResourceSchema? Function(String) _schemaFor;
   final _values = <String, WarmSnapshot>{};
   final _sizes = <String, int>{};
   final _versions = <String, int>{};
@@ -119,7 +123,15 @@ class WarmSnapshotStore {
             continue;
           }
           final at = DateTime.parse(json['updatedAt'] as String);
-          records.add((id: id, raw: raw, at: at, data: json['data']));
+          final resource = Uri.decodeComponent(
+            id.substring(_scope(userId).length),
+          );
+          final schema = _schemaFor(resource) ?? const WarmResourceSchema();
+          final data = schema.upgrade(
+            json['data'],
+            (json['resourceSchema'] as int?) ?? 1,
+          );
+          records.add((id: id, raw: raw, at: at, data: data));
         } catch (_) {
           // A malformed cache is a miss, never authoritative empty data.
         }
@@ -245,6 +257,8 @@ class WarmSnapshotStore {
       try {
         final raw = jsonEncode({
           'schema': 1,
+          'resourceSchema':
+              (_schemaFor(key) ?? const WarmResourceSchema()).version,
           'userId': userId,
           'updatedAt': value.updatedAt.toIso8601String(),
           'data': value.data,

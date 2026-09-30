@@ -1,6 +1,6 @@
+import 'planner_sync_notice.dart';
 import 'package:flutter/material.dart';
 
-import 'package:mobile/features/rhythm/theme/rhythm_theme.dart';
 
 import 'planner_hairline_rule.dart';
 import 'planner_pager_dots.dart';
@@ -28,8 +28,10 @@ class PlannerNutritionSection extends StatelessWidget {
     required this.onRetryNutrition,
     required this.onNutritionPageChanged,
     required this.onOpenDecanInfo,
+    this.onReview,
   });
 
+  final VoidCallback? onReview;
   final String decanName;
   final int activeNutritionDayIndex;
   final bool nutritionFormOpen;
@@ -146,25 +148,12 @@ class PlannerNutritionSection extends StatelessWidget {
               ],
             ),
           ),
-          if (nutritionMissingTable || nutritionLocalOnly)
+          if (nutritionError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-              child: _Notice(
-                icon: Icons.cloud_off,
-                color: Colors.orangeAccent,
-                text: nutritionLocalOnly
-                    ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
-                    : 'Nutrition tracking is not available in this environment yet.',
-              ),
-            ),
-          if (nutritionError != null &&
-              !nutritionMissingTable &&
-              !nutritionLocalOnly)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-              child: _ErrorNotice(
-                text: nutritionError!,
-                onRetryNutrition: onRetryNutrition,
+              child: PlannerSyncNotice(
+                message: nutritionError!,
+                onReview: onReview,
               ),
             ),
           if (nutritionLoading)
@@ -275,70 +264,6 @@ class _NutritionTextField extends StatelessWidget {
       ),
       textInputAction: textInputAction,
       onSubmitted: onSubmitted,
-    );
-  }
-}
-
-class _Notice extends StatelessWidget {
-  const _Notice({required this.icon, required this.color, required this.text});
-
-  final IconData icon;
-  final Color color;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(PlannerVisualTokens.plateRadius),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: RhythmTheme.subheading.copyWith(color: color),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorNotice extends StatelessWidget {
-  const _ErrorNotice({required this.text, required this.onRetryNutrition});
-
-  final String text;
-  final VoidCallback onRetryNutrition;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.redAccent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(PlannerVisualTokens.plateRadius),
-        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: RhythmTheme.subheading.copyWith(color: Colors.redAccent),
-            ),
-          ),
-          TextButton(onPressed: onRetryNutrition, child: const Text('Retry')),
-        ],
-      ),
     );
   }
 }

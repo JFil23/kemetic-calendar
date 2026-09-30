@@ -1,7 +1,7 @@
+import 'planner_sync_notice.dart';
 import 'package:flutter/material.dart';
 
 import 'package:mobile/features/rhythm/models/rhythm_models.dart';
-import 'package:mobile/features/rhythm/theme/rhythm_theme.dart';
 
 import 'planner_circle_control.dart';
 import 'planner_hairline_rule.dart';
@@ -22,9 +22,13 @@ class PlannerNotesSection extends StatelessWidget {
     required this.onPageChanged,
     required this.onShowNotePicker,
     this.addHeroTag,
+    this.syncMessage,
+    this.onReview,
   });
 
   final bool notesLocalOnly;
+  final String? syncMessage;
+  final VoidCallback? onReview;
   final TextEditingController noteInputController;
   final List<RhythmNote> notes;
   final int activeNoteIndex;
@@ -45,7 +49,12 @@ class PlannerNotesSection extends StatelessWidget {
           if (notesLocalOnly)
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-              child: _LocalNotice(),
+              child: PlannerSyncNotice(
+                message:
+                    syncMessage ??
+                    'Changes pending account sync. They will retry automatically.',
+                onReview: onReview,
+              ),
             ),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -150,35 +159,6 @@ class PlannerNotesSection extends StatelessWidget {
       ),
       focusedBorder: UnderlineInputBorder(
         borderSide: PlannerVisualTokens.focusedGoldBorder,
-      ),
-    );
-  }
-}
-
-class _LocalNotice extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orangeAccent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(PlannerVisualTokens.plateRadius),
-        border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.cloud_off, color: Colors.orangeAccent, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Planner notes are saved only on this device. Cloud sync is unavailable.',
-              style: RhythmTheme.subheading.copyWith(
-                color: Colors.orangeAccent,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

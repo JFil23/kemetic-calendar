@@ -1,3 +1,4 @@
+import 'warm_resource_contract.dart';
 import 'dart:async';
 import 'warm_work_queue.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,7 +12,18 @@ class WarmJsonReads {
   final bool cachedOnly;
   final bool Function()? mayFetch;
 
-  Future<Object?> value(String key, Future<Object?> Function() fetch) async {
+  Future<Object?> value(
+    String key,
+    Future<Object?> Function() fetch, {
+    void Function(Object?)? validate,
+  }) async {
+    WarmResourceContract.requireRegistered(key);
+    Future<Object?> checkedFetch() async {
+      final value = await fetch();
+      validate?.call(value);
+      return value;
+    }
+
     final uid = client.auth.currentUser?.id;
     if (uid == null) throw const WarmReadCancelled();
     final guard = Zone.current[warmReadGuard] as bool Function()?;
@@ -23,7 +35,7 @@ class WarmJsonReads {
           : (await store.refresh(
               uid,
               key,
-              fetch,
+              checkedFetch,
               isCurrent: () =>
                   client.auth.currentUser?.id == uid &&
                   (mayFetch?.call() ?? true) &&
@@ -40,13 +52,26 @@ class WarmJsonReads {
       rethrow;
     }
     if (client.auth.currentUser?.id != uid) throw const WarmReadCancelled();
+    validate?.call(result);
     return result;
   }
 
   Future<List<Map<String, dynamic>>> rows(
     String key,
     Future<Object?> Function() fetch,
-  ) async => (await value(key, fetch) as List)
-      .map((row) => Map<String, dynamic>.from(row as Map))
-      .toList();
+  ) async =>
+      (await value(
+                key,
+                fetch,
+                validate: (data) {
+                  if (data is! List || data.any((r) => r is! Map)) {
+                    throw const FormatException(
+                      'Expected a complete list of rows',
+                    );
+                  }
+                },
+              )
+              as List)
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
 }

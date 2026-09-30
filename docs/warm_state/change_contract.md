@@ -1,0 +1,72 @@
+# Persistence change contract
+
+The existing populated app and the user's September 29 screen recordings are
+visual/navigation references. Planner cards, nutrition scheduling, and the
+five-flow Day View housing remain unchanged.
+
+## Two distinct lifetimes
+
+WarmSnapshotStore is an account-scoped, bounded, disposable read cache. Its
+`warm_snapshot:v1:` namespace is independent of application builds. Each resource
+family now has a schema version and migration path. Deployed envelope schema 1
+without resourceSchema still reads as resource version 1. Unsupported payload
+versions remain cache misses, never successful empty content. Row payloads are
+validated before replacing confirmed snapshots.
+
+PlannerAccountStore owns durable authored intents outside that cache. It writes
+stable mutation IDs to `planner_account:v1:<account>` before publishing an edit or
+making a network request. These records are not evicted or erased on logout.
+Retries run at startup, after authentication/resume, and periodically while the
+app is in the foreground. Browsers cannot guarantee execution while suspended;
+retries resume when the app can run again.
+
+The existing alignment_notes and nutrition_items tables remain authoritative.
+Their monotonic revisions advance even for older clients. Backend mutation
+receipts preserve idempotent responses and conflicting versions under owner RLS.
+Every request carries its expected account and row revision. A timeout cannot
+turn a retry into a duplicate creation. A stale edit cannot silently replace a
+newer edit or recreate a deleted record. The user can review both versions;
+choosing a version remains conditional on the version that was displayed.
+
+Legacy local note and nutrition backups are retained. New local records receive
+deterministic migration identities. A legacy value that differs from an account
+row is preserved for conflict review instead of overwriting the account row.
+Successful account-empty reads no longer resurrect previously synced cached rows.
+Nutrition checkmarks reuse journal_badges, with atomic account-fenced replacement
+instead of separate delete/insert requests. The visible checkmark changes only
+after account confirmation. Existing checklist/badge domain owners are retained. Opening Planner no longer
+replays cached checkmarks into journal_badges. Legacy checkmark backups are
+retained unchanged locally and archived in the owner-protected account recovery
+table; they do not overwrite current account truth. Recovery of an ambiguous
+legacy checkmark requires choosing its intended state, not automatic replay.
+
+The existing inline notice geometry now distinguishes pending sync, unavailable
+refresh and account-preserved conflicts. A healthy state adds no notice. Read
+failure is not evidence that an already saved row is device-only.
+
+## Required evidence when changing this contract
+
+- Old-release fixtures restored by current readers, with zero network dependency.
+- Resource migration and unsupported-format behavior.
+- Slow/failed refresh retains usable content; permission/account changes fence it.
+- Mutation invalidation and passive background warming remain separate.
+- Durable writes survive restart, lost acknowledgement, interleaved edits and logout.
+- Conflicts are recoverable by a fresh client with empty local storage.
+- Backend RLS, anonymous denial, explicit account fencing and atomicity tests.
+- Visual inspection of changed states before persistence integration, followed by
+  regression checks against existing views.
+
+The release inventory guard tracks route ownership, persistent read boundaries,
+and lifecycle integration. It catches common accidental removals and requires
+review of newly added routes. It complements behavioral tests; it cannot prove
+all arbitrary future code changes safe. Future schema changes must keep the old
+fixtures and add new ones, not replace them.
+
+## Verification status
+
+Implementation is pending the complete app/backend release gates and served RC
+replay. Focused restart, retry, conflict, migration, warm-upgrade and notice tests
+pass. Disposable backend smoke verifies concurrent updates, duplicate requests,
+deletes, privacy boundaries and nutrition badge retry/reset. No physical-device
+background execution or offline-to-online browser replay is claimed from those
+tests alone.

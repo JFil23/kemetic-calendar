@@ -391,28 +391,22 @@ class PlannerBadgeRepo {
     ]);
     try {
       final uid = _userId;
-      if (uid == null || item.id.isEmpty) return;
-      final eventId = nutritionEventId(item.id, date);
-      try {
-        await _deleteByEventId(eventId);
-        if (state == RhythmItemState.pending) {
-          return;
-        }
-        await _insertBadge(
-          badgeId: eventId,
-          eventId: eventId,
-          title: _nutritionTitle(item, state),
-          details: _nutritionDetails(item, date, state),
-          tags: _buildTags(PlannerBadgeKind.nutrition, state),
-          occurredOn: date,
-        );
-      } catch (error) {
-        if (_isUnavailable(error)) {
-          debugPrint('[PlannerBadgeRepo] nutrition sync skipped: $error');
-          return;
-        }
-        rethrow;
+      if (uid == null || item.id.isEmpty) {
+        throw StateError('An account and saved nutrition item are required.');
       }
+      await _client
+          .rpc(
+            'sync_planner_nutrition_state_v1',
+            params: {
+              'p_account_id': uid,
+              'p_item_id': item.id,
+              'p_date': dateKey(date),
+              'p_state': state.name,
+              'p_title': _nutritionTitle(item, state),
+              'p_details': _nutritionDetails(item, date, state),
+            },
+          )
+          .timeout(const Duration(seconds: 20));
     } finally {
       invalidateWarmDomains(warmAccount, [
         'pages.planner.',

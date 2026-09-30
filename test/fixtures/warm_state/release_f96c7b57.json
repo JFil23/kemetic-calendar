@@ -1,0 +1,5 @@
+{
+  "warm_snapshot:v1:upgrade-user:rhythm.notes.rows": "{\"schema\":1,\"userId\":\"upgrade-user\",\"updatedAt\":\"2026-09-29T23:45:32Z\",\"data\":[{\"id\":\"10000000-0000-4000-8000-000000000001\",\"body\":\"A preserved note\",\"position\":0,\"created_at\":\"2026-09-29T00:00:00Z\"}]}",
+  "warm_snapshot:v1:upgrade-user:pages.flows": "{\"schema\":1,\"userId\":\"upgrade-user\",\"updatedAt\":\"2026-09-29T23:45:32Z\",\"data\":[]}",
+  "planner_account:v1:upgrade-user": "{\"schema\":1,\"userId\":\"upgrade-user\",\"rows\":{},\"pending\":[{\"body\":\"Not a cache\"}]}"
+}

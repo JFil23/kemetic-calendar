@@ -1,0 +1,231 @@
+{
+  "schema": 1,
+  "baseline": "f96c7b575fe3643b80b55e3ec15f4eb66e1738b9",
+  "routes": [
+    {
+      "path": "/",
+      "owner": "lib/features/pages/pages_controller.dart",
+      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state."
+    },
+    {
+      "path": "/calendars",
+      "owner": "lib/data/flows_repo.dart",
+      "policy": "Calendar/flow account repository and existing restoration owner; complete detail coverage before persistence."
+    },
+    {
+      "path": "/event-invite/:shareId",
+      "owner": "lib/data/share_repo.dart",
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+    },
+    {
+      "path": "/flow-post/:postId",
+      "owner": "lib/data/profile_repo.dart",
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+    },
+    {
+      "path": "/flows",
+      "owner": "lib/data/flows_repo.dart",
+      "policy": "Calendar/flow account repository and existing restoration owner; complete detail coverage before persistence."
+    },
+    {
+      "path": "/flows/:flowId/edit",
+      "owner": "lib/data/flows_repo.dart",
+      "policy": "Calendar/flow account repository and existing restoration owner; complete detail coverage before persistence."
+    },
+    {
+      "path": "/inbox",
+      "owner": "lib/data/share_repo.dart",
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+    },
+    {
+      "path": "/inbox/conversation/:userId",
+      "owner": "lib/data/share_repo.dart",
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+    },
+    {
+      "path": "/inbox/dm/:conversationId",
+      "owner": "lib/data/share_repo.dart",
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+    },
+    {
+      "path": "/insight-post/:postId",
+      "owner": "lib/data/profile_repo.dart",
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+    },
+    {
+      "path": "/journal",
+      "owner": "lib/features/journal/journal_controller.dart",
+      "policy": "Existing journal persistence and warm reads; do not substitute evictable cache for authored entries."
+    },
+    {
+      "path": "/journal/entry/:entryId",
+      "owner": "lib/features/journal/journal_controller.dart",
+      "policy": "Existing journal persistence and warm reads; do not substitute evictable cache for authored entries."
+    },
+    {
+      "path": "/maat-guidance/:deliveryId",
+      "owner": "lib/data/maat_guidance_repo.dart",
+      "policy": "Account-scoped guidance snapshots; background refresh and access revocation."
+    },
+    {
+      "path": "/nodes",
+      "owner": "lib/data/insight_link_repo.dart",
+      "policy": "Existing Library persistence boundary; warm cache cannot own authored node content."
+    },
+    {
+      "path": "/nodes/:nodeId",
+      "owner": "lib/data/insight_link_repo.dart",
+      "policy": "Existing Library persistence boundary; warm cache cannot own authored node content."
+    },
+    {
+      "path": "/pages",
+      "owner": "lib/features/pages/pages_controller.dart",
+      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state."
+    },
+    {
+      "path": "/profile-search",
+      "owner": "lib/data/profile_repo.dart",
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+    },
+    {
+      "path": "/profile/:userId",
+      "owner": "lib/data/profile_repo.dart",
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+    },
+    {
+      "path": "/profile/:userId/followers",
+      "owner": "lib/data/profile_repo.dart",
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+    },
+    {
+      "path": "/profile/:userId/following",
+      "owner": "lib/data/profile_repo.dart",
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+    },
+    {
+      "path": "/profile/flow-post-picker",
+      "owner": "lib/data/profile_repo.dart",
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+    },
+    {
+      "path": "/profile/insight-post-picker",
+      "owner": "lib/data/profile_repo.dart",
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+    },
+    {
+      "path": "/profile/me/edit",
+      "owner": "lib/data/profile_repo.dart",
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+    },
+    {
+      "path": "/reflections",
+      "owner": "lib/data/decan_reflection_repo.dart",
+      "policy": "Account-scoped reflection snapshots; background refresh and mutation invalidation."
+    },
+    {
+      "path": "/reflections/:reflectionId",
+      "owner": "lib/data/decan_reflection_repo.dart",
+      "policy": "Account-scoped reflection snapshots; background refresh and mutation invalidation."
+    },
+    {
+      "path": "/rhythm/decan/:dayKey",
+      "owner": "lib/data/account_storage/planner_account_store.dart",
+      "policy": "Planner notes and nutrition use durable account writes; route-specific checklist/badge writers remain account-backed. Editors retain their existing draft contracts."
+    },
+    {
+      "path": "/rhythm/editor/custom",
+      "owner": "lib/data/account_storage/planner_account_store.dart",
+      "policy": "Planner notes and nutrition use durable account writes; route-specific checklist/badge writers remain account-backed. Editors retain their existing draft contracts."
+    },
+    {
+      "path": "/rhythm/editor/timed",
+      "owner": "lib/data/account_storage/planner_account_store.dart",
+      "policy": "Planner notes and nutrition use durable account writes; route-specific checklist/badge writers remain account-backed. Editors retain their existing draft contracts."
+    },
+    {
+      "path": "/rhythm/editor/untimed",
+      "owner": "lib/data/account_storage/planner_account_store.dart",
+      "policy": "Planner notes and nutrition use durable account writes; route-specific checklist/badge writers remain account-backed. Editors retain their existing draft contracts."
+    },
+    {
+      "path": "/rhythm/today",
+      "owner": "lib/data/account_storage/planner_account_store.dart",
+      "policy": "Planner notes and nutrition use durable account writes; route-specific checklist/badge writers remain account-backed. Editors retain their existing draft contracts."
+    },
+    {
+      "path": "/rhythm/todo",
+      "owner": "lib/data/account_storage/planner_account_store.dart",
+      "policy": "Planner notes and nutrition use durable account writes; route-specific checklist/badge writers remain account-backed. Editors retain their existing draft contracts."
+    },
+    {
+      "path": "/rhythm/tracker",
+      "owner": "lib/data/account_storage/planner_account_store.dart",
+      "policy": "Planner notes and nutrition use durable account writes; route-specific checklist/badge writers remain account-backed. Editors retain their existing draft contracts."
+    },
+    {
+      "path": "/settings",
+      "owner": "lib/features/settings/settings_page.dart",
+      "policy": "Preference-specific authority; device capabilities remain device-bound. No blanket cache ownership of account preferences."
+    },
+    {
+      "path": "/share/:shareId",
+      "owner": "lib/data/share_repo.dart",
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+    },
+    {
+      "path": "/shared-flow/:shareId",
+      "owner": "lib/data/share_repo.dart",
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+    },
+    {
+      "path": "/shared-flow/by-flow/:flowId",
+      "owner": "lib/data/share_repo.dart",
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+    },
+    {
+      "path": "/shared-practice/:roomId",
+      "owner": "lib/data/share_repo.dart",
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+    }
+  ],
+  "minimum_read_boundaries": {
+    "lib/repositories/dm_conversation_repo.dart": 2,
+    "lib/data/journal_repo.dart": 2,
+    "lib/data/pages_read_repository.dart": 19,
+    "lib/data/decan_reflection_repo.dart": 2,
+    "lib/data/profile_repo.dart": 2,
+    "lib/data/user_events_repo.dart": 1,
+    "lib/data/event_filing_repo.dart": 2,
+    "lib/data/commons_repo.dart": 2,
+    "lib/data/maat_guidance_repo.dart": 3,
+    "lib/data/shared_calendars_repo.dart": 2,
+    "lib/data/flows_repo.dart": 1,
+    "lib/features/rhythm/data/rhythm_repo.dart": 9,
+    "lib/features/calendar/the_reading_house/reading_house_room_repository.dart": 2
+  },
+  "required_lifecycle_contracts": {
+    "lib/main.dart": [
+      "AppWarmState(supabase)).start()",
+      "_warmState?.dispose()",
+      "PlannerAccountStore.of(supabase).start()"
+    ],
+    "lib/data/warm_state/app_warm_state.dart": [
+      "didChangeAppLifecycleState",
+      "onAuthStateChange",
+      "resources.restore",
+      "_queue.pause()"
+    ],
+    "lib/data/warm_state/warm_snapshot_store.dart": [
+      "warm_snapshot:v1:",
+      "resourceSchema",
+      "schema.upgrade",
+      "_scope(userId)"
+    ],
+    "lib/data/account_storage/planner_account_store.dart": [
+      "planner_account:v1:",
+      "apply_planner_mutation_v1",
+      "'p_account_id': uid",
+      "planner_mutation_receipts"
+    ]
+  }
+}

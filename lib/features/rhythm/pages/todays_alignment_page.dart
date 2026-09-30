@@ -1,8 +1,8 @@
+import '../../../data/account_storage/planner_account_store.dart';
 import '../widgets/planner/planner_note_text.dart';
 import 'dart:async';
 import '../../../data/account_view_cache.dart';
 import '../planner/planner_overview.dart';
-import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -21,7 +21,6 @@ import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
-import 'package:mobile/features/rhythm/data/nutrition_items_cache.dart';
 import 'package:mobile/features/rhythm/todo_day_window.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
 import 'package:mobile/services/app_haptics.dart';
@@ -128,7 +127,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   );
 
   final RhythmRepo _repo = RhythmRepo(Supabase.instance.client);
-  final NutritionRepo _nutritionRepo = NutritionRepo(Supabase.instance.client);
+  final PlannerAccountStore _plannerStorage = PlannerAccountStore.of(
+    Supabase.instance.client,
+  );
   final UserEventsRepo _eventsRepo = UserEventsRepo(Supabase.instance.client);
   final PlannerBadgeRepo _plannerBadgeRepo = PlannerBadgeRepo(
     Supabase.instance.client,
@@ -167,17 +168,17 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   bool _missingTables = false;
   String? _friendlyError;
   bool _notesLocalOnly = false;
-  bool _notesLocalNoticeShown = false;
+
   bool _showGregorianDates = false;
   Timer? _midnightTimer;
   List<NutritionItem> _nutritionItems = [];
   Map<String, RhythmItemState> _nutritionStatesByKey = {};
   bool _nutritionLoading = true;
-  bool _nutritionMissingTable = false;
+
   bool _nutritionLocalOnly = false;
   String? _nutritionError;
   bool _nutritionStatesLoaded = false;
-  bool _nutritionLocalNoticeShown = false;
+
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
   Timer? _sessionPersistDebounce;
@@ -216,6 +217,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       viewportFraction: PlannerVisualTokens.nutritionCarouselViewportFraction,
       initialPage: _activeNutritionDayIndex,
     );
+    _plannerStorage.addListener(_plannerChanged);
     _bindSessionListeners();
     final restoreFuture = _restoreSessionState();
     _future = restoreFuture.then((_) => _loadWithTrace('initial')).then((_) {
@@ -255,6 +257,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   @override
   void dispose() {
+    _plannerStorage.removeListener(_plannerChanged);
     _sessionPersistDebounce?.cancel();
     _commitmentInputController.dispose();
     _noteInputController.dispose();
@@ -439,282 +442,188 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     }
   }
 
-  Future<void> _loadNutrition() async {
-    final uid = _currentUserId;
+  void _plannerChanged() {
+    if (!mounted) return;
+    final notes =
+        _plannerStorage
+            .rows('notes')
+            .map(
+              (r) => RhythmNote(
+                id: r['id'] as String,
+                text: r['body'] as String? ?? '',
+                position: (r['position'] as num?)?.toInt() ?? 0,
+                createdAt:
+                    DateTime.tryParse(r['created_at'] as String? ?? '') ??
+                    DateTime(1970),
+              ),
+            )
+            .toList()
+          ..sort((a, b) => a.position.compareTo(b.position));
+    final nutrition = _plannerStorage
+        .rows('nutrition')
+        .map(NutritionItem.fromRow)
+        .toList();
     setState(() {
-      _nutritionLoading = true;
-      _nutritionError = null;
-      _nutritionMissingTable = false;
+      _notes = notes;
+      _activeNoteIndex = _clampNoteIndex(notes.length);
+      if (_fullscreenNote != null) {
+        _fullscreenNote = notes
+            .where((n) => n.id == _fullscreenNote!.id)
+            .firstOrNull;
+      }
+      _notesLocalOnly = _plannerStorage.message('notes') != null;
+      _nutritionItems = nutrition;
+      _nutritionLocalOnly = _plannerStorage.pending('nutrition');
+      _nutritionError = _plannerStorage.message('nutrition');
+      _nutritionLoading = false;
     });
-    final cachedFuture = NutritionItemsCache.load(uid);
-    final warmNutrition = await cachedFuture;
-    if (!mounted || _currentUserId != uid) return;
-    if (warmNutrition.isNotEmpty) {
-      setState(() {
-        _nutritionItems = warmNutrition;
-        _nutritionLoading = false;
-      });
-    }
-    if (uid == null) {
-      final cached = await cachedFuture;
-      if (!mounted) return;
-      setState(() {
-        _nutritionItems = cached;
-        _nutritionLoading = false;
-        _nutritionLocalOnly = cached.isNotEmpty;
-        _nutritionError = cached.isNotEmpty
-            ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
-            : null;
-      });
-      return;
-    }
+  }
+
+  Future<bool> _plannerWrite(Future<void> Function() write) async {
     try {
-      final items = await _nutritionRepo.getAll();
-      final cached = await cachedFuture;
-      final offlineAdds = cached.where(NutritionItemsCache.isLocal).toList();
-      final uploaded = <NutritionItem>[];
-      final remainingLocal = <NutritionItem>[];
-      final replacementIds = <String, String>{};
-      var uploadFailed = false;
-      for (final item in offlineAdds) {
-        try {
-          final saved = await _nutritionRepo.upsert(item);
-          uploaded.add(saved);
-          replacementIds[item.id] = saved.id;
-        } catch (_) {
-          uploadFailed = true;
-          remainingLocal.add(item);
-        }
-      }
-      final mergedItems = uploadFailed
-          ? [...items, ...uploaded, ...remainingLocal]
-          : [...items, ...uploaded];
-      await NutritionItemsCache.save(mergedItems, uid: uid);
-      var updatedStates = _nutritionStatesByKey;
-      if (replacementIds.isNotEmpty) {
-        final storedStates = await _loadNutritionStatesFromPrefs(uid);
-        final migratedStoredStates = _replaceNutritionStateItemIds(
-          storedStates,
-          replacementIds,
-        );
-        await _saveNutritionStatesToPrefs(migratedStoredStates, uid: uid);
-        updatedStates = _replaceNutritionStateItemIds(
-          _nutritionStatesByKey,
-          replacementIds,
+      await write();
+      return true;
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is StateError
+                  ? error.message.toString()
+                  : 'Could not preserve this change. Please retry.',
+            ),
+          ),
         );
       }
-      if (!mounted) return;
-      setState(() {
-        _nutritionItems = mergedItems;
-        _nutritionStatesByKey = updatedStates;
-        _nutritionLoading = false;
-        _nutritionLocalOnly = uploadFailed && offlineAdds.isNotEmpty;
-        _nutritionError = _nutritionLocalOnly
-            ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
-            : null;
-      });
-      if (_nutritionLocalOnly) {
-        _showLocalNutritionWarningOnce();
-      }
-      if (_nutritionStatesLoaded) {
-        unawaited(_reconcileNutritionPlannerBadges());
-      }
-    } on StateError catch (e) {
-      final msg = e.toString().toLowerCase();
-      final missing = msg.contains('nutrition_items');
-      final cached = await cachedFuture;
-      if (!mounted) return;
-      setState(() {
-        _nutritionItems = cached;
-        _nutritionLoading = false;
-        _nutritionMissingTable = missing;
-        _nutritionLocalOnly = cached.isNotEmpty;
-        _nutritionError = cached.isNotEmpty
-            ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
-            : missing
-            ? 'Nutrition storage is not available in this environment yet.'
-            : 'Could not load nutrition sources.';
-      });
-    } catch (_) {
-      final cached = await cachedFuture;
-      if (!mounted) return;
-      setState(() {
-        _nutritionItems = cached;
-        _nutritionLoading = false;
-        _nutritionLocalOnly = cached.isNotEmpty;
-        _nutritionError = cached.isNotEmpty
-            ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
-            : 'Could not load nutrition sources.';
-      });
+      return false;
     }
   }
 
-  void _showLocalNutritionWarningOnce() {
-    if (_nutritionLocalNoticeShown || !mounted) return;
-    _nutritionLocalNoticeShown = true;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Nutrition sources are saved only on this device. Cloud sync is unavailable.',
+  Future<void> _reviewPlannerChanges(String kind) async {
+    final uid = _currentUserId;
+    for (final conflict in _plannerStorage.conflicts(kind)) {
+      if (!mounted || _currentUserId != uid) return;
+      final request = Map<String, dynamic>.from(conflict['request'] as Map);
+      final remote = (conflict['result'] as Map)['row'] as Map?;
+      String describe(Map? row) {
+        if (row == null) return 'Deleted';
+        if (kind == 'notes') {
+          return row.containsKey('body')
+              ? '${row['body']}'
+              : 'Note order: ${(row['position'] as num? ?? 0) + 1}';
+        }
+        const labels = {
+          'nutrient': 'Nutrient',
+          'source': 'Source',
+          'purpose': 'Purpose',
+          'mode': 'Schedule',
+          'days_of_week': 'Weekdays',
+          'decan_days': 'Decan days',
+          'repeat': 'Repeat',
+          'time_h': 'Hour',
+          'time_m': 'Minute',
+          'alert_offset_minutes': 'Reminder minutes before',
+          'enabled': 'Enabled',
+        };
+        return labels.entries
+            .where((e) => row.containsKey(e.key))
+            .map((e) => '${e.value}: ${row[e.key] ?? 'None'}')
+            .join('\n');
+      }
+
+      final choice = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.black87,
+          title: const Text('Review saved versions'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Account version'),
+                Text(describe(remote)),
+                const SizedBox(height: 16),
+                const Text('Your change'),
+                Text(
+                  request['delete'] == true
+                      ? 'Delete this item'
+                      : describe(request['change'] as Map),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Later'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Keep account'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Use my version'),
+            ),
+          ],
         ),
-        duration: Duration(seconds: 4),
-        backgroundColor: Colors.orangeAccent,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+      );
+      if (choice == null || !mounted || _currentUserId != uid) return;
+      await _plannerWrite(
+        () => _plannerStorage.resolve(conflict, keepMine: choice),
+      );
+    }
+  }
+
+  Future<void> _loadNutrition() async {
+    await _plannerWrite(() async {
+      await _plannerStorage.restore();
+      await _plannerStorage.refresh('nutrition');
+    });
   }
 
   Future<void> _addNutritionItem() async {
     final nutrient = _nutritionNutrientController.text.trim();
     final source = _nutritionSourceController.text.trim();
-    final purpose = _nutritionPurposeController.text.trim();
-    final decanDay = _activeNutritionDayIndex + 1;
-    if (nutrient.isEmpty && source.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add a nutrient or source first.')),
-      );
-      return;
-    }
-    final newItem = NutritionItem(
+    if (nutrient.isEmpty && source.isEmpty) return;
+    final item = NutritionItem(
       id: '',
       nutrient: nutrient,
       source: source,
-      purpose: purpose,
+      purpose: _nutritionPurposeController.text.trim(),
       enabled: true,
       schedule: IntakeSchedule(
         mode: IntakeMode.decan,
-        decanDays: {decanDay},
-        daysOfWeek: const {},
+        decanDays: {_activeNutritionDayIndex + 1},
         repeat: true,
         time: const TimeOfDay(hour: 9, minute: 0),
       ),
     );
-    if (_nutritionMissingTable) {
-      await _saveNutritionItemLocally(newItem);
-      return;
-    }
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final saved = await _nutritionRepo.upsert(newItem);
-      if (!mounted) return;
-      final updated = [..._nutritionItems, saved];
-      setState(() {
-        _nutritionItems = updated;
-        _nutritionLocalOnly = false;
-        _nutritionError = null;
-      });
-      await NutritionItemsCache.save(updated, uid: _currentUserId);
+    final saved = await _plannerWrite(() async {
+      final change = item.toInsert(userId: _currentUserId ?? '')
+        ..remove('user_id');
+      await _plannerStorage.save('nutrition', change);
+    });
+    if (saved && mounted) {
       _nutritionNutrientController.clear();
       _nutritionSourceController.clear();
       _nutritionPurposeController.clear();
-      messenger.showSnackBar(
-        SnackBar(content: Text('Saved to Day $decanDay of this decan.')),
-      );
-    } catch (_) {
-      await _saveNutritionItemLocally(newItem);
     }
-  }
-
-  Future<void> _saveNutritionItemLocally(NutritionItem item) async {
-    if (!mounted) return;
-    final fallback = item.copyWith(
-      id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-    );
-    final updated = [..._nutritionItems, fallback];
-    setState(() {
-      _nutritionItems = updated;
-      _nutritionLocalOnly = true;
-      _nutritionError =
-          'Nutrition sources are saved only on this device. Cloud sync is unavailable.';
-    });
-    await NutritionItemsCache.save(updated, uid: _currentUserId);
-    _nutritionNutrientController.clear();
-    _nutritionSourceController.clear();
-    _nutritionPurposeController.clear();
-    _showLocalNutritionWarningOnce();
   }
 
   Future<List<NutritionItem>> _saveNutritionItemEdits(
     List<NutritionItem> items,
   ) async {
-    final uid = _currentUserId;
-    if (uid == null || _nutritionMissingTable) {
-      return _saveNutritionItemEditsLocally(items);
-    }
-
-    final savedItems = <NutritionItem>[];
-    final replacementIds = <String, String>{};
-    try {
-      for (final item in items) {
-        final saved = await _nutritionRepo.upsert(item);
-        savedItems.add(saved);
-        if (item.id.isNotEmpty && item.id != saved.id) {
-          replacementIds[item.id] = saved.id;
-        }
-      }
-    } catch (_) {
-      return _saveNutritionItemEditsLocally(items);
-    }
-    if (!mounted) return savedItems;
-
-    final savedByOriginalId = <String, NutritionItem>{};
-    final savedByRemoteId = <String, NutritionItem>{};
-    for (var i = 0; i < items.length; i++) {
-      savedByOriginalId[items[i].id] = savedItems[i];
-      savedByRemoteId[savedItems[i].id] = savedItems[i];
-    }
-    final updatedItems = [
-      for (final item in _nutritionItems)
-        savedByOriginalId[item.id] ?? savedByRemoteId[item.id] ?? item,
-    ];
-    var updatedStates = _nutritionStatesByKey;
-    if (replacementIds.isNotEmpty) {
-      final storedStates = await _loadNutritionStatesFromPrefs(uid);
-      final migratedStoredStates = _replaceNutritionStateItemIds(
-        storedStates,
-        replacementIds,
-      );
-      await _saveNutritionStatesToPrefs(migratedStoredStates, uid: uid);
-      updatedStates = _replaceNutritionStateItemIds(
-        _nutritionStatesByKey.isEmpty
-            ? migratedStoredStates
-            : _nutritionStatesByKey,
-        replacementIds,
-      );
-    }
-    setState(() {
-      _nutritionItems = updatedItems;
-      _nutritionStatesByKey = updatedStates;
-      _nutritionLocalOnly = updatedItems.any(NutritionItemsCache.isLocal);
-      _nutritionError = _nutritionLocalOnly
-          ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
-          : null;
-    });
-    await NutritionItemsCache.save(updatedItems, uid: uid);
-    if (replacementIds.isNotEmpty) {
-      unawaited(_reconcileNutritionPlannerBadges());
-    }
-    return savedItems;
-  }
-
-  Future<List<NutritionItem>> _saveNutritionItemEditsLocally(
-    List<NutritionItem> items,
-  ) async {
-    final editedById = {for (final item in items) item.id: item};
-    final updated = [
-      for (final item in _nutritionItems) editedById[item.id] ?? item,
-    ];
-    await NutritionItemsCache.save(updated, uid: _currentUserId);
-    if (mounted) {
-      setState(() {
-        _nutritionItems = updated;
-        _nutritionLocalOnly = true;
-        _nutritionError =
-            'Nutrition sources are saved only on this device. Cloud sync is unavailable.';
+    for (final item in items) {
+      final change = item.toInsert(userId: _currentUserId ?? '')
+        ..remove('user_id');
+      final saved = await _plannerWrite(() async {
+        await _plannerStorage.save('nutrition', change, id: item.id);
       });
+      if (!saved) return _nutritionItems;
     }
-    _showLocalNutritionWarningOnce();
-    return items;
+    return _nutritionItems;
   }
 
   Future<void> _persistTodoState(int index, RhythmItemState state) async {
@@ -874,9 +783,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     }
   }
 
-  String _prefsKeyForUser(String? uid) =>
-      'today_alignment_notes${uid == null ? '' : '_$uid'}';
-
   String? get _currentUserId => Supabase.instance.client.auth.currentUser?.id;
 
   DateTime get _todayLocal =>
@@ -891,30 +797,14 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   String _nutritionChecksPrefsKeyForUser(String? uid) =>
       'today_alignment_nutrition_checks${uid == null ? '' : '_$uid'}';
 
-  String _nutritionBadgeMigrationPrefsKeyForUser(String? uid) =>
-      'today_alignment_nutrition_badges_migrated${uid == null ? '' : '_$uid'}';
-
-  Future<bool> _hasMigratedNutritionBadgeState([String? uid]) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(
-          _nutritionBadgeMigrationPrefsKeyForUser(uid ?? _currentUserId),
-        ) ??
-        false;
-  }
-
-  Future<void> _markNutritionBadgeStateMigrated({String? uid}) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(
-      _nutritionBadgeMigrationPrefsKeyForUser(uid ?? _currentUserId),
-      true,
-    );
-  }
-
   Future<Map<String, RhythmItemState>> _loadNutritionStatesFromPrefs([
     String? uid,
   ]) async {
     final prefs = await SharedPreferences.getInstance();
     final rawValues =
+        prefs.getStringList(
+          '${_nutritionChecksPrefsKeyForUser(uid ?? _currentUserId)}:account',
+        ) ??
         prefs.getStringList(
           _nutritionChecksPrefsKeyForUser(uid ?? _currentUserId),
         ) ??
@@ -959,7 +849,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             .toList()
           ..sort();
     await prefs.setStringList(
-      _nutritionChecksPrefsKeyForUser(uid ?? _currentUserId),
+      '${_nutritionChecksPrefsKeyForUser(uid ?? _currentUserId)}:account',
       values,
     );
   }
@@ -999,21 +889,24 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Future<void> _loadNutritionStates() async {
+    final uid = _currentUserId;
     final range = _currentNutritionDecanRange();
     final localStatesFuture = _loadNutritionStatesFromPrefs();
-    final migratedFuture = _hasMigratedNutritionBadgeState();
     final remoteStatesFuture = _plannerBadgeRepo.fetchNutritionStateMap(
       start: range.start,
       end: range.end,
     );
-    final localStates = await localStatesFuture;
-    if (!mounted) return;
+    await _plannerStorage.restore();
+    final localStates = _replaceNutritionStateItemIds(
+      await localStatesFuture,
+      _plannerStorage.legacyIds,
+    );
+    if (!mounted || _currentUserId != uid) return;
     setState(() {
       _nutritionStatesByKey = localStates;
       _nutritionStatesLoaded = true;
     });
     final statesAtRead = _nutritionStatesByKey;
-    final migrated = await migratedFuture;
     Map<String, RhythmItemState> remoteStates = const {};
     var remoteLoaded = false;
     try {
@@ -1023,26 +916,28 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       remoteStates = const {};
       remoteLoaded = false;
     }
-    if (!mounted || !identical(statesAtRead, _nutritionStatesByKey)) return;
-    final mergedStates = remoteLoaded && migrated
+    if (!mounted ||
+        _currentUserId != uid ||
+        !identical(statesAtRead, _nutritionStatesByKey)) {
+      return;
+    }
+    final mergedStates = remoteLoaded
         ? _mergeNutritionStatesWithServerAuthority(
             localStates,
             remoteStates,
             range,
           )
         : <String, RhythmItemState>{...localStates, ...remoteStates};
-    if (remoteLoaded && !migrated) {
-      await _markNutritionBadgeStateMigrated();
+    await _saveNutritionStatesToPrefs(mergedStates, uid: uid);
+    if (!mounted ||
+        _currentUserId != uid ||
+        !identical(statesAtRead, _nutritionStatesByKey)) {
+      return;
     }
-    await _saveNutritionStatesToPrefs(mergedStates);
-    if (!mounted || !identical(statesAtRead, _nutritionStatesByKey)) return;
     setState(() {
       _nutritionStatesByKey = mergedStates;
       _nutritionStatesLoaded = true;
     });
-    if (_nutritionItems.isNotEmpty) {
-      unawaited(_reconcileNutritionPlannerBadges());
-    }
   }
 
   int _decanDayForKemetic(KemeticDate kd) {
@@ -1117,6 +1012,27 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     required DateTime date,
     required RhythmItemState state,
   }) async {
+    final uid = _currentUserId;
+    try {
+      await _plannerStorage.flush();
+      await _plannerBadgeRepo.syncNutritionState(
+        item: item,
+        date: date,
+        state: state,
+      );
+    } catch (_) {
+      if (mounted && _currentUserId == uid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not confirm this checkmark in your account. Please retry.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted || _currentUserId != uid) return;
     final key = _nutritionCompletionKey(date, item.id);
     final updatedStates = Map<String, RhythmItemState>.from(
       _nutritionStatesByKey,
@@ -1126,24 +1042,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     } else {
       updatedStates[key] = state;
     }
-    setState(() {
-      _nutritionStatesByKey = updatedStates;
-    });
-    await _saveNutritionStatesToPrefs(updatedStates);
-    var synced = false;
-    try {
-      await _plannerBadgeRepo.syncNutritionState(
-        item: item,
-        date: date,
-        state: state,
-      );
-      synced = true;
-    } catch (_) {
-      synced = false;
-    }
-    if (synced) {
-      unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
-    }
+    setState(() => _nutritionStatesByKey = updatedStates);
+    await _saveNutritionStatesToPrefs(updatedStates, uid: uid);
+    unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
   }
 
   Future<void> _toggleNutritionItemDone(
@@ -1340,30 +1241,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
   }
 
-  Future<void> _reconcileNutritionPlannerBadges() async {
-    if (_nutritionItems.isEmpty) return;
-    final futures = <Future<void>>[];
-    for (int decanDay = 1; decanDay <= 10; decanDay++) {
-      final targetDate = _nutritionDateForDecanDay(decanDay);
-      for (final item in _itemsForDecanDay(decanDay)) {
-        futures.add(
-          _plannerBadgeRepo.syncNutritionState(
-            item: item,
-            date: targetDate,
-            state: _nutritionStateForItem(item, date: targetDate),
-          ),
-        );
-      }
-    }
-    if (futures.isEmpty) return;
-    try {
-      await Future.wait(futures);
-    } catch (_) {
-      return;
-    }
-    unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
-  }
-
   String _formatKemeticDate(DateTime date, {bool short = false}) {
     final kd = _kemeticConverter.fromGregorian(_normalizeDate(date));
     if (kd.epagomenal) {
@@ -1437,9 +1314,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Future<void> _deleteNutritionItem(NutritionItem item) async {
-    if (!NutritionItemsCache.isLocal(item)) {
+    if (!await _plannerWrite(() async {
       await _eventsRepo.deleteByClientIdPrefix('nutrition:${item.id}:');
-      await _nutritionRepo.delete(item.id);
+      await _plannerStorage.save('nutrition', {}, id: item.id, delete: true);
+    })) {
+      return;
     }
 
     final updatedStates = Map<String, RhythmItemState>.from(
@@ -1450,7 +1329,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       for (final current in _nutritionItems)
         if (current.id != item.id) current,
     ];
-    await NutritionItemsCache.save(updatedItems, uid: _currentUserId);
 
     if (mounted) {
       setState(() {
@@ -1618,226 +1496,35 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return target;
   }
 
-  Future<List<RhythmNote>> _loadNotesFromPrefs([String? uid]) async {
-    final userKey = _prefsKeyForUser(uid ?? _currentUserId);
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getStringList(userKey) ?? [];
-    return [
-      for (int i = 0; i < stored.length; i++)
-        () {
-          // Try JSON payload first.
-          try {
-            final decoded = jsonDecode(stored[i]);
-            if (decoded is Map<String, dynamic>) {
-              return RhythmNote(
-                id: (decoded['id'] as String?) ?? 'local_$i',
-                text: (decoded['text'] as String?) ?? '',
-                position: (decoded['position'] as num?)?.toInt() ?? i,
-                createdAt:
-                    DateTime.tryParse(decoded['createdAt'] as String? ?? '') ??
-                    DateTime.now(),
-              );
-            }
-          } catch (_) {
-            // Fall through to legacy format.
-          }
-          // Legacy: text only.
-          return RhythmNote(
-            id: 'local_$i',
-            text: stored[i],
-            position: i,
-            createdAt: DateTime.now(),
-          );
-        }(),
-    ];
-  }
-
-  Future<void> _saveNotesToPrefs(List<RhythmNote> notes, {String? uid}) async {
-    final userKey = _prefsKeyForUser(uid ?? _currentUserId);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      userKey,
-      notes
-          .map(
-            (n) => jsonEncode({
-              'id': n.id,
-              'text': n.text,
-              'position': n.position,
-              'createdAt': n.createdAt.toIso8601String(),
-            }),
-          )
-          .toList(),
-    );
-  }
-
-  void _showLocalNotesWarningOnce() {
-    if (_notesLocalNoticeShown || !mounted) return;
-    _notesLocalNoticeShown = true;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Planner notes are saved only on this device. Cloud sync is unavailable.',
-        ),
-        duration: Duration(seconds: 4),
-        backgroundColor: Colors.orangeAccent,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  bool _isLocalNote(RhythmNote note) => note.id.startsWith('local_');
-
-  List<RhythmNote> _withPositions(List<RhythmNote> notes) {
-    return [
-      for (int i = 0; i < notes.length; i++) notes[i].copyWith(position: i),
-    ];
-  }
+  List<RhythmNote> _withPositions(List<RhythmNote> notes) => [
+    for (var i = 0; i < notes.length; i++) notes[i].copyWith(position: i),
+  ];
 
   Future<void> _loadNotes() async {
-    final uid = _currentUserId;
-    final resultFuture = _repo.fetchAlignmentNotes();
-    final cachedFuture = _loadNotesFromPrefs(uid);
-    final cached = await cachedFuture;
-    if (!mounted || _currentUserId != uid) return;
-    if (cached.isNotEmpty) {
-      setState(() {
-        _notes = cached;
-        _activeNoteIndex = _clampNoteIndex(cached.length);
-      });
-      _syncNotePageToActiveIndex();
-    }
-    final notesAtRead = _notes;
-    final result = await resultFuture;
-    if (!mounted || _currentUserId != uid || !identical(notesAtRead, _notes)) {
-      return;
-    }
-
-    final useLocalOnly =
-        result.missingTables || result.friendlyError != null || uid == null;
-    if (useLocalOnly) {
-      _showLocalNotesWarningOnce();
-      if (!mounted) return;
-      setState(() {
-        _notesLocalOnly = true;
-        _notes = cached;
-        _activeNoteIndex = _clampNoteIndex(cached.length);
-        _fullscreenNote = null;
-      });
-      _syncNotePageToActiveIndex();
-      _persistSessionStateSoon();
-      return;
-    }
-
-    var notes = result.data;
-    if (notes.isEmpty && cached.any(_isLocalNote)) {
-      final inserted = <RhythmNote>[];
-      for (int i = 0; i < cached.length; i++) {
-        final res = await _repo.insertAlignmentNote(
-          cached[i].text,
-          position: i,
-        );
-        if (res.data != null) {
-          inserted.add(res.data!);
-        }
-      }
-      if (inserted.isNotEmpty) {
-        notes = inserted;
-      } else {
-        notes = cached;
-      }
-    } else if (notes.isEmpty && cached.isNotEmpty) {
-      // Remote empty but cached reflects previously synced notes; show cached
-      // without re-inserting.
-      notes = cached;
-    } else if (notes.isNotEmpty && cached.any(_isLocalNote)) {
-      final offlineAdds = cached.where(_isLocalNote).toList();
-      final inserted = <RhythmNote>[];
-      for (int i = 0; i < offlineAdds.length; i++) {
-        final res = await _repo.insertAlignmentNote(
-          offlineAdds[i].text,
-          position: notes.length + i,
-        );
-        if (res.data != null) {
-          inserted.add(res.data!);
-        }
-      }
-      if (inserted.isNotEmpty) {
-        notes = [...notes, ...inserted];
-      }
-    }
-
-    await _saveNotesToPrefs(notes, uid: uid);
-    if (!mounted) return;
-    setState(() {
-      _notesLocalOnly = false;
-      _notes = notes;
-      _activeNoteIndex = _clampNoteIndex(notes.length);
-      _fullscreenNote = null;
+    await _plannerWrite(() async {
+      await _plannerStorage.restore();
+      await _plannerStorage.refresh('notes');
     });
-    _syncNotePageToActiveIndex();
-    _persistSessionStateSoon();
   }
 
   Future<void> _addNote() async {
     final text = _noteInputController.text.trim();
-    if (text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Write a note first.')));
-      return;
-    }
-
-    final result = await _repo.insertAlignmentNote(
-      text,
-      position: _notes.length,
-    );
-    if (!mounted) return;
-
-    if (result.missingTables) {
-      _showLocalNotesWarningOnce();
-      final fallback = RhythmNote(
-        id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-        text: text,
-        position: _notes.length,
-        createdAt: DateTime.now(),
-      );
-      final updated = [..._notes, fallback];
-      _noteInputController.clear();
-      setState(() {
-        _notesLocalOnly = true;
-        _notes = updated;
-        _activeNoteIndex = updated.length - 1;
-        _fullscreenNote = null;
+    if (text.isEmpty) return;
+    String? id;
+    final saved = await _plannerWrite(() async {
+      id = await _plannerStorage.save('notes', {
+        'body': text,
+        'position': _notes.length,
       });
-      await _saveNotesToPrefs(updated);
-      return;
-    }
-
-    if (result.friendlyError != null || result.data == null) {
-      final msg = result.friendlyError ?? 'Could not save note.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
-    }
-
-    final note = result.data!;
-    final updated = [..._notes, note];
-    _noteInputController.clear();
-    setState(() {
-      _notesLocalOnly = false;
-      _notes = updated;
-      _activeNoteIndex = updated.length - 1;
-      _fullscreenNote = null;
     });
-    await _saveNotesToPrefs(updated);
-    if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_notePageController.hasClients) return;
-      _notePageController.animateToPage(
-        _activeNoteIndex,
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOut,
-      );
-    });
+    if (saved && mounted) {
+      _noteInputController.clear();
+      final index = _notes.indexWhere((n) => n.id == id);
+      if (index >= 0) {
+        setState(() => _activeNoteIndex = index);
+        _syncNotePageToActiveIndex();
+      }
+    }
   }
 
   Future<void> _showNotePicker() async {
@@ -1994,30 +1681,16 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       }
     });
 
-    await _saveNotesToPrefs(updated);
     _syncNotePageToActiveIndex();
     _persistSessionStateSoon();
 
     if (persistOrder) {
-      final remote = <RhythmNote>[];
-      for (int i = 0; i < updated.length; i++) {
+      for (var i = 0; i < updated.length; i++) {
         final note = updated[i];
-        if (_isLocalNote(note)) continue;
-        remote.add(note.copyWith(position: i));
-      }
-      if (remote.isNotEmpty) {
-        final result = await _repo.reorderAlignmentNotes(remote);
-        if (result.missingTables || result.friendlyError != null) {
-          _showLocalNotesWarningOnce();
-          if (mounted) {
-            setState(() {
-              _notesLocalOnly = true;
-            });
-          }
-        } else if (mounted) {
-          setState(() {
-            _notesLocalOnly = false;
-          });
+        if (!await _plannerWrite(() async {
+          await _plannerStorage.save('notes', {'position': i}, id: note.id);
+        })) {
+          break;
         }
       }
     }
@@ -2083,31 +1756,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       return;
     }
 
-    if (!_isLocalNote(original)) {
-      final result = await _repo.updateAlignmentNote(original.id, updatedText);
-      if (result.missingTables) {
-        // fall through to local persistence
-        _showLocalNotesWarningOnce();
-        if (mounted) {
-          setState(() {
-            _notesLocalOnly = true;
-          });
-        }
-      } else if (result.friendlyError != null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(result.friendlyError!)));
-        return;
-      } else if (mounted) {
-        setState(() {
-          _notesLocalOnly = false;
-        });
-      }
-    }
-
-    final updated = [..._notes]..[index] = original.copyWith(text: updatedText);
-    await _syncNotes(updated, activeIndex: index);
+    await _plannerWrite(() async {
+      await _plannerStorage.save('notes', {
+        'body': updatedText,
+      }, id: original.id);
+    });
   }
 
   Future<void> _deleteNote(int index) async {
@@ -2139,24 +1792,13 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
     if (confirmed != true) return;
 
-    if (!_isLocalNote(note)) {
-      final result = await _repo.deleteAlignmentNote(note.id);
-      if (result.missingTables || result.friendlyError != null) {
-        // Fall back to local deletion below.
-        _showLocalNotesWarningOnce();
-        if (mounted) {
-          setState(() {
-            _notesLocalOnly = true;
-          });
-        }
-      } else if (mounted) {
-        setState(() {
-          _notesLocalOnly = false;
-        });
-      }
+    if (!await _plannerWrite(() async {
+      await _plannerStorage.save('notes', {}, id: note.id, delete: true);
+    })) {
+      return;
     }
 
-    final updated = [..._notes]..removeAt(index);
+    final updated = _notes.where((n) => n.id != note.id).toList();
     final reindexed = _withPositions(updated);
     await _syncNotes(
       reindexed,
@@ -2848,9 +2490,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       activeNutritionDayIndex: _activeNutritionDayIndex,
       nutritionFormOpen: _nutritionFormOpen,
       nutritionLoading: _nutritionLoading,
-      nutritionMissingTable: _nutritionMissingTable,
+      nutritionMissingTable: false,
       nutritionLocalOnly: _nutritionLocalOnly,
       nutritionError: _nutritionError,
+      onReview: _plannerStorage.conflicts('nutrition').isEmpty
+          ? null
+          : () => unawaited(_reviewPlannerChanges('nutrition')),
       nutritionPageController: _nutritionPageController,
       nutritionSourceController: _nutritionSourceController,
       nutritionNutrientController: _nutritionNutrientController,
@@ -3009,6 +2654,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   Widget _buildNotesSection() {
     return PlannerNotesSection(
       notesLocalOnly: _notesLocalOnly,
+      syncMessage: _plannerStorage.message('notes'),
+      onReview: _plannerStorage.conflicts('notes').isEmpty
+          ? null
+          : () => unawaited(_reviewPlannerChanges('notes')),
       noteInputController: _noteInputController,
       notes: _notes,
       activeNoteIndex: _activeNoteIndex,

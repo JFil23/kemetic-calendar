@@ -1,3 +1,4 @@
+import 'data/account_storage/planner_account_store.dart';
 import 'data/warm_state/app_warm_state.dart';
 // lib/main.dart
 import 'dart:async';
@@ -2086,13 +2087,17 @@ class _MyAppState extends State<MyApp> {
     );
     _initAuthDeepLinks();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) (_warmState = AppWarmState(supabase)).start();
+      if (mounted) {
+        (_warmState = AppWarmState(supabase)).start();
+        PlannerAccountStore.of(supabase).start();
+      }
     });
   }
 
   @override
   void dispose() {
     _warmState?.dispose();
+    PlannerAccountStore.of(supabase).dispose();
     _authSub?.cancel();
     _linkSub?.cancel();
     super.dispose();
