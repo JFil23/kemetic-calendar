@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 import '../profile/commons_practice_card.dart';
 import '../profile/commons_question_block.dart';
 import '../rhythm/widgets/planner/planner_note_text.dart';
@@ -155,7 +156,7 @@ class PagesTile extends StatelessWidget {
                             '${card.unread}',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              fontFamily: 'Inter',
+                              fontFamily: AppFonts.ui,
                               fontSize: 10,
                               color: Colors.white,
                             ),
@@ -675,7 +676,7 @@ Widget _micro(String value, {bool tracked = false}) => Text(
   maxLines: 2,
   overflow: TextOverflow.ellipsis,
   style: TextStyle(
-    fontFamily: tracked ? 'Inter' : 'GentiumPlus',
+    fontFamily: tracked ? AppFonts.ui : 'GentiumPlus',
     fontSize: tracked ? 6 : 8,
     height: 1.2,
     letterSpacing: tracked ? 1 : .1,

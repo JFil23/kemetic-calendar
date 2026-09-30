@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -32,7 +33,7 @@ class DaySheetTokens {
   static const hair = Color(0x29AA966E);
   static const hairStrong = Color(0x47AA966E);
   static const serif = 'CormorantGaramond';
-  static const ui = 'Inter';
+  static const ui = AppFonts.ui;
 
   static Color accentSoft(Color accent) => accent.withValues(alpha: 0.14);
   static Color accentLine(Color accent) => accent.withValues(alpha: 0.40);

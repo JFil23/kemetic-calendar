@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/flow_appearance.dart';
@@ -259,7 +260,7 @@ class _ProfilePostMetadata extends StatelessWidget {
                                 relationshipLabel.toUpperCase(),
                                 style: TextStyle(
                                   color: accent,
-                                  fontFamily: 'Inter',
+                                  fontFamily: AppFonts.ui,
                                   fontSize: 8,
                                   fontWeight: FontWeight.w400,
                                   letterSpacing: 1.44,
@@ -277,7 +278,7 @@ class _ProfilePostMetadata extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: _profilePostLow,
-                              fontFamily: 'Inter',
+                              fontFamily: AppFonts.ui,
                               fontSize: 10,
                               fontWeight: FontWeight.w400,
                               height: 1,

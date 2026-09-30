@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 import 'package:flutter/material.dart';
 
 abstract final class PlannerVisualTokens {
@@ -21,7 +22,7 @@ abstract final class PlannerVisualTokens {
 
   static const String serifFamily = 'CormorantGaramond';
   static const List<String> serifFallback = ['GentiumPlus', 'Georgia', 'serif'];
-  static const String sansFamily = 'Inter';
+  static const String sansFamily = AppFonts.ui;
   static const List<String> sansFallback = ['Roboto', 'Arial', 'sans-serif'];
 
   static double liftedAlpha(double alpha) =>

@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -187,7 +188,7 @@ class PostedFlowArtifact extends StatelessWidget {
                             _spanLabel.toUpperCase(),
                             style: TextStyle(
                               color: accentText,
-                              fontFamily: 'Inter',
+                              fontFamily: AppFonts.ui,
                               fontSize: 8,
                               fontWeight: FontWeight.w400,
                               letterSpacing: 1.6,
@@ -205,7 +206,7 @@ class PostedFlowArtifact extends StatelessWidget {
                           readoutLabel,
                           style: TextStyle(
                             color: accentText,
-                            fontFamily: 'Inter',
+                            fontFamily: AppFonts.ui,
                             fontSize: 8.5,
                             fontWeight: FontWeight.w400,
                             letterSpacing: 1.53,
@@ -230,7 +231,7 @@ class PostedFlowArtifact extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: accent,
-                            fontFamily: 'Inter',
+                            fontFamily: AppFonts.ui,
                             fontSize: 8,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 1.68,

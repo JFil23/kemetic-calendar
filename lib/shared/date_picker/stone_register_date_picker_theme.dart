@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 import 'package:flutter/material.dart';
 
 class StoneRegisterDatePickerTheme {
@@ -19,7 +20,7 @@ class StoneRegisterDatePickerTheme {
   static const wheelHeight = rowHeight * visibleRows;
 
   static const serifFontFamily = 'CormorantGaramond';
-  static const uiFontFamily = 'Inter';
+  static const uiFontFamily = AppFonts.ui;
 
   static const plateRadius = 6.0;
   static const buttonRadius = 14.0;

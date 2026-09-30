@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
@@ -258,7 +259,7 @@ class ReadingHouseChatRoom extends StatelessWidget {
                       ? 'PRIVATE READING'
                       : 'HOUSE CHAT',
                   style: const TextStyle(
-                    fontFamily: 'Inter',
+                    fontFamily: AppFonts.ui,
                     fontSize: 7,
                     letterSpacing: 1.1,
                     color: ReadingHouseDayTokens.mint,

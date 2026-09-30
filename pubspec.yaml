@@ -107,6 +107,9 @@ flutter:
           style: italic
         - asset: ios/Runner/Fonts/CormorantGaramond-SemiBold.ttf
           weight: 600
+    - family: InterWeb
+      fonts:
+        - asset: ios/Runner/Fonts/Inter-Regular.ttf
     - family: Inter
       fonts:
         - asset: ios/Runner/Fonts/Inter-Variable.ttf

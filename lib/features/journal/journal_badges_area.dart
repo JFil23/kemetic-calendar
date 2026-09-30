@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 import 'package:flutter/material.dart';
 import '../../shared/glossy_text.dart';
 import 'journal_event_badge.dart';
@@ -106,7 +107,7 @@ class JournalBadgesArea extends StatelessWidget {
               const Text(
                 'BADGES',
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.ui,
                   fontSize: 7,
                   letterSpacing: 1.2,
                   color: Color(0xFFD4AF37),

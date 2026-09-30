@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 // lib/features/profile/flow_post_engagement_row.dart
 
 import 'dart:async';
@@ -510,7 +511,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                 softWrap: false,
                 style: TextStyle(
                   color: color,
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.ui,
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                   height: 1,

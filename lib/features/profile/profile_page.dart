@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 import 'commons_practice_card.dart';
 import 'commons_rhythm_block.dart';
 import '../../data/commons_question_selection.dart';
@@ -78,7 +79,7 @@ const Gradient _profileGoldGradient = LinearGradient(
   stops: [0.0, 0.42, 0.74, 1.0],
 );
 const String _profileSerifFont = 'CormorantGaramond';
-const String _profileSansFont = 'Inter';
+const String _profileSansFont = AppFonts.ui;
 const List<String> _profileSerifFallback = ['GentiumPlus', 'Georgia', 'serif'];
 
 enum _SocialFeedTab { todaysCommons, forYou }

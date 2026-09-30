@@ -1,3 +1,4 @@
+import 'package:mobile/core/theme/app_fonts.dart';
 import 'pages_collections.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -111,7 +112,7 @@ class _PagesLayoutState extends State<PagesLayout> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontFamily: 'Inter',
+                              fontFamily: AppFonts.ui,
                               fontSize: 14,
                               height: 1,
                               fontWeight: FontWeight.w500,
@@ -202,7 +203,7 @@ class _PagesLayoutState extends State<PagesLayout> {
                             child: Text(
                               tab.label,
                               style: const TextStyle(
-                                fontFamily: 'Inter',
+                                fontFamily: AppFonts.ui,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -222,7 +223,7 @@ class _PagesLayoutState extends State<PagesLayout> {
                   textAlignVertical: TextAlignVertical.center,
                   onChanged: (_) => setState(() {}),
                   style: const TextStyle(
-                    fontFamily: 'Inter',
+                    fontFamily: AppFonts.ui,
                     fontFamilyFallback: ['GentiumPlus'],
                     fontSize: 15,
                     color: pagesBone,
@@ -237,7 +238,7 @@ class _PagesLayoutState extends State<PagesLayout> {
                         ? 'Search all of ḥꜣw'
                         : 'Search ${_selected!.label.toLowerCase()}',
                     hintStyle: const TextStyle(
-                      fontFamily: 'Inter',
+                      fontFamily: AppFonts.ui,
                       fontFamilyFallback: ['GentiumPlus'],
                       fontSize: 15,
                       color: Color(0xffa19b90),
