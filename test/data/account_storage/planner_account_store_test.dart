@@ -303,4 +303,36 @@ void main() {
       expect(prefs.getStringList(key), ['2026-09-29::local-fixture::done']);
     },
   );
+  test(
+    'each version remains resolvable when several offline edits conflict',
+    () async {
+      final id = await store.save('notes', {'body': 'original', 'position': 0});
+      await store.flush();
+      server.offline = true;
+      await store.save('notes', {'body': 'first offline edit'}, id: id);
+      await store.flush();
+      await store.save('notes', {'body': 'second offline edit'}, id: id);
+      await store.flush();
+      server.rows[id] = {
+        ...server.rows[id]!,
+        'body': 'other device',
+        'planner_revision': 2,
+      };
+      server.offline = false;
+      await store.flush();
+      expect(store.conflicts('notes'), hasLength(2));
+      final first = store.conflicts('notes').first;
+      await store.resolve(first, keepMine: true);
+      expect(server.rows[id]!['body'], 'first offline edit');
+      expect(store.conflicts('notes'), hasLength(1));
+      // The second dialog still represents revision 2. It cannot overwrite the
+      // newly accepted revision 3 without another review.
+      await store.resolve(store.conflicts('notes').single, keepMine: true);
+      expect(server.rows[id]!['body'], 'first offline edit');
+      expect(
+        store.conflicts('notes').last['result']['row']['planner_revision'],
+        3,
+      );
+    },
+  );
 }

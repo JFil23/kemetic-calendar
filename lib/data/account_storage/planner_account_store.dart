@@ -178,7 +178,7 @@ class PlannerAccountStore extends ChangeNotifier with WidgetsBindingObserver {
       _list(_documents[userId]?['pending']).any((r) => r['kind'] == kind);
   String? message(String kind) {
     if (conflicts(kind).isNotEmpty) {
-      return 'Another device changed this item. Both versions are preserved in your account.';
+      return 'Saved versions differ. Both versions are preserved in your account.';
     }
     if (pending(kind)) {
       return 'Changes pending account sync. They will retry automatically.';
@@ -206,9 +206,12 @@ class PlannerAccountStore extends ChangeNotifier with WidgetsBindingObserver {
     await _locked(() async {
       final doc = _clone(await _document(uid));
       if (!_current(uid)) throw StateError('Account changed before saving.');
-      if (conflicts(kind).any(
-        (r) => r['record_id'] == recordId && r['mutation_id'] != resolves,
-      )) {
+      final recordConflicts = conflicts(
+        kind,
+      ).where((r) => r['record_id'] == recordId);
+      if (recordConflicts.isNotEmpty &&
+          (resolves == null ||
+              !recordConflicts.any((r) => r['mutation_id'] == resolves))) {
         throw StateError('Review the saved versions before editing this item.');
       }
       final existing = _list(
