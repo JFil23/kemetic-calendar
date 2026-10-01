@@ -1535,6 +1535,29 @@ GoRoute _utilitySheetRoute({
   );
 }
 
+// Flow links resolve data through their existing owners, but always present in
+// the same sheet housing as Flow Studio. No standalone detail page authority.
+GoRoute _flowDetailSheetRoute({
+  required String path,
+  required String fallbackLocation,
+  required Widget Function(BuildContext context, GoRouterState state) builder,
+}) => _utilitySheetRoute(
+  path: path,
+  builder: (context, state) {
+    final extra = state.extra;
+    final requestedFallback = extra is Map ? extra['fallbackLocation'] : null;
+    final fallback =
+        requestedFallback is String && requestedFallback.trim().isNotEmpty
+        ? requestedFallback.trim()
+        : fallbackLocation;
+    return UtilitySheetRouteScaffold(
+      semanticLabel: 'Flow details',
+      onClose: () => closeOrReturn(context, fallback),
+      child: builder(context, state),
+    );
+  },
+);
+
 @visibleForTesting
 GoRouter createAppRouterForTesting({String initialLocation = '/pages'}) =>
     _createRouter(initialLocation: initialLocation);
@@ -1635,8 +1658,9 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    _calmRoute(
+    _flowDetailSheetRoute(
       path: '/shared-flow/:shareId',
+      fallbackLocation: '/inbox',
       builder: (context, state) {
         final shareId = Uri.decodeComponent(state.pathParameters['shareId']!);
         return SessionTrackedRoute(
@@ -1645,13 +1669,17 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    _calmRoute(
+    _flowDetailSheetRoute(
       path: '/shared-flow/by-flow/:flowId',
+      fallbackLocation: '/pages',
       builder: (context, state) {
         final flowId = int.tryParse(state.pathParameters['flowId'] ?? '');
         return SessionTrackedRoute(
           location: state.uri.toString(),
-          child: SharedFlowRoutePage(flowId: flowId),
+          child: SharedFlowRoutePage(
+            flowId: flowId,
+            extra: state.extra ?? const {'fallbackLocation': '/pages'},
+          ),
         );
       },
     ),
@@ -1841,8 +1869,9 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    _calmRoute(
+    _flowDetailSheetRoute(
       path: '/flow-post/:postId',
+      fallbackLocation: '/profile/me',
       builder: (context, state) {
         final postId = Uri.decodeComponent(state.pathParameters['postId']!);
         final openComments =

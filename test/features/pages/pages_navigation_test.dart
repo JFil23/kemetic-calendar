@@ -172,9 +172,16 @@ void main() {
         pageKey: ValueKey(entry.key),
       );
       final page = route.pageBuilder!(context, state) as CustomTransitionPage;
-      expect(page.child, isA<SessionTrackedRoute>());
+      final content = page.child is UtilitySheetRouteScaffold
+          ? (page.child as UtilitySheetRouteScaffold).child
+          : page.child;
+      if (entry.key == '/shared-flow/by-flow/:flowId') {
+        expect(page.opaque, isFalse);
+        expect(page.child, isA<UtilitySheetRouteScaffold>());
+      }
+      expect(content, isA<SessionTrackedRoute>());
       expect(
-        (page.child as SessionTrackedRoute).child.runtimeType.toString(),
+        (content as SessionTrackedRoute).child.runtimeType.toString(),
         entry.value,
         reason: entry.key,
       );

@@ -20,7 +20,7 @@
     {
       "path": "/flow-post/:postId",
       "owner": "lib/data/profile_repo.dart",
-      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner."
     },
     {
       "path": "/flows",
@@ -175,12 +175,12 @@
     {
       "path": "/shared-flow/:shareId",
       "owner": "lib/data/share_repo.dart",
-      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner."
     },
     {
       "path": "/shared-flow/by-flow/:flowId",
       "owner": "lib/data/share_repo.dart",
-      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner."
     },
     {
       "path": "/shared-practice/:roomId",
