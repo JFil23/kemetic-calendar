@@ -103,3 +103,27 @@ acknowledgement and retries after restoration. Layout checks cover full sheet
 background coverage with short reminders and the complete Gregorian label at
 phone width. Capture-only checks write new evidence to `/tmp`; approved visual
 references are not regenerated.
+
+
+## October 1 Pages and sheet navigation retention
+
+Pages remains mounted behind a pushed utility sheet, with its existing search,
+collection selection and scroll controllers. Flow Studio submode changes update
+only the active sheet URL using GoRouter.replace, preserving its page key and
+nested Navigator. The active route is read from router.state; the configuration
+base URI can still belong to Pages. A stale sheet callback cannot replace a
+newly active non-Studio route. Hub return follows the same ownership rule.
+
+Planner decan details use the existing detail push boundary rather than a root
+go command. The Planner sheet and its unsaved fields remain underneath the
+detail, and Pages remains underneath Planner. No repository owner, account
+write, cache key, payload schema or restoration namespace changes.
+
+Regression coverage uses the actual Flow Studio and Planner route builders. It
+checks normal and submode entry, nested Back and sheet Close, retained Pages
+State/scroll, and Planner draft plus Pages search/collection state. The prior
+implementation fails these tests because root go removes the parent routes.
+The former source guard required the destructive hub go command. It now
+requires state-preserving replace and explicitly rejects that go command; the
+new behavioral round trips provide evidence for the stronger parent-retention
+contract.

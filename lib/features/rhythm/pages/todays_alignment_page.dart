@@ -1121,7 +1121,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       return;
     }
     if (!mounted) return;
-    context.go('/rhythm/decan/${Uri.encodeComponent(dayKey)}');
+    await openDetailRoute<void>(
+      context,
+      '/rhythm/decan/${Uri.encodeComponent(dayKey)}',
+    );
   }
 
   DateTime _normalizeDate(DateTime date) =>

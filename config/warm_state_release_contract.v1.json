@@ -25,7 +25,7 @@
     {
       "path": "/flows",
       "owner": "lib/data/flows_repo.dart",
-      "policy": "Calendar/flow account repository and existing restoration owner; complete detail coverage before persistence."
+      "policy": "Calendar/flow account repository and existing restoration owner; complete detail coverage before persistence. Internal mode URLs replace only the active sheet page with its existing key; retain the nested Navigator and all parent routes, including Pages. Returning to the hub obeys the same rule."
     },
     {
       "path": "/flows/:flowId/edit",
@@ -80,7 +80,7 @@
     {
       "path": "/pages",
       "owner": "lib/features/pages/pages_controller.dart",
-      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state."
+      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state. Sheets and their internal navigation retain the mounted Pages view, selection, search and scroll state until Pages itself is dismissed."
     },
     {
       "path": "/profile-search",
@@ -130,7 +130,7 @@
     {
       "path": "/rhythm/decan/:dayKey",
       "owner": "lib/data/account_storage/planner_account_store.dart",
-      "policy": "Planner notes and nutrition use durable account writes; route-specific checklist/badge writers remain account-backed. Editors retain their existing draft contracts."
+      "policy": "Planner notes and nutrition use durable account writes; route-specific checklist/badge writers remain account-backed. Editors retain their existing draft contracts. Planner opens this detail by pushing above its existing sheet; returning retains both the sheet draft and its parent page."
     },
     {
       "path": "/rhythm/editor/custom",

@@ -7057,10 +7057,12 @@ class CalendarPage extends StatefulWidget {
     try {
       if (context.mounted) {
         final router = GoRouter.of(context);
-        final current = router.routerDelegate.currentConfiguration.uri
-            .toString();
-        if (!_sameRouteLocation(current, route)) {
-          router.go(route);
+        final current = router.state.uri;
+        if (current.path != '/flows') return;
+        if (!_sameRouteLocation(current.toString(), route)) {
+          // This is the same sheet with a new internal location. Preserve its
+          // page key, nested Navigator and every route underneath it.
+          unawaited(router.replace<void>(route));
         }
       }
     } catch (_) {
@@ -8871,9 +8873,9 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
 
   void _returnToFlowStudioHubRoute() {
     if (!mounted) return;
-    final uri = GoRouter.of(context).routerDelegate.currentConfiguration.uri;
+    final uri = GoRouter.of(context).state.uri;
     if (uri.path == '/flows' && uri.queryParameters.isNotEmpty) {
-      context.go('/flows');
+      context.replace('/flows');
     }
   }
 

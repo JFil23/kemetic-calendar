@@ -1,3 +1,6 @@
+import 'package:mobile/services/app_restoration_service.dart';
+import 'package:mobile/features/rhythm/pages/todays_alignment_page.dart';
+import 'package:mobile/features/rhythm/widgets/planner/planner_nutrition_section.dart';
 import 'package:mobile/services/session_resume_service.dart';
 import 'package:mobile/main.dart'
     show createAppRouterForTesting, SharedFlowRoutePage;
@@ -25,6 +28,9 @@ void main() {
   final requests = <http.Request>[];
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
+    // Keep the account-restoration writer outside these widget-owned navigation
+    // checks; its durable storage contract has a separate behavioral suite.
+    AppRestorationService.debugUserIdResolver = () => null;
     await Supabase.initialize(
       url: 'https://example.supabase.co',
       anonKey: 'fixture-key',
@@ -45,8 +51,190 @@ void main() {
     await Supabase.instance.client.auth.recoverSession(session());
   });
   tearDownAll(() async {
+    AppRestorationService.debugUserIdResolver = null;
     await Supabase.instance.dispose();
   });
+  testWidgets(
+    'Pages and sheets retain independent state across internal navigation',
+    (tester) async {
+      for (final destination in [
+        ("Ma'at Flows", 'maatFlows', false),
+        ("Ma'at Flows", 'maatFlows', true),
+        ('My Flows', 'myFlows', false),
+        ('My Flows', 'myFlows', true),
+      ]) {
+        tester.view.physicalSize = const Size(393, 852);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final appRouter = createAppRouterForTesting();
+        final studioRoute = appRouter.configuration.routes
+            .whereType<GoRoute>()
+            .singleWhere((r) => r.path == '/flows');
+        final router = GoRouter(
+          initialLocation: '/pages',
+          observers: [routeObserver],
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, _) => const Text('Calendar fallback'),
+            ),
+            GoRoute(path: '/pages', builder: (_, _) => const PagesPage()),
+            studioRoute,
+          ],
+        );
+        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+        await tester.pumpAndSettle();
+        final pages = tester.state(find.byType(PagesPage));
+        final layout = tester.state(find.byType(PagesLayout));
+        final tile = find.byWidgetPredicate(
+          (w) =>
+              w is PagesTile && w.card.destination == PagesDestination.studio,
+        );
+        await tester.ensureVisible(tile);
+        await tester.pumpAndSettle();
+        final tilePosition = tester.getTopLeft(tile);
+        if (destination.$3) {
+          unawaited(router.push<void>('/flows?mode=${destination.$2}'));
+        } else {
+          await tester.tap(tile);
+        }
+        await tester.pumpAndSettle();
+        final sheet = tester.state(find.byType(UtilitySheetRouteScaffold));
+        final nestedNavigator = tester.state<NavigatorState>(
+          find.descendant(
+            of: find.byType(UtilitySheetRouteScaffold),
+            matching: find.byType(Navigator),
+          ),
+        );
+        if (!destination.$3) {
+          await tester.tap(find.text(destination.$1));
+          await tester.pumpAndSettle();
+        }
+        expect(router.state.uri.toString(), '/flows?mode=${destination.$2}');
+        expect(find.byType(PagesPage, skipOffstage: false), findsOneWidget);
+        expect(
+          tester.state(find.byType(PagesPage, skipOffstage: false)),
+          same(pages),
+        );
+        expect(
+          tester.state(find.byType(PagesLayout, skipOffstage: false)),
+          same(layout),
+        );
+        expect(
+          tester.state(find.byType(UtilitySheetRouteScaffold)),
+          same(sheet),
+        );
+        expect(nestedNavigator.canPop(), isTrue);
+        expect(router.canPop(), isTrue);
+
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+
+        expect(find.text('Flow Studio'), findsOneWidget);
+        expect(router.state.uri.toString(), '/flows');
+        expect(nestedNavigator.canPop(), isFalse);
+        expect(
+          tester.state(find.byType(PagesPage, skipOffstage: false)),
+          same(pages),
+        );
+
+        await tester.tap(find.text(destination.$1));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+        await tester.pumpAndSettle();
+        expect(router.state.uri.path, '/pages');
+        expect(tester.state(find.byType(PagesPage)), same(pages));
+        expect(tester.state(find.byType(PagesLayout)), same(layout));
+        expect(tester.getTopLeft(tile), tilePosition);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump();
+        router.dispose();
+        appRouter.dispose();
+      }
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final appRouter = createAppRouterForTesting();
+      final plannerRoute = appRouter.configuration.routes
+          .whereType<GoRoute>()
+          .singleWhere((r) => r.path == '/rhythm/today');
+      final router = GoRouter(
+        initialLocation: '/pages',
+        observers: [routeObserver],
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, _) => const Text('Calendar fallback'),
+          ),
+          GoRoute(path: '/pages', builder: (_, _) => const PagesPage()),
+          plannerRoute,
+          GoRoute(
+            path: '/rhythm/decan/:dayKey',
+            builder: (context, _) => Scaffold(
+              body: TextButton(
+                onPressed: () => context.pop(),
+                child: const Text('Close decan details'),
+              ),
+            ),
+          ),
+        ],
+      );
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpAndSettle();
+      final pages = tester.state(find.byType(PagesPage));
+      await tester.tap(find.text('Notes').first);
+      await tester.enterText(find.byType(TextField), 'retained search');
+      final layout = tester.state(find.byType(PagesLayout));
+      tester
+          .widget<PagesLayout>(find.byType(PagesLayout))
+          .onOpen(PagesDestination.planner);
+      await tester.pumpAndSettle();
+      final planner = tester.state(find.byType(TodaysAlignmentPage));
+      final nutrition = tester.widget<PlannerNutritionSection>(
+        find.byType(PlannerNutritionSection),
+      );
+      nutrition.nutritionSourceController.text = 'Unsaved source';
+      nutrition.onOpenDecanInfo();
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, startsWith('/rhythm/decan/'));
+      expect(find.byType(PagesPage, skipOffstage: false), findsOneWidget);
+      expect(
+        tester.state(find.byType(PagesPage, skipOffstage: false)),
+        same(pages),
+      );
+      expect(
+        tester.state(find.byType(TodaysAlignmentPage, skipOffstage: false)),
+        same(planner),
+      );
+      await tester.tap(find.text('Close decan details'));
+      await tester.pumpAndSettle();
+      expect(nutrition.nutritionSourceController.text, 'Unsaved source');
+      await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/pages');
+      expect(tester.state(find.byType(PagesLayout)), same(layout));
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'retained search',
+      );
+      expect(
+        tester
+            .widget<PagesLayout>(find.byType(PagesLayout))
+            .collectionState
+            .collection,
+        PagesCollection.notes,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+      router.dispose();
+      appRouter.dispose();
+    },
+  );
+
   test(
     'Pages open revisit pop and replacement do not write telemetry',
     () async {

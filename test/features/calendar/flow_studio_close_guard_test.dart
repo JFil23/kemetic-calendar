@@ -42,7 +42,9 @@ void main() {
       expect(routeSection, contains('key: _flowStudioNavigatorKey'));
       expect(routeSection, contains('onClose: _closeRoute'));
       expect(routeSection, contains('_returnToFlowStudioHubRoute'));
-      expect(routeSection, contains("context.go('/flows')"));
+      expect(routeSection, contains("context.replace('/flows')"));
+      expect(routeSection, isNot(contains("context.go('/flows')")));
+      expect(routeSection, contains('GoRouter.of(context).state.uri'));
       expect(
         routeSection,
         contains('onReturnToHub: _returnToFlowStudioHubRoute'),
