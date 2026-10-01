@@ -1,0 +1,25 @@
+NTRW-SKIN-001 rev5 — current sheet-based RC, 2026-10-01
+
+Authority: kemetic-calendar-rc, existing rc branch. Baseline 7bb4bcf9c274c207d881aeda2901e473d2f58f78.
+Reference: supplied rev5 spec governs; supplied approved bottom-row image and rev4 HTML provide direction.
+Scope: Djehuty, Maat, Ptah, Sekhmet SVG sources and their reproducible PNG exports. Existing image getter uses a generated content-hash map because deployed asset URLs have immutable caching. Legacy PNG bytes stay unchanged.
+
+Verified before editing:
+- All six current SVG/PNG files match the preserved pre-change inventory byte for byte.
+- Newly captured device-scale Flutter cards match all six baseline cards byte for byte.
+- Recovered original exporter passes all six unchanged assets, controls first: 608x812 RGB, per-channel mean <=0.012774/255, max 1/255, 100% within 3/255. No anti-alias edge exemption needed. Per-figure heatmaps and receipt are saved under test/visual_reference/netjeru/export-parity.
+- Export: Chrome 154.0.8037.58, Playwright 1.62.1, Sharp 0.35.4, 390x844 mobile viewport, DPR2, 304x406 CSS-pixel art interior. Command: NODE_PATH=<runtime node_modules> arch -arm64 node tool/export_netjeru.cjs <output> [--export].
+
+Verified implementation:
+- One shared named palette. Existing gradient positions/directions, outlines, strokes and overlays preserved except the approved Maat/Ptah geometry.
+- Djehuty black ibis head/bill, red-brown skin, linen kilt; Maat black wig, prescribed female skin and linen, continuous rounded nose, no smile, clipped 7% lower-face plane; Ptah skin/cap separation, centered upright sceptre and two fists with specified position/rim; Sekhmet red dress.
+- Every newly rendered per-step PNG matches its preserved approved artwork byte for byte. Approved card goldens were reused unchanged, not regenerated.
+- Het-Heru and Khepri SVGs, PNGs and rendered card goldens unchanged.
+- Pixels outside the four edited figure envelopes differ by at most 1/255 (normal baseline exporter drift); pixel-verification.json records the measurements.
+- Seven source/export artwork checks pass. Warm-state contract passes.
+- 73 focused tests pass, including all six exact card goldens, Kꜣr behavior, current sheet route coverage and restoration architecture guards.
+- lib/main.dart and kar_detail_surface.dart are unchanged from the sheet-only RC baseline. No route, widget-tree, layout, repository, persisted data, backend or production change.
+
+Remaining release verification at this commit:
+- Exact-commit full App gate, release build and served RC inspection are required before declaring the RC release verified.
+- Physical-device dark-theme visual inspection has not yet been performed. A wireless iPhone is discoverable; simulator/browser evidence is not physical-device evidence.

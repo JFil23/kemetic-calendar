@@ -1,0 +1,42 @@
+{
+  "djehuty": {
+    "maxDeltaOutsideFigure": 1,
+    "pixelsAboveTolerance": 0,
+    "svgEnvelope": [
+      60,
+      47,
+      220,
+      323
+    ]
+  },
+  "maat": {
+    "maxDeltaOutsideFigure": 1,
+    "pixelsAboveTolerance": 0,
+    "svgEnvelope": [
+      126,
+      75,
+      192,
+      323
+    ]
+  },
+  "ptah": {
+    "maxDeltaOutsideFigure": 1,
+    "pixelsAboveTolerance": 0,
+    "svgEnvelope": [
+      114,
+      92,
+      185,
+      310
+    ]
+  },
+  "sekhmet": {
+    "maxDeltaOutsideFigure": 1,
+    "pixelsAboveTolerance": 0,
+    "svgEnvelope": [
+      119,
+      163,
+      192,
+      320
+    ]
+  }
+}

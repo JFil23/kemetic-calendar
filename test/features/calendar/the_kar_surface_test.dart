@@ -17,6 +17,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
+import '../../support/maat_flow_visual_goldens.dart';
+
+final _netjerGoldenRoot = platformVisualGoldenRoot(
+  '../../visual_reference/netjeru/approved',
+);
 
 const _captureKarVisuals = bool.fromEnvironment('CAPTURE_KAR_VISUALS');
 
@@ -48,7 +53,7 @@ void main() {
     }
   });
 
-  test('the six authored netjer images are exact mockup extractions', () {
+  test('the six netjer images match their approved export receipts', () {
     const expectedHashes = <String, String>{
       'djehuty.png':
           'c18140680dbfd1463753e1e05c9a3c09fe87ce43eb1e2f0a2463f6e1ae6f5a9d',
@@ -76,6 +81,12 @@ void main() {
         (value) => '${value.key}.png' == entry.key,
       );
       final bytes = File(netjer.asset).readAsBytesSync();
+      if (netjer != KarNetjer.hetHeru && netjer != KarNetjer.khepri) {
+        expect(
+          netjer.asset,
+          'assets/the_kar/${netjer.key}-${entry.value.substring(0, 16)}.png',
+        );
+      }
       expect(sha256.convert(bytes).toString(), entry.value, reason: entry.key);
     }
   });
@@ -647,6 +658,10 @@ void main() {
           closeTo(tester.getCenter(carousel).dx, .75),
         );
         expect(find.text('${netjer.index + 1} of 6'), findsOneWidget);
+        await expectLater(
+          card,
+          matchesGoldenFile('$_netjerGoldenRoot/${netjer.key}-card.png'),
+        );
         if (_captureKarVisuals) {
           await expectLater(
             card,
