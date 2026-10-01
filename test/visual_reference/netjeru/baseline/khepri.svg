@@ -1,0 +1,37 @@
+<svg viewBox="0 0 306 408">
+  <defs>
+    <linearGradient id="khShell4" x1="7%" y1="8%" x2="93%" y2="92%">
+      <stop offset="0" stop-color="#38453A"/><stop offset=".25" stop-color="#1D2D27"/>
+      <stop offset=".58" stop-color="#101B18"/><stop offset=".82" stop-color="#09110F"/><stop offset="1" stop-color="#040806"/>
+    </linearGradient>
+    <radialGradient id="khHi4" cx="36%" cy="22%" r="62%">
+      <stop offset="0" stop-color="#8A9E89" stop-opacity=".30"/><stop offset=".42" stop-color="#5D745F" stop-opacity=".07"/>
+      <stop offset="1" stop-color="#5D745F" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="khAura4" cx="50%" cy="43%" r="60%">
+      <stop offset="0" stop-color="#6F866F" stop-opacity=".08"/><stop offset="1" stop-color="#6F866F" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="khShadow4" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+  </defs>
+  <ellipse class="art-aura" cx="153" cy="182" rx="133" ry="154" fill="url(#khAura4)"/>
+  <ellipse cx="153" cy="318" rx="104" ry="17" fill="#000" fill-opacity=".69" filter="url(#khShadow4)"/>
+
+  <!-- plain scarab only: dark green-black, natural/carved-stone reading rather than jewel-like faience -->
+  <g transform="translate(153 184)" fill="none" stroke-linecap="round" stroke-linejoin="round" class="art-stroke">
+    <path d="M-50 -45 C-88 -68 -111 -58 -124 -40 M-58 -13 C-101 -20 -121 -4 -128 17 M-53 23 C-92 40 -104 65 -100 86
+             M50 -45 C88 -68 111 -58 124 -40 M58 -13 C101 -20 121 -4 128 17 M53 23 C92 40 104 65 100 86"
+          stroke="#25362C" stroke-width="9"/>
+    <path d="M-123 -40 l-19 -12 M-128 17 l-20 5 M-100 86 l-7 20
+             M123 -40 l19 -12 M128 17 l20 5 M100 86 l7 20"
+          stroke="#3A4A3D" stroke-width="5.5"/>
+    <ellipse cx="0" cy="-9" rx="74" ry="102" fill="url(#khShell4)" stroke="#596B5B" stroke-opacity=".38" stroke-width="2"/>
+    <path d="M-68 -21 C-46 -59 -20 -73 0 -73 C20 -73 46 -59 68 -21" fill="#182720" stroke="#526455" stroke-opacity=".24" stroke-width="2"/>
+    <path d="M-69 -8 C-37 -17 -16 -11 0 7 C16 -11 37 -17 69 -8" stroke="#030706" stroke-opacity=".82" stroke-width="4"/>
+    <path d="M0 7 V81" stroke="#030706" stroke-opacity=".84" stroke-width="4"/>
+    <ellipse cx="0" cy="-102" rx="31" ry="25" fill="url(#khShell4)" stroke="#596B5B" stroke-opacity=".30" stroke-width="2"/>
+    <path d="M-20 -116 C-13 -135 -5 -145 0 -149 C5 -145 13 -135 20 -116" fill="#17251F" stroke="#526455" stroke-opacity=".23" stroke-width="2"/>
+    <path d="M-48 9 C-42 35 -40 59 -39 77 M-31 3 C-26 33 -24 61 -24 84
+             M48 9 C42 35 40 59 39 77 M31 3 C26 33 24 61 24 84" stroke="#617262" stroke-opacity=".12" stroke-width="1.8"/>
+  </g>
+  <ellipse cx="126" cy="128" rx="43" ry="26" fill="url(#khHi4)" transform="rotate(-26 126 128)"/>
+</svg>

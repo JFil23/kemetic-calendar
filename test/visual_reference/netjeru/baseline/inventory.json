@@ -1,0 +1,1311 @@
+{
+  "hetheru": {
+    "png_sha256": "6a6e3b6d7f428720d0a682f6cc1013435a8ecfb7e527c39643ed10c2385d770b",
+    "svg_sha256": "a04b5806a3a70d4d6d1ca141af66692f53434d719a3ba1747a19e32c54b94af4",
+    "png_dimensions": [
+      608,
+      812
+    ],
+    "png_mode": "RGB",
+    "png_metadata": {},
+    "svg_elements": [
+      {
+        "tag": "svg",
+        "viewBox": "0 0 306 408"
+      },
+      {
+        "tag": "defs"
+      },
+      {
+        "tag": "linearGradient",
+        "id": "hhStone4",
+        "x1": "8%",
+        "y1": "3%",
+        "x2": "92%",
+        "y2": "97%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#818A84"
+      },
+      {
+        "tag": "stop",
+        "offset": ".30",
+        "stop-color": "#4C5651"
+      },
+      {
+        "tag": "stop",
+        "offset": ".68",
+        "stop-color": "#272E2B"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#111614"
+      },
+      {
+        "tag": "linearGradient",
+        "id": "hhFace4",
+        "x1": "0",
+        "y1": "0",
+        "x2": "1",
+        "y2": "1"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#CDD4CF"
+      },
+      {
+        "tag": "stop",
+        "offset": ".42",
+        "stop-color": "#6C756F"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#252B28"
+      },
+      {
+        "tag": "radialGradient",
+        "id": "hhAura4",
+        "cx": "50%",
+        "cy": "40%",
+        "r": "58%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#D4E4DF",
+        "stop-opacity": ".16"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#D4E4DF",
+        "stop-opacity": "0"
+      },
+      {
+        "tag": "filter",
+        "id": "hhShadow4",
+        "x": "-50%",
+        "y": "-50%",
+        "width": "200%",
+        "height": "200%"
+      },
+      {
+        "tag": "feGaussianBlur",
+        "stdDeviation": "5"
+      },
+      {
+        "tag": "ellipse",
+        "class": "art-aura",
+        "cx": "154",
+        "cy": "181",
+        "rx": "132",
+        "ry": "160",
+        "fill": "url(#hhAura4)"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "154",
+        "cy": "334",
+        "rx": "96",
+        "ry": "13",
+        "fill": "#000",
+        "fill-opacity": ".61",
+        "filter": "url(#hhShadow4)"
+      },
+      {
+        "tag": "rect",
+        "x": "67",
+        "y": "55",
+        "width": "174",
+        "height": "278",
+        "rx": "3",
+        "fill": "#121614",
+        "stroke": "#69736D",
+        "stroke-opacity": ".22"
+      },
+      {
+        "tag": "g",
+        "fill": "url(#hhStone4)",
+        "stroke": "#C9D0CC",
+        "stroke-opacity": ".18",
+        "stroke-width": "1",
+        "class": "art-stroke"
+      },
+      {
+        "tag": "circle",
+        "cx": "153",
+        "cy": "77",
+        "r": "24",
+        "fill": "url(#hhFace4)"
+      },
+      {
+        "tag": "path",
+        "d": "M153 96 C135 96 121 87 116 70 C112 57 114 46 119 38              C120 57 127 69 145 75 C148 76 151 77 153 77 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M153 96 C171 96 185 87 190 70 C194 57 192 46 187 38              C186 57 179 69 161 75 C158 76 155 77 153 77 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M121 123 C121 99 134 86 153 86 C173 86 186 99 186 123 L181 170 H126 Z"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "153",
+        "cy": "113",
+        "rx": "19",
+        "ry": "22",
+        "fill": "url(#hhFace4)"
+      },
+      {
+        "tag": "path",
+        "d": "M143 112 H163",
+        "fill": "none",
+        "stroke": "#121614",
+        "stroke-opacity": ".72"
+      },
+      {
+        "tag": "circle",
+        "cx": "164",
+        "cy": "108",
+        "r": "2.1",
+        "fill": "#101412",
+        "stroke": "none"
+      },
+      {
+        "tag": "path",
+        "d": "M131 163 C143 154 165 154 177 163 L185 267 H122 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M124 255 H183 L188 325 H119 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M130 170 C117 201 115 236 123 268 L136 264 C132 231 134 204 143 177 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M176 170 C189 201 191 236 183 268 L170 264 C174 231 172 204 163 177 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M137 267 V325 M170 267 V325",
+        "fill": "none",
+        "stroke": "#151A18",
+        "stroke-opacity": ".62"
+      },
+      {
+        "tag": "path",
+        "d": "M82 323 H225",
+        "stroke": "#707A74",
+        "stroke-opacity": ".24"
+      }
+    ]
+  },
+  "khepri": {
+    "png_sha256": "bde2ade18c8ac40fb7c825ffdba545e11613b930b8b14c7edc02bc3c59755086",
+    "svg_sha256": "990ed1961da49c9cbf67b2d779fa1c129b543c185dc7f98df6a4e411e1ad3e8d",
+    "png_dimensions": [
+      608,
+      812
+    ],
+    "png_mode": "RGB",
+    "png_metadata": {},
+    "svg_elements": [
+      {
+        "tag": "svg",
+        "viewBox": "0 0 306 408"
+      },
+      {
+        "tag": "defs"
+      },
+      {
+        "tag": "linearGradient",
+        "id": "khShell4",
+        "x1": "7%",
+        "y1": "8%",
+        "x2": "93%",
+        "y2": "92%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#38453A"
+      },
+      {
+        "tag": "stop",
+        "offset": ".25",
+        "stop-color": "#1D2D27"
+      },
+      {
+        "tag": "stop",
+        "offset": ".58",
+        "stop-color": "#101B18"
+      },
+      {
+        "tag": "stop",
+        "offset": ".82",
+        "stop-color": "#09110F"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#040806"
+      },
+      {
+        "tag": "radialGradient",
+        "id": "khHi4",
+        "cx": "36%",
+        "cy": "22%",
+        "r": "62%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#8A9E89",
+        "stop-opacity": ".30"
+      },
+      {
+        "tag": "stop",
+        "offset": ".42",
+        "stop-color": "#5D745F",
+        "stop-opacity": ".07"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#5D745F",
+        "stop-opacity": "0"
+      },
+      {
+        "tag": "radialGradient",
+        "id": "khAura4",
+        "cx": "50%",
+        "cy": "43%",
+        "r": "60%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#6F866F",
+        "stop-opacity": ".08"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#6F866F",
+        "stop-opacity": "0"
+      },
+      {
+        "tag": "filter",
+        "id": "khShadow4",
+        "x": "-50%",
+        "y": "-50%",
+        "width": "200%",
+        "height": "200%"
+      },
+      {
+        "tag": "feGaussianBlur",
+        "stdDeviation": "6"
+      },
+      {
+        "tag": "ellipse",
+        "class": "art-aura",
+        "cx": "153",
+        "cy": "182",
+        "rx": "133",
+        "ry": "154",
+        "fill": "url(#khAura4)"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "153",
+        "cy": "318",
+        "rx": "104",
+        "ry": "17",
+        "fill": "#000",
+        "fill-opacity": ".69",
+        "filter": "url(#khShadow4)"
+      },
+      {
+        "tag": "g",
+        "transform": "translate(153 184)",
+        "fill": "none",
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+        "class": "art-stroke"
+      },
+      {
+        "tag": "path",
+        "d": "M-50 -45 C-88 -68 -111 -58 -124 -40 M-58 -13 C-101 -20 -121 -4 -128 17 M-53 23 C-92 40 -104 65 -100 86              M50 -45 C88 -68 111 -58 124 -40 M58 -13 C101 -20 121 -4 128 17 M53 23 C92 40 104 65 100 86",
+        "stroke": "#25362C",
+        "stroke-width": "9"
+      },
+      {
+        "tag": "path",
+        "d": "M-123 -40 l-19 -12 M-128 17 l-20 5 M-100 86 l-7 20              M123 -40 l19 -12 M128 17 l20 5 M100 86 l7 20",
+        "stroke": "#3A4A3D",
+        "stroke-width": "5.5"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "0",
+        "cy": "-9",
+        "rx": "74",
+        "ry": "102",
+        "fill": "url(#khShell4)",
+        "stroke": "#596B5B",
+        "stroke-opacity": ".38",
+        "stroke-width": "2"
+      },
+      {
+        "tag": "path",
+        "d": "M-68 -21 C-46 -59 -20 -73 0 -73 C20 -73 46 -59 68 -21",
+        "fill": "#182720",
+        "stroke": "#526455",
+        "stroke-opacity": ".24",
+        "stroke-width": "2"
+      },
+      {
+        "tag": "path",
+        "d": "M-69 -8 C-37 -17 -16 -11 0 7 C16 -11 37 -17 69 -8",
+        "stroke": "#030706",
+        "stroke-opacity": ".82",
+        "stroke-width": "4"
+      },
+      {
+        "tag": "path",
+        "d": "M0 7 V81",
+        "stroke": "#030706",
+        "stroke-opacity": ".84",
+        "stroke-width": "4"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "0",
+        "cy": "-102",
+        "rx": "31",
+        "ry": "25",
+        "fill": "url(#khShell4)",
+        "stroke": "#596B5B",
+        "stroke-opacity": ".30",
+        "stroke-width": "2"
+      },
+      {
+        "tag": "path",
+        "d": "M-20 -116 C-13 -135 -5 -145 0 -149 C5 -145 13 -135 20 -116",
+        "fill": "#17251F",
+        "stroke": "#526455",
+        "stroke-opacity": ".23",
+        "stroke-width": "2"
+      },
+      {
+        "tag": "path",
+        "d": "M-48 9 C-42 35 -40 59 -39 77 M-31 3 C-26 33 -24 61 -24 84              M48 9 C42 35 40 59 39 77 M31 3 C26 33 24 61 24 84",
+        "stroke": "#617262",
+        "stroke-opacity": ".12",
+        "stroke-width": "1.8"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "126",
+        "cy": "128",
+        "rx": "43",
+        "ry": "26",
+        "fill": "url(#khHi4)",
+        "transform": "rotate(-26 126 128)"
+      }
+    ]
+  },
+  "djehuty": {
+    "png_sha256": "98b651be5dd8517c700c070f4b32d3205a45d2ad4631be21f95392be59a5e474",
+    "svg_sha256": "4ec26403a2410aa30362c960330fe43847436f4668dcee50d20c6509de84fea2",
+    "png_dimensions": [
+      608,
+      812
+    ],
+    "png_mode": "RGB",
+    "png_metadata": {},
+    "svg_elements": [
+      {
+        "tag": "svg",
+        "viewBox": "0 0 306 408"
+      },
+      {
+        "tag": "defs"
+      },
+      {
+        "tag": "linearGradient",
+        "id": "djStone4",
+        "x1": "10%",
+        "y1": "5%",
+        "x2": "92%",
+        "y2": "95%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#E4D0AD"
+      },
+      {
+        "tag": "stop",
+        "offset": ".30",
+        "stop-color": "#B18E65"
+      },
+      {
+        "tag": "stop",
+        "offset": ".67",
+        "stop-color": "#705136"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#302116"
+      },
+      {
+        "tag": "radialGradient",
+        "id": "djAura4",
+        "cx": "50%",
+        "cy": "41%",
+        "r": "55%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#C8E2E8",
+        "stop-opacity": ".14"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#C8E2E8",
+        "stop-opacity": "0"
+      },
+      {
+        "tag": "filter",
+        "id": "djShadow4",
+        "x": "-40%",
+        "y": "-40%",
+        "width": "180%",
+        "height": "180%"
+      },
+      {
+        "tag": "feGaussianBlur",
+        "stdDeviation": "5"
+      },
+      {
+        "tag": "ellipse",
+        "class": "art-aura",
+        "cx": "157",
+        "cy": "172",
+        "rx": "123",
+        "ry": "147",
+        "fill": "url(#djAura4)"
+      },
+      {
+        "tag": "path",
+        "d": "M58 321 C112 337 207 338 253 319",
+        "fill": "none",
+        "stroke": "#000",
+        "stroke-opacity": ".54",
+        "stroke-width": "16",
+        "filter": "url(#djShadow4)"
+      },
+      {
+        "tag": "path",
+        "d": "M47 49 H264 L250 326 H58 Z",
+        "fill": "#17120C",
+        "stroke": "#5B4932",
+        "stroke-opacity": ".38"
+      },
+      {
+        "tag": "path",
+        "d": "M61 62 H250 L238 313 H70 Z",
+        "fill": "#0D0B08",
+        "stroke": "#B39A72",
+        "stroke-opacity": ".10"
+      },
+      {
+        "tag": "g",
+        "fill": "url(#djStone4)",
+        "stroke": "#F3DEB9",
+        "stroke-opacity": ".26",
+        "stroke-width": "1.05",
+        "class": "art-stroke"
+      },
+      {
+        "tag": "path",
+        "d": "M169 91 C159 87 153 79 154 68 C155 57 163 50 174 49 C186 49 195 57 197 68              C199 78 193 87 183 92 C179 94 174 94 169 91 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M159 67 C142 64 123 66 105 72 C88 78 74 87 62 100              C77 93 92 88 108 85 C126 81 144 79 160 77              C165 76 166 69 159 67 Z"
+      },
+      {
+        "tag": "circle",
+        "cx": "178",
+        "cy": "64",
+        "r": "2.3",
+        "fill": "#17120C",
+        "stroke": "none"
+      },
+      {
+        "tag": "path",
+        "d": "M169 91 C166 103 166 112 169 120 L147 126 L132 118 C143 109 151 99 156 89 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M130 118 C144 113 162 114 176 124 L183 205 L129 205 L119 132 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M128 198 L184 198 L190 249 L124 249 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M133 248 L155 248 L151 321 L130 321 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M163 248 L184 248 L202 315 L181 321 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M121 130 C114 151 112 181 115 211 C117 227 122 238 129 244 L138 236              C131 221 129 201 130 175 L137 134 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M176 127 C190 138 201 151 210 168 L217 164 C210 144 199 125 184 116 Z"
+      },
+      {
+        "tag": "circle",
+        "cx": "214",
+        "cy": "166",
+        "r": "5"
+      },
+      {
+        "tag": "path",
+        "d": "M222 111 V295",
+        "fill": "none",
+        "stroke": "#D5B98B",
+        "stroke-width": "3.3",
+        "stroke-linecap": "round"
+      },
+      {
+        "tag": "path",
+        "d": "M72 322 H239",
+        "stroke": "#9C7B52",
+        "stroke-opacity": ".28"
+      },
+      {
+        "tag": "path",
+        "d": "M75 90 H100 M207 80 H236 M82 145 H106 M204 238 H232",
+        "stroke": "#CEB991",
+        "stroke-opacity": ".07",
+        "stroke-width": "2"
+      }
+    ]
+  },
+  "maat": {
+    "png_sha256": "282c5af4ebd68ec045105ccfbf3b1472679b7b788d09774057f8831b5071db98",
+    "svg_sha256": "d363605089d2fc9e3aece583dec8b5f0345f944d88105296b94bb5631efa2fa0",
+    "png_dimensions": [
+      608,
+      812
+    ],
+    "png_mode": "RGB",
+    "png_metadata": {},
+    "svg_elements": [
+      {
+        "tag": "svg",
+        "viewBox": "0 0 306 408"
+      },
+      {
+        "tag": "defs"
+      },
+      {
+        "tag": "linearGradient",
+        "id": "maLime4",
+        "x1": "16%",
+        "y1": "5%",
+        "x2": "86%",
+        "y2": "98%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#EFDBB6"
+      },
+      {
+        "tag": "stop",
+        "offset": ".38",
+        "stop-color": "#BD9967"
+      },
+      {
+        "tag": "stop",
+        "offset": ".76",
+        "stop-color": "#705234"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#332315"
+      },
+      {
+        "tag": "radialGradient",
+        "id": "maAura4",
+        "cx": "50%",
+        "cy": "39%",
+        "r": "58%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#F1D98D",
+        "stop-opacity": ".15"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#F1D98D",
+        "stop-opacity": "0"
+      },
+      {
+        "tag": "ellipse",
+        "class": "art-aura",
+        "cx": "153",
+        "cy": "178",
+        "rx": "126",
+        "ry": "154",
+        "fill": "url(#maAura4)"
+      },
+      {
+        "tag": "path",
+        "d": "M64 328 Q153 349 242 328",
+        "stroke": "#000",
+        "stroke-opacity": ".57",
+        "stroke-width": "16",
+        "fill": "none"
+      },
+      {
+        "tag": "path",
+        "d": "M46 54 H260 V326 H46 Z",
+        "fill": "#15110C",
+        "stroke": "#725B37",
+        "stroke-opacity": ".30"
+      },
+      {
+        "tag": "path",
+        "d": "M61 68 H245 V313 H61 Z",
+        "fill": "#0E0C09"
+      },
+      {
+        "tag": "g",
+        "fill": "url(#maLime4)",
+        "stroke": "#EBD6AF",
+        "stroke-opacity": ".28",
+        "stroke-width": "1",
+        "class": "art-stroke"
+      },
+      {
+        "tag": "path",
+        "d": "M155 37 C168 55 170 83 158 116 C151 99 147 75 149 51 C150 44 152 39 155 37 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M155 45 L158 109",
+        "fill": "none",
+        "stroke": "#73542F",
+        "stroke-opacity": ".58",
+        "stroke-width": "1.3"
+      },
+      {
+        "tag": "path",
+        "d": "M155 57 l-6 8 M157 66 l8 9 M156 78 l-7 9 M158 89 l7 8",
+        "fill": "none",
+        "stroke": "#73542F",
+        "stroke-opacity": ".31"
+      },
+      {
+        "tag": "path",
+        "d": "M132 105 C132 87 142 77 158 77 C174 77 184 89 183 106 L179 147 H136 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M154 82 C164 81 173 86 176 95 L188 101 L177 106 C175 115 169 121 160 122              C150 120 145 113 145 102 C145 91 148 85 154 82 Z"
+      },
+      {
+        "tag": "circle",
+        "cx": "171",
+        "cy": "96",
+        "r": "2.1",
+        "fill": "#302014",
+        "stroke": "none"
+      },
+      {
+        "tag": "path",
+        "d": "M177 107 C173 110 169 111 165 110",
+        "fill": "none",
+        "stroke": "#302014",
+        "stroke-opacity": ".68"
+      },
+      {
+        "tag": "path",
+        "d": "M150 117 H169 L176 145 L138 145 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M138 139 C148 133 168 133 177 141 L184 247 H132 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M133 238 H183 L187 321 H128 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M140 149 C130 174 129 205 134 232 L144 229 C140 202 143 177 150 154 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M174 149 C184 166 189 184 190 203 L181 205 C179 185 174 168 166 154 Z"
+      },
+      {
+        "tag": "path",
+        "d": "M139 247 L140 321 M176 247 L175 321",
+        "fill": "none",
+        "stroke": "#6D5032",
+        "stroke-opacity": ".53"
+      },
+      {
+        "tag": "path",
+        "d": "M72 322 H234",
+        "stroke": "#9A7748",
+        "stroke-opacity": ".27"
+      }
+    ]
+  },
+  "ptah": {
+    "png_sha256": "009beb5c9525dcdc03e3e4ebd439229f19e4368249d3124115689bc833f0fdf1",
+    "svg_sha256": "f72950bad516e5afe1fd388f93a3c855839197f213a8d0736ae6e2696a84d912",
+    "png_dimensions": [
+      608,
+      812
+    ],
+    "png_mode": "RGB",
+    "png_metadata": {},
+    "svg_elements": [
+      {
+        "tag": "svg",
+        "viewBox": "0 0 306 408"
+      },
+      {
+        "tag": "defs"
+      },
+      {
+        "tag": "linearGradient",
+        "id": "ptCalcite4",
+        "x1": "7%",
+        "y1": "2%",
+        "x2": "92%",
+        "y2": "98%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#F0E2CA"
+      },
+      {
+        "tag": "stop",
+        "offset": ".26",
+        "stop-color": "#C9B395"
+      },
+      {
+        "tag": "stop",
+        "offset": ".54",
+        "stop-color": "#9A8266"
+      },
+      {
+        "tag": "stop",
+        "offset": ".78",
+        "stop-color": "#6C543F"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#34251B"
+      },
+      {
+        "tag": "linearGradient",
+        "id": "ptDark4",
+        "x1": "12%",
+        "y1": "0%",
+        "x2": "88%",
+        "y2": "100%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#7C6954"
+      },
+      {
+        "tag": "stop",
+        "offset": ".55",
+        "stop-color": "#514232"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#2D241C"
+      },
+      {
+        "tag": "radialGradient",
+        "id": "ptAura4",
+        "cx": "50%",
+        "cy": "42%",
+        "r": "58%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#D5C6E8",
+        "stop-opacity": ".13"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#D5C6E8",
+        "stop-opacity": "0"
+      },
+      {
+        "tag": "filter",
+        "id": "ptShadow4",
+        "x": "-50%",
+        "y": "-50%",
+        "width": "200%",
+        "height": "200%"
+      },
+      {
+        "tag": "feGaussianBlur",
+        "stdDeviation": "5"
+      },
+      {
+        "tag": "ellipse",
+        "class": "art-aura",
+        "cx": "154",
+        "cy": "181",
+        "rx": "130",
+        "ry": "154",
+        "fill": "url(#ptAura4)"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "154",
+        "cy": "328",
+        "rx": "94",
+        "ry": "14",
+        "fill": "#000",
+        "fill-opacity": ".61",
+        "filter": "url(#ptShadow4)"
+      },
+      {
+        "tag": "g",
+        "class": "art-stroke"
+      },
+      {
+        "tag": "path",
+        "d": "M75 80 H231 V320 H75",
+        "fill": "none",
+        "stroke": "#B7A184",
+        "stroke-opacity": ".78",
+        "stroke-width": "13",
+        "stroke-linecap": "square"
+      },
+      {
+        "tag": "path",
+        "d": "M70 75 H236",
+        "stroke": "#EEDFC7",
+        "stroke-opacity": ".46",
+        "stroke-width": "4"
+      },
+      {
+        "tag": "path",
+        "d": "M74 319 H236",
+        "stroke": "#8E7458",
+        "stroke-opacity": ".55",
+        "stroke-width": "5"
+      },
+      {
+        "tag": "path",
+        "d": "M61 70 H245 L236 90 H70 Z",
+        "fill": "#8E795F",
+        "stroke": "#F2E5D0",
+        "stroke-opacity": ".20"
+      },
+      {
+        "tag": "path",
+        "d": "M83 306 H223 L232 326 H74 Z",
+        "fill": "url(#ptDark4)",
+        "stroke": "#D2BFA2",
+        "stroke-opacity": ".18"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "145",
+        "cy": "125",
+        "rx": "24",
+        "ry": "27",
+        "fill": "url(#ptCalcite4)",
+        "stroke": "#F3E7D2",
+        "stroke-opacity": ".22"
+      },
+      {
+        "tag": "path",
+        "d": "M123 122 C125 101 136 94 146 94 C160 95 170 105 169 123",
+        "fill": "none",
+        "stroke": "#6A5744",
+        "stroke-opacity": ".52",
+        "stroke-width": "3"
+      },
+      {
+        "tag": "path",
+        "d": "M136 149 V159 H155 V149",
+        "fill": "url(#ptCalcite4)",
+        "stroke": "#F3E7D2",
+        "stroke-opacity": ".18"
+      },
+      {
+        "tag": "path",
+        "d": "M116 169 C127 158 138 155 146 155 C155 155 168 159 178 169              L174 284 C167 296 125 296 118 284 Z",
+        "fill": "url(#ptCalcite4)",
+        "stroke": "#F4E7D0",
+        "stroke-opacity": ".22"
+      },
+      {
+        "tag": "path",
+        "d": "M121 168 C133 176 161 176 174 168",
+        "fill": "none",
+        "stroke": "#5E4B39",
+        "stroke-opacity": ".78",
+        "stroke-width": "4"
+      },
+      {
+        "tag": "path",
+        "d": "M126 173 C136 178 159 178 169 173",
+        "fill": "none",
+        "stroke": "#E4D2B7",
+        "stroke-opacity": ".24",
+        "stroke-width": "1.6"
+      },
+      {
+        "tag": "path",
+        "d": "M146 176 C147 184 149 190 151 195",
+        "fill": "none",
+        "stroke": "#7A624A",
+        "stroke-width": "2.6",
+        "stroke-linecap": "round"
+      },
+      {
+        "tag": "path",
+        "d": "M120 184 C126 197 134 207 145 216",
+        "fill": "none",
+        "stroke": "#BFA88A",
+        "stroke-width": "8",
+        "stroke-linecap": "round"
+      },
+      {
+        "tag": "path",
+        "d": "M173 183 C166 196 159 206 149 216",
+        "fill": "none",
+        "stroke": "#BFA88A",
+        "stroke-width": "8",
+        "stroke-linecap": "round"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "146",
+        "cy": "216",
+        "rx": "7",
+        "ry": "6",
+        "fill": "#D5C1A4"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "154",
+        "cy": "216",
+        "rx": "7",
+        "ry": "6",
+        "fill": "#C5AE8E"
+      },
+      {
+        "tag": "path",
+        "d": "M157 170 L180 294",
+        "fill": "none",
+        "stroke": "#7A6047",
+        "stroke-width": "6",
+        "stroke-linecap": "round"
+      },
+      {
+        "tag": "path",
+        "d": "M156 170 l9 -8",
+        "fill": "none",
+        "stroke": "#7A6047",
+        "stroke-width": "5",
+        "stroke-linecap": "round"
+      },
+      {
+        "tag": "path",
+        "d": "M121 286 C134 292 160 292 174 286",
+        "fill": "none",
+        "stroke": "#705843",
+        "stroke-opacity": ".52",
+        "stroke-width": "3.2",
+        "stroke-linecap": "round"
+      },
+      {
+        "tag": "path",
+        "d": "M84 105 C103 111 113 108 129 104 M180 102 C194 107 207 105 222 100            M85 267 C105 261 118 264 131 269 M183 278 C200 273 214 276 224 280",
+        "fill": "none",
+        "stroke": "#F6EAD7",
+        "stroke-opacity": ".09",
+        "stroke-width": "3"
+      }
+    ]
+  },
+  "sekhmet": {
+    "png_sha256": "c23030237f90e5a0a0dc7b0c6e6e56d33bdef60a6a29c65a509d24916553bcb1",
+    "svg_sha256": "cbabe0618c230b166ab7a0b900353d0124876f4cd27660f67daed2e6793d42da",
+    "png_dimensions": [
+      608,
+      812
+    ],
+    "png_mode": "RGB",
+    "png_metadata": {},
+    "svg_elements": [
+      {
+        "tag": "svg",
+        "viewBox": "0 0 306 408"
+      },
+      {
+        "tag": "defs"
+      },
+      {
+        "tag": "linearGradient",
+        "id": "skLime4",
+        "x1": "8%",
+        "y1": "4%",
+        "x2": "92%",
+        "y2": "96%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#DCC9A7"
+      },
+      {
+        "tag": "stop",
+        "offset": ".30",
+        "stop-color": "#B3976D"
+      },
+      {
+        "tag": "stop",
+        "offset": ".68",
+        "stop-color": "#735A3E"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#38281C"
+      },
+      {
+        "tag": "linearGradient",
+        "id": "skPaint4",
+        "x1": "10%",
+        "y1": "0%",
+        "x2": "90%",
+        "y2": "100%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#B67B4B"
+      },
+      {
+        "tag": "stop",
+        "offset": ".42",
+        "stop-color": "#8F5438"
+      },
+      {
+        "tag": "stop",
+        "offset": ".78",
+        "stop-color": "#563326"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#2C1E18"
+      },
+      {
+        "tag": "radialGradient",
+        "id": "skAura4",
+        "cx": "50%",
+        "cy": "42%",
+        "r": "58%"
+      },
+      {
+        "tag": "stop",
+        "offset": "0",
+        "stop-color": "#D49A74",
+        "stop-opacity": ".12"
+      },
+      {
+        "tag": "stop",
+        "offset": "1",
+        "stop-color": "#D49A74",
+        "stop-opacity": "0"
+      },
+      {
+        "tag": "filter",
+        "id": "skShadow4",
+        "x": "-50%",
+        "y": "-50%",
+        "width": "200%",
+        "height": "200%"
+      },
+      {
+        "tag": "feGaussianBlur",
+        "stdDeviation": "4.5"
+      },
+      {
+        "tag": "ellipse",
+        "class": "art-aura",
+        "cx": "152",
+        "cy": "180",
+        "rx": "128",
+        "ry": "154",
+        "fill": "url(#skAura4)"
+      },
+      {
+        "tag": "ellipse",
+        "cx": "153",
+        "cy": "329",
+        "rx": "95",
+        "ry": "13",
+        "fill": "#000",
+        "fill-opacity": ".58",
+        "filter": "url(#skShadow4)"
+      },
+      {
+        "tag": "path",
+        "d": "M49 48 H257 V328 H49 Z",
+        "fill": "url(#skLime4)",
+        "stroke": "#E7D3B3",
+        "stroke-opacity": ".21"
+      },
+      {
+        "tag": "path",
+        "d": "M63 63 H243 V313 H63 Z",
+        "fill": "#9D825E",
+        "fill-opacity": ".15",
+        "stroke": "#FFF0D1",
+        "stroke-opacity": ".08"
+      },
+      {
+        "tag": "path",
+        "d": "M63 102 C105 94 128 107 154 101 C185 94 209 105 242 99            M65 176 C101 168 132 179 161 174 C191 169 217 176 242 171            M69 252 C108 245 136 255 163 251 C191 247 216 252 239 248",
+        "fill": "none",
+        "stroke": "#F0DEC1",
+        "stroke-opacity": ".07",
+        "stroke-width": "2.4"
+      },
+      {
+        "tag": "g",
+        "stroke": "#DDB88F",
+        "stroke-opacity": ".30",
+        "stroke-width": "1.05",
+        "class": "art-stroke"
+      },
+      {
+        "tag": "path",
+        "d": "M138 88 C130 81 128 72 133 67 C140 67 146 72 149 81 Z",
+        "fill": "url(#skPaint4)"
+      },
+      {
+        "tag": "path",
+        "d": "M168 82 C173 73 180 68 187 70 C190 77 186 86 178 93 Z",
+        "fill": "url(#skPaint4)"
+      },
+      {
+        "tag": "path",
+        "d": "M148 78 C162 75 176 80 183 90 C190 99 189 110 183 119              C178 126 170 131 161 132 L147 130 C135 128 126 119 124 108              C122 96 130 84 148 78 Z",
+        "fill": "url(#skPaint4)"
+      },
+      {
+        "tag": "path",
+        "d": "M172 98 C187 98 197 104 200 112 C194 121 181 124 166 120              C173 115 176 108 172 98 Z",
+        "fill": "#9B5D3D"
+      },
+      {
+        "tag": "circle",
+        "cx": "163",
+        "cy": "98",
+        "r": "2.5",
+        "fill": "#2A1C18",
+        "stroke": "none"
+      },
+      {
+        "tag": "path",
+        "d": "M196 111 C188 114 181 114 173 111",
+        "fill": "none",
+        "stroke": "#2D1B16",
+        "stroke-opacity": ".75"
+      },
+      {
+        "tag": "path",
+        "d": "M136 126 C132 144 129 162 131 183 H179 C181 160 176 140 167 125              C157 132 147 132 136 126 Z",
+        "fill": "#4A3428",
+        "fill-opacity": ".88"
+      },
+      {
+        "tag": "path",
+        "d": "M132 173 C145 164 164 164 177 174 L183 273 H126 Z",
+        "fill": "#B18462"
+      },
+      {
+        "tag": "path",
+        "d": "M127 262 H182 L188 318 H121 Z",
+        "fill": "#A9795A"
+      },
+      {
+        "tag": "path",
+        "d": "M136 180 C125 203 123 230 128 253 L138 250 C134 227 137 203 145 185 Z",
+        "fill": "#AD7E5D"
+      },
+      {
+        "tag": "path",
+        "d": "M173 180 C184 198 190 220 189 243 L179 243 C179 221 174 202 165 185 Z",
+        "fill": "#AD7E5D"
+      },
+      {
+        "tag": "path",
+        "d": "M126 101 l12 -4 M162 145 l12 -4 M147 223 l16 -3 M123 285 l14 -2 M178 196 l7 -2",
+        "stroke": "#BFA47E",
+        "stroke-width": "4",
+        "stroke-opacity": ".42"
+      },
+      {
+        "tag": "path",
+        "d": "M83 78 l30 3 M205 72 l23 2 M82 291 l27 4",
+        "stroke": "#5C4732",
+        "stroke-opacity": ".18",
+        "stroke-width": "3"
+      }
+    ]
+  }
+}

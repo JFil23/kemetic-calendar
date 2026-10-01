@@ -1,0 +1,34 @@
+<svg viewBox="0 0 306 408">
+  <defs>
+    <linearGradient id="maLime4" x1="16%" y1="5%" x2="86%" y2="98%">
+      <stop offset="0" stop-color="#EFDBB6"/><stop offset=".38" stop-color="#BD9967"/>
+      <stop offset=".76" stop-color="#705234"/><stop offset="1" stop-color="#332315"/>
+    </linearGradient>
+    <radialGradient id="maAura4" cx="50%" cy="39%" r="58%">
+      <stop offset="0" stop-color="#F1D98D" stop-opacity=".15"/><stop offset="1" stop-color="#F1D98D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse class="art-aura" cx="153" cy="178" rx="126" ry="154" fill="url(#maAura4)"/>
+  <path d="M64 328 Q153 349 242 328" stroke="#000" stroke-opacity=".57" stroke-width="16" fill="none"/>
+  <path d="M46 54 H260 V326 H46 Z" fill="#15110C" stroke="#725B37" stroke-opacity=".30"/>
+  <path d="M61 68 H245 V313 H61 Z" fill="#0E0C09"/>
+
+  <g fill="url(#maLime4)" stroke="#EBD6AF" stroke-opacity=".28" stroke-width="1" class="art-stroke">
+    <!-- single feather is the primary identifier -->
+    <path d="M155 37 C168 55 170 83 158 116 C151 99 147 75 149 51 C150 44 152 39 155 37 Z"/>
+    <path d="M155 45 L158 109" fill="none" stroke="#73542F" stroke-opacity=".58" stroke-width="1.3"/>
+    <path d="M155 57 l-6 8 M157 66 l8 9 M156 78 l-7 9 M158 89 l7 8" fill="none" stroke="#73542F" stroke-opacity=".31"/>
+    <path d="M132 105 C132 87 142 77 158 77 C174 77 184 89 183 106 L179 147 H136 Z"/>
+    <path d="M154 82 C164 81 173 86 176 95 L188 101 L177 106 C175 115 169 121 160 122
+             C150 120 145 113 145 102 C145 91 148 85 154 82 Z"/>
+    <circle cx="171" cy="96" r="2.1" fill="#302014" stroke="none"/>
+    <path d="M177 107 C173 110 169 111 165 110" fill="none" stroke="#302014" stroke-opacity=".68"/>
+    <path d="M150 117 H169 L176 145 L138 145 Z"/>
+    <path d="M138 139 C148 133 168 133 177 141 L184 247 H132 Z"/>
+    <path d="M133 238 H183 L187 321 H128 Z"/>
+    <path d="M140 149 C130 174 129 205 134 232 L144 229 C140 202 143 177 150 154 Z"/>
+    <path d="M174 149 C184 166 189 184 190 203 L181 205 C179 185 174 168 166 154 Z"/>
+    <path d="M139 247 L140 321 M176 247 L175 321" fill="none" stroke="#6D5032" stroke-opacity=".53"/>
+  </g>
+<path d="M72 322 H234" stroke="#9A7748" stroke-opacity=".27"/>
+</svg>

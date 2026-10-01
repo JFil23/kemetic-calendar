@@ -1,0 +1,37 @@
+<svg viewBox="0 0 306 408">
+  <defs>
+    <linearGradient id="hhStone4" x1="8%" y1="3%" x2="92%" y2="97%">
+      <stop offset="0" stop-color="#818A84"/><stop offset=".30" stop-color="#4C5651"/>
+      <stop offset=".68" stop-color="#272E2B"/><stop offset="1" stop-color="#111614"/>
+    </linearGradient>
+    <linearGradient id="hhFace4" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#CDD4CF"/><stop offset=".42" stop-color="#6C756F"/><stop offset="1" stop-color="#252B28"/>
+    </linearGradient>
+    <radialGradient id="hhAura4" cx="50%" cy="40%" r="58%">
+      <stop offset="0" stop-color="#D4E4DF" stop-opacity=".16"/><stop offset="1" stop-color="#D4E4DF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="hhShadow4" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <ellipse class="art-aura" cx="154" cy="181" rx="132" ry="160" fill="url(#hhAura4)"/>
+  <ellipse cx="154" cy="334" rx="96" ry="13" fill="#000" fill-opacity=".61" filter="url(#hhShadow4)"/>
+  <rect x="67" y="55" width="174" height="278" rx="3" fill="#121614" stroke="#69736D" stroke-opacity=".22"/>
+
+  <g fill="url(#hhStone4)" stroke="#C9D0CC" stroke-opacity=".18" stroke-width="1" class="art-stroke">
+    <!-- Menkaura-type bovine horns: long horns rise outside and curve inward around the disk -->
+    <circle cx="153" cy="77" r="24" fill="url(#hhFace4)"/>
+    <path d="M153 96 C135 96 121 87 116 70 C112 57 114 46 119 38
+             C120 57 127 69 145 75 C148 76 151 77 153 77 Z"/>
+    <path d="M153 96 C171 96 185 87 190 70 C194 57 192 46 187 38
+             C186 57 179 69 161 75 C158 76 155 77 153 77 Z"/>
+    <path d="M121 123 C121 99 134 86 153 86 C173 86 186 99 186 123 L181 170 H126 Z"/>
+    <ellipse cx="153" cy="113" rx="19" ry="22" fill="url(#hhFace4)"/>
+    <path d="M143 112 H163" fill="none" stroke="#121614" stroke-opacity=".72"/>
+    <circle cx="164" cy="108" r="2.1" fill="#101412" stroke="none"/>
+    <path d="M131 163 C143 154 165 154 177 163 L185 267 H122 Z"/>
+    <path d="M124 255 H183 L188 325 H119 Z"/>
+    <path d="M130 170 C117 201 115 236 123 268 L136 264 C132 231 134 204 143 177 Z"/>
+    <path d="M176 170 C189 201 191 236 183 268 L170 264 C174 231 172 204 163 177 Z"/>
+    <path d="M137 267 V325 M170 267 V325" fill="none" stroke="#151A18" stroke-opacity=".62"/>
+  </g>
+  <path d="M82 323 H225" stroke="#707A74" stroke-opacity=".24"/>
+</svg>
