@@ -188,11 +188,16 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final keyboardVisible = keyboardIsVisible(context);
+    final compactEditing =
+        keyboardVisible && calendarEventSheetUsesLandscape(context);
     final availableSheetHeight = math.max(
       0.0,
-      media.size.height - media.padding.top - media.padding.bottom - 12,
+      media.size.height -
+          media.padding.top -
+          media.padding.bottom -
+          (compactEditing ? 0 : 12),
     );
-    final keyboardVisible = keyboardIsVisible(context);
     final effectiveExtent = keyboardVisible ? 1.0 : _extent;
     final maxSheetHeight = availableSheetHeight * effectiveExtent;
     final hasFooter = widget.footer != null;
@@ -202,15 +207,21 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
     // These values preserve the two production geometries that existed before
     // extraction: Day View reserves 120px for its fixed actions, while the
     // preview has no external footer and gives that space to the presentation.
-    final outerHeight = geometry == null
-        ? maxSheetHeight + (hasFooter ? 8.0 : 0.0)
-        : maxSheetHeight;
+    final outerHeight = compactEditing || geometry != null
+        ? maxSheetHeight
+        : maxSheetHeight + (hasFooter ? 8.0 : 0.0);
     final configuredOuterPadding =
         geometry?.outerPadding ??
         (hasFooter
             ? const EdgeInsets.fromLTRB(10, 8, 10, 10)
             : const EdgeInsets.fromLTRB(10, 0, 10, 10));
-    final outerPadding = geometry != null && media.size.width <= 430
+    // During landscape editing, reserve the right edge for the existing
+    // keyboard switch (40px target + 16px edge + 10px clearance) and give
+    // the original scrollable the remaining height.
+    // Keep the body in the same element slot so focus and drafts survive.
+    final outerPadding = compactEditing
+        ? const EdgeInsets.fromLTRB(10, 4, 66, 4)
+        : geometry != null && media.size.width <= 430
         ? EdgeInsets.fromLTRB(
             0,
             configuredOuterPadding.top,
@@ -218,11 +229,13 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
             configuredOuterPadding.bottom,
           )
         : configuredOuterPadding;
-    final bodyTopGap = geometry?.bodyTopGap ?? 8.0;
+    final bodyTopGap = compactEditing ? 0.0 : geometry?.bodyTopGap ?? 8.0;
     final footerGap = geometry?.footerGap ?? 8.0;
     final footerHeight = geometry?.footerHeight ?? 46.0;
     final topBarHeight = geometry?.topBarHeight ?? 48.0;
-    final bodyHeight = geometry == null
+    final bodyHeight = compactEditing
+        ? math.max(0.0, outerHeight - outerPadding.vertical)
+        : geometry == null
         ? math.max(0.0, maxSheetHeight - (showFooter ? 120.0 : 66.0))
         : math.max(
             0.0,
@@ -245,18 +258,21 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                InstrumentEventSheetTopBar(
-                  semanticLabel: widget.semanticLabel,
-                  handleColor: widget.handleColor,
-                  height: topBarHeight,
-                  handleTop: geometry?.handleTop,
-                  handleWidth: geometry?.handleWidth ?? 42,
-                  onVerticalDragUpdate: !keyboardVisible
-                      ? (details) =>
-                            _updateExtent(details, availableSheetHeight)
-                      : null,
-                  leading: widget.leading,
-                  trailing: widget.trailing,
+                Offstage(
+                  offstage: compactEditing,
+                  child: InstrumentEventSheetTopBar(
+                    semanticLabel: widget.semanticLabel,
+                    handleColor: widget.handleColor,
+                    height: topBarHeight,
+                    handleTop: geometry?.handleTop,
+                    handleWidth: geometry?.handleWidth ?? 42,
+                    onVerticalDragUpdate: !keyboardVisible
+                        ? (details) =>
+                              _updateExtent(details, availableSheetHeight)
+                        : null,
+                    leading: widget.leading,
+                    trailing: widget.trailing,
+                  ),
                 ),
                 SizedBox(height: bodyTopGap),
                 Padding(

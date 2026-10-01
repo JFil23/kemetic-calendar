@@ -60,3 +60,47 @@ a 100px inset. Optional `CAPTURE_LANDSCAPE_KEYBOARD=true` writes review captures
 under `/tmp/haw-video-review`, outside the approved references. Widget captures
 simulate occlusion; they do not render an operating-system keyboard or replace
 physical-device replay.
+
+
+## October 1 compact landscape editing follow-up
+
+References: `ScreenRecording_10-01-2026 10-32-41_1.MP4` shows the sheet
+surviving but the composer clipped while the keyboard is open;
+`ScreenRecording_10-01-2026 10-34-39_1.MP4` shows Apple Calendar prioritizing
+the active field above the keyboard. The earlier ownership fix is necessary
+but does not establish full composer visibility. Apple's field priority is
+inspiration; existing Hꜣw content and approved portrait/non-editing references
+remain authoritative.
+
+The shared InstrumentEventSheetHost now uses compact geometry while a keyboard
+is visible in landscape. It hides the 48px header, removes the header gap and
+extra top clearance, gives the original body the available height, and reserves
+the right edge for the existing keyboard switch. The body stays in the same
+element slot, with the same field State, controller and scroll surface. Closing
+the keyboard restores the normal header, footer and stored extent. Portrait,
+keyboard ownership, five-flow opening extents, account writes and persistence
+contracts are unchanged. No approved images were regenerated.
+
+The strengthened regression checks both actual CalendarPage and DayViewPage
+scaffolds, all three native/web viewport models, and 100/200/240/270/290px
+occlusion on an 852×393 display. It intersects every ancestor paint clip,
+checks the full field and Send bounds, checks Send against the keyboard switch,
+retains field hit testing and State/focus assertions, types a draft before
+resizing, closes and reopens the keyboard, and verifies the existing Send
+callback receives the draft once. Caret-reveal scrolling must finish before
+hit testing: Flutter temporarily ignores pointer events during that animation.
+The unmodified portrait/landscape visual references and five-flow opening tests
+remain required, alongside the full App release gate.
+
+`tool/landscape_keyboard_probe.dart` reuses the real nested landscape navigator,
+shared housing and populated Reading House presentation with a local no-op
+send callback. It permits visual verification with iOS Safari's real software
+keyboard without signing into an account. In iOS 26.2 Simulator, with Safari's
+address/tab toolbar collapsed to match the recording, the complete field,
+caret and enabled Send were visible above the native keyboard accessory bar.
+Switching to the custom keyboard and back retained the draft and full composer.
+The normal header/footer returned on keyboard dismissal. This is simulator
+verification, not a claim of replay on the user's physical phone. With both
+Safari address and tab bars fully expanded, the remaining landscape web area
+was smaller than the field itself; that extreme browser-chrome state cannot
+show a full-height composer within the available app viewport.

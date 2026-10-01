@@ -122,6 +122,7 @@ void main() {
           await tester.pump(const Duration(milliseconds: 500));
           final pane = find.byKey(const ValueKey('landscape-calendar-pane'));
           final originalPane = tester.getRect(pane);
+          final sentMessages = <String>[];
           unawaited(
             showCalendarEventDetailSheetModal<void>(
               context: tester.element(pane),
@@ -129,7 +130,9 @@ void main() {
                 flow: MaatDayViewFlow.readingHouse,
                 leading: const Text('Add reflection'),
                 trailing: const Icon(Icons.more_vert),
-                body: const ReadingHouseDayPresentation(),
+                body: ReadingHouseDayPresentation(
+                  onSendMessage: sentMessages.add,
+                ),
                 footer: MaatDayViewFooterActions(
                   onMakeTodo: () {},
                   calendarLabel: 'Calendar',
@@ -152,8 +155,9 @@ void main() {
           );
           final state = tester.state<EditableTextState>(editable);
           expect(state.widget.focusNode.hasFocus, isTrue);
+          await tester.enterText(field, 'Visible draft');
           await _capture(tester, '$hostName-before');
-          for (final inset in [100.0, 200.0, 240.0]) {
+          for (final inset in [100.0, 200.0, 240.0, 270.0, 290.0]) {
             keyboardInset.value = inset;
             // Visual-sized web can briefly retain a stale raw inset. The host
             // must suppress it, and the scaffold must not resize behind its back.
@@ -164,6 +168,8 @@ void main() {
               tester.view.physicalSize = Size(852, 393 - inset);
             }
             await tester.pump();
+            await tester.pump(const Duration(milliseconds: 400));
+            // Finish caret reveal scheduled after the viewport relayout.
             await tester.pump(const Duration(milliseconds: 400));
             expect(
               tester.getRect(pane),
@@ -184,13 +190,25 @@ void main() {
             final fieldRect = tester.getRect(field);
             expect(fieldRect.top, greaterThanOrEqualTo(sheet.top));
             expect(fieldRect.bottom, lessThanOrEqualTo(393 - inset));
+            await _capture(tester, '$hostName-keyboard-${inset.toInt()}');
+            _expectFullyVisible(tester, field);
+            final send = find.byKey(const ValueKey('reading-house-chat-send'));
+            _expectFullyVisible(tester, send);
+            final toggle = tester.getRect(
+              find.byKey(const ValueKey('kemetic-toggle-hit-target')),
+            );
+            expect(
+              tester.getRect(send).overlaps(toggle),
+              isFalse,
+              reason: 'The keyboard switch must not cover Send.',
+            );
+            expect(find.text('Add reflection'), findsNothing);
+            expect(state.widget.controller.text, 'Visible draft');
             expect(field.hitTestable(), findsOneWidget);
             expect(tester.state<EditableTextState>(editable), same(state));
             expect(state.widget.focusNode.hasFocus, isTrue);
             expect(tester.takeException(), isNull);
-            await _capture(tester, '$hostName-keyboard-${inset.toInt()}');
           }
-          await tester.enterText(field, 'Visible draft');
           keyboardInset.value = 0;
           tester.view.physicalSize = const Size(852, 393);
           tester.view.viewInsets = const FakeViewPadding();
@@ -199,8 +217,32 @@ void main() {
           await tester.pump(const Duration(milliseconds: 500));
           expect(tester.getRect(pane), originalPane);
           expect(state.widget.controller.text, 'Visible draft');
+          expect(find.text('Add reflection'), findsOneWidget);
+          expect(find.byType(MaatDayViewFooterActions), findsOneWidget);
           expect(tester.takeException(), isNull);
           await _capture(tester, '$hostName-after');
+          await tester.tap(field);
+          keyboardInset.value = 270;
+          tester.view.viewInsets = FakeViewPadding(
+            bottom: mode == 'web-layout' ? 0 : 270,
+          );
+          if (mode == 'web-visual') {
+            tester.view.physicalSize = const Size(852, 123);
+          }
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
+          _expectFullyVisible(tester, field);
+          final send = find.byKey(const ValueKey('reading-house-chat-send'));
+          _expectFullyVisible(tester, send);
+          await tester.tap(send);
+          await tester.pump();
+          expect(sentMessages, ['Visible draft']);
+          keyboardInset.value = 0;
+          tester.view.physicalSize = const Size(852, 393);
+          tester.view.viewInsets = const FakeViewPadding();
+          state.widget.focusNode.unfocus();
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
           Navigator.of(tester.element(field)).pop();
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 500));
@@ -235,4 +277,36 @@ Future<void> _capture(WidgetTester tester, String name) async {
     await file.writeAsBytes(data!.buffer.asUint8List());
     image.dispose();
   });
+}
+
+// A tappable center and a rectangle above the keyboard do not prove that the
+// field is painted in full. Intersect every ancestor's actual paint clip.
+void _expectFullyVisible(WidgetTester tester, Finder finder) {
+  final box = tester.renderObject<RenderBox>(finder);
+  final rect = MatrixUtils.transformRect(
+    box.getTransformTo(null),
+    Offset.zero & box.size,
+  );
+  var visible = rect;
+  RenderObject child = box;
+  while (child.parent != null) {
+    final parent = child.parent!;
+    final clip = parent.describeApproximatePaintClip(child);
+    if (clip != null) {
+      visible = visible.intersect(
+        MatrixUtils.transformRect(parent.getTransformTo(null), clip),
+      );
+    }
+    child = parent;
+  }
+  expect(
+    visible.width,
+    closeTo(rect.width, .01),
+    reason: '$finder must not be clipped horizontally.',
+  );
+  expect(
+    visible.height,
+    closeTo(rect.height, .01),
+    reason: '$finder must not be clipped vertically.',
+  );
 }
