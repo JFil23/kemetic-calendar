@@ -11,7 +11,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/data/commons_models.dart';
 import 'package:mobile/data/commons_question_selection.dart';
 import 'package:mobile/data/flow_appearance.dart';
-import 'package:mobile/features/calendar/follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
+import '../../fixtures/follow_sky_observation_presentation_fixture.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_instrument_surface.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_instrument.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_state.dart';

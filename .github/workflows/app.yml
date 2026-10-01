@@ -146,6 +146,7 @@ jobs:
           python3 scripts/maat_visual_contract_test.py
           python3 scripts/netjeru_art_contract_test.py
           python3 scripts/warm_state_contract_test.py
+          python3 scripts/validate_deep_links_test.py
           python3 scripts/served_artifact_verifier_test.py
           python3 -m py_compile \
             scripts/maat_visual_contract_test.py \

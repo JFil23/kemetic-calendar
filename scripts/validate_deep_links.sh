@@ -17,7 +17,7 @@ if [[ "$PLATFORM" != "android" && "$PLATFORM" != "ios" ]]; then
 fi
 
 pick_android_device() {
-  flutter devices --machine | python - <<'PY'
+  flutter devices --machine | python3 -c '
 import json, sys
 devices = json.load(sys.stdin)
 for d in devices:
@@ -26,7 +26,7 @@ for d in devices:
         print(d["id"])
         sys.exit(0)
 print("", end="")
-PY
+'
 }
 
 pick_ios_device() {

@@ -37,7 +37,13 @@ class _DecanReflectionArchivePageState
   late final DecanReflectionRepo _repo;
   late final MaatGuidanceRepo _maatRepo;
   late final DecanReflectionPromptState _promptState;
-  List<_ArchiveEntry> _items = const [];
+  List<DecanReflection> _reflections = const [];
+  List<MaatGuidanceDelivery> _openings = const [];
+  List<_ArchiveEntry> get _items =>
+      _buildArchiveEntries(reflections: _reflections, openings: _openings);
+  StreamSubscription<String?>? _accountSubscription;
+  String? _accountId;
+  int _loadGeneration = 0;
   bool _loading = true;
   String? _errorMessage;
 
@@ -52,10 +58,35 @@ class _DecanReflectionArchivePageState
     _promptState =
         widget.promptStateForTesting ??
         DecanReflectionPromptState(Supabase.instance.client);
+    _accountId = _repo.accountId;
+    _accountSubscription = _repo.accountChanges.listen(
+      _handleAccountChange,
+      // A transient auth refresh error does not change archive ownership.
+      onError: (Object _) => _handleAccountChange(_repo.accountId),
+    );
     _load();
   }
 
+  void _handleAccountChange(String? accountId) {
+    if (!mounted || accountId == _accountId) return;
+    _accountId = accountId;
+    _reflections = const [];
+    _openings = const [];
+    unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    _loadGeneration++;
+    _accountSubscription?.cancel();
+    super.dispose();
+  }
+
+  bool _isCurrent(int generation) =>
+      mounted && generation == _loadGeneration && _repo.accountId == _accountId;
+
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     setState(() {
       _loading = _items.isEmpty;
       _errorMessage = null;
@@ -63,25 +94,32 @@ class _DecanReflectionArchivePageState
     if (_items.isEmpty) {
       try {
         final local = await _repo.listMineResult(cachedOnly: true);
-        final openings = await _maatRepo.listDecanOpeningsForArchive(
+        if (!_isCurrent(generation)) return;
+        if (!local.hasError) {
+          setState(() {
+            _reflections = local.data;
+            _loading = _items.isEmpty;
+          });
+        }
+      } catch (_) {}
+      try {
+        final local = await _maatRepo.listDecanOpeningsForArchive(
           cachedOnly: true,
         );
-        if (!mounted) return;
-        setState(() {
-          _items = _buildArchiveEntries(
-            reflections: local.data,
-            openings: openings.data,
-          );
-          _loading = false;
-        });
+        if (!_isCurrent(generation)) return;
+        if (!local.hasError) {
+          setState(() {
+            _openings = local.data;
+            _loading = _items.isEmpty;
+          });
+        }
       } catch (_) {}
     }
+    if (!_isCurrent(generation)) return;
     final result = await _repo.listMineResult();
+    if (!_isCurrent(generation)) return;
     final openingResult = await _maatRepo.listDecanOpeningsForArchive();
-    final entries = _buildArchiveEntries(
-      reflections: result.data,
-      openings: openingResult.data,
-    );
+    if (!_isCurrent(generation)) return;
     final latestReflection = result.data.fold<DecanReflection?>(
       null,
       (latest, reflection) =>
@@ -91,9 +129,12 @@ class _DecanReflectionArchivePageState
     );
     if (!mounted) return;
     setState(() {
-      if (!result.hasError && !openingResult.hasError) _items = entries;
+      if (!result.hasError || result.discardCached) _reflections = result.data;
+      if (!openingResult.hasError || openingResult.discardCached) {
+        _openings = openingResult.data;
+      }
       _errorMessage = decanReflectionArchiveVisibleError(
-        hasVisibleItems: entries.isNotEmpty,
+        hasVisibleItems: _items.isNotEmpty,
         reflectionErrorMessage: result.errorMessage,
         openingErrorMessage: openingResult.errorMessage,
       );
@@ -101,6 +142,7 @@ class _DecanReflectionArchivePageState
     });
     if (latestReflection != null) {
       await _promptState.markInteracted(latestReflection.decanStart);
+      if (!_isCurrent(generation)) return;
       await _repo.markPromptInteracted(
         decanStart: latestReflection.decanStart,
         decanEnd: latestReflection.decanEnd,

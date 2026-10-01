@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/nutrition_repo.dart';
-import 'package:mobile/features/rhythm/data/nutrition_items_cache.dart';
+import '../../fixtures/legacy_nutrition_items_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

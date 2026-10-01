@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/follow_sky_track_definition.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/sky_catalog.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/sky_instrument_data.dart';
-import 'package:mobile/features/calendar/follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
+import '../../../fixtures/follow_sky_observation_presentation_fixture.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_observation_presentation_model.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_observation_route.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_view_time_policy.dart';

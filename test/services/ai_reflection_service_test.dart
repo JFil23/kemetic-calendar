@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/services/ai_reflection_service.dart';
+import 'package:mobile/data/decan_reflection_model.dart';
 
 void main() {
   test('parses deterministic spectrum response metadata', () {
-    final response = AIReflectionResponse.fromJson({
+    final response = DecanReflectionRenderMetadata.fromResponseJson({
       'success': true,
       'reflection': 'Full deterministic reflection body.',
       'modelUsed': 'deterministic_spectrum',
@@ -35,20 +35,17 @@ void main() {
       },
     });
 
-    expect(response.success, isTrue);
-    expect(response.reflectionId, 'reflection-1');
-    expect(response.reflectionGenerationId, 'generation-1');
-    expect(response.renderMetadata?.renderer, 'deterministic_spectrum');
-    expect(response.renderMetadata?.usedLlm, isFalse);
-    expect(response.renderMetadata?.llmCost, 0);
-    expect(response.renderMetadata?.spectrumFlowKey, 'the-weighing');
-    expect(response.renderMetadata?.anthropicAttempted, isFalse);
+    expect(response.raw['success'], isTrue);
+    expect(response.raw['reflection_id'], 'reflection-1');
+    expect(response.raw['reflection_generation_id'], 'generation-1');
+    expect(response.renderer, 'deterministic_spectrum');
+    expect(response.usedLlm, isFalse);
+    expect(response.llmCost, 0);
+    expect(response.spectrumFlowKey, 'the-weighing');
+    expect(response.anthropicAttempted, isFalse);
+    expect(response.badgeBody, 'The sitting was entered but not completed.');
     expect(
-      response.renderMetadata?.badgeBody,
-      'The sitting was entered but not completed.',
-    );
-    expect(
-      response.renderMetadata?.detailBody,
+      response.detailBody,
       'The scale was approached. The sitting was entered but not completed.',
     );
   });

@@ -12,6 +12,8 @@ class DecanReflectionScheduler {
   final VoidCallback? onMaatGuidanceEnsured;
   DateTime? _lastSuccessfulEnsureAt;
   Future<void>? _ensureInFlight;
+  String? _ensureAccountId;
+  int _ensureGeneration = 0;
 
   DecanReflectionScheduler(this._client, {this.onMaatGuidanceEnsured});
 
@@ -133,6 +135,14 @@ class DecanReflectionScheduler {
   }
 
   Future<void> ensureCurrentAndNextScheduled({bool force = false}) {
+    final accountId = _client.auth.currentUser?.id;
+    if (accountId != _ensureAccountId) {
+      _ensureAccountId = accountId;
+      _ensureGeneration++;
+      _lastSuccessfulEnsureAt = null;
+      _ensureInFlight = null;
+    }
+    if (accountId == null) return Future.value();
     final inFlight = _ensureInFlight;
     if (inFlight != null) {
       return inFlight;
@@ -145,18 +155,28 @@ class DecanReflectionScheduler {
       return Future.value();
     }
 
-    final future = _runEnsureCurrentAndNextScheduled();
-    _ensureInFlight = future.whenComplete(() {
-      if (identical(_ensureInFlight, future)) {
-        _ensureInFlight = null;
-      }
-    });
-    return _ensureInFlight!;
+    late final Future<void> future;
+    future = _runEnsureCurrentAndNextScheduled(accountId, _ensureGeneration)
+        .whenComplete(() {
+          if (identical(_ensureInFlight, future)) {
+            _ensureInFlight = null;
+          }
+        });
+    _ensureInFlight = future;
+    return future;
   }
 
-  Future<void> _runEnsureCurrentAndNextScheduled() async {
+  Future<void> _runEnsureCurrentAndNextScheduled(
+    String accountId,
+    int generation,
+  ) async {
     final now = DateTime.now();
     final guidanceEnsured = await _ensureUserGuidance();
+    if (_client.auth.currentUser?.id != accountId ||
+        _ensureAccountId != accountId ||
+        generation != _ensureGeneration) {
+      return;
+    }
     if (guidanceEnsured) {
       onMaatGuidanceEnsured?.call();
     }

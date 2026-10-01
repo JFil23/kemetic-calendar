@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
-import 'package:mobile/widgets/day_sheet_date_picker.dart';
+import 'package:mobile/widgets/event_create_date_picker.dart';
 
 void main() {
   testWidgets(
@@ -24,7 +24,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Day sheet date'), findsOneWidget);
+      expect(find.text('Event date'), findsOneWidget);
       expect(find.text('Gregorian Calendar'), findsWidgets);
       expect(find.text('July'), findsWidgets);
       expect(find.text('14'), findsWidgets);
@@ -66,7 +66,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Day sheet date'), findsOneWidget);
+      expect(find.text('Event date'), findsOneWidget);
       expect(find.text('November'), findsWidgets);
       expect(find.text('23'), findsWidgets);
       expect(find.text('${initial.year}'), findsWidgets);
@@ -83,7 +83,7 @@ void main() {
         MaterialApp(
           home: _DaySheetDateHost(
             initialDate: initial,
-            initialMode: DaySheetDatePickerMode.kemetic,
+            initialMode: EventCreateDatePickerMode.kemetic,
           ),
         ),
       );
@@ -121,7 +121,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Day sheet date'), findsNothing);
+    expect(find.text('Event date'), findsNothing);
     expect(find.text(_label(initial)), findsOneWidget);
     expect(find.text('Updates: 0'), findsOneWidget);
     _expectSurroundingSheetState(initial);
@@ -131,12 +131,12 @@ void main() {
 class _DaySheetDateHost extends StatefulWidget {
   const _DaySheetDateHost({
     required this.initialDate,
-    this.initialMode = DaySheetDatePickerMode.gregorian,
+    this.initialMode = EventCreateDatePickerMode.gregorian,
     this.allowDateChange = true,
   });
 
   final DateTime initialDate;
-  final DaySheetDatePickerMode initialMode;
+  final EventCreateDatePickerMode initialMode;
   final bool allowDateChange;
 
   @override
@@ -145,7 +145,7 @@ class _DaySheetDateHost extends StatefulWidget {
 
 class _DaySheetDateHostState extends State<_DaySheetDateHost> {
   late DateTime _date = DateUtils.dateOnly(widget.initialDate);
-  late DaySheetDatePickerMode _mode = widget.initialMode;
+  late EventCreateDatePickerMode _mode = widget.initialMode;
   late final DateTime _sourceEditingDate = _date;
   var _updates = 0;
 
@@ -182,7 +182,7 @@ class _DaySheetDateHostState extends State<_DaySheetDateHost> {
                 key: const ValueKey<String>('day-sheet-date-button'),
                 onPressed: widget.allowDateChange
                     ? () async {
-                        final picked = await DaySheetDatePicker.show(
+                        final picked = await EventCreateDatePicker.show(
                           context: context,
                           initialDate: _date,
                           initialMode: _mode,

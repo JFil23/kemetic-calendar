@@ -1,3 +1,4 @@
+// Historical cache-format fixture; PlannerAccountStore owns runtime writes.
 import 'dart:convert';
 
 import 'package:mobile/data/nutrition_repo.dart';

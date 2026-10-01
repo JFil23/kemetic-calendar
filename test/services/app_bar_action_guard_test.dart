@@ -1045,15 +1045,17 @@ void main() {
       expect(openInbox, contains("openUtilityRoute<void>(context, '/inbox')"));
       expect(openInbox, isNot(contains("context.go('/inbox')")));
 
-      final inboxIconSource = await File(
-        'lib/widgets/inbox_icon_with_badge.dart',
+      final pagesSource = await File(
+        'lib/features/pages/pages_page.dart',
       ).readAsString();
       expect(
-        inboxIconSource
-                .split("openUtilityRoute<void>(context, '/inbox')")
-                .length -
-            1,
-        2,
+        pagesSource,
+        contains("openUtilityRoute<void>(context, '/inbox')"),
+      );
+      expect(pagesSource, isNot(contains("context.go('/inbox')")));
+      expect(
+        await File('lib/widgets/inbox_icon_with_badge.dart').exists(),
+        isFalse,
       );
       final eventInviteSource = await File(
         'lib/features/invites/event_invite_details_page.dart',
@@ -1419,7 +1421,8 @@ void main() {
         expect(repo, isNot(contains('return []')));
         expect(page, contains('String? _errorMessage'));
         expect(page, contains('decanReflectionArchiveVisibleError'));
-        expect(page, contains('hasVisibleItems: entries.isNotEmpty'));
+        expect(page, contains('hasVisibleItems: _items.isNotEmpty'));
+        expect(page, isNot(contains('hasVisibleItems: entries.isNotEmpty')));
         expect(page, contains('Reflections could not load'));
         expect(page, contains('No reflections yet'));
       },
@@ -1570,11 +1573,6 @@ void main() {
                 (path.endsWith('lib/features/calendar/day_view.dart') ||
                     path.endsWith('lib/features/profile/profile_page.dart')) &&
                 nearbyLines.contains("'/shared-practice/");
-            final isSharedPracticeCalendarChooserPush =
-                path.endsWith(
-                  'lib/features/shared_practice/shared_practice_calendar_chooser_sheet.dart',
-                ) &&
-                nearbyLines.contains("context.push('/calendars')");
             final isSharedNavigationHelper = path.endsWith(
               'lib/core/navigation_fallback.dart',
             );
@@ -1582,7 +1580,6 @@ void main() {
                 !isFeedAuthorProfilePush &&
                 !isLivingTextLibraryCtaPush &&
                 !isSharedPracticeDetailPush &&
-                !isSharedPracticeCalendarChooserPush &&
                 !isSharedNavigationHelper) {
               offenders.add('$path:${index + 1}: ${line.trim()}');
             }

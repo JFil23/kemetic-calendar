@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/features/calendar/follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
+import '../../../fixtures/follow_sky_observation_presentation_fixture.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_observation_presentation_model.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_view_time_policy.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;

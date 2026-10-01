@@ -1,3 +1,4 @@
+import 'warm_state/warm_snapshot_store.dart';
 import 'warm_state/warm_json_reads.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,9 +6,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'maat_guidance_model.dart';
 
 class MaatGuidanceListResult {
-  const MaatGuidanceListResult({required this.data, this.errorMessage});
+  const MaatGuidanceListResult({
+    required this.data,
+    this.errorMessage,
+    this.discardCached = false,
+  });
 
   final List<MaatGuidanceDelivery> data;
+  final bool discardCached;
   final String? errorMessage;
 
   bool get hasError => errorMessage != null;
@@ -169,6 +175,7 @@ class MaatGuidanceRepo implements MaatGuidanceDataSource {
       return const MaatGuidanceListResult(
         data: <MaatGuidanceDelivery>[],
         errorMessage: 'Sign in to view your decan openings.',
+        discardCached: true,
       );
     }
     try {
@@ -197,9 +204,10 @@ class MaatGuidanceRepo implements MaatGuidanceDataSource {
       debugPrint(
         '[MaatGuidanceRepo] listDecanOpeningsForArchive skipped: $error',
       );
-      return const MaatGuidanceListResult(
-        data: <MaatGuidanceDelivery>[],
+      return MaatGuidanceListResult(
+        data: const <MaatGuidanceDelivery>[],
         errorMessage: 'Could not load decan openings.',
+        discardCached: error is WarmAccessDenied,
       );
     }
   }

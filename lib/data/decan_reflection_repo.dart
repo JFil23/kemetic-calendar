@@ -1,3 +1,4 @@
+import 'warm_state/warm_snapshot_store.dart';
 import 'warm_state/warm_mutation.dart';
 import 'warm_state/warm_json_reads.dart';
 import 'package:flutter/foundation.dart';
@@ -7,9 +8,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'decan_reflection_model.dart';
 
 class DecanReflectionListResult {
-  const DecanReflectionListResult({required this.data, this.errorMessage});
+  const DecanReflectionListResult({
+    required this.data,
+    this.errorMessage,
+    this.discardCached = false,
+  });
 
   final List<DecanReflection> data;
+  final bool discardCached;
   final String? errorMessage;
 
   bool get hasError => errorMessage != null;
@@ -18,6 +24,11 @@ class DecanReflectionListResult {
 class DecanReflectionRepo {
   final SupabaseClient _client;
   const DecanReflectionRepo(this._client);
+
+  String? get accountId => _client.auth.currentUser?.id;
+  Stream<String?> get accountChanges => _client.auth.onAuthStateChange
+      .map((event) => event.session?.user.id)
+      .distinct();
 
   String _fmtDate(DateTime date) {
     final d = date.toUtc();
@@ -38,6 +49,7 @@ class DecanReflectionRepo {
       return const DecanReflectionListResult(
         data: <DecanReflection>[],
         errorMessage: 'Sign in to view your decan reflections.',
+        discardCached: true,
       );
     }
     try {
@@ -63,6 +75,7 @@ class DecanReflectionRepo {
       return DecanReflectionListResult(
         data: const <DecanReflection>[],
         errorMessage: _friendlyReadError(e),
+        discardCached: e is WarmAccessDenied,
       );
     }
   }

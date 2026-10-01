@@ -1,7 +1,7 @@
-import '../../domain/follow_sky_track_definition.dart';
-import '../../domain/sky_instrument_data.dart';
-import '../follow_sky_observation_presentation_model.dart';
-import '../turning_meaning.dart';
+import 'package:mobile/features/calendar/follow_the_sky/domain/follow_sky_track_definition.dart';
+import 'package:mobile/features/calendar/follow_the_sky/domain/sky_instrument_data.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_observation_presentation_model.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/turning_meaning.dart';
 
 /// Deterministic reference specimen for the approved Full Moon presentation.
 /// Production consumes the same generic model type for every observing night.

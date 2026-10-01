@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart' show TimeOfDay;
+import 'package:mobile/data/nutrition_repo.dart';
+import '../../fixtures/legacy_nutrition_items_cache.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
@@ -101,6 +104,41 @@ void main() {
     store.dispose();
     await client.dispose();
   });
+
+  test(
+    'historical nutrition fixture restores through the active account owner',
+    () async {
+      final item = NutritionItem(
+        id: 'local_1',
+        nutrient: 'Magnesium',
+        source: 'Supplement',
+        purpose: 'Sleep',
+        schedule: const IntakeSchedule(
+          mode: IntakeMode.decan,
+          decanDays: {6},
+          repeat: true,
+          time: TimeOfDay(hour: 21, minute: 30),
+        ),
+      );
+      await NutritionItemsCache.save([item], uid: uid);
+      final prefs = await SharedPreferences.getInstance();
+      final legacy = prefs.getStringList(NutritionItemsCache.keyForUser(uid));
+      await store.restore();
+      final restored = NutritionItem.fromRow(store.rows('nutrition').single);
+      expect(restored.nutrient, item.nutrient);
+      expect(restored.source, item.source);
+      expect(restored.purpose, item.purpose);
+      expect(restored.schedule.mode, IntakeMode.decan);
+      expect(restored.schedule.decanDays, {6});
+      expect(restored.schedule.time, const TimeOfDay(hour: 21, minute: 30));
+      expect(prefs.getStringList(NutritionItemsCache.keyForUser(uid)), legacy);
+      await client.auth.recoverSession(
+        session().replaceAll(uid, '27d63169-a28a-4550-a0a0-8fee0e8e7b96'),
+      );
+      await store.restore();
+      expect(store.rows('nutrition'), isEmpty);
+    },
+  );
 
   test(
     'offline note is durable before acknowledgement and recovers after restart',

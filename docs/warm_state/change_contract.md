@@ -127,3 +127,30 @@ The former source guard required the destructive hub go command. It now
 requires state-preserving replace and explicitly rejects that go command; the
 new behavioral round trips provide evidence for the stronger parent-retention
 contract.
+
+
+## October 1 wellness repair
+
+The reflection archive retains independent reflection and opening snapshots.
+A successful source read, including a confirmed empty list, replaces only that
+source. A transient failure retains that source's known content. Access denial
+and account departure discard private cached presentation. A cancelled same-account
+refresh does not replace confirmed content.
+Account changes start a new load generation and reject late results from the
+previous account. Existing repositories remain the persistence owners; schemas,
+cache keys, old-release fixtures and inventory thresholds do not change.
+
+The established populated archive is the visual reference. Offline retention
+must produce identical pixels; partial refresh preserves the same rows,
+spacing and typography. Cold failure retains the existing retry view.
+Scheduler requests now clear the tracked completion future and fence callback
+and throttle state to the initiating account. No guidance kind is retired by
+this bug repair; backend nudge retirement requires separate coordination.
+
+The legacy nutrition format helper and Follow the Sky visual specimen move to
+test fixtures with their assertions retained; an additional test restores that
+historical nutrition format through PlannerAccountStore. Date-picker tests
+exercise EventCreateDatePicker, the existing replacement. Reflection response
+metadata assertions exercise the existing model reader, retaining legacy response
+IDs in its raw envelope. Inbox routing checks follow the active Pages launcher;
+the obsolete chooser's route exception is removed, strengthening the route guard.
