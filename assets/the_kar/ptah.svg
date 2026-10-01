@@ -19,6 +19,9 @@
       <stop offset="0" stop-color="var(--ptahCap-3)"/><stop offset=".26" stop-color="var(--ptahCap-2)"/>
       <stop offset=".54" stop-color="var(--ptahCap-2)"/><stop offset=".78" stop-color="var(--ptahCap-1)"/><stop offset="1" stop-color="var(--ptahCap-0)"/>
     </linearGradient>
+    <linearGradient id="ptFists" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="var(--skinMale-2)"/><stop offset="1" stop-color="var(--skinMale-1)"/>
+    </linearGradient>
   </defs>
   <ellipse class="art-aura" cx="154" cy="181" rx="130" ry="154" fill="url(#ptAura4)"/>
   <ellipse cx="154" cy="328" rx="94" ry="14" fill="#000" fill-opacity=".61" filter="url(#ptShadow4)"/>
@@ -50,17 +53,11 @@
     <!-- high collar: kept distinct from the smooth enclosing sheath -->
     <path d="M121 168 C133 176 161 176 174 168" fill="none" stroke="#5E4B39" stroke-opacity=".78" stroke-width="4"/>
     <path d="M126 173 C136 178 159 178 169 173" fill="none" stroke="#E4D2B7" stroke-opacity=".24" stroke-width="1.6"/>
-    <!-- small collar tassel / counterweight cue, more source-appropriate than mummy-like bands -->
-    <path d="M146 176 C147 184 149 190 151 195" fill="none" stroke="#7A624A" stroke-width="2.6" stroke-linecap="round"/>
-<!-- forearms/hands emerge at chest level and visibly grip the sceptre -->
-    <path d="M120 184 C126 197 134 207 145 216" fill="none" stroke="#BFA88A" stroke-width="8" stroke-linecap="round"/>
-    <path d="M173 183 C166 196 159 206 149 216" fill="none" stroke="#BFA88A" stroke-width="8" stroke-linecap="round"/>
-    <ellipse cx="146" cy="216" rx="7" ry="6" fill="#D5C1A4"/>
-    <ellipse cx="154" cy="216" rx="7" ry="6" fill="#C5AE8E"/>
-
-    <!-- simple early sceptre, offset from the body and crossing the hands -->
-    <path d="M157 170 L180 294" fill="none" stroke="#7A6047" stroke-width="6" stroke-linecap="round"/>
-    <path d="M156 170 l9 -8" fill="none" stroke="#7A6047" stroke-width="5" stroke-linecap="round"/>
+    <!-- Upright was-sceptre, centered on the shroud; no arm bindings or cord. -->
+    <path id="ptah-sceptre" d="M147 149 V306" fill="none" stroke="#7A6047" stroke-width="6" stroke-linecap="round"/>
+    <path id="ptah-sceptre-head" d="M147 149 L157.157 141.888" fill="none" stroke="#7A6047" stroke-width="5" stroke-linecap="round"/>
+    <rect id="ptah-upper-fist" x="139.25" y="190.3" width="15.5" height="12.4" rx="5.58" fill="url(#ptFists)" stroke="var(--skinMale-3)" stroke-opacity=".55" stroke-width="1.5"/>
+    <rect id="ptah-lower-fist" x="139.25" y="204.05" width="15.5" height="12.4" rx="5.58" fill="url(#ptFists)" stroke="var(--skinMale-3)" stroke-opacity=".55" stroke-width="1.5"/>
 </g>
 
   <!-- clean enclosed lower edge; no differentiated feet -->
