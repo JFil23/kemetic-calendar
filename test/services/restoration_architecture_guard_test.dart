@@ -404,15 +404,32 @@ void main() {
       expect(_countOccurrences(main, '_calmRoute('), greaterThan(20));
       expect(
         _countOccurrences(main, '_utilitySheetRoute('),
-        7,
+        8,
         reason:
-            'The helper plus Inbox, Flow Studio, Calendars, Journal, and both Planner routes use sheet pages.',
+            'The helper, six existing utility routes, and the shared flow-detail adapter use sheet pages.',
       );
       expect(
         main,
         isNot(contains('routes: [\n    GoRoute(')),
         reason: 'App routes should use calm page wrappers, not defaults.',
       );
+      expect(_countOccurrences(main, '_flowDetailSheetRoute('), 4);
+      for (final path in <String>[
+        '/shared-flow/:shareId',
+        '/shared-flow/by-flow/:flowId',
+        '/flow-post/:postId',
+      ]) {
+        expect(main, contains("_flowDetailSheetRoute(\n      path: '$path'"));
+        expect(main, isNot(contains("_calmRoute(\n      path: '$path'")));
+      }
+      final flowDetailAdapter = _sourceBetween(
+        main,
+        'GoRoute _flowDetailSheetRoute({',
+        '@visibleForTesting\nGoRouter createAppRouterForTesting',
+      );
+      expect(flowDetailAdapter, contains('=> _utilitySheetRoute('));
+      expect(flowDetailAdapter, contains('UtilitySheetRouteScaffold('));
+      expect(flowDetailAdapter, contains('closeOrReturn(context, fallback)'));
       final utilityRouteHelper = _sourceBetween(
         main,
         'GoRoute _utilitySheetRoute({',
@@ -1075,10 +1092,7 @@ void main() {
       expect(rootRestore, isNot(contains('_maatFlowDetailSheetRoute')));
       expect(rootRestore, isNot(contains('FollowSkyDetailSurfaceRoute')));
       expect(rootRouteSeed, isNot(contains('addPostFrameCallback')));
-      expect(
-        rootRestore,
-        contains('_openDayViewForFlow(importedFlowId)'),
-      );
+      expect(rootRestore, contains('_openDayViewForFlow(importedFlowId)'));
       expect(detachedRestore, contains('onReturnToHub'));
       expect(detachedRestore, contains('[hubRoute(), listRoute]'));
       expect(detachedRestore, contains('initialTemplateKey:'));
