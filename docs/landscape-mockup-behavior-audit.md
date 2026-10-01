@@ -31,3 +31,32 @@ The audit identified missing vertical list linkage, abrupt programmatic scrollin
 - Existing navigation/rotation, restoration, keyboard and native portrait references remain part of the complete app gate. No native Day View sheet or backend implementation was changed in this pass.
 
 The viewport refactor also fixes a pinned-Flutter behavior discovered by testing: a diagonal wheel event was delivered to only the inner axis. The calendar now resolves that signal once and applies both deltas through the existing `ScrollPosition.pointerScroll` behavior. Touch drags/momentum remain owned by Flutter's two-dimensional scrollable.
+
+## October 1 landscape keyboard ownership
+
+Reference: `ScreenRecording_10-01-2026 09-44-37_1.MP4`. The Reading House
+composition remains visible at 37.532 seconds and disappears by 37.548 seconds
+while the keyboard opens. Closing the keyboard restores the sheet and typed
+draft. The existing approved landscape and five-flow portrait references remain
+the visual contract; none are regenerated.
+
+CalendarPage's landscape scaffold and DayViewPage's landscape mode now leave
+keyboard occlusion to the pane-local modal's existing KeyboardInsetBoundary.
+The scaffold previously shortened the nested navigator without recording that
+consumption, so the modal consumed the inset again. DayViewPage retains its
+portrait scaffold resizing. The pane continues publishing its actual constrained
+height: this preserves browser visual-viewport sizing rather than substituting
+physical-screen height. No sheet composition, opening extent, persistence owner,
+cache key, model or backend contract changes.
+
+`landscape_keyboard_ownership_test.dart` uses both actual page scaffolds and
+their nested navigators with the existing populated Reading House presentation.
+It covers native insets, web layout-sized viewports, and web visual-sized
+viewports with stale raw insets, each at 100, 200 and 240 logical pixels. It
+asserts pane and visible field bounds, hit testing, retained editable State and
+focus, draft retention after keyboard dismissal, and return to portrait. The
+pre-fix native calendar case fails because the 393px pane shrinks to 293px at
+a 100px inset. Optional `CAPTURE_LANDSCAPE_KEYBOARD=true` writes review captures
+under `/tmp/haw-video-review`, outside the approved references. Widget captures
+simulate occlusion; they do not render an operating-system keyboard or replace
+physical-device replay.

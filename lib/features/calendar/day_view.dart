@@ -6479,6 +6479,10 @@ class _DayViewPageState extends State<DayViewPage> {
             onCalendarsPressed: widget.onOpenCalendars ?? () {},
             onInboxPressed: widget.onOpenInbox ?? () {},
             child: Scaffold(
+              // Landscape nests its modal navigator inside this body. Its
+              // KeyboardInsetBoundary owns occlusion; portrait keeps page resizing.
+              resizeToAvoidBottomInset:
+                  effectiveOrientation != Orientation.landscape,
               backgroundColor: _dayViewBase,
               body: OrientationBuilder(
                 builder: (context, orientation) {

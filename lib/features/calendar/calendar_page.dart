@@ -32925,6 +32925,8 @@ class CalendarPageState extends State<CalendarPage>
       }
 
       final landscapeScaffold = Scaffold(
+        // Pane-local modals own keyboard occlusion; keep their navigator full height.
+        resizeToAvoidBottomInset: false,
         backgroundColor: _bg,
         body: LandscapeMonthView(
           onOpenCalendars: () => unawaited(_openSharedCalendarsSheet()),
