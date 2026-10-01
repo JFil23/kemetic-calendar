@@ -19,6 +19,14 @@
       <stop offset="0" stop-color="var(--linen-3)"/><stop offset=".38" stop-color="var(--linen-2)"/>
       <stop offset=".76" stop-color="var(--linen-1)"/><stop offset="1" stop-color="var(--linen-0)"/>
     </linearGradient>
+    <clipPath id="maFaceClip"><path d="M154 82 C164 81 173 86 176 95 L185.98 99.99 Q187.0 100.5 186.95 101.08 Q186.90 101.65 185.87 102.11 L177 106 C175 115 169 121 160 122
+             C150 120 145 113 145 102 C145 91 148 85 154 82 Z"/></clipPath>
+    <filter id="maFaceSoft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+    <!-- Lock the original face bounding-box transform while rounding only the nose tip. -->
+    <linearGradient id="maFace" gradientUnits="userSpaceOnUse" gradientTransform="matrix(43 0 0 40.12618221237011 145 81.87381778762989)" x1=".16" y1=".05" x2=".86" y2=".98">
+      <stop offset="0" stop-color="var(--skinFemale-3)"/><stop offset=".38" stop-color="var(--skinFemale-2)"/>
+      <stop offset=".76" stop-color="var(--skinFemale-1)"/><stop offset="1" stop-color="var(--skinFemale-0)"/>
+    </linearGradient>
   </defs>
   <ellipse class="art-aura" cx="153" cy="178" rx="126" ry="154" fill="url(#maAura4)"/>
   <path d="M64 328 Q153 349 242 328" stroke="#000" stroke-opacity=".57" stroke-width="16" fill="none"/>
@@ -31,10 +39,10 @@
     <path d="M155 45 L158 109" fill="none" stroke="#73542F" stroke-opacity=".58" stroke-width="1.3"/>
     <path d="M155 57 l-6 8 M157 66 l8 9 M156 78 l-7 9 M158 89 l7 8" fill="none" stroke="#73542F" stroke-opacity=".31"/>
     <path d="M132 105 C132 87 142 77 158 77 C174 77 184 89 183 106 L179 147 H136 Z" fill="url(#maWig)"/>
-    <path d="M154 82 C164 81 173 86 176 95 L188 101 L177 106 C175 115 169 121 160 122
-             C150 120 145 113 145 102 C145 91 148 85 154 82 Z" fill="url(#maSkin)"/>
+    <path d="M154 82 C164 81 173 86 176 95 L185.98 99.99 Q187.0 100.5 186.95 101.08 Q186.90 101.65 185.87 102.11 L177 106 C175 115 169 121 160 122
+             C150 120 145 113 145 102 C145 91 148 85 154 82 Z" fill="url(#maFace)"/>
+    <g clip-path="url(#maFaceClip)"><path id="maat-lower-face-plane" d="M165.8 109 L178.4 112 L179.6 116.6 L176.6 121.2 L166.6 122.4 L162.6 116.6 Z" fill="black" fill-opacity=".07" stroke="none" filter="url(#maFaceSoft)"/></g>
     <circle cx="171" cy="96" r="2.1" fill="#302014" stroke="none"/>
-    <path d="M177 107 C173 110 169 111 165 110" fill="none" stroke="#302014" stroke-opacity=".68"/>
     <path d="M150 117 H169 L176 145 L138 145 Z" fill="url(#maSkin)"/>
     <path d="M138 139 C148 133 168 133 177 141 L184 247 H132 Z" fill="url(#maSkin)"/>
     <path d="M133 238 H183 L187 321 H128 Z" fill="url(#maLinen)"/>

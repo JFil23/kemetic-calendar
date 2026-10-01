@@ -53,7 +53,7 @@ void main() {
       'djehuty.png':
           'c18140680dbfd1463753e1e05c9a3c09fe87ce43eb1e2f0a2463f6e1ae6f5a9d',
       'maat.png':
-          '0a6274e0de0c5cc85a0e5e94b8c4a46f1541dd4baa453ab21016ea1a9c36669b',
+          '09f5dedde026b4267bb9fdceb23f31e370afaeada96338807ab41d542b2b2c8c',
       'sekhmet.png':
           'f28ff8fb2ebbb8388506df9e07b9068a665572bef0cf97882e57b5ecb1ca0e25',
       'hetheru.png':
