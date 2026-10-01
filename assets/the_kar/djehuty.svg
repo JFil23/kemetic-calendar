@@ -8,6 +8,18 @@
       <stop offset="0" stop-color="#C8E2E8" stop-opacity=".14"/><stop offset="1" stop-color="#C8E2E8" stop-opacity="0"/>
     </radialGradient>
     <filter id="djShadow4" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
+    <linearGradient id="djSkin" x1="10%" y1="5%" x2="92%" y2="95%">
+      <stop offset="0" stop-color="var(--skinMale-3)"/><stop offset=".30" stop-color="var(--skinMale-2)"/>
+      <stop offset=".67" stop-color="var(--skinMale-1)"/><stop offset="1" stop-color="var(--skinMale-0)"/>
+    </linearGradient>
+    <linearGradient id="djIbis" x1="10%" y1="5%" x2="92%" y2="95%">
+      <stop offset="0" stop-color="var(--ibisBlack-3)"/><stop offset=".30" stop-color="var(--ibisBlack-2)"/>
+      <stop offset=".67" stop-color="var(--ibisBlack-1)"/><stop offset="1" stop-color="var(--ibisBlack-0)"/>
+    </linearGradient>
+    <linearGradient id="djLinen" x1="10%" y1="5%" x2="92%" y2="95%">
+      <stop offset="0" stop-color="var(--linen-3)"/><stop offset=".30" stop-color="var(--linen-2)"/>
+      <stop offset=".67" stop-color="var(--linen-1)"/><stop offset="1" stop-color="var(--linen-0)"/>
+    </linearGradient>
   </defs>
   <ellipse class="art-aura" cx="157" cy="172" rx="123" ry="147" fill="url(#djAura4)"/>
   <path d="M58 321 C112 337 207 338 253 319" fill="none" stroke="#000" stroke-opacity=".54" stroke-width="16" filter="url(#djShadow4)"/>
@@ -16,16 +28,16 @@
 
   <!-- Ḏḥwty: ibis-headed male form after the Dynasty 4 Wadi Maghara depiction.
        The head does the identification; no lunar crown, palette, or later scribal equipment. -->
-  <g fill="url(#djStone4)" stroke="#F3DEB9" stroke-opacity=".26" stroke-width="1.05" class="art-stroke">
+  <g fill="url(#djSkin)" stroke="#F3DEB9" stroke-opacity=".26" stroke-width="1.05" class="art-stroke">
     <path d="M169 91 C159 87 153 79 154 68 C155 57 163 50 174 49 C186 49 195 57 197 68
-             C199 78 193 87 183 92 C179 94 174 94 169 91 Z"/>
+             C199 78 193 87 183 92 C179 94 174 94 169 91 Z" fill="url(#djIbis)"/>
     <path d="M159 67 C142 64 123 66 105 72 C88 78 74 87 62 100
              C77 93 92 88 108 85 C126 81 144 79 160 77
-             C165 76 166 69 159 67 Z"/>
+             C165 76 166 69 159 67 Z" fill="url(#djIbis)"/>
     <circle cx="178" cy="64" r="2.3" fill="#17120C" stroke="none"/>
     <path d="M169 91 C166 103 166 112 169 120 L147 126 L132 118 C143 109 151 99 156 89 Z"/>
     <path d="M130 118 C144 113 162 114 176 124 L183 205 L129 205 L119 132 Z"/>
-    <path d="M128 198 L184 198 L190 249 L124 249 Z"/>
+    <path d="M128 198 L184 198 L190 249 L124 249 Z" fill="url(#djLinen)"/>
     <path d="M133 248 L155 248 L151 321 L130 321 Z"/>
     <path d="M163 248 L184 248 L202 315 L181 321 Z"/>
     <path d="M121 130 C114 151 112 181 115 211 C117 227 122 238 129 244 L138 236

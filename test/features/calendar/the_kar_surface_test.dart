@@ -51,7 +51,7 @@ void main() {
   test('the six authored netjer images are exact mockup extractions', () {
     const expectedHashes = <String, String>{
       'djehuty.png':
-          '98b651be5dd8517c700c070f4b32d3205a45d2ad4631be21f95392be59a5e474',
+          'c18140680dbfd1463753e1e05c9a3c09fe87ce43eb1e2f0a2463f6e1ae6f5a9d',
       'maat.png':
           '282c5af4ebd68ec045105ccfbf3b1472679b7b788d09774057f8831b5071db98',
       'sekhmet.png':
