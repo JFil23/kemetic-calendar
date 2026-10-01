@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'netjeru_art_assets.dart';
+
 enum KarNetjer { djehuty, maat, sekhmet, hetHeru, khepri, ptah }
 
 extension KarNetjerContent on KarNetjer {
@@ -83,7 +85,7 @@ extension KarNetjerContent on KarNetjer {
       'Five impossible images that give projects, tools and unfinished ideas physical form.',
   };
 
-  String get asset => 'assets/the_kar/$key.png';
+  String get asset => netjeruArtAssets[key]!;
 
   int get accentValue => switch (this) {
     KarNetjer.djehuty => 0xFF91B7C7,

@@ -55,7 +55,7 @@ void main() {
       'maat.png':
           '282c5af4ebd68ec045105ccfbf3b1472679b7b788d09774057f8831b5071db98',
       'sekhmet.png':
-          'c23030237f90e5a0a0dc7b0c6e6e56d33bdef60a6a29c65a509d24916553bcb1',
+          'f28ff8fb2ebbb8388506df9e07b9068a665572bef0cf97882e57b5ecb1ca0e25',
       'hetheru.png':
           '6a6e3b6d7f428720d0a682f6cc1013435a8ecfb7e527c39643ed10c2385d770b',
       'khepri.png':
@@ -72,7 +72,10 @@ void main() {
       'Ptah',
     ]);
     for (final entry in expectedHashes.entries) {
-      final bytes = File('assets/the_kar/${entry.key}').readAsBytesSync();
+      final netjer = KarNetjer.values.singleWhere(
+        (value) => '${value.key}.png' == entry.key,
+      );
+      final bytes = File(netjer.asset).readAsBytesSync();
       expect(sha256.convert(bytes).toString(), entry.value, reason: entry.key);
     }
   });

@@ -38,10 +38,10 @@
     <path d="M196 111 C188 114 181 114 173 111" fill="none" stroke="#2D1B16" stroke-opacity=".75"/>
     <path d="M136 126 C132 144 129 162 131 183 H179 C181 160 176 140 167 125
              C157 132 147 132 136 126 Z" fill="#4A3428" fill-opacity=".88"/>
-    <path d="M132 173 C145 164 164 164 177 174 L183 273 H126 Z" fill="#B18462"/>
-    <path d="M127 262 H182 L188 318 H121 Z" fill="#A9795A"/>
-    <path d="M136 180 C125 203 123 230 128 253 L138 250 C134 227 137 203 145 185 Z" fill="#AD7E5D"/>
-    <path d="M173 180 C184 198 190 220 189 243 L179 243 C179 221 174 202 165 185 Z" fill="#AD7E5D"/>
+    <path d="M132 173 C145 164 164 164 177 174 L183 273 H126 Z" fill="var(--sekhmetRed-3)"/>
+    <path d="M127 262 H182 L188 318 H121 Z" fill="var(--sekhmetRed-3)"/>
+    <path d="M136 180 C125 203 123 230 128 253 L138 250 C134 227 137 203 145 185 Z" fill="var(--sekhmetRed-3)"/>
+    <path d="M173 180 C184 198 190 220 189 243 L179 243 C179 221 174 202 165 185 Z" fill="var(--sekhmetRed-3)"/>
   </g>
 
   <!-- patchy pigment loss keeps it archaeological, not polished -->
