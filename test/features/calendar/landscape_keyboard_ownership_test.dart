@@ -4,28 +4,56 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/snapshot/calendar_snapshot_runtime.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_day_presentation.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
+import 'package:mobile/main.dart' show AuthGate;
 import 'package:mobile/widgets/keyboard_viewport_metrics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
+import '../pages/pages_resource_test.dart' show session;
 import 'landscape_split_view_test.dart' show fixtureFlows, fixtureNotes;
 
-// Use the actual page scaffolds and their nested navigator, with the existing
-// populated Reading House presentation. No account writes are needed to prove
-// the viewport contract that failed in the October 1 recording.
+// Exercise the signed-in AuthGate as well as both direct page scaffolds and
+// their nested navigator, with the populated Reading House presentation.
+// HTTP responses use fixtures; only disposable local test storage is used.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  late Directory hiveDirectory;
   setUpAll(() async {
+    hiveDirectory = await Directory.systemTemp.createTemp(
+      'haw_keyboard_route.',
+    );
+    Hive.init(hiveDirectory.path);
+    await calendarSnapshotStore.initialize();
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    for (final name in [
+      'com.llfbandit.app_links/messages',
+      'com.llfbandit.app_links/events',
+      'receive_sharing_intent/messages',
+      'receive_sharing_intent/events-media',
+    ]) {
+      messenger.setMockMethodCallHandler(MethodChannel(name), (call) async {
+        if (name.contains('/events') && call.method == 'listen') {
+          scheduleMicrotask(
+            () => messenger.handlePlatformMessage(name, null, (_) {}),
+          );
+        }
+        return null;
+      });
+    }
     SharedPreferences.setMockInitialValues({});
     await Supabase.initialize(
       url: 'https://example.supabase.co',
@@ -38,20 +66,30 @@ void main() {
               ? '{}'
               : '[]',
           200,
+          request: r,
           headers: {'content-type': 'application/json'},
         ),
       ),
     );
     await loadMaatFlowVisualTestFonts();
   });
-  tearDownAll(() => Supabase.instance.dispose());
+  tearDownAll(() async {
+    await Supabase.instance.dispose();
+    await Hive.close();
+    await hiveDirectory.delete(recursive: true);
+  });
 
   for (final mode in ['native', 'web-layout', 'web-visual']) {
-    for (final calendarPage in [true, false]) {
-      final hostName = '${calendarPage ? 'calendar' : 'day'}-$mode';
+    for (final host in ['calendar', 'authenticated-calendar', 'day']) {
+      final hostName = '$host-$mode';
       testWidgets(
         '$hostName landscape composer survives keyboard open and close',
         (tester) async {
+          if (host == 'authenticated-calendar') {
+            await tester.runAsync(
+              () => Supabase.instance.client.auth.recoverSession(session()),
+            );
+          }
           tester.view.physicalSize = const Size(852, 393);
           tester.view.devicePixelRatio = 1;
           tester.view.padding = const FakeViewPadding(
@@ -73,7 +111,9 @@ void main() {
             routes: [
               GoRoute(
                 path: '/',
-                builder: (_, _) => calendarPage
+                builder: (_, _) => host == 'authenticated-calendar'
+                    ? const AuthGate()
+                    : host == 'calendar'
                     ? CalendarPage(calendarBoundaryHarnessController: harness)
                     : DayViewPage(
                         initialKy: k.kYear,
@@ -157,7 +197,14 @@ void main() {
           expect(state.widget.focusNode.hasFocus, isTrue);
           await tester.enterText(field, 'Visible draft');
           await _capture(tester, '$hostName-before');
-          for (final inset in [100.0, 200.0, 240.0, 270.0, 290.0]) {
+          for (final inset in [
+            if (host == 'authenticated-calendar') 270.0,
+            100.0,
+            200.0,
+            240.0,
+            270.0,
+            290.0,
+          ]) {
             keyboardInset.value = inset;
             // Visual-sized web can briefly retain a stale raw inset. The host
             // must suppress it, and the scaffold must not resize behind its back.
@@ -171,6 +218,7 @@ void main() {
             await tester.pump(const Duration(milliseconds: 400));
             // Finish caret reveal scheduled after the viewport relayout.
             await tester.pump(const Duration(milliseconds: 400));
+            await _capture(tester, '$hostName-pane-${inset.toInt()}');
             expect(
               tester.getRect(pane),
               mode == 'web-visual'
@@ -258,6 +306,18 @@ void main() {
           await tester.pumpWidget(const SizedBox());
           await tester.pump(const Duration(seconds: 2));
           router.dispose();
+          // Finish the signed-in fixture's real I/O outside fake time, including
+          // failed socket setup against the dummy endpoint. No retries may leak
+          // into a later viewport case.
+          await tester.runAsync(() async {
+            final client = Supabase.instance.client;
+            await client.removeAllChannels();
+            await client.realtime.disconnect();
+            client.realtime.reconnectTimer.reset();
+            if (host == 'authenticated-calendar') {
+              await client.auth.signOut(scope: SignOutScope.local);
+            }
+          });
         },
       );
     }

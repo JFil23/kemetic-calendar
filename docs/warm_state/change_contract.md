@@ -154,3 +154,14 @@ exercise EventCreateDatePicker, the existing replacement. Reflection response
 metadata assertions exercise the existing model reader, retaining legacy response
 IDs in its raw envelope. Inbox routing checks follow the active Pages launcher;
 the obsolete chooser's route exception is removed, strengthening the route guard.
+
+
+## October 1 authenticated calendar keyboard ownership
+
+The signed-in root AuthGate delegates presentation directly to its existing
+SessionTrackedRoute and CalendarPage. Removing the redundant outer Scaffold
+prevents a second keyboard resize above the landscape modal. SessionTrackedRoute
+continues to own route observation; CalendarPage and the modal keep their
+existing presentation ownership. No repository, write boundary, cache namespace,
+persisted payload, or account lifecycle changes. Regression coverage now includes
+the real signed-in root around the established keyboard/draft/rotation checks.

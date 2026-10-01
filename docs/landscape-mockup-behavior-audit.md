@@ -104,3 +104,27 @@ verification, not a claim of replay on the user's physical phone. With both
 Safari address and tab bars fully expanded, the remaining landscape web area
 was smaller than the field itself; that extreme browser-chrome state cannot
 show a full-height composer within the available app viewport.
+
+
+## October 1 signed-in root-route correction
+
+Reference: `ScreenRecording_10-01-2026 15-17-57_1.MP4`. Around 17 seconds,
+the installed app's Reading House sheet disappears when the landscape keyboard
+opens. The calendar and Today button shrink upward too. The earlier checks
+mounted CalendarPage directly and missed AuthGate's outer resizing Scaffold.
+That wrapper consumed keyboard space before the pane-local modal consumed it
+again. With a 270px inset, the actual signed-in route reproduced a 393px pane
+shrinking to 123px and an invisible sheet.
+
+AuthGate now returns its existing SessionTrackedRoute directly. CalendarPage
+retains its existing Scaffold and portrait resizing; the landscape modal retains
+its sole remaining-occlusion owner. No new inset math or presentation geometry is
+introduced. Session tracking, login/loading states, draft persistence, and the
+five-flow housing extents remain unchanged.
+
+The landscape keyboard regression now additionally mounts the actual signed-in
+AuthGate under all three native/web viewport models, including a direct jump to
+the recording-sized 270px inset. Existing full field/Send visibility, hit tests,
+focus/State identity, draft retention, keyboard reopen, Send callback, and
+portrait return assertions apply to that route. The new case fails before the
+wrapper removal. Capture evidence remains outside approved visual references.
