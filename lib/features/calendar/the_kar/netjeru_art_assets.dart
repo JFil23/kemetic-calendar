@@ -4,6 +4,6 @@ const netjeruArtAssets = <String, String>{
   'khepri': 'assets/the_kar/khepri.png',
   'djehuty': 'assets/the_kar/djehuty-c18140680dbfd146.png',
   'maat': 'assets/the_kar/maat.png',
-  'ptah': 'assets/the_kar/ptah.png',
+  'ptah': 'assets/the_kar/ptah-3241ff3442cb4fd6.png',
   'sekhmet': 'assets/the_kar/sekhmet-f28ff8fb2ebbb838.png',
 };

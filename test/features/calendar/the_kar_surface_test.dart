@@ -61,7 +61,7 @@ void main() {
       'khepri.png':
           'bde2ade18c8ac40fb7c825ffdba545e11613b930b8b14c7edc02bc3c59755086',
       'ptah.png':
-          '009beb5c9525dcdc03e3e4ebd439229f19e4368249d3124115689bc833f0fdf1',
+          '3241ff3442cb4fd6e2b43023bdfe64f3d853f352fa00ed6554ba7e741e45192c',
     };
     expect(KarNetjer.values.map((value) => value.name), <String>[
       'Djehuty',

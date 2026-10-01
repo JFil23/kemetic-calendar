@@ -11,6 +11,14 @@
       <stop offset="0" stop-color="#D5C6E8" stop-opacity=".13"/><stop offset="1" stop-color="#D5C6E8" stop-opacity="0"/>
     </radialGradient>
     <filter id="ptShadow4" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+    <linearGradient id="ptSkin" x1="7%" y1="2%" x2="92%" y2="98%">
+      <stop offset="0" stop-color="var(--skinMale-3)"/><stop offset=".26" stop-color="var(--skinMale-2)"/>
+      <stop offset=".54" stop-color="var(--skinMale-2)"/><stop offset=".78" stop-color="var(--skinMale-1)"/><stop offset="1" stop-color="var(--skinMale-0)"/>
+    </linearGradient>
+    <linearGradient id="ptCap" x1="7%" y1="2%" x2="92%" y2="98%">
+      <stop offset="0" stop-color="var(--ptahCap-3)"/><stop offset=".26" stop-color="var(--ptahCap-2)"/>
+      <stop offset=".54" stop-color="var(--ptahCap-2)"/><stop offset=".78" stop-color="var(--ptahCap-1)"/><stop offset="1" stop-color="var(--ptahCap-0)"/>
+    </linearGradient>
   </defs>
   <ellipse class="art-aura" cx="154" cy="181" rx="130" ry="154" fill="url(#ptAura4)"/>
   <ellipse cx="154" cy="328" rx="94" ry="14" fill="#000" fill-opacity=".61" filter="url(#ptShadow4)"/>
@@ -28,12 +36,13 @@
     <path d="M83 306 H223 L232 326 H74 Z" fill="url(#ptDark4)" stroke="#D2BFA2" stroke-opacity=".18"/>
 
     <!-- Ptah: clear head, neck, shoulders, one broad wrapped body mass -->
-    <ellipse cx="145" cy="125" rx="24" ry="27" fill="url(#ptCalcite4)" stroke="#F3E7D2" stroke-opacity=".22"/>
+    <ellipse cx="145" cy="125" rx="24" ry="27" fill="url(#ptSkin)" stroke="#F3E7D2" stroke-opacity=".22"/>
+    <path id="ptah-cap" d="M121 125 A24 27 0 0 1 169 125 Q145 107 121 125 Z" fill="url(#ptCap)"/>
     <!-- smooth close cap / head contour -->
     <path d="M123 122 C125 101 136 94 146 94 C160 95 170 105 169 123"
           fill="none" stroke="#6A5744" stroke-opacity=".52" stroke-width="3"/>
     <!-- visible neck -->
-    <path d="M136 149 V159 H155 V149" fill="url(#ptCalcite4)" stroke="#F3E7D2" stroke-opacity=".18"/>
+    <path d="M136 149 V159 H155 V149" fill="url(#ptSkin)" stroke="#F3E7D2" stroke-opacity=".18"/>
     <!-- shoulders wider than torso -->
     <path d="M116 169 C127 158 138 155 146 155 C155 155 168 159 178 169
              L174 284 C167 296 125 296 118 284 Z"
