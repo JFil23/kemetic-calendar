@@ -5167,6 +5167,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       return const _RouteLoadingScaffold();
     }
 
+    // Authenticated
     // CalendarPage owns page resizing; its landscape modal owns keyboard
     // occlusion. An outer Scaffold would consume the same inset a second time.
     return SessionTrackedRoute(
