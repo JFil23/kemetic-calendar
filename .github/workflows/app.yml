@@ -142,6 +142,7 @@ jobs:
       - name: Run deterministic release and served-artifact contracts
         run: |
           set -euo pipefail
+          node --test scripts/web_bootstrap_test.mjs
           python3 scripts/web_release_pipeline_test.py
           python3 scripts/maat_visual_contract_test.py
           python3 scripts/netjeru_art_contract_test.py

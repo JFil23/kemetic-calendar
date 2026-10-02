@@ -128,71 +128,55 @@
     button, [role="button"], a, input, textarea, select {
       touch-action: manipulation !important;
     }
+
+    /* This surface is present before any storage, script or engine work. */
+    @font-face {
+      font-family: HawBootGentium;
+      src: url('assets/ios/Runner/Fonts/GentiumPlus-Regular.ttf') format('truetype');
+      font-display: swap;
+    }
+    #haw-boot {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: grid;
+      place-items: center;
+      box-sizing: border-box;
+      padding: 24px;
+      background: #171518;
+      color: #D4AF37;
+      text-align: center;
+      font-family: HawBootGentium, Georgia, serif;
+    }
+    #haw-boot-word {
+      margin: 0;
+      font-size: 42px;
+      font-weight: 500;
+      text-shadow: 0 4px 18px #2c1a0055;
+    }
+    #haw-boot-error { display: none; }
+    #haw-boot[data-state="error"] #haw-boot-word { display: none; }
+    #haw-boot[data-state="error"] #haw-boot-error { display: block; }
+    #haw-boot-error h1 { margin: 0; font-size: 28px; font-weight: 600; }
+    #haw-boot-retry {
+      margin-top: 20px;
+      border: 0;
+      background: transparent;
+      color: #D4AF37;
+      font: 500 16px system-ui, sans-serif;
+      min-width: 64px;
+      min-height: 48px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    #haw-boot-retry:focus-visible {
+      outline: 2px solid #D4AF37;
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
   </style>
 
-  <script>
-    (function () {
-      if (!('serviceWorker' in navigator) || !('caches' in window)) {
-        window.__kemeticPwaBootstrapReady = Promise.resolve(false);
-        return;
-      }
 
-      const reloadKey = 'kemetic.pwa.rootSwReset.v1';
-      const flutterCacheNames = [
-        'flutter-app-manifest',
-        'flutter-temp-cache',
-        'flutter-app-cache',
-      ];
-
-      async function clearStaleFlutterCaching() {
-        try {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          let removedRootFlutterWorker = false;
-
-          for (const registration of registrations) {
-            const scriptUrls = [
-              registration.active?.scriptURL,
-              registration.waiting?.scriptURL,
-              registration.installing?.scriptURL,
-            ].filter(Boolean);
-
-            const isFlutterAppShellWorker = scriptUrls.some((url) =>
-              url.includes('/flutter_service_worker.js'),
-            );
-            if (!isFlutterAppShellWorker) {
-              continue;
-            }
-
-            await registration.unregister();
-            removedRootFlutterWorker = true;
-          }
-
-          await Promise.all(
-            flutterCacheNames.map((name) => caches.delete(name).catch(() => false)),
-          );
-
-          if (
-            removedRootFlutterWorker &&
-            sessionStorage.getItem(reloadKey) !== '1'
-          ) {
-            sessionStorage.setItem(reloadKey, '1');
-            const nextUrl = new URL(window.location.href);
-            nextUrl.searchParams.set('_sw_reset', Date.now().toString());
-            window.location.replace(nextUrl.toString());
-            return true;
-          }
-
-          sessionStorage.removeItem(reloadKey);
-          return false;
-        } catch (error) {
-          console.warn('[pwa] stale flutter service worker cleanup failed', error);
-          return false;
-        }
-      }
-
-      window.__kemeticPwaBootstrapReady = clearStaleFlutterCaching();
-    })();
-  </script>
   <script>
     // Installed iPhones: keep the viewport meta pinned to the actual phone width.
     (function () {
@@ -324,6 +308,140 @@
   </script>
 </head>
 <body>
+<div id="haw-boot" role="status" aria-live="polite">
+  <p id="haw-boot-word">ḥꜣw</p>
+  <div id="haw-boot-error">
+    <h1>Unable to start</h1>
+    <button id="haw-boot-retry" type="button">Retry</button>
+  </div>
+</div>
+<script id="haw-boot-recovery">
+  (function () {
+    const surface = document.getElementById('haw-boot');
+    let ready = false;
+    let watchdog;
+
+    function showFailure(error) {
+      if (ready) return;
+      clearTimeout(watchdog);
+      surface.dataset.state = 'error';
+      try {
+        // Startup errors may contain callback URLs. Keep auth codes out of logs.
+        console.error('[boot] unable to start');
+      } catch (_) {
+        // Diagnostic hooks must never prevent the recovery surface.
+      }
+    }
+
+    window.__kemeticBootFailure = showFailure;
+    document.getElementById('haw-boot-retry').addEventListener('click', () => {
+      // Reload starts a fresh engine/storage lifecycle without deleting data.
+      window.location.reload();
+    });
+    window.addEventListener('flutter-first-frame', () => {
+      ready = true;
+      clearTimeout(watchdog);
+      window.removeEventListener('error', handleScriptError, true);
+      surface.remove();
+    }, { once: true });
+
+    function handleScriptError(event) {
+      const target = event.target;
+      if (target?.tagName !== 'SCRIPT' || !target.src) return;
+      const path = new URL(target.src, document.baseURI).pathname;
+      if (path.endsWith('/flutter_bootstrap.js') || path.endsWith('/main.dart.js')) {
+        showFailure(new Error('The app script could not be loaded.'));
+      }
+    }
+    window.addEventListener('error', handleScriptError, true);
+    watchdog = setTimeout(() => {
+      showFailure(new Error('The first app frame did not arrive.'));
+    }, 30000);
+  })();
+</script>
+  <script id="haw-stale-cache-cleanup">
+    (function () {
+      if (!('serviceWorker' in navigator) || !('caches' in window)) {
+        window.__kemeticPwaBootstrapReady = Promise.resolve(false);
+        return;
+      }
+
+      const reloadKey = 'kemetic.pwa.rootSwReset.v1';
+      const flutterCacheNames = [
+        'flutter-app-manifest',
+        'flutter-temp-cache',
+        'flutter-app-cache',
+      ];
+      // Browser storage can remain pending indefinitely. Cleanup is best effort,
+      // and a timed-out continuation must never reload an already running app.
+      let cleanupOpen = true;
+      let deadline;
+      function warnCleanup(message) {
+        try { console.warn(message); } catch (_) { /* Best effort diagnostic. */ }
+      }
+      const expired = new Promise((resolve) => {
+        deadline = setTimeout(() => {
+          cleanupOpen = false;
+          resolve(false);
+          warnCleanup('[pwa] stale flutter service worker cleanup timed out');
+        }, 1500);
+      });
+
+      async function clearStaleFlutterCaching() {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          if (!cleanupOpen) return false;
+          let removedRootFlutterWorker = false;
+
+          for (const registration of registrations) {
+            const scriptUrls = [
+              registration.active?.scriptURL,
+              registration.waiting?.scriptURL,
+              registration.installing?.scriptURL,
+            ].filter(Boolean);
+
+            const isFlutterAppShellWorker = scriptUrls.some((url) =>
+              new URL(url, document.baseURI).pathname.endsWith('/flutter_service_worker.js'),
+            );
+            if (!isFlutterAppShellWorker) continue;
+
+            const removed = await registration.unregister();
+            if (!cleanupOpen) return false;
+            removedRootFlutterWorker = removedRootFlutterWorker || removed;
+          }
+
+          await Promise.all(
+            flutterCacheNames.map((name) => caches.delete(name).catch(() => false)),
+          );
+          if (!cleanupOpen) return false;
+
+          if (
+            removedRootFlutterWorker &&
+            sessionStorage.getItem(reloadKey) !== '1'
+          ) {
+            sessionStorage.setItem(reloadKey, '1');
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.set('_sw_reset', Date.now().toString());
+            window.location.replace(nextUrl.toString());
+            return true;
+          }
+
+          sessionStorage.removeItem(reloadKey);
+          return false;
+        } catch (error) {
+          warnCleanup('[pwa] stale flutter service worker cleanup failed');
+          return false;
+        }
+      }
+
+      window.__kemeticPwaBootstrapReady = Promise.race([
+        clearStaleFlutterCaching(), expired,
+      ]).finally(() => {
+        cleanupOpen = false;
+        clearTimeout(deadline);
+      });
+    })();
+  </script>
 <script>
   // 👇 request persistent storage on Safari
   if (navigator.storage && navigator.storage.persist) {
@@ -334,7 +452,7 @@
 
 </script>
 <script src="install.js" defer></script>
-<script>
+<script id="haw-flutter-loader">
   // Cache-bust the bootstrap script to avoid stale service worker bundles after deploys
   (async function () {
     try {
@@ -424,8 +542,11 @@
       s.src = 'flutter_bootstrap.js';
     }
     s.async = true;
+    s.onerror = () => window.__kemeticBootFailure(
+      new Error('The app bootstrap script could not be loaded.'),
+    );
     document.body.appendChild(s);
-  })();
+  })().catch((error) => window.__kemeticBootFailure(error));
 </script>
 </body>
 </html>

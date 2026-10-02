@@ -165,3 +165,29 @@ continues to own route observation; CalendarPage and the modal keep their
 existing presentation ownership. No repository, write boundary, cache namespace,
 persisted payload, or account lifecycle changes. Regression coverage now includes
 the real signed-in root around the established keyboard/draft/rotation checks.
+
+## October 2 startup recovery
+
+Startup now paints the existing branded surface before plugin, auth, cache or
+restoration initialization. Required initialization remains ordered and bounded;
+a failed attempt exposes recovery without mounting account routes. Retrying on
+web reloads the page, retaining auth and authored storage instead of starting a
+second initializer against a partially initialized Supabase singleton. Late I/O
+completion cannot advance into routing or background warmups. The authenticated
+calendar keeps its existing single Scaffold/keyboard owner.
+
+The route restoration controller and account repositories retain ownership.
+There are no new routes, persistence boundaries, payload schemas, cache keys or
+pending-write cleanup paths. Valid compiled release configuration no longer waits
+for the optional env.json fallback; incomplete configuration still passes the
+existing validation before auth starts. Browser cleanup keeps the existing three
+legacy Flutter cache names and preserves the push worker, with a deadline that
+prevents a late cleanup reload after the app starts.
+
+Behavioral fault tests hold or reject every startup stage and the actual browser
+bootstrap scripts, including late completion, engine failure and recovery retry.
+The former source assertion that routing precedes runApp now requires routing to
+precede returning the ready MyApp: the independent startup surface must mount
+first. Equivalent explicit-intent/restoration ordering assertions remain. Visual
+captures cover the existing launch branding and recovery in portrait, landscape
+and enlarged text; approved app references are unchanged.

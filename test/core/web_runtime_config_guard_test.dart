@@ -6,6 +6,7 @@ void main() {
   group('web runtime config guard', () {
     late String mainSource;
     late String runtimeGuardSource;
+    late String runtimeEnvironmentSource;
     late String webIndexSource;
     late String buildScriptSource;
     late String deployScriptSource;
@@ -17,6 +18,9 @@ void main() {
       mainSource = await File('lib/main.dart').readAsString();
       runtimeGuardSource = await File(
         'lib/core/supabase_runtime_config_guard.dart',
+      ).readAsString();
+      runtimeEnvironmentSource = await File(
+        'lib/core/web_runtime_environment.dart',
       ).readAsString();
       webIndexSource = await File('web/index.html').readAsString();
       buildScriptSource = await File(
@@ -39,7 +43,26 @@ void main() {
     test('web startup can read env.json without bypassing validation', () {
       expect(mainSource, contains("Uri.base.resolve('/env.json')"));
       expect(mainSource, isNot(contains("Uri.base.resolve('env.json')")));
-      expect(mainSource, contains('http.get'));
+      expect(mainSource, contains('needsWebRuntimeEnvironment('));
+      expect(
+        mainSource,
+        contains("loadWebRuntimeEnvironment(Uri.base.resolve('/env.json'))"),
+      );
+      expect(
+        runtimeEnvironmentSource,
+        contains('requestClient.get(uri).timeout(timeout)'),
+      );
+      expect(runtimeEnvironmentSource, contains('Duration(seconds: 4)'));
+      expect(runtimeEnvironmentSource, contains('finally {'));
+      expect(runtimeEnvironmentSource, contains('requestClient.close();'));
+      expect(
+        mainSource.indexOf('needsWebRuntimeEnvironment('),
+        lessThan(mainSource.indexOf('_loadWebRuntimeEnvJson();')),
+      );
+      expect(
+        mainSource.indexOf('_runtimeConfigErrors(supabaseConfig)'),
+        lessThan(mainSource.indexOf('() => Supabase.initialize(')),
+      );
       expect(mainSource, contains("webEnv['SUPABASE_URL']"));
       expect(mainSource, contains("webEnv['SUPABASE_ANON_KEY']"));
       expect(mainSource, contains("webEnv['APP_ENV']"));
@@ -98,10 +121,14 @@ void main() {
         '_initialLocationFromWebBrowserLocation();',
       );
       final restoreIndex = mainSource.indexOf(
-        '_bootRestoredLocation = await _readBootRestoredLocation();',
+        "'saved navigation',\n      _readBootRestoredLocation,",
       );
       expect(webRouteIndex, greaterThanOrEqualTo(0));
       expect(restoreIndex, greaterThan(webRouteIndex));
+      expect(
+        mainSource,
+        contains('_bootRestoredLocation = await attempt.run('),
+      );
     });
 
     test('release defaults still depend on strict Supabase validation', () {

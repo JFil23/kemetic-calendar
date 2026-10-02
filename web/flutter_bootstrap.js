@@ -21,5 +21,22 @@
     }
   }
 
-  _flutter.loader.load();
+  function reportFailure(error) {
+    window.__kemeticBootFailure?.(error);
+  }
+
+  try {
+    Promise.resolve(_flutter.loader.load({
+      onEntrypointLoaded: async function (engineInitializer) {
+        try {
+          const appRunner = await engineInitializer.initializeEngine();
+          await appRunner.runApp();
+        } catch (error) {
+          reportFailure(error);
+        }
+      },
+    })).catch(reportFailure);
+  } catch (error) {
+    reportFailure(error);
+  }
 })();

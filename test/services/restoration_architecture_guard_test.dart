@@ -663,38 +663,36 @@ void main() {
       expect(main, contains('String? _bootExplicitIntentLocation'));
       expect(
         bootInitialRouteSelection.indexOf(
-          'await _readBootInitialAppLinkIntent();',
+          "await attempt.run('initial app link', _readBootInitialAppLinkIntent);",
         ),
         lessThan(
           bootInitialRouteSelection.indexOf(
-            'await _readBootInitialPushIntent();',
+            "await attempt.run('initial push', _readBootInitialPushIntent);",
           ),
         ),
       );
       expect(
         bootInitialRouteSelection.indexOf(
-          'await _readBootInitialAppLinkIntent();',
+          "await attempt.run('initial app link', _readBootInitialAppLinkIntent);",
         ),
         lessThan(
           bootInitialRouteSelection.indexOf(
-            '_bootRestoredLocation = await _readBootRestoredLocation();',
+            "'saved navigation',\n      _readBootRestoredLocation,",
           ),
         ),
       );
       expect(
         bootInitialRouteSelection.indexOf(
-          'await _readBootInitialPushIntent();',
+          "await attempt.run('initial push', _readBootInitialPushIntent);",
         ),
         lessThan(
           bootInitialRouteSelection.indexOf(
-            '_bootRestoredLocation = await _readBootRestoredLocation();',
+            "'saved navigation',\n      _readBootRestoredLocation,",
           ),
         ),
       );
       expect(
-        main.indexOf(
-          '_bootRestoredLocation = await _readBootRestoredLocation();',
-        ),
+        main.indexOf("'saved navigation',\n      _readBootRestoredLocation,"),
         lessThan(
           main.indexOf(
             '_router = _createRouter(initialLocation: initialLocation);',
@@ -705,7 +703,7 @@ void main() {
         main.indexOf(
           '_router = _createRouter(initialLocation: initialLocation);',
         ),
-        lessThan(main.indexOf('runApp(const MyApp())')),
+        lessThan(main.indexOf('return const MyApp();')),
       );
       expect(main, contains('late final GoRouter _router;'));
       expect(main, isNot(contains('final _router = GoRouter(')));
@@ -1021,21 +1019,21 @@ void main() {
         );
         expect(
           bootInitialRouteSelection.indexOf(
-            'await _readBootInitialAppLinkIntent();',
+            "await attempt.run('initial app link', _readBootInitialAppLinkIntent);",
           ),
           lessThan(
             bootInitialRouteSelection.indexOf(
-              'await _readBootInitialPushIntent();',
+              "await attempt.run('initial push', _readBootInitialPushIntent);",
             ),
           ),
         );
         expect(
           bootInitialRouteSelection.indexOf(
-            'await _readBootInitialPushIntent();',
+            "await attempt.run('initial push', _readBootInitialPushIntent);",
           ),
           lessThan(
             bootInitialRouteSelection.indexOf(
-              '_bootRestoredLocation = await _readBootRestoredLocation();',
+              "'saved navigation',\n      _readBootRestoredLocation,",
             ),
           ),
         );

@@ -11,7 +11,8 @@ import 'package:app_links/app_links.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
+import 'core/web_runtime_environment.dart';
+import 'root_boot.dart';
 
 import 'data/user_events_repo.dart';
 import 'features/calendar/notify.dart';
@@ -148,7 +149,13 @@ Future<AppRuntimeConfig> _loadSupabaseConfig() async {
   var appEnvironment = appEnvironmentEnv.trim();
   var appSiteUrl = appSiteUrlEnv.trim();
 
-  if (kIsWeb) {
+  if (kIsWeb &&
+      needsWebRuntimeEnvironment(
+        url: url,
+        anonKey: anonKey,
+        appEnvironment: appEnvironment,
+        appSiteUrl: appSiteUrl,
+      )) {
     final webEnv = await _loadWebRuntimeEnvJson();
     url = _runtimeFallbackValue(url, webEnv['SUPABASE_URL']);
     anonKey = _runtimeFallbackValue(anonKey, webEnv['SUPABASE_ANON_KEY']);
@@ -260,28 +267,7 @@ AppRuntimeConfig _debugDaySheetSmokeFallbackConfig() {
 Future<Map<String, String>> _loadWebRuntimeEnvJson() async {
   if (!kIsWeb) return const {};
 
-  try {
-    final response = await http.get(Uri.base.resolve('/env.json'));
-    if (response.statusCode != 200) {
-      if (kDebugMode) {
-        debugPrint('[env] env.json returned HTTP ${response.statusCode}');
-      }
-      return const {};
-    }
-
-    final decoded = jsonDecode(response.body);
-    if (decoded is! Map<String, dynamic>) return const {};
-
-    return decoded.map((key, value) {
-      final stringValue = value is String ? value.trim() : '';
-      return MapEntry(key, stringValue);
-    })..removeWhere((_, value) => value.isEmpty);
-  } catch (e) {
-    if (kDebugMode) {
-      debugPrint('[env] Failed to load web env.json: $e');
-    }
-    return const {};
-  }
+  return loadWebRuntimeEnvironment(Uri.base.resolve('/env.json'));
 }
 
 String _runtimeFallbackValue(
@@ -423,106 +409,145 @@ void _startBackgroundWarmups() {
 }
 
 Future<void> main() async {
-  await runZoned(() async {
+  runZoned(() {
     _configureLogging();
-
     WidgetsFlutterBinding.ensureInitialized();
-    await MaatFlowDeviceTimeZone.initialize();
-    CalendarHydrationDiagnostics.instance.setBuildLabel(
-      kIsWeb ? hydrationDiagnosticBuildEnv : 'native',
+    final coordinator = BootCoordinator(
+      onFailure: (failure) {
+        // A stage and error type are safe to log in release. Never log sessions,
+        // URLs, request bodies or persisted account content here.
+        Zone.root.print('[boot] $failure');
+      },
     );
-    debugPrint('[boot] main() executed');
-    _debugDaySheetSmokeBootRequested = _debugDaySheetSmokeRequestedAtBoot();
+    runApp(
+      RootBootApp(
+        coordinator: coordinator,
+        onRetry: kIsWeb ? reloadPageForBootRecovery : null,
+        onReadyFrame: () {
+          if (coordinator.app is MyApp) {
+            _traceRouterLocationAfterFrame('after_run_app_first_frame');
+          }
+        },
+      ),
+    );
+    coordinator.start(_bootstrapApp);
+  }, zoneSpecification: _releasePrintSilencer);
+}
 
-    // Register background handler for FCM (no-op on web)
-    registerPushBackgroundHandler();
+Future<Widget> _bootstrapApp(BootAttempt attempt) async {
+  await attempt.run('device time zone', MaatFlowDeviceTimeZone.initialize);
+  CalendarHydrationDiagnostics.instance.setBuildLabel(
+    kIsWeb ? hydrationDiagnosticBuildEnv : 'native',
+  );
+  debugPrint('[boot] main() executed');
+  _debugDaySheetSmokeBootRequested = _debugDaySheetSmokeRequestedAtBoot();
 
-    var supabaseConfig = await _loadSupabaseConfig();
-    var runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
-    if (_debugDaySheetSmokeBootRequested && runtimeConfigErrors.isNotEmpty) {
-      supabaseConfig = _debugDaySheetSmokeFallbackConfig();
-      runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
-      if (kDebugMode) {
-        debugPrint(
-          '[debug-smoke] Using local placeholder Supabase config for $_kDebugDaySheetSmokeRoute',
-        );
-      }
-    }
+  // Register background handler for FCM (no-op on web)
+  registerPushBackgroundHandler();
 
+  var supabaseConfig = await attempt.run(
+    'runtime configuration',
+    _loadSupabaseConfig,
+  );
+  var runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
+  if (_debugDaySheetSmokeBootRequested && runtimeConfigErrors.isNotEmpty) {
+    supabaseConfig = _debugDaySheetSmokeFallbackConfig();
+    runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
     if (kDebugMode) {
       debugPrint(
-        '[boot] Supabase config present: '
-        'urlConfigured=${supabaseConfig.url.isNotEmpty} '
-        'anonKeyPresent=${supabaseConfig.anonKey.isNotEmpty}',
+        '[debug-smoke] Using local placeholder Supabase config for $_kDebugDaySheetSmokeRoute',
       );
     }
+  }
 
-    if (runtimeConfigErrors.isNotEmpty) {
-      runApp(_runtimeConfigErrorApp(runtimeConfigErrors));
-      return;
-    }
+  if (kDebugMode) {
+    debugPrint(
+      '[boot] Supabase config present: '
+      'urlConfigured=${supabaseConfig.url.isNotEmpty} '
+      'anonKeyPresent=${supabaseConfig.anonKey.isNotEmpty}',
+    );
+  }
 
-    // Normalize URL: strip trailing slash if present
-    final supabaseUrl = supabaseConfig.url.endsWith('/')
-        ? supabaseConfig.url.substring(0, supabaseConfig.url.length - 1)
-        : supabaseConfig.url;
+  if (runtimeConfigErrors.isNotEmpty) {
+    return _runtimeConfigErrorApp(runtimeConfigErrors);
+  }
 
-    await Supabase.initialize(
+  // Normalize URL: strip trailing slash if present
+  final supabaseUrl = supabaseConfig.url.endsWith('/')
+      ? supabaseConfig.url.substring(0, supabaseConfig.url.length - 1)
+      : supabaseConfig.url;
+
+  await attempt.run(
+    'saved session',
+    () => Supabase.initialize(
       url: supabaseUrl, // Use normalized URL
       anonKey: supabaseConfig.anonKey,
       authOptions: FlutterAuthClientOptions(
         autoRefreshToken: true,
         localStorage: kIsWeb ? HiveLocalStorageWeb() : null,
       ),
+    ),
+  );
+
+  if (!_debugDaySheetSmokeBootRequested) {
+    await attempt.run('session refresh', () => _refreshSessionIfNeeded('boot'));
+
+    await attempt.run(
+      'profile cache',
+      ProfileRepo(Supabase.instance.client).preloadLocalCaches,
     );
+  }
 
-    if (!_debugDaySheetSmokeBootRequested) {
-      await _refreshSessionIfNeeded('boot');
-
-      await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
-    }
-
-    await AppWindowService.instance.ensureInitialized();
-    await AppRestorationService.instance.initialize();
-    await NavigationTrace.instance.load();
-    if (_debugDaySheetSmokeBootRequested) {
-      _bootExplicitIntentLocation = _kDebugDaySheetSmokeRoute;
-      _bootRestoredLocation = null;
-    } else {
-      await _readBootInitialAppLinkIntent();
-      await _readBootInitialPushIntent();
-      _bootExplicitIntentLocation ??= _initialLocationFromWebBrowserLocation();
-      _bootRestoredLocation = await _readBootRestoredLocation();
-    }
-    final initialLocation = _resolveInitialLocation();
-    _router = _createRouter(initialLocation: initialLocation);
-    traceRestoration('boot router created initialLocation=$initialLocation');
-    traceRestoration(
-      'boot route apply prepared explicit=${_bootExplicitIntentLocation ?? '<none>'} '
-      'restored=${_bootRestoredLocation ?? '<none>'} '
-      'initial=$initialLocation',
+  await attempt.run(
+    'window identity',
+    AppWindowService.instance.ensureInitialized,
+  );
+  await attempt.run(
+    'restoration storage',
+    AppRestorationService.instance.initialize,
+  );
+  await attempt.run('navigation trace', NavigationTrace.instance.load);
+  if (_debugDaySheetSmokeBootRequested) {
+    _bootExplicitIntentLocation = _kDebugDaySheetSmokeRoute;
+    _bootRestoredLocation = null;
+  } else {
+    await attempt.run('initial app link', _readBootInitialAppLinkIntent);
+    await attempt.run('initial push', _readBootInitialPushIntent);
+    _bootExplicitIntentLocation ??= _initialLocationFromWebBrowserLocation();
+    _bootRestoredLocation = await attempt.run(
+      'saved navigation',
+      _readBootRestoredLocation,
     );
-    final restoreTargetLocation = _authDeferredRestorePending
-        ? _bootAuthDeferredRestoredLocation
-        : initialLocation;
-    RestorationCoordinator.instance.beginLaunchRestore(
-      reason: RestorationRestoreReason.coldLaunch,
-      targetLocation: restoreTargetLocation,
-    );
-    _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded();
+  }
+  // No router or background work may start after a timeout. In-flight browser
+  // storage cannot be cancelled; a failed boot stays terminal until page reload.
+  attempt.ensureActive();
+  final initialLocation = _resolveInitialLocation();
+  _router = _createRouter(initialLocation: initialLocation);
+  traceRestoration('boot router created initialLocation=$initialLocation');
+  traceRestoration(
+    'boot route apply prepared explicit=${_bootExplicitIntentLocation ?? '<none>'} '
+    'restored=${_bootRestoredLocation ?? '<none>'} '
+    'initial=$initialLocation',
+  );
+  final restoreTargetLocation = _authDeferredRestorePending
+      ? _bootAuthDeferredRestoredLocation
+      : initialLocation;
+  RestorationCoordinator.instance.beginLaunchRestore(
+    reason: RestorationRestoreReason.coldLaunch,
+    targetLocation: restoreTargetLocation,
+  );
+  _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded();
 
-    // 🚨 Initialize notifications/push without blocking the first frame.
-    // AuthGate will re-attempt on sign-in if these fail.
-    if (!_debugDaySheetSmokeBootRequested) {
-      _startBackgroundWarmups();
+  // 🚨 Initialize notifications/push without blocking the first frame.
+  // AuthGate will re-attempt on sign-in if these fail.
+  if (!_debugDaySheetSmokeBootRequested) {
+    _startBackgroundWarmups();
 
-      // Web/PWA boot hardening (iOS PWA friendly)
-      _startWebBootTasks();
-    }
-
-    runApp(const MyApp());
-    _traceRouterLocationAfterFrame('after_run_app_first_frame');
-  }, zoneSpecification: _releasePrintSilencer);
+    // Web/PWA boot hardening (iOS PWA friendly)
+    _startWebBootTasks();
+  }
+  return const MyApp();
 }
 
 final supabase = Supabase.instance.client;
@@ -764,7 +789,6 @@ class Events {
 /* ───────────────────────── Routing/Telemetry ───────────────────────── */
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
-const Color _launchBackdrop = Color(0xFF171518);
 final ValueNotifier<int> _globalOverlayModalDepth = ValueNotifier<int>(0);
 final ValueNotifier<bool> _launchOverlayDismissed = ValueNotifier<bool>(false);
 final ValueNotifier<int> _maatGuidancePostEnsureRefresh = ValueNotifier<int>(0);
@@ -3467,86 +3491,10 @@ class _LaunchShellState extends State<_LaunchShell>
             ignoring: true,
             child: FadeTransition(
               opacity: _fadeOut,
-              child: const ColoredBox(
-                color: _launchBackdrop,
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 32),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: _ShimmeringLaunchWord(),
-                    ),
-                  ),
-                ),
-              ),
+              child: const LaunchWordSurface(),
             ),
           ),
       ],
-    );
-  }
-}
-
-class _ShimmeringLaunchWord extends StatefulWidget {
-  const _ShimmeringLaunchWord();
-
-  @override
-  State<_ShimmeringLaunchWord> createState() => _ShimmeringLaunchWordState();
-}
-
-class _ShimmeringLaunchWordState extends State<_ShimmeringLaunchWord>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2600),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final shimmerOffset = (_controller.value * 2.6) - 1.3;
-        final shimmerGradient = LinearGradient(
-          begin: Alignment(-1.6 + shimmerOffset, 0),
-          end: Alignment(1.6 + shimmerOffset, 0),
-          colors: const [
-            goldDeep,
-            gold,
-            goldLight,
-            Color(0xFFFFF8DD),
-            goldLight,
-            gold,
-            goldDeep,
-          ],
-          stops: const [0.0, 0.2, 0.38, 0.5, 0.62, 0.8, 1.0],
-        );
-
-        return GlossyText(
-          text: 'ḥꜣw',
-          gradient: shimmerGradient,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 42,
-            fontWeight: FontWeight.w500,
-            fontFamily: 'GentiumPlus',
-            fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
-            shadows: [
-              Shadow(
-                color: Color(0x552C1A00),
-                blurRadius: 18,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

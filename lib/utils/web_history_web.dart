@@ -160,3 +160,6 @@ void onPushNotificationTap(void Function(Map<String, dynamic>) cb) {
   _pushTapListeners.add(listener);
   container.addEventListener('message', listener);
 }
+
+/// Retain auth and account storage; abandon the entire incomplete startup.
+void reloadPageForBootRecovery() => web.window.location.reload();
