@@ -302,6 +302,14 @@ without delaying live hydration. Prepared generational writes and legacy warm
 snapshot writes, including rollback restoration, apply the current removal
 filter before serialization. Cleanup survives route disposal while the same
 account/lane remains active; the repository also prunes without a mounted page.
+Disconnect, remote device status changes and device replacement now share
+`_acceptServerStatus` after an acknowledged server response. The removed
+set is the difference of selected, device-owned source IDs before and after
+that response; account/generation fences still govern subsequent work. The
+retained authority guard follows this call chain instead of requiring a direct
+blanket invalidation inside `disconnect`. A delayed-acknowledgement regression
+proves no early cleanup, exactly scoped removal after acknowledgement, and
+retention of authored rows, other imports and pending overlays in both caches.
 Only a successful current-generation read can restore an explicitly reselected
 source. Cache namespaces, payload formats, old fixtures and write owners remain
 unchanged; no pending write is stored or removed through this cache cleanup.

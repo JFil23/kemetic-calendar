@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:mobile/data/external_calendar_repository.dart';
 import 'package:mobile/features/calendar/snapshot/calendar_snapshot_runtime.dart';
+import 'package:mobile/features/calendar/snapshot/calendar_snapshot_models.dart';
 import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/services/device_calendar_bridge.dart';
 import 'package:mobile/services/device_calendar_controller.dart';
@@ -157,7 +159,10 @@ class Harness {
               },
           ];
         }
-        if (body['action'] == 'device_disconnect') hasConnection = false;
+        if (body['action'] == 'device_disconnect') {
+          await disconnectAcknowledgement?.future;
+          hasConnection = false;
+        }
         if (body['action'] == 'device_pause') enabled = false;
         if (body['action'] == 'device_resume') enabled = true;
         return {
@@ -199,6 +204,7 @@ class Harness {
   DateTime now = DateTime.utc(2026, 10, 2);
   String? account = 'account-a';
   bool failStatus = false;
+  Completer<void>? disconnectAcknowledgement;
   Future<void> dispose() async {
     controller.dispose();
     await bridge.emitter.close();
@@ -654,6 +660,136 @@ void main() {
       expect(h.uploads, hasLength(2));
     },
   );
+  test(
+    'disconnect waits for acknowledgement then removes only device-owned imported copies',
+    () async {
+      final h = Harness(
+        automatic: false,
+        sources: [
+          source('device-owned'),
+          source('bound-google', owner: 'google', binding: 'google-source'),
+        ],
+      );
+      addTearDown(h.dispose);
+      addTearDown(() => calendarSnapshotStore.deleteUserScope('account-a'));
+      await h.controller.refreshStatus();
+      final rows = <Map<String, Object?>>[
+        {
+          'clientEventId': 'external:device:event',
+          'calendarId': 'external:device-owned',
+          'externalCalendarLane': 'staging',
+          'title': 'Device import',
+        },
+        {
+          'clientEventId': 'external:google:event',
+          'calendarId': 'external:google-source',
+          'externalCalendarLane': 'staging',
+          'title': 'Other imported calendar',
+        },
+        {
+          'clientEventId': 'manual:authored',
+          'calendarId': 'personal',
+          'title': 'Authored event',
+        },
+        {
+          'clientEventId': 'native:legacy',
+          'calendarId': 'native',
+          'title': 'Legacy import',
+        },
+      ];
+      const overlays = <Map<String, Object?>>[
+        {
+          'kind': 'create_or_edit',
+          'clientEventId': 'manual:pending',
+          'note': {'title': 'Pending authored event'},
+        },
+      ];
+      final now = DateTime.utc(2026, 10, 2);
+      await calendarSnapshotStore.commit(
+        CalendarSnapshotCommit(
+          userScope: 'account-a',
+          serverRevision: 'disconnect-fixture',
+          overlayRevision: 'pending-fixture',
+          catalogFingerprint: 'catalog',
+          origin: 'fixture',
+          committedAtUtc: now,
+          lastSuccessfulRefreshAtUtc: now,
+          coverage: [],
+          eventsByDay: {'day': rows},
+          flows: [],
+          overlayRecords: overlays,
+        ),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'calendar:warm_start:v1:account-a';
+      await prefs.setString(
+        key,
+        jsonEncode({
+          'userId': 'account-a',
+          'notes': {'day': rows},
+          'pendingOverlays': overlays,
+        }),
+      );
+      final before = (await calendarSnapshotStore.readLatest('account-a'))!;
+      final invalidations = <CalendarInvalidated>[];
+      final subscription = CalendarInvalidationBus.instance.stream.listen(
+        invalidations.add,
+      );
+      addTearDown(subscription.cancel);
+      h.disconnectAcknowledgement = Completer<void>();
+      final disconnect = h.controller.disconnect();
+      await Future<void>.delayed(Duration.zero);
+      expect(h.calls.last['action'], 'device_disconnect');
+      expect(h.controller.status.connected, true);
+      expect(h.repository.isSourceRemoved('external:device-owned'), false);
+      expect(
+        (await calendarSnapshotStore.readLatest('account-a'))!.canonicalDigest,
+        before.canonicalDigest,
+      );
+      expect(invalidations, isEmpty);
+      h.disconnectAcknowledgement!.complete();
+      await disconnect;
+      await Future<void>.delayed(Duration.zero);
+      expect(h.controller.errorCode, isNull);
+      expect(h.controller.status.connected, false);
+      expect(invalidations, hasLength(1));
+      final removal = invalidations.single.externalCalendar!;
+      expect(removal.accountId, 'account-a');
+      expect(removal.lane, 'staging');
+      expect(removal.removedSourceIds, {'device-owned'});
+      final after = (await calendarSnapshotStore.readLatest('account-a'))!;
+      const retained = [
+        'external:google:event',
+        'manual:authored',
+        'native:legacy',
+      ];
+      expect(
+        after.eventsByDay.values
+            .expand((v) => v)
+            .map((row) => row['clientEventId']),
+        unorderedEquals(retained),
+      );
+      expect(after.overlayRecords, overlays);
+      final mirror = jsonDecode(prefs.getString(key)!) as Map;
+      expect(
+        ((mirror['notes'] as Map)['day'] as List).map(
+          (row) => row['clientEventId'],
+        ),
+        unorderedEquals(retained),
+      );
+      expect(mirror['pendingOverlays'], overlays);
+      expect(h.repository.isSourceRemoved('external:google-source'), false);
+      expect(h.repository.isSourceRemoved('external:bound-google'), false);
+      expect(h.bridge.prompts, 0);
+      expect(h.bridge.requested, isEmpty);
+      expect(h.calls.map((call) => call['action']), [
+        'device_status',
+        'device_status',
+        'device_disconnect',
+      ]);
+    },
+  );
+
   for (final replaceDevice in [false, true]) {
     test(
       'acknowledged ${replaceDevice ? 'device replacement' : 'remote status removal'} prunes only device-owned sources',

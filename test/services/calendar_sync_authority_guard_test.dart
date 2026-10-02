@@ -227,11 +227,77 @@ void main() {
       expect(binding, contains('generation != controller.generation'));
       expect(binding, contains('Hꜣw-created events stay unchanged.'));
       expect(settings, isNot(contains('sync.unlinkAndPurge(')));
-      expect(unlink, contains("'device_disconnect'"));
       expect(
         unlink,
-        contains('repository.projectionChanged(removedSources: true)'),
+        contains("await _command(generation, account, 'device_disconnect');"),
       );
+      final command = _section(
+        service,
+        'Future<void> _command(',
+        'Future<void> _permission(',
+      );
+      final acceptance = _section(
+        service,
+        'Future<void> _acceptServerStatus(',
+        'Future<void> _load(',
+      );
+      // Disconnect, remote selection changes, and device replacement now share
+      // the same acknowledged status boundary. Follow that authority chain
+      // instead of requiring an eager blanket invalidation in disconnect.
+      expect(command, contains('final response = await _step('));
+      expect(command, contains('repository.command('));
+      expect(command, contains('..._mutationArguments(), ...arguments'));
+      expect(
+        command,
+        contains('await _acceptServerStatus(response, generation, account);'),
+      );
+      expect(
+        command.indexOf('repository.command('),
+        lessThan(command.indexOf('await _acceptServerStatus(')),
+      );
+      expect(
+        acceptance,
+        contains("source.selected && source.ownedBy == 'device'"),
+      );
+      expect(acceptance, contains('final before = owned(previous);'));
+      expect(acceptance, contains('_accept(response);'));
+      expect(acceptance, contains('final after = owned(status);'));
+      expect(acceptance, contains('final removed = before.difference(after);'));
+      expect(acceptance, contains('await repository.projectionChanged('));
+      expect(acceptance, contains('removedSources: removed.isNotEmpty'));
+      expect(acceptance, contains('removedSourceIds: removed'));
+      expect(
+        acceptance.indexOf('_accept(response);'),
+        lessThan(acceptance.indexOf('await repository.projectionChanged(')),
+      );
+      expect(
+        acceptance.indexOf('await repository.projectionChanged('),
+        lessThan(acceptance.indexOf('_check(generation, account);')),
+      );
+      final repository = await File(
+        'lib/data/external_calendar_repository.dart',
+      ).readAsString();
+      final projection = _section(
+        repository,
+        'Future<void> projectionChanged(',
+        'Future<void> pruneRemovedSources(',
+      );
+      final importedRow = _section(
+        repository,
+        'bool isRemovedSnapshotRow(',
+        'String filterSerializedWarmSnapshot(',
+      );
+      expect(projection, contains('removedSourceIds: removed'));
+      expect(
+        projection,
+        contains(
+          'if (removed.isNotEmpty) await pruneRemovedSources(owner, removed);',
+        ),
+      );
+      expect(importedRow, contains("cid.startsWith('external:')"));
+      expect(importedRow, contains("raw['externalCalendarLane'] == lane"));
+      expect(importedRow, contains('isSourceRemoved(calendar, owner: owner)'));
+
       expect(unlink, isNot(contains('requestPermission')));
       expect(unlink, isNot(contains('bridge.')));
       expect(service, isNot(contains('UserEventsRepo')));
