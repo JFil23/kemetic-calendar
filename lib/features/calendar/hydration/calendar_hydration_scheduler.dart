@@ -8,6 +8,8 @@ import 'calendar_hydration_models.dart';
 enum CalendarHydrationIntentKind {
   viewport,
   catalogReconcile,
+  eventDataRefresh,
+  externalRangeRefresh,
   calendarState,
   adjacentWindow,
   horizonChunk,
@@ -145,6 +147,7 @@ class _PendingCalendarHydrationJob {
   final int schedulerGeneration;
   final int kindRevision;
   int attempt;
+  bool superseded = false;
   final List<Completer<CalendarHydrationJobDisposition>> completers =
       <Completer<CalendarHydrationJobDisposition>>[];
 }
@@ -191,6 +194,7 @@ class CalendarHydrationScheduler {
   Future<CalendarHydrationJobDisposition> schedule(
     CalendarHydrationJob job, {
     bool supersedeKind = false,
+    bool supersedeActiveKey = false,
     bool preemptLowerPriority = false,
   }) {
     if (!_isMounted()) {
@@ -199,10 +203,36 @@ class CalendarHydrationScheduler {
       );
     }
     if (supersedeKind) _supersedeKind(job.key.kind);
+    // Range invalidations retire only the matching in-flight read. Other
+    // windows remain independent, and queued duplicates keep the latest runner.
+    if (supersedeActiveKey && _active?.job.key == job.key) {
+      _active!.superseded = true;
+    }
     if (preemptLowerPriority &&
         _active != null &&
         _active!.job.priority < job.priority) {
-      _bumpKindRevision(_active!.job.key.kind);
+      final preempted = _active!;
+      if (preempted.job.key.kind ==
+              CalendarHydrationIntentKind.externalRangeRefresh ||
+          preempted.job.key.kind ==
+              CalendarHydrationIntentKind.eventDataRefresh) {
+        // A foreground request can interrupt this read, but cannot consume
+        // its data invalidation or discard other independently changed dates.
+        // Rerun against the current viewport/catalog after foreground work.
+        if (_isCurrent(preempted)) {
+          preempted.superseded = true;
+          final replacement = _PendingCalendarHydrationJob(
+            job: preempted.job,
+            sequence: _sequence++,
+            schedulerGeneration: _generation,
+            kindRevision: _revisionFor(preempted.job.key.kind),
+          )..completers.addAll(preempted.completers);
+          preempted.completers.clear();
+          _queued[replacement.job.key] = replacement;
+        }
+      } else {
+        _bumpKindRevision(preempted.job.key.kind);
+      }
     }
 
     final completer = Completer<CalendarHydrationJobDisposition>();
@@ -248,20 +278,31 @@ class CalendarHydrationScheduler {
     _log('invalidate generation=$_generation reason=$reason');
   }
 
-  /// Cancels work that has not started while leaving the active job's token
-  /// valid. Catalog rebase uses this after its own atomic commit: it is the
-  /// only active database job, and every queued job belongs to the old
-  /// fingerprint.
-  void cancelQueued({String reason = 'cancel_queued'}) {
-    for (final pending in _queued.values) {
+  /// Retires queued work tied to the previous catalog after an atomic rebase.
+  /// A newer event-data invalidation must survive: its runner fetches a fresh
+  /// catalog before either event lane and does not reuse its job-key fingerprint.
+  /// External range refreshes likewise resolve the current fresh catalog when
+  /// they start instead of using the fingerprint captured while queueing.
+  /// Session invalidation still cancels every kind through [invalidateAll].
+  void cancelCatalogBoundQueued() {
+    final staleKeys = _queued.keys
+        .where(
+          (key) =>
+              key.kind != CalendarHydrationIntentKind.eventDataRefresh &&
+              key.kind != CalendarHydrationIntentKind.externalRangeRefresh,
+        )
+        .toList(growable: false);
+    for (final key in staleKeys) {
+      final pending = _queued.remove(key)!;
       _complete(pending, CalendarHydrationJobDisposition.cancelled);
     }
-    _queued.clear();
+    // Event/range refreshes have no scheduled retry; these timers belong to
+    // viewport/background work whose captured catalog is now obsolete.
     for (final timer in _retryTimers) {
       timer.cancel();
     }
     _retryTimers.clear();
-    _log('cancel queued reason=$reason');
+    _log('cancel queued reason=catalog_fingerprint_changed');
   }
 
   void resumeRetries() {
@@ -295,6 +336,7 @@ class CalendarHydrationScheduler {
 
   bool _isCurrent(_PendingCalendarHydrationJob pending) =>
       _isMounted() &&
+      !pending.superseded &&
       pending.schedulerGeneration == _generation &&
       pending.kindRevision == _revisionFor(pending.job.key.kind);
 

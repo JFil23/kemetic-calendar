@@ -273,3 +273,74 @@ unchanged. The root alone disposes the shared controllers at app shutdown.
 No cache namespace, resource schema, stored payload, migration, or pending-write
 ownership changes. Real-route tests cover replacement, retained listeners and
 retry behavior; startup wiring guards retain the post-paint contract.
+
+## October 2 imported calendar publication and presentation
+
+ExternalCalendarRepository remains the owner of passive imported projection
+reads; UserEventsRepo retains authored-event ownership. Typed data invalidations
+reread the event lanes even when the flow fingerprint and coverage match, while
+catalog-only startup checks retain their promotion shortcut. New invalidations
+cannot share an in-flight read that already captured old rows. Catalog rebases
+preserve fresh-catalog data requests and external range requests. Foreground
+preemption requeues both kinds with their waiting callers intact; account/session
+changes still cancel all work. An event-data refresh binds its lane read to the
+current viewport commit token after the catalog await, so navigation cannot
+certify a new viewport using rows fetched for the previous window.
+
+Confirmed external reads publish their exact account/lane windows through the
+existing scheduler. These off-screen refreshes reuse the current fresh catalog
+and atomic lane/merge/presentation commit without moving the viewport. Observing
+a newer server import timestamp invalidates projection reads without issuing a
+second provider import. Failed reads retain the last complete visible snapshot.
+
+Acknowledged source removal matches both external:<source UUID> calendar identity
+and external: event identity in the active account/lane. It prunes off-screen
+copies and both existing snapshot representations while retaining authored rows,
+legacy native rows, other sources, flows and pending overlays. The page retires
+old hydration jobs and queues a final prune after both cache write queues drain,
+without delaying live hydration. Prepared generational writes and legacy warm
+snapshot writes, including rollback restoration, apply the current removal
+filter before serialization. Cleanup survives route disposal while the same
+account/lane remains active; the repository also prunes without a mounted page.
+Only a successful current-generation read can restore an explicitly reselected
+source. Cache namespaces, payload formats, old fixtures and write owners remain
+unchanged; no pending write is stored or removed through this cache cleanup.
+
+Mounted search observes the existing DayView projection notifier and reads the
+current flow catalog. Detached search keeps its account-owned snapshot boundary,
+rechecking the opening account after loading and before result navigation. The
+existing auth broadcast rebuilds open results/suggestions; every result render
+and row tap checks that account too. No new persistence owner or global listener
+is introduced.
+
+Imported timeline, detail and search labels use the source calendar name, with
+"Imported calendar" as fallback; stored external_calendar/native_sync values
+remain classification data. Imported copies expose no authored Edit, End, Share
+or Extend action. Stale menus re-resolve the target before invoking a callback
+or dismissing detail; CalendarPage rejects edits, deletion and authored invitation
+lookup at its boundaries. Fresh external: descriptions preserve literal provider
+text instead of stripping authored reminder/CID/flow metadata. Existing link
+presentation and bounded search snippets remain, as does authored/legacy-native
+metadata cleanup.
+
+The real CalendarPage regression uses delayed external reads, an unchanged flow
+catalog and coalesced flow invalidation. It verifies authored content retention,
+once-only imported identities, off-screen publication, open-search refresh,
+failed-read retention, source removal/reselection and literal provider search.
+Scheduler/controller tests cover interrupted data/range work, retained waiters,
+account cancellation and an A-to-B viewport change with a changed catalog.
+No-page durable-cache fixtures cover source/lane/account isolation and preserved
+overlays. Actual search tests cover account changes during warm loading, visible
+queries and stale taps before the next frame, closure followed by further auth
+changes, unchanged authored cleanup and zero repository requests. DayView tests
+cover fresh/legacy/category-only import identities, missing source names, literal
+descriptions, absent/stale imported actions and retained authored actions.
+Navigation guards retain stable result-identity checks and require account
+validation before dispatch.
+
+Static captures use production fonts/theme in portrait and landscape at 1x/2x.
+The 2x detail fixture excludes the underlying timeline: the existing generic
+timeline has a separate 6px overflow at 2x, and the portrait footer clips its
+Make to-do label at 2x. These shared-layout limits remain unrepaired by this
+scoped change. Approved visual references and inventory guards are unchanged;
+the complete App gate and served RC acceptance remain required.

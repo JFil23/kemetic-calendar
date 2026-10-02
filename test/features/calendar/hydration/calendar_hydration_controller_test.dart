@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/hydration/calendar_hydration_controller.dart';
 import 'package:mobile/features/calendar/hydration/calendar_hydration_models.dart';
@@ -246,4 +248,341 @@ void main() {
     );
     expect(applied, isFalse);
   });
+  for (final activeKind in <CalendarHydrationIntentKind>[
+    CalendarHydrationIntentKind.catalogReconcile,
+    CalendarHydrationIntentKind.viewport,
+  ]) {
+    test(
+      'catalog rebase preserves a newer data refresh behind ${activeKind.name}',
+      () async {
+        final viewport = interval(1, 4);
+        controller.restoreCache(
+          catalogFingerprint: 'catalog-a',
+          applyPreparedState: () {},
+        );
+        controller.reportViewport(viewport);
+        var visibleEvents = <String>['authored'];
+        var externalEvents = <String>[];
+        final started = Completer<void>();
+        final release = Completer<void>();
+        final active = scheduler.schedule(
+          CalendarHydrationJob(
+            key: CalendarHydrationJobKey(
+              kind: activeKind,
+              reason: 'catalog_changed',
+              interval: viewport,
+              catalogFingerprint: 'catalog-a',
+            ),
+            priority: activeKind == CalendarHydrationIntentKind.viewport
+                ? 100
+                : 90,
+            run: (context) async {
+              final token = controller.beginViewportCommit(
+                catalogFingerprint: 'catalog-b',
+                catalogIsFresh: true,
+              );
+              final capturedEvents = <String>['authored', ...externalEvents];
+              started.complete();
+              await release.future;
+              context.throwIfCancelled();
+              expect(
+                controller.commitViewport(
+                  token: token,
+                  applyPreparedState: () => visibleEvents = capturedEvents,
+                ),
+                isTrue,
+              );
+            },
+          ),
+        );
+        await started.future;
+        final staleBackground = scheduler.schedule(
+          CalendarHydrationJob(
+            key: CalendarHydrationJobKey(
+              kind: CalendarHydrationIntentKind.horizonChunk,
+              reason: 'old_catalog_horizon',
+              interval: viewport,
+              catalogFingerprint: 'catalog-a',
+            ),
+            priority: 50,
+            run: (_) async => fail('old catalog work must be cancelled'),
+          ),
+        );
+        externalEvents = <String>['late imported event'];
+        var freshEventReads = 0;
+        final refresh = scheduler.schedule(
+          CalendarHydrationJob(
+            key: CalendarHydrationJobKey(
+              kind: CalendarHydrationIntentKind.eventDataRefresh,
+              reason: 'calendarImportSynced',
+              interval: viewport,
+              catalogFingerprint: 'catalog-a',
+            ),
+            priority: 90,
+            run: (context) async {
+              context.throwIfCancelled();
+              // A data refresh refetches the catalog before reading its lanes.
+              expect(controller.state.catalogFingerprint, 'catalog-b');
+              final token = controller.beginViewportCommit(
+                catalogFingerprint: 'catalog-b',
+                catalogIsFresh: true,
+              );
+              freshEventReads++;
+              expect(
+                controller.commitViewport(
+                  token: token,
+                  applyPreparedState: () =>
+                      visibleEvents = <String>['authored', ...externalEvents],
+                ),
+                isTrue,
+              );
+            },
+          ),
+          supersedeKind: true,
+          preemptLowerPriority: true,
+        );
+        release.complete();
+
+        expect(await active, CalendarHydrationJobDisposition.completed);
+        expect(
+          await staleBackground,
+          CalendarHydrationJobDisposition.cancelled,
+        );
+        expect(await refresh, CalendarHydrationJobDisposition.completed);
+        expect(freshEventReads, 1);
+        expect(visibleEvents, <String>['authored', 'late imported event']);
+        expect(controller.state.catalogFingerprint, 'catalog-b');
+        expect(
+          controller.state.authority,
+          CalendarViewportAuthority.serverCurrent,
+        );
+      },
+    );
+  }
+
+  for (final replaceAccount in <bool>[false, true]) {
+    test(
+      '${replaceAccount ? 'account replacement' : 'sign-out'} cancels queued data refresh',
+      () async {
+        final viewport = interval(1, 4);
+        controller.reportViewport(viewport);
+        final started = Completer<void>();
+        final release = Completer<void>();
+        final active = scheduler.schedule(
+          CalendarHydrationJob(
+            key: CalendarHydrationJobKey(
+              kind: CalendarHydrationIntentKind.viewport,
+              reason: 'old_account_viewport',
+              interval: viewport,
+            ),
+            priority: 100,
+            run: (context) async {
+              started.complete();
+              await release.future;
+              context.throwIfCancelled();
+              fail('the prior account must not commit');
+            },
+          ),
+        );
+        await started.future;
+        final refresh = scheduler.schedule(
+          CalendarHydrationJob(
+            key: CalendarHydrationJobKey(
+              kind: CalendarHydrationIntentKind.eventDataRefresh,
+              reason: 'calendarImportSynced',
+              interval: viewport,
+            ),
+            priority: 90,
+            run: (_) async => fail('the prior account must not read events'),
+          ),
+          supersedeKind: true,
+          preemptLowerPriority: true,
+        );
+        if (replaceAccount) {
+          controller.beginSession('next-user');
+        } else {
+          controller.signOut();
+        }
+        release.complete();
+
+        expect(await active, CalendarHydrationJobDisposition.cancelled);
+        expect(await refresh, CalendarHydrationJobDisposition.cancelled);
+        expect(controller.state.authority, CalendarViewportAuthority.none);
+      },
+    );
+  }
+  test(
+    'catalog rebase retains an external range without moving the viewport',
+    () async {
+      final viewport = interval(1, 4);
+      final outsideRange = interval(7, 9);
+      controller.restoreCache(
+        catalogFingerprint: 'catalog-a',
+        applyPreparedState: () {},
+      );
+      controller.reportViewport(viewport);
+      final started = Completer<void>();
+      final release = Completer<void>();
+      final active = scheduler.schedule(
+        CalendarHydrationJob(
+          key: CalendarHydrationJobKey(
+            kind: CalendarHydrationIntentKind.catalogReconcile,
+            reason: 'catalog_changed',
+            interval: viewport,
+            catalogFingerprint: 'catalog-a',
+          ),
+          priority: 90,
+          run: (context) async {
+            final token = controller.beginViewportCommit(
+              catalogFingerprint: 'catalog-b',
+              catalogIsFresh: true,
+            );
+            started.complete();
+            await release.future;
+            context.throwIfCancelled();
+            expect(
+              controller.commitViewport(
+                token: token,
+                applyPreparedState: () {},
+              ),
+              isTrue,
+            );
+          },
+        ),
+      );
+      await started.future;
+      var outsideEventVisible = false;
+      final refresh = scheduler.schedule(
+        CalendarHydrationJob(
+          key: CalendarHydrationJobKey(
+            kind: CalendarHydrationIntentKind.externalRangeRefresh,
+            reason: 'late_external_range',
+            interval: outsideRange,
+            catalogFingerprint: 'catalog-a',
+          ),
+          priority: 85,
+          run: (context) async {
+            context.throwIfCancelled();
+            // Match the production range runner: resolve the fresh catalog
+            // after queueing, not from the superseded job-key fingerprint.
+            final fingerprint = controller.state.freshCatalogFingerprint!;
+            expect(fingerprint, 'catalog-b');
+            expect(
+              controller.commitBackgroundInterval(
+                sessionGeneration: controller.state.sessionGeneration,
+                catalogFingerprint: fingerprint,
+                interval: outsideRange,
+                applyPreparedState: () => outsideEventVisible = true,
+              ),
+              isTrue,
+            );
+          },
+        ),
+        supersedeActiveKey: true,
+      );
+      release.complete();
+
+      expect(await active, CalendarHydrationJobDisposition.completed);
+      expect(await refresh, CalendarHydrationJobDisposition.completed);
+      expect(outsideEventVisible, isTrue);
+      expect(controller.state.viewport, viewport);
+      expect(controller.state.coverage.covers(viewport), isTrue);
+      expect(controller.state.coverage.covers(outsideRange), isTrue);
+      expect(controller.state.catalogFingerprint, 'catalog-b');
+    },
+  );
+  test(
+    'preempted data refresh commits the latest viewport and changed catalog together',
+    () async {
+      final originalViewport = interval(1, 4);
+      final currentViewport = interval(7, 9);
+      controller.restoreCache(
+        catalogFingerprint: 'catalog-a',
+        applyPreparedState: () {},
+      );
+      controller.reportViewport(originalViewport);
+      final catalogStarted = Completer<void>();
+      final releaseCatalog = Completer<void>();
+      final readWindows = <CalendarHydrationInterval>[];
+      var catalogReads = 0;
+      var eventApplied = false;
+      final refresh = scheduler.schedule(
+        CalendarHydrationJob(
+          key: CalendarHydrationJobKey(
+            kind: CalendarHydrationIntentKind.eventDataRefresh,
+            reason: 'calendarImportSynced',
+            interval: originalViewport,
+            catalogFingerprint: 'catalog-a',
+          ),
+          priority: 90,
+          run: (context) async {
+            catalogReads++;
+            if (catalogReads == 1) {
+              catalogStarted.complete();
+              await releaseCatalog.future;
+            }
+            context.throwIfCancelled('after_catalog_fetch');
+            final token = controller.beginViewportCommit(
+              catalogFingerprint: 'catalog-b',
+              catalogIsFresh: true,
+            );
+            readWindows.add(token.interval);
+            expect(
+              controller.commitViewport(
+                token: token,
+                applyPreparedState: () => eventApplied = true,
+              ),
+              isTrue,
+            );
+          },
+        ),
+        supersedeKind: true,
+        preemptLowerPriority: true,
+      );
+      await catalogStarted.future;
+      controller.reportViewport(currentViewport);
+      final viewport = scheduler.schedule(
+        CalendarHydrationJob(
+          key: CalendarHydrationJobKey(
+            kind: CalendarHydrationIntentKind.viewport,
+            reason: 'navigation',
+            interval: currentViewport,
+            catalogFingerprint: 'catalog-a',
+          ),
+          priority: 100,
+          run: (context) async {
+            context.throwIfCancelled();
+            final token = controller.beginViewportCommit(
+              catalogFingerprint: 'catalog-a',
+              catalogIsFresh: false,
+            );
+            expect(
+              controller.commitViewport(
+                token: token,
+                applyPreparedState: () {},
+              ),
+              isTrue,
+            );
+          },
+        ),
+        supersedeKind: true,
+        preemptLowerPriority: true,
+      );
+      releaseCatalog.complete();
+
+      expect(await viewport, CalendarHydrationJobDisposition.completed);
+      expect(await refresh, CalendarHydrationJobDisposition.completed);
+      expect(catalogReads, 2);
+      expect(readWindows, <CalendarHydrationInterval>[currentViewport]);
+      expect(eventApplied, isTrue);
+      expect(controller.state.viewport, currentViewport);
+      expect(controller.state.catalogFingerprint, 'catalog-b');
+      expect(controller.state.coverage.covers(currentViewport), isTrue);
+      expect(controller.state.coverage.covers(originalViewport), isFalse);
+      expect(
+        controller.state.authority,
+        CalendarViewportAuthority.serverCurrent,
+      );
+    },
+  );
 }

@@ -289,6 +289,32 @@ class DeviceCalendarController extends ChangeNotifier
     };
   }
 
+  Future<void> _acceptServerStatus(
+    Map<String, dynamic> response,
+    int generation,
+    String account,
+  ) async {
+    Set<String> owned(DeviceCalendarStatus value) => {
+      for (final source in value.sources)
+        if (source.selected && source.ownedBy == 'device') source.id,
+    };
+    final previous = status;
+    final before = owned(previous);
+    _accept(response);
+    final after = owned(status);
+    final removed = before.difference(after);
+    if (previous.connectionId != status.connectionId ||
+        previous.lastSyncedAt != status.lastSyncedAt ||
+        before.length != after.length ||
+        !before.containsAll(after)) {
+      await repository.projectionChanged(
+        removedSources: removed.isNotEmpty,
+        removedSourceIds: removed,
+      );
+    }
+    _check(generation, account);
+  }
+
   Future<void> _load(int generation, String account) async {
     final response = await _step(
       generation,
@@ -297,7 +323,7 @@ class DeviceCalendarController extends ChangeNotifier
     );
     final device = await _step(generation, account, bridge.deviceId);
     _deviceId = device;
-    _accept(response);
+    await _acceptServerStatus(response, generation, account);
   }
 
   Map<String, dynamic> _mutationArguments() {
@@ -321,7 +347,7 @@ class DeviceCalendarController extends ChangeNotifier
         arguments: {..._mutationArguments(), ...arguments},
       ),
     );
-    _accept(response);
+    await _acceptServerStatus(response, generation, account);
   }
 
   Future<void> _permission(
@@ -368,7 +394,7 @@ class DeviceCalendarController extends ChangeNotifier
             },
           ),
         );
-        _accept(response);
+        await _acceptServerStatus(response, generation, account);
         if (initialSetup) _initialSetupConnectionId = status.connectionId;
         choosing = true;
       }, permission: true);
@@ -448,7 +474,6 @@ class DeviceCalendarController extends ChangeNotifier
       'google_bindings': bindings,
     });
     choosing = false;
-    repository.projectionChanged(removedSources: true);
     if (status.sources.any(
       (source) => source.selected && source.ownedBy == 'device',
     )) {
@@ -485,7 +510,6 @@ class DeviceCalendarController extends ChangeNotifier
     choosing = false;
     unawaited(_changes?.cancel());
     _changes = null;
-    repository.projectionChanged(removedSources: true);
   });
 
   bool _covered(DateTime from, DateTime until) {

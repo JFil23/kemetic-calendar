@@ -9,20 +9,64 @@ enum CalendarInvalidationReason {
   calendarImportSynced,
 }
 
+/// A confirmed external read window; carries no event data or write authority.
+class ExternalCalendarRange {
+  const ExternalCalendarRange(this.from, this.until);
+  final DateTime from, until;
+  @override
+  bool operator ==(Object other) =>
+      other is ExternalCalendarRange &&
+      from == other.from &&
+      until == other.until;
+  @override
+  int get hashCode => Object.hash(from, until);
+}
+
+class ExternalCalendarInvalidation {
+  const ExternalCalendarInvalidation({
+    required this.accountId,
+    required this.lane,
+    this.ranges = const [],
+    this.removedSourceIds = const {},
+  });
+  final String accountId, lane;
+  final List<ExternalCalendarRange> ranges;
+  final Set<String> removedSourceIds;
+
+  ExternalCalendarInvalidation merge(ExternalCalendarInvalidation next) {
+    if (accountId != next.accountId || lane != next.lane) return next;
+    return ExternalCalendarInvalidation(
+      accountId: accountId,
+      lane: lane,
+      ranges: List.unmodifiable({...ranges, ...next.ranges}),
+      removedSourceIds: Set.unmodifiable({
+        ...removedSourceIds,
+        ...next.removedSourceIds,
+      }),
+    );
+  }
+}
+
 class CalendarInvalidated {
   const CalendarInvalidated({
     required this.reason,
     this.flowId,
     this.clientEventIds = const <String>[],
+    this.externalCalendar,
   });
 
   final CalendarInvalidationReason reason;
   final int? flowId;
   final List<String> clientEventIds;
+  final ExternalCalendarInvalidation? externalCalendar;
 
   CalendarInvalidated merge(CalendarInvalidated next) {
     return CalendarInvalidated(
       reason: next.reason,
+      externalCalendar: next.externalCalendar == null
+          ? externalCalendar
+          : externalCalendar?.merge(next.externalCalendar!) ??
+                next.externalCalendar,
       flowId: next.flowId ?? flowId,
       clientEventIds: List.unmodifiable(<String>{
         ...clientEventIds,

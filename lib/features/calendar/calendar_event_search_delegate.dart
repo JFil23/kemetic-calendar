@@ -7,10 +7,21 @@ class _EventSearchDelegate extends SearchDelegate<void> {
     required this.monthName,
     required this.gregYearLabelFor,
     required this.openResult,
-  }) : _flowById = {for (final flow in flows) flow.id: flow};
+    this.dataVersion,
+    List<_Flow> Function()? currentFlows,
+  }) : _currentFlows = currentFlows ?? (() => flows),
+       _accountId = Supabase.instance.client.auth.currentUser?.id;
+
+  final String? _accountId;
+  bool get _hasCurrentAccount =>
+      _accountId != null &&
+      Supabase.instance.client.auth.currentUser?.id == _accountId;
+
+  final ValueListenable<int>? dataVersion;
+  final List<_Flow> Function() _currentFlows;
 
   final Map<String, List<_Note>> notes;
-  final Map<int, _Flow> _flowById;
+  Map<int, _Flow> _flowById = const {};
   final String Function(int kMonth) monthName;
   final String Function(int kYear, int kMonth) gregYearLabelFor;
   final void Function(int ky, int km, int kd, _Note note) openResult;
@@ -78,9 +89,16 @@ class _EventSearchDelegate extends SearchDelegate<void> {
 
   List<String> _contextFieldsFor(_Note note) {
     final fields = <String>[
-      _cleanDetail(note.detail),
+      note.clientEventId?.trim().startsWith('external:') == true
+          ? note.detail ?? ''
+          : _cleanDetail(note.detail),
       note.location ?? '',
-      note.category ?? '',
+      isImportedDeviceCalendarEvent(
+            clientEventId: note.clientEventId,
+            category: note.category,
+          )
+          ? importedCalendarDisplayLabel(note.calendarName)
+          : note.category ?? '',
     ];
 
     final flowId = note.flowId;
@@ -193,6 +211,18 @@ class _EventSearchDelegate extends SearchDelegate<void> {
   }
 
   Widget _resultsList(String q) {
+    if (!_hasCurrentAccount) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Account changed. Close search and try again.',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ),
+      );
+    }
+    _flowById = {for (final flow in _currentFlows()) flow.id: flow};
     final items = _matches(q).toList()
       ..sort((a, b) {
         final ga = KemeticMath.toGregorian(a.ky, a.km, a.kd);
@@ -238,7 +268,10 @@ class _EventSearchDelegate extends SearchDelegate<void> {
         return SizedBox(
           width: double.infinity,
           child: ListTile(
-            onTap: () => openResult(it.ky, it.km, it.kd, it.note),
+            onTap: () {
+              if (!_hasCurrentAccount) return;
+              openResult(it.ky, it.km, it.kd, it.note);
+            },
             isThreeLine: snippet != null,
             title: Text(
               it.note.title,
@@ -269,8 +302,22 @@ class _EventSearchDelegate extends SearchDelegate<void> {
     );
   }
 
+  Widget _liveResults(String q) {
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
+      builder: (_, _) {
+        final version = dataVersion;
+        if (version == null) return _resultsList(q);
+        return ValueListenableBuilder<int>(
+          valueListenable: version,
+          builder: (_, _, _) => _resultsList(q),
+        );
+      },
+    );
+  }
+
   @override
-  Widget buildResults(BuildContext context) => _resultsList(query);
+  Widget buildResults(BuildContext context) => _liveResults(query);
 
   @override
   Widget buildSuggestions(BuildContext context) {
@@ -285,7 +332,7 @@ class _EventSearchDelegate extends SearchDelegate<void> {
         ),
       );
     }
-    return _resultsList(query);
+    return _liveResults(query);
   }
 }
 

@@ -17,7 +17,7 @@ import '../../data/birthday_calendar.dart';
 import '../../data/calendar_occurrence_exclusions_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../data/external_calendar_repository.dart'
-    show externalCalendarBuildLane;
+    show externalCalendarBuildLane, externalCalendarRepository;
 import '../../data/flows_repo.dart';
 import '../../data/flow_appearance.dart';
 import '../../data/flow_appearance_store.dart';
@@ -233,6 +233,7 @@ part 'my_flow_card_spec.dart';
 part 'my_flow_maat_badge.dart';
 part 'my_flow_card.dart';
 part 'calendar_event_search_delegate.dart';
+part 'external_calendar_projection_reconciliation.dart';
 part 'calendar_note_model.dart';
 part 'calendar_custom_repeat_page.dart';
 part 'flow_join_service.dart';
@@ -3366,8 +3367,22 @@ class _CalendarWarmStateStore {
         trimmedUserId != _userId) {
       return _CalendarWarmStateSnapshot.empty;
     }
+    final repository = externalCalendarRepository(Supabase.instance.client);
+    final permittedNotes = <String, List<_Note>>{
+      for (final entry in _notes.entries)
+        entry.key: entry.value
+            .where(
+              (note) =>
+                  !(note.clientEventId?.startsWith('external:') ?? false) ||
+                  !repository.isSourceRemoved(
+                    note.calendarId,
+                    owner: trimmedUserId,
+                  ),
+            )
+            .toList(growable: false),
+    };
     return _CalendarWarmStateSnapshot(
-      notes: _copyNotesByDay(_notes),
+      notes: _copyNotesByDay(permittedNotes),
       flows: _flows.map(_copyFlow).toList(growable: false),
       calendarSummariesById: Map<String, SharedCalendarSummary>.from(
         _calendarSummariesById,
@@ -5093,13 +5108,22 @@ class CalendarPage extends StatefulWidget {
       mountedHost._openSearchForContext(context);
       return;
     }
+    final accountId = Supabase.instance.client.auth.currentUser?.id;
+    if (accountId == null) return;
     final snapshot = await _loadWarmStartSearchSnapshot();
-    if (!context.mounted) return;
+    if (!context.mounted ||
+        Supabase.instance.client.auth.currentUser?.id != accountId) {
+      return;
+    }
     await _showEventSearch(
       context: context,
       notes: snapshot.notes,
       flows: snapshot.flows,
       openResult: (ky, km, kd, note) {
+        if (!context.mounted ||
+            Supabase.instance.client.auth.currentUser?.id != accountId) {
+          return;
+        }
         Navigator.of(context).pop();
         final detail = _eventDetailRestorationStateForSearchNote(
           kYear: ky,
@@ -5408,12 +5432,16 @@ class CalendarPage extends StatefulWidget {
     required Map<String, List<_Note>> notes,
     required List<_Flow> flows,
     required void Function(int ky, int km, int kd, _Note note) openResult,
+    ValueListenable<int>? dataVersion,
+    List<_Flow> Function()? currentFlows,
   }) async {
     await showSearch<void>(
       context: context,
       delegate: _EventSearchDelegate(
         notes: notes,
         flows: flows,
+        dataVersion: dataVersion,
+        currentFlows: currentFlows,
         monthName: (km) => getMonthById(km).displayFull,
         gregYearLabelFor: _gregYearLabelForSearch,
         openResult: openResult,
@@ -9341,12 +9369,39 @@ class CalendarPageState extends State<CalendarPage>
   Future<bool> _handleTypedCalendarInvalidation(
     CalendarInvalidated invalidation,
   ) async {
+    final external = invalidation.externalCalendar;
+    bool externalScopeIsCurrent() =>
+        external != null &&
+        external.accountId == Supabase.instance.client.auth.currentUser?.id &&
+        external.lane ==
+            externalCalendarRepository(Supabase.instance.client).lane;
+    if (externalScopeIsCurrent()) {
+      await _reconcileExternalCalendarSourceRemoval(external!);
+    }
+    if (!mounted) return false;
     final disposition = await _requestHydration(
-      _CalendarHydrationRequest.catalogReconcile(
+      _CalendarHydrationRequest.eventDataRefresh(
         reason: 'invalidation_${invalidation.reason.name}',
       ),
     );
-    return disposition == CalendarHydrationJobDisposition.completed;
+    if (disposition != CalendarHydrationJobDisposition.completed) return false;
+    if (!externalScopeIsCurrent()) return true;
+    final ranges = await Future.wait(
+      external!.ranges.map(
+        (range) => _requestHydration(
+          _CalendarHydrationRequest.externalRangeRefresh(
+            reason: 'external_projection_range',
+            interval: CalendarHydrationInterval(
+              startUtc: range.from,
+              endUtc: range.until,
+            ),
+          ),
+        ),
+      ),
+    );
+    return ranges.every(
+      (result) => result == CalendarHydrationJobDisposition.completed,
+    );
   }
 
   Future<CalendarHydrationJobDisposition> _refreshVisibleViewport({
@@ -10903,6 +10958,16 @@ class CalendarPageState extends State<CalendarPage>
         _lastWarmStartCacheSaveOutcome = 'partial_authority';
         return;
       }
+      final externalRepository = externalCalendarRepository(
+        Supabase.instance.client,
+      );
+      // Selection may change while a prepared mirror write waits its turn.
+      // Filter at serialization so neither a checkpoint nor rollback can
+      // restore an acknowledged removed source.
+      encoded = externalRepository.filterSerializedWarmSnapshot(
+        encoded,
+        owner: resolvedUserId,
+      );
       final writeSucceeded = await prefs.setString(key, encoded);
       if (!writeSucceeded) {
         recordCache('cache_save_ended', <String, Object?>{
@@ -10920,7 +10985,13 @@ class CalendarPageState extends State<CalendarPage>
       )) {
         final rollbackSucceeded = previousEncoded == null
             ? await prefs.remove(key)
-            : await prefs.setString(key, previousEncoded);
+            : await prefs.setString(
+                key,
+                externalRepository.filterSerializedWarmSnapshot(
+                  previousEncoded,
+                  owner: resolvedUserId,
+                ),
+              );
         recordCache('cache_save_ended', <String, Object?>{
           'outcome': rollbackSucceeded
               ? 'controller_changed_write_rolled_back'
@@ -24049,6 +24120,12 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _shareNoteSimple(EventItem evt) async {
+    if (isImportedDeviceCalendarEvent(
+      clientEventId: evt.clientEventId,
+      category: evt.category,
+    )) {
+      return;
+    }
     _Note? latest =
         _findLatestNoteByIdOrClientId(
           eventId: evt.id,
@@ -26002,6 +26079,8 @@ class CalendarPageState extends State<CalendarPage>
         context: searchContext,
         notes: _notes,
         flows: _flows,
+        dataVersion: _dayViewDataVersion,
+        currentFlows: () => _flows,
         openResult: (ky, km, kd, note) {
           Navigator.of(searchContext).pop();
           final detail = CalendarPage._eventDetailRestorationStateForSearchNote(

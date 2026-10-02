@@ -10,7 +10,12 @@ extension _CalendarHydrationEngine on CalendarPageState {
     }
     _hydrationController.beginSession(user.id);
     final fallbackWindow = _computeStartupVisibleHydrationInterval();
-    final interval = request.interval ?? fallbackWindow;
+    final interval =
+        request.interval ??
+        (request.intentKind == CalendarHydrationIntentKind.eventDataRefresh
+            ? _hydrationController.state.viewport
+            : null) ??
+        fallbackWindow;
     if (request.isForeground ||
         request.mode == _CalendarHydrationMode.catalogReconcile) {
       _hydrationController.reportViewport(interval);
@@ -27,6 +32,8 @@ extension _CalendarHydrationEngine on CalendarPageState {
       source: request.diagnosticSource,
       passActive: _hydrationScheduler.hasActiveJob,
     );
+    final externalRangeRefresh =
+        request.intentKind == CalendarHydrationIntentKind.externalRangeRefresh;
     final job = CalendarHydrationJob(
       key: request.jobKey(
         resolvedInterval: interval,
@@ -35,11 +42,22 @@ extension _CalendarHydrationEngine on CalendarPageState {
       priority: request.priority,
       retryPolicy:
           request.isForeground ||
-              request.mode == _CalendarHydrationMode.backgroundWindow
+              (request.mode == _CalendarHydrationMode.backgroundWindow &&
+                  !externalRangeRefresh)
           ? const CalendarHydrationRetryPolicy(maxAttempts: 2)
           : CalendarHydrationRetryPolicy.none,
       run: (jobContext) async {
         diagnostics.recordCoordinatorPassStarted();
+        var executionFingerprint = fingerprint;
+        if (externalRangeRefresh) {
+          final currentState = _hydrationController.state;
+          final freshFingerprint = currentState.freshCatalogFingerprint;
+          if (freshFingerprint == null ||
+              freshFingerprint != currentState.catalogFingerprint) {
+            throw const CalendarHydrationJobCancelled('fresh_catalog_required');
+          }
+          executionFingerprint = freshFingerprint;
+        }
         CalendarHydrationCatalogSnapshot? stagedCatalog;
         if (request.mode == _CalendarHydrationMode.catalogReconcile) {
           final catalogStopwatch = Stopwatch()..start();
@@ -60,7 +78,9 @@ extension _CalendarHydrationEngine on CalendarPageState {
           final alreadyCovered =
               currentState.catalogFingerprint == stagedCatalog.fingerprint &&
               currentState.coverage.covers(interval);
-          if (alreadyCovered &&
+          if (request.intentKind !=
+                  CalendarHydrationIntentKind.eventDataRefresh &&
+              alreadyCovered &&
               _hydrationController.promoteMatchingFreshCatalog(
                 stagedCatalog.fingerprint,
               )) {
@@ -89,14 +109,22 @@ extension _CalendarHydrationEngine on CalendarPageState {
             request.mode == _CalendarHydrationMode.backgroundWindow
             ? null
             : _hydrationController.beginViewportCommit(
-                catalogFingerprint: stagedCatalog?.fingerprint ?? fingerprint,
+                catalogFingerprint:
+                    stagedCatalog?.fingerprint ?? executionFingerprint,
                 catalogIsFresh:
                     request.mode == _CalendarHydrationMode.catalogReconcile,
               );
+        // A data invalidation can yield to navigation while fetching catalog
+        // data. Bind its lane reads to the very same current viewport captured
+        // by the commit token after that await, never to its old queued window.
+        final executionInterval =
+            request.intentKind == CalendarHydrationIntentKind.eventDataRefresh
+            ? viewportCommitToken!.interval
+            : interval;
         await _executeHydrationRequest(
           request: request,
-          resolvedInterval: interval,
-          resolvedCatalogFingerprint: fingerprint,
+          resolvedInterval: executionInterval,
+          resolvedCatalogFingerprint: executionFingerprint,
           stagedCatalog: stagedCatalog,
           viewportCommitToken: viewportCommitToken,
           sessionGeneration: _hydrationController.state.sessionGeneration,
@@ -141,7 +169,12 @@ extension _CalendarHydrationEngine on CalendarPageState {
     );
     final disposition = await _hydrationScheduler.schedule(
       job,
-      supersedeKind: request.intentKind == CalendarHydrationIntentKind.viewport,
+      // A newer invalidation cannot share a running read that may already
+      // have captured the previous event data, even when its window is equal.
+      supersedeKind:
+          request.intentKind == CalendarHydrationIntentKind.viewport ||
+          request.intentKind == CalendarHydrationIntentKind.eventDataRefresh,
+      supersedeActiveKey: externalRangeRefresh,
       preemptLowerPriority:
           request.isForeground ||
           request.mode == _CalendarHydrationMode.catalogReconcile,

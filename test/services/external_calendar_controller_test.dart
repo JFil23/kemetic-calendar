@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/data/external_calendar_repository.dart';
 import 'package:mobile/services/external_calendar_controller.dart';
+import 'package:mobile/features/calendar/calendar_invalidation.dart';
 
 Map<String, dynamic> snapshot({
   bool automatic = false,
@@ -53,6 +54,36 @@ void main() {
         retryInterval: const Duration(milliseconds: 100),
         now: () => now,
       );
+
+  test(
+    'observing a newer server completion invalidates copies without issuing a provider refresh',
+    () async {
+      final actions = <String>[];
+      var syncedAt = '2026-10-02T10:00:00Z';
+      controller = make((body) async {
+        actions.add(body['action'] as String);
+        final value = snapshot(automatic: true, state: 'connected');
+        (value['connection'] as Map)['last_synced_at'] = syncedAt;
+        return value;
+      });
+      await controller.loadStatus();
+      final events = <CalendarInvalidated>[];
+      final subscription = CalendarInvalidationBus.instance.stream.listen(
+        events.add,
+      );
+      addTearDown(subscription.cancel);
+      await controller.loadStatus();
+      await Future<void>.delayed(Duration.zero);
+      expect(events, isEmpty);
+      syncedAt = '2026-10-02T10:15:00Z';
+      await controller.loadStatus();
+      await Future<void>.delayed(Duration.zero);
+      expect(events, hasLength(1));
+      expect(events.single.externalCalendar?.accountId, 'a');
+      expect(events.single.externalCalendar?.lane, 'staging');
+      expect(actions, ['status', 'status', 'status']);
+    },
+  );
 
   testWidgets('first status failure retains resume and timer recovery', (
     tester,

@@ -55,7 +55,7 @@ class ExternalCalendarController extends ChangeNotifier
 
   Future<T?> _run<T>(
     Future<T> Function() operation,
-    void Function(T) accept,
+    FutureOr<void> Function(T) accept,
   ) async {
     if (_disposed) return null;
     _checkAccount();
@@ -69,8 +69,8 @@ class ExternalCalendarController extends ChangeNotifier
     try {
       final result = await operation();
       if (!_current(generation, owner)) return null;
-      accept(result);
-      return result;
+      await accept(result);
+      return _current(generation, owner) ? result : null;
     } catch (failure) {
       if (_current(generation, owner)) {
         error = failure is ExternalCalendarFailure
@@ -99,12 +99,33 @@ class ExternalCalendarController extends ChangeNotifier
           );
   }
 
+  Set<String> _selectedIds(ExternalCalendarStatus? value) => {
+    for (final source in value?.sources ?? const <ExternalCalendarSource>[])
+      if (source.selected) source.id,
+  };
+
+  Future<void> _acceptServerStatus(ExternalCalendarStatus value) async {
+    final previous = status;
+    final before = _selectedIds(previous);
+    final after = _selectedIds(value);
+    final removed = before.difference(after);
+    final changed =
+        previous?.connectionId != value.connectionId ||
+        previous?.lastSyncedAt != value.lastSyncedAt ||
+        !setEquals(before, after);
+    _accept(value);
+    if (changed) {
+      await repository.projectionChanged(
+        removedSources: removed.isNotEmpty,
+        removedSourceIds: removed,
+      );
+    }
+  }
+
   Future<void> loadStatus() async {
     _checkAccount();
     if (choosingCalendars) return;
-    await _run(() => repository.statusCommand('status'), (value) {
-      _accept(value);
-    });
+    await _run(() => repository.statusCommand('status'), _acceptServerStatus);
   }
 
   Future<Uri?> connect() async => _run(() async {
@@ -129,13 +150,13 @@ class ExternalCalendarController extends ChangeNotifier
   }, (_) {});
 
   Future<void> chooseCalendars() async {
-    await _run(() => repository.statusCommand('sources'), (value) {
-      _accept(value);
+    await _run(() => repository.statusCommand('sources'), (value) async {
       selectedSourceIds = {
         for (final source in value.sources)
           if (source.selected) source.id,
       };
       choosingCalendars = true;
+      await _acceptServerStatus(value);
     });
   }
 
@@ -170,15 +191,19 @@ class ExternalCalendarController extends ChangeNotifier
     final owner = accountId;
     final generation = _generation;
     final selected = selectedSourceIds.toList()..sort();
+    final previouslySelected = _selectedIds(status);
     final changed = await _run(
       () => repository.statusCommand(
         'select_sources',
         arguments: {..._revision, 'source_ids': selected},
       ),
-      (value) {
+      (value) async {
         _accept(value);
         choosingCalendars = false;
-        repository.projectionChanged(removedSources: true);
+        await repository.projectionChanged(
+          removedSources: true,
+          removedSourceIds: previouslySelected.difference(_selectedIds(value)),
+        );
       },
     );
     if (changed != null && selected.isNotEmpty && _current(generation, owner)) {
@@ -205,9 +230,9 @@ class ExternalCalendarController extends ChangeNotifier
           },
         );
       },
-      (value) {
+      (value) async {
         _accept(value);
-        repository.projectionChanged();
+        await repository.projectionChanged();
       },
     );
   }
@@ -225,13 +250,18 @@ class ExternalCalendarController extends ChangeNotifier
   }
 
   Future<void> disconnect() async {
+    _checkAccount();
+    final previouslySelected = _selectedIds(status);
     await _run(
       () => repository.statusCommand('disconnect', arguments: _revision),
-      (value) {
+      (value) async {
         _accept(value);
         choosingCalendars = false;
         selectedSourceIds = {};
-        repository.projectionChanged(removedSources: true);
+        await repository.projectionChanged(
+          removedSources: true,
+          removedSourceIds: previouslySelected,
+        );
       },
     );
   }
@@ -308,9 +338,9 @@ class ExternalCalendarController extends ChangeNotifier
           'time_zone': 'UTC',
         },
       ),
-      (value) {
+      (value) async {
         _accept(value);
-        repository.projectionChanged();
+        await repository.projectionChanged();
       },
     );
     if (result != null) {

@@ -4,9 +4,13 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:mobile/data/external_calendar_repository.dart';
+import 'package:mobile/features/calendar/snapshot/calendar_snapshot_runtime.dart';
+import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/services/device_calendar_bridge.dart';
 import 'package:mobile/services/device_calendar_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final from = DateTime.utc(2026, 9);
@@ -207,6 +211,18 @@ class Harness {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await Hive.openBox<String>(
+      'calendar_snapshot_store_v1',
+      bytes: Uint8List(0),
+    );
+    await calendarSnapshotStore.initialize();
+  });
+  tearDownAll(() async {
+    await calendarSnapshotStore.dispose();
+    await Hive.close();
+  });
   group('complete native projection snapshots', () {
     test('moved recurring occurrence retains its original identity', () {
       final first = DeviceCalendarSnapshot.validate(
@@ -638,6 +654,99 @@ void main() {
       expect(h.uploads, hasLength(2));
     },
   );
+  for (final replaceDevice in [false, true]) {
+    test(
+      'acknowledged ${replaceDevice ? 'device replacement' : 'remote status removal'} prunes only device-owned sources',
+      () async {
+        final client = SupabaseClient(
+          'https://example.supabase.co',
+          'fixture',
+          authOptions: const AuthClientOptions(autoRefreshToken: false),
+        );
+        final bridge = FakeBridge();
+        final calls = <String>[];
+        var changed = false;
+        final repository = ExternalCalendarRepository(
+          client,
+          lane: 'staging',
+          currentAccount: () => 'account-a',
+          request: (body) async {
+            final action = body['action'] as String;
+            calls.add(action);
+            if (action == 'device_connect') {
+              expect(body['replace_device'], true);
+              expect(body['expected_revision'], 1);
+              changed = true;
+            }
+            return {
+              'available': true,
+              'connection': {
+                'id': changed && replaceDevice
+                    ? 'new-connection'
+                    : 'connection',
+                'owner_device_id': changed || !replaceDevice
+                    ? 'device-a'
+                    : 'device-b',
+                'revision': changed ? 2 : 1,
+                'status': 'paused',
+                'automatic': false,
+              },
+              'sources': [
+                if (!changed) source('old-device'),
+                source('retained-device'),
+                source(
+                  'google-binding',
+                  binding: 'google-source',
+                  owner: 'google',
+                ),
+              ],
+            };
+          },
+        );
+        final controller = DeviceCalendarController(
+          repository: repository,
+          bridge: bridge,
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await bridge.emitter.close();
+          await client.dispose();
+        });
+        await controller.refreshStatus();
+        final invalidations = <CalendarInvalidated>[];
+        final subscription = CalendarInvalidationBus.instance.stream.listen(
+          invalidations.add,
+        );
+        addTearDown(subscription.cancel);
+        if (replaceDevice) {
+          await controller.connect(replaceDevice: true);
+        } else {
+          changed = true;
+          await controller.refreshStatus();
+        }
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.errorCode, isNull);
+        expect(repository.isSourceRemoved('external:old-device'), true);
+        expect(repository.isSourceRemoved('external:retained-device'), false);
+        expect(repository.isSourceRemoved('external:google-binding'), false);
+        final removed = invalidations
+            .expand(
+              (value) => value.externalCalendar?.removedSourceIds ?? <String>{},
+            )
+            .toSet();
+        expect(removed, {'old-device'});
+        expect(bridge.prompts, 0);
+        expect(bridge.requested, isEmpty);
+        expect(
+          calls,
+          replaceDevice
+              ? ['device_status', 'device_status', 'device_connect']
+              : ['device_status', 'device_status'],
+        );
+      },
+    );
+  }
+
   test('native changes bypass recent successful import cooldown', () async {
     final h = Harness();
     addTearDown(h.dispose);
