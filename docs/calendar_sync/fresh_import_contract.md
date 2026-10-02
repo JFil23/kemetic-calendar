@@ -124,3 +124,14 @@ Normal RC simulator startup capture:
 `/tmp/haw-fresh-calendar-normal-startup.png`. No calendar or notification
 permission was granted during the smoke check; this verifies visible normal
 startup, not signed-in physical-device import acceptance.
+
+
+Pre-deployment acceptance review corrections: device calendar source selection
+now preserves an existing pause; only explicitly created setup starts automatic
+import after its first successful snapshot. Denied permission guidance directs
+users to device Settings and offers Retry calendar access in the same panel.
+Forty controller/authority tests and 56 panel/binding tests passed; portrait and
+landscape at 1x/2x text were inspected. The corrected backend passes 607 Deno
+tests on the exact CI toolchain plus the expanded real SQL smoke, including
+paused manual imports, worker scheduling, and invalidation by later pauses.
+These corrections require fresh exact-commit remote gates before deployment.

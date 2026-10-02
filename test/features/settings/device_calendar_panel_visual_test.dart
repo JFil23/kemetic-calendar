@@ -85,6 +85,19 @@ void main() {
           expect(panel.right, viewport.value.width - 16);
           final name = '${state.name}-${viewport.key}-${scale.toInt()}x';
           await _capture(tester, name);
+          if (state == DeviceCalendarPanelState.permissionRequired) {
+            expect(find.textContaining('your device Settings'), findsOneWidget);
+            expect(find.text('Allow calendar access'), findsNothing);
+            final retry = find.text('Retry calendar access');
+            await tester.ensureVisible(retry);
+            await tester.pump(const Duration(milliseconds: 250));
+            expect(tester.takeException(), isNull);
+            expect(
+              tester.getRect(retry).bottom,
+              lessThanOrEqualTo(viewport.value.height),
+            );
+            await _capture(tester, '$name-retry');
+          }
           if (state == DeviceCalendarPanelState.choosing) {
             await tester.ensureVisible(find.text('Cancel'));
             await tester.pump(const Duration(milliseconds: 250));
@@ -177,7 +190,7 @@ void main() {
   });
 
   testWidgets(
-    'permission is requested only through the explicit recovery action',
+    'permission retry follows device Settings instructions and requires a tap',
     (tester) async {
       var requests = 0;
       await tester.pumpWidget(
@@ -193,7 +206,9 @@ void main() {
         find.textContaining('Your saved events remain available.'),
         findsOneWidget,
       );
-      await tester.tap(find.text('Allow calendar access'));
+      expect(find.textContaining('your device Settings'), findsOneWidget);
+      expect(find.text('Allow calendar access'), findsNothing);
+      await tester.tap(find.text('Retry calendar access'));
       expect(requests, 1);
     },
   );

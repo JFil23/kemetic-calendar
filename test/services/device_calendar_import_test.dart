@@ -105,10 +105,12 @@ class Harness {
   Harness({
     List<Map<String, dynamic>>? sources,
     bool automatic = true,
+    bool connected = true,
     Duration timeout = const Duration(seconds: 2),
   }) {
     rows = sources ?? [source('1')];
-    enabled = automatic;
+    enabled = connected && automatic;
+    hasConnection = connected;
     repository = ExternalCalendarRepository(
       client,
       lane: 'staging',
@@ -124,21 +126,48 @@ class Harness {
         }
         if (body['action'] != 'device_status') {
           expect(body['device_id'], 'device-a');
-          expect(body['expected_revision'], revision);
+          expect(body['expected_revision'], hasConnection ? revision : null);
           revision++;
         }
+        if (body['action'] == 'device_connect' && !hasConnection) {
+          hasConnection = true;
+          enabled = false;
+          rows = [
+            for (final row in rows) {...row, 'selected': false},
+          ];
+        }
+        if (body['action'] == 'device_select_sources') {
+          final ids = List<String>.from(body['source_ids'] as List);
+          final bindings = Map<String, String>.from(
+            body['google_bindings'] as Map,
+          );
+          rows = [
+            for (final row in rows)
+              {
+                ...row,
+                'selected': ids.contains(row['id']),
+                'google_source_id': bindings[row['id']],
+                'owned_by': bindings.containsKey(row['id'])
+                    ? 'google'
+                    : 'device',
+              },
+          ];
+        }
+        if (body['action'] == 'device_disconnect') hasConnection = false;
         if (body['action'] == 'device_pause') enabled = false;
         if (body['action'] == 'device_resume') enabled = true;
         return {
           'available': true,
-          'connection': {
-            'id': 'connection-1',
-            'owner_device_id': 'device-a',
-            'status': enabled ? 'connected' : 'paused',
-            'automatic': enabled,
-            'revision': revision,
-          },
-          'sources': rows,
+          'connection': !hasConnection
+              ? null
+              : {
+                  'id': 'connection-1',
+                  'owner_device_id': 'device-a',
+                  'status': enabled ? 'connected' : 'paused',
+                  'automatic': enabled,
+                  'revision': revision,
+                },
+          'sources': hasConnection ? rows : [],
         };
       },
     );
@@ -156,6 +185,7 @@ class Harness {
     authOptions: const AuthClientOptions(autoRefreshToken: false),
   );
   final bridge = FakeBridge();
+  bool hasConnection = true;
   late final ExternalCalendarRepository repository;
   late final DeviceCalendarController controller;
   final calls = <Map<String, dynamic>>[];
@@ -477,12 +507,13 @@ void main() {
   test(
     'defaults OFF until access succeeds and failed first import stays OFF',
     () async {
-      final h = Harness(automatic: false);
+      final h = Harness(connected: false);
       addTearDown(h.dispose);
       h.bridge.read = (_, _, _) async =>
           throw const DeviceCalendarFailure('read_failed');
       await h.controller.connect();
       expect(h.controller.status.automatic, false);
+      h.controller.selectSource('1', true);
       await h.controller.saveSelection();
       expect(h.controller.status.automatic, false);
       expect(h.controller.errorCode, 'read_failed');
@@ -492,6 +523,82 @@ void main() {
       );
     },
   );
+  test(
+    'first explicit device setup enables automatic import only after a complete selection import',
+    () async {
+      final h = Harness(connected: false);
+      addTearDown(h.dispose);
+      await h.controller.connect();
+      expect(h.controller.status.automatic, false);
+      expect(h.controller.selectedSources, isEmpty);
+      h.controller.selectSource('1', true);
+      await h.controller.saveSelection();
+      expect(h.controller.errorCode, isNull);
+      expect(h.uploads, hasLength(1));
+      expect(h.controller.status.automatic, true);
+      final actions = h.calls.map((call) => call['action']).toList();
+      expect(
+        actions.indexOf('device_resume'),
+        greaterThan(actions.indexOf('device_snapshot')),
+      );
+    },
+  );
+
+  test('changing selected calendars preserves an existing pause', () async {
+    final h = Harness(automatic: false, sources: [source('1'), source('2')]);
+    addTearDown(h.dispose);
+    await h.controller.chooseCalendars();
+    h.controller.selectSource('2', false);
+    await h.controller.saveSelection();
+    expect(h.controller.errorCode, isNull);
+    expect(h.uploads, hasLength(1));
+    expect(h.bridge.requested.single, ['native-1']);
+    expect(h.controller.status.automatic, false);
+    expect(h.calls.where((call) => call['action'] == 'device_resume'), isEmpty);
+  });
+
+  test(
+    'explicit pause during initial setup is not reversed by later selection',
+    () async {
+      final h = Harness(connected: false);
+      addTearDown(h.dispose);
+      await h.controller.connect();
+      h.controller.cancelSelection();
+      await h.controller.setAutomatic(false);
+      await h.controller.chooseCalendars();
+      h.controller.selectSource('1', true);
+      await h.controller.saveSelection();
+      expect(h.controller.errorCode, isNull);
+      expect(h.uploads, hasLength(1));
+      expect(h.controller.status.automatic, false);
+      expect(
+        h.calls.where((call) => call['action'] == 'device_resume'),
+        isEmpty,
+      );
+    },
+  );
+
+  test(
+    'denied access recovers after a Settings grant and foreground resume without prompting',
+    () async {
+      final h = Harness();
+      addTearDown(h.dispose);
+      h.bridge.permission = 'denied';
+      h.controller.startForAccount();
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      expect(h.controller.errorCode, 'permission_denied');
+      expect(h.uploads, isEmpty);
+      expect(h.bridge.prompts, 0);
+      h.bridge.permission = 'granted';
+      h.controller.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      expect(h.controller.errorCode, isNull);
+      expect(h.uploads, hasLength(1));
+      expect(h.controller.status.automatic, true);
+      expect(h.bridge.prompts, 0);
+    },
+  );
+
   test(
     'pause retains imports and requires successful read before resume',
     () async {

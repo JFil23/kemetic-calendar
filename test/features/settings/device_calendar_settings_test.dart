@@ -118,7 +118,7 @@ void main() {
     await tester.pumpWidget(_harness(device));
     await tester.pump();
     expect(device.connections, isEmpty);
-    await tester.tap(find.text('Allow calendar access'));
+    await tester.tap(find.text('Retry calendar access'));
     await tester.pump();
     expect(device.connections, [false]);
   });

@@ -123,6 +123,9 @@ class DeviceCalendarController extends ChangeNotifier
   Set<String> unresolvedCloudSources = {};
   Map<String, String> googleBindings = {};
   String? _account, _deviceId;
+  // Only a connection created by this explicit setup may start automatically
+  // after its first successful selection import. An existing pause is durable.
+  String? _initialSetupConnectionId;
   int _generation = 0;
   bool _started = false, _disposed = false;
   Timer? _timer, _debounce;
@@ -162,6 +165,7 @@ class DeviceCalendarController extends ChangeNotifier
     _changes = null;
     _account = null;
     _deviceId = null;
+    _initialSetupConnectionId = null;
     _coverage.clear();
     _pendingRanges.clear();
     _rangeFrom = null;
@@ -250,6 +254,9 @@ class DeviceCalendarController extends ChangeNotifier
 
   void _accept(Map<String, dynamic> response) {
     final next = DeviceCalendarStatus.fromJson(response);
+    if (next.connectionId != _initialSetupConnectionId) {
+      _initialSetupConnectionId = null;
+    }
     String selection(DeviceCalendarStatus value) =>
         (value.sources
                 .where((source) => source.selected)
@@ -345,6 +352,7 @@ class DeviceCalendarController extends ChangeNotifier
   Future<void> connect({bool replaceDevice = false}) =>
       _run((generation, account) async {
         await _load(generation, account);
+        final initialSetup = !status.connected || (replaceDevice && !isOwner);
         await _permission(generation, account, request: true);
         final sources = await _step(generation, account, bridge.listCalendars);
         final response = await _step(
@@ -361,6 +369,7 @@ class DeviceCalendarController extends ChangeNotifier
           ),
         );
         _accept(response);
+        if (initialSetup) _initialSetupConnectionId = status.connectionId;
         choosing = true;
       }, permission: true);
 
@@ -444,9 +453,11 @@ class DeviceCalendarController extends ChangeNotifier
       (source) => source.selected && source.ownedBy == 'device',
     )) {
       await _snapshot(generation, account, manual: true);
-      if (!status.automatic) {
+      if (!status.automatic &&
+          status.connectionId == _initialSetupConnectionId) {
         await _command(generation, account, 'device_resume');
       }
+      _initialSetupConnectionId = null;
       _observe();
     }
   });
@@ -466,6 +477,7 @@ class DeviceCalendarController extends ChangeNotifier
       unawaited(_changes?.cancel());
       _changes = null;
     }
+    _initialSetupConnectionId = null;
   });
   Future<void> disconnect() => _run((generation, account) async {
     await _load(generation, account);

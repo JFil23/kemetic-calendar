@@ -317,8 +317,8 @@ class DeviceCalendarPanel extends StatelessWidget {
       DeviceCalendarPanelState.paused =>
         'Automatic import is paused. Your imported events remain in Hꜣw.',
       DeviceCalendarPanelState.permissionRequired =>
-        'Calendar access is needed to update events from this device. '
-            'Your saved events remain available.',
+        'Check calendar access in your device Settings, then return to Hꜣw '
+            'and retry. Your saved events remain available.',
       DeviceCalendarPanelState.unavailable =>
         availabilityMessage ??
             'Device calendar import is not available in this build.',
@@ -375,7 +375,7 @@ class DeviceCalendarPanel extends StatelessWidget {
       if (state == DeviceCalendarPanelState.disconnected)
         _action('Choose device calendars', onConnect, primary: true),
       if (state == DeviceCalendarPanelState.permissionRequired)
-        _action('Allow calendar access', onConnect, primary: true),
+        _action('Retry calendar access', onConnect, primary: true),
       if (state == DeviceCalendarPanelState.offline)
         _action('Retry', onRetry, primary: true),
       if (_connected &&
