@@ -256,6 +256,10 @@ FlowEventDecision classifyFlowEvent({
   FlowRecordSnapshot? owner,
 }) {
   final cid = event.clientEventId?.trim() ?? '';
+  if (cid.startsWith('external:')) {
+    // Provider descriptions are content, never Hꜣw flow metadata.
+    return FlowEventDecision(kind: FlowEventKind.standalone, event: event);
+  }
   if (cid.startsWith('maat:')) {
     return FlowEventDecision(
       kind: FlowEventKind.legacyMaat,

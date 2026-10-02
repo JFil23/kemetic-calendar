@@ -11,8 +11,8 @@ import 'package:mobile/shared/glossy_text.dart';
 
 import '../../core/navigation_fallback.dart';
 import '../../main.dart' show Events, appEnvironmentEnv;
-import '../../services/calendar_sync_service.dart';
 import '../../services/navigation_trace.dart';
+import '../../services/device_calendar_controller.dart';
 import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
 import '../../utils/external_link_utils.dart';
@@ -23,10 +23,14 @@ import '../calendar/speech_resolver.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
 import 'settings_prefs.dart';
+import 'external_calendar_settings.dart';
+import 'device_calendar_settings.dart';
 import 'us_holiday_seeder.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, this.externalCalendarCallbackResult});
+
+  final String? externalCalendarCallbackResult;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -54,6 +58,21 @@ class _SettingsBuildInfo {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  void _consumeExternalCalendarCallback(String result) {
+    // The child acknowledges in its post-frame callback, after loading allows
+    // it to mount. Do not schedule another frame just to remove this query.
+    if (!mounted) return;
+    final router = GoRouter.of(context);
+    final uri = router.routeInformationProvider.value.uri;
+    if (uri.path != '/settings' ||
+        uri.queryParameters['external_calendar'] != result) {
+      return;
+    }
+    final remaining = Map<String, List<String>>.from(uri.queryParametersAll)
+      ..remove('external_calendar');
+    router.replace(uri.replace(queryParameters: remaining).toString());
+  }
+
   static const String _speechPreviewUtteranceId = 'settings:speech-preview';
   static const String _privacyPolicyUrl = 'https://maat.app/privacy';
   static const String _termsUrl = 'https://maat.app/terms';
@@ -62,12 +81,9 @@ class _SettingsPageState extends State<SettingsPage> {
       'push.lastSelfTestDeliveryKey';
 
   bool _realTimeAlerts = false;
-  bool _autoCalendarSync = false;
   bool _usHolidaysEnabled = false;
   bool _dailyCosmicContextBadgeEnabled = true;
   bool _seedingHolidays = false;
-  bool _syncingCalendar = false;
-  bool _unlinkingCalendar = false;
   bool _loading = true;
   bool _requestingPush = false;
   bool _loadingPushDiagnostics = false;
@@ -86,7 +102,6 @@ class _SettingsPageState extends State<SettingsPage> {
   String? _accountStatus;
   Future<void>? _hydrationDiagnosticsReady;
   _SettingsBuildInfo _buildInfo = _SettingsBuildInfo.unavailable;
-  CalendarSyncStatus? _calendarSyncStatus;
   PushRegistrationDiagnostics? _pushDiagnostics;
   PushDeliveryReceiptStatus? _pushTestReceiptStatus;
   List<SpeechVoiceOption> _speechVoices = const [];
@@ -96,8 +111,6 @@ class _SettingsPageState extends State<SettingsPage> {
   );
 
   bool get _hasSession => Supabase.instance.client.auth.currentSession != null;
-  bool get _nativeCalendarSyncAvailable => !kIsWeb;
-  bool get _calendarBusy => _syncingCalendar || _unlinkingCalendar;
 
   Future<void> _signOut() async {
     if (_signingOut) return;
@@ -172,24 +185,9 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     await SettingsPrefs.clearLegacyReminderPrefs(prefs);
 
-    if (_nativeCalendarSyncAvailable) {
-      final sync = sharedCalendarSyncService(Supabase.instance.client);
-      unawaited(
-        sync
-            .getStatus()
-            .then((status) {
-              if (mounted) setState(() => _calendarSyncStatus = status);
-            })
-            .catchError((Object _) {}),
-      );
-    }
-
     if (!mounted) return;
     setState(() {
       _realTimeAlerts = SettingsPrefs.realTimeAlertsEnabledFrom(prefs);
-      _autoCalendarSync =
-          _nativeCalendarSyncAvailable &&
-          SettingsPrefs.autoCalendarSyncEnabledFrom(prefs);
       _usHolidaysEnabled = SettingsPrefs.usHolidaysEnabledFrom(prefs);
       _dailyCosmicContextBadgeEnabled =
           SettingsPrefs.dailyCosmicContextBadgeEnabledFrom(prefs);
@@ -255,7 +253,6 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(SettingsPrefs.realTimeAlertsKey, _realTimeAlerts);
-    await prefs.setBool(SettingsPrefs.autoCalendarSyncKey, _autoCalendarSync);
     await prefs.setBool(SettingsPrefs.usHolidaysEnabledKey, _usHolidaysEnabled);
     await prefs.setBool(
       SettingsPrefs.dailyCosmicContextBadgeEnabledKey,
@@ -468,17 +465,6 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       );
     }
-  }
-
-  Future<void> _refreshCalendarStatus() async {
-    if (!_nativeCalendarSyncAvailable) return;
-    final status = await sharedCalendarSyncService(
-      Supabase.instance.client,
-    ).getStatus();
-    if (!mounted) return;
-    setState(() {
-      _calendarSyncStatus = status;
-    });
   }
 
   Future<void> _setRealTimeAlerts(bool enabled) async {
@@ -743,106 +729,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _setAutoCalendarSync(bool enabled) async {
-    if (!_nativeCalendarSyncAvailable) return;
-
-    final messenger = ScaffoldMessenger.of(context);
-    final sync = sharedCalendarSyncService(Supabase.instance.client);
-
-    if (!enabled) {
-      sync.stop();
-      _autoCalendarSync = false;
-      await _save();
-      if (!mounted) return;
-      setState(() {
-        _autoCalendarSync = false;
-        _syncingCalendar = false;
-      });
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Automatic calendar import is off. Events already imported into HAw remain until you unlink and clear them.',
-          ),
-          backgroundColor: Colors.green.shade700,
-        ),
-      );
-      return;
-    }
-
-    if (!_hasSession) {
-      _autoCalendarSync = false;
-      await _save();
-      if (!mounted) return;
-      setState(() {
-        _autoCalendarSync = false;
-        _syncingCalendar = false;
-      });
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Sign in before turning on automatic calendar import.',
-          ),
-          backgroundColor: Colors.orange.shade700,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _syncingCalendar = true;
-    });
-
-    try {
-      final result = await sync.sync(interactive: true);
-      if (!result.didSync) {
-        sync.stop();
-        _autoCalendarSync = false;
-        await _save();
-        if (!mounted) return;
-        setState(() {
-          _autoCalendarSync = false;
-        });
-        _showCalendarSyncResult(result);
-        return;
-      }
-
-      _autoCalendarSync = true;
-      await _save();
-      await sync.start();
-      await _refreshCalendarStatus();
-      if (!mounted) return;
-      setState(() {
-        _autoCalendarSync = true;
-      });
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('Automatic calendar import turned on.'),
-          backgroundColor: Colors.green.shade700,
-        ),
-      );
-    } catch (e) {
-      sync.stop();
-      _autoCalendarSync = false;
-      await _save();
-      if (!mounted) return;
-      setState(() {
-        _autoCalendarSync = false;
-      });
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Could not start automatic calendar import: $e'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _syncingCalendar = false;
-        });
-      }
-    }
-  }
-
   Future<void> _toggleUsHolidays(bool enabled) async {
     final previous = _usHolidaysEnabled;
     final messenger = ScaffoldMessenger.of(context);
@@ -910,260 +796,6 @@ class _SettingsPageState extends State<SettingsPage> {
       _dailyCosmicContextBadgeEnabled = enabled;
     });
     await _save();
-  }
-
-  Future<void> _syncCalendarNow() async {
-    final client = Supabase.instance.client;
-    final messenger = ScaffoldMessenger.of(context);
-
-    if (!_nativeCalendarSyncAvailable) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Native calendar sync is only available in the iOS/Android app.',
-          ),
-          backgroundColor: Colors.orange.shade700,
-        ),
-      );
-      return;
-    }
-
-    if (!_hasSession) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('Sign in to sync your device calendar.'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _syncingCalendar = true;
-    });
-
-    try {
-      final sync = sharedCalendarSyncService(client);
-      final result = await sync.sync(interactive: true);
-
-      if (result.didSync) {
-        final calendarState = CalendarPage.globalKey.currentState;
-        if (calendarState != null) {
-          await calendarState.reloadFromOutside();
-        }
-      }
-
-      await _refreshCalendarStatus();
-      if (mounted) {
-        _showCalendarSyncResult(result);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Calendar sync failed: $e'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _syncingCalendar = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _unlinkCalendarAccounts() async {
-    final client = Supabase.instance.client;
-    final messenger = ScaffoldMessenger.of(context);
-
-    if (!_nativeCalendarSyncAvailable) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Native calendar unlink cleanup is only available in the iOS/Android app.',
-          ),
-          backgroundColor: Colors.orange.shade700,
-        ),
-      );
-      return;
-    }
-
-    if (!_hasSession) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('Sign in before unlinking synced calendar data.'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF0C0C0C),
-          title: const Text(
-            'Unlink Calendar Sync',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: const Text(
-            'This removes imported Apple/Google calendar events from HAw, clears HAw sync state, and turns automatic calendar import off until you re-enable it. Your Apple/Google calendars are never changed.',
-            style: TextStyle(color: Colors.white70, height: 1.4),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
-              ),
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Unlink and clear'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) return;
-
-    setState(() {
-      _unlinkingCalendar = true;
-    });
-
-    try {
-      final sync = sharedCalendarSyncService(client);
-      final result = await sync.unlinkImportedCalendarData(
-        markResetCompleted: true,
-      );
-
-      final calendarState = CalendarPage.globalKey.currentState;
-      if (calendarState != null) {
-        await calendarState.reloadFromOutside();
-      }
-
-      await _refreshCalendarStatus();
-      final autoSync = await SettingsPrefs.autoCalendarSyncEnabled();
-      if (!mounted) return;
-
-      setState(() {
-        _autoCalendarSync = autoSync;
-      });
-
-      final parts = <String>[
-        if (result.removedImportedEvents > 0)
-          'removed ${result.removedImportedEvents} imported device-calendar events from HAw',
-      ];
-      final summary = parts.isEmpty
-          ? 'Imported calendar data and sync state were cleared from HAw. Automatic import is now off.'
-          : '${parts.join('; ')}. Automatic import is now off.';
-
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(summary),
-          backgroundColor: result.completed
-              ? Colors.green.shade700
-              : Colors.orange.shade700,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Could not unlink synced calendar data: $e'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _unlinkingCalendar = false;
-        });
-      }
-    }
-  }
-
-  void _showCalendarSyncResult(CalendarSyncRunResult result) {
-    final messenger = ScaffoldMessenger.of(context);
-    switch (result.state) {
-      case CalendarSyncRunState.synced:
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text('Calendar import completed on this device.'),
-            backgroundColor: Colors.green.shade700,
-          ),
-        );
-        return;
-      case CalendarSyncRunState.unlinked:
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Imported device-calendar data was cleared. Re-enable sync when you want Kemetic to import again.',
-            ),
-            backgroundColor: Colors.orange.shade700,
-          ),
-        );
-        return;
-      case CalendarSyncRunState.permissionDenied:
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Calendar access is not granted on this device.',
-            ),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-        return;
-      case CalendarSyncRunState.skippedInProgress:
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text('Calendar sync is already running.'),
-            backgroundColor: Colors.orange.shade700,
-          ),
-        );
-        return;
-      case CalendarSyncRunState.skippedWeb:
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Native calendar sync is unavailable in this web context.',
-            ),
-            backgroundColor: Colors.orange.shade700,
-          ),
-        );
-        return;
-      case CalendarSyncRunState.skippedNoSession:
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text('Sign in to sync your calendar.'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-        return;
-      case CalendarSyncRunState.skippedPermissionBackoff:
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Calendar permission was denied recently. Re-enable access in the OS and try again.',
-            ),
-            backgroundColor: Colors.orange.shade700,
-          ),
-        );
-        return;
-      case CalendarSyncRunState.failed:
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Calendar sync failed: ${result.error}'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-        return;
-    }
   }
 
   String _formatTimestamp(DateTime dt) {
@@ -1363,51 +995,6 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     }
     lines.add('Receipt events: ${status.receiptEventCount ?? 0}.');
-    return lines;
-  }
-
-  String _syncButtonLabel() {
-    if (!_nativeCalendarSyncAvailable) return 'Native sync unavailable on web';
-    if (_syncingCalendar) return 'Syncing...';
-    if (!_hasSession) return 'Sign in to sync';
-    return 'Sync now';
-  }
-
-  List<String> _calendarStatusLines() {
-    final lines = <String>[];
-
-    if (!_nativeCalendarSyncAvailable) {
-      lines.add('Web builds cannot access the native device calendar.');
-      return lines;
-    }
-
-    lines.add(
-      _autoCalendarSync
-          ? 'Automatic sync is on. The app keeps importing device-calendar changes after sign-in.'
-          : 'Automatic sync is off. Imported events remain in HAw; turn it back on to catch up.',
-    );
-
-    final lastSync = _calendarSyncStatus?.lastSyncAt?.toLocal();
-    lines.add(
-      lastSync == null
-          ? 'Last sync: not yet completed on this device.'
-          : 'Last sync: ${_formatTimestamp(lastSync)}',
-    );
-
-    final lastDenied = _calendarSyncStatus?.lastPermissionDeniedAt?.toLocal();
-    if (lastDenied != null) {
-      lines.add('Calendar access last denied: ${_formatTimestamp(lastDenied)}');
-    }
-
-    final lastReset = _calendarSyncStatus?.lastResetAt?.toLocal();
-    if (lastReset != null) {
-      lines.add('Last unlink cleanup: ${_formatTimestamp(lastReset)}');
-    }
-
-    if (!_hasSession) {
-      lines.add('Sign in is required before any device calendar sync can run.');
-    }
-
     return lines;
   }
 
@@ -1763,7 +1350,6 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     }
 
-    final calendarStatusLines = _calendarStatusLines();
     final pushDiagnosticLines = _pushDiagnosticLines();
     final pushReceiptLines = _pushTestReceiptLines();
     final speechStatusLines = _speechStatusLines();
@@ -1887,84 +1473,16 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
             const SizedBox(height: 16),
-            _sectionCard(
-              title: 'Calendar Sync',
-              description:
-                  'One-way calendar sync imports Apple/Google events into HAw. HAw never creates, updates, or deletes events in your device calendar.',
-              children: [
-                _settingSwitch(
-                  title: 'Keep device calendar synced automatically',
-                  subtitle: _nativeCalendarSyncAvailable
-                      ? 'Turn off to stop future imports while keeping events already imported into HAw.'
-                      : 'Native calendar sync is not available in web builds.',
-                  value: _autoCalendarSync,
-                  onChanged: !_nativeCalendarSyncAvailable || _calendarBusy
-                      ? null
-                      : _setAutoCalendarSync,
-                ),
-                const SizedBox(height: 16),
-                _primaryButton(
-                  onPressed:
-                      !_nativeCalendarSyncAvailable ||
-                          _calendarBusy ||
-                          !_hasSession
-                      ? null
-                      : _syncCalendarNow,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_syncingCalendar) ...[
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.black,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                      ] else ...[
-                        const Icon(Icons.sync),
-                        const SizedBox(width: 10),
-                      ],
-                      Text(_syncButtonLabel()),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red.shade200,
-                      side: BorderSide(color: Colors.red.shade300),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed:
-                        !_nativeCalendarSyncAvailable ||
-                            _calendarBusy ||
-                            !_hasSession
-                        ? null
-                        : _unlinkCalendarAccounts,
-                    child: Text(
-                      _unlinkingCalendar
-                          ? 'Unlinking calendars...'
-                          : 'Unlink and clear synced calendar data',
-                    ),
-                  ),
-                ),
-                for (final line in calendarStatusLines) _statusLine(line),
-              ],
+            ExternalCalendarSettings(
+              callbackResult: widget.externalCalendarCallbackResult,
+              onCallbackConsumed: _consumeExternalCalendarCallback,
+              showAppleAvailability:
+                  !DeviceCalendarController.supportedPlatform,
             ),
+            if (DeviceCalendarController.supportedPlatform) ...[
+              const SizedBox(height: 16),
+              const DeviceCalendarSettings(),
+            ],
             const SizedBox(height: 16),
             _sectionCard(
               title: 'Calendar Content',

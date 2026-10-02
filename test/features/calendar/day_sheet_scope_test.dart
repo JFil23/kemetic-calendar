@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_sheet_scope.dart';
 
@@ -126,6 +127,76 @@ void main() {
         expect(scoped(selected, [crossing]).single.title, 'midnight overlap');
         expect(scoped(next, [crossing]).single.title, 'midnight overlap');
         expect(scoped(next.add(const Duration(days: 1)), [crossing]), isEmpty);
+      },
+    );
+
+    test(
+      'civil-day windows include the final fall-back hour and exclude next midnight',
+      () {
+        final fall = DateTime(2026, 11, 1);
+        final spring = DateTime(2026, 3, 8);
+        for (final day in [fall, spring]) {
+          final window = daySheetWindowFor(day);
+          final midnight = DateTime(day.year, day.month, day.day + 1);
+          expect(window.start, day);
+          expect(window.end, midnight);
+          final late = item(
+            'late imported occurrence',
+            clientEventId: 'external:late',
+            start: DateTime(day.year, day.month, day.day, 23, 30),
+            end: midnight,
+          );
+          expect(scoped(day, [late]), [late]);
+          expect(scoped(midnight, [late]), isEmpty);
+          expect(
+            scoped(day, [
+              item(
+                'next day',
+                start: midnight,
+                end: DateTime(
+                  midnight.year,
+                  midnight.month,
+                  midnight.day,
+                  0,
+                  30,
+                ),
+              ),
+            ]),
+            isEmpty,
+          );
+        }
+        if (Platform.environment['TZ'] == 'America/Los_Angeles') {
+          expect(
+            daySheetWindowFor(fall).end.difference(fall),
+            const Duration(hours: 25),
+          );
+          expect(
+            daySheetWindowFor(spring).end.difference(spring),
+            const Duration(hours: 23),
+          );
+        }
+      },
+    );
+
+    test(
+      'overnight end carries civil time across spring and fall transitions',
+      () {
+        for (final day in [DateTime(2026, 3, 8), DateTime(2026, 11, 1)]) {
+          final start = DateTime(day.year, day.month, day.day, 23, 30);
+          final rawEnd = DateTime(day.year, day.month, day.day);
+          final midnight = DateTime(day.year, day.month, day.day + 1);
+          expect(daySheetEndAfterStart(start, rawEnd), midnight);
+          final middleDay = daySheetEndAfterStart(day, day);
+          expect(middleDay, midnight);
+          final candidate = item(
+            'full imported segment',
+            clientEventId: 'external:full',
+            start: day,
+            end: middleDay,
+          );
+          expect(scoped(day, [candidate, candidate]), [candidate]);
+          expect(scoped(midnight, [candidate]), isEmpty);
+        }
       },
     );
 

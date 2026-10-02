@@ -1085,15 +1085,31 @@ extension _CalendarHydrationEngine on CalendarPageState {
             // ✅ If it passed all guards → this is a true standalone note
             final localStart = evt.startsAtUtc.toLocal();
             final kDate = KemeticMath.fromGregorian(localStart);
-            final decoded = _decodeDetailMetadata(rawDetail);
-            final cleanedDetail = _cleanDetail(decoded.detail);
+            final external = cid.startsWith('external:');
+            final decoded = external
+                ? (
+                    color: null as Color?,
+                    alertMinutes: null as int?,
+                    detail: rawDetail,
+                  )
+                : _decodeDetailMetadata(rawDetail);
+            final cleanedDetail = external
+                ? rawDetail
+                : _cleanDetail(decoded.detail);
 
             final startTime = evt.allDay
                 ? null
                 : TimeOfDay.fromDateTime(localStart);
             final endTime = evt.endsAtUtc == null
                 ? null
-                : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal());
+                : TimeOfDay.fromDateTime(
+                    external
+                        ? externalCalendarSegmentEndLocal(
+                            localStart,
+                            evt.endsAtUtc!,
+                          )
+                        : evt.endsAtUtc!.toLocal(),
+                  );
             if ((evt.category ?? '') == 'tombstone') {
               continue;
             }
@@ -1122,7 +1138,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
               clientEventId: evt.clientEventId,
               calendarId: evt.calendarId,
               calendarName: evt.calendarName,
-              title: _cleanTitle(evt.title),
+              title: external ? evt.title : _cleanTitle(evt.title),
               detail: cleanedDetail,
               location: evt.location,
               allDay: evt.allDay,

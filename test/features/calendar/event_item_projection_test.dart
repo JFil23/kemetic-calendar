@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 String _sourceBetween(String source, String start, String end) {
   final startIndex = source.indexOf(start);
@@ -13,12 +16,19 @@ String _sourceBetween(String source, String start, String end) {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late String dayView;
   late String landscape;
   late String calendarPage;
   late String grid;
 
-  setUpAll(() {
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await Supabase.initialize(
+      url: 'https://example.supabase.co',
+      anonKey: 'test-anon-key',
+      authOptions: const FlutterAuthClientOptions(autoRefreshToken: false),
+    );
     dayView = File('lib/features/calendar/day_view.dart').readAsStringSync();
     landscape = File(
       'lib/features/calendar/landscape_month_view.dart',
@@ -105,6 +115,78 @@ void main() {
     expect(empty.behaviorPayload, isNull);
   });
 
+  test(
+    'real page sheet and grid adapters forward only external provider end',
+    () {
+      final state = CalendarPageState();
+      final providerEnd = DateTime.utc(2026, 11, 2, 1, 15);
+      for (final clientEventId in <String?>[
+        'external:provider-occurrence',
+        'authored-note',
+        'native:legacy-copy',
+        null,
+      ]) {
+        final projections = state.debugNoteEventAdaptersForTesting(
+          NoteData(
+            id: 'row-id',
+            clientEventId: clientEventId,
+            title: 'Existing exact title',
+            detail: 'Existing detail',
+            allDay: false,
+            start: const TimeOfDay(hour: 9, minute: 15),
+            end: const TimeOfDay(hour: 10, minute: 30),
+            canonicalEnd: providerEnd,
+            manualColor: Colors.red,
+            behaviorPayload: const {'kind': 'offering'},
+          ),
+        );
+        expect(
+          projections.adapters.keys,
+          unorderedEquals(['page', 'sheet', 'grid']),
+        );
+        for (final entry in projections.adapters.entries) {
+          final item = entry.value;
+          expect(
+            item.canonicalEnd,
+            clientEventId?.startsWith('external:') == true
+                ? providerEnd
+                : isNull,
+            reason: '${entry.key} adapter for $clientEventId',
+          );
+          expect(item.title, 'Existing exact title');
+          expect(item.detail, 'Existing detail');
+          expect(item.startMin, 9 * 60 + 15);
+          expect(item.endMin, 10 * 60 + 30);
+          expect(item.color, Colors.red);
+          expect(item.behaviorPayload, const {'kind': 'offering'});
+          expect(item.flowName, isNull);
+          expect(item.flowNotes, isNull);
+        }
+      }
+    },
+  );
+
+  test('real grid labels preserve provider titles and authored cleanup', () {
+    final state = CalendarPageState();
+    for (final title in ['10:30', 'Event', 'Train 8:00 PM']) {
+      for (final external in [true, false]) {
+        final projection = state.debugNoteEventAdaptersForTesting(
+          NoteData(
+            clientEventId: external ? 'external:provider' : 'authored-note',
+            title: title,
+            allDay: true,
+            manualColor: Colors.red,
+          ),
+        );
+        expect(
+          projection.gridLabel,
+          external || title == 'Train 8:00 PM' ? title : '',
+          reason: 'grid title "$title", external=$external',
+        );
+      }
+    }
+  });
+
   test('note projections share the complete Day View display contract', () {
     final dayAdapter = _sourceBetween(
       dayView,
@@ -159,14 +241,29 @@ void main() {
       contains('color: note.manualColor ?? _noteColor(note)'),
     );
     expect(pageAdapter, contains('behaviorPayload: note.behaviorPayload'));
-    expect(pageAdapter, isNot(contains('canonicalEnd')));
+    expect(
+      pageAdapter,
+      matches(
+        r"canonicalEnd:\s*note.clientEventId\?\.startsWith\('external:'\) == true\s*\? note.canonicalEnd\s*: null",
+      ),
+    );
 
     expect(sheetAdapter, contains('color: _noteColor(note)'));
     expect(sheetAdapter, contains('behaviorPayload: note.behaviorPayload'));
-    expect(sheetAdapter, isNot(contains('canonicalEnd')));
+    expect(
+      sheetAdapter,
+      matches(
+        r"canonicalEnd:\s*note.clientEventId\?\.startsWith\('external:'\) == true\s*\? note.canonicalEnd\s*: null",
+      ),
+    );
 
     expect(gridAdapter, contains('color: noteColorResolver(note)'));
     expect(gridAdapter, contains('behaviorPayload: note.behaviorPayload'));
-    expect(gridAdapter, isNot(contains('canonicalEnd')));
+    expect(
+      gridAdapter,
+      matches(
+        r"canonicalEnd:\s*note.clientEventId\?\.startsWith\('external:'\) == true\s*\? note.canonicalEnd\s*: null",
+      ),
+    );
   });
 }

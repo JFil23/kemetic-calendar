@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:mobile/core/navigation_fallback.dart';
+import 'package:mobile/core/imported_calendar_identity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -1867,7 +1868,16 @@ class EventItem {
     final startMin = allDay
         ? 9 * 60
         : (startHour ?? 9) * 60 + (startMinute ?? 0);
-    final endMin = allDay ? 17 * 60 : (endHour ?? 17) * 60 + (endMinute ?? 0);
+    final externalMidnightEnd =
+        !allDay &&
+        clientEventId?.startsWith('external:') == true &&
+        endHour == 0 &&
+        (endMinute ?? 0) == 0;
+    final endMin = allDay
+        ? 17 * 60
+        : externalMidnightEnd
+        ? 24 * 60
+        : (endHour ?? 17) * 60 + (endMinute ?? 0);
     return EventItem(
       id: id,
       clientEventId: clientEventId,
@@ -2532,6 +2542,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     DayViewSheetEventTarget target,
     Duration extension,
   ) async {
+    if (isImportedDeviceCalendarEvent(
+      clientEventId: target.event.clientEventId,
+      category: target.event.category,
+    )) {
+      return false;
+    }
     final request = widget.onRequestEndChange;
     if (request == null) return false;
     return request(
@@ -4754,7 +4770,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           onClose: () {
             Navigator.of(context).maybePop();
           },
-          onRequestExtend: widget.onRequestEndChange == null
+          onRequestExtend:
+              widget.onRequestEndChange == null ||
+                  isImportedDeviceCalendarEvent(
+                    clientEventId: target.event.clientEventId,
+                    category: target.event.category,
+                  )
               ? null
               : (extension) => _requestWorkspaceExtend(target, extension),
         );
@@ -4950,9 +4971,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   }
 
   String _formatTimeRange(int startMin, int endMin) {
-    final startHour = startMin ~/ 60;
+    final startHour = (startMin % (24 * 60)) ~/ 60;
     final startMinute = startMin % 60;
-    final endHour = endMin ~/ 60;
+    final endHour = (endMin % (24 * 60)) ~/ 60;
     final endMinute = endMin % 60;
 
     String formatTime(int h, int m) {
@@ -13760,7 +13781,9 @@ class _CalendarDayEventBlockState extends State<CalendarDayEventBlock> {
 
     if (isTrackSky) {
       return TrackSkyEventBlockVisual(
-        skyEventId: TrackSkyEventOwnership.skyEventIdFromPayload(event.behaviorPayload),
+        skyEventId: TrackSkyEventOwnership.skyEventIdFromPayload(
+          event.behaviorPayload,
+        ),
         title: event.title,
         graphic: trackSkySpec!,
         width: widget.width,

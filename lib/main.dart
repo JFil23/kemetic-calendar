@@ -54,7 +54,8 @@ import 'core/push_intent_bus.dart';
 import 'core/shared_file_intent.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
-import 'services/calendar_sync_service.dart';
+import 'services/external_calendar_controller.dart';
+import 'services/device_calendar_controller.dart';
 import 'services/navigation_trace.dart';
 import 'services/push_notifications.dart';
 import 'services/decan_reflection_scheduler.dart';
@@ -1436,6 +1437,11 @@ String? _trimmedPushValue(Object? raw) {
 }
 
 String? _initialLocationFromAppLinkIntent(AppLinkIntent intent) {
+  if (intent is ExternalCalendarAppLinkIntent) {
+    return intent.matchesEnvironment(appEnvironmentEnv)
+        ? intent.routeLocation
+        : null;
+  }
   if (intent is AuthAppLinkIntent) {
     return '/';
   }
@@ -1460,6 +1466,8 @@ String _appLinkIntentSignature(AppLinkIntent intent, Uri uri) {
       ? 'flow-post:${intent.routeLocation}'
       : intent is PlannerAppLinkIntent
       ? 'planner:${intent.routeLocation}'
+      : intent is ExternalCalendarAppLinkIntent
+      ? 'external-calendar:${intent.lane}:${intent.result}'
       : 'unknown:${uri.toString()}';
 }
 
@@ -1477,6 +1485,11 @@ String? _redirectExternalAppLink(Uri uri) {
   }
 
   final intent = AppLinkIntent.parse(uri);
+  if (intent is ExternalCalendarAppLinkIntent) {
+    return intent.matchesEnvironment(appEnvironmentEnv)
+        ? intent.routeLocation
+        : null;
+  }
   if (intent is PlannerAppLinkIntent) {
     return intent.routeLocation;
   }
@@ -1995,7 +2008,10 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
       path: '/settings',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
-        child: const SettingsPage(),
+        child: SettingsPage(
+          externalCalendarCallbackResult:
+              state.uri.queryParameters['external_calendar'],
+        ),
       ),
     ),
     _calmRoute(
@@ -4404,7 +4420,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     debugPrint('$stackTrace');
   }
 
-  CalendarSyncService? _calendarSync;
+  ExternalCalendarController? _calendarSync;
   final DecanReflectionScheduler _decanScheduler = DecanReflectionScheduler(
     supabase,
     onMaatGuidanceEnsured: () {
@@ -4422,7 +4438,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _calendarSync = sharedCalendarSyncService(supabase);
+    _calendarSync = externalCalendarController(supabase);
 
     // React to auth changes (includes initialSession)
     _authSub = supabase.auth.onAuthStateChange.listen(
@@ -4464,7 +4480,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     _authSub?.cancel();
     _linkSub?.cancel();
     _intentDataStreamSubscription?.cancel();
-    unawaited(disposeSharedCalendarSyncService());
+    disposeSharedExternalCalendarController();
+    DeviceCalendarController.disposeShared();
     super.dispose();
   }
 
@@ -4518,11 +4535,24 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     );
   }
 
+  void _scheduleCalendarRecovery() {
+    final owner = supabase.auth.currentUser?.id;
+    if (owner == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || supabase.auth.currentUser?.id != owner) return;
+      _calendarSync?.start();
+      DeviceCalendarController.instance.startForAccount();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
   Future<void> _handleAuthStateChange(AuthState data) async {
     final ev = data.event;
     final isSessionReadyEvent =
         ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn;
     if (isSessionReadyEvent) {
+      // Install optional recovery independently of profile, telemetry and storage.
+      _scheduleCalendarRecovery();
       _prepareDeferredBootRestoreForAuth(ev);
     }
     if (!isSessionReadyEvent && mounted) setState(() {});
@@ -4591,27 +4621,17 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         _scheduledDecans = true;
         _ensureDecanSchedules(scope: 'decan schedule', force: true);
       }
-      final autoCalendarSyncEnabled =
-          await SettingsPrefs.autoCalendarSyncEnabled();
-      if (autoCalendarSyncEnabled) {
-        fireAndForgetGuarded(
-          'calendar sync start',
-          _calendarSync?.start(),
-          onError: _logAuthGateError,
-        );
-      } else {
-        _calendarSync?.stop();
-      }
     }
 
     if (ev == AuthChangeEvent.signedOut) {
+      _calendarSync?.stop();
+      DeviceCalendarController.instance.stop();
       _scheduledDecans = false;
       _bootRestoreDeferredForAuth = false;
       _bootAuthDeferredRestoredLocation = null;
       _bootDeferredRestorePreparedForAuth = false;
       await AppRestorationService.instance.clearBootFallbackIdentity();
       _router.go('/');
-      _calendarSync?.stop();
       fireAndForgetGuarded(
         'push unregister',
         PushNotifications.instance(supabase).unregister(),
@@ -4717,6 +4737,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       return;
     }
 
+    if (intent is ExternalCalendarAppLinkIntent &&
+        !intent.matchesEnvironment(appEnvironmentEnv)) {
+      return;
+    }
+
     final signature = _appLinkIntentSignature(intent, uri);
 
     if (_shouldSkipDuplicateLink(signature)) {
@@ -4734,6 +4759,14 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         ),
       ),
     );
+
+    if (intent is ExternalCalendarAppLinkIntent) {
+      // A callback carries navigation only; status is read from our account.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _router.go(intent.routeLocation);
+      });
+      return;
+    }
 
     if (intent is AuthAppLinkIntent) {
       await _exchangeAuthCallback(intent.uri);

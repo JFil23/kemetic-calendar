@@ -327,7 +327,7 @@ class PushNotifications {
   static const _webPushPublicKeyPref = 'push.webPushPublicKey';
   static const _webPushEndpointPref = 'push.webPushEndpoint';
   static const MethodChannel _deviceChannel = MethodChannel(
-    'com.kemetic.calendar/sync',
+    'com.kemetic.calendar/device_import_v1',
   );
 
   void _setRegistrationError(String? message) {
@@ -1076,7 +1076,7 @@ class PushNotifications {
     if (kIsWeb) return null;
     try {
       final raw = await _deviceChannel.invokeMethod<String>(
-        'getStableDeviceId',
+        'deviceId',
       );
       final value = raw?.trim();
       if (value == null || value.isEmpty) return null;

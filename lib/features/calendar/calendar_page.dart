@@ -16,6 +16,8 @@ import '../../data/event_filing_engine.dart';
 import '../../data/birthday_calendar.dart';
 import '../../data/calendar_occurrence_exclusions_repo.dart';
 import '../../data/user_events_repo.dart';
+import '../../data/external_calendar_repository.dart'
+    show externalCalendarBuildLane;
 import '../../data/flows_repo.dart';
 import '../../data/flow_appearance.dart';
 import '../../data/flow_appearance_store.dart';
@@ -104,7 +106,7 @@ import 'package:mobile/shared/kemetic_text.dart';
 import '../journal/journal_event_badge.dart';
 import '../journal/journal_v2_document_model.dart';
 import 'package:mobile/telemetry/telemetry.dart';
-import '../../services/calendar_sync_service.dart';
+import '../../core/imported_calendar_identity.dart';
 import '../../services/push_notifications.dart';
 import '../../services/app_restoration_service.dart';
 import '../../services/app_navigation_restoration_controller.dart';
@@ -3319,6 +3321,15 @@ class _CalendarWarmStateSnapshot {
       notes['$kYear-$kMonth-$kDay']?.isNotEmpty == true;
 }
 
+bool _warmStartNoteMatchesExternalLane(Map<String, dynamic> json) {
+  final clientEventId = json['clientEventId'];
+  if (clientEventId is! String || !clientEventId.startsWith('external:')) {
+    return true;
+  }
+  final lane = externalCalendarBuildLane;
+  return lane != null && json['externalCalendarLane'] == lane;
+}
+
 class _CalendarWarmStateStore {
   static String? _userId;
   static Map<String, List<_Note>> _notes = <String, List<_Note>>{};
@@ -5313,10 +5324,20 @@ class CalendarPage extends StatefulWidget {
     }
   }
 
+  @visibleForTesting
+  static ({String? clientEventId, String title})?
+  debugWarmStartSearchNoteForTesting(Object? raw) {
+    final note = _deserializeWarmStartSearchNote(raw);
+    return note == null
+        ? null
+        : (clientEventId: note.clientEventId, title: note.title);
+  }
+
   static _Note? _deserializeWarmStartSearchNote(Object? raw) {
     if (raw is! Map) return null;
     try {
       final json = Map<String, dynamic>.from(raw);
+      if (!_warmStartNoteMatchesExternalLane(json)) return null;
       final title = json['title'] as String?;
       final allDay = json['allDay'] as bool?;
       if (title == null || allDay == null) return null;
@@ -10128,6 +10149,8 @@ class CalendarPageState extends State<CalendarPage>
     return <String, dynamic>{
       'id': note.id,
       'clientEventId': note.clientEventId,
+      if (note.clientEventId?.startsWith('external:') == true)
+        'externalCalendarLane': externalCalendarBuildLane,
       'calendarId': note.calendarId,
       'calendarName': note.calendarName,
       'title': note.title,
@@ -10149,10 +10172,17 @@ class CalendarPageState extends State<CalendarPage>
     };
   }
 
+  @visibleForTesting
+  Map<String, dynamic>? debugWarmStartNoteRoundTripForTesting(Object? raw) {
+    final note = _deserializeWarmStartNote(raw);
+    return note == null ? null : _serializeWarmStartNote(note);
+  }
+
   _Note? _deserializeWarmStartNote(Object? raw) {
     if (raw is! Map) return null;
     try {
       final json = Map<String, dynamic>.from(raw);
+      if (!_warmStartNoteMatchesExternalLane(json)) return null;
       final title = json['title'] as String?;
       final allDay = json['allDay'] as bool?;
       if (title == null || allDay == null) return null;
@@ -21380,7 +21410,7 @@ class CalendarPageState extends State<CalendarPage>
     required TimeOfDay? end,
   }) {
     if (allDay) {
-      return (start: dayStart, end: dayStart.add(const Duration(days: 1)));
+      return (start: dayStart, end: daySheetWindowFor(dayStart).end);
     }
 
     final startTime = start ?? const TimeOfDay(hour: 9, minute: 0);
@@ -21399,6 +21429,19 @@ class CalendarPageState extends State<CalendarPage>
     _Note note,
     DateTime bucketStart,
   ) {
+    final canonicalEnd = note.canonicalEnd;
+    if (!note.allDay &&
+        note.clientEventId?.startsWith('external:') == true &&
+        canonicalEnd != null) {
+      final start = _calendarSheetLocalTimeOnDay(
+        bucketStart,
+        note.start ?? const TimeOfDay(hour: 9, minute: 0),
+      );
+      return (
+        start: start,
+        end: externalCalendarSegmentEndLocal(start, canonicalEnd),
+      );
+    }
     return _calendarSheetLocalRangeForTimes(
       dayStart: bucketStart,
       allDay: note.allDay,
@@ -21432,7 +21475,11 @@ class CalendarPageState extends State<CalendarPage>
     int kDay,
   ) {
     final window = _calendarSheetDayWindow(kYear, kMonth, kDay);
-    final previousDay = window.start.subtract(const Duration(days: 1));
+    final previousDay = DateTime(
+      window.start.year,
+      window.start.month,
+      window.start.day - 1,
+    );
     final previousK = KemeticMath.fromGregorian(previousDay);
 
     return <_DaySheetNoteOccurrence>[
@@ -21476,11 +21523,23 @@ class CalendarPageState extends State<CalendarPage>
   ) {
     final dayStart = _calendarSheetDayWindow(kYear, kMonth, kDay).start;
     if (event.allDay) {
-      return (start: dayStart, end: dayStart.add(const Duration(days: 1)));
+      return (start: dayStart, end: daySheetWindowFor(dayStart).end);
     }
 
-    final startsAt = dayStart.add(Duration(minutes: event.startMin));
-    final rawEndsAt = dayStart.add(Duration(minutes: event.endMin));
+    final startsAt = DateTime(
+      dayStart.year,
+      dayStart.month,
+      dayStart.day,
+      event.startMin ~/ 60,
+      event.startMin % 60,
+    );
+    final rawEndsAt = DateTime(
+      dayStart.year,
+      dayStart.month,
+      dayStart.day,
+      event.endMin ~/ 60,
+      event.endMin % 60,
+    );
     return (start: startsAt, end: daySheetEndAfterStart(startsAt, rawEndsAt));
   }
 
@@ -21962,6 +22021,10 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   String _standaloneDedupeKey(_Note note) {
+    // Provider identities, not title/time similarity, distinguish imported events.
+    if (note.clientEventId?.startsWith('external:') == true) {
+      return note.clientEventId!;
+    }
     final normalizedTitle = note.title.trim().toLowerCase();
     final startMin = note.start == null
         ? -1
@@ -21985,6 +22048,7 @@ class CalendarPageState extends State<CalendarPage>
     if (trimmed.startsWith('reminder:') ||
         trimmed.startsWith('nutrition:') ||
         trimmed.startsWith('native:') ||
+        trimmed.startsWith('external:') ||
         trimmed.startsWith('holiday:')) {
       return false;
     }
@@ -24059,6 +24123,53 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  @visibleForTesting
+  ({Map<String, EventItem> adapters, String gridLabel})
+  debugNoteEventAdaptersForTesting(NoteData input) {
+    final note = _Note(
+      id: input.id,
+      clientEventId: input.clientEventId,
+      calendarId: input.calendarId,
+      calendarName: input.calendarName,
+      title: input.title,
+      detail: input.detail,
+      location: input.location,
+      allDay: input.allDay,
+      start: input.start,
+      end: input.end,
+      canonicalEnd: input.canonicalEnd,
+      flowId: input.flowId,
+      manualColor: input.manualColor,
+      category: input.category,
+      isReminder: input.isReminder,
+      reminderId: input.reminderId,
+      behaviorPayload: input.behaviorPayload,
+    );
+    final grid = _DayChip(
+      label: '1',
+      isToday: false,
+      notes: [note],
+      flowColors: const [],
+      onTap: () {},
+      showGregorian: false,
+      dayKey: '1-1-1',
+      expansionLevel: MonthExpansionLevel.compact,
+      expansionProgress: null,
+      noteColorResolver: _noteColor,
+      kYear: 1,
+      kMonth: 1,
+      kDay: 1,
+    );
+    return (
+      adapters: {
+        'page': _noteToEventItem(note),
+        'sheet': _calendarSheetEventItemFromNote(note),
+        'grid': grid._noteToEventItem(note),
+      },
+      gridLabel: grid._labelFor(note),
+    );
+  }
+
   EventItem _noteToEventItem(_Note note) {
     return EventItem.fromTimedNote(
       id: note.id,
@@ -24073,6 +24184,9 @@ class CalendarPageState extends State<CalendarPage>
       startMinute: note.start?.minute,
       endHour: note.end?.hour,
       endMinute: note.end?.minute,
+      canonicalEnd: note.clientEventId?.startsWith('external:') == true
+          ? note.canonicalEnd
+          : null,
       flowId: note.flowId,
       color: note.manualColor ?? _noteColor(note),
       manualColor: note.manualColor,
@@ -24590,6 +24704,12 @@ class CalendarPageState extends State<CalendarPage>
     required EventItem event,
     required Duration extension,
   }) async {
+    if (isImportedDeviceCalendarEvent(
+      clientEventId: event.clientEventId,
+      category: event.category,
+    )) {
+      return false;
+    }
     if (extension.inMinutes <= 0) return false;
     if (event.allDay || event.isReminder || !event.hasCanonicalSchedule) {
       return false;
@@ -24970,7 +25090,8 @@ class CalendarPageState extends State<CalendarPage>
   String _calendarSheetEventTimeRangeLabel(EventItem event) {
     TimeOfDay? timeFromMinutes(int minutes) {
       if (minutes < 0) return null;
-      return TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
+      final minuteOfDay = minutes % (24 * 60);
+      return TimeOfDay(hour: minuteOfDay ~/ 60, minute: minuteOfDay % 60);
     }
 
     return _timeRangeLabel(
@@ -33964,6 +34085,9 @@ class CalendarPageState extends State<CalendarPage>
       startMinute: note.start?.minute,
       endHour: note.end?.hour,
       endMinute: note.end?.minute,
+      canonicalEnd: note.clientEventId?.startsWith('external:') == true
+          ? note.canonicalEnd
+          : null,
       flowId: note.flowId,
       color: _noteColor(note),
       manualColor: note.manualColor,

@@ -191,3 +191,66 @@ precede returning the ready MyApp: the independent startup surface must mount
 first. Equivalent explicit-intent/restoration ordering assertions remain. Visual
 captures cover the existing launch branding and recovery in portrait, landscape
 and enlarged text; approved app references are unchanged.
+
+## October 2 fresh external calendar import
+
+ExternalCalendarRepository owns passive external projection reads in the new
+externalCalendar. resource family (schema 1). Keys include the explicit release
+lane and requested range; the existing warm_snapshot:v1: namespace stays stable.
+Connections, selections and projections are account/lane scoped in separate
+backend tables. Authored events remain owned by UserEventsRepo. No pending write
+is stored in a warm cache. External reads never hold authored calendar hydration
+on a network request: confirmed copies display while the projection refreshes.
+Failed/incomplete reads retain the last complete snapshot. Account changes and
+acknowledged source changes fence pending reads; disconnect invalidates only the
+external lane. Imported events keep exact provider identities and remain read-only.
+
+Settings uses explicit consent and acknowledged revision-fenced mutations.
+Foreground automatic imports and selected-range requests begin only after auth;
+calendar availability cannot prevent the root UI from mounting. Server scheduled
+Google refresh and device-only native observation retain separate owners.
+New controller/repository/Settings tests cover cold/warm reads, restart, failures,
+timeouts, retry/resume, account changes, consent, selection and disconnect.
+Full release and live acceptance remain pending while implementation proceeds.
+
+External projections in combined calendar snapshots carry an additive
+externalCalendarLane field. Calendar and search reconstruction reject external
+rows from another lane, an unknown build lane, or a missing lane. Authored and
+legacy native row payloads keep their established behavior; the deployed account
+cache namespace, old fixtures, and pending-write ownership remain unchanged.
+The field is also present in the existing generational snapshot because that
+snapshot uses the same note serializer and decoder. The external repository's
+explicit build-lane mapping remains the single source for this discriminator.
+
+Regression coverage exercises the actual calendar and search codecs in staging,
+production, and unconfigured builds, including unchanged old authored/native
+rows and matching-lane round trips. Actual DayView workspace tests confirm
+Google/device imported copies and legacy native copies expose no Extend action;
+source ordering guards require imported rejection before CalendarPage lookup or
+any authored writer. Existing authored Extend behavior remains covered by its
+next-day canonical-end widget test. The full App gate and live acceptance remain
+required before deployment.
+
+Canonical end remains adapter-owned. The page, sheet, and grid adapters continue
+to omit a cached authored note's canonicalEnd, leaving its existing canonical
+schedule lookup/edit path authoritative. Only external: projections forward their
+provider-owned end through these adapters, because an external event has no
+authored-event lookup. The existing main DayView adapter is unchanged. The
+projection contract retains all prior minute, color, payload, and optional-field
+assertions; a focused seam invokes all three real adapters to prove authored,
+legacy-native, and missing identities still omit the end while external provider
+ends survive. This changes no authored snapshot format or writer.
+
+The grid's existing authored placeholder cleanup remains in place. External
+provider titles, including a time-only title or the literal title "Event", bypass
+that cleanup. The same real-adapter seam checks the grid label for both imported
+and authored cases; truncation and visual styling remain unchanged.
+
+Calendar consent return feedback is ephemeral presentation, not connection or
+auth authority. Settings receives only recognized outcome values, reads status
+from the account-owned controller, and removes the consumed callback query after
+the calendar child receives it. Passive refresh retains the notice; explicit
+user actions, dismissal, and account change clear it. A forged `connected` query
+cannot create a connection or modify authentication. Cold/delayed mounting and
+warm callback tests cover this existing-route change without adding cache keys
+or a new persistence owner.

@@ -161,6 +161,164 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
+  test(
+    'external ledger ends at its segment while authored canonical ends remain intact',
+    () {
+      final date = DateTime.utc(2026, 11, 1);
+      final canonical = DateTime(2026, 11, 4, 12);
+      EventItem item({
+        String? cid,
+        int end = 1440,
+        bool allDay = false,
+        DateTime? realEnd,
+      }) => EventItem(
+        clientEventId: cid,
+        title: 'Travel',
+        startMin: 0,
+        endMin: end,
+        canonicalEnd: realEnd ?? canonical,
+        color: Colors.blue,
+        allDay: allDay,
+      );
+      final external = item(cid: 'external:trip');
+      expect(
+        landscapeEventEndForLedger(date, external),
+        DateTime.utc(2026, 11, 2),
+      );
+      expect(external.canonicalEnd, canonical);
+      expect(
+        landscapeEventEndForLedger(date, item(cid: 'external:trip', end: 0)),
+        DateTime.utc(2026, 11, 2),
+      );
+      expect(
+        landscapeEventEndForLedger(
+          date,
+          item(
+            cid: 'external:trip',
+            end: 60,
+            realEnd: DateTime(2026, 11, 1, 1),
+          ),
+        ),
+        DateTime.utc(2026, 11, 1, 1),
+      );
+      expect(
+        landscapeEventEndForLedger(
+          date,
+          item(cid: 'external:trip', allDay: true),
+        ),
+        DateTime.utc(2026, 11, 2),
+      );
+      expect(
+        landscapeEventEndForLedger(date, item(cid: 'authored:trip')),
+        DateTime.utc(2026, 11, 4, 12),
+      );
+    },
+  );
+
+  test(
+    'external ledger keeps real ordering inside the repeated fall-back hour',
+    () {
+      final date = DateTime.utc(2026, 11, 1);
+      final end = DateTime.parse('2026-11-01T01:15:00-08:00');
+      final event = EventItem(
+        clientEventId: 'external:fold',
+        title: 'Fold occurrence',
+        startMin: 90,
+        endMin: 75,
+        canonicalEnd: end,
+        color: Colors.blue,
+        allDay: false,
+      );
+      expect(
+        landscapeEventIsUpcomingForLedger(
+          date,
+          event,
+          DateTime.parse('2026-11-01T01:30:00-07:00'),
+        ),
+        true,
+      );
+      expect(
+        landscapeEventIsUpcomingForLedger(
+          date,
+          event,
+          DateTime.parse('2026-11-01T01:30:00-08:00'),
+        ),
+        false,
+      );
+      final localEnd = end.toLocal();
+      expect(
+        landscapeEventEndForLedger(date, event),
+        DateTime.utc(
+          localEnd.year,
+          localEnd.month,
+          localEnd.day,
+          localEnd.hour,
+          localEnd.minute,
+        ),
+      );
+      expect(event.canonicalEnd, end);
+    },
+  );
+
+  testWidgets('landscape NOW marker belongs to current imported segment', (
+    tester,
+  ) async {
+    final now = DateTime(2026, 11, 2, 10);
+    final canonicalEnd = DateTime(2026, 11, 4, 12);
+    final k = KemeticMath.fromGregorian(now);
+    tester.view.physicalSize = const Size(852, 393);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LandscapeMonthView(
+            initialKy: k.kYear,
+            initialKm: k.kMonth,
+            initialKd: k.kDay,
+            showGregorian: true,
+            clock: () => now,
+            flowIndex: const {},
+            getMonthName: (_) => 'Unused',
+            notesForDay: (y, m, d) {
+              final day = KemeticMath.toGregorian(y, m, d);
+              if (day.year != 2026 ||
+                  day.month != 11 ||
+                  (day.day != 1 && day.day != 2)) {
+                return const [];
+              }
+              return [
+                NoteData(
+                  clientEventId: 'external:trip',
+                  title: 'Imported trip',
+                  allDay: false,
+                  start: const TimeOfDay(hour: 0, minute: 0),
+                  end: const TimeOfDay(hour: 0, minute: 0),
+                  canonicalEnd: canonicalEnd,
+                ),
+              ];
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    final marker = find.byKey(const ValueKey('landscape-ledger-now'));
+    expect(marker, findsOneWidget);
+    final row = find.ancestor(of: marker, matching: find.byType(Column)).first;
+    final currentKey = ValueKey(
+      'landscape-ledger-${DateTime.utc(2026, 11, 2).toIso8601String()}:cid:external:trip',
+    );
+    expect(
+      find.descendant(of: row, matching: find.byKey(currentKey)),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('approved landscape split surface at phone size', (tester) async {
     await pumpSplitFixture(tester);
     final calendarPane = tester.getRect(

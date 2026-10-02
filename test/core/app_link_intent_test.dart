@@ -3,6 +3,65 @@ import 'package:mobile/core/app_link_intent.dart';
 
 void main() {
   group('AppLinkIntent.parse', () {
+    test(
+      'calendar callbacks navigate without app authentication and respect the lane',
+      () {
+        final intent = AppLinkIntent.parse(
+          Uri.parse('maat://calendar-import?lane=staging&result=connected'),
+        );
+        expect(intent, isA<ExternalCalendarAppLinkIntent>());
+        final calendar = intent as ExternalCalendarAppLinkIntent;
+        expect(calendar.routeLocation, '/settings?external_calendar=connected');
+        expect(calendar.matchesEnvironment('staging'), true);
+        expect(calendar.matchesEnvironment('prod'), false);
+        expect(calendar.matchesEnvironment('dev'), false);
+        for (final suffix in [
+          '&code=secret',
+          '&access_token=secret',
+          '#refresh_token=secret',
+        ]) {
+          expect(
+            AppLinkIntent.parse(
+              Uri.parse(
+                'maat://calendar-import?lane=staging&result=connected$suffix',
+              ),
+            ),
+            null,
+          );
+        }
+        expect(
+          AppLinkIntent.parse(
+            Uri.parse('maat://calendar-import?lane=other&result=connected'),
+          ),
+          null,
+        );
+      },
+    );
+
+    test('calendar failure outcomes remain typed navigation hints', () {
+      for (final result in [
+        'denied',
+        'account_mismatch',
+        'reconnect_required',
+      ]) {
+        final intent = AppLinkIntent.parse(
+          Uri.parse('maat://calendar-import?lane=staging&result=$result'),
+        );
+        expect(intent, isA<ExternalCalendarAppLinkIntent>());
+        expect(
+          (intent as ExternalCalendarAppLinkIntent).routeLocation,
+          '/settings?external_calendar=$result',
+        );
+        expect(intent, isNot(isA<AuthAppLinkIntent>()));
+      }
+      expect(
+        AppLinkIntent.parse(
+          Uri.parse('maat://calendar-import?lane=staging&result=unknown'),
+        ),
+        isNull,
+      );
+    });
+
     test('parses auth callbacks', () {
       final intent = AppLinkIntent.parse(
         Uri.parse('kemet.app://login-callback?code=abc123'),

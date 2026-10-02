@@ -43,6 +43,43 @@ void main() {
     },
   );
 
+  test(
+    'calendar recovery installs after paint without awaiting unrelated auth warmups',
+    () {
+      final auth = _between(
+        mainSource,
+        'Future<void> _handleAuthStateChange(AuthState data)',
+        '// -- Log app_open once per cold start after auth is present',
+      );
+      expect(
+        auth.indexOf('_scheduleCalendarRecovery();'),
+        lessThan(auth.indexOf('await ')),
+      );
+      expect(
+        auth.indexOf('_calendarSync?.stop();'),
+        lessThan(
+          auth.indexOf(
+            'await AppRestorationService.instance.clearBootFallbackIdentity()',
+          ),
+        ),
+      );
+      final schedule = _between(
+        mainSource,
+        'void _scheduleCalendarRecovery()',
+        'Future<void> _handleAuthStateChange(AuthState data)',
+      );
+      expect(schedule, contains('addPostFrameCallback'));
+      expect(schedule, contains('ensureVisualUpdate()'));
+      expect(schedule, contains('supabase.auth.currentUser?.id != owner'));
+      expect(schedule, contains('_calendarSync?.start()'));
+      expect(
+        schedule,
+        contains('DeviceCalendarController.instance.startForAccount()'),
+      );
+      expect(schedule, isNot(matches(RegExp(r'\bawait\b'))));
+    },
+  );
+
   const operationsByStage = <String, String>{
     'device time zone': 'MaatFlowDeviceTimeZone.initialize',
     'runtime configuration': '_loadSupabaseConfig',

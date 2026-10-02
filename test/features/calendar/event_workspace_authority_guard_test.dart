@@ -212,6 +212,59 @@ void main() {
     expect(mutation, isNot(contains('completion')));
   });
 
+  test('imported Extend is rejected before lookup or authored writes', () {
+    final mutation = _sourceBetween(
+      calendarPage,
+      'Future<bool> requestEndChange(',
+      '// Flows — add/remove/toggle',
+    );
+    final guard = mutation.indexOf('isImportedDeviceCalendarEvent(');
+    expect(guard, isNonNegative);
+    expect(guard, lessThan(mutation.indexOf('_repeatingNoteFlowForId(')));
+    expect(guard, lessThan(mutation.indexOf('_findNoteIndexByEvent(')));
+    expect(guard, lessThan(mutation.indexOf('UserEventsRepo(')));
+    expect(mutation.substring(guard), contains('return false;'));
+
+    final callback = _sourceBetween(
+      dayView,
+      'Future<bool> _requestWorkspaceExtend(',
+      'TrackSkyTimeZone? _trackSkyTimeZoneForFlow(',
+    );
+    expect(
+      callback.indexOf('isImportedDeviceCalendarEvent('),
+      allOf(isNonNegative, lessThan(callback.indexOf('return request('))),
+    );
+  });
+
+  test('calendar detail adapters retain provider end and civil-day bounds', () {
+    for (final adapter in [
+      'EventItem _noteToEventItem(_Note note)',
+      'EventItem _calendarSheetEventItemFromNote(_Note note)',
+    ]) {
+      final body = _sourceBetween(calendarPage, adapter, '\n  }');
+      expect(
+        body,
+        matches(
+          r"canonicalEnd:\s*note.clientEventId\?\.startsWith\('external:'\) == true\s*\? note.canonicalEnd\s*: null",
+        ),
+      );
+    }
+    final noteRange = _sourceBetween(
+      calendarPage,
+      '_calendarSheetLocalRangeForNote(',
+      'DaySheetListCandidate _calendarSheetNoteCandidate(',
+    );
+    expect(noteRange, contains("startsWith('external:')"));
+    expect(noteRange, contains('externalCalendarSegmentEndLocal('));
+    final eventRange = _sourceBetween(
+      calendarPage,
+      '_calendarSheetLocalRangeForEvent(',
+      'bool _calendarSheetEventRepresentsScheduledFlow(',
+    );
+    expect(eventRange, contains('daySheetWindowFor(dayStart).end'));
+    expect(eventRange, isNot(contains('dayStart.add(')));
+  });
+
   test('paint all-day range is 9:00-17:00 and is not schedule authority', () {
     expect(dayView, contains('_eventItemFromNote'));
     expect(dayView, contains('factory EventItem.fromTimedNote'));

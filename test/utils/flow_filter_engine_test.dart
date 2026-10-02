@@ -275,6 +275,22 @@ void main() {
   });
 
   group('flow event classification', () {
+    test(
+      'external provider descriptions cannot become flow references or ghosts',
+      () {
+        final decision = classifyFlowEvent(
+          event: const FlowEventSnapshot(
+            clientEventId: 'external:provider-occurrence',
+            category: 'external_calendar',
+            detail: 'flowLocalId=999;color=ffcc00;Bring water',
+          ),
+        );
+        expect(decision.isStandaloneVisible, true);
+        expect(decision.shouldPurgeGhostRow, false);
+        expect(decision.referencedFlowId, null);
+      },
+    );
+
     test('treats orphaned embedded flow notes as orphaned flow events', () {
       final decision = classifyFlowEvent(
         event: const FlowEventSnapshot(
