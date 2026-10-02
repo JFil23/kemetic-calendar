@@ -1,0 +1,43 @@
+/
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/index.html
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/404.html
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/privacy
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/privacy.html
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/terms
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/terms.html
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/support
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/support.html
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/delete-account
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/delete-account.html
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8

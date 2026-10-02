@@ -85,11 +85,6 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             "web/_redirects": b"redirects-control",
             "web/.well-known/apple-app-site-association": b'{"applinks":{}}\n',
             "web/index.html": b"index-body",
-            "web/about.html": b"about-body",
-            "web/delete-account.html": b"delete-body",
-            "web/privacy.html": b"privacy-body",
-            "web/support.html": b"support-body",
-            "web/terms.html": b"terms-body",
             "web/version.json": self.version,
             "web/env.json": self.environment,
             "web/manifest.json": canonical_json(self.pwa_identity),
@@ -141,21 +136,10 @@ class ServedArtifactVerifierTest(unittest.TestCase):
                 b"",
                 origin + rule["request_path"],
             )
-        for rule in self.contract["redirect_only"]:
-            route = rule["canonical_body_path"]
-            if route == "/":
-                continue
-            responses[origin + route] = verifier.HttpResult(
-                200, {"content-type": "text/html; charset=utf-8"},
-                bodies[rule["manifest_path"]], origin + route,
-            )
-            responses[origin + route + "/"] = verifier.HttpResult(
-                308, {"location": route}, b"", origin + route + "/",
-            )
-        for alias in self.contract["public_aliases"]:
-            responses[origin + alias["request_path"]] = verifier.HttpResult(
-                alias["status"], {"location": alias["destination"]}, b"",
-                origin + alias["request_path"],
+        for rule in self.contract["public_redirects"]:
+            responses[origin + rule["request_path"]] = verifier.HttpResult(
+                rule["status"], {"location": rule["destination"]}, b"",
+                origin + rule["request_path"],
             )
         return responses
 
@@ -173,26 +157,26 @@ class ServedArtifactVerifierTest(unittest.TestCase):
         )
         return result, fetcher
 
-    def test_payload_routes_aasa_identity_and_public_bodies_are_all_verified(self) -> None:
+    def test_payload_routes_aasa_identity_and_public_redirects_are_all_verified(self) -> None:
         immutable, _ = self.verify(self.origin)
         alias, _ = self.verify(self.alias)
         for result in (immutable, alias):
             self.assertEqual(result["classification_counts"], {
                 "direct_bodies": 71,
-                "redirect_only": 6,
+                "redirect_only": 1,
                 "pages_controls": 2,
-                "total": 79,
+                "total": 74,
             })
             self.assertEqual(result["verified_direct_bodies"], 71)
             self.assertEqual(len(result["app_route_results"]), 6)
             self.assertEqual(result["aasa"]["content_type"], "application/json")
-            self.assertEqual(result["verified_public_bodies"], 5)
-            self.assertEqual(len(result["public_route_results"]), 5)
-            self.assertEqual(len(result["public_alias_results"]), 2)
+            self.assertEqual(result["verified_public_redirects"], 18)
+            self.assertEqual(result["public_redirect_results"], [
+                {**rule, "body_sha256": hashlib.sha256(b"").hexdigest()}
+                for rule in self.contract["public_redirects"]
+            ])
+            self.assertNotIn("verified_public_bodies", result)
             self.assertNotIn("waived_legal_failures", result)
-            for page in result["public_route_results"]:
-                self.assertEqual(page["canonical"]["status"], 200)
-                self.assertEqual(page["canonical"]["sha256"], self.manifest[page["manifest_path"]])
             self.assertEqual(result["verdicts"], {
                 "PAYLOAD_VERIFIED": True,
                 "APP_ROUTING_VERIFIED": True,
@@ -202,7 +186,7 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             })
             self.assertEqual(result["unaccounted_entries"], [])
 
-    def test_local_release_uses_real_http_public_bodies_and_rejects_corruption(self) -> None:
+    def test_local_release_uses_real_http_public_redirects_and_rejects_corruption(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             release_dir = Path(temporary)
             bodies = dict(self.bodies)
@@ -225,10 +209,10 @@ class ServedArtifactVerifierTest(unittest.TestCase):
                 result = verifier.verify_local_release(
                     release_dir=release_dir, contract_path=CONTRACT_PATH,
                 )
-                self.assertEqual(result["verified_public_bodies"], 5)
+                self.assertEqual(result["verified_public_redirects"], 18)
                 self.assertEqual(len(result["app_route_results"]), 6)
                 self.assertTrue(all(result["verdicts"].values()))
-                (release_dir / "web/privacy.html").write_bytes(b"wrong privacy body")
+                (release_dir / "web/main.dart.js").write_bytes(b"wrong app body")
                 with self.assertRaisesRegex(verifier.ServedVerificationError, "body hash mismatch"):
                     verifier.verify_local_release(
                         release_dir=release_dir, contract_path=CONTRACT_PATH,
@@ -250,9 +234,9 @@ class ServedArtifactVerifierTest(unittest.TestCase):
 
         self.assertEqual(result["classification_counts"], {
             "direct_bodies": 69,
-            "redirect_only": 6,
+            "redirect_only": 1,
             "pages_controls": 2,
-            "total": 77,
+            "total": 72,
         })
         self.assertEqual(result["verified_direct_bodies"], 69)
 
@@ -319,63 +303,70 @@ class ServedArtifactVerifierTest(unittest.TestCase):
         ):
             self.verify(responses=responses)
 
-    def test_every_canonical_public_self_loop_fails_without_waiver(self) -> None:
-        for route in self.contract["public_routes"]:
-            with self.subTest(route=route):
-                responses = self.responses_for(self.origin)
-                responses[self.origin + route] = verifier.HttpResult(
-                    308, {"location": route}, b"", self.origin + route
-                )
-                with self.assertRaisesRegex(verifier.ServedVerificationError, "body status 200"):
-                    self.verify(responses=responses)
-
-    def test_every_public_page_requires_its_own_body_not_the_app_shell(self) -> None:
-        for route in self.contract["public_routes"]:
-            for wrong_body in (b"outdated-public-page", self.bodies["web/index.html"]):
-                with self.subTest(route=route, body=wrong_body):
+    def test_every_public_route_requires_exact_external_redirect(self) -> None:
+        for rule in self.contract["public_redirects"]:
+            path = rule["request_path"]
+            for status, location, body in (
+                (308, path, b""),
+                (200, None, self.bodies["web/index.html"]),
+                (200, None, b"retired public HTML"),
+                (301, rule["destination"], b""),
+                (302, rule["destination"], b""),
+                (404, None, b"missing"),
+                (308, "https://unapproved.example/privacy", b""),
+                (308, rule["destination"] + "?injected=1", b""),
+                (308, rule["destination"] + "#fragment", b""),
+                (308, None, b""),
+            ):
+                with self.subTest(path=path, status=status, location=location):
                     responses = self.responses_for(self.origin)
-                    responses[self.origin + route] = verifier.HttpResult(
-                        200, {"content-type": "text/html"}, wrong_body, self.origin + route
+                    responses[self.origin + path] = verifier.HttpResult(
+                        status, {"location": location} if location else {}, body,
+                        self.origin + path,
                     )
-                    with self.assertRaisesRegex(verifier.ServedVerificationError, "body hash mismatch"):
+                    with self.assertRaises(verifier.ServedVerificationError):
                         self.verify(responses=responses)
 
-    def test_public_page_requires_html_content_type(self) -> None:
+    def test_public_redirect_rejects_wrong_path_on_approved_host(self) -> None:
         responses = self.responses_for(self.origin)
-        responses[self.origin + "/about"] = verifier.HttpResult(
-            200, {"content-type": "text/plain"}, self.bodies["web/about.html"],
-            self.origin + "/about",
+        responses[self.origin + "/privacy"] = verifier.HttpResult(
+            308, {"location": self.contract["public_site_origin"] + "/terms"}, b"",
+            self.origin + "/privacy",
         )
-        with self.assertRaisesRegex(verifier.ServedVerificationError, "not text/html"):
+        with self.assertRaisesRegex(verifier.ServedVerificationError, "destination mismatch"):
             self.verify(responses=responses)
 
-    def test_missing_public_page_fails_once(self) -> None:
+    def test_missing_public_redirect_fails_once(self) -> None:
         responses = self.responses_for(self.origin)
         responses.pop(self.origin + "/privacy")
         fetcher = FakeFetcher(responses)
-        with self.assertRaisesRegex(verifier.ServedVerificationError, "body status 200"):
+        with self.assertRaisesRegex(verifier.ServedVerificationError, "status mismatch"):
             verifier.verify_served_origin(
                 origin=self.origin, manifest=self.manifest, contract=self.contract,
                 receipt=self.receipt, fetcher=fetcher,
             )
         self.assertEqual(fetcher.calls.count(self.origin + "/privacy"), 1)
 
-    def test_public_slash_and_alias_redirects_require_canonical_destination(self) -> None:
-        for path in ("/about/", "/terms/", "/account-deletion", "/account-deletion/"):
+    def test_app_verification_never_fetches_website_bodies(self) -> None:
+        result, fetcher = self.verify()
+        self.assertEqual(result["verified_public_redirects"], 18)
+        self.assertTrue(all(url.startswith(self.origin + "/") for url in fetcher.calls))
+        self.assertFalse(any(self.contract["public_site_origin"] in url for url in fetcher.calls))
+
+    def test_public_site_content_cannot_enter_app_payload(self) -> None:
+        for path in (*verifier.RETIRED_PUBLIC_HTML_PATHS,
+                     "web/public-site/index.html", "web/assets/public-site/privacy.html"):
             with self.subTest(path=path):
-                responses = self.responses_for(self.origin)
-                responses[self.origin + path] = verifier.HttpResult(
-                    308, {"location": path}, b"", self.origin + path,
-                )
-                with self.assertRaisesRegex(verifier.ServedVerificationError, "destination mismatch"):
-                    self.verify(responses=responses)
+                manifest = {**self.manifest, path: "a" * 64}
+                with self.assertRaisesRegex(verifier.ServedVerificationError, "Public-site content"):
+                    verifier.classify_manifest(manifest, self.contract)
 
     def test_all_existing_app_routes_still_require_the_app_shell(self) -> None:
         for route in self.contract["application_routes"]:
             with self.subTest(route=route):
                 responses = self.responses_for(self.origin)
                 responses[self.origin + route] = verifier.HttpResult(
-                    200, {"content-type": "text/html"}, self.bodies["web/about.html"],
+                    200, {"content-type": "text/html"}, b"separate website body",
                     self.origin + route,
                 )
                 with self.assertRaisesRegex(verifier.ServedVerificationError, "body hash mismatch"):
@@ -406,11 +397,11 @@ class ServedArtifactVerifierTest(unittest.TestCase):
 
     def test_origin_escaping_redirect_fails(self) -> None:
         responses = self.responses_for(self.origin)
-        responses[self.origin + "/support.html"] = verifier.HttpResult(
+        responses[self.origin + "/index.html"] = verifier.HttpResult(
             308,
-            {"location": "https://kemet.pages.dev/support"},
+            {"location": "https://haw-info.pages.dev/"},
             b"",
-            self.origin + "/support.html",
+            self.origin + "/index.html",
         )
         with self.assertRaisesRegex(
             verifier.ServedVerificationError, "escapes the expected origin"
@@ -454,33 +445,53 @@ class ServedArtifactVerifierTest(unittest.TestCase):
                         responses=self.responses_for(self.origin, bodies=bodies),
                     )
 
-    def test_contract_is_exact_and_all_public_pages_have_body_authority(self) -> None:
-        self.assertEqual(self.contract["schema_version"], 3)
-        self.assertEqual(len(self.contract["redirect_only"]), 6)
+    def test_contract_is_exact_and_public_redirects_are_complete(self) -> None:
+        self.assertEqual(self.contract["schema_version"], 4)
+        self.assertEqual(len(self.contract["redirect_only"]), 1)
         self.assertEqual(len(self.contract["application_routes"]), 6)
-        self.assertEqual(set(self.contract["public_routes"]), {
-            "/about", "/delete-account", "/privacy", "/support", "/terms",
-        })
-        self.assertEqual(self.contract["public_aliases"], [
-            {"request_path": "/account-deletion", "status": 308, "destination": "/delete-account"},
-            {"request_path": "/account-deletion/", "status": 308, "destination": "/delete-account"},
-        ])
+        self.assertEqual(self.contract["public_site_origin"], "https://haw-info.pages.dev")
+        expected = {
+            route + suffix: self.contract["public_site_origin"] + destination
+            for route, destination in {
+                "/about": "/", "/privacy": "/privacy", "/terms": "/terms",
+                "/support": "/support", "/delete-account": "/delete-account",
+                "/account-deletion": "/delete-account",
+            }.items() for suffix in ("", ".html", "/")
+        }
+        self.assertEqual({rule["request_path"]: rule["destination"]
+                          for rule in self.contract["public_redirects"]}, expected)
+        self.assertTrue(all(rule["status"] == 308 for rule in self.contract["public_redirects"]))
         self.assertNotIn("legal_self_loop_waiver", self.contract)
 
-    def test_contract_cannot_omit_a_public_body_or_accept_self_redirects(self) -> None:
+    def test_contract_cannot_omit_redirects_or_accept_unsafe_targets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "contract.json"
             for mutation in (
-                lambda contract: contract["public_routes"].remove("/about"),
-                lambda contract: contract["public_aliases"][0].update(destination="/account-deletion"),
-                lambda contract: contract["redirect_only"][1].update(canonical_body_path="/about.html", destination="/about.html"),
-                lambda contract: contract.update(schema_version=2),
+                lambda c: c["public_redirects"].pop(),
+                lambda c: c["public_redirects"].append(c["public_redirects"][0]),
+                lambda c: c["public_redirects"][0].update(destination="/about"),
+                lambda c: c["public_redirects"][0].update(destination=c["public_site_origin"] + "/wrong"),
+                lambda c: c["public_redirects"][0].update(request_path="/settings"),
+                lambda c: c["public_redirects"][0].update(destination=c["public_site_origin"] + "/?x=1"),
+                lambda c: c.update(schema_version=3),
             ):
                 contract = copy.deepcopy(self.contract)
                 mutation(contract)
                 path.write_text(json.dumps(contract))
                 with self.assertRaises(verifier.ServedVerificationError):
                     verifier.load_contract(path)
+
+    def test_contract_rejects_an_entirely_substituted_public_host(self) -> None:
+        contract = copy.deepcopy(self.contract)
+        original = contract["public_site_origin"]
+        contract["public_site_origin"] = "https://unapproved.example"
+        for rule in contract["public_redirects"]:
+            rule["destination"] = rule["destination"].replace(original, contract["public_site_origin"], 1)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "contract.json"
+            path.write_text(json.dumps(contract))
+            with self.assertRaises(verifier.ServedVerificationError):
+                verifier.load_contract(path)
 
     def test_two_canonical_deployment_targets_only(self) -> None:
         self.assertEqual(
@@ -661,7 +672,7 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             (release_dir / "web").mkdir()
             path = release_dir / "web/_redirects"
             body = (ROOT / "web/_redirects").read_text().replace(
-                "/account-deletion/ /delete-account 308\n", ""
+                "/account-deletion/ https://haw-info.pages.dev/delete-account 308\n", ""
             ).encode()
             path.write_bytes(body)
             contract = copy.deepcopy(self.contract)
@@ -670,7 +681,7 @@ class ServedArtifactVerifierTest(unittest.TestCase):
                 digest = hashlib.sha256(body if control.endswith("_redirects") else (ROOT / control).read_bytes()).hexdigest()
                 contract["pages_control_sha256"][control] = digest
                 manifest[control] = digest
-            with self.assertRaisesRegex(verifier.ServedVerificationError, "omits a public alias"):
+            with self.assertRaisesRegex(verifier.ServedVerificationError, "omits a public redirect"):
                 verifier.validate_pages_controls(
                     release_dir=release_dir, manifest=manifest, contract=contract,
                 )

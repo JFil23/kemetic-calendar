@@ -166,28 +166,38 @@ served body, canonicalized HTML entry, or Pages control. All direct bodies must
 match their manifest hashes. The six application routes must each return the
 exact `index.html` body, and AASA must return its exact body with
 `application/json` media type. The `/index.html` HTTP 308 behavior remains strict.
-Each of the five public routes (`/about`, `/privacy`, `/terms`, `/support`, and
-`/delete-account`) must return HTTP 200, `text/html`, and its own exact sealed body
-hash. Its `.html` and trailing-slash variants must redirect to that canonical
-route. Both `/account-deletion` aliases must redirect to `/delete-account`.
-Public self-loops are failures, with no diagnostic waiver. Legal routing is
-verified only after the complete public-page body and redirect checks pass.
-Any missing body, stale root alias, preview metadata, unexpected redirect,
+Public information is hosted independently at `https://haw-info.pages.dev/`.
+The app retains only exact HTTP 308 compatibility redirects: `/about` goes to
+that website's root; `/privacy`, `/terms`, `/support`, and `/delete-account` go
+to their respective clean paths. Bare, `.html`, and trailing-slash forms are
+covered, including all three `/account-deletion` aliases. The app verifier
+requires each exact status and absolute Location and never fetches the separate
+site. Self-loops, other hosts, changed paths, query/fragment injection, missing
+redirects, and app-shell responses fail. Legal routing is verified only after
+all eighteen declared redirects pass. Public page body hashes belong to the
+separate static site's release verifier; changing those bodies does not require
+an app deployment. The five retired public HTML files and any nested
+`web/public-site/` content are forbidden in the app payload.
+
+Any missing app body, stale root alias, preview metadata, unexpected redirect,
 origin escape, identity mismatch or classification drift fails closed without
 retry, rebuild, redeploy, promotion or rollback. The Wrangler version is fixed,
 but npm's transitive download integrity is not part of this artifact-build proof;
 network upload remains a separately authorized release operation.
 
 The exact `_headers` and `_redirects` bodies are hash-bound by the served
-contract. Same-origin HTTP 200 asset rewrites remain allowed; HTTP 308 redirects
-are limited to the two declared account-deletion aliases. External destinations,
-unsupported statuses, duplicates, malformed rules, missing aliases, rewrites
-that shadow public HTML routes, and rewrites to `.html` fail before upload.
-Cloudflare Pages owns clean HTML canonicalization and native SPA fallback. A
+contract. Same-origin HTTP 200 asset rewrites remain allowed. HTTP 308 rules
+are limited to the complete public-site redirect map and its declared HTTPS
+origin. External rewrites, other redirect destinations, unsupported statuses,
+duplicates, malformed rules, missing compatibility routes, and rewrites that
+shadow those routes fail before upload. The existing app redirect checker
+remains same-origin and cannot use the public-site exception.
+Cloudflare Pages owns app index canonicalization and native SPA fallback. A
 root `404.html` is forbidden because it would disable that fallback; the former
 blanket app rewrite and clean-URL-to-HTML rewrites are also rejected. The local
-HTTP verifier checks the same public bodies and redirects, while an actual
-Cloudflare Pages runtime smoke verifies hosting behavior before release.
+HTTP verifier checks the same app bodies and outbound redirects without
+contacting the website. An actual Cloudflare Pages runtime smoke independently
+verifies hosting behavior before release.
 The immutable hostname must use Cloudflare Pages'
 exact deployment shape: one eight-character lowercase hexadecimal deployment
 label before the declared project's `pages.dev` hostname. Mutable branch
@@ -201,6 +211,28 @@ hashes used for that attempt.
 User-facing status reports name only the two canonical origins. Immutable
 deployment origins may appear only as internal deployment receipts and must
 never be presented as an installation or physical-test link.
+
+## Separate public website
+
+`public-site/` contains only the six static HTML documents (including the missing-
+page document) and two Pages controls for `https://haw-info.pages.dev`. It is
+excluded from Flutter's `web/` payload. The existing production checkout owns
+public-site deployment; RC prepares and tests changes before the narrow source
+promotion. No separate repository, branch or app deployment authority is added.
+
+Run `python3 scripts/public_site_test.py` and `python3 scripts/public_site.py validate`.
+After committing the approved source, `python3 scripts/public_site.py seal` writes
+a closed eight-file payload and a separate receipt under ignored
+`dist/public-site-releases/<seal>/`. Upload only that `payload/` directory with
+pinned Wrangler 4.114.0 to project `haw-info`, branch `production`. Verify the
+returned immutable origin and `https://haw-info.pages.dev` with
+`python3 scripts/public_site.py verify-live <release-dir> --transport curl`
+(and `--origin <immutable-origin>` for the immutable receipt).
+
+The public-site verifier checks exact document bodies, content types, clean URL
+redirects, internal links, missing-page behavior and absence of application runtime
+assets. It never receives app credentials. This website deployment cannot replace
+either app origin. The app deployment helper retains its strict two-project allowlist.
 
 ## Evidence interpretation
 

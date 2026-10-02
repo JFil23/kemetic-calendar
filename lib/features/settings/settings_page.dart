@@ -74,9 +74,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   static const String _speechPreviewUtteranceId = 'settings:speech-preview';
-  static const String _privacyPolicyUrl = 'https://kemet.pages.dev/privacy';
-  static const String _termsUrl = 'https://kemet.pages.dev/terms';
-  static const String _supportUrl = 'https://kemet.pages.dev/support';
+  static const String _privacyPolicyUrl = 'https://haw-info.pages.dev/privacy';
+  static const String _termsUrl = 'https://haw-info.pages.dev/terms';
+  static const String _supportUrl = 'https://haw-info.pages.dev/support';
   static const String _lastPushTestDeliveryKeyPref =
       'push.lastSelfTestDeliveryKey';
 

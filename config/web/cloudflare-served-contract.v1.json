@@ -1,12 +1,12 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "pages_controls": [
     "web/_headers",
     "web/_redirects"
   ],
   "pages_control_sha256": {
-    "web/_headers": "667be32f16d6ca59299c319e70ab02b14f80c2982d19b7b1691811625e713055",
-    "web/_redirects": "0a58efedc9dd897664f87ff0e75d420e3e2e21d1bde434afb1c907f600103f96"
+    "web/_headers": "de59f3647eb68293f3a8d230852851303d098bc38b6f410b55556ae9ba7f858d",
+    "web/_redirects": "b4be5f2334301916924fa34e8e11d976c3359fce0360c7d78db19a0b5c5b3b96"
   },
   "redirect_only": [
     {
@@ -15,41 +15,6 @@
       "status": 308,
       "destination": "/",
       "canonical_body_path": "/"
-    },
-    {
-      "manifest_path": "web/about.html",
-      "request_path": "/about.html",
-      "status": 308,
-      "destination": "/about",
-      "canonical_body_path": "/about"
-    },
-    {
-      "manifest_path": "web/delete-account.html",
-      "request_path": "/delete-account.html",
-      "status": 308,
-      "destination": "/delete-account",
-      "canonical_body_path": "/delete-account"
-    },
-    {
-      "manifest_path": "web/privacy.html",
-      "request_path": "/privacy.html",
-      "status": 308,
-      "destination": "/privacy",
-      "canonical_body_path": "/privacy"
-    },
-    {
-      "manifest_path": "web/support.html",
-      "request_path": "/support.html",
-      "status": 308,
-      "destination": "/support",
-      "canonical_body_path": "/support"
-    },
-    {
-      "manifest_path": "web/terms.html",
-      "request_path": "/terms.html",
-      "status": 308,
-      "destination": "/terms",
-      "canonical_body_path": "/terms"
     }
   ],
   "application_routes": [
@@ -60,23 +25,97 @@
     "/settings",
     "/profile/me"
   ],
-  "public_routes": [
-    "/about",
-    "/delete-account",
-    "/privacy",
-    "/support",
-    "/terms"
-  ],
-  "public_aliases": [
+  "public_site_origin": "https://haw-info.pages.dev",
+  "public_redirects": [
+    {
+      "request_path": "/about",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/"
+    },
+    {
+      "request_path": "/about.html",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/"
+    },
+    {
+      "request_path": "/about/",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/"
+    },
+    {
+      "request_path": "/privacy",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/privacy"
+    },
+    {
+      "request_path": "/privacy.html",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/privacy"
+    },
+    {
+      "request_path": "/privacy/",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/privacy"
+    },
+    {
+      "request_path": "/terms",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/terms"
+    },
+    {
+      "request_path": "/terms.html",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/terms"
+    },
+    {
+      "request_path": "/terms/",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/terms"
+    },
+    {
+      "request_path": "/support",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/support"
+    },
+    {
+      "request_path": "/support.html",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/support"
+    },
+    {
+      "request_path": "/support/",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/support"
+    },
+    {
+      "request_path": "/delete-account",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/delete-account"
+    },
+    {
+      "request_path": "/delete-account.html",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/delete-account"
+    },
+    {
+      "request_path": "/delete-account/",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/delete-account"
+    },
     {
       "request_path": "/account-deletion",
       "status": 308,
-      "destination": "/delete-account"
+      "destination": "https://haw-info.pages.dev/delete-account"
+    },
+    {
+      "request_path": "/account-deletion.html",
+      "status": 308,
+      "destination": "https://haw-info.pages.dev/delete-account"
     },
     {
       "request_path": "/account-deletion/",
       "status": 308,
-      "destination": "/delete-account"
+      "destination": "https://haw-info.pages.dev/delete-account"
     }
   ]
 }
