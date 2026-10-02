@@ -161,24 +161,34 @@ receipt and the canonical root alias against the local payload and requires
 the two complete verification matrices to agree. This proves the root alias
 was replaced by the exact uploaded artifact rather than creating a preview.
 
-The served contract partitions the 78-entry payload into 71 directly served
-bodies, five clean-URL redirect-only HTML entries and two Pages controls. All
-71 direct bodies must match their manifest hashes. The six application routes
-must each return the exact `index.html` body, and AASA must return its exact body
-with `application/json` media type. The `/index.html` HTTP 308 behavior remains
-strict. The four known July 1 legal-route self-loops are recorded separately as
-an explicit diagnostic waiver; they never set payload, application routing,
-AASA or identity verification to success. Any new legal result or any missing
-body, stale root alias, preview metadata, unexpected redirect, origin escape,
-identity mismatch or classification drift fails closed without retry, rebuild,
-redeploy, promotion or rollback. The Wrangler version is fixed, but npm's
-transitive download integrity is not part of this artifact-build proof; network
-upload remains a separately authorized release operation.
+The served contract accounts for every sealed payload entry as a directly
+served body, canonicalized HTML entry, or Pages control. All direct bodies must
+match their manifest hashes. The six application routes must each return the
+exact `index.html` body, and AASA must return its exact body with
+`application/json` media type. The `/index.html` HTTP 308 behavior remains strict.
+Each of the five public routes (`/about`, `/privacy`, `/terms`, `/support`, and
+`/delete-account`) must return HTTP 200, `text/html`, and its own exact sealed body
+hash. Its `.html` and trailing-slash variants must redirect to that canonical
+route. Both `/account-deletion` aliases must redirect to `/delete-account`.
+Public self-loops are failures, with no diagnostic waiver. Legal routing is
+verified only after the complete public-page body and redirect checks pass.
+Any missing body, stale root alias, preview metadata, unexpected redirect,
+origin escape, identity mismatch or classification drift fails closed without
+retry, rebuild, redeploy, promotion or rollback. The Wrangler version is fixed,
+but npm's transitive download integrity is not part of this artifact-build proof;
+network upload remains a separately authorized release operation.
 
 The exact `_headers` and `_redirects` bodies are hash-bound by the served
-contract. Every tracked `_redirects` rule is parsed as a same-origin HTTP 200
-rewrite; external destinations, unsupported statuses, duplicates or malformed
-rules fail before upload. The immutable hostname must use Cloudflare Pages'
+contract. Same-origin HTTP 200 asset rewrites remain allowed; HTTP 308 redirects
+are limited to the two declared account-deletion aliases. External destinations,
+unsupported statuses, duplicates, malformed rules, missing aliases, rewrites
+that shadow public HTML routes, and rewrites to `.html` fail before upload.
+Cloudflare Pages owns clean HTML canonicalization and native SPA fallback. A
+root `404.html` is forbidden because it would disable that fallback; the former
+blanket app rewrite and clean-URL-to-HTML rewrites are also rejected. The local
+HTTP verifier checks the same public bodies and redirects, while an actual
+Cloudflare Pages runtime smoke verifies hosting behavior before release.
+The immutable hostname must use Cloudflare Pages'
 exact deployment shape: one eight-character lowercase hexadecimal deployment
 label before the declared project's `pages.dev` hostname. Mutable branch
 aliases and nested subdomains are rejected. Upload logs, attempt receipts and

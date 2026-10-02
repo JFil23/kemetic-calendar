@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import fnmatch
 import hashlib
 import http.server
 import json
@@ -126,17 +127,19 @@ def load_contract(path: Path) -> dict[str, Any]:
             "pages_control_sha256",
             "redirect_only",
             "application_routes",
-            "legal_self_loop_waiver",
+            "public_routes",
+            "public_aliases",
         ),
         label="served contract",
     )
-    if value["schema_version"] != 2:
+    if value["schema_version"] != 3:
         raise ServedVerificationError("Served contract schema version is unsupported.")
     controls = value["pages_controls"]
     control_hashes = value["pages_control_sha256"]
     redirects = value["redirect_only"]
     application_routes = value["application_routes"]
-    legal_waivers = value["legal_self_loop_waiver"]
+    public_routes = value["public_routes"]
+    public_aliases = value["public_aliases"]
     if (
         not isinstance(controls, list)
         or not controls
@@ -202,36 +205,53 @@ def load_contract(path: Path) -> dict[str, Any]:
         )
     ):
         raise ServedVerificationError("Application-route authority is invalid.")
-    if not isinstance(legal_waivers, list) or len(legal_waivers) != 4:
-        raise ServedVerificationError("Legal diagnostic waiver is invalid.")
-    canonical_legal_paths = {
+    canonical_public_paths = {
         item["canonical_body_path"]
         for item in redirects
         if item["canonical_body_path"] != "/"
     }
-    waiver_paths: set[str] = set()
-    for item in legal_waivers:
+    if (
+        not isinstance(public_routes, list)
+        or len(public_routes) != len(set(public_routes))
+        or set(public_routes) != canonical_public_paths
+        or not public_routes
+        or set(public_routes) & set(application_routes)
+        or "/" not in {item["canonical_body_path"] for item in redirects}
+    ):
+        raise ServedVerificationError("Public-route authority is invalid.")
+    for item in redirects:
+        canonical = item["canonical_body_path"]
+        expected_request = "/index.html" if canonical == "/" else canonical + ".html"
+        if (
+            not isinstance(canonical, str)
+            or not re.fullmatch(r"/(?:[a-z0-9]+(?:-[a-z0-9]+)*)?", canonical)
+            or item["request_path"] != expected_request
+            or item["manifest_path"] != "web" + expected_request
+        ):
+            raise ServedVerificationError("Canonical HTML authority is invalid.")
+    if not isinstance(public_aliases, list):
+        raise ServedVerificationError("Public-alias authority is invalid.")
+    alias_paths: set[str] = set()
+    reserved_paths = set(application_routes) | {
+        path for route in public_routes for path in (route, route + "/", route + ".html")
+    }
+    for item in public_aliases:
         if not isinstance(item, Mapping):
-            raise ServedVerificationError("Legal waiver entry must be an object.")
+            raise ServedVerificationError("Public alias must be an object.")
         release.require_exact_keys(
-            item,
-            ("request_path", "status", "destination", "classification"),
-            label="legal waiver entry",
+            item, ("request_path", "status", "destination"), label="public alias"
         )
         request_path = item["request_path"]
         if (
             not isinstance(request_path, str)
-            or request_path in waiver_paths
+            or not re.fullmatch(r"/[a-z0-9]+(?:-[a-z0-9]+)*/?", request_path)
+            or request_path in alias_paths | reserved_paths
             or item["status"] != 308
-            or item["destination"] != request_path
-            or item["classification"] != "known_july1_clean_url_self_loop"
+            or item["destination"] not in public_routes
+            or item["destination"] == request_path
         ):
-            raise ServedVerificationError("Legal waiver entry is invalid.")
-        waiver_paths.add(request_path)
-    if waiver_paths != canonical_legal_paths:
-        raise ServedVerificationError(
-            "Legal waiver paths do not match the four clean legal routes."
-        )
+            raise ServedVerificationError("Public-alias authority is invalid.")
+        alias_paths.add(request_path)
     return dict(value)
 
 
@@ -258,6 +278,12 @@ def validate_pages_controls(
         ) from error
     rules = []
     seen_sources: set[str] = set()
+    aliases = {item["request_path"]: item for item in contract["public_aliases"]}
+    matched_aliases: set[str] = set()
+    public_paths = {
+        path for route in contract["public_routes"]
+        for path in (route, route + "/", route + ".html")
+    }
     for line_number, raw_line in enumerate(lines, start=1):
         stripped = raw_line.strip()
         if not stripped or stripped.startswith("#"):
@@ -279,11 +305,26 @@ def validate_pages_controls(
             or destination_url.netloc
             or destination_url.query
             or destination_url.fragment
-            or status != "200"
+            or status not in {"200", "308"}
+            or ":" in source
         ):
             raise ServedVerificationError(
                 f"Unsafe or unsupported _redirects rule at line {line_number}: "
                 f"{raw_line!r}"
+            )
+        if status == "308":
+            alias = aliases.get(source)
+            if alias is None or destination != alias["destination"] or source == destination:
+                raise ServedVerificationError("Redirect is outside public-alias authority.")
+            matched_aliases.add(source)
+        elif (
+            source in aliases
+            or source == "/*"
+            or destination.endswith(".html")
+            or any(fnmatch.fnmatchcase(path, source) for path in public_paths)
+        ):
+            raise ServedVerificationError(
+                "Rewrite would override native public HTML or SPA routing."
             )
         seen_sources.add(source)
         rules.append(
@@ -291,11 +332,13 @@ def validate_pages_controls(
                 "line": line_number,
                 "source": source,
                 "destination": destination,
-                "status": 200,
+                "status": int(status),
             }
         )
     if not rules:
         raise ServedVerificationError("Pages _redirects control has no rules.")
+    if matched_aliases != set(aliases):
+        raise ServedVerificationError("Pages _redirects omits a public alias.")
     return {
         "hashes": dict(sorted(expected_hashes.items())),
         "redirect_rewrite_rules": rules,
@@ -442,6 +485,8 @@ def classify_manifest(
     manifest: Mapping[str, str],
     contract: Mapping[str, Any],
 ) -> dict[str, Any]:
+    if "web/404.html" in manifest:
+        raise ServedVerificationError("Root 404.html disables native SPA fallback.")
     controls = set(contract["pages_controls"])
     redirects_by_manifest = {
         item["manifest_path"]: item for item in contract["redirect_only"]
@@ -514,7 +559,11 @@ def _require_redirect(
     cache: dict[str, HttpResult],
 ) -> dict[str, Any]:
     request_url = origin + request_path
+    if request_path == destination:
+        raise ServedVerificationError(f"Self-redirect is forbidden: {request_url}")
     response = cache.setdefault(request_url, fetcher(request_url))
+    if response.url != request_url:
+        raise ServedVerificationError(f"Redirect changed request URL: {request_url}")
     if response.status != status:
         raise ServedVerificationError(
             f"Redirect status mismatch for {request_url}: "
@@ -672,10 +721,8 @@ def verify_served_origin(
         fetcher=fetcher,
         cache=cache,
     )
-    legal_route_results = []
-    waived_legal_failures = []
-    for waiver in contract["legal_self_loop_waiver"]:
-        canonical_path = waiver["request_path"]
+    public_route_results = []
+    for canonical_path in contract["public_routes"]:
         html_rule = redirect_by_canonical[canonical_path]
         html = _require_redirect(
             origin=origin,
@@ -685,31 +732,39 @@ def verify_served_origin(
             fetcher=fetcher,
             cache=cache,
         )
-        canonical = _require_redirect(
+        canonical = _require_body(
             origin=origin,
             request_path=canonical_path,
-            status=waiver["status"],
-            destination=waiver["destination"],
+            expected_sha256=manifest[html_rule["manifest_path"]],
             fetcher=fetcher,
             cache=cache,
         )
+        content_type = cache[origin + canonical_path].headers.get("content-type", "")
+        if content_type.split(";", 1)[0].strip().lower() != "text/html":
+            raise ServedVerificationError(
+                f"Public page Content-Type is not text/html: {canonical_path}"
+            )
         trailing_slash = _require_redirect(
             origin=origin,
             request_path=canonical_path + "/",
-            status=waiver["status"],
-            destination=waiver["destination"],
+            status=308,
+            destination=canonical_path,
             fetcher=fetcher,
             cache=cache,
         )
-        legal_route_results.append(
+        public_route_results.append(
             {
                 "path": canonical_path,
+                "manifest_path": html_rule["manifest_path"],
                 "html": html,
                 "canonical": canonical,
                 "trailing_slash": trailing_slash,
             }
         )
-        waived_legal_failures.append(dict(waiver))
+    public_alias_results = [
+        _require_redirect(origin=origin, fetcher=fetcher, cache=cache, **alias)
+        for alias in contract["public_aliases"]
+    ]
 
     return {
         "origin": origin,
@@ -726,14 +781,15 @@ def verify_served_origin(
             "content_type": aasa_content_type,
         },
         "index_redirect": index_redirect,
-        "legal_route_results": legal_route_results,
-        "waived_legal_failures": waived_legal_failures,
+        "public_route_results": public_route_results,
+        "verified_public_bodies": len(public_route_results),
+        "public_alias_results": public_alias_results,
         "verdicts": {
             "PAYLOAD_VERIFIED": True,
             "APP_ROUTING_VERIFIED": True,
             "IDENTITY_VERIFIED": True,
             "AASA_VERIFIED": True,
-            "LEGAL_ROUTING_VERIFIED": False,
+            "LEGAL_ROUTING_VERIFIED": True,
         },
         "pages_controls": classification["pages_controls"],
         "unaccounted_entries": [],
@@ -869,6 +925,8 @@ class _LocalPagesHandler(http.server.BaseHTTPRequestHandler):
         self.send_response(200)
         if request_path == AASA_PATH:
             self.send_header("Content-Type", "application/json")
+        elif manifest_path.endswith(".html"):
+            self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -902,9 +960,13 @@ def verify_local_release(
     }
     for route in contract["application_routes"]:
         bodies[route] = "web/index.html"
-    for waiver in contract["legal_self_loop_waiver"]:
-        redirects[waiver["request_path"]] = waiver
-        redirects[waiver["request_path"] + "/"] = waiver
+    for item in contract["redirect_only"]:
+        route = item["canonical_body_path"]
+        if route in contract["public_routes"]:
+            bodies[route] = item["manifest_path"]
+            redirects[route + "/"] = {"status": 308, "destination": route}
+    for alias in contract["public_aliases"]:
+        redirects[alias["request_path"]] = alias
 
     server = http.server.ThreadingHTTPServer(
         ("127.0.0.1", 0),

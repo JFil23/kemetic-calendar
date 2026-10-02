@@ -1,3 +1,5 @@
+# Static HTML routes and SPA fallback use Cloudflare Pages native routing.
+# Rewriting a clean URL to its .html file causes a canonicalization loop.
 /assets/* /assets/:splat 200
 /canvaskit/* /canvaskit/:splat 200
 /icons/* /icons/:splat 200
@@ -12,16 +14,7 @@
 /install.js /install.js 200
 /main.dart.js /main.dart.js 200
 /manifest.json /manifest.json 200
-/delete-account /delete-account.html 200
-/delete-account/ /delete-account.html 200
-/account-deletion /delete-account.html 200
-/account-deletion/ /delete-account.html 200
-/privacy /privacy.html 200
-/privacy/ /privacy.html 200
-/support /support.html 200
-/support/ /support.html 200
-/terms /terms.html 200
-/terms/ /terms.html 200
 /version.json /version.json 200
 /widgets/* /widgets/:splat 200
-/* /index.html 200
+/account-deletion /delete-account 308
+/account-deletion/ /delete-account 308
