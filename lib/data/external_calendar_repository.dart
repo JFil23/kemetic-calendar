@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/calendar/calendar_invalidation.dart';
@@ -421,3 +422,13 @@ class ExternalCalendarRepository {
 final _externalRepositories = Expando<ExternalCalendarRepository>();
 ExternalCalendarRepository externalCalendarRepository(SupabaseClient client) =>
     _externalRepositories[client] ??= ExternalCalendarRepository(client);
+
+/// Supplies an explicit fixture lane without changing production build routing.
+@visibleForTesting
+void setExternalCalendarRepositoryForTesting(
+  SupabaseClient client,
+  ExternalCalendarRepository? repository,
+) {
+  assert(repository == null || identical(repository.client, client));
+  _externalRepositories[client] = repository;
+}

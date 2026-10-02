@@ -242,6 +242,10 @@ class ExternalCalendarController extends ChangeNotifier
     if (_disposed) return;
     _checkAccount();
     if (!_started) {
+      // stop() removes the observer, so a resume may have happened while this
+      // account was inactive. Rejoin the actual lifecycle before doing work.
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
       _started = true;
       WidgetsBinding.instance.addObserver(this);
       repository.addVisibleRangeListener(ensureRange);

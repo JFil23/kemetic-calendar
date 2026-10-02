@@ -80,6 +80,68 @@ void main() {
     controller.stop();
   });
   testWidgets(
+    'restart catches a resume missed while its observer was stopped',
+    (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      addTearDown(() {
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+      });
+      var calls = 0;
+      controller = make((_) async => snapshot(revision: ++calls));
+      controller.start();
+      await tester.pump();
+      expect(calls, 1);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      controller.stop();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(
+        calls,
+        1,
+        reason: 'The stopped controller has no resume observer.',
+      );
+      expect(controller.status, isNull);
+
+      controller.start();
+      await tester.pump();
+      expect(calls, 2);
+      expect(controller.status?.revision, 2);
+      expect(controller.busy, isFalse);
+      controller.stop();
+    },
+  );
+
+  testWidgets('restart remains idle while the app is actually paused', (
+    tester,
+  ) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    addTearDown(() {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    });
+    var calls = 0;
+    controller = make((_) async => snapshot(revision: ++calls));
+    controller.start();
+    await tester.pump();
+    expect(calls, 1);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    controller.stop();
+    controller.start();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(calls, 1, reason: 'Restart must not turn background work back on.');
+    expect(controller.status, isNull);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(calls, 2);
+    expect(controller.status?.revision, 2);
+    controller.stop();
+  });
+
+  testWidgets(
     'a never-ending request times out and allows a successful retry',
     (tester) async {
       var calls = 0;

@@ -254,3 +254,22 @@ user actions, dismissal, and account change clear it. A forged `connected` query
 cannot create a connection or modify authentication. Cold/delayed mounting and
 warm callback tests cover this existing-route change without adding cache keys
 or a new persistence owner.
+
+## October 2 calendar lifetime correction
+
+Google and device import controllers belong to MyApp, above the replaceable
+router pages. AuthGate no longer starts, stops, or disposes those shared owners.
+The real Calendar/Profile-to-Settings route replacement previously attached
+Settings listeners before AuthGate disposed their controllers, which left the
+release panel permanently loading and triggered locked-tree notifications in
+debug. Direct Settings entry alone did not exercise that path.
+
+Account change, sign-out, and password recovery synchronously stop and fence
+previous-account work. The current authenticated account starts once after a
+frame, with generation/account/recovery checks; ordinary navigation leaves its
+controllers intact. Native calendar return navigation is owned by the existing
+root link listener with the same fences. Auth exchange and authored writes are
+unchanged. The root alone disposes the shared controllers at app shutdown.
+No cache namespace, resource schema, stored payload, migration, or pending-write
+ownership changes. Real-route tests cover replacement, retained listeners and
+retry behavior; startup wiring guards retain the post-paint contract.

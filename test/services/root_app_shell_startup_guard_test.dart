@@ -44,41 +44,93 @@ void main() {
   );
 
   test(
-    'calendar recovery installs after paint without awaiting unrelated auth warmups',
+    'the app owns post-paint calendar recovery across route replacement',
     () {
-      final auth = _between(
+      final root = _between(
         mainSource,
-        'Future<void> _handleAuthStateChange(AuthState data)',
-        '// -- Log app_open once per cold start after auth is present',
+        'class _MyAppState extends State<MyApp>',
+        'class _AppChrome extends StatefulWidget',
+      );
+      final authGate = mainSource.substring(
+        mainSource.indexOf('class _AuthGateState extends State<AuthGate>'),
       );
       expect(
-        auth.indexOf('_scheduleCalendarRecovery();'),
-        lessThan(auth.indexOf('await ')),
+        root,
+        contains('_calendarSync = externalCalendarController(supabase)'),
+      );
+      expect(root, contains('disposeSharedExternalCalendarController()'));
+      expect(root, contains('DeviceCalendarController.disposeShared()'));
+      expect(
+        authGate,
+        isNot(contains('disposeSharedExternalCalendarController()')),
       );
       expect(
-        auth.indexOf('_calendarSync?.stop();'),
-        lessThan(
-          auth.indexOf(
-            'await AppRestorationService.instance.clearBootFallbackIdentity()',
-          ),
-        ),
+        authGate,
+        isNot(contains('DeviceCalendarController.disposeShared()')),
       );
+      expect(authGate, isNot(contains('_scheduleCalendarRecovery')));
       final schedule = _between(
-        mainSource,
+        root,
         'void _scheduleCalendarRecovery()',
-        'Future<void> _handleAuthStateChange(AuthState data)',
+        'void _scheduleRebuild()',
       );
       expect(schedule, contains('addPostFrameCallback'));
       expect(schedule, contains('ensureVisualUpdate()'));
       expect(schedule, contains('supabase.auth.currentUser?.id != owner'));
+      expect(schedule, contains('generation != _calendarRecoveryGeneration'));
+      expect(schedule, contains('_passwordRecoverySession'));
       expect(schedule, contains('_calendarSync?.start()'));
       expect(
         schedule,
         contains('DeviceCalendarController.instance.startForAccount()'),
       );
+      expect(
+        schedule.indexOf('_calendarSync?.stop()'),
+        lessThan(schedule.indexOf('addPostFrameCallback')),
+      );
+      expect(
+        schedule.indexOf('DeviceCalendarController.instance.stop()'),
+        lessThan(schedule.indexOf('addPostFrameCallback')),
+      );
       expect(schedule, isNot(matches(RegExp(r'\bawait\b'))));
     },
   );
+
+  test('calendar return links survive when AuthGate is not mounted', () {
+    final root = _between(
+      mainSource,
+      'class _MyAppState extends State<MyApp>',
+      'class _AppChrome extends StatefulWidget',
+    );
+    final calendarLink = _between(
+      root,
+      'void _handleRootCalendarLink(',
+      'void _logRootAuthLinkError(',
+    );
+    expect(calendarLink, contains('matchesEnvironment('));
+    expect(
+      calendarLink,
+      contains('widget.calendarLinkEnvironment ?? appEnvironmentEnv'),
+    );
+    expect(calendarLink, contains('supabase.auth.currentUser?.id != owner'));
+    expect(calendarLink, contains('generation != _calendarRecoveryGeneration'));
+    expect(calendarLink, contains('consumeOneShotIntent'));
+    expect(calendarLink, contains('ensureVisualUpdate()'));
+    expect(calendarLink, contains('_appRouter.go(intent.routeLocation)'));
+    expect(calendarLink, isNot(contains('_exchangeAuthCallback')));
+    final routeLinks = _between(
+      mainSource,
+      'Future<void> _handleIncomingAppLink(Uri uri) async',
+      'bool _shouldSkipDuplicateLink(',
+    );
+    expect(
+      routeLinks,
+      contains(
+        'if (intent == null || intent is ExternalCalendarAppLinkIntent)',
+      ),
+    );
+    expect(routeLinks, isNot(contains('_router.go(intent.routeLocation)')));
+  });
 
   const operationsByStage = <String, String>{
     'device time zone': 'MaatFlowDeviceTimeZone.initialize',
