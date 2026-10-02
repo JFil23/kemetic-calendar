@@ -8,6 +8,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
 
+const _googleGeneratedDetail =
+    'To see detailed information for automatically created events like this one, '
+    'use the official Google Calendar app. https://g.co/calendar\n\n'
+    'This event was created from an email you received in Gmail. '
+    'https://mail.google.com/mail?extsrc=cal&plid=example';
+
 const _captureImportedDetail = bool.fromEnvironment('CAPTURE_IMPORTED_DETAIL');
 
 void main() {
@@ -84,6 +90,89 @@ void main() {
       );
     }
   }
+
+  // Static preview first established this existing link-only layout. The same
+  // surface must result when the raw imported Google description is supplied.
+  for (final landscape in [false, true]) {
+    for (final scale in [1.0, 2.0]) {
+      testWidgets(
+        'Google imported detail uses existing link area ${landscape ? 'landscape' : 'portrait'} ${scale}x',
+        (tester) async {
+          _viewport(tester, landscape: landscape);
+          await tester.pumpWidget(
+            _CalendarHarness(
+              scale: scale,
+              detailOnly: scale > 1,
+              note: _note(
+                clientEventId: 'external:provider-copy',
+                category: 'external_calendar',
+                calendarName: 'Home and family',
+                detail: _googleGeneratedDetail,
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Regular Pest Control'));
+          await tester.pumpAndSettle();
+          expect(find.text('Open link'), findsOneWidget);
+          expect(
+            find.textContaining('official Google Calendar', findRichText: true),
+            findsNothing,
+          );
+          expect(
+            find.textContaining('created from an email', findRichText: true),
+            findsNothing,
+          );
+          expect(
+            find.textContaining('g.co/calendar', findRichText: true),
+            findsNothing,
+          );
+          expect(
+            find.textContaining('mail.google.com', findRichText: true),
+            findsNothing,
+          );
+          expect(find.byTooltip('Event options'), findsNothing);
+          expect(tester.takeException(), isNull);
+          if (_captureImportedDetail) {
+            await expectLater(
+              find.byType(Overlay).first,
+              matchesGoldenFile(
+                '/tmp/haw-imported-clean-detail-${landscape ? 'landscape' : 'portrait'}-${scale}x.png',
+              ),
+            );
+          }
+        },
+      );
+    }
+  }
+
+  testWidgets('imported detail keeps original notes beside the source link', (
+    tester,
+  ) async {
+    _viewport(tester);
+    await tester.pumpWidget(
+      _CalendarHarness(
+        note: _note(
+          clientEventId: 'external:provider-copy',
+          detail: 'Keep the side gate accessible.\n\n$_googleGeneratedDetail',
+        ),
+        detailOnly: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Regular Pest Control'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Keep the side gate accessible.', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('Open link'), findsOneWidget);
+    expect(
+      find.textContaining('official Google Calendar', findRichText: true),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   for (final identity in [
     (cid: 'external:google-copy', category: 'external_calendar', name: 'Work'),

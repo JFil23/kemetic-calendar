@@ -98,6 +98,7 @@ import '../shared_practice/shared_practice_completion_sheet.dart';
 import '../shared_practice/together_flow_day_hero.dart';
 import '../../core/feature_flags.dart';
 import 'event_resource.dart';
+import 'imported_calendar_detail.dart';
 import 'event_workspace/event_workspace_models.dart';
 import 'event_workspace/event_workspace_surface.dart';
 export 'event_resource.dart';
@@ -351,7 +352,9 @@ _DayViewExternalAction? _dayViewExternalActionFromResource(
 _DayViewExternalAction? _dayViewExternalActionForEvent(EventItem event) {
   final source = EventResourceSource(
     behaviorPayload: event.behaviorPayload,
-    detail: event.detail,
+    detail: event.clientEventId?.trim().startsWith('external:') == true
+        ? importedCalendarDisplayDetail(event.detail)
+        : event.detail,
     location: event.location,
   );
   final resource = resolveEventResource(source);
@@ -4051,7 +4054,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           Builder(
             builder: (context) {
               final rawDisplayDetail = preserveProviderText
-                  ? currentEvent.detail ?? ''
+                  ? importedCalendarDisplayDetail(currentEvent.detail)
                   : isTrackSky
                   ? _trackSkyDisplayDetail(
                       currentEvent,

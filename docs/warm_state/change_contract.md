@@ -352,3 +352,20 @@ timeline has a separate 6px overflow at 2x, and the portrait footer clips its
 Make to-do label at 2x. These shared-layout limits remain unrepaired by this
 scoped change. Approved visual references and inventory guards are unchanged;
 the complete App gate and served RC acceptance remain required.
+
+
+## October 2 imported event description cleanup
+
+Imported event presentation removes only the confirmed Google-generated app
+promotion and Gmail provenance sentences. The event-specific email URL feeds the
+existing event resource action; genuine provider notes, title, time and location
+remain intact. The same description transform drives detail link selection, body
+copy and search snippets so the generic calendar-app link cannot displace the
+actual event source. Authored and legacy metadata behavior stays unchanged.
+
+This is a display-only transform. Provider descriptions, projection rows, cache
+payloads/namespaces, sync permissions and all persistence owners are unchanged.
+Existing production-font static captures establish the link-only event block
+before raw-provider wiring. Focused checks cover the raw Google template,
+wrapped sentences, unchanged real notes, retained literal provider metadata,
+link selection, and portrait/landscape at 1x/2x. Approved references are unchanged.

@@ -155,7 +155,12 @@ void main() {
                   'client_event_id': 'external:fixture:${entry.$1}',
                   'source_id': entry.$3,
                   'title': entry.$4,
-                  'detail': 'Reminder: bring insurance card',
+                  'detail':
+                      'Reminder: bring insurance card\n\n'
+                      'To see detailed information for automatically created events like this one, '
+                      'use the official Google Calendar app. https://g.co/calendar\n\n'
+                      'This event was created from an email you received in Gmail. '
+                      'https://mail.google.com/mail?extsrc=cal&plid=example',
                   'all_day': false,
                   'starts_at': entry.$2.toUtc().toIso8601String(),
                   'ends_at': entry.$2
@@ -266,6 +271,16 @@ void main() {
       );
       expect(find.text('No matches found'), findsNothing);
       expect(find.textContaining('external_calendar'), findsNothing);
+      expect(
+        find.textContaining('official Google Calendar', findRichText: true),
+        findsNothing,
+      );
+      await tester.enterText(
+        find.byType(TextField),
+        'official Google Calendar',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('No matches found'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField), 'insurance card');
       await tester.pumpAndSettle();

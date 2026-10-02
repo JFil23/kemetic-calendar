@@ -90,7 +90,7 @@ class _EventSearchDelegate extends SearchDelegate<void> {
   List<String> _contextFieldsFor(_Note note) {
     final fields = <String>[
       note.clientEventId?.trim().startsWith('external:') == true
-          ? note.detail ?? ''
+          ? importedCalendarDisplayDetail(note.detail)
           : _cleanDetail(note.detail),
       note.location ?? '',
       isImportedDeviceCalendarEvent(

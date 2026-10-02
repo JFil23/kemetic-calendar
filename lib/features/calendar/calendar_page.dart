@@ -40,6 +40,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'landscape_month_view.dart';
 import 'dart:convert';
 import 'day_view.dart';
+import 'imported_calendar_detail.dart';
 import '../../core/feature_flags.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
