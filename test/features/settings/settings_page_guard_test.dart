@@ -60,18 +60,18 @@ void main() {
     test('legal support visibility and account rows stay in compact footer', () {
       expect(
         source,
-        contains("static const String _termsUrl = 'https://maat.app/terms';"),
+        contains("static const String _termsUrl = 'https://kemet.pages.dev/terms';"),
       );
       expect(
         source,
         contains(
-          "static const String _privacyPolicyUrl = 'https://maat.app/privacy';",
+          "static const String _privacyPolicyUrl = 'https://kemet.pages.dev/privacy';",
         ),
       );
       expect(
         source,
         contains(
-          "static const String _supportUrl = 'https://maat.app/support';",
+          "static const String _supportUrl = 'https://kemet.pages.dev/support';",
         ),
       );
       expect(source, contains("_footerHeading('Legal & Support')"));

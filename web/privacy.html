@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kemetic Calendar Privacy Policy</title>
+  <title>Hꜣw Privacy Policy</title>
   <style>
     :root {
       color-scheme: dark;
@@ -29,14 +29,38 @@
     .updated {
       color: #b9b1a1;
     }
+    .site-nav, .site-footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+    }
+    .site-nav {
+      margin-bottom: 36px;
+    }
+    .site-footer {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid #39352d;
+    }
+    a {
+      overflow-wrap: anywhere;
+    }
+    a:focus-visible {
+      outline: 2px solid #f4c15d;
+      outline-offset: 4px;
+    }
   </style>
 </head>
 <body>
   <main>
-    <h1>Kemetic Calendar Privacy Policy</h1>
-    <p class="updated">Effective date: June 2, 2026</p>
+    <nav class="site-nav" aria-label="Public pages">
+      <a href="/about">Hꜣw</a>
+      <a href="/">Open app</a>
+    </nav>
+    <h1>Hꜣw Privacy Policy</h1>
+    <p class="updated">Effective date: October 2, 2026</p>
 
-    <p>Kemetic Calendar stores the information needed to run accounts, calendars, reminders, reflections, Ma'at Flow activity, journaling, profiles, sharing, notifications, and support. Some features can be used locally on your device. Account-backed features sync through our Supabase backend.</p>
+    <p>Hꜣw stores the information needed to run accounts, calendars, reminders, reflections, Ma'at Flow activity, journaling, profiles, sharing, notifications, and support. Some features can be used locally on your device. Account-backed features sync through our Supabase backend.</p>
 
     <h2>1. Information We Collect</h2>
     <p>We may collect account identifiers, email addresses or provider sign-in identifiers, profile information you provide, app settings, calendar and planner entries, reminder details, journal and reflection content, Ma'at Flow content and activity, posts, comments, shared-calendar data, direct-message metadata or content where supported, device notification tokens, diagnostic timestamps, and support messages.</p>
@@ -48,19 +72,27 @@
     <p>Journal entries, private reflections, notes, and personal reflection history are private by default. They may be processed by the app and backend to save entries, restore them across devices, generate reflection features, and provide support when you ask us to investigate an issue.</p>
 
     <h2>4. Calendar and Planner Data</h2>
-    <p>Calendar entries, planner items, reminders, flows, and related notes are private by default unless you share them, import shared content, invite another user, or use a feature that makes selected content visible to someone else.</p>
+    <p>Calendar entries, planner items, reminders, flows, and related notes are private by default unless you share them, import shared content, invite another user, or use a feature that makes selected content visible to someone else. Google-imported event copies are private to your account and are not shared through Hꜣw's event-sharing features.</p>
 
     <h2>5. Ma'at Flow Activity</h2>
     <p>Ma'at Flow enrollment, progress, saved flows, posted flows, shared flows, completion activity, and related metadata may be stored so the app can run flows, restore state, sync devices, power profile/community features, and deliver reminders.</p>
 
     <h2>6. AI-Powered Features</h2>
-    <p>AI-powered or automated features may process user-entered reflections, prompts, profile context, flow activity, calendar context, or other app content to generate guidance, summaries, suggestions, labels, or reflections. AI output may be imperfect, and you should review it before relying on it or sharing it.</p>
+    <p>AI-powered or automated features may process user-entered reflections, prompts, profile context, flow activity, calendar context, or other app content to generate guidance, summaries, suggestions, labels, or reflections. Google-imported calendar data is not automatically sent to our AI guidance or reflection services. If you independently copy information into a prompt or reflection, that content is processed as part of the feature you choose. AI output may be imperfect, and you should review it before relying on it or sharing it.</p>
 
     <h2>7. Push Notifications</h2>
     <p>If you enable push notifications, we may store device tokens, browser subscription data, platform identifiers, permission state, delivery timestamps, and diagnostic information needed to send, troubleshoot, and measure notification delivery. You can disable notifications in the app or device settings.</p>
 
     <h2>8. Calendar Sync and Device Integrations</h2>
     <p>If you enable calendar sync or other device integrations, the app may access the device calendar, imported event data, files you choose to import, app links, sharing inputs, widgets, text-to-speech, or platform services such as Apple, Google, Firebase, and operating-system notification services. You can manage many permissions in device settings.</p>
+
+    <h2 id="google-calendar">Google Calendar Import</h2>
+    <p>Connecting Google Calendar is optional and separate from signing in. We request read-only access to your calendar list and calendar events, together with your Google account identifier and email to identify the connection. Calendar names, identifiers, and colors let you choose which calendars to import. We read events from the calendars you select to display and update read-only copies in Hꜣw. We do not create, edit, or delete events in Google Calendar.</p>
+    <p>Google returns event records when we import your selected calendars. We retain event titles, descriptions, locations, dates and times, all-day status, event and recurrence identifiers, and the source calendar's name and color. Descriptions can contain links or other information supplied by an event's creator. Imported copies are stored in our Supabase backend and cached on your device for display. Google access and refresh tokens are stored encrypted on the backend so automatic imports can continue while the app is closed.</p>
+    <p>We use Google-imported data to provide and maintain calendar import, display, search, and updates to your copies. It is not automatically sent to our AI guidance or reflection services. We do not sell it, use it for advertising, or share it with other Hꜣw users. Supabase processes this data to provide backend storage and synchronization. Transfers of Google data are limited to providing these visible features with your consent, necessary security purposes, compliance with applicable law, or a change of ownership after your explicit prior consent. Human access is limited to your affirmative agreement to access specific data, necessary security purposes such as investigating a bug or abuse, or compliance with applicable law.</p>
+    <p>Pausing automatic import retains existing copies. Deselecting a calendar removes that calendar's imported copies from active storage. Disconnecting removes the connection's stored credentials and imported copies. Deleting your Hꜣw account also deletes its active imported calendar data. Device caches are refreshed as the app receives these changes. Copies may remain in offline caches or backups until those caches update, are cleared, or are overwritten. Import diagnostics contain counts and error categories rather than event content and are removed after 30 days. Imported events do not have a fixed age-based expiry while their calendar remains connected.</p>
+    <p>Use Settings &gt; Calendar Import to pause, choose calendars, or disconnect. Disconnecting in Hꜣw does not revoke the Google account's app authorization or change your Hꜣw sign-in. You can separately remove Hꜣw's access in your <a href="https://myaccount.google.com/connections">Google Account connections</a>.</p>
+    <p>Hꜣw's use and transfer of information received from Google APIs adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements. These specific limits govern Google data wherever broader statements in this policy might otherwise apply.</p>
 
     <h2>9. Supabase and Backend Storage</h2>
     <p>We use Supabase for authentication, database storage, storage, realtime features, and backend functions. Backend functions may process account data to sync content, send notifications, generate or evaluate guidance, support sharing, moderate content, delete accounts, and protect the service.</p>
@@ -72,7 +104,7 @@
     <p>We keep account data while your account is active or as long as needed to provide the service, maintain security, comply with legal obligations, resolve disputes, prevent abuse, or preserve backups. Some logs, diagnostics, cached generation data, deleted content, and backup copies may persist for a limited period before being removed or overwritten.</p>
 
     <h2>12. Account Deletion</h2>
-    <p>You can request deletion from Settings in the app by choosing Delete account, or by visiting <a href="/delete-account">maat.app/delete-account</a>. Account deletion can delete or anonymize user-associated data depending on technical, legal, security, and recipient-copy needs. Content you shared with another user may remain in that user's account where the product preserves recipient copies or where retention is legally or technically necessary.</p>
+    <p>You can request deletion from Settings in the app by choosing Delete account, or by visiting <a href="/delete-account">kemet.pages.dev/delete-account</a>. Account deletion can delete or anonymize user-associated data depending on technical, legal, security, and recipient-copy needs. Content you shared with another user may remain in that user's account where the product preserves recipient copies or where retention is legally or technically necessary.</p>
 
     <h2>13. Minors</h2>
     <p>The app is not intended for children under 13. If you are under the age of majority where you live, use the app only with permission and involvement from a parent or guardian where required.</p>
@@ -81,10 +113,17 @@
     <p>Depending on where you live, you may have rights to request access, correction, deletion, portability, objection, or limits on certain processing. Email support with the account email when possible so we can verify and respond to your request.</p>
 
     <h2>15. Contact and Support</h2>
-    <p>Email <a href="mailto:support@maat.app">support@maat.app</a> for privacy, data rights, support, moderation, or deletion requests.</p>
-    <p>Support: <a href="/support">maat.app/support</a></p>
-    <p>Account deletion: <a href="/delete-account">maat.app/delete-account</a></p>
-    <p>Terms and conditions: <a href="/terms">maat.app/terms</a></p>
+    <p>Email <a href="mailto:jaralephillips@gmail.com">jaralephillips@gmail.com</a> for privacy, data rights, support, moderation, or deletion requests.</p>
+    <p>Support: <a href="/support">kemet.pages.dev/support</a></p>
+    <p>Account deletion: <a href="/delete-account">kemet.pages.dev/delete-account</a></p>
+    <p>Terms and conditions: <a href="/terms">kemet.pages.dev/terms</a></p>
+    <footer class="site-footer" aria-label="More information">
+      <a href="/about">About Hꜣw</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+      <a href="/delete-account">Account deletion</a>
+    </footer>
   </main>
 </body>
 </html>

@@ -14,8 +14,8 @@ const String passwordResetEmailSentMessage =
     'Check your email for a password reset link. Open the link from this device to set a new password.';
 const String passwordUpdatedMessage =
     'Password updated. You can now sign in with your new password.';
-const String termsUrl = 'https://maat.app/terms';
-const String privacyPolicyUrl = 'https://maat.app/privacy';
+const String termsUrl = 'https://kemet.pages.dev/terms';
+const String privacyPolicyUrl = 'https://kemet.pages.dev/privacy';
 const String nativeAuthRedirectUrl = 'kemet.app://login-callback';
 
 abstract class EmailAuthClient {

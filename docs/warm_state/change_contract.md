@@ -369,3 +369,20 @@ Existing production-font static captures establish the link-only event block
 before raw-provider wiring. Focused checks cover the raw Google template,
 wrapped sentences, unchanged real notes, retained literal provider metadata,
 link selection, and portrait/landscape at 1x/2x. Approved references are unchanged.
+
+
+## October 2 public publishing pages
+
+Public about, privacy, terms, support and deletion pages are static web assets,
+owned by the app release artifact and its served-routing contract. They do not
+mount Flutter routes, read account repositories, write account content or use
+warm storage. Cloudflare's native static-page matching and SPA fallback own
+HTTP routing; existing application routes retain their current persistence
+owners. The login and Settings legal links use the public production hostname.
+A static Google site-verification meta tag proves control of that hostname;
+bootstrap behavior and app presentation are unchanged.
+
+The served-artifact gate must verify actual public HTML bodies and reject the
+former canonical self-loops, while preserving root/app-route body hashes and
+all asset identity checks. No cache keys, payload schemas, account lifecycles,
+old-release fixtures or inventory thresholds change.

@@ -1,12 +1,12 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "pages_controls": [
     "web/_headers",
     "web/_redirects"
   ],
   "pages_control_sha256": {
-    "web/_headers": "fbeb8e670e1421aefd225ff79275b4ea62e45673261c3a1572331f6c2c63a7d6",
-    "web/_redirects": "763d169135c7eb0d1020e9b674bc5d6ca80a70741ebcebe0faa6cec7be55db89"
+    "web/_headers": "667be32f16d6ca59299c319e70ab02b14f80c2982d19b7b1691811625e713055",
+    "web/_redirects": "0a58efedc9dd897664f87ff0e75d420e3e2e21d1bde434afb1c907f600103f96"
   },
   "redirect_only": [
     {
@@ -15,6 +15,13 @@
       "status": 308,
       "destination": "/",
       "canonical_body_path": "/"
+    },
+    {
+      "manifest_path": "web/about.html",
+      "request_path": "/about.html",
+      "status": 308,
+      "destination": "/about",
+      "canonical_body_path": "/about"
     },
     {
       "manifest_path": "web/delete-account.html",
@@ -53,30 +60,23 @@
     "/settings",
     "/profile/me"
   ],
-  "legal_self_loop_waiver": [
+  "public_routes": [
+    "/about",
+    "/delete-account",
+    "/privacy",
+    "/support",
+    "/terms"
+  ],
+  "public_aliases": [
     {
-      "request_path": "/delete-account",
+      "request_path": "/account-deletion",
       "status": 308,
-      "destination": "/delete-account",
-      "classification": "known_july1_clean_url_self_loop"
+      "destination": "/delete-account"
     },
     {
-      "request_path": "/privacy",
+      "request_path": "/account-deletion/",
       "status": 308,
-      "destination": "/privacy",
-      "classification": "known_july1_clean_url_self_loop"
-    },
-    {
-      "request_path": "/support",
-      "status": 308,
-      "destination": "/support",
-      "classification": "known_july1_clean_url_self_loop"
-    },
-    {
-      "request_path": "/terms",
-      "status": 308,
-      "destination": "/terms",
-      "classification": "known_july1_clean_url_self_loop"
+      "destination": "/delete-account"
     }
   ]
 }
