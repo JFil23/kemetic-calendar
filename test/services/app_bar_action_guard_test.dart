@@ -1373,7 +1373,26 @@ void main() {
     test('expired sessions refresh before restored pages load data', () async {
       final source = await File('lib/main.dart').readAsString();
 
-      expect(source, contains("await _refreshSessionIfNeeded('boot')"));
+      final bootstrapSource = _sourceBetween(
+        source,
+        'Future<Widget> _bootstrapApp(BootAttempt attempt) async {',
+        'final supabase = Supabase.instance.client;',
+      );
+      const bootRefresh =
+          "await attempt.run('session refresh', () => _refreshSessionIfNeeded('boot'))";
+      expect(bootstrapSource, contains(bootRefresh));
+      for (final restoredRead in [
+        'ProfileRepo(Supabase.instance.client).preloadLocalCaches',
+        '_readBootRestoredLocation',
+        '_router = _createRouter(',
+      ]) {
+        expect(bootstrapSource, contains(restoredRead));
+        expect(
+          bootstrapSource.indexOf(bootRefresh),
+          lessThan(bootstrapSource.indexOf(restoredRead)),
+          reason: 'Expired sessions must refresh before $restoredRead.',
+        );
+      }
       expect(source, contains("_refreshSessionIfNeeded('web boot')"));
       expect(source, contains("'resume'"));
       expect(source, contains('whenComplete'));

@@ -255,13 +255,13 @@ void main() {
         );
         final mainBootReadSource = _sourceBetween(
           mainSource,
-          'await AppWindowService.instance.ensureInitialized();',
+          'Future<Widget> _bootstrapApp(BootAttempt attempt) async {',
           'final initialLocation = _resolveInitialLocation();',
         );
         final normalBootReadSource = _sourceBetween(
           mainBootReadSource,
           '} else {',
-          '}\n    ',
+          'attempt.ensureActive();',
         );
 
         expect(pushSource, contains('class PushInitialMessage'));
@@ -272,13 +272,23 @@ void main() {
         expect(bootPushSource, contains('takeInitialMessage'));
         expect(bootPushSource, contains('_pushIntentDataFromQuery'));
         expect(bootPushSource, contains('_initialLocationFromPushData'));
+        expect(initialLocationSource, contains('_bootExplicitIntentLocation'));
+        expect(initialLocationSource, contains('_bootRestoredLocation'));
         expect(
           initialLocationSource.indexOf('_bootExplicitIntentLocation'),
           lessThan(initialLocationSource.indexOf('_bootRestoredLocation')),
         );
+        const initialPushRead =
+            "await attempt.run('initial push', _readBootInitialPushIntent)";
+        const restoredLocationRead =
+            '_bootRestoredLocation = await attempt.run(';
+        expect(normalBootReadSource, contains(initialPushRead));
+        expect(normalBootReadSource, contains(restoredLocationRead));
+        expect(normalBootReadSource, contains("'saved navigation'"));
+        expect(normalBootReadSource, contains('_readBootRestoredLocation'));
         expect(
-          normalBootReadSource.indexOf('await _readBootInitialPushIntent();'),
-          lessThan(normalBootReadSource.indexOf('_bootRestoredLocation =')),
+          normalBootReadSource.indexOf(initialPushRead),
+          lessThan(normalBootReadSource.indexOf(restoredLocationRead)),
         );
         expect(
           launchSuppressionSource,
