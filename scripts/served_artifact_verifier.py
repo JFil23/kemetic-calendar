@@ -47,6 +47,19 @@ CANONICAL_LANES = {
     },
 }
 AASA_PATH = "/.well-known/apple-app-site-association"
+PUBLIC_SITE_ORIGIN = "https://haw-info.pages.dev"
+PUBLIC_ROUTE_DESTINATIONS = {
+    "/about": "/",
+    "/privacy": "/privacy",
+    "/terms": "/terms",
+    "/support": "/support",
+    "/delete-account": "/delete-account",
+    "/account-deletion": "/delete-account",
+}
+RETIRED_PUBLIC_HTML_PATHS = {
+    "web" + route + ".html"
+    for route in PUBLIC_ROUTE_DESTINATIONS
+}
 
 
 class ServedVerificationError(RuntimeError):
@@ -127,19 +140,19 @@ def load_contract(path: Path) -> dict[str, Any]:
             "pages_control_sha256",
             "redirect_only",
             "application_routes",
-            "public_routes",
-            "public_aliases",
+            "public_site_origin",
+            "public_redirects",
         ),
         label="served contract",
     )
-    if value["schema_version"] != 3:
+    if value["schema_version"] != 4:
         raise ServedVerificationError("Served contract schema version is unsupported.")
     controls = value["pages_controls"]
     control_hashes = value["pages_control_sha256"]
     redirects = value["redirect_only"]
     application_routes = value["application_routes"]
-    public_routes = value["public_routes"]
-    public_aliases = value["public_aliases"]
+    public_site_origin = value["public_site_origin"]
+    public_redirects = value["public_redirects"]
     if (
         not isinstance(controls, list)
         or not controls
@@ -205,53 +218,49 @@ def load_contract(path: Path) -> dict[str, Any]:
         )
     ):
         raise ServedVerificationError("Application-route authority is invalid.")
-    canonical_public_paths = {
-        item["canonical_body_path"]
-        for item in redirects
-        if item["canonical_body_path"] != "/"
-    }
+    if redirects != [{
+        "manifest_path": "web/index.html",
+        "request_path": "/index.html",
+        "status": 308,
+        "destination": "/",
+        "canonical_body_path": "/",
+    }]:
+        raise ServedVerificationError("Only app index HTML belongs in redirect-only authority.")
     if (
-        not isinstance(public_routes, list)
-        or len(public_routes) != len(set(public_routes))
-        or set(public_routes) != canonical_public_paths
-        or not public_routes
-        or set(public_routes) & set(application_routes)
-        or "/" not in {item["canonical_body_path"] for item in redirects}
+        public_site_origin != PUBLIC_SITE_ORIGIN
+        or not isinstance(public_site_origin, str)
+        or public_site_origin != exact_origin(public_site_origin)
+        or public_site_origin in {lane["alias"] for lane in CANONICAL_LANES.values()}
+        or urllib.parse.urlparse(public_site_origin).username is not None
+        or urllib.parse.urlparse(public_site_origin).port is not None
     ):
-        raise ServedVerificationError("Public-route authority is invalid.")
-    for item in redirects:
-        canonical = item["canonical_body_path"]
-        expected_request = "/index.html" if canonical == "/" else canonical + ".html"
-        if (
-            not isinstance(canonical, str)
-            or not re.fullmatch(r"/(?:[a-z0-9]+(?:-[a-z0-9]+)*)?", canonical)
-            or item["request_path"] != expected_request
-            or item["manifest_path"] != "web" + expected_request
-        ):
-            raise ServedVerificationError("Canonical HTML authority is invalid.")
-    if not isinstance(public_aliases, list):
-        raise ServedVerificationError("Public-alias authority is invalid.")
-    alias_paths: set[str] = set()
-    reserved_paths = set(application_routes) | {
-        path for route in public_routes for path in (route, route + "/", route + ".html")
+        raise ServedVerificationError("Separate public-site origin authority is invalid.")
+    expected_public_redirects = {
+        route + suffix: public_site_origin + destination
+        for route, destination in PUBLIC_ROUTE_DESTINATIONS.items()
+        for suffix in ("", ".html", "/")
     }
-    for item in public_aliases:
+    if not isinstance(public_redirects, list):
+        raise ServedVerificationError("Public-redirect authority is invalid.")
+    public_paths: set[str] = set()
+    for item in public_redirects:
         if not isinstance(item, Mapping):
-            raise ServedVerificationError("Public alias must be an object.")
+            raise ServedVerificationError("Public redirect must be an object.")
         release.require_exact_keys(
-            item, ("request_path", "status", "destination"), label="public alias"
+            item, ("request_path", "status", "destination"), label="public redirect"
         )
         request_path = item["request_path"]
         if (
             not isinstance(request_path, str)
-            or not re.fullmatch(r"/[a-z0-9]+(?:-[a-z0-9]+)*/?", request_path)
-            or request_path in alias_paths | reserved_paths
+            or request_path in public_paths
+            or request_path not in expected_public_redirects
             or item["status"] != 308
-            or item["destination"] not in public_routes
-            or item["destination"] == request_path
+            or item["destination"] != expected_public_redirects[request_path]
         ):
-            raise ServedVerificationError("Public-alias authority is invalid.")
-        alias_paths.add(request_path)
+            raise ServedVerificationError("Public-redirect authority is invalid.")
+        public_paths.add(request_path)
+    if public_paths != set(expected_public_redirects):
+        raise ServedVerificationError("Public-redirect authority omits a legacy public route.")
     return dict(value)
 
 
@@ -278,12 +287,9 @@ def validate_pages_controls(
         ) from error
     rules = []
     seen_sources: set[str] = set()
-    aliases = {item["request_path"]: item for item in contract["public_aliases"]}
-    matched_aliases: set[str] = set()
-    public_paths = {
-        path for route in contract["public_routes"]
-        for path in (route, route + "/", route + ".html")
-    }
+    public_redirects = {item["request_path"]: item for item in contract["public_redirects"]}
+    matched_public_redirects: set[str] = set()
+    public_paths = set(public_redirects)
     for line_number, raw_line in enumerate(lines, start=1):
         stripped = raw_line.strip()
         if not stripped or stripped.startswith("#"):
@@ -299,32 +305,33 @@ def validate_pages_controls(
             not source.startswith("/")
             or source.startswith("//")
             or source in seen_sources
-            or not destination.startswith("/")
+            or status not in {"200", "308"}
+            or ":" in source
+        ):
+            raise ServedVerificationError(
+                f"Unsafe or unsupported _redirects rule at line {line_number}: {raw_line!r}"
+            )
+        if status == "308":
+            rule = public_redirects.get(source)
+            if rule is None or destination != rule["destination"]:
+                raise ServedVerificationError("Redirect is outside public-site authority.")
+            matched_public_redirects.add(source)
+        elif (
+            not destination.startswith("/")
             or destination.startswith("//")
             or destination_url.scheme
             or destination_url.netloc
             or destination_url.query
             or destination_url.fragment
-            or status not in {"200", "308"}
-            or ":" in source
         ):
-            raise ServedVerificationError(
-                f"Unsafe or unsupported _redirects rule at line {line_number}: "
-                f"{raw_line!r}"
-            )
-        if status == "308":
-            alias = aliases.get(source)
-            if alias is None or destination != alias["destination"] or source == destination:
-                raise ServedVerificationError("Redirect is outside public-alias authority.")
-            matched_aliases.add(source)
+            raise ServedVerificationError("Unsafe or unsupported asset rewrite.")
         elif (
-            source in aliases
-            or source == "/*"
+            source == "/*"
             or destination.endswith(".html")
             or any(fnmatch.fnmatchcase(path, source) for path in public_paths)
         ):
             raise ServedVerificationError(
-                "Rewrite would override native public HTML or SPA routing."
+                "Rewrite would override public redirects or native SPA routing."
             )
         seen_sources.add(source)
         rules.append(
@@ -337,8 +344,8 @@ def validate_pages_controls(
         )
     if not rules:
         raise ServedVerificationError("Pages _redirects control has no rules.")
-    if matched_aliases != set(aliases):
-        raise ServedVerificationError("Pages _redirects omits a public alias.")
+    if matched_public_redirects != public_paths:
+        raise ServedVerificationError("Pages _redirects omits a public redirect.")
     return {
         "hashes": dict(sorted(expected_hashes.items())),
         "redirect_rewrite_rules": rules,
@@ -487,6 +494,12 @@ def classify_manifest(
 ) -> dict[str, Any]:
     if "web/404.html" in manifest:
         raise ServedVerificationError("Root 404.html disables native SPA fallback.")
+    retired = sorted(
+        path for path in manifest
+        if path in RETIRED_PUBLIC_HTML_PATHS or "/public-site/" in path
+    )
+    if retired:
+        raise ServedVerificationError(f"Public-site content entered the app payload: {retired}")
     controls = set(contract["pages_controls"])
     redirects_by_manifest = {
         item["manifest_path"]: item for item in contract["redirect_only"]
@@ -592,6 +605,38 @@ def _require_redirect(
         "request_path": request_path,
         "status": response.status,
         "destination": destination,
+        "body_sha256": hashlib.sha256(response.body).hexdigest(),
+    }
+
+
+def _require_public_redirect(
+    *, origin: str, request_path: str, status: int, destination: str,
+    public_site_origin: str, fetcher: Fetcher, cache: dict[str, HttpResult],
+) -> dict[str, Any]:
+    """Check the app's exact allowlisted Location without fetching the public site."""
+    parsed = urllib.parse.urlparse(destination)
+    if (
+        f"{parsed.scheme}://{parsed.netloc}" != public_site_origin
+        or parsed.params or parsed.query or parsed.fragment
+        or origin == public_site_origin
+    ):
+        raise ServedVerificationError("Public redirect escapes its declared website authority.")
+    request_url = origin + request_path
+    response = cache.setdefault(request_url, fetcher(request_url))
+    if response.url != request_url:
+        raise ServedVerificationError(f"Public redirect followed a different URL: {request_url}")
+    if response.status != status:
+        raise ServedVerificationError(
+            f"Public redirect status mismatch for {request_url}: "
+            f"expected={status} actual={response.status}"
+        )
+    if response.headers.get("location") != destination:
+        raise ServedVerificationError(
+            f"Public redirect destination mismatch for {request_url}: "
+            f"expected={destination!r} actual={response.headers.get('location')!r}"
+        )
+    return {
+        "request_path": request_path, "status": status, "destination": destination,
         "body_sha256": hashlib.sha256(response.body).hexdigest(),
     }
 
@@ -721,49 +766,12 @@ def verify_served_origin(
         fetcher=fetcher,
         cache=cache,
     )
-    public_route_results = []
-    for canonical_path in contract["public_routes"]:
-        html_rule = redirect_by_canonical[canonical_path]
-        html = _require_redirect(
-            origin=origin,
-            request_path=html_rule["request_path"],
-            status=html_rule["status"],
-            destination=html_rule["destination"],
-            fetcher=fetcher,
-            cache=cache,
+    public_redirect_results = [
+        _require_public_redirect(
+            origin=origin, public_site_origin=contract["public_site_origin"],
+            fetcher=fetcher, cache=cache, **rule,
         )
-        canonical = _require_body(
-            origin=origin,
-            request_path=canonical_path,
-            expected_sha256=manifest[html_rule["manifest_path"]],
-            fetcher=fetcher,
-            cache=cache,
-        )
-        content_type = cache[origin + canonical_path].headers.get("content-type", "")
-        if content_type.split(";", 1)[0].strip().lower() != "text/html":
-            raise ServedVerificationError(
-                f"Public page Content-Type is not text/html: {canonical_path}"
-            )
-        trailing_slash = _require_redirect(
-            origin=origin,
-            request_path=canonical_path + "/",
-            status=308,
-            destination=canonical_path,
-            fetcher=fetcher,
-            cache=cache,
-        )
-        public_route_results.append(
-            {
-                "path": canonical_path,
-                "manifest_path": html_rule["manifest_path"],
-                "html": html,
-                "canonical": canonical,
-                "trailing_slash": trailing_slash,
-            }
-        )
-    public_alias_results = [
-        _require_redirect(origin=origin, fetcher=fetcher, cache=cache, **alias)
-        for alias in contract["public_aliases"]
+        for rule in contract["public_redirects"]
     ]
 
     return {
@@ -781,9 +789,8 @@ def verify_served_origin(
             "content_type": aasa_content_type,
         },
         "index_redirect": index_redirect,
-        "public_route_results": public_route_results,
-        "verified_public_bodies": len(public_route_results),
-        "public_alias_results": public_alias_results,
+        "public_redirect_results": public_redirect_results,
+        "verified_public_redirects": len(public_redirect_results),
         "verdicts": {
             "PAYLOAD_VERIFIED": True,
             "APP_ROUTING_VERIFIED": True,
@@ -960,13 +967,8 @@ def verify_local_release(
     }
     for route in contract["application_routes"]:
         bodies[route] = "web/index.html"
-    for item in contract["redirect_only"]:
-        route = item["canonical_body_path"]
-        if route in contract["public_routes"]:
-            bodies[route] = item["manifest_path"]
-            redirects[route + "/"] = {"status": 308, "destination": route}
-    for alias in contract["public_aliases"]:
-        redirects[alias["request_path"]] = alias
+    for rule in contract["public_redirects"]:
+        redirects[rule["request_path"]] = rule
 
     server = http.server.ThreadingHTTPServer(
         ("127.0.0.1", 0),

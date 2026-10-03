@@ -1,0 +1,6 @@
+# Public aliases only; Cloudflare Pages serves the static HTML routes.
+/about / 308
+/about/ / 308
+/about.html / 308
+/account-deletion /delete-account 308
+/account-deletion/ /delete-account 308

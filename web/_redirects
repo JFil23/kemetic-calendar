@@ -1,5 +1,23 @@
-# Static HTML routes and SPA fallback use Cloudflare Pages native routing.
-# Rewriting a clean URL to its .html file causes a canonicalization loop.
+# Public information belongs to the separate static website.
+/about https://haw-info.pages.dev/ 308
+/about.html https://haw-info.pages.dev/ 308
+/about/ https://haw-info.pages.dev/ 308
+/privacy https://haw-info.pages.dev/privacy 308
+/privacy.html https://haw-info.pages.dev/privacy 308
+/privacy/ https://haw-info.pages.dev/privacy 308
+/terms https://haw-info.pages.dev/terms 308
+/terms.html https://haw-info.pages.dev/terms 308
+/terms/ https://haw-info.pages.dev/terms 308
+/support https://haw-info.pages.dev/support 308
+/support.html https://haw-info.pages.dev/support 308
+/support/ https://haw-info.pages.dev/support 308
+/delete-account https://haw-info.pages.dev/delete-account 308
+/delete-account.html https://haw-info.pages.dev/delete-account 308
+/delete-account/ https://haw-info.pages.dev/delete-account 308
+/account-deletion https://haw-info.pages.dev/delete-account 308
+/account-deletion.html https://haw-info.pages.dev/delete-account 308
+/account-deletion/ https://haw-info.pages.dev/delete-account 308
+# App assets and native SPA fallback remain on this origin.
 /assets/* /assets/:splat 200
 /canvaskit/* /canvaskit/:splat 200
 /icons/* /icons/:splat 200
@@ -16,5 +34,3 @@
 /manifest.json /manifest.json 200
 /version.json /version.json 200
 /widgets/* /widgets/:splat 200
-/account-deletion /delete-account 308
-/account-deletion/ /delete-account 308
