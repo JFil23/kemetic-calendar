@@ -3999,7 +3999,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         ),
         const SizedBox(height: 8),
         _buildDetailTimeLine(
-          _formatTimeRange(currentEvent.startMin, currentEvent.endMin),
+          currentEvent.allDay
+              ? 'All-day'
+              : _formatTimeRange(currentEvent.startMin, currentEvent.endMin),
           visual,
         ),
         if (flow != null) ...[
