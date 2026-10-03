@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:mobile/core/navigation_fallback.dart';
+import 'package:mobile/core/imported_calendar_identity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -97,6 +98,7 @@ import '../shared_practice/shared_practice_completion_sheet.dart';
 import '../shared_practice/together_flow_day_hero.dart';
 import '../../core/feature_flags.dart';
 import 'event_resource.dart';
+import 'imported_calendar_detail.dart';
 import 'event_workspace/event_workspace_models.dart';
 import 'event_workspace/event_workspace_surface.dart';
 export 'event_resource.dart';
@@ -260,6 +262,12 @@ CalendarEventVisualStyle _dayViewMatteDetailVisual(
   CalendarEventVisualStyle visual,
 ) => visual.asDetailSurface();
 
+/// Human source label shared by imported detail, timeline, and search views.
+String importedCalendarDisplayLabel(String? calendarName) {
+  final name = calendarName?.trim() ?? '';
+  return name.isEmpty ? 'Imported calendar' : name;
+}
+
 String _dayViewFlowLabel(
   EventItem event,
   FlowData? flow, {
@@ -267,6 +275,14 @@ String _dayViewFlowLabel(
   bool isReminder = false,
   bool isNutrition = false,
 }) {
+  if (isImportedDeviceCalendarEvent(
+    clientEventId: event.clientEventId,
+    category: event.category,
+  )) {
+    return _dayViewCategoryLabel(
+      importedCalendarDisplayLabel(event.calendarName),
+    );
+  }
   if (flow != null) {
     return _dayViewCategoryLabel(flow.name, sparkle: isMaatFlow);
   }
@@ -286,6 +302,14 @@ String _dayViewTimelineFlowLabel(
   bool isReminder = false,
   bool isNutrition = false,
 }) {
+  if (isImportedDeviceCalendarEvent(
+    clientEventId: event.clientEventId,
+    category: event.category,
+  )) {
+    return _dayViewCategoryLabel(
+      importedCalendarDisplayLabel(event.calendarName),
+    );
+  }
   if (isReminder) {
     return _dayViewFlowLabel(
       event,
@@ -328,7 +352,9 @@ _DayViewExternalAction? _dayViewExternalActionFromResource(
 _DayViewExternalAction? _dayViewExternalActionForEvent(EventItem event) {
   final source = EventResourceSource(
     behaviorPayload: event.behaviorPayload,
-    detail: event.detail,
+    detail: event.clientEventId?.trim().startsWith('external:') == true
+        ? importedCalendarDisplayDetail(event.detail)
+        : event.detail,
     location: event.location,
   );
   final resource = resolveEventResource(source);
@@ -1867,7 +1893,16 @@ class EventItem {
     final startMin = allDay
         ? 9 * 60
         : (startHour ?? 9) * 60 + (startMinute ?? 0);
-    final endMin = allDay ? 17 * 60 : (endHour ?? 17) * 60 + (endMinute ?? 0);
+    final externalMidnightEnd =
+        !allDay &&
+        clientEventId?.startsWith('external:') == true &&
+        endHour == 0 &&
+        (endMinute ?? 0) == 0;
+    final endMin = allDay
+        ? 17 * 60
+        : externalMidnightEnd
+        ? 24 * 60
+        : (endHour ?? 17) * 60 + (endMinute ?? 0);
     return EventItem(
       id: id,
       clientEventId: clientEventId,
@@ -2532,6 +2567,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     DayViewSheetEventTarget target,
     Duration extension,
   ) async {
+    if (isImportedDeviceCalendarEvent(
+      clientEventId: target.event.clientEventId,
+      category: target.event.category,
+    )) {
+      return false;
+    }
     final request = widget.onRequestEndChange;
     if (request == null) return false;
     return request(
@@ -3500,6 +3541,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     Object? completionReloadSignal,
   }) {
     final currentEvent = target.event;
+    final preserveProviderText =
+        currentEvent.clientEventId?.trim().startsWith('external:') == true;
     final flow = _chromeFlowForId(currentEvent.flowId);
     final bool isReminder = currentEvent.isReminder;
     final bool isNutrition =
@@ -4010,7 +4053,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           const SizedBox(height: 12),
           Builder(
             builder: (context) {
-              final rawDisplayDetail = isTrackSky
+              final rawDisplayDetail = preserveProviderText
+                  ? importedCalendarDisplayDetail(currentEvent.detail)
+                  : isTrackSky
                   ? _trackSkyDisplayDetail(
                       currentEvent,
                       ky: target.ky,
@@ -4039,7 +4084,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                 rawDisplayDetail,
                 externalAction,
               );
-              if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
+              if (displayDetail.isEmpty ||
+                  (!preserveProviderText &&
+                      _looksLikeCidDetail(displayDetail))) {
                 return const SizedBox.shrink();
               }
 
@@ -4351,6 +4398,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required DayViewSheetEventTarget target,
   }) {
     final currentEvent = target.event;
+    if (isImportedDeviceCalendarEvent(
+      clientEventId: currentEvent.clientEventId,
+      category: currentEvent.category,
+    )) {
+      return const SizedBox.shrink();
+    }
     final flow = _chromeFlowForId(currentEvent.flowId);
     final actionableFlow = _isActionableFlowId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
@@ -4363,6 +4416,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       tooltip: 'Event options',
       color: _dayViewBase,
       onSelected: (value) async {
+        final liveEvent =
+            widget.resolveCurrentEventTarget?.call(target).event ??
+            currentEvent;
+        if (isImportedDeviceCalendarEvent(
+          clientEventId: liveEvent.clientEventId,
+          category: liveEvent.category,
+        )) {
+          return;
+        }
         if (value == 'end_flow') {
           final flowId = currentEvent.flowId;
           final onEndFlow = widget.onEndFlow;
@@ -4754,7 +4816,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           onClose: () {
             Navigator.of(context).maybePop();
           },
-          onRequestExtend: widget.onRequestEndChange == null
+          onRequestExtend:
+              widget.onRequestEndChange == null ||
+                  isImportedDeviceCalendarEvent(
+                    clientEventId: target.event.clientEventId,
+                    category: target.event.category,
+                  )
               ? null
               : (extension) => _requestWorkspaceExtend(target, extension),
         );
@@ -4950,9 +5017,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   }
 
   String _formatTimeRange(int startMin, int endMin) {
-    final startHour = startMin ~/ 60;
+    final startHour = (startMin % (24 * 60)) ~/ 60;
     final startMinute = startMin % 60;
-    final endHour = endMin ~/ 60;
+    final endHour = (endMin % (24 * 60)) ~/ 60;
     final endMinute = endMin % 60;
 
     String formatTime(int h, int m) {
@@ -13760,7 +13827,9 @@ class _CalendarDayEventBlockState extends State<CalendarDayEventBlock> {
 
     if (isTrackSky) {
       return TrackSkyEventBlockVisual(
-        skyEventId: TrackSkyEventOwnership.skyEventIdFromPayload(event.behaviorPayload),
+        skyEventId: TrackSkyEventOwnership.skyEventIdFromPayload(
+          event.behaviorPayload,
+        ),
         title: event.title,
         graphic: trackSkySpec!,
         width: widget.width,

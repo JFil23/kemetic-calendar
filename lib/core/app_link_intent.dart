@@ -54,8 +54,44 @@ class PlannerAppLinkIntent extends AppLinkIntent {
   String get routeLocation => plannerIntent.routeLocation;
 }
 
+@immutable
+class ExternalCalendarAppLinkIntent extends AppLinkIntent {
+  const ExternalCalendarAppLinkIntent({
+    required this.lane,
+    required this.result,
+  });
+  final String lane, result;
+  String get routeLocation => Uri(
+    path: '/settings',
+    queryParameters: {'external_calendar': result},
+  ).toString();
+  bool matchesEnvironment(String environment) =>
+      (environment == 'staging' && lane == 'staging') ||
+      (environment == 'prod' && lane == 'production');
+}
+
 class AppLinkIntentParser {
   static AppLinkIntent? parse(Uri uri) {
+    // Calendar authorization never enters the app-auth token exchange path.
+    if (uri.scheme == 'maat' && uri.host == 'calendar-import') {
+      final lane = uri.queryParameters['lane'];
+      final result = uri.queryParameters['result'];
+      if (uri.path.isNotEmpty ||
+          uri.fragment.isNotEmpty ||
+          uri.queryParameters.keys.any(
+            (key) => key != 'lane' && key != 'result',
+          ) ||
+          !const {'staging', 'production'}.contains(lane) ||
+          !const {
+            'connected',
+            'reconnect_required',
+            'account_mismatch',
+            'denied',
+          }.contains(result)) {
+        return null;
+      }
+      return ExternalCalendarAppLinkIntent(lane: lane!, result: result!);
+    }
     if (_looksLikeAuthCallback(uri)) {
       return AuthAppLinkIntent(uri);
     }

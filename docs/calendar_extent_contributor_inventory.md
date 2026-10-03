@@ -466,3 +466,44 @@ Correction still uses the same object's before/after viewport coordinate and
 `ViewportOffset.correctBy` inside the same layout transaction. Existing extent
 and fractional-day tests verify anchor preservation without scroll events;
 removed anchors continue to fail closed without applying a correction.
+
+
+## 2026-10-02 external calendar title and adapter re-audit
+
+The current RC authority baseline `70e99527c78e846f88fa7174b9c008378f1a3e72`
+produces the previously approved `year_and_month_sections` digest
+`fda41b5eda6c47cf41fecbadca3fbaf3640de89d46f156609d808761835aee8d`.
+The current fragment differs only in `_DayChip._labelFor` and its
+`_noteToEventItem` adapter; excluding those two complete methods leaves the
+fragment byte-identical to that baseline.
+
+External provider titles now bypass authored time/placeholder cleanup, retaining
+a literal time or "Event" title. Existing labels still truncate at the same
+50/60-character bounds. Their endpoint text keeps a finite one/three-line limit
+and ellipsis inside fixed-height pills; fractional text stays in the same
+clipped, fixed-height stack. Label content or sorting therefore cannot add an
+extent contributor. The adapter forwards an external canonical end only when
+opening its detail event; it is not consulted by the section, day-chip, or pill
+height calculations. Authored adapter ownership remains unchanged.
+
+Both ordinary-month and Heriu render paths were rechecked: fixed chip heights
+36/62/98, the details count/cap/overflow equation, the 50-pixel label allocation,
+52-pixel first pill, 58-pixel subsequent increment, 19-pixel overflow allocation,
+80..300 clamp, title/weekday measurements, padding, fractional interpolation,
+geometry markers, and section topology are unchanged. Given the same event
+counts, no contributor or equation changes. The immutable environment and
+content-summary inputs above remain exhaustive.
+
+`calendar_external_label_extent_test.dart` adds 20 actual-renderer comparisons
+between authored placeholder labels and external literal/long labels. Ordinary
+and Heriu months have exactly equal month sizes and every day-anchor rectangle
+at compact, stacked, labeled, details, and fractional 2.5 presentation, at
+390x844/1.0 text and 844x390/1.5 text. All comparisons pass with no layout errors;
+the tests also require bounded line counts, ellipsis, and the existing
+60-character truncation. Existing projection tests separately execute the real
+grid adapter and verify external-end forwarding and authored-null behavior.
+
+Only the audited `year_and_month_sections` digest is updated to
+`87a1577ad74a0cbbf432ca4b2f8d4d7a5cbaa0001f1da490f12af53c2f6276df`.
+No guard assertions, contributor inventory, approved visual reference, geometry
+constant, or restoration layout revision is relaxed or regenerated.

@@ -614,20 +614,49 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
   CalendarSnapshotCommit _calendarSnapshotCommitWithOverlay(
     CalendarSnapshotCommit base,
     List<Map<String, Object?>> overlayRows,
-  ) => CalendarSnapshotCommit(
-    userScope: base.userScope,
-    serverRevision: base.serverRevision,
-    overlayRevision: calendarSnapshotDigest(calendarCanonicalJson(overlayRows)),
-    catalogFingerprint: base.catalogFingerprint,
-    origin: base.origin,
-    committedAtUtc: base.committedAtUtc,
-    lastSuccessfulRefreshAtUtc: base.lastSuccessfulRefreshAtUtc,
-    coverage: base.coverage,
-    eventsByDay: base.eventsByDay,
-    flows: base.flows,
-    calendarMetadata: base.calendarMetadata,
-    overlayRecords: overlayRows,
-  );
+  ) {
+    final repository = externalCalendarRepository(Supabase.instance.client);
+    var removed = false;
+    final events = <String, List<Map<String, Object?>>>{};
+    for (final entry in base.eventsByDay.entries) {
+      final retained = entry.value
+          .where(
+            (row) =>
+                !repository.isRemovedSnapshotRow(row, owner: base.userScope),
+          )
+          .toList(growable: false);
+      removed = removed || retained.length != entry.value.length;
+      if (retained.isNotEmpty) events[entry.key] = retained;
+    }
+    return CalendarSnapshotCommit(
+      userScope: base.userScope,
+      serverRevision: removed
+          ? calendarSnapshotDigest(
+              calendarCanonicalJson(<String, Object?>{
+                'catalogFingerprint': base.catalogFingerprint,
+                'coverage': base.coverage
+                    .map((value) => value.toJson())
+                    .toList(),
+                'eventsByDay': events,
+                'flows': base.flows,
+                'calendarMetadata': base.calendarMetadata,
+              }),
+            )
+          : base.serverRevision,
+      overlayRevision: calendarSnapshotDigest(
+        calendarCanonicalJson(overlayRows),
+      ),
+      catalogFingerprint: base.catalogFingerprint,
+      origin: base.origin,
+      committedAtUtc: base.committedAtUtc,
+      lastSuccessfulRefreshAtUtc: base.lastSuccessfulRefreshAtUtc,
+      coverage: base.coverage,
+      eventsByDay: removed ? events : base.eventsByDay,
+      flows: base.flows,
+      calendarMetadata: base.calendarMetadata,
+      overlayRecords: overlayRows,
+    );
+  }
 
   List<Map<String, Object?>> _mergeCalendarOverlayRows({
     required Iterable<Map<String, Object?>> durableRows,

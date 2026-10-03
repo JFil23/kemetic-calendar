@@ -34,6 +34,7 @@ class WarmResourceContract {
     'commons.': WarmResourceSchema(),
     'guidance.': WarmResourceSchema(),
     'calendars.': WarmResourceSchema(),
+    'externalCalendar.': WarmResourceSchema(),
     'readingHouse.': WarmResourceSchema(),
     'image.': WarmResourceSchema(),
   };

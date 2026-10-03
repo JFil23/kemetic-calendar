@@ -20,9 +20,11 @@ void main() {
             'void Function(int ky, int km, int kd, _Note note) openResult',
           ),
         );
+        final tap = _sourceBetween(delegate, 'onTap: () {', 'isThreeLine:');
+        expect(tap, contains('openResult(it.ky, it.km, it.kd, it.note)'));
         expect(
-          delegate,
-          contains('onTap: () => openResult(it.ky, it.km, it.kd, it.note)'),
+          tap.indexOf('if (!_hasCurrentAccount) return;'),
+          allOf(isNonNegative, lessThan(tap.indexOf('openResult('))),
         );
 
         final mountedSearch = _sourceBetween(

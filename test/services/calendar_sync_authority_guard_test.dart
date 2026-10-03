@@ -4,6 +4,27 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('calendar sync authority contract', () {
+    test('push retains stable device identity through the registered bridge', () {
+      final push = File(
+        'lib/services/push_notifications.dart',
+      ).readAsStringSync();
+      expect(push, contains("'com.kemetic.calendar/device_import_v1'"));
+      expect(push, contains("'deviceId'"));
+      expect(push, isNot(contains('com.kemetic.calendar/sync')));
+      expect(push, isNot(contains('getStableDeviceId')));
+      expect(push, contains("prefs.getString('push.deviceId')"));
+      final ios = File(
+        'ios/Runner/DeviceCalendarBridge.swift',
+      ).readAsStringSync();
+      final android = File(
+        'android/app/src/main/kotlin/com/jaralephillips/hawcalendar/DeviceCalendarBridge.kt',
+      ).readAsStringSync();
+      expect(ios, contains('identifierForVendor'));
+      expect(ios, contains('ios:'));
+      expect(android, contains('Settings.Secure.ANDROID_ID'));
+      expect(android, contains('android:'));
+    });
+
     test('locks the one-way authority and staged release rules', () async {
       final authority = await File(
         'docs/calendar_sync/authority_map.md',
@@ -193,71 +214,136 @@ void main() {
       final settings = await File(_settingsPage).readAsString();
       final unlink = _section(
         service,
-        'Future<CalendarSyncResetResult> unlinkImportedCalendarData(',
-        'Future<int> _removeImportedNativeEventsFromHaw()',
+        'Future<void> disconnect()',
+        'void ensureRange(',
       );
-      final removeImports = _section(
-        service,
-        'Future<int> _removeImportedNativeEventsFromHaw()',
-        'Future<void> _clearSyncState()',
-      );
-
-      expect(settings, contains('sync.unlinkImportedCalendarData('));
+      final binding = await File(
+        'lib/features/settings/external_calendar_settings.dart',
+      ).readAsString();
+      expect(settings, contains('ExternalCalendarSettings('));
+      expect(settings, isNot(contains('sharedCalendarSyncService')));
+      expect(binding, contains('await _perform(controller.disconnect);'));
+      expect(binding, contains('accountId != controller.accountId'));
+      expect(binding, contains('generation != controller.generation'));
+      expect(binding, contains('Hꜣw-created events stay unchanged.'));
       expect(settings, isNot(contains('sync.unlinkAndPurge(')));
       expect(
         unlink,
-        contains('SettingsPrefs.setAutoCalendarSyncEnabled(false)'),
+        contains("await _command(generation, account, 'device_disconnect');"),
       );
-      expect(unlink, isNot(contains('_platform.')));
-      expect(unlink, isNot(contains('requestPermissions')));
+      final command = _section(
+        service,
+        'Future<void> _command(',
+        'Future<void> _permission(',
+      );
+      final acceptance = _section(
+        service,
+        'Future<void> _acceptServerStatus(',
+        'Future<void> _load(',
+      );
+      // Disconnect, remote selection changes, and device replacement now share
+      // the same acknowledged status boundary. Follow that authority chain
+      // instead of requiring an eager blanket invalidation in disconnect.
+      expect(command, contains('final response = await _step('));
+      expect(command, contains('repository.command('));
+      expect(command, contains('..._mutationArguments(), ...arguments'));
       expect(
-        removeImports,
-        contains("deleteByClientIdPrefix(\n      'native:'"),
+        command,
+        contains('await _acceptServerStatus(response, generation, account);'),
       );
-      expect(removeImports, contains("deleteByCategory(\n      'native_sync'"));
       expect(
-        RegExp(r'suppressesClient:\s*false').allMatches(removeImports),
-        hasLength(2),
+        command.indexOf('repository.command('),
+        lessThan(command.indexOf('await _acceptServerStatus(')),
       );
-      expect(removeImports, isNot(contains('_platform.')));
-      expect(removeImports, isNot(contains('MethodChannel')));
+      expect(
+        acceptance,
+        contains("source.selected && source.ownedBy == 'device'"),
+      );
+      expect(acceptance, contains('final before = owned(previous);'));
+      expect(acceptance, contains('_accept(response);'));
+      expect(acceptance, contains('final after = owned(status);'));
+      expect(acceptance, contains('final removed = before.difference(after);'));
+      expect(acceptance, contains('await repository.projectionChanged('));
+      expect(acceptance, contains('removedSources: removed.isNotEmpty'));
+      expect(acceptance, contains('removedSourceIds: removed'));
+      expect(
+        acceptance.indexOf('_accept(response);'),
+        lessThan(acceptance.indexOf('await repository.projectionChanged(')),
+      );
+      expect(
+        acceptance.indexOf('await repository.projectionChanged('),
+        lessThan(acceptance.indexOf('_check(generation, account);')),
+      );
+      final repository = await File(
+        'lib/data/external_calendar_repository.dart',
+      ).readAsString();
+      final projection = _section(
+        repository,
+        'Future<void> projectionChanged(',
+        'Future<void> pruneRemovedSources(',
+      );
+      final importedRow = _section(
+        repository,
+        'bool isRemovedSnapshotRow(',
+        'String filterSerializedWarmSnapshot(',
+      );
+      expect(projection, contains('removedSourceIds: removed'));
+      expect(
+        projection,
+        contains(
+          'if (removed.isNotEmpty) await pruneRemovedSources(owner, removed);',
+        ),
+      );
+      expect(importedRow, contains("cid.startsWith('external:')"));
+      expect(importedRow, contains("raw['externalCalendarLane'] == lane"));
+      expect(importedRow, contains('isSourceRemoved(calendar, owner: owner)'));
+
+      expect(unlink, isNot(contains('requestPermission')));
+      expect(unlink, isNot(contains('bridge.')));
+      expect(service, isNot(contains('UserEventsRepo')));
+      expect(service, isNot(contains('user_events')));
+      expect(service, isNot(contains('recordDeletedInApp')));
+      expect(unlink, isNot(contains('MethodChannel')));
+      expect(
+        File('lib/services/calendar_sync_service.dart').existsSync(),
+        isFalse,
+      );
+      final nativeBinding = File(
+        'lib/features/settings/device_calendar_settings.dart',
+      ).readAsStringSync();
+      expect(nativeBinding, contains('controller.disconnect'));
+      expect(nativeBinding, contains('controller.accountId'));
+      expect(nativeBinding, contains('controller.generation'));
     });
 
     test('OFF preserves imports and failed enable stays visibly OFF', () async {
       final settings = await File(_settingsPage).readAsString();
       final prefs = await File(_settingsPrefs).readAsString();
+      final controller = await File(
+        'lib/services/external_calendar_controller.dart',
+      ).readAsString();
+      final binding = await File(
+        'lib/features/settings/external_calendar_settings.dart',
+      ).readAsString();
       final toggle = _section(
-        settings,
-        'Future<void> _setAutoCalendarSync(bool enabled)',
-        'Future<void> _toggleUsHolidays(bool enabled)',
-      );
-      final offBranch = toggle.substring(
-        toggle.indexOf('if (!enabled)'),
-        toggle.indexOf('if (!_hasSession)'),
+        controller,
+        'Future<void> setAutomatic(bool enabled)',
+        'Future<void> disconnect()',
       );
 
-      expect(offBranch, contains('sync.stop()'));
-      expect(offBranch, contains('_autoCalendarSync = false'));
-      expect(offBranch, contains('Events already imported into HAw remain'));
-      expect(offBranch, isNot(contains('unlinkImportedCalendarData')));
-      expect(offBranch, isNot(contains('deleteBy')));
-      expect(
-        toggle,
-        contains('final result = await sync.sync(interactive: true)'),
-      );
-      expect(toggle, contains('if (!result.didSync)'));
-      expect(toggle, contains('await sync.start()'));
-      expect(
-        toggle.indexOf(
-          '_autoCalendarSync = false',
-          toggle.indexOf('if (!result.didSync)'),
-        ),
-        lessThan(toggle.indexOf('await sync.start()')),
-      );
-      expect(
-        prefs,
-        contains('return prefs.getBool(autoCalendarSyncKey) ?? false;'),
-      );
+      expect(settings, isNot(contains('_setAutoCalendarSync')));
+      expect(settings, isNot(contains('SettingsPrefs.autoCalendarSyncKey')));
+      expect(binding, contains('automaticImport: status?.automatic ?? false'));
+      expect(binding, contains('_controller.setAutomatic(enabled)'));
+      expect(toggle, contains("enabled ? 'resume' : 'pause'"));
+      expect(toggle, contains('arguments: _revision'));
+      expect(toggle, contains('_accept(value);'));
+      expect(controller, contains('status = value;'));
+      expect(toggle, isNot(contains('disconnect')));
+      expect(toggle, isNot(contains('delete')));
+      expect(toggle, isNot(contains('automatic = enabled')));
+      expect(prefs, isNot(contains('autoCalendarSync')));
+      expect(serviceDefaults(), contains('this.automatic = false'));
     });
 
     test('imported projections cannot edit, move, detach, or suppress', () async {
@@ -315,6 +401,9 @@ void main() {
   });
 }
 
+String serviceDefaults() =>
+    File('lib/services/device_calendar_controller.dart').readAsStringSync();
+
 String _section(String source, String startHeading, String endHeading) {
   final start = source.indexOf(startHeading);
   final end = source.indexOf(endHeading, start + startHeading.length);
@@ -326,10 +415,10 @@ String _section(String source, String startHeading, String endHeading) {
 
 const _androidManifest = 'android/app/src/main/AndroidManifest.xml';
 const _androidBridge =
-    'android/app/src/main/kotlin/com/jaralephillips/hawcalendar/MainActivity.kt';
-const _iosBridge = 'ios/Runner/AppDelegate.swift';
+    'android/app/src/main/kotlin/com/jaralephillips/hawcalendar/DeviceCalendarBridge.kt';
+const _iosBridge = 'ios/Runner/DeviceCalendarBridge.swift';
 const _iosPlist = 'ios/Runner/Info.plist';
-const _syncService = 'lib/services/calendar_sync_service.dart';
+const _syncService = 'lib/services/device_calendar_controller.dart';
 const _settingsPage = 'lib/features/settings/settings_page.dart';
 const _settingsPrefs = 'lib/features/settings/settings_prefs.dart';
 const _calendarPage = 'lib/features/calendar/calendar_page.dart';

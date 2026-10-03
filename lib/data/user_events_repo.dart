@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'birthday_calendar.dart';
+import 'external_calendar_repository.dart';
 import '../features/calendar/calendar_hydration_diagnostics.dart';
 import '../features/calendar/notify.dart';
 import '../features/calendar/end_flow_diagnostics.dart';
@@ -226,6 +227,79 @@ String _formatDateOnlyLocal(DateTime value) {
   final month = local.month.toString().padLeft(2, '0');
   final day = local.day.toString().padLeft(2, '0');
   return '${local.year}-$month-$day';
+}
+
+StandaloneEventRow standaloneRowFromExternalCalendarEvent(
+  ExternalCalendarEvent event,
+) => (
+  id: event.id,
+  clientEventId: event.clientEventId,
+  calendarId: 'external:${event.sourceId}',
+  calendarName: event.calendarName,
+  calendarColor: event.color,
+  calendarIsPersonal: false,
+  title: event.title,
+  detail: event.detail,
+  location: event.location,
+  allDay: event.allDay,
+  startsAtUtc: event.startsAtUtc,
+  endsAtUtc: event.endsAtUtc,
+  flowLocalId: null,
+  category: 'external_calendar',
+  isReminder: false,
+);
+
+Iterable<StandaloneEventRow> standaloneRowsFromExternalCalendarEvents(
+  List<ExternalCalendarEvent> events,
+  DateTime from,
+  DateTime until,
+) sync* {
+  for (final event in events) {
+    final row = standaloneRowFromExternalCalendarEvent(event);
+    if (!event.endsAtUtc.isAfter(from) || !event.startsAtUtc.isBefore(until)) {
+      continue;
+    }
+    final first = event.startsAtUtc.toLocal();
+    final lower = from.toLocal();
+    var day = DateTime(first.year, first.month, first.day);
+    final firstVisible = DateTime(lower.year, lower.month, lower.day);
+    if (day.isBefore(firstVisible)) day = firstVisible;
+    final exclusiveEnd = event.endsAtUtc.toLocal();
+    while (day.isBefore(exclusiveEnd) && day.toUtc().isBefore(until)) {
+      // One presentation segment per local civil day, with a stable provider
+      // identity and canonical end. An exclusive midnight never adds a day.
+      final segmentStart = day.isBefore(first) ? first : day;
+      yield (
+        id: row.id,
+        clientEventId: row.clientEventId,
+        calendarId: row.calendarId,
+        calendarName: row.calendarName,
+        calendarColor: row.calendarColor,
+        calendarIsPersonal: row.calendarIsPersonal,
+        title: row.title,
+        detail: row.detail,
+        location: row.location,
+        allDay: row.allDay,
+        startsAtUtc: segmentStart.toUtc(),
+        endsAtUtc: row.endsAtUtc,
+        flowLocalId: row.flowLocalId,
+        category: row.category,
+        isReminder: false,
+      );
+      day = DateTime(day.year, day.month, day.day + 1);
+    }
+  }
+}
+
+/// Clips only the visible segment; the provider's canonical end stays intact.
+DateTime externalCalendarSegmentEndLocal(
+  DateTime segmentStart,
+  DateTime canonicalEnd,
+) {
+  final start = segmentStart.toLocal();
+  final end = canonicalEnd.toLocal();
+  final nextDay = DateTime(start.year, start.month, start.day + 1);
+  return end.isBefore(nextDay) ? end : nextDay;
 }
 
 StandaloneEventRow _standaloneRowFromBirthdayOccurrence(
@@ -1967,6 +2041,13 @@ class UserEventsRepo {
       events.addAll(
         birthdayOccurrences.map(_standaloneRowFromBirthdayOccurrence),
       );
+      final external = await externalCalendarRepository(
+        _client,
+      ).visibleEvents(startUtc, endUtc);
+      if (_client.auth.currentUser?.id != user.id) return const [];
+      events.addAll(
+        standaloneRowsFromExternalCalendarEvents(external, startUtc, endUtc),
+      );
       events.sort((a, b) {
         final byStart = a.startsAtUtc.compareTo(b.startsAtUtc);
         if (byStart != 0) return byStart;
@@ -2187,7 +2268,15 @@ class UserEventsRepo {
       events.add(row);
     }
 
-    if (birthdayOccurrences.isNotEmpty) {
+    final external = await externalCalendarRepository(
+      _client,
+    ).visibleEvents(startUtc, endUtc);
+    if (_client.auth.currentUser?.id != user.id) return failedResult();
+    events.addAll(
+      standaloneRowsFromExternalCalendarEvents(external, startUtc, endUtc),
+    );
+
+    if (birthdayOccurrences.isNotEmpty || external.isNotEmpty) {
       events.sort((a, b) {
         final byStart = a.startsAtUtc.compareTo(b.startsAtUtc);
         if (byStart != 0) return byStart;

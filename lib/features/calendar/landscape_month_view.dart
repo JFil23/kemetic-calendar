@@ -18,6 +18,64 @@ import 'maat_flow_response_journal_blocks.dart';
 const Color _landscapeGold = Color(0xFFD4AE43);
 const double kLandscapeHeaderHeight = 58;
 
+bool _isExternalSegment(EventItem event) =>
+    event.clientEventId?.startsWith('external:') == true ||
+    event.category == 'external_calendar';
+
+DateTime _externalSegmentEndLocal(DateTime date, EventItem event) {
+  final nextMidnight = DateTime(date.year, date.month, date.day + 1);
+  final canonical = event.canonicalEnd?.toLocal();
+  if (canonical != null) {
+    return canonical.isBefore(nextMidnight) ? canonical : nextMidnight;
+  }
+  var end = event.allDay || event.endMin == 0 ? 1440 : event.endMin;
+  if (!event.allDay && end < event.startMin) end += 1440;
+  return DateTime(date.year, date.month, date.day, 0, end);
+}
+
+/// The scroll viewport uses UTC-shaped civil coordinates, not event instants.
+/// Imported rows end at their visible segment; details retain canonicalEnd.
+@visibleForTesting
+DateTime landscapeEventEndForLedger(DateTime date, EventItem event) {
+  final canonical = _isExternalSegment(event)
+      ? _externalSegmentEndLocal(date, event)
+      : event.canonicalEnd?.toLocal();
+  if (canonical != null) {
+    return DateTime.utc(
+      canonical.year,
+      canonical.month,
+      canonical.day,
+      canonical.hour,
+      canonical.minute,
+    );
+  }
+  var end = event.allDay ? 1440 : event.endMin;
+  if (!event.allDay && end < event.startMin) end += 1440;
+  return date.add(Duration(minutes: end));
+}
+
+/// Actual freshness retains the provider offset during a repeated DST hour.
+/// Authored rows keep their established civil-clock comparison.
+@visibleForTesting
+bool landscapeEventIsUpcomingForLedger(
+  DateTime date,
+  EventItem event,
+  DateTime now,
+) {
+  if (_isExternalSegment(event)) {
+    return !_externalSegmentEndLocal(date, event).isBefore(now);
+  }
+  final local = now.toLocal();
+  final civilNow = DateTime.utc(
+    local.year,
+    local.month,
+    local.day,
+    local.hour,
+    local.minute,
+  );
+  return !landscapeEventEndForLedger(date, event).isBefore(civilNow);
+}
+
 class LandscapeMonthView extends StatelessWidget {
   final int initialKy;
   final int initialKm;
@@ -701,32 +759,22 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     });
   }
 
-  DateTime _eventEnd(DateTime date, EventItem event) {
-    final canonical = event.canonicalEnd?.toLocal();
-    if (canonical != null) {
-      return DateTime.utc(
-        canonical.year,
-        canonical.month,
-        canonical.day,
-        canonical.hour,
-        canonical.minute,
-      );
-    }
-    var end = event.allDay ? 1440 : event.endMin;
-    if (!event.allDay && end < event.startMin) end += 1440;
-    return date.add(Duration(minutes: end));
-  }
+  DateTime _eventEnd(DateTime date, EventItem event) =>
+      landscapeEventEndForLedger(date, event);
 
   ({DateTime date, EventItem event})? _firstEventAt(
     DateTime target, {
     int lookBack = 0,
     int lookAhead = 120,
+    DateTime? instant,
   }) {
     final start = _dateOnly(target).subtract(Duration(days: lookBack));
     for (var i = 0; i < lookBack + lookAhead; i++) {
       final date = start.add(Duration(days: i));
       for (final event in _eventsForDate(date)) {
-        if (!_eventEnd(date, event).isBefore(target)) {
+        if (instant == null
+            ? !_eventEnd(date, event).isBefore(target)
+            : landscapeEventIsUpcomingForLedger(date, event, instant)) {
           return (date: date, event: event);
         }
       }
@@ -751,18 +799,25 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
             .floor()
             .clamp(0, 1439);
     var target = _visibleDate.add(Duration(minutes: minute));
+    DateTime? instant;
     final today = _dateOnly(_now);
     if (!today.isBefore(_visibleDate) &&
         today.isBefore(_visibleDate.add(const Duration(days: 3))) &&
         (minute - (_now.hour * 60 + _now.minute)).abs() <= 30) {
       target = _civilNow;
+      instant = _now;
     }
-    final row = _firstEventAt(target);
+    final row = _firstEventAt(target, instant: instant);
     if (row != null) _syncLedgerToEvent(row.date, row.event, smooth: smooth);
   }
 
   void _syncLedgerToUpcoming() {
-    final row = _firstEventAt(_civilNow, lookBack: 30, lookAhead: 500);
+    final row = _firstEventAt(
+      _civilNow,
+      lookBack: 30,
+      lookAhead: 500,
+      instant: _now,
+    );
     if (row != null) _syncLedgerToEvent(row.date, row.event, smooth: false);
   }
 
@@ -859,7 +914,8 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     _upcomingKey = null;
     for (final row in _ledgerRows) {
       final event = row.event;
-      if (event != null && !_eventEnd(row.date, event).isBefore(_civilNow)) {
+      if (event != null &&
+          landscapeEventIsUpcomingForLedger(row.date, event, _now)) {
         _upcomingKey = _keyFor(row.date, event);
         break;
       }

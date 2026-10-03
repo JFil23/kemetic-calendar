@@ -258,7 +258,7 @@ class CalendarHydrationController {
     );
     if (previousFingerprint != null &&
         previousFingerprint != token.catalogFingerprint) {
-      _scheduler.cancelQueued(reason: 'catalog_fingerprint_changed');
+      _scheduler.cancelCatalogBoundQueued();
     }
     _deriveAuthority(
       reason: commitIsFresh

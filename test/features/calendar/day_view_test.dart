@@ -19,6 +19,7 @@ import 'package:mobile/features/calendar/calendar_page.dart'
         beginOptimisticNoteEditorSave;
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/day_view_chrome.dart';
+import 'package:mobile/features/calendar/event_workspace/event_workspace_surface.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
@@ -3770,6 +3771,179 @@ void main() {
     expect(find.text('Safe Area Workspace'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  test(
+    'external midnight segments retain full-day bounds and canonical end',
+    () {
+      final canonicalEnd = DateTime(2026, 10, 4, 12);
+      EventItem segment({
+        required String clientEventId,
+        required int startHour,
+        int endHour = 0,
+        int endMinute = 0,
+        bool allDay = false,
+      }) => EventItem.fromTimedNote(
+        clientEventId: clientEventId,
+        title: 'Multi-day imported event',
+        allDay: allDay,
+        startHour: startHour,
+        startMinute: 0,
+        endHour: endHour,
+        endMinute: endMinute,
+        canonicalEnd: canonicalEnd,
+        color: Colors.blue,
+      );
+
+      for (final startHour in [0, 10, 23]) {
+        final imported = segment(
+          clientEventId: 'external:projection',
+          startHour: startHour,
+        );
+        expect(imported.startMin, startHour * 60);
+        expect(imported.endMin, 24 * 60);
+        expect(imported.canonicalEnd, canonicalEnd);
+      }
+      expect(
+        segment(
+          clientEventId: 'external:projection',
+          startHour: 0,
+          endHour: 12,
+        ).endMin,
+        12 * 60,
+      );
+      expect(
+        segment(
+          clientEventId: 'external:projection',
+          startHour: 0,
+          endMinute: 30,
+        ).endMin,
+        30,
+      );
+      expect(segment(clientEventId: 'authored', startHour: 23).endMin, 0);
+      expect(
+        segment(
+          clientEventId: 'external:projection',
+          startHour: 0,
+          allDay: true,
+        ).endMin,
+        17 * 60,
+      );
+    },
+  );
+
+  testWidgets('external full-day timed segment displays midnight safely', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    final event = EventItem.fromTimedNote(
+      id: 'multi-day-projection',
+      clientEventId: 'external:multi-day-projection',
+      title: 'Conference middle day',
+      allDay: false,
+      startHour: 0,
+      startMinute: 0,
+      endHour: 0,
+      endMinute: 0,
+      canonicalEnd: DateTime(2026, 10, 4, 12),
+      color: Colors.blue,
+    );
+    expect(event.startMin, 0);
+    expect(event.endMin, 1440);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: CalendarEventDetailSheet(
+              hostContext: context,
+              initialTarget: DayViewSheetEventTarget(
+                ky: 1,
+                km: 1,
+                kd: 1,
+                event: event,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Conference middle day'), findsOneWidget);
+    expect(find.text('12:00 AM – 12:00 AM'), findsOneWidget);
+    expect(find.textContaining('12:00 PM'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final imported in <({String clientEventId, String? category})>[
+    (clientEventId: 'external:google-copy', category: 'external_calendar'),
+    (clientEventId: 'external:device-copy', category: null),
+    (clientEventId: 'native:legacy-copy', category: 'native_sync'),
+  ]) {
+    testWidgets(
+      'imported workspace ${imported.clientEventId} cannot extend its source',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        var writes = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: CalendarEventDetailSheet(
+                  hostContext: context,
+                  initialTarget: DayViewSheetEventTarget(
+                    ky: 1,
+                    km: 1,
+                    kd: 1,
+                    event: EventItem(
+                      id: 'provider-projection-id',
+                      clientEventId: imported.clientEventId,
+                      category: imported.category,
+                      title: 'Imported video meeting',
+                      location: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                      startMin: 10 * 60,
+                      endMin: 11 * 60,
+                      canonicalEnd: DateTime.now().subtract(
+                        const Duration(minutes: 1),
+                      ),
+                      flowId: -1,
+                      color: Colors.blue,
+                      allDay: false,
+                      hasCanonicalSchedule: true,
+                    ),
+                  ),
+                  initialPresentation: eventWorkspacePresentationWorkspace,
+                  onRequestEndChange:
+                      ({
+                        required ky,
+                        required km,
+                        required kd,
+                        required event,
+                        required extension,
+                      }) async {
+                        writes++;
+                        return true;
+                      },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('This event has ended.'), findsOneWidget);
+        expect(find.text('+5 min'), findsNothing);
+        expect(find.text('+10 min'), findsNothing);
+        expect(find.text('+15 min'), findsNothing);
+        expect(
+          tester
+              .widget<EventWorkspaceSurface>(find.byType(EventWorkspaceSurface))
+              .onRequestExtend,
+          isNull,
+        );
+        expect(writes, 0);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('Extend publishes the next-day canonical end and clears expiry', (
     tester,

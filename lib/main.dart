@@ -54,7 +54,8 @@ import 'core/push_intent_bus.dart';
 import 'core/shared_file_intent.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
-import 'services/calendar_sync_service.dart';
+import 'services/external_calendar_controller.dart';
+import 'services/device_calendar_controller.dart';
 import 'services/navigation_trace.dart';
 import 'services/push_notifications.dart';
 import 'services/decan_reflection_scheduler.dart';
@@ -1436,6 +1437,11 @@ String? _trimmedPushValue(Object? raw) {
 }
 
 String? _initialLocationFromAppLinkIntent(AppLinkIntent intent) {
+  if (intent is ExternalCalendarAppLinkIntent) {
+    return intent.matchesEnvironment(appEnvironmentEnv)
+        ? intent.routeLocation
+        : null;
+  }
   if (intent is AuthAppLinkIntent) {
     return '/';
   }
@@ -1460,6 +1466,8 @@ String _appLinkIntentSignature(AppLinkIntent intent, Uri uri) {
       ? 'flow-post:${intent.routeLocation}'
       : intent is PlannerAppLinkIntent
       ? 'planner:${intent.routeLocation}'
+      : intent is ExternalCalendarAppLinkIntent
+      ? 'external-calendar:${intent.lane}:${intent.result}'
       : 'unknown:${uri.toString()}';
 }
 
@@ -1477,6 +1485,11 @@ String? _redirectExternalAppLink(Uri uri) {
   }
 
   final intent = AppLinkIntent.parse(uri);
+  if (intent is ExternalCalendarAppLinkIntent) {
+    return intent.matchesEnvironment(appEnvironmentEnv)
+        ? intent.routeLocation
+        : null;
+  }
   if (intent is PlannerAppLinkIntent) {
     return intent.routeLocation;
   }
@@ -1995,7 +2008,10 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
       path: '/settings',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
-        child: const SettingsPage(),
+        child: SettingsPage(
+          externalCalendarCallbackResult:
+              state.uri.queryParameters['external_calendar'],
+        ),
       ),
     ),
     _calmRoute(
@@ -2106,14 +2122,30 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
 /* ───────────────────────── App Widgets ───────────────────────── */
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.router, this.calendarLinkEnvironment});
+
+  /// Allows the real app lifetime to be exercised with an isolated test router.
+  /// Production always uses the canonical router created by bootstrap.
+  @visibleForTesting
+  final GoRouter? router;
+
+  /// Exercises the configured calendar return lane without a release build.
+  @visibleForTesting
+  final String? calendarLinkEnvironment;
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
+  GoRouter get _appRouter => widget.router ?? _router;
+
   AppWarmState? _warmState;
+  ExternalCalendarController? _calendarSync;
+  String? _calendarRecoveryOwner;
+  int _calendarRecoveryGeneration = 0;
+  String? _lastCalendarLinkSignature;
+  DateTime? _lastCalendarLinkAt;
   StreamSubscription<AuthState>? _authSub;
   StreamSubscription<Uri>? _linkSub;
   AppLinks? _appLinks;
@@ -2123,6 +2155,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    _calendarSync = externalCalendarController(supabase);
     _authSub = supabase.auth.onAuthStateChange.listen(
       (data) {
         if (data.event == AuthChangeEvent.passwordRecovery) {
@@ -2130,6 +2163,7 @@ class _MyAppState extends State<MyApp> {
         } else if (data.event == AuthChangeEvent.signedOut) {
           _passwordRecoverySession = false;
         }
+        _scheduleCalendarRecovery();
         _scheduleRebuild();
       },
       onError: (Object error, StackTrace stackTrace) {
@@ -2139,6 +2173,7 @@ class _MyAppState extends State<MyApp> {
       },
     );
     _initAuthDeepLinks();
+    _scheduleCalendarRecovery();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         (_warmState = AppWarmState(supabase)).start();
@@ -2149,11 +2184,42 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
+    _calendarRecoveryGeneration++;
+    disposeSharedExternalCalendarController();
+    DeviceCalendarController.disposeShared();
     _warmState?.dispose();
     PlannerAccountStore.of(supabase).dispose();
     _authSub?.cancel();
     _linkSub?.cancel();
     super.dispose();
+  }
+
+  // Calendar imports belong to the authenticated app lifetime, not a route.
+  // Route replacement must never dispose controllers already used by Settings.
+  void _scheduleCalendarRecovery() {
+    final owner = _passwordRecoverySession
+        ? null
+        : supabase.auth.currentUser?.id;
+    if (_calendarRecoveryOwner == owner) return;
+    _calendarRecoveryOwner = owner;
+    _lastCalendarLinkSignature = null;
+    _lastCalendarLinkAt = null;
+    final generation = ++_calendarRecoveryGeneration;
+    // Clear the previous account synchronously before any new-account frame.
+    _calendarSync?.stop();
+    DeviceCalendarController.instance.stop();
+    if (owner == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          generation != _calendarRecoveryGeneration ||
+          _passwordRecoverySession ||
+          supabase.auth.currentUser?.id != owner) {
+        return;
+      }
+      _calendarSync?.start();
+      DeviceCalendarController.instance.startForAccount();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   void _scheduleRebuild() {
@@ -2203,9 +2269,57 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _handleRootAuthLink(Uri uri) async {
     final intent = AppLinkIntent.parse(uri);
+    if (intent is ExternalCalendarAppLinkIntent) {
+      _handleRootCalendarLink(intent, uri);
+      return;
+    }
     if (intent is! AuthAppLinkIntent) return;
     final exchanged = await _exchangeAuthCallbackUri(intent.uri);
     if (exchanged) _scheduleRebuild();
+  }
+
+  void _handleRootCalendarLink(ExternalCalendarAppLinkIntent intent, Uri uri) {
+    final owner = supabase.auth.currentUser?.id;
+    if (!mounted ||
+        owner == null ||
+        _passwordRecoverySession ||
+        !intent.matchesEnvironment(
+          widget.calendarLinkEnvironment ?? appEnvironmentEnv,
+        )) {
+      return;
+    }
+    final signature = _appLinkIntentSignature(intent, uri);
+    final now = DateTime.now();
+    if (_lastCalendarLinkSignature == signature &&
+        _lastCalendarLinkAt != null &&
+        now.difference(_lastCalendarLinkAt!) < const Duration(seconds: 2)) {
+      return;
+    }
+    _lastCalendarLinkSignature = signature;
+    _lastCalendarLinkAt = now;
+    final generation = _calendarRecoveryGeneration;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          generation != _calendarRecoveryGeneration ||
+          _passwordRecoverySession ||
+          supabase.auth.currentUser?.id != owner) {
+        return;
+      }
+      fireAndForgetGuarded(
+        'calendar return intent',
+        AppNavigationRestorationController.instance.consumeOneShotIntent(
+          PendingNavigationIntent(
+            key: signature,
+            requestedRoute: intent.routeLocation,
+            source: NavigationSource.appLink,
+          ),
+        ),
+        onError: _logRootAuthLinkError,
+      );
+      // Navigation feedback only; Settings reloads this account's server status.
+      _appRouter.go(intent.routeLocation);
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   void _logRootAuthLinkError(
@@ -2268,11 +2382,12 @@ class _MyAppState extends State<MyApp> {
       home: PasswordRecoveryScreen(
         onPasswordUpdated: () async {
           _passwordRecoverySession = false;
+          _scheduleCalendarRecovery();
           _scheduleRebuild();
         },
         onCancel: () async {
-          _passwordRecoverySession = false;
           await supabase.auth.signOut();
+          _passwordRecoverySession = false;
           _scheduleRebuild();
         },
       ),
@@ -2286,7 +2401,7 @@ class _MyAppState extends State<MyApp> {
       // restores calendar/page state without turning saved pages into launch
       // commands.
       theme: AppTheme.dark,
-      routerConfig: _router,
+      routerConfig: _appRouter,
       builder: (context, child) {
         return NavigationTraceOverlay(
           child: _scaledMediaQuery(
@@ -2294,7 +2409,7 @@ class _MyAppState extends State<MyApp> {
             child: SessionLifecycleBridge(
               child: PushIntentBridge(
                 child: _AppChrome(
-                  router: _router,
+                  router: _appRouter,
                   child: child ?? const SizedBox.shrink(),
                 ),
               ),
@@ -2375,6 +2490,7 @@ class _AppChromeState extends State<_AppChrome> {
 
     return GuidedOnboardingOverlayHost(
       child: _LaunchShell(
+        router: widget.router,
         child: _GlobalOverlayShell(
           router: widget.router,
           child: KemeticKeyboardHost(child: widget.child),
@@ -3397,8 +3513,9 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
 }
 
 class _LaunchShell extends StatefulWidget {
-  const _LaunchShell({required this.child});
+  const _LaunchShell({required this.router, required this.child});
 
+  final GoRouter router;
   final Widget child;
 
   @override
@@ -3436,12 +3553,13 @@ class _LaunchShellState extends State<_LaunchShell>
 
   Future<void> _restoreDetachedCalendarOverlayAfterBoot() async {
     if (supabase.auth.currentSession == null) return;
+    final router = widget.router;
     for (var attempt = 0; attempt < 30; attempt++) {
       if (!mounted) return;
       final navContext = _rootNavigatorKey.currentContext;
       if (navContext != null) {
         if (!navContext.mounted) return;
-        final currentLocation = _router.routerDelegate.currentConfiguration.uri
+        final currentLocation = router.routerDelegate.currentConfiguration.uri
             .toString();
         final restored =
             await CalendarPage.restoreDetachedCalendarOverlayFromAnyContext(
@@ -4404,7 +4522,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     debugPrint('$stackTrace');
   }
 
-  CalendarSyncService? _calendarSync;
   final DecanReflectionScheduler _decanScheduler = DecanReflectionScheduler(
     supabase,
     onMaatGuidanceEnsured: () {
@@ -4422,7 +4539,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _calendarSync = sharedCalendarSyncService(supabase);
 
     // React to auth changes (includes initialSession)
     _authSub = supabase.auth.onAuthStateChange.listen(
@@ -4464,7 +4580,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     _authSub?.cancel();
     _linkSub?.cancel();
     _intentDataStreamSubscription?.cancel();
-    unawaited(disposeSharedCalendarSyncService());
     super.dispose();
   }
 
@@ -4591,17 +4706,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         _scheduledDecans = true;
         _ensureDecanSchedules(scope: 'decan schedule', force: true);
       }
-      final autoCalendarSyncEnabled =
-          await SettingsPrefs.autoCalendarSyncEnabled();
-      if (autoCalendarSyncEnabled) {
-        fireAndForgetGuarded(
-          'calendar sync start',
-          _calendarSync?.start(),
-          onError: _logAuthGateError,
-        );
-      } else {
-        _calendarSync?.stop();
-      }
     }
 
     if (ev == AuthChangeEvent.signedOut) {
@@ -4611,7 +4715,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       _bootDeferredRestorePreparedForAuth = false;
       await AppRestorationService.instance.clearBootFallbackIdentity();
       _router.go('/');
-      _calendarSync?.stop();
       fireAndForgetGuarded(
         'push unregister',
         PushNotifications.instance(supabase).unregister(),
@@ -4713,7 +4816,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   Future<void> _handleIncomingAppLink(Uri uri) async {
     final intent = AppLinkIntent.parse(uri);
-    if (intent == null) {
+    // Calendar returns are owned by MyApp even while this route is absent.
+    if (intent == null || intent is ExternalCalendarAppLinkIntent) {
       return;
     }
 

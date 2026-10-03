@@ -201,7 +201,8 @@
     "lib/data/shared_calendars_repo.dart": 2,
     "lib/data/flows_repo.dart": 1,
     "lib/features/rhythm/data/rhythm_repo.dart": 9,
-    "lib/features/calendar/the_reading_house/reading_house_room_repository.dart": 2
+    "lib/features/calendar/the_reading_house/reading_house_room_repository.dart": 2,
+    "lib/data/external_calendar_repository.dart": 2
   },
   "required_lifecycle_contracts": {
     "lib/main.dart": [
@@ -226,6 +227,12 @@
       "apply_planner_mutation_v1",
       "'p_account_id': uid",
       "planner_mutation_receipts"
+    ],
+    "lib/services/external_calendar_controller.dart": [
+      "didChangeAppLifecycleState",
+      "addVisibleRangeListener",
+      "removeVisibleRangeListener",
+      "_generation++"
     ]
   }
 }

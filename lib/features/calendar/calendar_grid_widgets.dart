@@ -2927,17 +2927,19 @@ class _DayChip extends StatelessWidget {
     final hasFlow = flowName != null;
 
     var titleRaw = note.title.trim();
+    final external = note.clientEventId?.startsWith('external:') == true;
 
-    // Safety: if the title is just a time (even malformed), ignore it.
+    // Authored time placeholders are omitted; provider titles retain their text.
     final timePattern = RegExp(
       r'^\s*\d{1,2}\s*[:]\s*\d{0,2}(?:\s+\d+)?\s*(?:AM|PM|am|pm)?\s*$',
       caseSensitive: false,
     );
-    if (timePattern.hasMatch(titleRaw)) {
+    if (!external && timePattern.hasMatch(titleRaw)) {
       titleRaw = '';
     }
 
-    final hasMeaningfulTitle = titleRaw.isNotEmpty && titleRaw != 'Event';
+    final hasMeaningfulTitle =
+        titleRaw.isNotEmpty && (external || titleRaw != 'Event');
 
     // One deterministic label is kept in the tree for the entire fractional
     // pinch. Presentation opacity and wrapping change continuously; the text
@@ -2972,6 +2974,9 @@ class _DayChip extends StatelessWidget {
       startMinute: note.start?.minute,
       endHour: note.end?.hour,
       endMinute: note.end?.minute,
+      canonicalEnd: note.clientEventId?.startsWith('external:') == true
+          ? note.canonicalEnd
+          : null,
       flowId: note.flowId,
       color: noteColorResolver(note),
       manualColor: note.manualColor,

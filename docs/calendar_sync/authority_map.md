@@ -1,5 +1,11 @@
 # Calendar sync authority map
 
+> **Historical native inventory — not current implementation authority.**
+> Preserve this record as evidence of the earlier native importer. The fresh
+> October 2 implementation follows [fresh_import_contract.md](fresh_import_contract.md)
+> and the current app-only authority card. Earlier cuts and prepared patches
+> must not be reused to implement or release the fresh import.
+
 This document is the Cut 0 contract for the native calendar projection. It is
 derived from the mobile source served in production on 2026-08-20:
 

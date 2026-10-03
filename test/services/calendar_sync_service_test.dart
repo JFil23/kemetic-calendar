@@ -1,42 +1,17 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/features/settings/settings_prefs.dart';
-import 'package:mobile/services/calendar_sync_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/core/imported_calendar_identity.dart';
+import 'package:mobile/services/device_calendar_controller.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  group('calendar sync preference', () {
-    test(
-      'defaults OFF until access succeeds and remembers explicit toggles',
-      () async {
-        SharedPreferences.setMockInitialValues(<String, Object>{});
-        final prefs = await SharedPreferences.getInstance();
-
-        expect(SettingsPrefs.autoCalendarSyncEnabledFrom(prefs), isFalse);
-
-        await SettingsPrefs.setAutoCalendarSyncEnabled(true, prefs);
-        expect(SettingsPrefs.autoCalendarSyncEnabledFrom(prefs), isTrue);
-
-        await SettingsPrefs.setAutoCalendarSyncEnabled(false, prefs);
-        expect(SettingsPrefs.autoCalendarSyncEnabledFrom(prefs), isFalse);
-      },
-    );
-  });
-
   group('isImportedDeviceCalendarEvent', () {
     test('detects native cid imports', () {
       expect(
-        isImportedDeviceCalendarEvent(
-          clientEventId: 'native:ios:abc123',
-          category: null,
-        ),
+        isImportedDeviceCalendarEvent(clientEventId: 'native:ios:abc123'),
         isTrue,
       );
     });
-
     test('detects legacy native_sync category imports', () {
       expect(
         isImportedDeviceCalendarEvent(
@@ -46,101 +21,56 @@ void main() {
         isTrue,
       );
     });
-
     test('does not treat app-owned events as imported device events', () {
       expect(
         isImportedDeviceCalendarEvent(
           clientEventId: 'ky=1-km=1-kd=1|s=540|t=test|f=-1',
-          category: null,
         ),
         isFalse,
       );
     });
+    test('detects separate fresh external projections', () {
+      expect(
+        isImportedDeviceCalendarEvent(clientEventId: 'external:device:event'),
+        isTrue,
+      );
+      expect(
+        isImportedDeviceCalendarEvent(category: 'external_calendar'),
+        isTrue,
+      );
+    });
   });
-
-  group('parseCalendarSyncTimestamp', () {
+  group('last synced timestamp in actual device status', () {
+    DeviceCalendarStatus parse(Object? value) => DeviceCalendarStatus.fromJson({
+      'available': true,
+      'connection': {'id': 'connection', 'last_synced_at': value},
+      'sources': [],
+    });
     test('parses stored ISO timestamps', () {
-      final parsed = parseCalendarSyncTimestamp('2026-04-15T12:34:56.000Z');
-
-      expect(parsed, isNotNull);
-      expect(parsed!.toUtc().year, 2026);
-      expect(parsed.toUtc().month, 4);
-      expect(parsed.toUtc().day, 15);
+      final parsed = parse('2026-04-15T12:34:56.000Z').lastSyncedAt;
+      expect(parsed, DateTime.utc(2026, 4, 15, 12, 34, 56));
     });
-
     test('returns null for unsupported values', () {
-      expect(parseCalendarSyncTimestamp(null), isNull);
-      expect(parseCalendarSyncTimestamp(123), isNull);
-      expect(parseCalendarSyncTimestamp(''), isNull);
-      expect(parseCalendarSyncTimestamp('not-a-date'), isNull);
+      for (final value in [null, 123, '', 'not-a-date']) {
+        expect(parse(value).lastSyncedAt, isNull);
+      }
     });
   });
-
-  group('shouldBackOffCalendarPermissionRequest', () {
-    test('backs off while denial is still recent', () {
-      final now = DateTime.utc(2026, 4, 15, 20);
-      final lastDenied = now.subtract(const Duration(hours: 2));
-
-      final result = shouldBackOffCalendarPermissionRequest(
-        now: now,
-        lastPermissionDeniedAt: lastDenied,
-      );
-
-      expect(result, isTrue);
-    });
-
-    test('allows retry after cooldown', () {
-      final now = DateTime.utc(2026, 4, 15, 20);
-      final lastDenied = now.subtract(const Duration(hours: 13));
-
-      final result = shouldBackOffCalendarPermissionRequest(
-        now: now,
-        lastPermissionDeniedAt: lastDenied,
-      );
-
-      expect(result, isFalse);
-    });
-  });
-
-  group('shouldSkipCalendarAutoStartSync', () {
-    test('skips auto-start when a sync just ran', () {
-      final now = DateTime.utc(2026, 4, 15, 20, 0, 0);
-      final lastSync = now.subtract(const Duration(seconds: 45));
-
-      final result = shouldSkipCalendarAutoStartSync(
-        now: now,
-        lastSyncAt: lastSync,
-      );
-
-      expect(result, isTrue);
-    });
-
-    test('runs auto-start sync when last sync is stale', () {
-      final now = DateTime.utc(2026, 4, 15, 20, 0, 0);
-      final lastSync = now.subtract(const Duration(minutes: 10));
-
-      final result = shouldSkipCalendarAutoStartSync(
-        now: now,
-        lastSyncAt: lastSync,
-      );
-
-      expect(result, isFalse);
-    });
-  });
-
   group('calendar sync log guardrails', () {
-    test(
-      'debug logs summarize cids and titles instead of printing values',
-      () async {
-        final source = await File(
-          'lib/services/calendar_sync_service.dart',
-        ).readAsString();
-
+    test('debug logs summarize cids and titles instead of printing values', () {
+      for (final path in [
+        'lib/services/device_calendar_bridge.dart',
+        'lib/services/device_calendar_controller.dart',
+      ]) {
+        final source = File(path).readAsStringSync();
+        // The replacement is stricter: these account-data boundaries do not log.
+        expect(
+          source,
+          isNot(matches(RegExp(r'\b(?:print|debugPrint|log)\s*\('))),
+        );
         expect(source, isNot(contains(r'cid=$cid')));
         expect(source, isNot(contains(r'title=${native.title}')));
-        expect(source, contains('_calendarSyncNativeSummary(cid, native)'));
-        expect(source, contains('_calendarSyncError(e)'));
-      },
-    );
+      }
+    });
   });
 }

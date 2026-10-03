@@ -38,13 +38,25 @@ DaySheetDayWindow daySheetWindowFor(DateTime selectedDate) {
   final start = daySheetDateOnly(selectedDate);
   return DaySheetDayWindow(
     start: start,
-    end: start.add(const Duration(days: 1)),
+    // A calendar day can contain 23 or 25 elapsed hours at a DST boundary.
+    end: DateTime(start.year, start.month, start.day + 1),
   );
 }
 
 DateTime daySheetEndAfterStart(DateTime start, DateTime end) {
   if (end.isAfter(start)) return end;
-  return end.add(const Duration(days: 1));
+  // Carry the wall-clock fields to the following civil date, not 24 hours.
+  final create = end.isUtc ? DateTime.utc : DateTime.new;
+  return create(
+    end.year,
+    end.month,
+    end.day + 1,
+    end.hour,
+    end.minute,
+    end.second,
+    end.millisecond,
+    end.microsecond,
+  );
 }
 
 bool daySheetCandidateOverlapsWindow(
