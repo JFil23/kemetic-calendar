@@ -408,3 +408,25 @@ and removal, no deletion/reinitialization on failure, and safe diagnostic text.
 A disposable browser-only test creates an IndexedDB version conflict, executes
 the real pinned Hive adapter, and reads the resulting openSessionBox/VersionError
 diagnostic. It does not access either deployed origin or a user's browser data.
+
+## October 3 saved navigation under storage quota
+
+AppRestorationService remains the navigation snapshot owner. A validated local
+snapshot can be restored when persisting its migration is rejected with
+QuotaExceededError. A validated remote snapshot can likewise be restored when
+its local copy cannot be written. The original stored payload and account-owned
+content are retained; no namespace, schema, eviction or pending-write path changes.
+Other read-repair errors still propagate. Ordinary mutations still report local
+persistence failure and do not acknowledge a remote save after that failure.
+
+When a new device identity cannot be persisted, remote window lookup is skipped
+while the account-scoped latest snapshot remains available. Failed identity
+initialization is retryable after storage recovers, and the preferences cache is
+reloaded after failed writes to avoid adopting an optimistic, unpersisted ID.
+
+Regression coverage includes both migration paths, remote adoption, device identity
+retry, account isolation, preserved authored data, unrelated errors, and honest
+mutation failure followed by recovery. A disposable Chrome origin is filled until
+real localStorage writes throw QuotaExceededError; the existing boot coordinator
+must still reach ready with the restored route and unchanged original storage.
+The existing recovery UI and visual references are unchanged.

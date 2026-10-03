@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/app_restoration_repo.dart';
 import '../core/navigation_persistence_policy.dart';
+import '../core/boot_diagnostics.dart' show bootErrorCategory;
 import '../core/route_location_sanitizer.dart';
 import 'app_window_service.dart';
 import 'app_window_platform_stub.dart'
@@ -720,6 +722,9 @@ String _overlayStackTrace(List<Map<String, dynamic>> overlayStack) {
 class AppRestorationService {
   AppRestorationService._();
 
+  @visibleForTesting
+  AppRestorationService.forTesting();
+
   static const int schemaVersion = 1;
   static const String _keyPrefix = 'app_restoration_v1';
   static const String _latestUserKeyPrefix = 'app_restoration_latest_v2';
@@ -799,16 +804,34 @@ class AppRestorationService {
       return inFlight;
     }
     _deviceIdFuture = () async {
-      final prefs = await _prefs();
-      final existing = prefs.getString(_deviceIdPrefsKey)?.trim();
-      if (existing != null && existing.isNotEmpty) {
-        _deviceId = existing;
-        return existing;
+      try {
+        final prefs = await _prefs();
+        final existing = prefs.getString(_deviceIdPrefsKey)?.trim();
+        if (existing != null && existing.isNotEmpty) {
+          _deviceId = existing;
+          return existing;
+        }
+        final generated = const Uuid().v4();
+        try {
+          if (!await prefs.setString(_deviceIdPrefsKey, generated)) {
+            throw StateError('Restoration device identity was not persisted');
+          }
+        } catch (error, stack) {
+          // SharedPreferences updates its memory cache before the platform write.
+          // Do not reuse that optimistic value as a durable device identity.
+          try {
+            await prefs.reload();
+          } catch (_) {
+            // Preserve the original write failure.
+          }
+          Error.throwWithStackTrace(error, stack);
+        }
+        _deviceId = generated;
+        return generated;
+      } finally {
+        // A rejected attempt must not poison later reads/writes after recovery.
+        _deviceIdFuture = null;
       }
-      final generated = const Uuid().v4();
-      await prefs.setString(_deviceIdPrefsKey, generated);
-      _deviceId = generated;
-      return generated;
     }();
     return _deviceIdFuture!;
   }
@@ -1073,6 +1096,18 @@ class AppRestorationService {
     }
   }
 
+  /// Reading an already-saved snapshot does not require another successful
+  /// local write. Only quota rejection of read repair is non-fatal; ordinary
+  /// mutations and unrelated failures retain their existing error contract.
+  Future<void> _persistReadRepair(Future<void> Function() persist) async {
+    try {
+      await persist();
+    } catch (error) {
+      if (bootErrorCategory(error) != 'QuotaExceededError') rethrow;
+      _log('read repair deferred reason=storage_quota');
+    }
+  }
+
   Future<_SnapshotCandidate?> _loadPrefsCandidate(
     String userId,
     String windowId, {
@@ -1095,7 +1130,12 @@ class AppRestorationService {
     }
     if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
       final prefs = await _prefs();
-      await prefs.setString(_prefsKey(userId, windowId), jsonEncode(migrated));
+      await _persistReadRepair(() async {
+        await prefs.setString(
+          _prefsKey(userId, windowId),
+          jsonEncode(migrated),
+        );
+      });
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null ||
@@ -1185,7 +1225,9 @@ class AppRestorationService {
     }
     if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
       final prefs = await _prefs();
-      await prefs.setString(_latestPrefsKey(userId), jsonEncode(migrated));
+      await _persistReadRepair(() async {
+        await prefs.setString(_latestPrefsKey(userId), jsonEncode(migrated));
+      });
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null || snapshot.userId != userId) {
@@ -1281,7 +1323,16 @@ class AppRestorationService {
     String userId,
     String windowId,
   ) async {
-    final deviceId = await _currentDeviceId();
+    final String deviceId;
+    try {
+      deviceId = await _currentDeviceId();
+    } catch (error) {
+      if (bootErrorCategory(error) != 'QuotaExceededError') rethrow;
+      // No durable device identity yet. Account-scoped latest restoration can
+      // still be read, without inventing an ephemeral remote-window identity.
+      _log('remote window read deferred reason=device_identity_storage_quota');
+      return null;
+    }
     _log(
       'remote window read start user=$userId window=$windowId '
       'device=$deviceId',
@@ -1853,8 +1904,10 @@ class AppRestorationService {
     if (snapshot == null) {
       return null;
     }
-    await _persistRawSnapshotLocally(userId, windowId, raw);
-    _log('adopted ${candidate.source} snapshot user=$userId window=$windowId');
+    await _persistReadRepair(
+      () => _persistRawSnapshotLocally(userId, windowId, raw),
+    );
+    _log('restored ${candidate.source} snapshot user=$userId window=$windowId');
     return snapshot;
   }
 
