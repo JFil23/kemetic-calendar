@@ -555,9 +555,7 @@ void main() {
     }
   });
 
-  testWidgets('renders supplied cosmic order prose and headings', (
-    tester,
-  ) async {
+  testWidgets('renders cosmic order prose with table grids', (tester) async {
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -573,21 +571,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Cosmic Order'), findsOneWidget);
-    expect(find.byType(Table), findsNothing);
-    expect(find.text('Stardust Becomes Life'), findsNWidgets(2));
-    expect(find.text('Order Is Not the Same as Certainty'), findsOneWidget);
+    expect(find.byType(Table), findsNWidgets(3));
     expect(
-      find.textContaining(
-        'The mystery does not need a false answer',
-        findRichText: true,
-      ),
+      find.text('Cosmic Beginnings, Around 13.8 Billion Years Ago'),
       findsOneWidget,
     );
+    expect(find.text('Modern Science'), findsOneWidget);
+    expect(find.text('Purpose'), findsOneWidget);
+    expect(find.text('Event or Shift'), findsOneWidget);
+    expect(find.text('How Stardust Becomes Life'), findsOneWidget);
   });
 
-  testWidgets('renders supplied human emergence prose and headings', (
-    tester,
-  ) async {
+  testWidgets('renders human emergence table grids', (tester) async {
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -603,34 +598,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Human Emergence'), findsOneWidget);
-    expect(find.byType(Table), findsNothing);
-    expect(find.text('The African Human Story'), findsOneWidget);
-    expect(
-      find.text('When Survival Starts Remembering Itself'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('reader retains table and emphasis support', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: KemeticNodeReaderPage(
-          node: KemeticNode(
-            id: 'format_specimen',
-            title: 'Format specimen',
-            glyph: '𓆄',
-            body:
-                'A **strong** and *emphasized* sentence.\n\n| Column | Value |\n| --- | --- |\n| Sample | Measure |',
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.byType(Table), findsOneWidget);
-    expect(find.text('Column'), findsOneWidget);
-    expect(find.text('Measure', findRichText: true), findsOneWidget);
-    expect(find.textContaining('strong', findRichText: true), findsOneWidget);
-    expect(find.textContaining('*', findRichText: true), findsNothing);
+    expect(find.byType(Table), findsNWidgets(7));
+    expect(find.text('New Species'), findsOneWidget);
+    expect(find.text('Human Mirror'), findsOneWidget);
   });
 
   testWidgets('persists and restores reader scroll progress', (tester) async {
@@ -678,9 +648,7 @@ void main() {
     expect(scrollView.controller!.offset, closeTo(savedOffset, 1));
   });
 
-  testWidgets('renders supplied ancient african tree prose and headings', (
-    tester,
-  ) async {
+  testWidgets('renders ancient african tree table grids', (tester) async {
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -696,14 +664,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ancient African Tree'), findsOneWidget);
-    expect(find.byType(Table), findsNothing);
-    expect(find.text('One Tree, Many Branches'), findsOneWidget);
-    expect(find.text('The Advantage of Connection'), findsOneWidget);
+    expect(find.byType(Table), findsNWidgets(2));
+    expect(find.text('Species'), findsOneWidget);
+    expect(find.text('Ecological Context'), findsOneWidget);
   });
 
-  testWidgets('renders supplied rise of kush and kemet prose and headings', (
-    tester,
-  ) async {
+  testWidgets('renders rise of kush and kemet volcanic grid', (tester) async {
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -719,9 +685,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Rise of Kush and Kemet'), findsOneWidget);
-    expect(find.byType(Table), findsNothing);
-    expect(find.text('The River Made Scale Possible'), findsOneWidget);
-    expect(find.text('Memory Becomes Institution'), findsOneWidget);
+    expect(find.byType(Table), findsOneWidget);
+    expect(find.text('Volcanic Feature'), findsOneWidget);
+    expect(find.text('Relevance'), findsOneWidget);
   });
 
   testWidgets('renders Ptahhotep emphasis without markdown markers', (
@@ -743,7 +709,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'The Instruction of Ptahhotep is one of the oldest surviving wisdom traditions',
+        'He saw what happened when authority forgot how to listen.',
         findRichText: true,
       ),
       findsOneWidget,
@@ -751,7 +717,7 @@ void main() {
     expect(find.textContaining('**', findRichText: true), findsNothing);
   });
 
-  testWidgets('renders supplied Ma\'at prose without markdown markers', (
+  testWidgets('renders Ma\'at citation emphasis without markdown markers', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1170, 2532);
@@ -767,10 +733,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining(
-        'What holds when no one is watching?',
-        findRichText: true,
-      ),
+      find.textContaining('Pyramid Texts', findRichText: true),
       findsWidgets,
     );
     expect(find.textContaining('*', findRichText: true), findsNothing);
