@@ -72,6 +72,8 @@ void main() {
           await tester.tap(find.text('Regular Pest Control'));
           await tester.pumpAndSettle();
           expect(find.byType(BottomSheet), findsOneWidget);
+          expect(find.text('10:00 AM – 11:00 AM'), findsOneWidget);
+          expect(find.text('All-day'), findsNothing);
           expect(find.byTooltip('Event options'), findsNothing);
           expect(find.text('Edit Note'), findsNothing);
           expect(find.text('End Note'), findsNothing);
@@ -89,6 +91,108 @@ void main() {
         },
       );
     }
+  }
+
+  for (final landscape in [false, true]) {
+    for (final scale in [1.0, 2.0]) {
+      testWidgets(
+        'all-day holiday detail static ${landscape ? 'landscape' : 'portrait'} ${scale}x',
+        (tester) async {
+          _viewport(tester, landscape: landscape);
+          await tester.pumpWidget(
+            _CalendarHarness(
+              scale: scale,
+              detailOnly: true,
+              note: _note(
+                clientEventId: 'external:public-holiday',
+                category: 'external_calendar',
+                calendarName: 'Holidays in United States',
+                title: 'Halloween',
+                detail: 'Observance',
+                allDay: true,
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Halloween'));
+          await tester.pumpAndSettle();
+          if (landscape && scale > 1) {
+            await tester.drag(
+              find.byKey(const ValueKey('landscape-detail-resize')),
+              const Offset(0, -120),
+            );
+            await tester.pumpAndSettle();
+          }
+          final sheet = find.byType(BottomSheet);
+          expect(sheet, findsOneWidget);
+          expect(find.text('All-day').hitTestable(), findsOneWidget);
+          expect(
+            find.descendant(of: sheet, matching: find.text('All-day')),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(
+              of: sheet,
+              matching: find.text('9:00 AM – 5:00 PM'),
+            ),
+            findsNothing,
+          );
+          expect(find.text('HOLIDAYS IN UNITED STATES'), findsOneWidget);
+          expect(find.byTooltip('Event options'), findsNothing);
+          expect(tester.takeException(), isNull);
+          if (_captureImportedDetail) {
+            await expectLater(
+              find.byType(Overlay).first,
+              matchesGoldenFile(
+                '/tmp/haw-all-day-detail-${landscape ? 'landscape' : 'portrait'}-${scale}x.png',
+              ),
+            );
+          }
+        },
+      );
+    }
+  }
+
+  for (final event in [
+    (cid: 'native:all-day', category: 'native_sync', allDay: true),
+    (cid: 'manual:all-day', category: 'Personal', allDay: true),
+    (
+      cid: 'external:timed-workday',
+      category: 'external_calendar',
+      allDay: false,
+    ),
+  ]) {
+    testWidgets('detail time follows all-day flag for ${event.cid}', (
+      tester,
+    ) async {
+      _viewport(tester);
+      await tester.pumpWidget(
+        _CalendarHarness(
+          detailOnly: true,
+          note: NoteData(
+            id: 'detail-time',
+            clientEventId: event.cid,
+            category: event.category,
+            title: 'Calendar event',
+            allDay: event.allDay,
+            start: const TimeOfDay(hour: 9, minute: 0),
+            end: const TimeOfDay(hour: 17, minute: 0),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Calendar event'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(event.allDay ? 'All-day' : '9:00 AM – 5:00 PM'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(event.allDay ? '9:00 AM – 5:00 PM' : 'All-day'),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
   }
 
   // Static preview first established this existing link-only layout. The same
@@ -352,18 +456,20 @@ NoteData _note({
   required String clientEventId,
   String? category,
   String? calendarName,
+  String title = 'Regular Pest Control',
   String detail = 'Regular visit. Keep the side gate accessible.',
+  bool allDay = false,
 }) => NoteData(
   id: 'provider-projection-id',
   clientEventId: clientEventId,
   calendarId: 'external:calendar-source',
   calendarName: calendarName,
-  title: 'Regular Pest Control',
+  title: title,
   detail: detail,
   category: category,
-  allDay: false,
-  start: const TimeOfDay(hour: 10, minute: 0),
-  end: const TimeOfDay(hour: 11, minute: 0),
+  allDay: allDay,
+  start: allDay ? null : const TimeOfDay(hour: 10, minute: 0),
+  end: allDay ? null : const TimeOfDay(hour: 11, minute: 0),
 );
 
 void _viewport(WidgetTester tester, {bool landscape = false}) {
