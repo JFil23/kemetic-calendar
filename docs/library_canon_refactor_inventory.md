@@ -64,3 +64,35 @@ Inventory completed before visual implementation.
 - Use aliases as the quiet theme line because no other category/tag model exists.
 - Use a visual-only state resolver. With no persisted Library read/progress source, show the first canonical node as `current` and all others as `unread` until a real source is added; do not write or infer read persistence.
 - Bundle and register `NotoSansEgyptianHieroglyphs-Regular.ttf` because the current app references that family but does not register the asset.
+
+## October 2, 2026 supplied Library copy replacement
+
+The user-supplied `kemetic_node_library_simplified_first_pass_updated.dart`
+replaces all 71 article bodies and supplies the updated titles and aliases.
+The canonical node IDs/order, reader/list widgets, insight ownership, routes,
+and progress storage remain unchanged. List openings, reading times, search,
+and calendar inline readers consume the same replaced static library.
+
+`test/fixtures/library/simplified_first_pass_updated.v1.json` records the input
+file's SHA-256 and independently extracted full-body hashes, titles, glyphs,
+and aliases for every article. This new immutable reference replaces assertions
+for superseded article wording; it does not regenerate approved visual baselines
+or modify old persistence fixtures. The existing order, glyph, alias, uniqueness,
+search, navigation, insight, and progress checks remain. Reader tests now expect
+the supplied prose and headings; a neutral formatting specimen retains table
+and emphasis coverage independently of the removed article tables.
+
+Link metadata is reconciled to the new text: mappings for absent phrases are
+removed, surviving spelling/case variants use their exact new phrase, and
+self-links are removed. Every remaining mapping must occur in its article,
+resolve to an existing node, and target a different node. Article bodies,
+titles, glyphs, and aliases match the supplied content exactly. References to
+older Library text within the supplied essays are intentionally preserved.
+
+Capture-only tests use the existing app theme/fonts at 390×844 and 844×390 for
+the Library, Cosmic Order, Nile, Rekh-Wer, and Epagomenal Days, with scroll and
+exception checks. Set `HAW_LIBRARY_CAPTURE_DIR` to an external evidence directory
+to capture them; no approved reference is replaced. Local validation passed all
+136 Library tests and the warm-state contract. An audit of 1,747 superseded
+paragraphs longer than 60 characters found zero remaining matches in tracked RC
+files. Git history and historical release receipts remain recovery evidence.
