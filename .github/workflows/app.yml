@@ -165,6 +165,9 @@ jobs:
       - name: Analyze the app
         run: flutter analyze --no-fatal-infos
 
+      - name: Verify real browser session diagnostics
+        run: flutter test --platform chrome test/widgets/boot_storage_browser_test.dart
+
       - name: Run the complete app test suite
         run: flutter test
 

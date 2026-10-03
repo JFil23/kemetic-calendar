@@ -388,3 +388,23 @@ their persistence owners; native Pages SPA fallback, root/app-route body hashes,
 asset identity checks, and the existing inert app-domain verification tag remain.
 No cache keys, payload schemas, account lifecycles, old-release fixtures or
 inventory thresholds change. The calendar feature rollout is separate work.
+
+
+## October 3 startup failure diagnostics
+
+The existing recovery screen now exposes a fixed-label startup stage, session
+storage operation, allowlisted error category and compiled release identity.
+The session adapter annotates failed initialization/open/check/read operations
+without changing the sb_session box, session key, stored payload or persistence
+owner. Auth writes, deletion, reload-only retry and account-route gating remain
+unchanged. No fallback storage, automatic reset, new route or migration is added.
+Synchronous router/restoration/background setup receives explicit stage labels
+without adding awaits or changing ordering. Raw exceptions and unknown names
+never enter the recovery text, including in debug builds.
+
+Production-font captures verify portrait/landscape at 1x and 2x text. Tests cover
+all observed storage operations, retained cause/stack, unchanged session writes
+and removal, no deletion/reinitialization on failure, and safe diagnostic text.
+A disposable browser-only test creates an IndexedDB version conflict, executes
+the real pinned Hive adapter, and reads the resulting openSessionBox/VersionError
+diagnostic. It does not access either deployed origin or a user's browser data.
