@@ -524,6 +524,7 @@ Future<Widget> _bootstrapApp(BootAttempt attempt) async {
   // storage cannot be cancelled; a failed boot stays terminal until page reload.
   attempt.ensureActive();
   final initialLocation = _resolveInitialLocation();
+  attempt.enterStage('router initialization');
   _router = _createRouter(initialLocation: initialLocation);
   traceRestoration('boot router created initialLocation=$initialLocation');
   traceRestoration(
@@ -534,6 +535,7 @@ Future<Widget> _bootstrapApp(BootAttempt attempt) async {
   final restoreTargetLocation = _authDeferredRestorePending
       ? _bootAuthDeferredRestoredLocation
       : initialLocation;
+  attempt.enterStage('launch restoration');
   RestorationCoordinator.instance.beginLaunchRestore(
     reason: RestorationRestoreReason.coldLaunch,
     targetLocation: restoreTargetLocation,
@@ -543,6 +545,7 @@ Future<Widget> _bootstrapApp(BootAttempt attempt) async {
   // 🚨 Initialize notifications/push without blocking the first frame.
   // AuthGate will re-attempt on sign-in if these fail.
   if (!_debugDaySheetSmokeBootRequested) {
+    attempt.enterStage('background setup');
     _startBackgroundWarmups();
 
     // Web/PWA boot hardening (iOS PWA friendly)

@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/root_boot.dart';
+import 'package:mobile/core/boot_diagnostics.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -91,7 +92,16 @@ void main() {
         await tester.pumpWidget(
           RepaintBoundary(
             key: const ValueKey('boot-capture'),
-            child: RootBootErrorShell(onRetry: () => retries += 1),
+            child: RootBootErrorShell(
+              onRetry: () => retries += 1,
+              error: BootFailure(
+                'saved session',
+                BootStorageFailure(
+                  BootStorageOperation.openSessionBox,
+                  StateError('secret-session-must-never-render'),
+                ),
+              ),
+            ),
           ),
         );
         await tester.pumpAndSettle();
@@ -111,6 +121,11 @@ void main() {
         expect(
           tester.getCenter(heading).dx,
           closeTo(viewport.value.width / 2, 0.1),
+        );
+        expect(find.textContaining('secret-session'), findsNothing);
+        expect(
+          find.textContaining('Operation: openSessionBox'),
+          findsOneWidget,
         );
         await _capture(tester, 'recovery-${viewport.key}-${scale.toInt()}x');
         await tester.tap(retry);

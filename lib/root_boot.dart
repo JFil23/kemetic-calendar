@@ -1,10 +1,10 @@
 // Launch surfaces restored from a65e1972; shared by startup and route restoration.
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'shared/glossy_text.dart';
+import 'core/boot_diagnostics.dart';
 
 typedef BootAppFactory = Future<Widget> Function(BootAttempt attempt);
 
@@ -16,8 +16,13 @@ class BootFailure implements Exception {
   final String stage;
   final Object cause;
 
+  String get diagnostic =>
+      'Stage: ${bootStageLabel(stage)}\n'
+      'Operation: ${cause is BootStorageFailure ? (cause as BootStorageFailure).operation.name : 'bootstrap'}\n'
+      'Error: ${bootErrorCategory(cause)}';
+
   @override
-  String toString() => 'Startup failed during $stage (${cause.runtimeType}).';
+  String toString() => diagnostic;
 }
 
 /// A deadline stops this startup sequence, not the browser's underlying I/O.
@@ -30,6 +35,12 @@ class BootAttempt {
 
   void ensureActive() {
     if (!_active) throw BootFailure(_stage, StateError('Startup ended'));
+  }
+
+  /// Label synchronous startup work without adding awaits or changing ordering.
+  void enterStage(String stage) {
+    ensureActive();
+    _stage = stage;
   }
 
   Future<T> run<T>(
@@ -306,14 +317,15 @@ class RootBootErrorShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleError = kDebugMode ? error?.toString() : null;
+    final failure = error;
+    final visibleError = failure is BootFailure ? failure.diagnostic : null;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       builder: (context, child) => Scaffold(
         backgroundColor: const Color(0xFF171518),
         body: SafeArea(
           child: Center(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -333,7 +345,18 @@ class RootBootErrorShell extends StatelessWidget {
                     Text(
                       visibleError,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white70),
+                      key: const ValueKey('boot-diagnostic'),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Release: $bootDiagnosticRelease',
+                      key: ValueKey('boot-release'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
                     ),
                   ],
                   const SizedBox(height: 20),
