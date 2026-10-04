@@ -61,11 +61,15 @@ class PronounceIconButton extends StatelessWidget {
                   await speech.speak(speakText, utteranceId: buttonUtteranceId);
                 }
               }
-            } catch (_) {
+            } catch (error) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Speech not available on this device'),
+                  SnackBar(
+                    content: Text(
+                      error is SpeechUnavailable
+                          ? error.message
+                          : 'This pronunciation could not play. Please try again.',
+                    ),
                   ),
                 );
               }

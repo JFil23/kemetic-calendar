@@ -432,6 +432,42 @@ must still reach ready with the restored route and unchanged original storage.
 The existing recovery UI and visual references are unchanged.
 
 
+## October 3 bundled G/H pronunciation recordings
+
+SpeechService owns the existing device preference `speech:preferredVoiceId`.
+Retired device/browser voice IDs resolve to G under that same key; G/H choices
+persist locally and do not become account content. SpeechResolver continues to
+own the app's pronunciation text and English cue variants.
+
+The immutable public corpus in `assets/speech/` contains 84 phrases per voice and
+the two approved previews. Native packages contain the files. On web,
+BundledSpeechAssetStore saves SHA-256-verified bytes in the stable Hive box
+`speech_audio_v1`, keyed by asset path and content digest. No build identifier,
+account ID, user text, authored data, pending writes, or provider credential enters
+this cache. An unchanged recording remains reusable across releases and accounts;
+a changed digest selects a new recording. Old entries are not erased on logout.
+
+Entering Settings prepares the complete public corpus with four bounded workers;
+readiness is reported only after every asset has been verified and saved. Partial
+failure keeps verified clips and offers retry. Individual pronunciation taps also
+load/cache their recording. Corrupt cache entries are repaired from the bundled
+asset; failed storage writes do not claim offline readiness. Browser eviction can
+require downloading the public corpus again. No runtime synthesis service or
+new account repository/read/write boundary is introduced.
+
+Tests cover selection migration/restart, exact catalog coverage, checksums,
+interrupted playback, completion isolation, cold/warm reads, offline store restart,
+corrupt cache repair, partial download retry and storage failure. Static Settings
+captures use existing fonts/theme at portrait/landscape and 1x/2x. The local web
+verification surface exercises the same production service with asset reads
+explicitly disabled after the first save. Commercial release also requires
+licensed audio: this initial corpus was generated on ElevenLabs' free plan and
+is for noncommercial use with elevenlabs.io attribution in the recordings title.
+The user confirmed that the app is not commercially released and is noncommercial,
+and authorized this production-lane cutover. The approved G/H audio and attribution
+are preserved; this confirmation does not create a commercial audio license.
+
+
 ## October 3 Library exit responsiveness
 
 The Library reader's Back and system-back actions capture the existing node

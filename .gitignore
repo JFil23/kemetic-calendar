@@ -66,3 +66,6 @@ web/env.json
 # Env files (keep examples only)
 env/*.json
 !env/*.example.json
+
+# Generated voice auditions (review before promoting to app assets)
+artifacts/voice_auditions/

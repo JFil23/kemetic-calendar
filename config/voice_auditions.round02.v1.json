@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "purpose": "Round two: four African American English directions and four Sudanese Coptic English directions. Synthetic audition attempts; accent authenticity and preference require listening review.",
+  "model": "gpt-4o-mini-tts",
+  "text": "Djehuty. Today is day twelve of Shemu. The moon reaches first quarter tonight. Take your time.",
+  "speed": 0.94,
+  "direction": "Read only the supplied English text, exactly once. The specified accent is a central requirement: sustain its natural pronunciation, vowels, rhythm, and stress patterns clearly throughout the whole passage. Aim for a male vocal character in his late thirties, with a warm low-mid tenor/baritone register and a lightly textured natural tone. Speak with intimate close-microphone presence, as a thoughtful person beside the listener. Be intelligent, grounded, calm but awake, emotionally present, and self-assured. Keep the pace unhurried without sounding sleepy, pitch variation restrained but natural, and pauses small and meaningful. Be clear and fluid without theatrical over-enunciation. Say Djehuty confidently as a standalone pronunciation, deliver the calendar sentences conversationally, and let Take your time be slightly warmer and more spacious, with the same vocal identity throughout. Keep every word of the supplied text unchanged. Do not add slang, words, explanations, translations, laughter, music, or effects. Avoid announcer delivery, meditation or ASMR whispering, mystical or ancient-Egypt performance, booming bass, customer-service cheerfulness, generic robotic assistant affect, and exaggerated accent performance.",
+  "review_criteria": [
+    "The requested English accent is clearly present throughout, subject to listening review",
+    "Natural speech without caricature, forced affect, added words, or translations",
+    "Warm low-mid male vocal character, late thirties, with light natural texture",
+    "Calm, awake, intimate delivery consistent with the hꜣw voice brief",
+    "Same vocal identity across pronunciation, information, and reflection",
+    "Djehuty and Shemu pronunciation require listening approval",
+    "No added, missing, repeated, or reordered words"
+  ],
+  "candidates": [
+    {
+      "id": "01-aa-onyx-grounded",
+      "voice": "onyx",
+      "direction": "Speak as an African American man in his late thirties using clearly recognizable contemporary African American English pronunciation and prosody. Make the African American conversational cadence, vowel coloring, phrasing, and stress patterns a prominent, natural part of the voice. This is an everyday personal conversation with an attentive listener. Preserve the exact standard-English wording provided. Let the accent sound lived-in and effortless, with no imitation of a celebrity, comedy dialect, added slang, preaching, or stage performance.\n\nUse a grounded light baritone, moderate warmth, light grain, and relaxed direct phrasing. Keep the accent distinct even in the short opening word. Allow easy small pauses while maintaining a close, matter-of-fact presence.",
+      "comparison": "African American English; Grounded light baritone; relaxed direct phrasing"
+    },
+    {
+      "id": "02-aa-echo-warm",
+      "voice": "echo",
+      "direction": "Speak as an African American man in his late thirties using clearly recognizable contemporary African American English pronunciation and prosody. Make the African American conversational cadence, vowel coloring, phrasing, and stress patterns a prominent, natural part of the voice. This is an everyday personal conversation with an attentive listener. Preserve the exact standard-English wording provided. Let the accent sound lived-in and effortless, with no imitation of a celebrity, comedy dialect, added slang, preaching, or stage performance.\n\nUse a warm low-mid register with conversational ease and lightly rounded phrase endings. Keep a gentle, audible rhythmic flow in the specified accent, with relaxed closeness and a touch more warmth.",
+      "comparison": "African American English; Warmer tone; gently flowing cadence"
+    },
+    {
+      "id": "03-aa-ash-textured",
+      "voice": "ash",
+      "direction": "Speak as an African American man in his late thirties using clearly recognizable contemporary African American English pronunciation and prosody. Make the African American conversational cadence, vowel coloring, phrasing, and stress patterns a prominent, natural part of the voice. This is an everyday personal conversation with an attentive listener. Preserve the exact standard-English wording provided. Let the accent sound lived-in and effortless, with no imitation of a celebrity, comedy dialect, added slang, preaching, or stage performance.\n\nUse a softly textured low-mid register, a little natural vocal grain, and settled, deliberate phrasing. Let natural breaths and small pauses separate the thoughts, while keeping the accent clearly audible and the speaker awake.",
+      "comparison": "African American English; More grain; settled cadence and small pauses"
+    },
+    {
+      "id": "04-aa-cedar-intimate",
+      "voice": "cedar",
+      "direction": "Speak as an African American man in his late thirties using clearly recognizable contemporary African American English pronunciation and prosody. Make the African American conversational cadence, vowel coloring, phrasing, and stress patterns a prominent, natural part of the voice. This is an everyday personal conversation with an attentive listener. Preserve the exact standard-English wording provided. Let the accent sound lived-in and effortless, with no imitation of a celebrity, comedy dialect, added slang, preaching, or stage performance.\n\nUse an intimate warm tenor/baritone, restrained warmth, and quiet confidence. Keep pitch movement narrow but natural, and maintain the specified accent as clearly in the calendar sentences as in Take your time.",
+      "comparison": "African American English; Closer presence; restrained, warm delivery"
+    },
+    {
+      "id": "05-sudanese-coptic-onyx-grounded",
+      "voice": "onyx",
+      "direction": "Speak as a Sudanese Coptic man in his late thirties from Khartoum, bilingual in Sudanese Arabic and English, speaking fluent English with a clearly audible natural Sudanese Arabic-influenced English accent. Sustain that regional accent in the vowels, consonants, stress, and sentence rhythm while keeping the English easy to understand. The Coptic background is the speaker brief, not a request for liturgical language or a ceremonial delivery. Preserve the exact English wording: no Arabic or Coptic translation, added interjections, or altered script. Keep the delivery everyday, personal, and contemporary.\n\nUse a grounded light baritone, moderate warmth, light grain, and relaxed direct phrasing. Keep the accent distinct even in the short opening word. Allow easy small pauses while maintaining a close, matter-of-fact presence.",
+      "comparison": "Sudanese Coptic brief; Sudanese Arabic-influenced English; Grounded light baritone; relaxed direct phrasing"
+    },
+    {
+      "id": "06-sudanese-coptic-echo-warm",
+      "voice": "echo",
+      "direction": "Speak as a Sudanese Coptic man in his late thirties from Khartoum, bilingual in Sudanese Arabic and English, speaking fluent English with a clearly audible natural Sudanese Arabic-influenced English accent. Sustain that regional accent in the vowels, consonants, stress, and sentence rhythm while keeping the English easy to understand. The Coptic background is the speaker brief, not a request for liturgical language or a ceremonial delivery. Preserve the exact English wording: no Arabic or Coptic translation, added interjections, or altered script. Keep the delivery everyday, personal, and contemporary.\n\nUse a warm low-mid register with conversational ease and lightly rounded phrase endings. Keep a gentle, audible rhythmic flow in the specified accent, with relaxed closeness and a touch more warmth.",
+      "comparison": "Sudanese Coptic brief; Sudanese Arabic-influenced English; Warmer tone; gently flowing cadence"
+    },
+    {
+      "id": "07-sudanese-coptic-ash-textured",
+      "voice": "ash",
+      "direction": "Speak as a Sudanese Coptic man in his late thirties from Khartoum, bilingual in Sudanese Arabic and English, speaking fluent English with a clearly audible natural Sudanese Arabic-influenced English accent. Sustain that regional accent in the vowels, consonants, stress, and sentence rhythm while keeping the English easy to understand. The Coptic background is the speaker brief, not a request for liturgical language or a ceremonial delivery. Preserve the exact English wording: no Arabic or Coptic translation, added interjections, or altered script. Keep the delivery everyday, personal, and contemporary.\n\nUse a softly textured low-mid register, a little natural vocal grain, and settled, deliberate phrasing. Let natural breaths and small pauses separate the thoughts, while keeping the accent clearly audible and the speaker awake.",
+      "comparison": "Sudanese Coptic brief; Sudanese Arabic-influenced English; More grain; settled cadence and small pauses"
+    },
+    {
+      "id": "08-sudanese-coptic-cedar-intimate",
+      "voice": "cedar",
+      "direction": "Speak as a Sudanese Coptic man in his late thirties from Khartoum, bilingual in Sudanese Arabic and English, speaking fluent English with a clearly audible natural Sudanese Arabic-influenced English accent. Sustain that regional accent in the vowels, consonants, stress, and sentence rhythm while keeping the English easy to understand. The Coptic background is the speaker brief, not a request for liturgical language or a ceremonial delivery. Preserve the exact English wording: no Arabic or Coptic translation, added interjections, or altered script. Keep the delivery everyday, personal, and contemporary.\n\nUse an intimate warm tenor/baritone, restrained warmth, and quiet confidence. Keep pitch movement narrow but natural, and maintain the specified accent as clearly in the calendar sentences as in Take your time.",
+      "comparison": "Sudanese Coptic brief; Sudanese Arabic-influenced English; Closer presence; restrained, warm delivery"
+    }
+  ]
+}

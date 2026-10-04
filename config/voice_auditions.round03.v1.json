@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "purpose": "Round three: controlled prompt auditions A-H on one Onyx base voice. An original hꜣw vocal character inspired by the broad qualities in the supplied reference, not an imitation of any named performer. H is an unreviewed combined hypothesis, not a selected winner. Prompt controls do not guarantee independent acoustic changes or accent authenticity.",
+  "model": "gpt-4o-mini-tts",
+  "text": "Djehuty. Today is day twelve of Shemu. The moon reaches first quarter tonight. Take your time.",
+  "speed": 0.94,
+  "direction": "Read the supplied English text exactly once, with every word intact. Create an original, contemporary African American male vocal character, age about 42. Use polished everyday American English with a clearly present African American English vocal identity expressed through natural vowels, rhythmic phrasing, intonation, pitch-accent placement, and voice quality. Keep the vocabulary and grammar exactly as supplied. No added slang, dropped words, comedy dialect, exaggerated Southern accent, preaching, or imitation of a real performer. Baseline sound: warm low-mid baritone, moderate chest resonance, light natural texture, moderate conversational warmth, an unhurried but awake pace, and calm confidence. Allow meaningful pitch accents inside sentences, clear stressed syllables, relaxed unstressed material, small pitch resets between thoughts, and settled downward statement endings. Avoid flattening the delivery into neutral commercial narration. Maintain control and restraint; the voice should feel personal and lived-in. Close microphone presence, natural breaths, and tiny imperfections. Say Djehuty cleanly and confidently, speak the calendar information naturally, and give Take your time a small amount of reflective space. Do not over-enunciate names or separate them into robotic syllables. Preserve one vocal identity across all sentences. Avoid booming bass, announcer or movie-trailer delivery, customer-service cheerfulness, corporate training narration, hip-hop caricature, forced vocal fry, meditation whispering, and mystical or ancient-Egypt performance. Do not speak any instructions, labels, or explanations. Each variant below changes only the specified quality relative to this baseline; keep all other baseline qualities as consistent as possible.",
+  "review_criteria": [
+    "User listening judgment of whether the voice meets the requested Black masculine vocal character",
+    "Original speaker identity; no recognizable imitation of the named inspiration performers",
+    "Richness, resonance, control, natural phrasing, and warmth assessed separately",
+    "Same base voice, text, model, output format, and speed in every request",
+    "No claims of race inferred from a real person or validated accent authenticity",
+    "Djehuty and Shemu pronunciation and exact wording require listening review"
+  ],
+  "candidates": [
+    {
+      "id": "a-prosody-baseline",
+      "voice": "onyx",
+      "comparison": "A — prosody baseline",
+      "direction": "Use the baseline exactly: clearly expressed natural African American English prosody with moderate resonance, light texture, and otherwise neutral conversational delivery. This is the comparison reference; do not intensify any other quality."
+    },
+    {
+      "id": "b-resonance-texture",
+      "voice": "onyx",
+      "comparison": "B — more resonance and texture",
+      "direction": "Change only resonance and texture: add denser chest resonance and a richer naturally textured edge. Keep the baseline pitch/register, rhythm, pace, age, warmth, and emotional delivery. Vocal weight should come from resonant tone rather than extra bass or increased volume; subtle phrase-final grain is acceptable."
+    },
+    {
+      "id": "c-rhythmic-phrasing",
+      "voice": "onyx",
+      "comparison": "C — stronger pitch accents and rhythm",
+      "direction": "Change only rhythmic phrasing and intonation: use more distinct pitch accents on meaningful stressed syllables, relaxed unstressed connections, and clear pitch resets between short thought groups. Keep the same overall pace, register, vocal texture, age, and warmth. Statements settle decisively without a sing-song or performed delivery."
+    },
+    {
+      "id": "d-measured-authority",
+      "voice": "onyx",
+      "comparison": "D — more composed authority",
+      "direction": "Change only composure and authority: sound exceptionally settled, assured, and deliberate, with precise calm phrase endings and no urgency. Maintain the baseline resonance, grain, pitch, accent, age, warmth, and overall pace. Authority comes from self-possession rather than loudness, deeper bass, or commanding the listener."
+    },
+    {
+      "id": "e-conversational-warmth",
+      "voice": "onyx",
+      "comparison": "E — more conversational warmth",
+      "direction": "Change only interpersonal warmth: make the delivery more personally engaged and companionable, as though addressing one familiar person across a table. Preserve the baseline pitch, resonance, grain, age, accent, and pace. Let small natural warmth enter the phrasing without a constant smile, breathiness, or customer-service enthusiasm."
+    },
+    {
+      "id": "f-older-vocal-age",
+      "voice": "onyx",
+      "comparison": "F — slightly older vocal age",
+      "direction": "Change only apparent vocal age: aim for a man around 50 rather than 42. Preserve the baseline low-mid register, resonance, amount of grain, accent, pace, rhythm, and warmth. Suggest maturity without an elderly voice, extra gravel, exaggerated bass, or fatigue."
+    },
+    {
+      "id": "g-diasporic-rhythm",
+      "voice": "onyx",
+      "comparison": "G — exploratory diasporic rhythm",
+      "direction": "Change only rhythmic and articulatory feel in an exploratory diasporic direction: slightly more deliberate syllabic timing, clear grounded consonant attacks, and small spaces around thought groups. Keep the baseline American English wording and vowel pronunciation, timbre, pitch, age, warmth, and overall pace. Do not adopt or imitate a specific national accent; do not exaggerate articulation. This is an original artistic rhythmic variation, not a claim to represent every African or diaspora speaker."
+    },
+    {
+      "id": "h-combined-hypothesis",
+      "voice": "onyx",
+      "comparison": "H — combined hypothesis, awaiting review",
+      "direction": "Combine moderate amounts of denser chest resonance and natural texture, meaningful pitch accents and short thought groups, composed measured authority, and personal conversational warmth. Keep age around 42, low-mid baritone pitch, clearly expressed natural African American English identity, and the baseline overall pace. Balance these elements so none feels performed. Maintain vocal weight without booming and warmth without softness. This is an audition hypothesis, not a claim of an already selected best voice."
+    }
+  ]
+}

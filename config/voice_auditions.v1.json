@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "purpose": "Eight listening auditions; these are prompted built-in voices, not custom voice IDs.",
+  "model": "gpt-4o-mini-tts",
+  "text": "Djehuty. Today is day twelve of Shemu. The moon reaches first quarter tonight. Take your time.",
+  "speed": 0.94,
+  "direction": "Read only the supplied text, exactly once. Aim for a male vocal character in his late thirties with a warm low-mid tenor/baritone register, not deep bass. Use contemporary American English with subtle Black American rhythmic influence in the cadence, without exaggerated dialect or caricature. Speak intimately, as a thoughtful person beside the listener. Be grounded, intelligent, calm but awake, and confident without commanding. Keep warmth restrained, pitch movement narrow and natural, consonants clear, and the delivery fluid. Allow tiny natural imperfections and a little texture. Use brief, unforced pauses between thoughts. Say Djehuty cleanly and confidently as a standalone pronunciation; speak the two calendar sentences conversationally; let Take your time be slightly warmer and more spacious, with the same vocal identity throughout. Do not add words, explanations, laughter, music, or sound effects. Avoid theatrical enunciation, mystical or ancient affectation, announcer energy, deep movie-trailer bass, ASMR whispering, breathy wellness-coach delivery, British accent, synthetic cheerfulness, singsong pitch, upward inflection on statements, and a constant audible smile.",
+  "review_criteria": [
+    "Naturalness and absence of audible glitches",
+    "Warm low-mid register without excess bass",
+    "Contemporary American cadence and restrained expression",
+    "Same vocal identity across pronunciation, information, and reflection",
+    "Djehuty and Shemu pronunciation require listening approval",
+    "No added, missing, repeated, or reordered words"
+  ],
+  "candidates": [
+    {
+      "id": "01-cedar-centered",
+      "voice": "cedar",
+      "direction": "Keep this as the centered reference: moderate warmth, only light natural grain, and an easy even conversational cadence. Stay in the middle of the low-mid register. Sound close and attentive with small, unforced gaps between thoughts.",
+      "comparison": "Moderate warmth; light grain; easy, even cadence; middle of the low-mid register; close conversational presence."
+    },
+    {
+      "id": "02-cedar-textured",
+      "voice": "cedar",
+      "direction": "Relative to the centered reference, add a little warmth and natural vocal grain, settle slightly lower within the low-mid register, and leave slightly more space between thoughts. Make the presence a touch closer, while keeping full speaking tone rather than whispering.",
+      "comparison": "Slightly warmer; more grain; more space; slightly deeper low-mid register; closer intimacy."
+    },
+    {
+      "id": "03-ash-centered",
+      "voice": "ash",
+      "direction": "Keep moderate warmth and very light natural grain. Let connected phrases flow a little more readily while retaining the unhurried overall pace. Favor the upper portion of the low-mid register, with relaxed conversational closeness and no extra brightness or enthusiasm.",
+      "comparison": "Moderate warmth; very light grain; slightly brisker conversational flow; upper low-mid register; relaxed closeness."
+    },
+    {
+      "id": "04-ash-textured",
+      "voice": "ash",
+      "direction": "Add restrained warmth and light natural grain. Settle into the middle of the low-mid register. Gently ease the ends of phrases and leave a small pocket of silence before the next thought. Bring the voice slightly closer without breathiness or losing clear consonants.",
+      "comparison": "Warmer; light grain; gentler phrase endings; middle low-mid register; more intimate."
+    },
+    {
+      "id": "05-ballad-centered",
+      "voice": "ballad",
+      "direction": "Keep warmth restrained and natural grain light. Favor a warm tenor placement within the low-mid register, with narrow pitch movement and compact natural pauses. Speak clearly across a small table, with an ordinary, matter-of-fact ease.",
+      "comparison": "Restrained warmth; light grain; compact pauses; warm tenor within low-mid; clear table-side presence."
+    },
+    {
+      "id": "06-ballad-textured",
+      "voice": "ballad",
+      "direction": "Add a little more warmth and grain, and a slightly fuller body within the low-mid register. Use a gently rounded conversational cadence with modestly longer gaps between thoughts. Soften the interpersonal delivery without softening consonants, whispering, or sounding sleepy.",
+      "comparison": "More warmth; slightly more grain; rounder cadence; slightly fuller low-mid; softer conversational intimacy."
+    },
+    {
+      "id": "07-onyx-centered",
+      "voice": "onyx",
+      "direction": "Keep the baritone light and conversational, avoiding extra bass weight. Use moderate warmth, restrained grain, and direct, fluid sentence delivery with small natural pauses. Sound nearby and self-assured rather than resonant, formal, or authoritative.",
+      "comparison": "Moderate warmth; restrained grain; direct cadence; light baritone without bass; conversational closeness."
+    },
+    {
+      "id": "08-onyx-textured",
+      "voice": "onyx",
+      "direction": "Make the light baritone a shade lower and warmer while keeping it inside the low-mid register, never deep or booming. Add a little natural grain and slightly more breathing room between thoughts. Bring the presence closer and more personal while staying clear, awake, and restrained.",
+      "comparison": "Warmer; lightly grainier; more breathing room; slightly lower baritone within low-mid; closer presence."
+    }
+  ]
+}
