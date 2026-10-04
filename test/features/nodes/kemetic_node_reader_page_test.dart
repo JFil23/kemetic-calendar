@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +8,7 @@ import 'package:mobile/features/nodes/kemetic_node_model.dart';
 import 'package:mobile/features/nodes/kemetic_node_list_page.dart';
 import 'package:mobile/features/nodes/kemetic_node_reader_page.dart';
 import 'package:mobile/features/nodes/library_read_progress_store.dart';
+import 'package:mobile/features/nodes/library_read_state.dart';
 import 'package:mobile/features/nodes/node_user_insights_section.dart';
 import 'package:mobile/features/nodes/widgets.dart';
 import 'package:mobile/main.dart' as app;
@@ -39,6 +41,73 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
+
+  for (final pushed in [false, true]) {
+    for (final failed in [false, true]) {
+      testWidgets(
+        'reader exits before ${failed ? 'failed' : 'delayed'} progress save '
+        'from ${pushed ? 'pushed' : 'restored'} route',
+        (tester) async {
+          final store = _DeferredScrollProgressStore();
+          final router = GoRouter(
+            initialLocation: pushed ? '/nodes' : '/nodes/rekh_wer',
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (_, _) => const Scaffold(body: Text('Calendar home')),
+              ),
+              GoRoute(
+                path: '/nodes',
+                builder: (_, state) => KemeticNodeListPage(
+                  initialNodeId: state.uri.queryParameters['focus'],
+                  readProgressStore: store,
+                ),
+              ),
+              GoRoute(
+                path: '/nodes/:nodeId',
+                builder: (_, state) => KemeticNodeReaderPage(
+                  node: KemeticNodeLibrary.resolve(
+                    state.pathParameters['nodeId']!,
+                  )!,
+                  readProgressStore: store,
+                ),
+              ),
+            ],
+          );
+          addTearDown(router.dispose);
+          await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+          await tester.pumpAndSettle();
+          if (pushed) {
+            unawaited(router.push<void>('/nodes/rekh_wer'));
+            await tester.pumpAndSettle();
+          }
+          await tester.tap(find.byType(GlyphBackButton));
+          await tester.pumpAndSettle();
+          expect(store.savedNodeIds, contains('rekh_wer'));
+          expect(router.state.uri.path, '/nodes');
+          expect(find.byType(KemeticNodeReaderPage), findsNothing);
+          expect(find.byType(KemeticNodeListPage), findsOneWidget);
+          if (!pushed) {
+            expect(router.state.uri.queryParameters['focus'], 'rekh_wer');
+          }
+          // Close the Library while its previous reader write is still pending.
+          await tester.tap(find.byType(GlyphBackButton));
+          await tester.pumpAndSettle();
+          expect(find.text('Calendar home'), findsOneWidget);
+          if (failed) {
+            store.save.completeError(
+              StateError('Simulated storage quota failure'),
+            );
+          } else {
+            store.save.complete(const LibraryNodeProgress(nodeId: 'rekh_wer'));
+          }
+          await tester.pumpAndSettle();
+          expect(router.state.uri.path, '/');
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
 
   testWidgets(
     'visible back button walks in-page node history before popping the route',
@@ -872,5 +941,32 @@ class _ReaderLaunchPage extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _DeferredScrollProgressStore extends LibraryReadProgressStore {
+  final save = Completer<LibraryNodeProgress>();
+  final savedNodeIds = <String>[];
+
+  @override
+  Future<LibraryReadSnapshot?> readCachedSnapshotOnly() async =>
+      const LibraryReadSnapshot();
+
+  @override
+  Future<LibraryReadSnapshot> readSnapshot() async =>
+      const LibraryReadSnapshot();
+
+  @override
+  Future<LibraryNodeProgress> recordOpened(String nodeId) async =>
+      LibraryNodeProgress(nodeId: nodeId);
+
+  @override
+  Future<LibraryNodeProgress> saveScrollProgress({
+    required String nodeId,
+    required double progressPercent,
+    required double lastScrollOffset,
+  }) {
+    savedNodeIds.add(nodeId);
+    return save.future;
   }
 }
