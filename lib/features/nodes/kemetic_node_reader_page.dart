@@ -213,11 +213,19 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     final sample = _currentProgressSample();
     if (sample == null) return null;
     final nodeId = _node.id;
-    final progress = await _readProgressStore.saveScrollProgress(
-      nodeId: nodeId,
-      progressPercent: sample.progressPercent,
-      lastScrollOffset: sample.scrollOffset,
-    );
+    final LibraryNodeProgress progress;
+    try {
+      progress = await _readProgressStore.saveScrollProgress(
+        nodeId: nodeId,
+        progressPercent: sample.progressPercent,
+        lastScrollOffset: sample.scrollOffset,
+      );
+    } catch (_) {
+      // A failed progress write must not become an unhandled asynchronous
+      // error after leaving the reader. The store retains existing progress.
+      debugPrint('Library reading progress could not be saved.');
+      return null;
+    }
     if (updateBookmarkState) {
       _setBookmarkActiveFor(nodeId, progress);
     }
@@ -335,9 +343,10 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     return true;
   }
 
-  Future<void> _handleBackNavigation() async {
-    await _saveCurrentProgress();
-    if (!mounted) return;
+  void _handleBackNavigation() {
+    // Capture the current node/offset before changing history, but let the
+    // existing store finish independently of navigation (including offline).
+    _persistCurrentProgress();
     if (_popNode(persist: false)) return;
     final location = Uri(
       path: '/nodes',
@@ -377,7 +386,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        unawaited(_handleBackNavigation());
+        _handleBackNavigation();
       },
       child: Scaffold(
         backgroundColor: CandlelitMahoganyBackground.base,
@@ -390,9 +399,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
           leadingWidth: 64,
           leading: GlyphBackButton(
             showLabel: false,
-            onTap: () {
-              unawaited(_handleBackNavigation());
-            },
+            onTap: _handleBackNavigation,
           ),
           titleSpacing: 0,
           actions: [

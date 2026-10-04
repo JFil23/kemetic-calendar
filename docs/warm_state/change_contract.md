@@ -465,3 +465,21 @@ licensed audio: this initial corpus was generated on ElevenLabs' free plan and
 is limited to noncommercial RC testing with elevenlabs.io attribution in the
 recordings title. The October 3 RC deployment was explicitly requested; this
 does not grant a commercial audio license or authorize a production deployment.
+
+
+## October 3 Library exit responsiveness
+
+The Library reader's Back and system-back actions capture the existing node
+and scroll position, then navigate without awaiting reading-progress storage
+or remote synchronization. LibraryReadProgressStore remains the persistence
+owner; no cache key, account scope, saved schema, bookmark write, or authored
+content changes. Failed background progress saves are handled without an
+unhandled asynchronous error. An unavailable save is not reported as saved.
+
+The supplied Rekh-Wer screen recording and existing Library visuals remain the
+reference. Restored readers still return to the focused Library row, pushed
+readers preserve their parent route, and internal node history still unwinds
+before leaving. Regression tests hold and reject progress writes while exiting
+both pushed and restored readers, close the Library, then settle the late write
+and verify that navigation stays at the chosen destination. Existing history,
+bookmark, scroll restoration, and shared navigation tests remain in force.
