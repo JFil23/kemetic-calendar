@@ -81,6 +81,7 @@ class ReadingHouseDetailSurface extends StatefulWidget {
     this.onPersisted,
     this.onEndFlow,
     this.onBack,
+    this.primaryAction,
     this.clock,
     this.presentDayIanaTimeZone,
     this.ianaTimeZoneProvider,
@@ -102,6 +103,7 @@ class ReadingHouseDetailSurface extends StatefulWidget {
   final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
   final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final VoidCallback? onBack;
+  final MaatFlowDetailPrimaryAction? primaryAction;
   final MaatFlowClock? clock;
   final String? presentDayIanaTimeZone;
   final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
@@ -786,6 +788,7 @@ class _ReadingHouseDetailSurfaceState extends State<ReadingHouseDetailSurface> {
   @override
   Widget build(BuildContext context) {
     final body = MaatFlowDetailShell(
+      scaleHeroWithText: true,
       theme: ReadingHouseDetailTokens.theme,
       scrollController: _scrollController,
       scrollKey: const ValueKey<String>('reading-house-scroll'),
@@ -794,9 +797,10 @@ class _ReadingHouseDetailSurfaceState extends State<ReadingHouseDetailSurface> {
       referenceHeroHeight: 258,
       referenceSheetOverlap: 26,
       hero: const _ReadingHouseHero(),
-      bottomDock: !_canEdit
+      bottomDock: !_canEdit && widget.primaryAction == null
           ? null
           : MaatFlowDetailDock(
+              primaryAction: widget.primaryAction,
               theme: ReadingHouseDetailTokens.theme,
               joined: _held,
               busy: _holding || _endingHouse,

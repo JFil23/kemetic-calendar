@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 import '../../core/navigation_fallback.dart';
+import '../../core/navigation_persistence_policy.dart';
 import '../../main.dart' show Events, appEnvironmentEnv;
 import '../../services/navigation_trace.dart';
 import '../../services/device_calendar_controller.dart';
@@ -90,6 +91,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _sendingPushTest = false;
   bool _checkingPushTestReceipt = false;
   bool _signingOut = false;
+  bool _replayingOnboarding = false;
   int _buildMarkerTapCount = 0;
   Timer? _buildMarkerTapResetTimer;
   bool _loadingSpeechVoices = false;
@@ -110,6 +112,35 @@ class _SettingsPageState extends State<SettingsPage> {
   );
 
   bool get _hasSession => Supabase.instance.client.auth.currentSession != null;
+
+  Future<void> _replayOnboarding() async {
+    final owner = Supabase.instance.client.auth.currentUser?.id;
+    if (_replayingOnboarding || owner == null) return;
+    setState(() => _replayingOnboarding = true);
+    try {
+      final storage = OnboardingProgressStorage();
+      final progress = await storage.load(owner);
+      if (!mounted || owner != Supabase.instance.client.auth.currentUser?.id) {
+        return;
+      }
+      await storage.saveRequired(owner, progress.restartForReplay());
+      if (!mounted || owner != Supabase.instance.client.auth.currentUser?.id) {
+        return;
+      }
+      openPrimarySection(context, AppSection.calendar);
+      await CalendarPage.presentRequestedOnboarding();
+    } catch (_) {
+      if (mounted && owner == Supabase.instance.client.auth.currentUser?.id) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not restart onboarding. Please try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _replayingOnboarding = false);
+    }
+  }
 
   Future<void> _signOut() async {
     if (_signingOut) return;
@@ -1427,6 +1458,19 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             const SizedBox(height: 16),
+            _footerHeading('Onboarding'),
+            _compactFooterRow(
+              icon: Icons.replay,
+              title: _replayingOnboarding
+                  ? 'Opening onboarding…'
+                  : 'Replay onboarding',
+              subtitle:
+                  'Start again from the opening and choose a flow. Your saved flows stay in place.',
+              onPressed: _replayingOnboarding || !_hasSession
+                  ? null
+                  : _replayOnboarding,
+            ),
+            const SizedBox(height: 18),
             _visibilityNotice(),
             const SizedBox(height: 18),
             _footerHeading('Legal & Support'),

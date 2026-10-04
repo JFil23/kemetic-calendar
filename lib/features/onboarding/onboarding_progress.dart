@@ -334,8 +334,18 @@ class OnboardingProgress {
     this.completedOnboarding = false,
     this.skippedOnboarding = false,
     this.seenHelpers = const <String>{},
+    this.hawSlide,
+    this.entryIntent,
+    this.calendarConnectionPending = false,
+    this.replayActive = false,
   });
 
+  /// Additive checkpoints under the deployed account-scoped v2 key. Old
+  /// payloads retain completion/history and enter the new sequence safely.
+  final String? hawSlide;
+  final String? entryIntent;
+  final bool calendarConnectionPending;
+  final bool replayActive;
   final int onboardingVersion;
   final TrueOnboardingStep currentStep;
   final bool hasSeenWelcome;
@@ -354,7 +364,47 @@ class OnboardingProgress {
   final bool skippedOnboarding;
   final Set<String> seenHelpers;
 
+  /// Restart presentation without deleting enrollment or completion history.
+  OnboardingProgress restartForReplay() => copyWith(
+    replayActive: true,
+    hawSlide: 'exhale',
+    clearEntryIntent: true,
+    calendarConnectionPending: false,
+    currentStep: TrueOnboardingStep.welcome,
+    skippedOnboarding: false,
+    hasSeenWelcome: false,
+    hasSeenCurrentDecanIntro: false,
+    hasTappedFirstFlowDay: false,
+    hasOpenedFirstFlowEvent: false,
+  );
+
+  /// Preserve the exact event only while continuing the same enrollment.
+  /// Legacy/changed recommendations must not inherit another flow's CID.
+  OnboardingProgress withHawEnrollment({
+    required int flowId,
+    required String templateKey,
+  }) {
+    final same =
+        firstMaatFlowId == flowId.toString() &&
+        firstMaatFlowTemplateId == templateKey;
+    return copyWith(
+      firstMaatFlowId: flowId.toString(),
+      firstMaatFlowTemplateId: templateKey,
+      hasChosenFirstMaatFlow: true,
+      hawSlide: 'recommendedFlow',
+      clearFirstMaatFlowEventDate: !same,
+      clearFirstMaatFlowEventClientEventId: !same,
+      hasTappedFirstFlowDay: same ? null : false,
+      hasOpenedFirstFlowEvent: same ? null : false,
+    );
+  }
+
   OnboardingProgress copyWith({
+    String? hawSlide,
+    String? entryIntent,
+    bool clearEntryIntent = false,
+    bool? calendarConnectionPending,
+    bool? replayActive,
     int? onboardingVersion,
     TrueOnboardingStep? currentStep,
     bool? hasSeenWelcome,
@@ -378,6 +428,11 @@ class OnboardingProgress {
     Set<String>? seenHelpers,
   }) {
     return OnboardingProgress(
+      hawSlide: hawSlide ?? this.hawSlide,
+      entryIntent: clearEntryIntent ? null : entryIntent ?? this.entryIntent,
+      replayActive: replayActive ?? this.replayActive,
+      calendarConnectionPending:
+          calendarConnectionPending ?? this.calendarConnectionPending,
       onboardingVersion: onboardingVersion ?? this.onboardingVersion,
       currentStep: currentStep ?? this.currentStep,
       hasSeenWelcome: hasSeenWelcome ?? this.hasSeenWelcome,
@@ -426,6 +481,10 @@ class OnboardingProgress {
   }
 
   Map<String, dynamic> toJson() => {
+    'hawSlide': hawSlide,
+    'entryIntent': entryIntent,
+    'calendarConnectionPending': calendarConnectionPending,
+    'replayActive': replayActive,
     'onboardingVersion': onboardingVersion,
     'currentStep': currentStep.wireName,
     'hasSeenWelcome': hasSeenWelcome,
@@ -454,6 +513,10 @@ class OnboardingProgress {
         : const <String>{};
     final eventDateRaw = json['firstMaatFlowEventDate'] as String?;
     return OnboardingProgress(
+      hawSlide: json['hawSlide'] as String?,
+      entryIntent: json['entryIntent'] as String?,
+      calendarConnectionPending: json['calendarConnectionPending'] == true,
+      replayActive: json['replayActive'] == true,
       onboardingVersion:
           (json['onboardingVersion'] as num?)?.toInt() ??
           kTrueOnboardingVersion,
@@ -518,23 +581,55 @@ class OnboardingProgressStorage {
 
   Future<void> saveLocal(String userId, OnboardingProgress progress) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final normalized = progress.copyWith(
-        seenHelpers: OnboardingHelperIds.normalizeCompletedHelperKeys(
-          progress.seenHelpers,
-        ),
-      );
-      await prefs.setString(
-        _keyForUser(userId),
-        jsonEncode(normalized.toJson()),
-      );
-      OnboardingHelperCompletionService.instance.absorbLocalProgress(
-        userId,
-        normalized,
-      );
+      await saveRequired(userId, progress);
     } catch (e) {
       debugPrint('[OnboardingProgressStorage] Failed to save progress: $e');
     }
+  }
+
+  static final Map<String, Future<void>> _requiredWrites = {};
+
+  Future<void> saveRequired(String userId, OnboardingProgress progress) {
+    final previous = _requiredWrites[userId] ?? Future<void>.value();
+    late final Future<void> write;
+    write = previous
+        .catchError((Object _) {})
+        .then((_) => _writeRequired(userId, progress))
+        .whenComplete(() {
+          if (identical(_requiredWrites[userId], write)) {
+            _requiredWrites.remove(userId);
+          }
+        });
+    _requiredWrites[userId] = write;
+    return write;
+  }
+
+  Future<void> _writeRequired(
+    String userId,
+    OnboardingProgress progress,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final normalized = progress.copyWith(
+      seenHelpers: OnboardingHelperIds.normalizeCompletedHelperKeys(
+        progress.seenHelpers,
+      ),
+    );
+    try {
+      final saved = await prefs.setString(
+        _keyForUser(userId),
+        jsonEncode(normalized.toJson()),
+      );
+      if (!saved) throw StateError('Could not save onboarding progress.');
+    } catch (_) {
+      // SharedPreferences updates its memory before the platform write. Failed
+      // writes must not become a false restart/authorization checkpoint.
+      await prefs.reload();
+      rethrow;
+    }
+    OnboardingHelperCompletionService.instance.absorbLocalProgress(
+      userId,
+      normalized,
+    );
   }
 
   Future<void> update(
@@ -843,17 +938,9 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
     }());
   }
 
-  bool shouldShowHelperSync(String userId, String helperId) {
-    final state = _states[userId];
-    if (state == null ||
-        state.hydrationState != OnboardingHelperHydrationState.ready ||
-        !state.progress.completedOnboarding) {
-      return false;
-    }
-    final completionKeys = OnboardingHelperIds.completionKeysFor(helperId);
-    if (completionKeys.isEmpty) return false;
-    return !completionKeys.any(state.progress.seenHelpers.contains);
-  }
+  /// Automatic tours were retired when onboarding became a single five-flow
+  /// experience. Completion history still hydrates and round-trips unchanged.
+  bool shouldShowHelperSync(String userId, String helperId) => false;
 
   void absorbLocalProgress(String userId, OnboardingProgress progress) {
     final trimmedUserId = userId.trim();

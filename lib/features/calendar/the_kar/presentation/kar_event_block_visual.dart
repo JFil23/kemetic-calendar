@@ -596,6 +596,24 @@ class KarEventBlockVisual extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final showPlaceLabel = constraints.maxWidth >= 248;
+              if (!showPlaceLabel &&
+                  MediaQuery.textScalerOf(context).scale(10) > 10) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    progressPips(compact: true),
+                    const SizedBox(height: 4),
+                    Text(
+                      footerLabel,
+                      style: _style(
+                        const Color(0xFF857A64),
+                        10,
+                        letterSpacing: .3,
+                      ),
+                    ),
+                  ],
+                );
+              }
               return Row(
                 children: <Widget>[
                   progressPips(compact: !showPlaceLabel),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show OverflowBoxFit;
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
@@ -74,23 +75,27 @@ class KarDetailSurface extends StatefulWidget {
     super.key,
     required this.repository,
     required this.onJoin,
+    this.onJoined,
     this.onReschedule,
     this.initialNetjer = KarNetjer.djehuty,
     this.joinedFlowId,
     this.joinedStartDate,
     this.calendarPreview = FollowSkyCalendarPreview.empty,
     this.onBack,
+    this.primaryAction,
     this.clock,
   });
 
   final KarRepository repository;
   final KarJoinCallback onJoin;
+  final Future<void> Function(int flowId)? onJoined;
   final KarRescheduleCallback? onReschedule;
   final KarNetjer initialNetjer;
   final int? joinedFlowId;
   final DateTime? joinedStartDate;
   final FollowSkyCalendarPreview calendarPreview;
   final VoidCallback? onBack;
+  final MaatFlowDetailPrimaryAction? primaryAction;
   final DateTime Function()? clock;
 
   @override
@@ -222,6 +227,7 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
           _shrine = saved;
           _selectedCycleId = cycleId;
         });
+        await widget.onJoined?.call(flowId);
       }
     } catch (error) {
       if (mounted) _showError(error);
@@ -330,6 +336,7 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
     );
     final hasHistory = _shrine?.cycles.isNotEmpty == true;
     final body = MaatFlowDetailShell(
+      scaleHeroWithText: true,
       theme: theme,
       referenceHeroHeight: 236,
       referenceSheetOverlap: 24,
@@ -339,6 +346,7 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
       hero: _KarHero(theme: theme),
       sheet: _buildSheet(accent, accent2),
       bottomDock: MaatFlowDetailDock(
+        primaryAction: widget.primaryAction,
         theme: theme,
         joined: _hasActiveCycle,
         busy: _joining,
@@ -1267,7 +1275,9 @@ class _KarScheduleDay extends StatelessWidget {
       title: title,
       placedCount: placedCount,
       placedStages: placedStages,
-      height: 106,
+      height:
+          106 *
+          (MediaQuery.textScalerOf(context).scale(21) / 21).clamp(1.0, 3.0),
       onTap: onTap,
     );
     return RepaintBoundary(
@@ -1510,83 +1520,51 @@ class _KarThirtyDayCalendar extends StatelessWidget {
     final stageByDay = <int, int>{
       for (final (index, stage) in kKarStages.indexed) stage.day: index,
     };
-    final calendarHeight = _sharedCalendarHeight(windowStart);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         // The surrounding Kꜣr prose is inset by 22px. The shared calendar is
         // deliberately full-bleed, matching Follow the Sky and Offering Table.
         final fullWidth = constraints.maxWidth + 44;
-        return SizedBox(
-          height: calendarHeight,
-          child: OverflowBox(
-            alignment: Alignment.topCenter,
-            minWidth: fullWidth,
-            maxWidth: fullWidth,
-            minHeight: calendarHeight,
-            maxHeight: calendarHeight,
-            child: RepaintBoundary(
-              key: const ValueKey<String>('kar-thirty-day-calendar'),
-              child: MaatFlowThirtyDayCalendar(
-                windowStart: windowStart,
-                markers: <MaatFlowThirtyDayMarker>[
-                  for (var offset = 0; offset < 30; offset++)
-                    () {
-                      final date = DateUtils.dateOnly(
-                        windowStart.add(Duration(days: offset)),
-                      );
-                      final stageIndex = stageByDay[offset + 1];
-                      return MaatFlowThirtyDayMarker(
-                        date: date,
-                        isToday: DateUtils.isSameDay(date, today),
-                        highlighted: stageIndex != null,
-                        filled:
-                            stageIndex != null &&
-                            placedStages.contains(stageIndex),
-                        accent: accent,
-                        secondaryColors: colorsByDay[date] ?? const <Color>[],
-                      );
-                    }(),
-                ],
-                theme: KarDetailTokens.thirtyDayCalendarTheme,
-                introFirstLine: '',
-                introSecondLine: '',
-                keyPrefix: 'kar-calendar',
-              ),
+        return OverflowBox(
+          fit: OverflowBoxFit.deferToChild,
+          alignment: Alignment.topCenter,
+          minWidth: fullWidth,
+          maxWidth: fullWidth,
+          minHeight: 0,
+          maxHeight: double.infinity,
+          child: RepaintBoundary(
+            key: const ValueKey<String>('kar-thirty-day-calendar'),
+            child: MaatFlowThirtyDayCalendar(
+              windowStart: windowStart,
+              markers: <MaatFlowThirtyDayMarker>[
+                for (var offset = 0; offset < 30; offset++)
+                  () {
+                    final date = DateUtils.dateOnly(
+                      windowStart.add(Duration(days: offset)),
+                    );
+                    final stageIndex = stageByDay[offset + 1];
+                    return MaatFlowThirtyDayMarker(
+                      date: date,
+                      isToday: DateUtils.isSameDay(date, today),
+                      highlighted: stageIndex != null,
+                      filled:
+                          stageIndex != null &&
+                          placedStages.contains(stageIndex),
+                      accent: accent,
+                      secondaryColors: colorsByDay[date] ?? const <Color>[],
+                    );
+                  }(),
+              ],
+              theme: KarDetailTokens.thirtyDayCalendarTheme,
+              introFirstLine: '',
+              introSecondLine: '',
+              keyPrefix: 'kar-calendar',
             ),
           ),
         );
       },
     );
-  }
-
-  // Unresolved: this local height can disagree with the shared thirty-day
-  // calendar renderer. Pending reproduction; leave the shared renderer in
-  // place rather than hiding days or reverting that path.
-  double _sharedCalendarHeight(DateTime start) {
-    var monthBands = 0;
-    var decanRows = 0;
-    int? previousMonth;
-    int? previousDecan;
-    for (var offset = 0; offset < 30; offset++) {
-      final date = start.add(Duration(days: offset));
-      final kemetic = KemeticMath.fromGregorian(date);
-      final decan = (kemetic.kDay - 1) ~/ 10;
-      if (kemetic.kMonth != previousMonth) {
-        monthBands += 1;
-        previousMonth = kemetic.kMonth;
-        previousDecan = null;
-      }
-      if (decan != previousDecan) {
-        decanRows += 1;
-        previousDecan = decan;
-      }
-    }
-    const calendarVerticalSpacing = 10.0;
-    const monthBandHeight = 34.0;
-    return calendarVerticalSpacing +
-        (monthBands * monthBandHeight) +
-        (decanRows * MaatFlowThirtyDayCalendarGeometry.decanRowHeight);
   }
 }
 

@@ -204,7 +204,11 @@ class _SkyPreviewCard extends StatelessWidget {
     );
     final graphic = visual.graphic!;
     final hasIntention = intention?.trim().isNotEmpty == true;
-    final height = hasIntention ? 126.0 : 100.0;
+    final textScale = (MediaQuery.textScalerOf(context).scale(18) / 18).clamp(
+      1.0,
+      3.0,
+    );
+    final height = (hasIntention ? 126.0 : 100.0) * textScale;
 
     return GestureDetector(
       key: ValueKey<String>('follow-sky-preview-${night.skyEventId}'),

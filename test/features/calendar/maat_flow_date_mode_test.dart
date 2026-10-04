@@ -291,6 +291,53 @@ void main() {
     expect(flush, contains('_onInvalidation(invalidation)'));
   });
 
+  test(
+    'onboarding embeds the canonical page without duplicating its join adapter',
+    () {
+      final page = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final onboarding = _sourceBetween(
+        page,
+        'Widget _buildHawRecommendedFlow(',
+        'Widget _buildHawDayView(',
+      );
+      expect(onboarding, contains('return _buildMaatFlowDetailSurface('));
+      expect(onboarding, contains("label: 'Go to flow'"));
+      expect(
+        onboarding,
+        isNot(contains('Your flow has a place in your time.')),
+      );
+      expect(onboarding, isNot(contains('Open my flow')));
+      expect(onboarding, contains('joinedFlow: joinedFlow'));
+      expect(onboarding, contains('HawSavedFlowDetail<_Flow>'));
+      expect(onboarding, contains('_flowsRepo.getFlowById(savedId)'));
+      expect(onboarding, contains('!_ownsHawOnboarding(owner) || row == null'));
+      expect(
+        onboarding,
+        isNot(contains('_ActiveMaatFlowDetailSurface.fromComposition')),
+      );
+      expect(onboarding, isNot(contains('addInstance:')));
+      expect(onboarding, isNot(contains('_addMaatFlowInstance(')));
+      final canonical = _sourceBetween(
+        page,
+        'Widget _buildMaatFlowDetailSurface({',
+        'Map<String, Object?> _calendarSheetTraceState',
+      );
+      expect(
+        canonical,
+        contains('onEnrollmentConfirmed: onEnrollmentConfirmed'),
+      );
+      expect(
+        canonical,
+        contains('relation == MaatFlowDetailRelation.catalogPreview'),
+      );
+      expect(canonical, contains('primaryAction: primaryAction'));
+      expect(canonical, contains('_followSkyLiveInputs()'));
+      expect(canonical, contains('_addMaatFlowInstance('));
+    },
+  );
+
   test('core-flow joins cross the universal staging authority', () {
     final page = File(
       'lib/features/calendar/calendar_page.dart',
@@ -340,7 +387,14 @@ void main() {
     expect(mounted, contains('_applyPendingStagedFlow(flowId)'));
     expect(active, contains('_stageHeadlessMaatFlowJoinResult('));
     expect(active, contains('_joinOfferingTableFromDetailAuthority('));
-    expect(active, contains('completionRequired: false'));
+    expect(active, contains('bool completionRequired = false'));
+    expect(
+      active,
+      contains('completionRequired: widget.onEnrollmentConfirmed != null'),
+    );
+    expect(active, contains('await _awaitEnrollmentPersistence(id)'));
+    expect(active, contains('await widget.onEnrollmentConfirmed!(flowId)'));
+    expect(active, contains('await onJoined(flowId)'));
   });
 
   test(

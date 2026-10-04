@@ -1,3 +1,5 @@
+import 'dart:async';
+
 bool shouldCompleteStagedFlowAdd({
   required bool hasSavedFlow,
   required bool completionRequired,
@@ -13,6 +15,10 @@ class StagedFlowLifecycle {
   StagedFlowLifecycle({required this.completionRequired});
 
   final bool completionRequired;
+  final Completer<bool> _persistenceSettled = Completer<bool>();
+
+  /// Observers can wait for acknowledgement without starting a second write.
+  Future<bool> get persistenceSettled => _persistenceSettled.future;
   bool persistenceStarted = false;
   bool persistenceCompleted = false;
   bool completionConsumed = false;
@@ -27,6 +33,9 @@ class StagedFlowLifecycle {
   void completePersistence({Object? failure}) {
     persistenceCompleted = true;
     persistenceFailure = failure;
+    if (!_persistenceSettled.isCompleted) {
+      _persistenceSettled.complete(failure == null);
+    }
   }
 
   /// Resolves the UI side of this lifecycle.

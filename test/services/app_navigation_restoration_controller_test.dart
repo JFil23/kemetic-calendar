@@ -77,6 +77,32 @@ void main() {
     AppNavigationRestorationController.instance.resetForTesting();
   });
 
+  test(
+    'explicit Calendar overrides saved Settings above another primary tab',
+    () async {
+      final navigation = AppNavigationRestorationController.instance;
+      await navigation.recordPrimaryTabSelection(AppSection.inbox);
+      await navigation.recordVisibleSurface(route: '/settings');
+      await AppRestorationService.instance.flushPendingWrites();
+      expect(
+        (await navigation.restoreLaunchDestination(
+          isAuthenticated: true,
+        )).route,
+        '/settings',
+      );
+      await navigation.recordPrimaryTabSelection(AppSection.calendar);
+      await AppRestorationService.instance.flushPendingWrites();
+      expect(
+        (await navigation.restoreLaunchDestination(
+          isAuthenticated: true,
+        )).route,
+        '/',
+      );
+      expect(await _durableRoute(), '/');
+      expect((await _primarySelectionMetadataJson())?['canonicalRoute'], '/');
+    },
+  );
+
   tearDown(() {
     AppRestorationService.debugUserIdResolver = null;
     AppWindowService.debugWindowIdResolver = null;

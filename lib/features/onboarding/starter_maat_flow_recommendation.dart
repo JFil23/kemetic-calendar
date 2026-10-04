@@ -1,151 +1,59 @@
 import '../calendar/maat_flow_catalog.dart';
 import '../calendar/maat_flow_identity.dart';
 
-enum FirstRhythmGoal {
-  followTheSky,
-  buildDailyDiscipline,
-  reflectAndJournal,
-  careForTheBody,
-  studyAndRemember,
-}
+/// A stated intention selects exactly one current catalog product. Product data
+/// and schedules remain owned by the Ma’at catalog and its detail surfaces.
+enum HawEntryIntent {
+  sky,
+  nourishment,
+  reading,
+  stability,
+  imagination;
 
-enum RhythmTimePreference { dawn, midday, evening, flexible }
+  MaatFlowKind get kind => switch (this) {
+    sky => MaatFlowKind.trackSky,
+    nourishment => MaatFlowKind.offeringTable,
+    reading => MaatFlowKind.readingHouse,
+    stability => MaatFlowKind.theDjed,
+    imagination => MaatFlowKind.theKar,
+  };
 
-enum RhythmDuration { twoMinutes, tenMinutes, twentyMinutes }
+  String get label => switch (this) {
+    sky => 'I want to reconnect with the sky and seasons.',
+    nourishment => 'I want to nourish myself more consistently.',
+    reading => 'I want to make room for deep reading.',
+    stability => 'I want to strengthen what holds me up.',
+    imagination => 'I want to make room for imagination.',
+  };
 
-class StarterMaatFlow {
-  const StarterMaatFlow({
-    required this.templateKey,
-    required this.title,
-    required this.description,
-    this.prominent = false,
-  });
+  String get closingCopy => switch (this) {
+    sky =>
+      'You gave the sky a place in your time.\n\nThe next turning will meet you here.',
+    nourishment =>
+      'You gave care a place in your time.\n\nReturn to what sustains you.',
+    reading =>
+      'You gave reading a place in your time.\n\nThe next sitting is waiting.',
+    stability =>
+      'You gave stability a place in your time.\n\nSmall returns strengthen what holds you.',
+    imagination =>
+      'You gave imagination a place in your time.\n\nYour next image has somewhere to arrive.',
+  };
 
-  final String templateKey;
-  final String title;
-  final String description;
-  final bool prominent;
-
-  StarterMaatFlow copyWith({bool? prominent}) {
-    return StarterMaatFlow(
-      templateKey: templateKey,
-      title: title,
-      description: description,
-      prominent: prominent ?? this.prominent,
-    );
+  static HawEntryIntent? fromWire(String? value) {
+    for (final intent in values) {
+      if (intent.name == value) return intent;
+    }
+    return null;
   }
-}
-
-class StarterMaatFlowKeys {
-  StarterMaatFlowKeys._();
-
-  static final String followTheSky = MaatFlowKind.trackSky.flowKey;
-  static final String dawnHouseRite = MaatFlowKind.dawnHouseRite.flowKey;
-  static final String theWeighing = MaatFlowKind.theWeighing.flowKey;
-  static final String offeringTable = MaatFlowKind.offeringTable.flowKey;
-  static final String theTending = MaatFlowKind.theTending.flowKey;
-  static final String keptWord = MaatFlowKind.keptWord.flowKey;
-  static final String readingHouse = MaatFlowKind.readingHouse.flowKey;
-  static final String theDjed = MaatFlowKind.theDjed.flowKey;
 }
 
 class StarterFlowRecommendationService {
   const StarterFlowRecommendationService();
-
-  static final StarterMaatFlow followTheSky = StarterMaatFlow(
-    templateKey: StarterMaatFlowKeys.followTheSky,
-    title: 'Follow the Sky',
-    description: 'Observe cosmic events, seasonal shifts, and sky patterns.',
-  );
-
-  static final StarterMaatFlow dawnHouseRite = StarterMaatFlow(
-    templateKey: StarterMaatFlowKeys.dawnHouseRite,
-    title: 'Dawn House Rite',
-    description:
-        'Rise with the sun and begin the day with a short act of order, attention, and renewal.',
-  );
-
-  static final StarterMaatFlow theWeighing = StarterMaatFlow(
-    templateKey: StarterMaatFlowKeys.theWeighing,
-    title: 'The Weighing',
-    description: 'Put material and spoken records on the scale.',
-  );
-
-  static final StarterMaatFlow keptWord = StarterMaatFlow(
-    templateKey: StarterMaatFlowKeys.keptWord,
-    title: 'The Kept Word',
-    description: 'Choose one intention and return to it each day.',
-  );
-
-  static final StarterMaatFlow offeringTable = StarterMaatFlow(
-    templateKey: StarterMaatFlowKeys.offeringTable,
-    title: 'The Offering Table',
-    description:
-        'Use the calendar to support water, food, rest, and restoration.',
-  );
-
-  static final StarterMaatFlow theTending = StarterMaatFlow(
-    templateKey: StarterMaatFlowKeys.theTending,
-    title: 'The Tending',
-    description: 'Find who needs you and do the specific labor of care.',
-  );
-
-  static final StarterMaatFlow readingHouse = StarterMaatFlow(
-    templateKey: StarterMaatFlowKeys.readingHouse,
-    title: 'The Reading House',
-    description: 'Build a steady practice of reading and remembering.',
-  );
-
-  static final StarterMaatFlow theDjed = StarterMaatFlow(
-    templateKey: StarterMaatFlowKeys.theDjed,
-    title: 'The Djed',
-    description: 'Name what holds you up and strengthen it one move at a time.',
-  );
-
-  List<StarterMaatFlow> recommend({
-    required FirstRhythmGoal goal,
-    required RhythmTimePreference timePreference,
-    required RhythmDuration duration,
-  }) {
-    final recommendations = <StarterMaatFlow>[];
-
-    void add(StarterMaatFlow flow, {bool prominent = false}) {
-      if (!isMaatFlowNewJoinAllowed(flow.templateKey)) return;
-      if (recommendations.any((item) => item.templateKey == flow.templateKey)) {
-        return;
-      }
-      recommendations.add(flow.copyWith(prominent: prominent));
+  MaatFlowCatalogEntry recommend(HawEntryIntent intent) {
+    final entry = maatFlowCatalogEntry(intent.kind);
+    if (!entry.isDiscoverable || !entry.isJoinable) {
+      throw StateError('This recommendation is not available to join.');
     }
-
-    switch (goal) {
-      case FirstRhythmGoal.followTheSky:
-        add(followTheSky);
-        break;
-      case FirstRhythmGoal.buildDailyDiscipline:
-        add(theDjed, prominent: true);
-        add(followTheSky);
-        break;
-      case FirstRhythmGoal.reflectAndJournal:
-        add(theDjed);
-        add(readingHouse);
-        break;
-      case FirstRhythmGoal.careForTheBody:
-        add(offeringTable);
-        add(followTheSky);
-        break;
-      case FirstRhythmGoal.studyAndRemember:
-        add(readingHouse);
-        add(theDjed);
-        break;
-    }
-
-    if (timePreference == RhythmTimePreference.dawn &&
-        !recommendations.any(
-          (flow) => flow.templateKey == StarterMaatFlowKeys.followTheSky,
-        )) {
-      add(followTheSky, prominent: true);
-    }
-
-    return recommendations.take(3).toList(growable: false);
+    return entry;
   }
 }

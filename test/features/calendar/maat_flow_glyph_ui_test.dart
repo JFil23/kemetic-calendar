@@ -79,7 +79,17 @@ void main() {
     );
     expect(templates, contains("glyphSourceWord: 'wdHw'"));
     expect(followHero, contains('glyph: kFollowSkyGlyph'));
-    expect(activeDetails, contains('MaatFlowGlyph(glyph: template.glyph'));
+    // The retired onboarding wizard no longer owns a second glyph renderer.
+    final offeringHero = File(
+      'lib/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart',
+    ).readAsStringSync();
+    expect(
+      _countOccurrences(offeringHero, 'child: const _OfferingTableGlyph()'),
+      1,
+    );
+    expect(activeDetails, contains('OfferingTableDetailSurface('));
+    expect(activeDetails, contains('FollowSkyDetailSurface('));
+    expect(activeDetails, isNot(contains('_FirstMaatFlowOnboardingSheet')));
     expect(activeDetails, isNot(contains('_drawFallbackGlyph')));
     expect(activeDetails, isNot(contains('void _drawSky(')));
     expect(activeDetails, isNot(contains('void _drawOfferingTable(')));

@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import '../support/maat_flow_visual_test_fonts.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,15 +17,22 @@ import 'package:mobile/features/calendar/snapshot/calendar_snapshot_runtime.dart
 import 'package:mobile/features/auth/login_screen.dart'
     show PasswordRecoveryScreen;
 import 'package:mobile/features/settings/device_calendar_panel.dart';
+import 'package:mobile/features/pages/pages_page.dart';
 import 'package:mobile/features/settings/device_calendar_settings.dart';
 import 'package:mobile/features/settings/external_calendar_panel.dart';
 import 'package:mobile/features/settings/external_calendar_settings.dart';
+import 'package:mobile/features/onboarding/onboarding_progress.dart';
+import 'package:mobile/features/onboarding/onboarding_overlay.dart';
+import 'package:mobile/features/onboarding/haw_calendar_connection.dart';
 import 'package:mobile/main.dart'
     show AuthGate, MyApp, createAppRouterForTesting;
 import 'package:mobile/services/app_restoration_service.dart';
+import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:mobile/services/device_calendar_controller.dart';
 import 'package:mobile/services/external_calendar_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// ignore: depend_on_referenced_packages
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/pages/pages_resource_test.dart' show session;
@@ -30,6 +41,24 @@ import '../features/pages/pages_resource_test.dart' show session;
 // responses and the native read-only channel are fixtures; no provider or
 // account content is changed. JSON-isolate work needs real async turns while
 // widget animation and the 30-second observation window use the test clock.
+class ReplayCheckpointPreferences extends InMemorySharedPreferencesStore {
+  ReplayCheckpointPreferences() : super.withData({});
+  String? heldOwner;
+  bool reject = false;
+  int writes = 0;
+  final release = Completer<void>();
+  @override
+  Future<bool> setValue(String type, String key, Object value) async {
+    if (heldOwner != null &&
+        key == 'flutter.onboarding_v2_progress:$heldOwner') {
+      writes++;
+      await release.future;
+      if (reject) return false;
+    }
+    return super.setValue(type, key, value);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final actions = <String>[];
@@ -41,6 +70,7 @@ void main() {
   const replacementOwner = '93de60db-7756-4587-82f4-93a7b928b812';
 
   setUpAll(() async {
+    await loadMaatFlowVisualTestFonts();
     // CalendarPage may persist incidental snapshots during route replacement.
     // Use Hive's supported memory backend so those writes remain in widget
     // fake time, rather than leaving a native file queue after the test ends.
@@ -164,6 +194,12 @@ void main() {
     // cannot replay the prior test's passwordRecovery event.
     await client.auth.signOut(scope: SignOutScope.local);
     await client.auth.recoverSession(session());
+    final storage = OnboardingProgressStorage();
+    await storage.saveRequired(
+      client.auth.currentUser!.id,
+      const OnboardingProgress(),
+    );
+    await storage.saveRequired(replacementOwner, const OnboardingProgress());
   });
 
   tearDown(() {
@@ -182,7 +218,8 @@ void main() {
   });
 
   Future<void> drain(WidgetTester tester) async {
-    for (var i = 0; i < 4; i++) {
+    // Include the account checkpoint read before Settings mounts its panels.
+    for (var i = 0; i < 8; i++) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 30)),
       );
@@ -206,6 +243,54 @@ void main() {
     expect(device.state, DeviceCalendarPanelState.disconnected);
     expect(find.text('Checking your calendar connection…'), findsNothing);
     expect(tester.takeException(), isNull);
+  }
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('Settings replay row fits at $scale text scale', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final capture = GlobalKey();
+      final router = createAppRouterForTesting(initialLocation: '/settings');
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: capture,
+          child: MaterialApp.router(
+            theme: AppTheme.dark,
+            routerConfig: router,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
+          ),
+        ),
+      );
+      await drain(tester);
+      await tester.ensureVisible(find.text('Replay onboarding'));
+      await tester.pump();
+      expect(find.text('Replay onboarding'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      final output = Platform.environment['HAW_SETTINGS_CAPTURE_DIR'];
+      if (output != null) {
+        final boundary =
+            capture.currentContext!.findRenderObject()!
+                as RenderRepaintBoundary;
+        await tester.runAsync(() async {
+          final image = await boundary.toImage();
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File(
+            '$output/settings-replay-${scale}x.png',
+          ).writeAsBytes(bytes!.buffer.asUint8List());
+          image.dispose();
+        });
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+      router.dispose();
+    });
   }
 
   testWidgets('direct Settings entry resolves Google and native status', (
@@ -408,6 +493,270 @@ void main() {
     value['access_token'] = tokenParts.join('.');
     return jsonEncode(value);
   }
+
+  for (final retained in [false, true]) {
+    testWidgets(
+      'Settings replay opens existing onboarding with retained host $retained',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final owner = Supabase.instance.client.auth.currentUser!.id;
+        AppRestorationService.debugUserIdResolver = () => owner;
+        addTearDown(
+          () => AppRestorationService.debugUserIdResolver = () => null,
+        );
+        final storage = OnboardingProgressStorage();
+        final prefs = await SharedPreferences.getInstance();
+        final completionKey = 'onboarding_v1_completed:$owner';
+        await prefs.setBool(completionKey, true);
+        addTearDown(() => prefs.remove(completionKey));
+        await storage.saveRequired(
+          owner,
+          const OnboardingProgress(
+            currentStep: TrueOnboardingStep.complete,
+            completedOnboarding: true,
+            hawSlide: 'complete',
+            firstMaatFlowId: '42',
+            seenHelpers: {'calendar_toggle'},
+          ),
+        );
+        final router = createAppRouterForTesting(
+          initialLocation: retained ? '/' : '/settings',
+        );
+        await tester.pumpWidget(
+          MaterialApp.router(theme: AppTheme.dark, routerConfig: router),
+        );
+        await drain(tester);
+        if (retained) {
+          for (var i = 0; i < 8; i++) {
+            await tester.pump(const Duration(milliseconds: 400));
+            await drain(tester);
+          }
+          expect(find.byType(OnboardingOverlay), findsNothing);
+          unawaited(router.push<void>('/settings'));
+          await drain(tester);
+        }
+        // An explicit replay must override a pending saved Settings restore.
+        RestorationCoordinator.instance.beginLaunchRestore(
+          reason: RestorationRestoreReason.coldLaunch,
+          targetLocation: '/settings',
+        );
+        addTearDown(
+          () => RestorationCoordinator.instance.beginLaunchRestore(
+            reason: RestorationRestoreReason.coldLaunch,
+            targetLocation: '/',
+          ),
+        );
+        await tester.ensureVisible(find.text('Replay onboarding'));
+        await tester.tap(find.text('Replay onboarding'));
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 400));
+          await drain(tester);
+        }
+        expect(
+          RestorationCoordinator.instance.restoreReason,
+          RestorationRestoreReason.userNavigation,
+        );
+        expect(router.routeInformationProvider.value.uri.path, '/');
+        expect(find.byType(OnboardingOverlay), findsOneWidget);
+        expect(find.text('REJECT THE GRIND.'), findsOneWidget);
+        final replay = await storage.load(owner);
+        expect(replay.replayActive, isTrue);
+        expect(replay.hawSlide, 'exhale');
+        expect(replay.completedOnboarding, isTrue);
+        expect(replay.firstMaatFlowId, '42');
+        expect(replay.seenHelpers, contains('calendar_toggle'));
+        expect(prefs.getBool(completionKey), isTrue);
+        await tester.tap(find.text('skip'));
+        await drain(tester);
+        expect(find.byType(OnboardingOverlay), findsNothing);
+        expect((await storage.load(owner)).replayActive, isFalse);
+        expect(tester.takeException(), isNull);
+
+        // Exercise the actual Calendar-host completion callback after replay.
+        // Closing-banner tests separately fence it behind acknowledgement and
+        // the final seal; Pages keeps its existing repository and route owner.
+        unawaited(router.push<void>('/settings'));
+        await drain(tester);
+        await tester.ensureVisible(find.text('Replay onboarding'));
+        await tester.tap(find.text('Replay onboarding'));
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 400));
+          await drain(tester);
+        }
+        tester
+            .widget<OnboardingOverlay>(find.byType(OnboardingOverlay))
+            .onComplete();
+        await drain(tester);
+        expect(router.state.uri.path, '/pages');
+        expect(find.byType(PagesPage), findsOneWidget);
+        expect(find.byType(OnboardingOverlay), findsNothing);
+        expect((await storage.load(owner)).firstMaatFlowId, '42');
+        expect(tester.takeException(), isNull);
+        await closeApp(tester);
+        router.dispose();
+      },
+    );
+  }
+
+  for (final accountChange in [false, true]) {
+    testWidgets(
+      'Settings replay fences held checkpoint account change $accountChange',
+      (tester) async {
+        final previousStore = SharedPreferencesStorePlatform.instance;
+        final checkpointStore = ReplayCheckpointPreferences();
+        SharedPreferences.setMockInitialValues({});
+        SharedPreferencesStorePlatform.instance = checkpointStore;
+        addTearDown(() {
+          if (!checkpointStore.release.isCompleted) {
+            checkpointStore.release.complete();
+          }
+          SharedPreferencesStorePlatform.instance = previousStore;
+          SharedPreferences.setMockInitialValues({});
+        });
+        final owner = Supabase.instance.client.auth.currentUser!.id;
+        final storage = OnboardingProgressStorage();
+        await storage.saveRequired(
+          owner,
+          const OnboardingProgress(completedOnboarding: true),
+        );
+        checkpointStore.heldOwner = owner;
+        checkpointStore.reject = !accountChange;
+        final router = createAppRouterForTesting(initialLocation: '/settings');
+        await tester.pumpWidget(
+          MaterialApp.router(theme: AppTheme.dark, routerConfig: router),
+        );
+        await drain(tester);
+        await tester.ensureVisible(find.text('Replay onboarding'));
+        await tester.tap(find.text('Replay onboarding'));
+        await tester.pump();
+        expect(find.text('Opening onboarding…'), findsOneWidget);
+        await tester.tap(find.text('Opening onboarding…'));
+        await tester.pump();
+        expect(checkpointStore.writes, 1);
+        expect(router.routeInformationProvider.value.uri.path, '/settings');
+        if (accountChange) {
+          await tester.runAsync(
+            () => Supabase.instance.client.auth.recoverSession(
+              replacementSession(),
+            ),
+          );
+          await drain(tester);
+        }
+        checkpointStore.release.complete();
+        await drain(tester);
+        expect(router.routeInformationProvider.value.uri.path, '/settings');
+        expect(find.byType(OnboardingOverlay), findsNothing);
+        if (accountChange) {
+          expect((await storage.load(replacementOwner)).replayActive, isFalse);
+          expect((await storage.load(owner)).replayActive, isTrue);
+        } else {
+          expect(
+            find.text('Could not restart onboarding. Please try again.'),
+            findsOneWidget,
+          );
+          expect((await storage.load(owner)).replayActive, isFalse);
+          expect((await storage.load(owner)).completedOnboarding, isTrue);
+        }
+        await closeApp(tester);
+        router.dispose();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  for (final replay in [false, true]) {
+    for (final result in ['connected', 'denied', 'reconnect_required']) {
+      testWidgets(
+        'cold onboarding calendar callback $result replay $replay resumes the saved account',
+        (tester) async {
+          tester.view.physicalSize = const Size(393, 852);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          final owner = Supabase.instance.client.auth.currentUser!.id;
+          final storage = OnboardingProgressStorage();
+          await storage.saveRequired(
+            owner,
+            OnboardingProgress(
+              completedOnboarding: replay,
+              replayActive: replay,
+              hawSlide: 'calendarConnection',
+              calendarConnectionPending: true,
+            ),
+          );
+          final router = createAppRouterForTesting(
+            initialLocation: '/settings?external_calendar=$result',
+          );
+          await tester.pumpWidget(
+            MaterialApp.router(theme: AppTheme.dark, routerConfig: router),
+          );
+          await drain(tester);
+          expect(find.byType(HawCalendarConnectionPage), findsOneWidget);
+          expectReadyPanels(tester);
+          expect(nativeMethods, isNot(contains('requestPermission')));
+          expect(
+            actions.every(
+              (action) => {'status', 'device_status'}.contains(action),
+            ),
+            isTrue,
+          );
+          await tester.scrollUntilVisible(
+            find.text('Continue'),
+            300,
+            scrollable: find.byType(Scrollable).first,
+          );
+          await tester.tap(find.text('Continue'));
+          await drain(tester);
+          expect(router.routeInformationProvider.value.uri.path, '/');
+          final restored = await storage.load(owner);
+          expect(restored.hawSlide, 'segmentation');
+          expect(restored.calendarConnectionPending, isFalse);
+          expect(restored.completedOnboarding, replay);
+          expect(restored.replayActive, replay);
+          await closeApp(tester);
+          router.dispose();
+          await storage.saveRequired(owner, const OnboardingProgress());
+        },
+      );
+    }
+  }
+
+  testWidgets(
+    'an account switch discards the prior account calendar continuation',
+    (tester) async {
+      final owner = Supabase.instance.client.auth.currentUser!.id;
+      final storage = OnboardingProgressStorage();
+      await storage.saveRequired(
+        owner,
+        const OnboardingProgress(
+          hawSlide: 'calendarConnection',
+          calendarConnectionPending: true,
+        ),
+      );
+      final router = createAppRouterForTesting(initialLocation: '/settings');
+      await tester.pumpWidget(
+        MaterialApp.router(theme: AppTheme.dark, routerConfig: router),
+      );
+      await drain(tester);
+      expect(find.byType(HawCalendarConnectionPage), findsOneWidget);
+      await tester.runAsync(
+        () => Supabase.instance.client.auth.setInitialSession(
+          replacementSession(),
+        ),
+      );
+      await drain(tester);
+      expect(find.byType(HawCalendarConnectionPage), findsNothing);
+      expect(
+        (await storage.load(replacementOwner)).calendarConnectionPending,
+        isFalse,
+      );
+      expect((await storage.load(owner)).calendarConnectionPending, isTrue);
+      await closeApp(tester);
+      router.dispose();
+      await storage.saveRequired(owner, const OnboardingProgress());
+    },
+  );
 
   testWidgets(
     'MyApp starts calendar owners after paint and handles native return on Settings',

@@ -5,7 +5,7 @@
     {
       "path": "/",
       "owner": "lib/features/pages/pages_controller.dart",
-      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state."
+      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state. Explicit onboarding replay reads its acknowledged account-scoped presentation checkpoint; completion history and content remain with their existing owners. Recommended flow details reuse FlowsRepo and its flow.detail resource; account-keyed recovery reads the known enrollment before enabling its shared detail page, with no duplicate join on read failure. Acknowledged onboarding completion and its final seal dismiss the event sheet, then use the existing detail-navigation boundary to open /pages with account fencing."
     },
     {
       "path": "/calendars",
@@ -165,7 +165,7 @@
     {
       "path": "/settings",
       "owner": "lib/features/settings/settings_page.dart",
-      "policy": "Preference-specific authority; device capabilities remain device-bound. SpeechService retains speech:preferredVoiceId for G/H, and BundledSpeechAssetStore owns only checksum-verified public audio in speech_audio_v1. No account content, pending writes, build namespace or logout eviction enters that corpus cache. No blanket cache ownership of account preferences."
+      "policy": "Preference-specific authority; device capabilities remain device-bound. SpeechService retains speech:preferredVoiceId for G/H, and BundledSpeechAssetStore owns only checksum-verified public audio in speech_audio_v1. No account content, pending writes, build namespace or logout eviction enters that corpus cache. No blanket cache ownership of account preferences. The existing Google callback can resume unfinished onboarding through HawCalendarReturn. OnboardingProgressStorage owns additive slide, intention and pending-connection fields under onboarding_v2_progress:<account>; calendar controllers retain consent/import authority. Explicit replay uses the existing Calendar primary-section command after checkpoint acknowledgement; navigation restoration retains ownership and cannot override that user command with a saved Settings surface."
     },
     {
       "path": "/share/:shareId",

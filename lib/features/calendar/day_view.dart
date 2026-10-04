@@ -5,6 +5,7 @@
 //
 
 import 'dart:async';
+import '../onboarding/onboarding_overlay.dart';
 import 'dart:math' as math;
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/imported_calendar_identity.dart';
@@ -4851,7 +4852,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
 
     if (activeMaatDayViewFlow != null && !_isWorkspacePresentation) {
       final housingSpec = MaatDayViewHousingSpec.forFlow(activeMaatDayViewFlow);
-      return MaatDayViewSheetHost(
+      final housing = MaatDayViewSheetHost(
         flow: activeMaatDayViewFlow,
         leading: _buildEventDetailReflectionAction(
           rootContext: widget.hostContext,
@@ -4872,6 +4873,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           actionColor: housingSpec.footerActionColor,
         ),
       );
+      return hasOnboardingClosingBanner
+          ? HawOnboardingDetailFrame(
+              closing: widget.onboardingClosingBannerBuilder!(context),
+              detail: housing,
+            )
+          : housing;
     }
 
     final media = MediaQuery.of(context);

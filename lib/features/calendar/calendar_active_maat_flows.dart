@@ -769,6 +769,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
   bool emptyEvents = false,
   DateTime? joinedStartDate,
   int joinedFlowId = 957,
+  MaatFlowDetailPrimaryAction? primaryAction,
   Future<int> Function()? onJoin,
   VoidCallback? onBack,
   KarRepository? karRepository,
@@ -810,6 +811,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
       calendar: calendarPreview,
     ),
     onBack: onBack,
+    primaryAction: primaryAction,
     karRepository: karRepository,
     addInstance:
         ({
@@ -835,11 +837,12 @@ Future<int> _joinOfferingTableFromDetailAuthority({
   required bool noCupMode,
   String? personalCalendarIdOverride,
   FlowJoinService? joinService,
+  bool completionRequired = false,
   Future<void> Function()? clearFiledFlowsCache,
 }) async {
   final id = await CalendarPage._joinOfferingTableHeadless(
     template: template,
-    completionRequired: false,
+    completionRequired: completionRequired,
     personalCalendarIdOverride: personalCalendarIdOverride,
     startDate: startDate,
     timezone: timezone,
@@ -943,398 +946,13 @@ bool maatFlowFilingSnapshotMarksInstanceActiveForTesting({
   );
 }
 
-class _FirstMaatFlowOnboardingSheet extends StatefulWidget {
-  const _FirstMaatFlowOnboardingSheet({
-    required this.templates,
-    required this.onAddFlow,
-  });
-
-  final List<_MaatFlowTemplate> templates;
-  final Future<void> Function(_MaatFlowTemplate template) onAddFlow;
-
-  @override
-  State<_FirstMaatFlowOnboardingSheet> createState() =>
-      _FirstMaatFlowOnboardingSheetState();
-}
-
-class _FirstMaatFlowOnboardingSheetState
-    extends State<_FirstMaatFlowOnboardingSheet> {
-  FirstRhythmGoal? _goal;
-  RhythmTimePreference? _timePreference;
-  RhythmDuration? _duration;
-  String? _selectedTemplateKey;
-  bool _adding = false;
-
-  bool get _answered =>
-      _goal != null && _timePreference != null && _duration != null;
-
-  Map<String, _MaatFlowTemplate> get _templateByKey =>
-      <String, _MaatFlowTemplate>{
-        for (final template in widget.templates) template.key: template,
-      };
-
-  List<StarterMaatFlow> get _recommendations {
-    final goal = _goal;
-    final timePreference = _timePreference;
-    final duration = _duration;
-    if (goal == null || timePreference == null || duration == null) {
-      return const <StarterMaatFlow>[];
-    }
-    final templates = _templateByKey;
-    return const StarterFlowRecommendationService()
-        .recommend(
-          goal: goal,
-          timePreference: timePreference,
-          duration: duration,
-        )
-        .where((flow) => templates.containsKey(flow.templateKey))
-        .toList(growable: false);
-  }
-
-  Future<void> _addSelectedFlow() async {
-    final selectedKey = _selectedTemplateKey;
-    if (selectedKey == null || _adding) return;
-    final template = _templateByKey[selectedKey];
-    if (template == null) return;
-    setState(() => _adding = true);
-    try {
-      await widget.onAddFlow(template);
-    } finally {
-      if (mounted) setState(() => _adding = false);
-    }
-  }
-
-  String _goalLabel(FirstRhythmGoal goal) => switch (goal) {
-    FirstRhythmGoal.followTheSky => 'Follow the sky',
-    FirstRhythmGoal.buildDailyDiscipline => 'Build daily discipline',
-    FirstRhythmGoal.reflectAndJournal => 'Reflect and journal',
-    FirstRhythmGoal.careForTheBody => 'Care for the body',
-    FirstRhythmGoal.studyAndRemember => 'Study and remember',
-  };
-
-  String _timeLabel(RhythmTimePreference time) => switch (time) {
-    RhythmTimePreference.dawn => 'Dawn',
-    RhythmTimePreference.midday => 'Midday',
-    RhythmTimePreference.evening => 'Evening',
-    RhythmTimePreference.flexible => 'Flexible',
-  };
-
-  String _durationLabel(RhythmDuration duration) => switch (duration) {
-    RhythmDuration.twoMinutes => '2 minutes',
-    RhythmDuration.tenMinutes => '10 minutes',
-    RhythmDuration.twentyMinutes => '20 minutes',
-  };
-
-  Widget _question<T>({
-    required String title,
-    required T? value,
-    required List<T> values,
-    required String Function(T value) labelFor,
-    required ValueChanged<T> onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          title,
-          style: const TextStyle(
-            color: Color(0xFFFFE6A3),
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: <Widget>[
-            for (final option in values)
-              ChoiceChip(
-                selected: option == value,
-                label: Text(labelFor(option)),
-                showCheckmark: false,
-                labelStyle: TextStyle(
-                  color: option == value
-                      ? Colors.black
-                      : Colors.white.withValues(alpha: 0.84),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                selectedColor: KemeticGold.base,
-                backgroundColor: Colors.white.withValues(alpha: 0.07),
-                side: BorderSide(
-                  color: option == value
-                      ? KemeticGold.base
-                      : Colors.white.withValues(alpha: 0.16),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                onSelected: (_) => onChanged(option),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _recommendationCard(StarterMaatFlow suggestion) {
-    final template = _templateByKey[suggestion.templateKey];
-    if (template == null) return const SizedBox.shrink();
-    final selected = _selectedTemplateKey == suggestion.templateKey;
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: _adding
-          ? null
-          : () => setState(() => _selectedTemplateKey = suggestion.templateKey),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selected
-              ? KemeticGold.base.withValues(alpha: 0.16)
-              : Colors.white.withValues(alpha: 0.055),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: selected || suggestion.prominent
-                ? KemeticGold.base.withValues(alpha: 0.86)
-                : Colors.white.withValues(alpha: 0.14),
-            width: selected ? 1.6 : 1,
-          ),
-          boxShadow: suggestion.prominent
-              ? <BoxShadow>[
-                  BoxShadow(
-                    color: KemeticGold.base.withValues(alpha: 0.14),
-                    blurRadius: 18,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            MaatFlowGlyph(glyph: template.glyph, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: KemeticGold.text(
-                          suggestion.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      if (suggestion.prominent)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: KemeticGold.base.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: KemeticGold.base.withValues(alpha: 0.55),
-                            ),
-                          ),
-                          child: const Text(
-                            'Dawn',
-                            style: TextStyle(
-                              color: Color(0xFFFFE4A0),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    suggestion.description,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.76),
-                      fontSize: 13,
-                      height: 1.34,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final recommendations = _recommendations;
-    if (_answered &&
-        _selectedTemplateKey == null &&
-        recommendations.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _selectedTemplateKey != null) return;
-        setState(
-          () => _selectedTemplateKey = recommendations.first.templateKey,
-        );
-      });
-    }
-    return FractionallySizedBox(
-      heightFactor: 0.92,
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-        child: Material(
-          color: const Color(0xFF050505),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 14, 8, 8),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: KemeticGold.text(
-                          'Begin with Ma’at.',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Close',
-                        onPressed: _adding
-                            ? null
-                            : () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.close, color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.fromLTRB(
-                      18,
-                      0,
-                      18,
-                      AppBottomInsets.contentBottomPadding(context),
-                    ),
-                    children: <Widget>[
-                      Text(
-                        'Ma’at is the living order of balance, truth, rhythm, and right action. Connect to the spirit of Ma’at by adding your first flow.',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.80),
-                          fontSize: 14,
-                          height: 1.42,
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      _question<FirstRhythmGoal>(
-                        title:
-                            'What do you want your first rhythm to help you do?',
-                        value: _goal,
-                        values: FirstRhythmGoal.values,
-                        labelFor: _goalLabel,
-                        onChanged: (value) => setState(() {
-                          _goal = value;
-                          _selectedTemplateKey = null;
-                        }),
-                      ),
-                      const SizedBox(height: 20),
-                      _question<RhythmTimePreference>(
-                        title: 'When do you want this rhythm to meet you?',
-                        value: _timePreference,
-                        values: RhythmTimePreference.values,
-                        labelFor: _timeLabel,
-                        onChanged: (value) => setState(() {
-                          _timePreference = value;
-                          _selectedTemplateKey = null;
-                        }),
-                      ),
-                      const SizedBox(height: 20),
-                      _question<RhythmDuration>(
-                        title: 'How much time do you want to give it?',
-                        value: _duration,
-                        values: RhythmDuration.values,
-                        labelFor: _durationLabel,
-                        onChanged: (value) => setState(() {
-                          _duration = value;
-                          _selectedTemplateKey = null;
-                        }),
-                      ),
-                      if (_answered) ...<Widget>[
-                        const SizedBox(height: 24),
-                        KemeticGold.text(
-                          'Starter Ma’at Flows',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        for (final suggestion in recommendations) ...<Widget>[
-                          _recommendationCard(suggestion),
-                          const SizedBox(height: 10),
-                        ],
-                      ],
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: KemeticGold.base,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed:
-                          _answered && _selectedTemplateKey != null && !_adding
-                          ? _addSelectedFlow
-                          : null,
-                      child: _adding
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.black,
-                              ),
-                            )
-                          : const Text(
-                              'Add This Flow',
-                              style: TextStyle(fontWeight: FontWeight.w900),
-                            ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _ActiveMaatFlowDetailSurface extends StatefulWidget {
   const _ActiveMaatFlowDetailSurface({
     required this.template,
     required this.addInstance,
     this.onJoined,
+    this.onEnrollmentConfirmed,
+    this.primaryAction,
     this.onPersisted,
     this.joinedFlow,
     this.relation = MaatFlowDetailRelation.catalogPreview,
@@ -1352,6 +970,8 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
     required MaatFlowDetailComposition composition,
     required _ActiveMaatFlowAddInstance addInstance,
     Future<void> Function(int flowId)? onJoined,
+    Future<void> Function(int flowId)? onEnrollmentConfirmed,
+    MaatFlowDetailPrimaryAction? primaryAction,
     Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted,
     VoidCallback? onBack,
     Future<void> Function(TrackSkyCourse? course, String notes)?
@@ -1369,6 +989,8 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
       template: composition.template,
       addInstance: addInstance,
       onJoined: onJoined,
+      onEnrollmentConfirmed: onEnrollmentConfirmed,
+      primaryAction: primaryAction,
       onPersisted: onPersisted,
       joinedFlow: composition.intendedInstance,
       relation: composition.relation,
@@ -1386,6 +1008,8 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
   final _MaatFlowTemplate template;
   final _ActiveMaatFlowAddInstance addInstance;
   final Future<void> Function(int flowId)? onJoined;
+  final Future<void> Function(int flowId)? onEnrollmentConfirmed;
+  final MaatFlowDetailPrimaryAction? primaryAction;
   final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
   final _Flow? joinedFlow;
   final MaatFlowDetailRelation relation;
@@ -1436,7 +1060,20 @@ class _ActiveMaatFlowDetailSurfaceState
     _timezone = detectTrackSkyTimeZone();
   }
 
+  Future<void> _awaitEnrollmentPersistence(int flowId) async {
+    if (widget.onEnrollmentConfirmed == null) return;
+    final pending = CalendarPage._pendingStagedFlows[flowId];
+    if (pending == null || !await pending.persistenceSettled) {
+      throw StateError('The flow could not be saved. Please retry.');
+    }
+  }
+
   Future<void> _completeJoin(int flowId) async {
+    if (widget.onEnrollmentConfirmed != null) {
+      await _awaitEnrollmentPersistence(flowId);
+      await widget.onEnrollmentConfirmed!(flowId);
+      return;
+    }
     final onJoined = widget.onJoined;
     if (onJoined != null) {
       await onJoined(flowId);
@@ -1459,6 +1096,7 @@ class _ActiveMaatFlowDetailSurfaceState
 
   Widget _buildFollowSky() {
     final surface = FollowSkyDetailSurface(
+      primaryAction: widget.primaryAction,
       key: _followSkyDetailKey,
       onBack: widget.onBack,
       isJoined: widget.alreadyJoined,
@@ -1484,7 +1122,7 @@ class _ActiveMaatFlowDetailSurfaceState
         final id = CalendarPage._stageHeadlessMaatFlowJoinResult(
           result: result,
           template: widget.template,
-          completionRequired: false,
+          completionRequired: widget.onEnrollmentConfirmed != null,
         );
         if (id <= 0) {
           throw StateError('Follow the Sky did not produce a staged flow.');
@@ -1494,6 +1132,10 @@ class _ActiveMaatFlowDetailSurfaceState
           flowId: id,
         );
         unawaited(FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache());
+        if (widget.onEnrollmentConfirmed != null) {
+          await _awaitEnrollmentPersistence(id);
+          await widget.onEnrollmentConfirmed!(id);
+        }
       },
     );
     return KeyboardAwareEditableSurface(child: surface);
@@ -1502,6 +1144,7 @@ class _ActiveMaatFlowDetailSurfaceState
   Widget _buildOfferingTable() {
     final joinedFlow = widget.joinedFlow;
     return OfferingTableDetailSurface(
+      primaryAction: widget.primaryAction,
       timezone: offeringTableTimeZoneFromNotes(
         joinedFlow?.notes,
         fallback: _timezone,
@@ -1519,15 +1162,19 @@ class _ActiveMaatFlowDetailSurfaceState
             required timezone,
             required lens,
             required noCupMode,
-          }) {
-            return _joinOfferingTableFromDetailAuthority(
+          }) async {
+            final id = await _joinOfferingTableFromDetailAuthority(
               template: widget.template,
               startDate: startDate,
               timezone: timezone,
               lens: lens,
               noCupMode: noCupMode,
+              completionRequired: widget.onEnrollmentConfirmed != null,
             );
+            await _awaitEnrollmentPersistence(id);
+            return id;
           },
+      onJoined: widget.onEnrollmentConfirmed,
     );
   }
 
@@ -1593,6 +1240,7 @@ class _ActiveMaatFlowDetailSurfaceState
           ];
     final composition = widget.composition;
     return DjedDetailSurface(
+      primaryAction: widget.primaryAction,
       startDate: DateUtils.dateOnly(startDate),
       supports: supports,
       calendarPreview: widget.calendarPreview,
@@ -1616,6 +1264,7 @@ class _ActiveMaatFlowDetailSurfaceState
       fallback: draftPlan,
     );
     return ReadingHouseDetailSurface(
+      primaryAction: widget.primaryAction,
       timezone: _timezone,
       initialStartDate: widget.joinedFlow?.start,
       initialPlan: initialPlan,
@@ -1628,8 +1277,11 @@ class _ActiveMaatFlowDetailSurfaceState
       ),
       resolvePersonalCalendarId: CalendarPage._loadHeadlessPersonalCalendarId,
       onHeld: (flowId) {
-        final onJoined = widget.onJoined;
-        if (onJoined != null) unawaited(onJoined(flowId));
+        // Holding may precede scheduling. The existing persisted-snapshot
+        // callback lets onboarding wait for a real dated sitting.
+        if (widget.onEnrollmentConfirmed == null && widget.onJoined != null) {
+          unawaited(widget.onJoined!(flowId));
+        }
       },
       onPersisted: widget.onPersisted,
       onEndFlow: widget.onEndFlow,
@@ -1660,7 +1312,7 @@ class _ActiveMaatFlowDetailSurfaceState
     final id = CalendarPage._stageHeadlessMaatFlowJoinResult(
       result: result,
       template: widget.template,
-      completionRequired: false,
+      completionRequired: widget.onEnrollmentConfirmed != null,
     );
     if (id > 0) {
       CalendarPage._rememberJoinedMaatFlowTemplate(
@@ -1669,12 +1321,14 @@ class _ActiveMaatFlowDetailSurfaceState
       );
       unawaited(FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache());
     }
+    await _awaitEnrollmentPersistence(id);
     return id;
   }
 
   Widget _buildKar() {
     final joined = widget.joinedFlow;
     return KarDetailSurface(
+      primaryAction: widget.primaryAction,
       repository: _karRepository ??=
           widget.karRepository ??
           (Supabase.instance.client.auth.currentUser == null
@@ -1686,6 +1340,7 @@ class _ActiveMaatFlowDetailSurfaceState
       calendarPreview: widget.calendarPreview,
       onBack: widget.onBack,
       onJoin: _scheduleKar,
+      onJoined: widget.onEnrollmentConfirmed,
       onReschedule:
           ({
             required oldFlowId,

@@ -1,8 +1,6 @@
-part of 'calendar_page.dart';
-
 /* ─────────── Month / Decan info text ─────────── */
 
-const Map<int, String> _monthInfo = {
+const Map<int, String> calendarMonthDescriptions = {
   1: '''
 Month 1 — Thoth / Ḏḥwty
 Akhet · Finding orientation when familiar ground disappears
@@ -109,7 +107,7 @@ The year has exhaled and has not yet inhaled again. That is the point. Renewal b
 ''',
 };
 
-const List<String> _decanInfo = [
+const List<String> calendarDecanDescriptions = [
   '''
 tpy-ꜥ sbꜣw — “Foremost of the Stars”
 Orientation

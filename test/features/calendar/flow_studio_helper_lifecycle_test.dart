@@ -45,7 +45,7 @@ void main() {
   });
 
   testWidgets(
-    'opening /flows defers Add Flow helper hydration out of route build',
+    'opening /flows hydrates retained history without reviving the retired helper',
     (tester) async {
       await _seedCompletedOnboarding();
       final remoteStore = _FakeRemoteStore();
@@ -64,10 +64,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(remoteStore.loadCount, 1);
-      expect(
-        GuidedOnboardingController.instance.target?.helperId,
-        OnboardingHelperIds.flowStudioAddFlow,
-      );
+      expect(GuidedOnboardingController.instance.target, isNull);
     },
   );
 
