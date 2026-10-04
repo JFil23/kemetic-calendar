@@ -769,6 +769,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
   bool emptyEvents = false,
   DateTime? joinedStartDate,
   int joinedFlowId = 957,
+  MaatFlowDetailPrimaryAction? primaryAction,
   Future<int> Function()? onJoin,
   VoidCallback? onBack,
   KarRepository? karRepository,
@@ -810,6 +811,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
       calendar: calendarPreview,
     ),
     onBack: onBack,
+    primaryAction: primaryAction,
     karRepository: karRepository,
     addInstance:
         ({
@@ -950,6 +952,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
     required this.addInstance,
     this.onJoined,
     this.onEnrollmentConfirmed,
+    this.primaryAction,
     this.onPersisted,
     this.joinedFlow,
     this.relation = MaatFlowDetailRelation.catalogPreview,
@@ -968,6 +971,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
     required _ActiveMaatFlowAddInstance addInstance,
     Future<void> Function(int flowId)? onJoined,
     Future<void> Function(int flowId)? onEnrollmentConfirmed,
+    MaatFlowDetailPrimaryAction? primaryAction,
     Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted,
     VoidCallback? onBack,
     Future<void> Function(TrackSkyCourse? course, String notes)?
@@ -986,6 +990,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
       addInstance: addInstance,
       onJoined: onJoined,
       onEnrollmentConfirmed: onEnrollmentConfirmed,
+      primaryAction: primaryAction,
       onPersisted: onPersisted,
       joinedFlow: composition.intendedInstance,
       relation: composition.relation,
@@ -1004,6 +1009,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
   final _ActiveMaatFlowAddInstance addInstance;
   final Future<void> Function(int flowId)? onJoined;
   final Future<void> Function(int flowId)? onEnrollmentConfirmed;
+  final MaatFlowDetailPrimaryAction? primaryAction;
   final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
   final _Flow? joinedFlow;
   final MaatFlowDetailRelation relation;
@@ -1090,6 +1096,7 @@ class _ActiveMaatFlowDetailSurfaceState
 
   Widget _buildFollowSky() {
     final surface = FollowSkyDetailSurface(
+      primaryAction: widget.primaryAction,
       key: _followSkyDetailKey,
       onBack: widget.onBack,
       isJoined: widget.alreadyJoined,
@@ -1137,6 +1144,7 @@ class _ActiveMaatFlowDetailSurfaceState
   Widget _buildOfferingTable() {
     final joinedFlow = widget.joinedFlow;
     return OfferingTableDetailSurface(
+      primaryAction: widget.primaryAction,
       timezone: offeringTableTimeZoneFromNotes(
         joinedFlow?.notes,
         fallback: _timezone,
@@ -1232,6 +1240,7 @@ class _ActiveMaatFlowDetailSurfaceState
           ];
     final composition = widget.composition;
     return DjedDetailSurface(
+      primaryAction: widget.primaryAction,
       startDate: DateUtils.dateOnly(startDate),
       supports: supports,
       calendarPreview: widget.calendarPreview,
@@ -1255,6 +1264,7 @@ class _ActiveMaatFlowDetailSurfaceState
       fallback: draftPlan,
     );
     return ReadingHouseDetailSurface(
+      primaryAction: widget.primaryAction,
       timezone: _timezone,
       initialStartDate: widget.joinedFlow?.start,
       initialPlan: initialPlan,
@@ -1318,6 +1328,7 @@ class _ActiveMaatFlowDetailSurfaceState
   Widget _buildKar() {
     final joined = widget.joinedFlow;
     return KarDetailSurface(
+      primaryAction: widget.primaryAction,
       repository: _karRepository ??=
           widget.karRepository ??
           (Supabase.instance.client.auth.currentUser == null

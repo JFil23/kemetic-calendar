@@ -87,6 +87,7 @@ class DjedDetailSurface extends StatefulWidget {
     this.onCarryConfiguration,
     this.onJoinedPressed,
     this.onBack,
+    this.primaryAction,
     this.calendarPreview = FollowSkyCalendarPreview.empty,
     this.onSittingCompletionCommit,
   });
@@ -102,6 +103,7 @@ class DjedDetailSurface extends StatefulWidget {
   final ValueChanged<DjedV2Configuration>? onCarryConfiguration;
   final VoidCallback? onJoinedPressed;
   final VoidCallback? onBack;
+  final MaatFlowDetailPrimaryAction? primaryAction;
   final FollowSkyCalendarPreview calendarPreview;
   final Future<void> Function(
     DjedCompletionVisualState state,
@@ -398,6 +400,7 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
               onSittingPressed: _openSitting,
             ),
             bottomDock: MaatFlowDetailDock(
+              primaryAction: widget.primaryAction,
               theme: DjedDetailTokens.theme,
               joined: widget.joined,
               busy: widget.busy,

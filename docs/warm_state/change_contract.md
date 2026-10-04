@@ -573,3 +573,29 @@ size, cold and retained-host launches into the existing overlay, Skip ending
 replay, failed checkpoint writes, repeated taps, account changes during writes,
 and completed-account calendar callbacks. The launch resolves its calendar
 host after the navigation frame so a cold route does not miss the request.
+
+
+## October 4 onboarding detail correction
+
+The recommendation window renders the existing five detail surfaces for both
+new and already enrolled users. A host-supplied primary action adapts their
+shared dock to Go to flow; the detail content, editors and enrollment writers
+stay with their existing owners. Confirmed enrollment IDs and first occurrence
+IDs retain the deployed onboarding checkpoint and acknowledgement path.
+
+When a recovered enrollment is absent from the calendar's in-memory catalog,
+FlowsRepo.getFlowById owns the read, using its existing flow.detail.<id> resource. Recovery restores that account’s
+confirmed warm row first; a cache miss uses the existing live read. Go to flow
+retains the host’s existing occurrence revalidation before advancing.
+HawSavedFlowDetail only holds the pending presentation future. Its account/flow
+key discards old results; the host also checks the initiating account after the
+read. Failure offers retry for that same identity, never fresh enrollment. No
+cache namespace, schema, backend contract, approved fixture or inventory
+threshold changes.
+
+Behavioral coverage exercises cold loading, retained successful presentation,
+failed-read retry, account and flow changes, disposal during a read, preserved
+replay checkpoints, and existing account-scoped warm reads/refreshes. Visual
+coverage uses all five existing detail pages in new and enrolled states, at
+phone and landscape sizes with normal and doubled text. Go to flow invokes the
+continuation without invoking enrollment. Approved detail goldens are retained.

@@ -9,15 +9,18 @@ class FollowSkyV11Dock extends StatelessWidget {
     required this.joined,
     required this.joining,
     required this.onCarry,
+    this.primaryAction,
   });
 
   final bool joined;
   final bool joining;
   final VoidCallback? onCarry;
+  final MaatFlowDetailPrimaryAction? primaryAction;
 
   @override
   Widget build(BuildContext context) {
     return MaatFlowDetailDock(
+      primaryAction: primaryAction,
       theme: FollowSkyV11Tokens.detailTheme,
       joined: joined,
       busy: joining,

@@ -303,6 +303,16 @@ void main() {
         'Widget _buildHawDayView(',
       );
       expect(onboarding, contains('return _buildMaatFlowDetailSurface('));
+      expect(onboarding, contains("label: 'Go to flow'"));
+      expect(
+        onboarding,
+        isNot(contains('Your flow has a place in your time.')),
+      );
+      expect(onboarding, isNot(contains('Open my flow')));
+      expect(onboarding, contains('joinedFlow: joinedFlow'));
+      expect(onboarding, contains('HawSavedFlowDetail<_Flow>'));
+      expect(onboarding, contains('_flowsRepo.getFlowById(savedId)'));
+      expect(onboarding, contains('!_ownsHawOnboarding(owner) || row == null'));
       expect(
         onboarding,
         isNot(contains('_ActiveMaatFlowDetailSurface.fromComposition')),
@@ -322,6 +332,7 @@ void main() {
         canonical,
         contains('relation == MaatFlowDetailRelation.catalogPreview'),
       );
+      expect(canonical, contains('primaryAction: primaryAction'));
       expect(canonical, contains('_followSkyLiveInputs()'));
       expect(canonical, contains('_addMaatFlowInstance('));
     },

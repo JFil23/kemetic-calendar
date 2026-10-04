@@ -789,25 +789,32 @@ class HawCalendarOffer extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 42),
-        OutlinedButton(
-          onPressed: onConnect,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: _HawColors.goldPrimary,
-            disabledForegroundColor: _HawColors.goldMuted,
-            side: const BorderSide(color: _HawColors.goldMuted, width: .7),
-            minimumSize: const Size(double.infinity, 52),
-            textStyle: const TextStyle(
-              fontFamily: _HawType.bodyFamily,
-              fontFamilyFallback: _HawType.bodyFallback,
-              fontSize: 19,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              flex: 3,
+              child: _TypographicCue(
+                label: busy ? 'connecting…' : 'Connect calendar',
+                visible: true,
+                onTap: onConnect,
+                fontSize: 16,
+                minHeight: 44,
+              ),
             ),
-          ),
-          child: Text(
-            busy ? 'Opening calendar connection…' : 'Connect calendar',
-          ),
+            const SizedBox(width: 20),
+            Flexible(
+              flex: 2,
+              child: _TypographicCue(
+                label: 'not now',
+                visible: true,
+                onTap: onContinue,
+                fontSize: 16,
+                minHeight: 44,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        _TypographicCue(label: 'not now', visible: true, onTap: onContinue),
         if (error != null)
           Padding(
             padding: const EdgeInsets.only(top: 16),
@@ -823,6 +830,71 @@ class HawCalendarOffer extends StatelessWidget {
           ),
       ],
     ),
+  );
+}
+
+/// Restores a known enrollment before its shared detail page becomes editable.
+/// The host supplies its account-keyed identity and existing repository read.
+class HawSavedFlowDetail<T extends Object> extends StatefulWidget {
+  const HawSavedFlowDetail({
+    required super.key,
+    required this.load,
+    required this.builder,
+  });
+
+  final Future<T> Function() load;
+  final Widget Function(BuildContext context, T flow) builder;
+
+  @override
+  State<HawSavedFlowDetail<T>> createState() => _HawSavedFlowDetailState<T>();
+}
+
+class _HawSavedFlowDetailState<T extends Object>
+    extends State<HawSavedFlowDetail<T>> {
+  late Future<T> _flow = widget.load();
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<T>(
+    future: _flow,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) {
+        return const Center(
+          child: CircularProgressIndicator(color: _HawColors.goldPrimary),
+        );
+      }
+      if (snapshot.hasData) {
+        return widget.builder(context, snapshot.requireData);
+      }
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Your saved flow could not load. Please retry.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _HawColors.goldMuted,
+                  fontFamily: _HawType.bodyFamily,
+                  fontSize: 21,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _TypographicCue(
+                label: 'retry',
+                visible: true,
+                onTap: () => setState(() {
+                  _flow = widget.load();
+                }),
+                fontSize: 16,
+                minHeight: 44,
+              ),
+            ],
+          ),
+        ),
+      );
+    },
   );
 }
 
@@ -1133,25 +1205,17 @@ class _OrientationSlide extends StatelessWidget {
                   letterSpacing: 0.16,
                 ),
                 children: [
-                  const TextSpan(text: 'You are in '),
                   TextSpan(
-                    text: copy.decanName,
-                    style: const TextStyle(
-                      color: _HawColors.goldStrong,
-                      fontWeight: FontWeight.w400,
-                    ),
+                    text: copy.decanKey == 'epagomenal'
+                        ? 'You are in the five days outside the twelve months.\n\n'
+                        : 'You are in the ${copy.decanOrdinalLabel} decan of ${copy.monthName}.\n\n',
+                    style: const TextStyle(color: _HawColors.goldStrong),
                   ),
-                  const TextSpan(text: ' —\n'),
+                  const TextSpan(text: 'A ḥꜣw reflection for these days:\n'),
                   TextSpan(
-                    text:
-                        'the ${copy.decanOrdinalLabel} decan of ${copy.monthName}.\n',
-                  ),
-                  TextSpan(text: copy.rhythmPhrase),
-                  if (_returnLine.isNotEmpty) TextSpan(text: '\n$_returnLine'),
-                  TextSpan(
-                    text: copy.orientationQuestion.trim().isEmpty
-                        ? ''
-                        : '\n${copy.orientationQuestion}',
+                    text: copy.orientationQuestion.trim().isNotEmpty
+                        ? copy.orientationQuestion
+                        : _returnLine,
                   ),
                 ],
               ),
@@ -1292,11 +1356,15 @@ class _TypographicCue extends StatelessWidget {
     required this.label,
     required this.visible,
     required this.onTap,
+    this.fontSize = 13,
+    this.minHeight = 0,
   });
 
   final String label;
   final bool visible;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final double fontSize;
+  final double minHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -1306,22 +1374,28 @@ class _TypographicCue extends StatelessWidget {
       opacity: visible ? 1 : 0,
       child: IgnorePointer(
         ignoring: !visible,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: _HawColors.ghostDeep,
-                fontFamily: _HawType.bodyFamily,
-                fontFamilyFallback: _HawType.bodyFallback,
-                fontStyle: FontStyle.italic,
-                fontSize: 13,
-                fontWeight: FontWeight.w300,
-                height: 1.2,
-                letterSpacing: 0.78,
+        child: Semantics(
+          button: true,
+          enabled: onTap != null,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: Container(
+              constraints: BoxConstraints(minHeight: minHeight),
+              padding: const EdgeInsets.all(10),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _HawColors.ghostDeep,
+                  fontFamily: _HawType.bodyFamily,
+                  fontFamilyFallback: _HawType.bodyFallback,
+                  fontStyle: FontStyle.italic,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w300,
+                  height: 1.2,
+                  letterSpacing: 0.78,
+                ),
               ),
             ),
           ),

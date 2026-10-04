@@ -457,6 +457,23 @@ class MaatFlowDetailHero extends StatelessWidget {
 }
 
 /// Shared fixed-dock geometry with flow-specific copy and colors.
+/// A host can continue from an already owned flow without replacing its page.
+/// The flow still owns all of its detail content, editing and enrollment logic.
+@immutable
+class MaatFlowDetailPrimaryAction {
+  const MaatFlowDetailPrimaryAction({
+    required this.label,
+    required this.onPressed,
+    this.busy = false,
+    this.note,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool busy;
+  final String? note;
+}
+
 class MaatFlowDetailDock extends StatelessWidget {
   const MaatFlowDetailDock({
     super.key,
@@ -471,6 +488,7 @@ class MaatFlowDetailDock extends StatelessWidget {
     required this.actionKey,
     required this.joinedKey,
     this.onJoinedPressed,
+    this.primaryAction,
     this.showNote = true,
     this.actionNoteWidget,
     this.joinedNoteWidget,
@@ -487,6 +505,7 @@ class MaatFlowDetailDock extends StatelessWidget {
   final Key actionKey;
   final Key joinedKey;
   final VoidCallback? onJoinedPressed;
+  final MaatFlowDetailPrimaryAction? primaryAction;
   final bool showNote;
   final Widget? actionNoteWidget;
   final Widget? joinedNoteWidget;
@@ -494,6 +513,9 @@ class MaatFlowDetailDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enlargedText = MediaQuery.textScalerOf(context).scale(20) > 20;
+    final action = primaryAction;
+    final actionBusy = busy || (action?.busy ?? false);
+    final passiveJoined = joined && action == null;
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -515,7 +537,11 @@ class MaatFlowDetailDock extends StatelessWidget {
                 height: enlargedText ? null : 54,
                 width: double.infinity,
                 child: ElevatedButton(
-                  key: joined ? joinedKey : actionKey,
+                  key: action != null
+                      ? const ValueKey<String>('maat-flow-primary-action')
+                      : joined
+                      ? joinedKey
+                      : actionKey,
                   style: ElevatedButton.styleFrom(
                     minimumSize: enlargedText
                         ? const Size(double.infinity, 54)
@@ -527,13 +553,15 @@ class MaatFlowDetailDock extends StatelessWidget {
                           )
                         : null,
                     backgroundColor: theme.pageBackground,
-                    foregroundColor: joined ? theme.secondaryText : theme.glow,
+                    foregroundColor: passiveJoined
+                        ? theme.secondaryText
+                        : theme.glow,
                     disabledBackgroundColor: theme.pageBackground,
                     disabledForegroundColor: theme.secondaryText,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(999),
                       side: BorderSide(
-                        color: joined
+                        color: passiveJoined
                             ? theme.accent.withValues(alpha: 0.22)
                             : theme.accent,
                         width: 1.5,
@@ -541,12 +569,14 @@ class MaatFlowDetailDock extends StatelessWidget {
                     ),
                     elevation: 0,
                   ),
-                  onPressed: busy
+                  onPressed: actionBusy
                       ? null
+                      : action != null
+                      ? action.onPressed
                       : joined
                       ? onJoinedPressed
                       : onPressed,
-                  child: busy
+                  child: actionBusy
                       ? SizedBox(
                           width: 18,
                           height: 18,
@@ -556,13 +586,13 @@ class MaatFlowDetailDock extends StatelessWidget {
                           ),
                         )
                       : Text(
-                          joined ? joinedLabel : actionLabel,
+                          action?.label ?? (joined ? joinedLabel : actionLabel),
                           textAlign: enlargedText ? TextAlign.center : null,
                           style: TextStyle(
                             fontFamily: MaatFlowListTokens.fontFamily,
                             fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                            fontSize: joined ? 17 : 20,
-                            fontWeight: joined
+                            fontSize: passiveJoined ? 17 : 20,
+                            fontWeight: passiveJoined
                                 ? FontWeight.w400
                                 : FontWeight.w500,
                             height: 1,
@@ -572,7 +602,9 @@ class MaatFlowDetailDock extends StatelessWidget {
               ),
               if (showNote) ...<Widget>[
                 const SizedBox(height: 9),
-                joined
+                action?.note != null
+                    ? _MaatFlowDetailDockNote(theme: theme, text: action!.note!)
+                    : joined
                     ? (joinedNoteWidget ??
                           _MaatFlowDetailDockNote(
                             theme: theme,

@@ -5,7 +5,7 @@
     {
       "path": "/",
       "owner": "lib/features/pages/pages_controller.dart",
-      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state. Explicit onboarding replay reads its acknowledged account-scoped presentation checkpoint; completion history and content remain with their existing owners."
+      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state. Explicit onboarding replay reads its acknowledged account-scoped presentation checkpoint; completion history and content remain with their existing owners. Recommended flow details reuse FlowsRepo and its flow.detail resource; account-keyed recovery reads the known enrollment before enabling its shared detail page, with no duplicate join on read failure."
     },
     {
       "path": "/calendars",

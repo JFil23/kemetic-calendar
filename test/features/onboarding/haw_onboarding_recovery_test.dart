@@ -45,6 +45,95 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  testWidgets(
+    'saved detail waits for its existing flow and reuses warm results',
+    (tester) async {
+      final cold = Completer<int>();
+      var reads = 0;
+      Widget view() => MaterialApp(
+        home: HawSavedFlowDetail<int>(
+          key: const ValueKey('account-a:42'),
+          load: () {
+            reads++;
+            return cold.future;
+          },
+          builder: (_, flow) => Text('Owned flow $flow'),
+        ),
+      );
+      await tester.pumpWidget(view());
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Owned flow 42'), findsNothing);
+      await tester.pumpWidget(view());
+      expect(reads, 1);
+      cold.complete(42);
+      await tester.pumpAndSettle();
+      expect(find.text('Owned flow 42'), findsOneWidget);
+      await tester.pumpWidget(view());
+      expect(reads, 1);
+      expect(find.text('Owned flow 42'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'failed saved detail retries its exact identity without offering enrollment',
+    (tester) async {
+      var reads = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HawSavedFlowDetail<int>(
+            key: const ValueKey('account-a:42'),
+            load: () async {
+              reads++;
+              if (reads == 1) throw StateError('offline');
+              return 42;
+            },
+            builder: (_, flow) => Text('Owned flow $flow'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Your saved flow could not load. Please retry.'),
+        findsOneWidget,
+      );
+      expect(find.text('Join Flow'), findsNothing);
+      await tester.tap(find.text('retry'));
+      await tester.pumpAndSettle();
+      expect(reads, 2);
+      expect(find.text('Owned flow 42'), findsOneWidget);
+    },
+  );
+
+  testWidgets('account and flow changes discard late saved-detail results', (
+    tester,
+  ) async {
+    final first = Completer<int>();
+    final second = Completer<int>();
+    Widget view(String identity, Future<int> future) => MaterialApp(
+      home: HawSavedFlowDetail<int>(
+        key: ValueKey(identity),
+        load: () => future,
+        builder: (_, flow) => Text('Owned flow $flow'),
+      ),
+    );
+    await tester.pumpWidget(view('account-a:42', first.future));
+    await tester.pumpWidget(view('account-b:89', second.future));
+    first.complete(42);
+    await tester.pump();
+    expect(find.text('Owned flow 42'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    second.complete(89);
+    await tester.pumpAndSettle();
+    expect(find.text('Owned flow 89'), findsOneWidget);
+    final next = Completer<int>();
+    await tester.pumpWidget(view('account-b:90', next.future));
+    expect(find.text('Owned flow 89'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    next.complete(90);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   test(
     'replay restarts presentation and preserves account history across reload',
     () async {

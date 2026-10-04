@@ -82,6 +82,7 @@ class KarDetailSurface extends StatefulWidget {
     this.joinedStartDate,
     this.calendarPreview = FollowSkyCalendarPreview.empty,
     this.onBack,
+    this.primaryAction,
     this.clock,
   });
 
@@ -94,6 +95,7 @@ class KarDetailSurface extends StatefulWidget {
   final DateTime? joinedStartDate;
   final FollowSkyCalendarPreview calendarPreview;
   final VoidCallback? onBack;
+  final MaatFlowDetailPrimaryAction? primaryAction;
   final DateTime Function()? clock;
 
   @override
@@ -344,6 +346,7 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
       hero: _KarHero(theme: theme),
       sheet: _buildSheet(accent, accent2),
       bottomDock: MaatFlowDetailDock(
+        primaryAction: widget.primaryAction,
         theme: theme,
         joined: _hasActiveCycle,
         busy: _joining,

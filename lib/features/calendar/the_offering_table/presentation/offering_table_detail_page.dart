@@ -82,6 +82,7 @@ class OfferingTableDetailSurface extends StatefulWidget {
     this.lens = OfferingTableLens.neutral,
     this.noCupMode = false,
     this.onBack,
+    this.primaryAction,
     this.localStore = const OfferingTableLocalStore(),
     this.clock,
     this.presentDayIanaTimeZone,
@@ -100,6 +101,7 @@ class OfferingTableDetailSurface extends StatefulWidget {
   final OfferingTableLens lens;
   final bool noCupMode;
   final VoidCallback? onBack;
+  final MaatFlowDetailPrimaryAction? primaryAction;
   final OfferingTableLocalStore localStore;
   final MaatFlowClock? clock;
   final String? presentDayIanaTimeZone;
@@ -347,6 +349,7 @@ class _OfferingTableDetailSurfaceState
       sheetKey: const ValueKey<String>('offering-table-sheet'),
       hero: const _OfferingTableHero(),
       bottomDock: MaatFlowDetailDock(
+        primaryAction: widget.primaryAction,
         theme: OfferingTableDetailTokens.theme,
         joined: _joined,
         busy: _joining,

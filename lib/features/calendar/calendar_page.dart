@@ -20,6 +20,7 @@ import '../../data/user_events_repo.dart';
 import '../../data/external_calendar_repository.dart'
     show externalCalendarBuildLane, externalCalendarRepository;
 import '../../data/flows_repo.dart';
+import '../../data/warm_state/warm_snapshot_store.dart' show WarmCacheMiss;
 import '../../data/flow_appearance.dart';
 import '../../data/flow_appearance_store.dart';
 import 'presentation/user_flow_appearance_visual.dart';
@@ -12457,6 +12458,7 @@ class CalendarPageState extends State<CalendarPage>
     _Flow? joinedFlow,
     MaatFlowDetailRelation relation = MaatFlowDetailRelation.owned,
     Future<void> Function(int flowId)? onEnrollmentConfirmed,
+    MaatFlowDetailPrimaryAction? primaryAction,
     Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted,
   }) {
     final activeInstance = relation == MaatFlowDetailRelation.catalogPreview
@@ -12479,6 +12481,7 @@ class CalendarPageState extends State<CalendarPage>
         followSkyMeasurementIntervals: sky?.intervals ?? const [],
       ),
       onBack: onBack,
+      primaryAction: primaryAction,
       onFollowSkyCourseSaved: activeInstance?.id == null
           ? null
           : (course, notes) => _saveFollowSkyCourseNotes(
@@ -16095,8 +16098,8 @@ class CalendarPageState extends State<CalendarPage>
     final candidate = template == null
         ? null
         : _activeFlowForMaatTemplate(template.key);
-    // A live staged join still owns its detail surface until its observer has
-    // acknowledged it. Only recovered, settled instances bypass enrollment.
+    // Keep an in-flight join on its existing detail surface until persistence
+    // acknowledges it. Recovered instances reuse that same page with Go to flow.
     final existingFlow =
         candidate != null &&
             CalendarPage._pendingStagedFlows[candidate.id] == null
@@ -16107,43 +16110,11 @@ class CalendarPageState extends State<CalendarPage>
               existingFlow?.id
         : existingFlow?.id;
     final savedFlows = _flows.where((flow) => flow.id == savedId);
-    final savedFlow = savedFlows.isEmpty ? existingFlow : savedFlows.first;
-    final editingReadingHouse =
-        intent == HawEntryIntent.reading &&
-        savedId != null &&
-        savedFlow != null &&
-        _onboardingProgress.firstMaatFlowEventClientEventId == null;
-    if (savedId != null && !editingReadingHouse) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _hawFlowOpenError ?? 'Your flow has a place in your time.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF8A7A58),
-                  fontFamily: 'CormorantGaramond',
-                  fontSize: 21,
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextButton(
-                onPressed: _hawOpeningFlow
-                    ? null
-                    : () => _continueHawJoinedFlow(savedId, advance),
-                child: Text(
-                  _hawOpeningFlow ? 'Opening your flow…' : 'Open my flow',
-                  style: const TextStyle(color: Color(0xFFC9A84C)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final savedFlow = savedFlows.isNotEmpty
+        ? savedFlows.first
+        : existingFlow?.id == savedId
+        ? existingFlow
+        : null;
     if (template == null) {
       return const Center(
         child: Text(
@@ -16154,35 +16125,81 @@ class CalendarPageState extends State<CalendarPage>
     }
     // The same canonical page builder serves My Flows, discovery and this
     // embedded recommendation. Onboarding only supplies its continuation.
-    return _buildMaatFlowDetailSurface(
-      template: template,
-      relation: editingReadingHouse
-          ? MaatFlowDetailRelation.owned
-          : MaatFlowDetailRelation.catalogPreview,
-      joinedFlow: editingReadingHouse ? savedFlow : null,
-      onEnrollmentConfirmed: (flowId) async {
-        if (!_showOnboarding || !_ownsHawOnboarding(owner)) {
-          CalendarPage._consumeStagedFlowCompletion(flowId);
-          return;
-        }
-        await _continueHawJoinedFlow(flowId, advance);
-      },
-      onPersisted: (snapshot) async {
-        if (!_ownsHawOnboarding(owner)) return;
-        final flowId = snapshot.flowId;
-        if (flowId == null) return;
-        await _rememberHawEnrollment(flowId);
-        if (snapshot.isScheduled) {
+    Widget buildDetail(_Flow? joinedFlow) {
+      return _buildMaatFlowDetailSurface(
+        template: template,
+        relation: joinedFlow != null
+            ? MaatFlowDetailRelation.owned
+            : MaatFlowDetailRelation.catalogPreview,
+        joinedFlow: joinedFlow,
+        primaryAction: savedId == null
+            ? null
+            : MaatFlowDetailPrimaryAction(
+                label: 'Go to flow',
+                onPressed: () {
+                  if (_ownsHawOnboarding(owner)) {
+                    unawaited(_continueHawJoinedFlow(savedId, advance));
+                  }
+                },
+                busy: _hawOpeningFlow,
+                note:
+                    _hawFlowOpenError ??
+                    (intent == HawEntryIntent.reading
+                        ? 'Open a scheduled sitting in your calendar.'
+                        : 'Open the flow already in your calendar.'),
+              ),
+        onEnrollmentConfirmed: (flowId) async {
+          if (!_showOnboarding || !_ownsHawOnboarding(owner)) {
+            CalendarPage._consumeStagedFlowCompletion(flowId);
+            return;
+          }
           await _continueHawJoinedFlow(flowId, advance);
-        } else {
-          final row = await _flowsRepo.getFlowById(flowId);
-          if (!_ownsHawOnboarding(owner) || row == null) return;
-          setState(() {
-            _flows.removeWhere((flow) => flow.id == flowId);
-            _flows.add(CalendarPage._flowFromFiledRowDetached(row));
-          });
+        },
+        onPersisted: (snapshot) async {
+          if (!_ownsHawOnboarding(owner)) return;
+          final flowId = snapshot.flowId;
+          if (flowId == null) return;
+          await _rememberHawEnrollment(flowId);
+          if (snapshot.isScheduled) {
+            await _continueHawJoinedFlow(flowId, advance);
+          } else {
+            final row = await _flowsRepo.getFlowById(flowId);
+            if (!_ownsHawOnboarding(owner) || row == null) return;
+            setState(() {
+              _flows.removeWhere((flow) => flow.id == flowId);
+              _flows.add(CalendarPage._flowFromFiledRowDetached(row));
+            });
+          }
+        },
+      );
+    }
+
+    if (savedId == null || savedFlow != null) return buildDetail(savedFlow);
+
+    // A recovered checkpoint can arrive before the calendar's flow catalog.
+    // Load its exact account-owned instance through the existing repository;
+    // never turn a temporarily missing saved row into a fresh enrollment.
+    return HawSavedFlowDetail<_Flow>(
+      key: ValueKey<String>('haw-owned-flow:$owner:$savedId'),
+      load: () async {
+        FlowRow? row;
+        try {
+          row = await _flowsRepo.getFlowById(savedId, cachedOnly: true);
+        } on WarmCacheMiss {
+          // Only a cache miss permits the existing live detail read.
         }
+        if (!_ownsHawOnboarding(owner)) {
+          throw StateError('Onboarding account changed.');
+        }
+        row ??= await _flowsRepo.getFlowById(savedId);
+        if (!_ownsHawOnboarding(owner) || row == null) {
+          throw StateError('The saved flow is not available yet.');
+        }
+        return CalendarPage._flowFromFiledRowDetached(row);
       },
+      builder: (_, flow) => _ownsHawOnboarding(owner)
+          ? buildDetail(flow)
+          : const SizedBox.shrink(),
     );
   }
 

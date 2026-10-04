@@ -78,7 +78,14 @@ void main() {
 
     await tester.pump(const Duration(seconds: 4));
     expect(find.text('Today is Hathor 27'), findsOneWidget);
-    expect(_richTextContaining('What has been deposited.'), findsOneWidget);
+    expect(
+      _richTextContaining('A ḥꜣw reflection for these days:'),
+      findsOneWidget,
+    );
+    expect(
+      _richTextContaining('What remains when the water recedes?'),
+      findsOneWidget,
+    );
     expect(
       slides,
       containsAllInOrder(<HawOnboardingSlide>[
@@ -103,6 +110,48 @@ void main() {
     expect(slides, containsAll(HawOnboardingSlide.values));
     expect(completed, isFalse);
   });
+
+  for (final day in [1, 10, 11, 19, 20, 21, 30]) {
+    testWidgets(
+      'orientation separates calendar position from reflection on day $day',
+      (tester) async {
+        final copy = DecanCompassCopyRepo.fallbackForDay(kMonth: 7, kDay: day);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: OnboardingOverlay(
+              initialSlide: HawOnboardingSlide.orientation,
+              compassCopy: copy,
+              dayViewEventTargetKey: GlobalKey(),
+              recommendedFlowBuilder: (_, _) => const SizedBox(),
+              dayViewBuilder: (_, _, _) => const SizedBox(),
+              onEntryStateSelected: (_) async {},
+              onSkip: () {},
+              onComplete: () {},
+            ),
+          ),
+        );
+        await tester.pump(const Duration(seconds: 4));
+        final ordinal = day <= 10
+            ? 'first'
+            : day <= 20
+            ? 'second'
+            : 'third';
+        expect(find.text('Today is Rekh-Nedjes $day'), findsOneWidget);
+        expect(
+          _richTextContaining('the $ordinal decan of Rekh-Nedjes.'),
+          findsOneWidget,
+        );
+        expect(
+          _richTextContaining('A ḥꜣw reflection for these days:'),
+          findsOneWidget,
+        );
+        expect(_richTextContaining(copy.orientationQuestion), findsOneWidget);
+        expect(_richTextContaining('Phamenoth'), findsNothing);
+        expect(_richTextContaining(copy.decanName), findsNothing);
+        expect(_richTextContaining('centers on'), findsNothing);
+      },
+    );
+  }
 
   testWidgets('skip exits without joining the recommended flow', (
     tester,

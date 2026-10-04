@@ -59,6 +59,7 @@ class FollowSkyDetailSurface extends StatefulWidget {
     this.ianaTimeZoneProvider,
     this.temporalScheduler,
     this.onBack,
+    this.primaryAction,
     this.title = 'Follow the Sky',
     this.subtitle = FollowSkyV11Tokens.heroSubtitle,
     this.onHierarchyChanged,
@@ -88,6 +89,7 @@ class FollowSkyDetailSurface extends StatefulWidget {
   final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
   final MaatFlowTemporalScheduler? temporalScheduler;
   final VoidCallback? onBack;
+  final MaatFlowDetailPrimaryAction? primaryAction;
   final String title;
   final String subtitle;
   final VoidCallback? onHierarchyChanged;
@@ -463,6 +465,7 @@ class FollowSkyDetailSurfaceState extends State<FollowSkyDetailSurface> {
       scrollController: _scrollController,
       hero: FollowSkyHero(title: widget.title, subtitle: widget.subtitle),
       bottomDock: FollowSkyV11Dock(
+        primaryAction: widget.primaryAction,
         joined: _carried,
         joining: _joining,
         onCarry: _carried ? null : _carry,

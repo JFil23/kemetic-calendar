@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'package:mobile/features/onboarding/decan_compass_copy_repo.dart';
+import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_detail_page.dart';
+import 'package:mobile/features/calendar/track_sky_timezone.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/sky_catalog_repository.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_detail_page.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
@@ -86,7 +89,10 @@ void main() {
                 key: boundary,
                 child: OnboardingOverlay(
                   initialSlide: slide,
-                  compassCopy: compass,
+                  compassCopy: DecanCompassCopyRepo.fallbackForDay(
+                    kMonth: 7,
+                    kDay: 19,
+                  ),
                   recommendedFlowBuilder: (_, _) => const SizedBox(),
                   dayViewBuilder: (_, _, _) => const SizedBox(),
                   dayViewEventTargetKey: GlobalKey(),
@@ -99,6 +105,19 @@ void main() {
           );
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
+          if (slide == HawOnboardingSlide.calendarConnection) {
+            final connect = find.text('Connect calendar');
+            final later = find.text('not now');
+            final left = tester.getRect(connect);
+            final right = tester.getRect(later);
+            expect(left.center.dx, lessThan(right.center.dx));
+            expect((left.center.dy - right.center.dy).abs(), lessThan(1));
+            final connectStyle = tester.widget<Text>(connect).style!;
+            expect(connectStyle, tester.widget<Text>(later).style);
+            expect(connectStyle.fontStyle, FontStyle.italic);
+            expect(connectStyle.fontSize, greaterThan(13));
+            expect(find.byType(OutlinedButton), findsNothing);
+          }
           if (slide == HawOnboardingSlide.segmentation) {
             await tester.scrollUntilVisible(
               find.text(HawEntryIntent.imagination.label),
@@ -125,129 +144,177 @@ void main() {
   for (final size in [const Size(390, 844), const Size(844, 390)]) {
     for (final scale in [1.0, 2.0]) {
       for (final intent in HawEntryIntent.values) {
-        testWidgets('${intent.name} real recommendation ${size.width} ${scale}x', (
-          tester,
-        ) async {
-          tester.view.devicePixelRatio = 1;
-          tester.view.physicalSize = size;
-          addTearDown(tester.view.reset);
-          final boundary = GlobalKey();
-          await tester.pumpWidget(
-            MaterialApp(
-              theme: AppTheme.dark,
-              builder: (context, child) => MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  disableAnimations: true,
-                  textScaler: TextScaler.linear(scale),
-                ),
-                child: child!,
-              ),
-              home: RepaintBoundary(
-                key: boundary,
-                child: OnboardingOverlay(
-                  initialSlide: HawOnboardingSlide.recommendedFlow,
-                  recommendationReason: 'You said: ${intent.label}',
-                  compassCopy: compass,
-                  recommendedFlowBuilder: (_, _) => intent == HawEntryIntent.sky
-                      ? KeyboardAwareEditableSurface(
-                          child: FollowSkyDetailSurface(
-                            initialCatalog: SkyCatalogRepository.parseJsonString(
-                              File(
-                                'assets/follow_the_sky/sky_catalog_v2_graphics_v1.json',
-                              ).readAsStringSync(),
+        for (final owned in [false, true]) {
+          testWidgets(
+            '${intent.name} ${owned ? 'owned' : 'new'} recommendation ${size.width} ${scale}x',
+            (tester) async {
+              tester.view.devicePixelRatio = 1;
+              tester.view.physicalSize = size;
+              addTearDown(tester.view.reset);
+              final boundary = GlobalKey();
+              var opens = 0;
+              var joins = 0;
+              final action = owned
+                  ? MaatFlowDetailPrimaryAction(
+                      label: 'Go to flow',
+                      onPressed: () => opens++,
+                      note: 'Open the flow already in your calendar.',
+                    )
+                  : null;
+              await tester.pumpWidget(
+                MaterialApp(
+                  theme: AppTheme.dark,
+                  builder: (context, child) => MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      disableAnimations: true,
+                      textScaler: TextScaler.linear(scale),
+                    ),
+                    child: child!,
+                  ),
+                  home: RepaintBoundary(
+                    key: boundary,
+                    child: OnboardingOverlay(
+                      initialSlide: HawOnboardingSlide.recommendedFlow,
+                      recommendationReason: 'You said: ${intent.label}',
+                      compassCopy: compass,
+                      recommendedFlowBuilder: (_, _) =>
+                          intent == HawEntryIntent.sky
+                          ? KeyboardAwareEditableSurface(
+                              child: FollowSkyDetailSurface(
+                                initialCatalog:
+                                    SkyCatalogRepository.parseJsonString(
+                                      File(
+                                        'assets/follow_the_sky/sky_catalog_v2_graphics_v1.json',
+                                      ).readAsStringSync(),
+                                    ),
+                                now: DateTime.utc(2026, 10, 4, 12),
+                                presentDayIanaTimeZone: 'America/Los_Angeles',
+                                isJoined: owned,
+                                existingFlowId: owned ? 957 : null,
+                                primaryAction: action,
+                                onJoin: (_) async {
+                                  joins++;
+                                },
+                              ),
+                            )
+                          : owned && intent == HawEntryIntent.reading
+                          ? ReadingHouseDetailSurface(
+                              timezone: TrackSkyTimeZone.pacific,
+                              initiallyHeld: true,
+                              initialFlowId: 957,
+                              initialStartDate: DateTime(2026, 10, 4),
+                              primaryAction: action,
+                            )
+                          : buildMaatFlowTemplateDetailPreviewForTesting(
+                              templateKey: intent.kind.flowKey,
+                              joinedStartDate: owned
+                                  ? DateTime(2026, 10, 4)
+                                  : null,
+                              primaryAction: action,
+                              onJoin: () async {
+                                joins++;
+                                return 957;
+                              },
                             ),
-                            now: DateTime.utc(2026, 10, 4, 12),
-                            presentDayIanaTimeZone: 'America/Los_Angeles',
-                            onJoin: (_) async {},
-                          ),
-                        )
-                      : buildMaatFlowTemplateDetailPreviewForTesting(
-                          templateKey: intent.kind.flowKey,
-                        ),
-                  dayViewBuilder: (_, _, _) => const SizedBox(),
-                  dayViewEventTargetKey: GlobalKey(),
-                  onEntryStateSelected: (_) async {},
-                  onSkip: () {},
-                  onComplete: () {},
+                      dayViewBuilder: (_, _, _) => const SizedBox(),
+                      dayViewEventTargetKey: GlobalKey(),
+                      onEntryStateSelected: (_) async {},
+                      onSkip: () {},
+                      onComplete: () {},
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          );
-          await tester.pump();
-          await tester.runAsync(() async {
-            // Asset decoding and the sky catalog use real asynchronous work.
-            await Future<void>.delayed(const Duration(milliseconds: 100));
-            final context = tester.element(find.byType(OnboardingOverlay));
-            for (final asset in tester.widgetList<Image>(find.byType(Image))) {
-              await precacheImage(asset.image, context);
-            }
-          });
-          // Follow the Sky keeps its instrument animation alive. Settle the
-          // entrance on a bounded clock instead of waiting for all animation.
-          await tester.pump(const Duration(seconds: 2));
-          await tester.pump(const Duration(milliseconds: 600));
-          expect(find.byType(CircularProgressIndicator), findsNothing);
-          expect(tester.takeException(), isNull);
-          for (final element in find.byType(MaatFlowDetailHero).evaluate()) {
-            final hero = element.widget as MaatFlowDetailHero;
-            final host = find.byWidget(hero);
-            final title = find.descendant(
-              of: host,
-              matching: find.text(hero.title),
-            );
-            final heroRect = tester.getRect(host);
-            final titleRect = tester.getRect(title);
-            expect(titleRect.top, greaterThanOrEqualTo(heroRect.top));
-            expect(titleRect.bottom, lessThanOrEqualTo(heroRect.bottom));
-          }
-          for (final element
-              in find
-                  .descendant(
-                    of: find.byType(MaatFlowDetailDock),
-                    matching: find.byType(ElevatedButton),
-                  )
-                  .evaluate()) {
-            final button = find.byWidget(element.widget);
-            final label = find.descendant(
-              of: button,
-              matching: find.byType(Text),
-            );
-            final buttonRect = tester.getRect(button);
-            final labelRect = tester.getRect(label);
-            expect(labelRect.top, greaterThanOrEqualTo(buttonRect.top));
-            expect(labelRect.bottom, lessThanOrEqualTo(buttonRect.bottom));
-          }
-          await capture(
-            tester,
-            boundary,
-            'recommendation-${intent.name}-${size.width.toInt()}-${scale.toInt()}x',
-          );
-          if (scale > 1 || size.width > size.height) {
-            final shell = find.byType(MaatFlowDetailShell);
-            final innerScroll = find.descendant(
-              of: shell,
-              matching: find.byType(CustomScrollView),
-            );
-            if (innerScroll.evaluate().isNotEmpty) {
-              // In short viewports the outer page exposes the full detail
-              // window, then the existing detail scroll reveals its content.
-              await tester.ensureVisible(shell.first);
+              );
               await tester.pump();
-              final controller = tester
-                  .widget<CustomScrollView>(innerScroll.first)
-                  .controller!;
-              controller.jumpTo(220);
-              await tester.pump(const Duration(milliseconds: 300));
+              await tester.runAsync(() async {
+                // Asset decoding and the sky catalog use real asynchronous work.
+                await Future<void>.delayed(const Duration(milliseconds: 100));
+                final context = tester.element(find.byType(OnboardingOverlay));
+                for (final asset in tester.widgetList<Image>(
+                  find.byType(Image),
+                )) {
+                  await precacheImage(asset.image, context);
+                }
+              });
+              // Follow the Sky keeps its instrument animation alive. Settle the
+              // entrance on a bounded clock instead of waiting for all animation.
+              await tester.pump(const Duration(seconds: 2));
+              await tester.pump(const Duration(milliseconds: 600));
+              expect(find.byType(CircularProgressIndicator), findsNothing);
               expect(tester.takeException(), isNull);
+              for (final element
+                  in find.byType(MaatFlowDetailHero).evaluate()) {
+                final hero = element.widget as MaatFlowDetailHero;
+                final host = find.byWidget(hero);
+                final title = find.descendant(
+                  of: host,
+                  matching: find.text(hero.title),
+                );
+                final heroRect = tester.getRect(host);
+                final titleRect = tester.getRect(title);
+                expect(titleRect.top, greaterThanOrEqualTo(heroRect.top));
+                expect(titleRect.bottom, lessThanOrEqualTo(heroRect.bottom));
+              }
+              for (final element
+                  in find
+                      .descendant(
+                        of: find.byType(MaatFlowDetailDock),
+                        matching: find.byType(ElevatedButton),
+                      )
+                      .evaluate()) {
+                final button = find.byWidget(element.widget);
+                final label = find.descendant(
+                  of: button,
+                  matching: find.byType(Text),
+                );
+                final buttonRect = tester.getRect(button);
+                final labelRect = tester.getRect(label);
+                expect(labelRect.top, greaterThanOrEqualTo(buttonRect.top));
+                expect(labelRect.bottom, lessThanOrEqualTo(buttonRect.bottom));
+              }
               await capture(
                 tester,
                 boundary,
-                'recommendation-scrolled-${intent.name}-${size.width.toInt()}-${scale.toInt()}x',
+                'recommendation-${owned ? 'owned' : 'new'}-${intent.name}-${size.width.toInt()}-${scale.toInt()}x',
               );
-            }
-          }
-          await tester.pumpWidget(const SizedBox());
-        });
+              if (scale > 1 || size.width > size.height) {
+                final shell = find.byType(MaatFlowDetailShell);
+                final innerScroll = find.descendant(
+                  of: shell,
+                  matching: find.byType(CustomScrollView),
+                );
+                if (innerScroll.evaluate().isNotEmpty) {
+                  // In short viewports the outer page exposes the full detail
+                  // window, then the existing detail scroll reveals its content.
+                  await tester.ensureVisible(shell.first);
+                  await tester.pump();
+                  final controller = tester
+                      .widget<CustomScrollView>(innerScroll.first)
+                      .controller!;
+                  controller.jumpTo(220);
+                  await tester.pump(const Duration(milliseconds: 300));
+                  expect(tester.takeException(), isNull);
+                  await capture(
+                    tester,
+                    boundary,
+                    'recommendation-scrolled-${owned ? 'owned' : 'new'}-${intent.name}-${size.width.toInt()}-${scale.toInt()}x',
+                  );
+                }
+              }
+              if (owned) {
+                final button = find.text('Go to flow');
+                await tester.ensureVisible(button);
+                await tester.pump();
+                expect(button.hitTestable(), findsOneWidget);
+                await tester.tap(button);
+                expect(opens, 1);
+                expect(joins, 0);
+                expect(find.byType(MaatFlowDetailShell), findsOneWidget);
+              }
+              await tester.pumpWidget(const SizedBox());
+            },
+          );
+        }
         testWidgets(
           '${intent.name} closing with unchanged housing ${size.width} ${scale}x',
           (tester) async {
