@@ -231,8 +231,10 @@ class LibraryReadProgressStore {
     )
     createProgress,
   }) {
+    // Navigation may finish while an earlier write is still syncing. Bind the
+    // queued mutation to the account that initiated it, before awaiting work.
+    final userId = _currentUserId();
     final operation = _pendingMutation.then((_) async {
-      final userId = _currentUserId();
       final normalizedNodeId = _validatedNodeId(nodeId);
       final cacheProgress = await _readCacheProgress(userId);
       final previous = cacheProgress[normalizedNodeId];

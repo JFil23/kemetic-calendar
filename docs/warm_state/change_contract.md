@@ -483,3 +483,12 @@ before leaving. Regression tests hold and reject progress writes while exiting
 both pushed and restored readers, close the Library, then settle the late write
 and verify that navigation stays at the chosen destination. Existing history,
 bookmark, scroll restoration, and shared navigation tests remain in force.
+
+Queued Library progress and bookmark mutations capture their account owner at
+enqueue time, before waiting for earlier synchronization. An account switch or
+logout after leaving the reader therefore cannot place that queued progress in
+the next account or anonymous cache. Account-change/logout regression tests
+hold the first remote write, queue bookmark/exit progress, switch accounts, then
+verify the original account's remote targets and local key with no foreign data.
+The existing backend authorization, remote boundary, and cache schemas remain
+unchanged; no backend operation or deployment is part of this correction.
