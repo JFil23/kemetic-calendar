@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/theme/app_fonts.dart';
 import 'package:mobile/services/speech/speech_voice.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
@@ -70,7 +71,7 @@ class SpeechSettingsCard extends StatelessWidget {
             disabledBorder: _border(const Color(0xFF262626)),
           ),
           dropdownColor: const Color(0xFF101010),
-          style: const TextStyle(color: Colors.white, fontFamily: 'InterWeb'),
+          style: const TextStyle(color: Colors.white, fontFamily: AppFonts.ui),
           items: SpeechVoiceOption.values
               .map(
                 (voice) =>
