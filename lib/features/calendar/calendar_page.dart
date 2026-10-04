@@ -81,6 +81,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'calendar_user_scoped_prefs.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
+import 'calendar_period_descriptions.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
 import 'package:mobile/widgets/kemetic_app_bar_action.dart';
@@ -226,7 +227,6 @@ part 'calendar_flow_models.dart';
 part 'calendar_flow_studio_models.dart';
 part 'calendar_grid_widgets.dart';
 part 'calendar_month_detail.dart';
-part 'calendar_period_descriptions.dart';
 part 'calendar_flow_studio_page.dart';
 part 'calendar_flow_pages.dart';
 part 'calendar_user_flow_detail.dart';
@@ -2163,13 +2163,13 @@ Map<String, _InlineNodeContent> _buildDecanInlineNodes() {
   DecanMetadata.decanNames.forEach((month, names) {
     for (int i = 0; i < names.length; i++) {
       final idx = (month - 1) * 3 + i;
-      if (idx < 0 || idx >= _decanInfo.length) continue;
+      if (idx < 0 || idx >= calendarDecanDescriptions.length) continue;
       final short = names[i];
       final title = DecanMetadata.decanTitles[short] ?? short;
       map['decan:$short'] = _InlineNodeContent(
         id: 'decan:$short',
         title: title,
-        body: _decanInfo[idx].trim(),
+        body: calendarDecanDescriptions[idx].trim(),
         glyph: '✶',
         linkMap: _decanLinkMap,
       );
@@ -15826,13 +15826,15 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _completeHawOnboarding() async {
-    if (!_ownsHawOnboarding(_hawOnboardingOwner)) return;
+    final owner = _hawOnboardingOwner;
+    if (!_ownsHawOnboarding(owner)) return;
     GuidedOnboardingController.instance.clear();
     await _dismissOnboarding();
+    if (!mounted || !_ownsHawOnboarding(owner)) return;
     unawaited(
       Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
     );
-    if (mounted) context.go('/');
+    unawaited(openDetailRoute<void>(context, '/pages'));
   }
 
   bool _ownsHawOnboarding(String? owner) =>
@@ -16316,8 +16318,8 @@ class CalendarPageState extends State<CalendarPage>
           HawOnboardingClosingBanner(
             copy: _hawIntent!.closingCopy,
             onCommit: _persistHawOnboardingCompletion,
-            onComplete: () {
-              Navigator.of(sheetContext).maybePop();
+            onComplete: () async {
+              await Navigator.of(sheetContext).maybePop();
               onClosingComplete();
             },
           ),

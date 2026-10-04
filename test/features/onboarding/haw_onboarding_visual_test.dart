@@ -136,6 +136,26 @@ void main() {
             boundary,
             '${slide.name}-${size.width.toInt()}x${size.height.toInt()}-${scale.toInt()}x',
           );
+          if (slide == HawOnboardingSlide.orientation) {
+            final viewport = find.byType(SingleChildScrollView).first;
+            expect(
+              tester.getRect(viewport).bottom,
+              lessThan(tester.getRect(find.text('next')).top),
+            );
+            final scrollable = find.byType(Scrollable).first;
+            final position = tester.state<ScrollableState>(scrollable).position;
+            if (position.maxScrollExtent > 0) {
+              await tester.drag(scrollable, const Offset(0, -10000));
+              await tester.pumpAndSettle();
+              expect(position.pixels, closeTo(position.maxScrollExtent, 1));
+              await capture(
+                tester,
+                boundary,
+                'orientation-end-${size.width.toInt()}x${size.height.toInt()}-${scale.toInt()}x',
+              );
+              expect(find.text('next').hitTestable(), findsOneWidget);
+            }
+          }
           await tester.pumpWidget(const SizedBox());
         });
       }

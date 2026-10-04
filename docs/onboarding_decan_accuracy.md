@@ -20,3 +20,14 @@ name as its date, then labels the existing question as a ḥꜣw reflection. It 
 not assert the uncertain astronomical name or theme as historical fact. The
 broader calendar metadata has not been audited or rewritten by this correction.
 The five epagomenal days are described separately from the twelve months.
+
+
+## Decan description follow-up
+
+Onboarding now reuses the full authored theme and explanation from the existing
+Calendar decan detail, rather than the daily orientation question. The shared
+period-description module retains all original month and decan content verbatim.
+For Rekh-Nedjes days 11–20 this is Adaptation, consistently throughout the decan.
+The slide labels this as ḥꜣw’s interpretation; historical-name corroboration is
+still unresolved. Heriu Renpet reuses the existing threshold description and is
+kept distinct from the 36 decans. Daily-orientation storage remains unchanged.

@@ -1,3 +1,4 @@
+import '../calendar/calendar_period_descriptions.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -899,29 +900,43 @@ class _HawSavedFlowDetailState<T extends Object>
 }
 
 class _HawCenteredFrame extends StatelessWidget {
-  const _HawCenteredFrame({required this.child});
+  const _HawCenteredFrame({
+    required this.child,
+    this.reserveNavigationSpace = false,
+  });
   final Widget child;
+  final bool reserveNavigationSpace;
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final compact =
-          constraints.maxHeight < 600 ||
-          MediaQuery.textScalerOf(context).scale(16) > 24;
-      return SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          44,
-          compact ? 80 : 0,
-          44,
-          compact ? 100 : 0,
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: compact ? 0 : constraints.maxHeight,
+  Widget build(BuildContext context) => Padding(
+    padding: reserveNavigationSpace
+        ? EdgeInsets.only(
+            top: 64 + MediaQuery.paddingOf(context).top,
+            bottom: 96 + MediaQuery.paddingOf(context).bottom,
+          )
+        : EdgeInsets.zero,
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            constraints.maxHeight < 600 ||
+            MediaQuery.textScalerOf(context).scale(16) > 24;
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            44,
+            !reserveNavigationSpace && compact ? 80 : 0,
+            44,
+            !reserveNavigationSpace && compact ? 100 : 0,
           ),
-          child: IntrinsicHeight(child: child),
-        ),
-      );
-    },
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: compact && !reserveNavigationSpace
+                  ? 0
+                  : constraints.maxHeight,
+            ),
+            child: IntrinsicHeight(child: child),
+          ),
+        );
+      },
+    ),
   );
 }
 
@@ -1154,15 +1169,10 @@ class _OrientationSlide extends StatelessWidget {
   final bool copyVisible;
   final bool reduceMotion;
 
-  String get _returnLine {
-    final explicit = copy.dayAlignedReturnLine?.trim();
-    if (explicit != null && explicit.isNotEmpty) return explicit;
-    return _returnLineForKey(copy.dayAlignedReturnKey);
-  }
-
   @override
   Widget build(BuildContext context) {
     return _HawCenteredFrame(
+      reserveNavigationSpace: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1194,6 +1204,7 @@ class _OrientationSlide extends StatelessWidget {
             opacity: copyVisible ? 1 : 0,
             curve: Curves.easeOut,
             child: RichText(
+              textScaler: MediaQuery.textScalerOf(context),
               text: TextSpan(
                 style: const TextStyle(
                   color: _HawColors.goldMuted,
@@ -1211,12 +1222,13 @@ class _OrientationSlide extends StatelessWidget {
                         : 'You are in the ${copy.decanOrdinalLabel} decan of ${copy.monthName}.\n\n',
                     style: const TextStyle(color: _HawColors.goldStrong),
                   ),
-                  const TextSpan(text: 'A ḥꜣw reflection for these days:\n'),
-                  TextSpan(
-                    text: copy.orientationQuestion.trim().isNotEmpty
-                        ? copy.orientationQuestion
-                        : _returnLine,
-                  ),
+                  if (decanInterpretationForKey(copy.decanKey)
+                      case final description?) ...[
+                    TextSpan(
+                      text: 'ḥꜣw’s interpretation: ${description.theme}\n\n',
+                    ),
+                    TextSpan(text: description.body),
+                  ],
                 ],
               ),
             ),
@@ -1416,49 +1428,6 @@ final List<_EntryOption> _entryOptions = [
   for (final intent in HawEntryIntent.values)
     _EntryOption(value: intent.name, label: intent.label),
 ];
-
-String _returnLineForKey(String key) {
-  return switch (key.trim()) {
-    'begin_cleanly' => 'What can begin cleanly.',
-    'keep_measure' => 'What can stay measured.',
-    'make_record_useful' => 'What the record can hold.',
-    'rise_with_attention' => 'Where attention can rise.',
-    'hold_center' => 'What needs a steadier center.',
-    'restore_beauty' => 'What beauty can restore.',
-    'notice_deposit' => 'What has been deposited.',
-    'sort_arrival' => 'What arrival brought.',
-    'settle_after_flood' => 'What has been deposited.',
-    'shape_first' => 'What needs first shape.',
-    'reinforce_weight' => 'What should be reinforced.',
-    'complete_support' => 'What support is necessary.',
-    'see_forward_edge' => 'What is ahead.',
-    'stay_middle' => 'What can continue.',
-    'bring_forward_form' => 'What form is asking.',
-    'shape_patiently' => 'What needs patient shaping.',
-    'tend_formation' => 'What is worth tending.',
-    'place_formation' => 'Where the formed work belongs.',
-    'reserve_power' => 'What power can be reserved.',
-    'dignify_repetition' => 'Where repetition can become practice.',
-    'make_noble_practical' => 'What intention needs a step.',
-    'listen_for_signal' => 'What signal is present.',
-    'orient_movement' => 'What movement needs direction.',
-    'release_with_care' => 'What is ready for release.',
-    'attend_hidden_support' => 'What hidden support needs attention.',
-    'carry_deliberately' => 'What can be carried deliberately.',
-    'set_down_load' => 'What can be set down.',
-    'stand_upright' => 'What can stand upright.',
-    'quiet_courage' => 'What asks for quiet courage.',
-    'follow_through' => 'What deserves follow-through.',
-    'clear_standard' => 'What standard can guide.',
-    'care_clean_action' => 'Where care can clean the action.',
-    'repeatable_care' => 'What care can become repeatable.',
-    'name_offering' => 'What offering is still owed.',
-    'honest_accounting' => 'What needs honest accounting.',
-    'close_cleanly' => 'What can close cleanly.',
-    'guard_threshold' => 'What should not cross.',
-    _ => '',
-  };
-}
 
 class _HawColors {
   const _HawColors._();

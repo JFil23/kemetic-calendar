@@ -1,3 +1,4 @@
+import 'package:mobile/features/calendar/calendar_period_descriptions.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/features/onboarding/starter_maat_flow_recommendation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,12 +79,9 @@ void main() {
 
     await tester.pump(const Duration(seconds: 4));
     expect(find.text('Today is Hathor 27'), findsOneWidget);
+    expect(_richTextContaining('ḥꜣw’s interpretation:'), findsOneWidget);
     expect(
-      _richTextContaining('A ḥꜣw reflection for these days:'),
-      findsOneWidget,
-    );
-    expect(
-      _richTextContaining('What remains when the water recedes?'),
+      _richTextContaining(decanInterpretationForKey('m03_d3')!.body),
       findsOneWidget,
     );
     expect(
@@ -112,46 +110,70 @@ void main() {
   });
 
   for (final day in [1, 10, 11, 19, 20, 21, 30]) {
-    testWidgets(
-      'orientation separates calendar position from reflection on day $day',
-      (tester) async {
-        final copy = DecanCompassCopyRepo.fallbackForDay(kMonth: 7, kDay: day);
-        await tester.pumpWidget(
-          MaterialApp(
-            home: OnboardingOverlay(
-              initialSlide: HawOnboardingSlide.orientation,
-              compassCopy: copy,
-              dayViewEventTargetKey: GlobalKey(),
-              recommendedFlowBuilder: (_, _) => const SizedBox(),
-              dayViewBuilder: (_, _, _) => const SizedBox(),
-              onEntryStateSelected: (_) async {},
-              onSkip: () {},
-              onComplete: () {},
-            ),
+    testWidgets('orientation describes the decan containing day $day', (
+      tester,
+    ) async {
+      final copy = DecanCompassCopyRepo.fallbackForDay(kMonth: 7, kDay: day);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: OnboardingOverlay(
+            initialSlide: HawOnboardingSlide.orientation,
+            compassCopy: copy,
+            dayViewEventTargetKey: GlobalKey(),
+            recommendedFlowBuilder: (_, _) => const SizedBox(),
+            dayViewBuilder: (_, _, _) => const SizedBox(),
+            onEntryStateSelected: (_) async {},
+            onSkip: () {},
+            onComplete: () {},
           ),
-        );
-        await tester.pump(const Duration(seconds: 4));
-        final ordinal = day <= 10
-            ? 'first'
-            : day <= 20
-            ? 'second'
-            : 'third';
-        expect(find.text('Today is Rekh-Nedjes $day'), findsOneWidget);
-        expect(
-          _richTextContaining('the $ordinal decan of Rekh-Nedjes.'),
-          findsOneWidget,
-        );
-        expect(
-          _richTextContaining('A ḥꜣw reflection for these days:'),
-          findsOneWidget,
-        );
-        expect(_richTextContaining(copy.orientationQuestion), findsOneWidget);
-        expect(_richTextContaining('Phamenoth'), findsNothing);
-        expect(_richTextContaining(copy.decanName), findsNothing);
-        expect(_richTextContaining('centers on'), findsNothing);
-      },
-    );
+        ),
+      );
+      await tester.pump(const Duration(seconds: 4));
+      final ordinal = day <= 10
+          ? 'first'
+          : day <= 20
+          ? 'second'
+          : 'third';
+      expect(find.text('Today is Rekh-Nedjes $day'), findsOneWidget);
+      expect(
+        _richTextContaining('the $ordinal decan of Rekh-Nedjes.'),
+        findsOneWidget,
+      );
+      expect(_richTextContaining('ḥꜣw’s interpretation:'), findsOneWidget);
+      final description = decanInterpretationForKey(copy.decanKey)!;
+      expect(_richTextContaining(description.theme), findsOneWidget);
+      expect(_richTextContaining(description.body), findsOneWidget);
+      expect(_richTextContaining(copy.orientationQuestion), findsNothing);
+      expect(_richTextContaining('Phamenoth'), findsNothing);
+      expect(_richTextContaining(copy.decanName), findsNothing);
+      expect(_richTextContaining('centers on'), findsNothing);
+    });
   }
+
+  test('all decans reuse the existing period descriptions', () {
+    for (var month = 1; month <= 12; month++) {
+      for (var decan = 1; decan <= 3; decan++) {
+        final key = 'm${month.toString().padLeft(2, '0')}_d$decan';
+        final description = decanInterpretationForKey(key)!;
+        final existing = calendarDecanDescriptions[(month - 1) * 3 + decan - 1];
+        expect(description.theme, isNotEmpty);
+        expect(description.body, isNotEmpty);
+        expect(existing, contains(description.theme));
+        expect(existing, contains(description.body));
+        for (var day = (decan - 1) * 10 + 1; day <= decan * 10; day++) {
+          final copy = DecanCompassCopyRepo.fallbackForDay(
+            kMonth: month,
+            kDay: day,
+          );
+          expect(decanInterpretationForKey(copy.decanKey), description);
+        }
+      }
+    }
+    final extraDays = decanInterpretationForKey('epagomenal')!;
+    expect(calendarMonthDescriptions[13], contains(extraDays.body));
+    expect(decanInterpretationForKey('m13_d1'), isNull);
+    expect(decanInterpretationForKey('m07_d4'), isNull);
+  });
 
   testWidgets('skip exits without joining the recommended flow', (
     tester,

@@ -613,3 +613,24 @@ retained Calendar hosts with a pending Settings restore, alongside checkpoint
 failure and account-change fencing. The navigation-controller tests preserve
 the saved-Settings-above-another-primary-tab persistence assertions; these
 run at the persistence owner rather than across disposable widget clocks.
+
+
+## October 4 decan description and Pages completion
+
+The onboarding description now reads the same immutable authored text as the
+Calendar decan detail. Moving that existing data from a Calendar library part
+to an importable module changes no content, account reads, keys or models.
+All 36 descriptions and the separate epagomenal description retain their source;
+tests cover every civil day and prove each ten-day interval uses one description.
+The old daily-question display assertions are replaced with full shared-decan
+description assertions, with the historical-claim boundary still explicit.
+
+After the acknowledged completion write and final seal, the existing event sheet
+finishes dismissal before the Calendar host pushes the existing `/pages` route
+through `openDetailRoute`. The initiating account is checked before and after
+dismissing onboarding. Pages retains its existing controller, account repository,
+cache namespace and restoration policy. Skip keeps its existing behavior.
+Cold/retained Calendar-host tests exercise the actual completion callback and
+Pages route. Existing held/failed completion, account-change, Pages navigation,
+and warm-read tests remain in place. The complete App gate and served walkthrough
+remain required for deployment.

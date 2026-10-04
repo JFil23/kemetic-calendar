@@ -17,6 +17,7 @@ import 'package:mobile/features/calendar/snapshot/calendar_snapshot_runtime.dart
 import 'package:mobile/features/auth/login_screen.dart'
     show PasswordRecoveryScreen;
 import 'package:mobile/features/settings/device_calendar_panel.dart';
+import 'package:mobile/features/pages/pages_page.dart';
 import 'package:mobile/features/settings/device_calendar_settings.dart';
 import 'package:mobile/features/settings/external_calendar_panel.dart';
 import 'package:mobile/features/settings/external_calendar_settings.dart';
@@ -571,6 +572,27 @@ void main() {
         await drain(tester);
         expect(find.byType(OnboardingOverlay), findsNothing);
         expect((await storage.load(owner)).replayActive, isFalse);
+        expect(tester.takeException(), isNull);
+
+        // Exercise the actual Calendar-host completion callback after replay.
+        // Closing-banner tests separately fence it behind acknowledgement and
+        // the final seal; Pages keeps its existing repository and route owner.
+        unawaited(router.push<void>('/settings'));
+        await drain(tester);
+        await tester.ensureVisible(find.text('Replay onboarding'));
+        await tester.tap(find.text('Replay onboarding'));
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 400));
+          await drain(tester);
+        }
+        tester
+            .widget<OnboardingOverlay>(find.byType(OnboardingOverlay))
+            .onComplete();
+        await drain(tester);
+        expect(router.state.uri.path, '/pages');
+        expect(find.byType(PagesPage), findsOneWidget);
+        expect(find.byType(OnboardingOverlay), findsNothing);
+        expect((await storage.load(owner)).firstMaatFlowId, '42');
         expect(tester.takeException(), isNull);
         await closeApp(tester);
         router.dispose();

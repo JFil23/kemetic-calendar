@@ -492,8 +492,8 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
               : (DecanMetadata.decanNames[month] ??
                     const ['Decan A', 'Decan B', 'Decan C'])[decanIndex];
           final infoBody = (decanIndex == null || month == 13)
-              ? (_monthInfo[month] ?? '')
-              : _decanInfo[(month - 1) * 3 + decanIndex];
+              ? (calendarMonthDescriptions[month] ?? '')
+              : calendarDecanDescriptions[(month - 1) * 3 + decanIndex];
           final infoLinks = (decanIndex == null || month == 13)
               ? (_monthLinkMap[month] ?? const [])
               : _decanLinkMap;
