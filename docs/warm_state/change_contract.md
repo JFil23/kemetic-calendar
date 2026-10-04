@@ -634,3 +634,16 @@ Cold/retained Calendar-host tests exercise the actual completion callback and
 Pages route. Existing held/failed completion, account-change, Pages navigation,
 and warm-read tests remain in place. The complete App gate and served walkthrough
 remain required for deployment.
+
+
+## October 4 compact onboarding copy correction
+
+The supplied original screenshot replaces the full decan essay as the onboarding
+copy reference. The existing DecanCompassCopyRepo load/fallback boundary remains
+the presentation owner. Its original theme, associated reflection line and
+question are reused across each ten-day interval; the display model only removes
+the old month/star-name preamble and attributes the theme to ḥꜣw. No repository
+query, write, route, cache key, payload schema, or completion ordering changes.
+All-day and historical-attribution evidence is retained with compact-copy checks
+in place of the rejected full-essay expectations. Existing Pages completion,
+replay, account-fencing and failed-write tests remain in the complete App gate.

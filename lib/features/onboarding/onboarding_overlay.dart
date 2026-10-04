@@ -1,4 +1,3 @@
-import '../calendar/calendar_period_descriptions.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -47,6 +46,28 @@ class HawCompassCopy {
   final String orientationQuestion;
   final String dayAlignedReturnKey;
   final String? dayAlignedReturnLine;
+
+  /// Keep the original compact theme, without presenting its older month/star
+  /// label as a historical definition of the current civil decan.
+  String get decanDescription {
+    final phrase = rhythmPhrase.trim();
+    final theme = RegExp(
+      r'\bcenters? on (.+)$',
+      dotAll: true,
+    ).firstMatch(phrase)?.group(1);
+    if (theme == null) return 'ḥꜣw’s theme: $phrase';
+    final subject = decanKey == 'epagomenal'
+        ? 'these days center'
+        : 'this decan centers';
+    return 'In ḥꜣw, $subject on $theme';
+  }
+
+  String get returnLine {
+    final explicit = dayAlignedReturnLine?.trim();
+    return explicit != null && explicit.isNotEmpty
+        ? explicit
+        : _returnLineForKey(dayAlignedReturnKey);
+  }
 }
 
 typedef HawRecommendedFlowBuilder =
@@ -1219,16 +1240,14 @@ class _OrientationSlide extends StatelessWidget {
                   TextSpan(
                     text: copy.decanKey == 'epagomenal'
                         ? 'You are in the five days outside the twelve months.\n\n'
-                        : 'You are in the ${copy.decanOrdinalLabel} decan of ${copy.monthName}.\n\n',
+                        : 'You are in the ${copy.decanOrdinalLabel} decan of ${copy.monthName}.\n',
                     style: const TextStyle(color: _HawColors.goldStrong),
                   ),
-                  if (decanInterpretationForKey(copy.decanKey)
-                      case final description?) ...[
-                    TextSpan(
-                      text: 'ḥꜣw’s interpretation: ${description.theme}\n\n',
-                    ),
-                    TextSpan(text: description.body),
-                  ],
+                  TextSpan(text: copy.decanDescription),
+                  if (copy.returnLine.isNotEmpty)
+                    TextSpan(text: '\n${copy.returnLine}'),
+                  if (copy.orientationQuestion.trim().isNotEmpty)
+                    TextSpan(text: '\n${copy.orientationQuestion.trim()}'),
                 ],
               ),
             ),
@@ -1428,6 +1447,49 @@ final List<_EntryOption> _entryOptions = [
   for (final intent in HawEntryIntent.values)
     _EntryOption(value: intent.name, label: intent.label),
 ];
+
+String _returnLineForKey(String key) {
+  return switch (key.trim()) {
+    'begin_cleanly' => 'What can begin cleanly.',
+    'keep_measure' => 'What can stay measured.',
+    'make_record_useful' => 'What the record can hold.',
+    'rise_with_attention' => 'Where attention can rise.',
+    'hold_center' => 'What needs a steadier center.',
+    'restore_beauty' => 'What beauty can restore.',
+    'notice_deposit' => 'What has been deposited.',
+    'sort_arrival' => 'What arrival brought.',
+    'settle_after_flood' => 'What has been deposited.',
+    'shape_first' => 'What needs first shape.',
+    'reinforce_weight' => 'What should be reinforced.',
+    'complete_support' => 'What support is necessary.',
+    'see_forward_edge' => 'What is ahead.',
+    'stay_middle' => 'What can continue.',
+    'bring_forward_form' => 'What form is asking.',
+    'shape_patiently' => 'What needs patient shaping.',
+    'tend_formation' => 'What is worth tending.',
+    'place_formation' => 'Where the formed work belongs.',
+    'reserve_power' => 'What power can be reserved.',
+    'dignify_repetition' => 'Where repetition can become practice.',
+    'make_noble_practical' => 'What intention needs a step.',
+    'listen_for_signal' => 'What signal is present.',
+    'orient_movement' => 'What movement needs direction.',
+    'release_with_care' => 'What is ready for release.',
+    'attend_hidden_support' => 'What hidden support needs attention.',
+    'carry_deliberately' => 'What can be carried deliberately.',
+    'set_down_load' => 'What can be set down.',
+    'stand_upright' => 'What can stand upright.',
+    'quiet_courage' => 'What asks for quiet courage.',
+    'follow_through' => 'What deserves follow-through.',
+    'clear_standard' => 'What standard can guide.',
+    'care_clean_action' => 'Where care can clean the action.',
+    'repeatable_care' => 'What care can become repeatable.',
+    'name_offering' => 'What offering is still owed.',
+    'honest_accounting' => 'What needs honest accounting.',
+    'close_cleanly' => 'What can close cleanly.',
+    'guard_threshold' => 'What should not cross.',
+    _ => '',
+  };
+}
 
 class _HawColors {
   const _HawColors._();

@@ -1,4 +1,3 @@
-import 'package:mobile/features/calendar/calendar_period_descriptions.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/features/onboarding/starter_maat_flow_recommendation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,11 +78,11 @@ void main() {
 
     await tester.pump(const Duration(seconds: 4));
     expect(find.text('Today is Hathor 27'), findsOneWidget);
-    expect(_richTextContaining('ḥꜣw’s interpretation:'), findsOneWidget);
     expect(
-      _richTextContaining(decanInterpretationForKey('m03_d3')!.body),
+      _richTextContaining('In ḥꜣw, this decan centers on'),
       findsOneWidget,
     );
+    expect(_richTextContaining(compassCopy().decanDescription), findsOneWidget);
     expect(
       slides,
       containsAllInOrder(<HawOnboardingSlide>[
@@ -139,40 +138,91 @@ void main() {
         _richTextContaining('the $ordinal decan of Rekh-Nedjes.'),
         findsOneWidget,
       );
-      expect(_richTextContaining('ḥꜣw’s interpretation:'), findsOneWidget);
-      final description = decanInterpretationForKey(copy.decanKey)!;
-      expect(_richTextContaining(description.theme), findsOneWidget);
-      expect(_richTextContaining(description.body), findsOneWidget);
-      expect(_richTextContaining(copy.orientationQuestion), findsNothing);
+      expect(
+        _richTextContaining('In ḥꜣw, this decan centers on'),
+        findsOneWidget,
+      );
+      expect(_richTextContaining(copy.decanDescription), findsOneWidget);
+      expect(_richTextContaining(copy.returnLine), findsOneWidget);
+      expect(_richTextContaining(copy.orientationQuestion), findsOneWidget);
       expect(_richTextContaining('Phamenoth'), findsNothing);
       expect(_richTextContaining(copy.decanName), findsNothing);
-      expect(_richTextContaining('centers on'), findsNothing);
+      expect(
+        _richTextContaining('ḥꜣw’s interpretation: Adaptation'),
+        findsNothing,
+      );
     });
   }
 
-  test('all decans reuse the existing period descriptions', () {
-    for (var month = 1; month <= 12; month++) {
-      for (var decan = 1; decan <= 3; decan++) {
-        final key = 'm${month.toString().padLeft(2, '0')}_d$decan';
-        final description = decanInterpretationForKey(key)!;
-        final existing = calendarDecanDescriptions[(month - 1) * 3 + decan - 1];
-        expect(description.theme, isNotEmpty);
-        expect(description.body, isNotEmpty);
-        expect(existing, contains(description.theme));
-        expect(existing, contains(description.body));
-        for (var day = (decan - 1) * 10 + 1; day <= decan * 10; day++) {
+  test('all decans retain compact original copy throughout their interval', () {
+    for (var month = 1; month <= 13; month++) {
+      for (var decan = 1; decan <= (month == 13 ? 1 : 3); decan++) {
+        final firstDay = (decan - 1) * 10 + 1;
+        final first = DecanCompassCopyRepo.fallbackForDay(
+          kMonth: month,
+          kDay: firstDay,
+        );
+        final theme = first.rhythmPhrase.split(RegExp(r'centers? on ')).last;
+        expect(first.decanDescription, contains(theme));
+        expect(first.decanDescription, startsWith('In ḥꜣw,'));
+        expect(first.returnLine, isNotEmpty);
+        expect(first.orientationQuestion, isNotEmpty);
+        final compactCopy = [
+          first.decanDescription,
+          first.returnLine,
+          first.orientationQuestion,
+        ].join(' ');
+        expect(compactCopy.split(RegExp(r'\s+')).length, lessThanOrEqualTo(45));
+        for (
+          var day = firstDay;
+          day < firstDay + (month == 13 ? 5 : 10);
+          day++
+        ) {
           final copy = DecanCompassCopyRepo.fallbackForDay(
             kMonth: month,
             kDay: day,
           );
-          expect(decanInterpretationForKey(copy.decanKey), description);
+          expect(copy.decanDescription, first.decanDescription);
+          expect(copy.returnLine, first.returnLine);
+          expect(copy.orientationQuestion, first.orientationQuestion);
         }
       }
     }
-    final extraDays = decanInterpretationForKey('epagomenal')!;
-    expect(calendarMonthDescriptions[13], contains(extraDays.body));
-    expect(decanInterpretationForKey('m13_d1'), isNull);
-    expect(decanInterpretationForKey('m07_d4'), isNull);
+    final original = DecanCompassCopyRepo.fallbackForDay(kMonth: 7, kDay: 19);
+    expect(
+      original.decanDescription,
+      'In ḥꜣw, this decan centers on dignity inside repetition.',
+    );
+    expect(original.returnLine, 'Where repetition can become practice.');
+    expect(
+      original.orientationQuestion,
+      'Where can repetition become dignified practice?',
+    );
+    final extraDays = DecanCompassCopyRepo.fallbackForDay(kMonth: 13, kDay: 1);
+    expect(
+      extraDays.decanDescription,
+      startsWith('In ḥꜣw, these days center on'),
+    );
+    expect(extraDays.decanDescription, isNot(contains('this decan')));
+  });
+
+  test('compact presentation preserves a differently worded copy override', () {
+    const copy = HawCompassCopy(
+      decanKey: 'm07_d2',
+      dateLabel: 'Rekh-Nedjes 19',
+      decanName: 'ḥry-ib špsswt',
+      decanOrdinalLabel: 'second',
+      monthName: 'Rekh-Nedjes',
+      rhythmPhrase: '  A steady practice through these ten days.  ',
+      orientationQuestion: 'What is worth repeating?',
+      dayAlignedReturnKey: 'dignify_repetition',
+      dayAlignedReturnLine: '  Keep a steady practice.  ',
+    );
+    expect(
+      copy.decanDescription,
+      'ḥꜣw’s theme: A steady practice through these ten days.',
+    );
+    expect(copy.returnLine, 'Keep a steady practice.');
   });
 
   testWidgets('skip exits without joining the recommended flow', (

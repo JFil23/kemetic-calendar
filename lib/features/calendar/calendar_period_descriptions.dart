@@ -397,24 +397,3 @@ This is the last readiness, not the last action. The final marker matters becaus
 A threshold is where completion and beginning touch. Maat does not preserve order by preventing endings; it carries one order to its proper limit and allows another to emerge. Readiness is complete when nothing more needs to be added. Finish cleanly enough that the next beginning does not inherit unfinished disorder.
 ''',
 ];
-
-/// The same authored interpretation shown in the Calendar decan detail.
-/// Separate its theme/body from the unverified historical title for onboarding.
-({String theme, String body})? decanInterpretationForKey(String key) {
-  String? description;
-  if (key == 'epagomenal') {
-    description = calendarMonthDescriptions[13];
-  } else {
-    final match = RegExp(r'^m(0[1-9]|1[0-2])_d([1-3])$').firstMatch(key);
-    if (match == null) return null;
-    final month = int.parse(match.group(1)!);
-    final decan = int.parse(match.group(2)!);
-    description = calendarDecanDescriptions[(month - 1) * 3 + decan - 1];
-  }
-  if (description == null) return null;
-  final sections = description.trim().split('\n\n');
-  return (
-    theme: sections.first.split('\n').last,
-    body: sections.skip(1).join('\n\n'),
-  );
-}

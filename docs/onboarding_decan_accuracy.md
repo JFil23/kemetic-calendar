@@ -22,12 +22,24 @@ broader calendar metadata has not been audited or rewritten by this correction.
 The five epagomenal days are described separately from the twelve months.
 
 
-## Decan description follow-up
+## Compact decan description follow-up
 
-Onboarding now reuses the full authored theme and explanation from the existing
-Calendar decan detail, rather than the daily orientation question. The shared
-period-description module retains all original month and decan content verbatim.
-For Rekh-Nedjes days 11–20 this is Adaptation, consistently throughout the decan.
-The slide labels this as ḥꜣw’s interpretation; historical-name corroboration is
-still unresolved. Heriu Renpet reuses the existing threshold description and is
-kept distinct from the 36 decans. Daily-orientation storage remains unchanged.
+The user-selected `original.PNG` is the compact onboarding reference. Its theme
+and question come from `DecanCompassCopyRepo` (the m07_d2 entry is traceable to
+commit 28ce40d31, June 16, 2026); its middle reflection line comes from the existing
+return-key presentation mapping. This is authored app copy, not an external
+historical quotation. The full Calendar detail essays were too long for this
+slide and are no longer imported into onboarding.
+
+All 36 decans reuse that original compact copy set: civil position, one short
+app-attributed theme, the existing reflection line and its associated question.
+The theme removes the older month/star-name preamble so the visible date and
+civil position use one naming convention. A differently worded remote override
+is retained with a short app-theme label. Content is selected by decan key and
+stays consistent for all ten days. Heriu Renpet remains separate. Daily-orientation
+storage and the acknowledged closing-seal transition to Pages are unchanged.
+
+The prior full-essay assertions are replaced with equivalent all-365-day coverage,
+original-copy checks, a compact word limit, override preservation, and explicit
+app attribution. Phone, landscape and enlarged-text captures retain the existing
+navigation clearance checks; no approved references are regenerated.
