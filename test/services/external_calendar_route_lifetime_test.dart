@@ -26,6 +26,7 @@ import 'package:mobile/features/onboarding/haw_calendar_connection.dart';
 import 'package:mobile/main.dart'
     show AuthGate, MyApp, createAppRouterForTesting;
 import 'package:mobile/services/app_restoration_service.dart';
+import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:mobile/services/device_calendar_controller.dart';
 import 'package:mobile/services/external_calendar_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -535,12 +536,27 @@ void main() {
           unawaited(router.push<void>('/settings'));
           await drain(tester);
         }
+        // An explicit replay must override a pending saved Settings restore.
+        RestorationCoordinator.instance.beginLaunchRestore(
+          reason: RestorationRestoreReason.coldLaunch,
+          targetLocation: '/settings',
+        );
+        addTearDown(
+          () => RestorationCoordinator.instance.beginLaunchRestore(
+            reason: RestorationRestoreReason.coldLaunch,
+            targetLocation: '/',
+          ),
+        );
         await tester.ensureVisible(find.text('Replay onboarding'));
         await tester.tap(find.text('Replay onboarding'));
         for (var i = 0; i < 8; i++) {
           await tester.pump(const Duration(milliseconds: 400));
           await drain(tester);
         }
+        expect(
+          RestorationCoordinator.instance.restoreReason,
+          RestorationRestoreReason.userNavigation,
+        );
         expect(router.routeInformationProvider.value.uri.path, '/');
         expect(find.byType(OnboardingOverlay), findsOneWidget);
         expect(find.text('REJECT THE GRIND.'), findsOneWidget);

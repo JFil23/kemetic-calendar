@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 import '../../core/navigation_fallback.dart';
+import '../../core/navigation_persistence_policy.dart';
 import '../../main.dart' show Events, appEnvironmentEnv;
 import '../../services/navigation_trace.dart';
 import '../../services/device_calendar_controller.dart';
@@ -126,7 +127,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted || owner != Supabase.instance.client.auth.currentUser?.id) {
         return;
       }
-      context.go('/');
+      openPrimarySection(context, AppSection.calendar);
       await CalendarPage.presentRequestedOnboarding();
     } catch (_) {
       if (mounted && owner == Supabase.instance.client.auth.currentUser?.id) {

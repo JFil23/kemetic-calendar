@@ -599,3 +599,17 @@ replay checkpoints, and existing account-scoped warm reads/refreshes. Visual
 coverage uses all five existing detail pages in new and enrolled states, at
 phone and landscape sizes with normal and doubled text. Go to flow invokes the
 continuation without invoking enrollment. Approved detail goldens are retained.
+
+
+### Explicit replay navigation
+
+Settings Replay uses the existing `openPrimarySection` Calendar command after
+its account checkpoint is acknowledged. This records the explicit Calendar
+selection and suppresses pending launch restoration, so a saved Settings surface
+cannot reopen over the requested onboarding. Navigation persistence remains with
+AppNavigationRestorationController and AppRestorationService; no route, cache
+key or payload schema is added. The real Settings route tests cover cold and
+retained Calendar hosts with a pending Settings restore, alongside checkpoint
+failure and account-change fencing. The navigation-controller tests preserve
+the saved-Settings-above-another-primary-tab persistence assertions; these
+run at the persistence owner rather than across disposable widget clocks.
