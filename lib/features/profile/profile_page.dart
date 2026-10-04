@@ -110,7 +110,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   final _repo = ProfileRepo(Supabase.instance.client);
   final _commonsRepo = CommonsRepo(Supabase.instance.client);
   late final PageController _postPageController;
-  late final PageController _insightPostPageController;
   late final PageController _commonsPracticePageController;
   late final ScrollController _profileScrollController;
   late final ScrollController _feedScrollController;
@@ -146,7 +145,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   bool _commonsAnswerDeleting = false;
   String? _commonsErrorMessage;
   int _activePostIndex = 0;
-  int _activeInsightPostIndex = 0;
+  String? _activeProfilePostKey;
+  int? _legacyFlowPostIndex;
   int _activeCommonsPracticeIndex = 0;
   final Set<String> _requestedFlowPostIds = <String>{};
   final Set<String> _clearedFlowPostRequestIds = <String>{};
@@ -275,7 +275,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     );
     WidgetsBinding.instance.addObserver(this);
     _postPageController = PageController();
-    _insightPostPageController = PageController(viewportFraction: 0.96);
     _commonsPracticePageController = PageController(viewportFraction: 0.92);
     _profileScrollController = ScrollController()
       ..addListener(_handleProfileScroll);
@@ -313,7 +312,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       ..removeListener(_handleFeedScroll)
       ..dispose();
     _postPageController.dispose();
-    _insightPostPageController.dispose();
     _commonsPracticePageController.dispose();
     _commonsAnswerController.dispose();
     super.dispose();
@@ -349,8 +347,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     _pendingFeedScrollOffset = (state['feedScrollOffset'] as num?)?.toDouble();
     final rawFeedTab = (state['selectedFeedTab'] as String?)?.trim();
     final activePostIndex = (state['activePostIndex'] as num?)?.toInt();
-    final activeInsightIndex = (state['activeInsightPostIndex'] as num?)
-        ?.toInt();
+    final activeProfilePostKey = state['activeProfilePostKey'] as String?;
 
     setState(() {
       _feedRevealed = feedRevealed;
@@ -362,15 +359,20 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       if (activePostIndex != null && activePostIndex >= 0) {
         _activePostIndex = activePostIndex;
       }
-      if (activeInsightIndex != null && activeInsightIndex >= 0) {
-        _activeInsightPostIndex = activeInsightIndex;
-      }
+      _activeProfilePostKey = activeProfilePostKey;
+      // Old releases stored the flow-only index. Resolve that flow in the
+      // combined sequence once its existing repository has hydrated.
+      _legacyFlowPostIndex = activeProfilePostKey == null
+          ? activePostIndex
+          : null;
+      _reconcilePostSelection();
       _continuityRestored = true;
     });
 
     if (feedRevealed && !widget.initialFeedRevealed) {
       unawaited(_loadFeedPage(reset: true));
     }
+    _syncPostsPager();
     _applyPendingContinuityAfterFrame();
   }
 
@@ -392,6 +394,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   Future<void> _persistContinuityState() async {
+    final posts = _profilePosts;
     final profileOffset = _profileScrollController.hasClients
         ? _profileScrollController.offset
         : _pendingProfileScrollOffset;
@@ -407,7 +410,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           'selectedFeedTab': _selectedFeedTab.name,
           'showGregorianFeedDates': _showGregorianFeedDates,
           'activePostIndex': _activePostIndex,
-          'activeInsightPostIndex': _activeInsightPostIndex,
+          if (posts.isNotEmpty)
+            'activeProfilePostKey':
+                _activeProfilePostKey ??
+                _profilePostKey(posts[_clampPostIndex(posts.length)]),
           if (profileOffset != null && profileOffset.isFinite)
             'profileScrollOffset': math.max(0, profileOffset),
           if (feedOffset != null && feedOffset.isFinite)
@@ -442,14 +448,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     if (cachedPosts != null) {
       _posts = cachedPosts;
       _postsLoading = false;
-      _activePostIndex = _clampPostIndex(cachedPosts.length);
     }
 
     final cachedInsights = _repo.getCachedInsightPostsSync(widget.userId);
     if (cachedInsights != null) {
       _insightPosts = cachedInsights;
       _insightPostsLoading = false;
-      _activeInsightPostIndex = _clampInsightPostIndex(cachedInsights.length);
     }
   }
 
@@ -748,24 +752,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   void _applyPosts(List<FlowPost> posts) {
-    final activeIndex = _clampPostIndex(posts.length);
     setState(() {
       _posts = posts;
       _postsLoading = false;
-      _activePostIndex = activeIndex;
+      _reconcilePostSelection();
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || posts.isEmpty || !_postPageController.hasClients) return;
-      final currentPage = (_postPageController.page ?? activeIndex.toDouble())
-          .round();
-      if (currentPage != activeIndex) {
-        _postPageController.jumpToPage(activeIndex);
-      }
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _maybeRevealFeedFromViewport();
-    });
+    _syncPostsPager();
   }
 
   Future<void> _loadInsightPosts() async {
@@ -778,24 +770,47 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   void _applyInsightPosts(List<InsightPost> posts) {
-    final activeIndex = _clampInsightPostIndex(posts.length);
     setState(() {
       _insightPosts = posts;
       _insightPostsLoading = false;
-      _activeInsightPostIndex = activeIndex;
+      _reconcilePostSelection();
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || posts.isEmpty || !_insightPostPageController.hasClients) {
-        return;
+    _syncPostsPager();
+  }
+
+  String _profilePostKey(ProfileFeedItem item) =>
+      '${item.kind.name}:${item.id}';
+
+  void _reconcilePostSelection() {
+    final posts = _profilePosts;
+    if (_legacyFlowPostIndex != null && !_postsLoading) {
+      if (_posts.isNotEmpty) {
+        final index = _clampPostIndex(_posts.length, _legacyFlowPostIndex);
+        _activeProfilePostKey = _profilePostKey(
+          ProfileFeedItem.flow(_posts[index]),
+        );
       }
-      final currentPage =
-          (_insightPostPageController.page ?? activeIndex.toDouble()).round();
-      if (currentPage != activeIndex) {
-        _insightPostPageController.jumpToPage(activeIndex);
-      }
-    });
+      _legacyFlowPostIndex = null;
+    }
+    final selected = posts.indexWhere(
+      (post) => _profilePostKey(post) == _activeProfilePostKey,
+    );
+    _activePostIndex = selected >= 0 ? selected : _clampPostIndex(posts.length);
+    if (selected < 0 && !_postsLoading && !_insightPostsLoading) {
+      // A removed post falls back to its nearest surviving neighbour.
+      _activeProfilePostKey = null;
+    }
+  }
+
+  void _syncPostsPager() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (_postPageController.hasClients && _profilePosts.isNotEmpty) {
+        final currentPage = (_postPageController.page ?? 0).round();
+        if (currentPage != _activePostIndex) {
+          _postPageController.jumpToPage(_activePostIndex);
+        }
+      }
       _maybeRevealFeedFromViewport();
     });
   }
@@ -1327,14 +1342,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     return target;
   }
 
-  int _clampInsightPostIndex(int length, [int? desired]) {
-    if (length == 0) return 0;
-    final target = desired ?? _activeInsightPostIndex;
-    if (target < 0) return 0;
-    if (target >= length) return length - 1;
-    return target;
-  }
-
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1743,10 +1750,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _profileSkeletonBar(widthFactor: 0.34, height: 16),
-                      const SizedBox(height: 12),
-                      _profileSkeletonTile(minHeight: 130),
-                      const SizedBox(height: 22),
-                      _profileSkeletonBar(widthFactor: 0.38, height: 16),
                       const SizedBox(height: 12),
                       _profileSkeletonTile(minHeight: 130),
                     ],
@@ -2411,42 +2414,49 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     );
   }
 
+  List<ProfileFeedItem> get _profilePosts {
+    return [
+      ..._posts.map(ProfileFeedItem.flow),
+      ..._insightPosts.map(ProfileFeedItem.insight),
+    ]..sort((a, b) {
+      final byPublication = b.createdAt.compareTo(a.createdAt);
+      return byPublication != 0 ? byPublication : a.id.compareTo(b.id);
+    });
+  }
+
   Widget _buildPostsSection() {
+    final posts = _profilePosts;
     return Column(
+      key: const ValueKey('profile-posts-section'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 26),
         _buildPostedSectionHeader(
-          'Posted Flows',
-          countLabel: !_postsLoading && _posts.isNotEmpty
-              ? '${_activePostIndex + 1} of ${_posts.length}'
+          'Posts',
+          countLabel: posts.isNotEmpty
+              ? '${_activePostIndex + 1} of ${posts.length}'
               : null,
         ),
         const SizedBox(height: 11),
-        _buildPostedFlowPreview(),
-        const SizedBox(height: 26),
-        _buildPostedInsightsSection(),
+        _buildPostsPreview(posts),
         const SizedBox(height: 26),
         _buildFeedRevealHint(),
       ],
     );
   }
 
-  Widget _buildPostedInsightsSection() {
-    final hasMultiplePosts = _insightPosts.length > 1;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildPostedSectionHeader(
-          'Posted Insights',
-          countLabel: !_insightPostsLoading && hasMultiplePosts
-              ? '${_activeInsightPostIndex + 1} of ${_insightPosts.length}'
-              : null,
-        ),
-        const SizedBox(height: 11),
-        _buildPostedInsightPreview(),
-      ],
-    );
+  Widget _buildProfilePostCard(ProfileFeedItem item) {
+    return switch (item.kind) {
+      ProfileFeedItemKind.flow => _buildPostCard(
+        item.flowPost!,
+        onTap: () => _openPostDetails(item.flowPost!),
+      ),
+      ProfileFeedItemKind.insight => _buildInsightPostCard(
+        item.insightPost!,
+        onReadMore: () => _openInsightPost(item.insightPost!),
+        inPager: true,
+      ),
+    };
   }
 
   Widget _buildPostedSectionHeader(String title, {String? countLabel}) {
@@ -2484,8 +2494,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildPostedFlowPreview() {
-    if (_postsLoading) {
+  Widget _buildPostsPreview(List<ProfileFeedItem> posts) {
+    if (posts.isEmpty && (_postsLoading || _insightPostsLoading)) {
       return const Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
@@ -2493,7 +2503,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       );
     }
 
-    if (_posts.isEmpty) {
+    if (posts.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18),
         child: Container(
@@ -2508,9 +2518,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                _isViewingOwnProfile
-                    ? 'Nothing posted yet'
-                    : 'No posted flows yet',
+                _isViewingOwnProfile ? 'Nothing posted yet' : 'No posts yet',
                 style: const TextStyle(
                   color: _profileBone,
                   fontFamily: _profileSerifFont,
@@ -2522,8 +2530,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               const SizedBox(height: 5),
               Text(
                 _isViewingOwnProfile
-                    ? 'Post a flow to share it on your profile.'
-                    : 'Check back later for posted flows.',
+                    ? 'Post a flow or insight to share it on your profile.'
+                    : 'Check back later for posts.',
                 style: const TextStyle(
                   color: _profileMid,
                   fontFamily: _profileSerifFont,
@@ -2539,108 +2547,82 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       );
     }
 
-    final hasMultiplePosts = _posts.length > 1;
-    if (!hasMultiplePosts) {
-      return Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: _buildPostCard(
-              _posts.first,
-              onTap: () => _openPostDetails(0),
-            ),
-          ),
-          const SizedBox(height: 18),
-        ],
-      );
-    }
-
     return Column(
       children: [
         SizedBox(
-          key: const ValueKey<String>('profile-posted-flow-pager'),
+          key: const ValueKey<String>('profile-posts-pager'),
           height: 392,
           child: PageView.builder(
             controller: _postPageController,
             physics: const BouncingScrollPhysics(),
             padEnds: false,
-            itemCount: _posts.length,
+            itemCount: posts.length,
+            findChildIndexCallback: (key) {
+              final index = posts.indexWhere(
+                (post) => ValueKey(_profilePostKey(post)) == key,
+              );
+              return index < 0 ? null : index;
+            },
             onPageChanged: (index) {
               setState(() {
                 _activePostIndex = index;
+                _activeProfilePostKey = _profilePostKey(posts[index]);
               });
               _scheduleContinuitySave();
             },
             itemBuilder: (context, index) {
-              final post = _posts[index];
+              final post = posts[index];
               return Padding(
+                key: ValueKey(_profilePostKey(post)),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: _buildPostCard(
-                  post,
-                  onTap: () => _openPostDetails(index),
-                ),
+                child: _buildProfilePostCard(post),
               );
             },
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (int i = 0; i < _posts.length; i++) ...<Widget>[
-              if (i > 0) const SizedBox(width: 7),
-              Semantics(
-                button: true,
-                selected: _activePostIndex == i,
-                label: 'Show posted flow ${i + 1} of ${_posts.length}',
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    _postPageController.animateToPage(
-                      i,
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeOutCubic,
-                    );
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    height: 6,
-                    width: _activePostIndex == i ? 18 : 6,
-                    decoration: BoxDecoration(
-                      color: _activePostIndex == i
-                          ? _profileSpecGold
-                          : const Color(0xFF332C1D),
-                      borderRadius: BorderRadius.circular(999),
+        if (posts.length > 1) ...[
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (int i = 0; i < posts.length; i++) ...<Widget>[
+                  if (i > 0) const SizedBox(width: 7),
+                  Semantics(
+                    button: true,
+                    selected: _activePostIndex == i,
+                    label: 'Show post ${i + 1} of ${posts.length}',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        _postPageController.animateToPage(
+                          i,
+                          duration: const Duration(milliseconds: 260),
+                          curve: Curves.easeOutCubic,
+                        );
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        height: 6,
+                        width: _activePostIndex == i ? 18 : 6,
+                        decoration: BoxDecoration(
+                          color: _activePostIndex == i
+                              ? _profileSpecGold
+                              : const Color(0xFF332C1D),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ],
-          ],
-        ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ],
     );
-  }
-
-  double _postPagerHeight(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
-
-    double height;
-    if (width < 360) {
-      height = 548;
-    } else if (width < 390) {
-      height = 530;
-    } else if (width < 430) {
-      height = 514;
-    } else {
-      height = 496;
-    }
-
-    if (textScale > 1.05) height += 18;
-    if (textScale > 1.15) height += 18;
-    return height;
   }
 
   Widget _buildFeedDateModeToggle() {
@@ -2666,121 +2648,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildPostedInsightPreview() {
-    if (_insightPostsLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
-        ),
-      );
-    }
-
-    if (_insightPosts.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 96),
-          padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
-          decoration: BoxDecoration(
-            color: _profileSurface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _profileLine),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'No posted insights yet',
-                style: TextStyle(
-                  color: _profileBone,
-                  fontFamily: _profileSerifFont,
-                  fontFamilyFallback: _profileSerifFallback,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                _isViewingOwnProfile
-                    ? 'Write an insight inside a node page, then post it here.'
-                    : 'Check back later for posted insights.',
-                style: const TextStyle(
-                  color: _profileMid,
-                  fontFamily: _profileSerifFont,
-                  fontFamilyFallback: _profileSerifFallback,
-                  fontSize: 13.5,
-                  fontStyle: FontStyle.italic,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final hasMultiplePosts = _insightPosts.length > 1;
-    if (!hasMultiplePosts) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        child: _buildInsightPostCard(
-          _insightPosts.first,
-          onReadMore: () => _openInsightPost(_insightPosts.first),
-        ),
-      );
-    }
-
-    final pagerHeight = _postPagerHeight(context);
-    return Column(
-      children: [
-        SizedBox(
-          height: pagerHeight,
-          child: PageView.builder(
-            controller: _insightPostPageController,
-            physics: const BouncingScrollPhysics(),
-            itemCount: _insightPosts.length,
-            onPageChanged: (index) {
-              setState(() {
-                _activeInsightPostIndex = index;
-              });
-              _scheduleContinuitySave();
-            },
-            itemBuilder: (context, index) {
-              final post = _insightPosts[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: _buildInsightPostCard(
-                  post,
-                  onReadMore: () => _openInsightPost(post),
-                  inPager: true,
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (int i = 0; i < _insightPosts.length; i++)
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                height: 8,
-                width: _activeInsightPostIndex == i ? 18 : 8,
-                decoration: BoxDecoration(
-                  color: _activeInsightPostIndex == i
-                      ? _profileGoldMid
-                      : Colors.white.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -4166,8 +4033,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     return normalized.isEmpty ? 'Untitled insight' : normalized;
   }
 
-  void _openPostDetails(int initialIndex) {
-    final post = _posts[initialIndex];
+  void _openPostDetails(FlowPost post) {
+    final initialIndex = _posts.indexWhere(
+      (candidate) => candidate.id == post.id,
+    );
     unawaited(
       openDetailRoute<void>(
         context,

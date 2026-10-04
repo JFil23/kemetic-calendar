@@ -663,3 +663,24 @@ comparison; no branch, worktree, repository or backend authority is added.
 The complete production App gate, closed staging/production artifact comparison,
 served-file verification and live onboarding replay are required before this
 cutover is reported complete. The account/cache contracts above remain intact.
+
+
+## October 4 unified profile Posts carousel
+
+ProfilePage presents the existing flow-post and insight-post snapshots in one
+Posts carousel, ordered by createdAt descending with ID as a deterministic tie
+break. Publication time, not insight entry date or community ranking, owns the
+order. ProfileRepo retains both read/cache owners and all acknowledged writers;
+no query, cache namespace, resource schema or approved fixture changes.
+
+The existing profile surface restoration retains activePostIndex and adds an
+optional activeProfilePostKey (kind plus post ID) so refreshes and re-entry keep
+the selected card when newer posts arrive. Legacy flow-only indices resolve to
+their flow in the merged sequence. Missing/removed selections clamp to a
+surviving card. The retired insight-only pager index is safely ignored.
+
+Real ProfilePage tests cover mixed ordering from cold and warm reads, single and
+empty states, delayed/failed refresh, removal, selection retention and legacy
+restoration. Capture-only checks use the existing cards and fonts; approved
+visual references are unchanged. The full App gate remains required for any
+deployment.

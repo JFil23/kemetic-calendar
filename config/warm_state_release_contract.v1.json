@@ -90,7 +90,7 @@
     {
       "path": "/profile/:userId",
       "owner": "lib/data/profile_repo.dart",
-      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes."
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. One Posts carousel merges both snapshots by publication time. Existing profile surface restoration adds an optional typed post identity, resolves legacy flow indices, and keeps selection through refresh/removal without changing cache owners or keys."
     },
     {
       "path": "/profile/:userId/followers",
