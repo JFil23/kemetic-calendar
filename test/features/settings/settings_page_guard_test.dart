@@ -101,7 +101,7 @@ void main() {
       final calendarContent = _sourceBetween(
         source,
         "_sectionCard(\n              title: 'Calendar Content'",
-        "_sectionCard(\n              title: 'Speech'",
+        "            AnimatedBuilder(\n              animation: Listenable.merge([\n                SpeechService.instance.activeUtteranceId",
       );
 
       expect(calendarContent, contains('The Day’s Rhythm badge'));

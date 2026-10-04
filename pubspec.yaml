@@ -58,7 +58,7 @@ dependencies:
   http: ^1.5.0
   crypto: ^3.0.6
   web: ^0.5.1
-  flutter_tts: ^4.0.2
+  audioplayers: 6.7.1
   shared_preferences: ^2.5.3
   
 dev_dependencies:
@@ -117,6 +117,9 @@ flutter:
         - asset: ios/Runner/Fonts/NotoSansEgyptianHieroglyphs-Regular.ttf
 
   assets:
+    - assets/speech/previews/
+    - assets/speech/library/G/
+    - assets/speech/library/H/
     - assets/icons/dendera_zodiac_gold.png
     - assets/widget/
     - assets/follow_the_sky/

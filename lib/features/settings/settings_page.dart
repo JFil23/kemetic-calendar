@@ -19,7 +19,7 @@ import '../../utils/external_link_utils.dart';
 import '../calendar/calendar_page.dart';
 import '../calendar/calendar_hydration_diagnostics.dart';
 import '../calendar/notify.dart';
-import '../calendar/speech_resolver.dart';
+import 'speech_settings_card.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
 import 'settings_prefs.dart';
@@ -104,8 +104,7 @@ class _SettingsPageState extends State<SettingsPage> {
   _SettingsBuildInfo _buildInfo = _SettingsBuildInfo.unavailable;
   PushRegistrationDiagnostics? _pushDiagnostics;
   PushDeliveryReceiptStatus? _pushTestReceiptStatus;
-  List<SpeechVoiceOption> _speechVoices = const [];
-  String? _selectedSpeechVoiceId;
+  SpeechVoiceOption _selectedSpeechVoice = SpeechVoiceOption.g;
   final GlobalKey _settingsControlsHelperKey = GlobalKey(
     debugLabel: 'settings_controls_helper',
   );
@@ -261,47 +260,24 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadSpeechSettings() async {
-    if (mounted) {
-      setState(() {
-        _loadingSpeechVoices = true;
-      });
-    }
-
+    setState(() => _loadingSpeechVoices = true);
     try {
-      final speech = SpeechService.instance;
-      final voices = await speech.getAvailableVoices(
-        localePrefix: 'en',
-        reload: true,
-      );
-      final preferred = await speech.getPreferredVoice();
-      final preferredId =
-          preferred != null && _voiceFromList(voices, preferred.id) != null
-          ? preferred.id
-          : null;
-
+      final voice = await SpeechService.instance.getPreferredVoice();
       if (!mounted) return;
       setState(() {
-        _speechVoices = voices;
-        _selectedSpeechVoiceId = preferredId;
-        _speechVoiceStatus = _speechStatusForSelection(
-          voices: voices,
-          selectedVoiceId: preferredId,
-        );
+        _selectedSpeechVoice = voice;
+        _speechVoiceStatus = null;
       });
+      unawaited(SpeechService.instance.prepareLibrary());
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _speechVoices = const [];
-        _selectedSpeechVoiceId = null;
-        _speechVoiceStatus =
-            'Voice selection is unavailable in this build, so speech uses the current device or browser voice.';
-      });
-    } finally {
       if (mounted) {
-        setState(() {
-          _loadingSpeechVoices = false;
-        });
+        setState(
+          () => _speechVoiceStatus =
+              'Voice settings could not load. Please try again.',
+        );
       }
+    } finally {
+      if (mounted) setState(() => _loadingSpeechVoices = false);
     }
   }
 
@@ -399,44 +375,25 @@ class _SettingsPageState extends State<SettingsPage> {
     }());
   }
 
-  Future<void> _setSpeechVoice(String? voiceId) async {
+  Future<void> _setSpeechVoice(SpeechVoiceOption voice) async {
     if (_savingSpeechVoice) return;
-
-    final selectedVoice = _voiceFromList(_speechVoices, voiceId);
-    setState(() {
-      _savingSpeechVoice = true;
-      _speechVoiceStatus = selectedVoice == null
-          ? 'Switching back to the current system English voice...'
-          : 'Applying ${selectedVoice.displayLabel}...';
-    });
-
+    setState(() => _savingSpeechVoice = true);
     try {
-      await SpeechService.instance.setPreferredVoice(selectedVoice);
+      await SpeechService.instance.setPreferredVoice(voice);
       if (!mounted) return;
       setState(() {
-        _selectedSpeechVoiceId = selectedVoice?.id;
-        _speechVoiceStatus = _speechStatusForSelection(
-          voices: _speechVoices,
-          selectedVoiceId: selectedVoice?.id,
-        );
+        _selectedSpeechVoice = voice;
+        _speechVoiceStatus = null;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _speechVoiceStatus = 'Could not apply speech voice: $e';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not apply speech voice: $e'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-    } finally {
       if (mounted) {
-        setState(() {
-          _savingSpeechVoice = false;
-        });
+        setState(
+          () => _speechVoiceStatus =
+              'Your voice choice could not be saved. Please try again.',
+        );
       }
+    } finally {
+      if (mounted) setState(() => _savingSpeechVoice = false);
     }
   }
 
@@ -449,13 +406,7 @@ class _SettingsPageState extends State<SettingsPage> {
         return;
       }
 
-      await speech.speakPhonetic(
-        SpeechResolver.prose(
-          base: 'Tepi-a Sebau',
-          englishCue: 'Foremost of the Stars',
-        ),
-        utteranceId: _speechPreviewUtteranceId,
-      );
+      await speech.preview(utteranceId: _speechPreviewUtteranceId);
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -998,51 +949,6 @@ class _SettingsPageState extends State<SettingsPage> {
     return lines;
   }
 
-  SpeechVoiceOption? _voiceFromList(
-    List<SpeechVoiceOption> voices,
-    String? voiceId,
-  ) {
-    if (voiceId == null || voiceId.isEmpty) return null;
-    for (final voice in voices) {
-      if (voice.id == voiceId) return voice;
-    }
-    return null;
-  }
-
-  String _speechStatusForSelection({
-    required List<SpeechVoiceOption> voices,
-    required String? selectedVoiceId,
-  }) {
-    if (voices.isEmpty) {
-      return 'Voice selection is unavailable in this build, so speech uses the current device or browser voice.';
-    }
-
-    final selectedVoice = _voiceFromList(voices, selectedVoiceId);
-    if (selectedVoice == null) {
-      return 'Using the current system English voice on this device.';
-    }
-    return 'Using ${selectedVoice.displayLabel}.';
-  }
-
-  List<String> _speechStatusLines() {
-    final lines = <String>[];
-
-    if (_speechVoiceStatus != null && _speechVoiceStatus!.trim().isNotEmpty) {
-      lines.add(_speechVoiceStatus!);
-    }
-    lines.add(
-      'Pronunciation still uses the local device or browser TTS engine for now.',
-    );
-    if (_speechVoices.isNotEmpty) {
-      final count = _speechVoices.length;
-      lines.add(
-        '$count English voice${count == 1 ? '' : 's'} detected on this device.',
-      );
-    }
-
-    return lines;
-  }
-
   Widget _sectionCard({
     required String title,
     required String description,
@@ -1320,27 +1226,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  InputDecoration _dropdownDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white70),
-      filled: true,
-      fillColor: Colors.black,
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFF303030)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: KemeticGold.base),
-      ),
-      disabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFF262626)),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -1352,7 +1237,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final pushDiagnosticLines = _pushDiagnosticLines();
     final pushReceiptLines = _pushTestReceiptLines();
-    final speechStatusLines = _speechStatusLines();
     const scrollBottomPadding = 32.0;
 
     return Scaffold(
@@ -1518,69 +1402,29 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
             const SizedBox(height: 16),
-            _sectionCard(
-              title: 'Speech',
-              description:
-                  'Pronunciation still runs through the device or browser TTS engine. You can choose an English voice on this device and preview it here.',
-              children: [
-                DropdownButtonFormField<String?>(
-                  key: ValueKey(_selectedSpeechVoiceId),
-                  initialValue: _selectedSpeechVoiceId,
-                  decoration: _dropdownDecoration('Pronunciation voice'),
-                  dropdownColor: const Color(0xFF101010),
-                  style: const TextStyle(color: Colors.white),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('System default'),
-                    ),
-                    ..._speechVoices.map(
-                      (voice) => DropdownMenuItem<String?>(
-                        value: voice.id,
-                        child: Text(voice.displayLabel),
-                      ),
-                    ),
-                  ],
-                  onChanged: _loadingSpeechVoices || _savingSpeechVoice
-                      ? null
-                      : _setSpeechVoice,
-                ),
-                const SizedBox(height: 12),
-                ValueListenableBuilder<String?>(
-                  valueListenable: SpeechService.instance.activeUtteranceId,
-                  builder: (context, activeUtteranceId, child) {
-                    final previewActive =
-                        activeUtteranceId == _speechPreviewUtteranceId;
-                    return SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Color(0xFF3A3A3A)),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        onPressed: _loadingSpeechVoices || _savingSpeechVoice
-                            ? null
-                            : _previewSpeechVoice,
-                        child: Text(
-                          previewActive
-                              ? 'Stop voice preview'
-                              : (_loadingSpeechVoices
-                                    ? 'Loading available voices...'
-                                    : 'Preview selected voice'),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                for (final line in speechStatusLines) _statusLine(line),
-              ],
+            AnimatedBuilder(
+              animation: Listenable.merge([
+                SpeechService.instance.activeUtteranceId,
+                SpeechService.instance.libraryStatus,
+                SpeechService.instance.libraryFailed,
+              ]),
+              builder: (context, _) => SpeechSettingsCard(
+                selectedVoice: _selectedSpeechVoice,
+                onChanged: _setSpeechVoice,
+                onPreview: _previewSpeechVoice,
+                busy: _loadingSpeechVoices || _savingSpeechVoice,
+                previewActive:
+                    SpeechService.instance.activeUtteranceId.value ==
+                    _speechPreviewUtteranceId,
+                status:
+                    _speechVoiceStatus ??
+                    SpeechService.instance.libraryStatus.value,
+                onRetry: _speechVoiceStatus != null
+                    ? _loadSpeechSettings
+                    : SpeechService.instance.libraryFailed.value
+                    ? SpeechService.instance.prepareLibrary
+                    : null,
+              ),
             ),
             const SizedBox(height: 16),
             _visibilityNotice(),
