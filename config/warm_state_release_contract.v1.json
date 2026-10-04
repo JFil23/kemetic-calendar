@@ -5,7 +5,7 @@
     {
       "path": "/",
       "owner": "lib/features/pages/pages_controller.dart",
-      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state."
+      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state. Explicit onboarding replay reads its acknowledged account-scoped presentation checkpoint; completion history and content remain with their existing owners."
     },
     {
       "path": "/calendars",
@@ -165,7 +165,7 @@
     {
       "path": "/settings",
       "owner": "lib/features/settings/settings_page.dart",
-      "policy": "Preference-specific authority; device capabilities remain device-bound. SpeechService retains speech:preferredVoiceId for G/H, and BundledSpeechAssetStore owns only checksum-verified public audio in speech_audio_v1. No account content, pending writes, build namespace or logout eviction enters that corpus cache. No blanket cache ownership of account preferences."
+      "policy": "Preference-specific authority; device capabilities remain device-bound. SpeechService retains speech:preferredVoiceId for G/H, and BundledSpeechAssetStore owns only checksum-verified public audio in speech_audio_v1. No account content, pending writes, build namespace or logout eviction enters that corpus cache. No blanket cache ownership of account preferences. The existing Google callback can resume unfinished onboarding through HawCalendarReturn. OnboardingProgressStorage owns additive slide, intention and pending-connection fields under onboarding_v2_progress:<account>; calendar controllers retain consent/import authority."
     },
     {
       "path": "/share/:shareId",

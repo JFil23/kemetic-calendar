@@ -126,6 +126,7 @@ class MaatFlowDetailShell extends StatefulWidget {
     this.sheetKey,
     this.referenceHeroHeight = MaatFlowDetailGeometry.heroHeight,
     this.referenceSheetOverlap = MaatFlowDetailGeometry.sheetOverlap,
+    this.scaleHeroWithText = false,
   });
 
   final MaatFlowDetailTheme theme;
@@ -138,6 +139,10 @@ class MaatFlowDetailShell extends StatefulWidget {
   final Key? sheetKey;
   final double referenceHeroHeight;
   final double referenceSheetOverlap;
+
+  /// Authored Ma’at heroes can grow and scroll with accessibility type. Custom
+  /// flow heroes retain their independently owned geometry.
+  final bool scaleHeroWithText;
 
   @override
   State<MaatFlowDetailShell> createState() => _MaatFlowDetailShellState();
@@ -180,7 +185,12 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
             constraints.maxHeight *
             (widget.referenceHeroHeight /
                 MaatFlowDetailGeometry.referenceHeight);
-        final heroHeight = math.min(widthScaledHero, heightScaledHero);
+        final textScale = MediaQuery.textScalerOf(context).scale(20) / 20;
+        // The existing scroll view carries the authored hero's extra height.
+        final scrollHero = widget.scaleHeroWithText && textScale > 1;
+        final heroHeight = scrollHero
+            ? widthScaledHero * math.max(1, textScale)
+            : math.min(widthScaledHero, heightScaledHero);
         final overlap =
             widget.referenceSheetOverlap *
             (width / MaatFlowDetailGeometry.referenceWidth);
@@ -195,20 +205,27 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Positioned(
-                key: widget.heroLayerKey,
-                top: -parallax,
-                left: 0,
-                right: 0,
-                height: heroHeight,
-                child: Opacity(opacity: 1 - fadeT, child: widget.hero),
-              ),
+              if (!scrollHero)
+                Positioned(
+                  key: widget.heroLayerKey,
+                  top: -parallax,
+                  left: 0,
+                  right: 0,
+                  height: heroHeight,
+                  child: Opacity(opacity: 1 - fadeT, child: widget.hero),
+                ),
               CustomScrollView(
                 key: widget.scrollKey,
                 controller: _controller,
                 slivers: [
                   SliverToBoxAdapter(
-                    child: SizedBox(height: heroHeight - overlap),
+                    child: scrollHero
+                        ? SizedBox(
+                            key: widget.heroLayerKey,
+                            height: heroHeight,
+                            child: widget.hero,
+                          )
+                        : SizedBox(height: heroHeight - overlap),
                   ),
                   SliverToBoxAdapter(
                     child: Container(
@@ -227,9 +244,13 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
                       child: widget.sheet,
                     ),
                   ),
-                  const SliverToBoxAdapter(
+                  SliverToBoxAdapter(
                     child: SizedBox(
-                      height: MaatFlowDetailGeometry.bottomContentClearance,
+                      height:
+                          MaatFlowDetailGeometry.bottomContentClearance *
+                          (widget.scaleHeroWithText
+                              ? math.max(1, textScale)
+                              : 1),
                     ),
                   ),
                 ],
@@ -326,49 +347,57 @@ class MaatFlowDetailHero extends StatelessWidget {
                   children: [
                     Transform.translate(
                       offset: glyphOffset,
-                      child: Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient:
-                              glyphGradient ??
-                              RadialGradient(
-                                center: const Alignment(-0.24, -0.44),
-                                radius: 0.9,
-                                colors: [
-                                  theme.accent.withValues(alpha: 0.82),
-                                  theme.sheetBackground.withValues(alpha: 0.96),
-                                  theme.pageBackground,
-                                ],
-                              ),
-                          border: Border.all(
-                            color:
-                                glyphBorder ??
-                                theme.accent.withValues(alpha: 0.30),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (glyphGlow ?? theme.glow).withValues(
-                                alpha: 0.13,
-                              ),
-                              blurRadius: 26,
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: glyphContent == null
-                            ? Text(
-                                glyph,
-                                key: glyphKey,
-                                style: TextStyle(
-                                  color: theme.glow,
-                                  fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-                                  fontSize: 29,
-                                  height: 1,
+                      child: MediaQuery.withNoTextScaling(
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient:
+                                glyphGradient ??
+                                RadialGradient(
+                                  center: const Alignment(-0.24, -0.44),
+                                  radius: 0.9,
+                                  colors: [
+                                    theme.accent.withValues(alpha: 0.82),
+                                    theme.sheetBackground.withValues(
+                                      alpha: 0.96,
+                                    ),
+                                    theme.pageBackground,
+                                  ],
                                 ),
-                              )
-                            : KeyedSubtree(key: glyphKey, child: glyphContent!),
+                            border: Border.all(
+                              color:
+                                  glyphBorder ??
+                                  theme.accent.withValues(alpha: 0.30),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (glyphGlow ?? theme.glow).withValues(
+                                  alpha: 0.13,
+                                ),
+                                blurRadius: 26,
+                              ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: glyphContent == null
+                              ? Text(
+                                  glyph,
+                                  key: glyphKey,
+                                  style: TextStyle(
+                                    color: theme.glow,
+                                    fontFamily:
+                                        'Noto Sans Egyptian Hieroglyphs',
+                                    fontSize: 29,
+                                    height: 1,
+                                  ),
+                                )
+                              : KeyedSubtree(
+                                  key: glyphKey,
+                                  child: glyphContent!,
+                                ),
+                        ),
                       ),
                     ),
                     SizedBox(height: glyphToTitleSpacing),
@@ -464,6 +493,7 @@ class MaatFlowDetailDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final enlargedText = MediaQuery.textScalerOf(context).scale(20) > 20;
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -482,11 +512,20 @@ class MaatFlowDetailDock extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
-                height: 54,
+                height: enlargedText ? null : 54,
                 width: double.infinity,
                 child: ElevatedButton(
                   key: joined ? joinedKey : actionKey,
                   style: ElevatedButton.styleFrom(
+                    minimumSize: enlargedText
+                        ? const Size(double.infinity, 54)
+                        : null,
+                    padding: enlargedText
+                        ? const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          )
+                        : null,
                     backgroundColor: theme.pageBackground,
                     foregroundColor: joined ? theme.secondaryText : theme.glow,
                     disabledBackgroundColor: theme.pageBackground,
@@ -518,6 +557,7 @@ class MaatFlowDetailDock extends StatelessWidget {
                         )
                       : Text(
                           joined ? joinedLabel : actionLabel,
+                          textAlign: enlargedText ? TextAlign.center : null,
                           style: TextStyle(
                             fontFamily: MaatFlowListTokens.fontFamily,
                             fontFamilyFallback: MaatFlowListTokens.fontFallback,

@@ -376,6 +376,7 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
       child: Stack(
         children: <Widget>[
           MaatFlowDetailShell(
+            scaleHeroWithText: true,
             theme: DjedDetailTokens.theme,
             referenceHeroHeight: 258,
             referenceSheetOverlap: 26,

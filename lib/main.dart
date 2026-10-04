@@ -88,6 +88,7 @@ import 'features/rhythm/pages/commitment_tracker_page.dart';
 import 'features/rhythm/pages/rhythm_editors.dart';
 import 'features/rhythm/pages/todays_alignment_page.dart';
 import 'features/settings/settings_page.dart';
+import 'features/onboarding/haw_calendar_connection.dart';
 import 'features/settings/settings_prefs.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
 import 'widgets/kemetic_keyboard.dart';
@@ -2011,9 +2012,12 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
       path: '/settings',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
-        child: SettingsPage(
-          externalCalendarCallbackResult:
-              state.uri.queryParameters['external_calendar'],
+        child: HawCalendarReturn(
+          callbackResult: state.uri.queryParameters['external_calendar'],
+          child: SettingsPage(
+            externalCalendarCallbackResult:
+                state.uri.queryParameters['external_calendar'],
+          ),
         ),
       ),
     ),

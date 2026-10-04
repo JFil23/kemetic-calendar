@@ -73,6 +73,7 @@ class OfferingTableDetailSurface extends StatefulWidget {
     super.key,
     required this.timezone,
     required this.onJoin,
+    this.onJoined,
     this.calendarPreview = FollowSkyCalendarPreview.empty,
     this.initialStartDate,
     this.joinedFlowId,
@@ -90,6 +91,7 @@ class OfferingTableDetailSurface extends StatefulWidget {
 
   final TrackSkyTimeZone timezone;
   final OfferingTableJoinCallback onJoin;
+  final Future<void> Function(int flowId)? onJoined;
   final FollowSkyCalendarPreview calendarPreview;
   final DateTime? initialStartDate;
   final int? joinedFlowId;
@@ -284,6 +286,7 @@ class _OfferingTableDetailSurfaceState
       _joining = false;
     });
     _temporalController.lockCarried(persistedStartDate: renderedStartDate);
+    await widget.onJoined?.call(id);
   }
 
   Future<void> _openOfferingDaySheet(
@@ -335,6 +338,7 @@ class _OfferingTableDetailSurfaceState
   @override
   Widget build(BuildContext context) {
     final body = MaatFlowDetailShell(
+      scaleHeroWithText: true,
       theme: OfferingTableDetailTokens.theme,
       referenceHeroHeight: 258,
       referenceSheetOverlap: 26,

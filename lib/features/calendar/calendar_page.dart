@@ -1,4 +1,5 @@
 import 'note_draft_invitations.dart';
+import '../onboarding/haw_calendar_connection.dart';
 import 'dart:async';
 import '../pages/pages_models.dart';
 import '../pages/pages_arrangement.dart';
@@ -3569,6 +3570,17 @@ class CalendarPage extends StatefulWidget {
   }
 
   static bool get hasMountedHost => _mountedState != null;
+
+  /// A Settings replay may return to a retained calendar host. A cold host
+  /// reads the same account checkpoint through its ordinary startup path.
+  static Future<void> presentRequestedOnboarding() async {
+    // Settings may have replaced the route rather than uncovered a retained
+    // host. Resolve the host after that navigation frame has mounted it.
+    await WidgetsBinding.instance.endOfFrame;
+    final state = _mountedState;
+    if (state == null) return;
+    await state._maybePresentOnboarding();
+  }
 
   static String _flowEndOperationKey(int flowId) {
     if (flowId <= 0) return 'invalid:$flowId';
@@ -12441,11 +12453,15 @@ class CalendarPageState extends State<CalendarPage>
 
   Widget _buildMaatFlowDetailSurface({
     required _MaatFlowTemplate template,
-    required VoidCallback onBack,
+    VoidCallback? onBack,
     _Flow? joinedFlow,
+    MaatFlowDetailRelation relation = MaatFlowDetailRelation.owned,
+    Future<void> Function(int flowId)? onEnrollmentConfirmed,
+    Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted,
   }) {
-    final activeInstance =
-        joinedFlow ?? _activeFlowForMaatTemplate(template.key);
+    final activeInstance = relation == MaatFlowDetailRelation.catalogPreview
+        ? null
+        : joinedFlow ?? _activeFlowForMaatTemplate(template.key);
     final sky = template.key == 'track-the-sky' ? _followSkyLiveInputs() : null;
     final usesSharedCalendarPreview = maatFlowDetailUsesCalendarPreview(
       template.key,
@@ -12456,7 +12472,7 @@ class CalendarPageState extends State<CalendarPage>
     return _ActiveMaatFlowDetailSurface.fromComposition(
       composition: resolveMaatFlowDetailComposition(
         template: template,
-        relation: MaatFlowDetailRelation.owned,
+        relation: relation,
         intendedInstance: activeInstance,
         calendar: calendarPreview,
         followSkyCandidates: sky?.candidates ?? const [],
@@ -12512,18 +12528,21 @@ class CalendarPageState extends State<CalendarPage>
               eveningThresholdInitialCarry: eveningThresholdInitialCarry,
             );
           },
+      onEnrollmentConfirmed: onEnrollmentConfirmed,
       onJoined: (flowId) => _completeMountedMaatJoinWithDayView(
         flowId: flowId,
         templateKey: template.key,
       ),
-      onPersisted: (_) async {
-        if (!mounted) return;
-        await _requestHydration(
-          _CalendarHydrationRequest.catalogReconcile(
-            reason: 'reading_house_detail_persisted',
-          ),
-        );
-      },
+      onPersisted:
+          onPersisted ??
+          (_) async {
+            if (!mounted) return;
+            await _requestHydration(
+              _CalendarHydrationRequest.catalogReconcile(
+                reason: 'reading_house_detail_persisted',
+              ),
+            );
+          },
       onEndFlow: (flowId) => _endFlow(flowId),
     );
   }
@@ -14543,6 +14562,9 @@ class CalendarPageState extends State<CalendarPage>
   // toggle: Kemetic (false) <-> Gregorian overlay (true)
   bool _showGregorian = false;
   bool _showOnboarding = false;
+  String? _hawOnboardingOwner;
+  bool _hawOpeningFlow = false;
+  String? _hawFlowOpenError;
   bool _showCalendarMonthCoachmark = false;
   bool _showCalendarToggleCoachmark = false;
   bool _onboardingPresentationScheduled = false;
@@ -14550,7 +14572,6 @@ class CalendarPageState extends State<CalendarPage>
       OnboardingProgressStorage();
   OnboardingProgress _onboardingProgress = const OnboardingProgress();
   HawCompassCopy? _onboardingCompassCopy;
-  bool _firstMaatFlowSheetOpenOrOpening = false;
   bool _showingCurrentDecanIntroCoachmark = false;
   bool _showingFirstFlowDayCoachmark = false;
   bool _showingFirstFlowEventCoachmark = false;
@@ -15082,6 +15103,22 @@ class CalendarPageState extends State<CalendarPage>
     _scrollCtrl.addListener(_onVerticalScroll);
 
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (_hawOnboardingOwner != null &&
+          _hawOnboardingOwner != data.session?.user.id &&
+          mounted) {
+        GuidedOnboardingController.instance.clear();
+        GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
+        setState(() {
+          _showOnboarding = false;
+          _hawOnboardingOwner = null;
+          _onboardingProgress = const OnboardingProgress();
+          _firstMaatFlowId = null;
+          _firstMaatFlowEventClientEventId = null;
+          _firstMaatFlowEventKDate = null;
+          _hawOpeningFlow = false;
+          _hawFlowOpenError = null;
+        });
+      }
       final event = data.event;
       if (kDebugMode) {
         _calendarDebugPrint('[calendar] auth state change event=${event.name}');
@@ -15687,6 +15724,7 @@ class CalendarPageState extends State<CalendarPage>
 
     final userId = _currentUserId;
     if (userId == null) return;
+    _hawOnboardingOwner = userId;
 
     if (_replayOnboardingOnEveryLaunch) {
       if (_hasPresentedOnboardingThisLaunch) return;
@@ -15699,12 +15737,16 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     final progress = await _onboardingProgressStorage.load(userId);
+    if (!_ownsHawOnboarding(userId)) return;
     _onboardingProgress = progress;
     _hydrateFirstFlowTargetFromProgress(progress);
 
-    final hasCompleted = await _onboardingStorage.hasCompleted(userId);
-    if (!mounted) return;
-    if (hasCompleted || progress.completedOnboarding) {
+    final hasCompleted = progress.replayActive
+        ? false
+        : await _onboardingStorage.hasCompleted(userId);
+    if (!_ownsHawOnboarding(userId)) return;
+    if (!progress.replayActive &&
+        (hasCompleted || progress.completedOnboarding)) {
       final effectiveProgress = progress.completedOnboarding
           ? progress
           : progress.copyWith(
@@ -15726,7 +15768,7 @@ class CalendarPageState extends State<CalendarPage>
     await _waitForOnboardingCalendarReady();
     if (!mounted) return;
     await _loadOnboardingCompassCopy();
-    if (!mounted) return;
+    if (!_ownsHawOnboarding(userId)) return;
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
     setState(() => _showOnboarding = true);
   }
@@ -15746,181 +15788,400 @@ class CalendarPageState extends State<CalendarPage>
     unawaited(_completeHawOnboarding());
   }
 
-  Future<void> _completeHawOnboarding() async {
-    GuidedOnboardingController.instance.clear();
-    await _dismissOnboarding();
-    await _updateOnboardingProgress(
-      (progress) => progress.copyWith(
+  Future<void> _persistHawOnboardingCompletion() async {
+    final owner = _hawOnboardingOwner;
+    if (!_ownsHawOnboarding(owner)) {
+      throw StateError('Onboarding account changed.');
+    }
+    await DailyOrientationRepo(Supabase.instance.client).complete(
+      userId: owner!,
+      localDate: DateTime.now(),
+      chosenReturn: _onboardingCompassCopy?.dayAlignedReturnKey,
+      badgeLabel: 'this is ḥꜣw',
+    );
+    if (!_ownsHawOnboarding(owner)) {
+      throw StateError('Onboarding account changed.');
+    }
+    await _onboardingStorage.markCompletedRequired(owner);
+    await _saveHawCheckpoint(
+      _onboardingProgress.copyWith(
         hasSeenWelcome: true,
         hasSeenCurrentDecanIntro: true,
-        hasChosenFirstMaatFlow:
-            progress.hasChosenFirstMaatFlow || _firstMaatFlowId != null,
+        hasChosenFirstMaatFlow: true,
         hasTappedFirstFlowDay: true,
         hasOpenedFirstFlowEvent: true,
         hasSeenObservedJournalPrompt: true,
         hasSeenMenuPrompt: true,
         currentStep: TrueOnboardingStep.complete,
         completedOnboarding: true,
+        calendarConnectionPending: false,
+        replayActive: false,
+        hawSlide: 'complete',
       ),
+      owner,
     );
-    final userId = _currentUserId;
-    if (userId != null && userId.isNotEmpty) {
-      await DailyOrientationRepo(Supabase.instance.client).complete(
-        userId: userId,
-        localDate: DateTime.now(),
-        chosenReturn: _onboardingCompassCopy?.dayAlignedReturnKey,
-        badgeLabel: 'this is ḥꜣw',
-      );
-    }
-    await _markOnboardingCompletedIfNeeded();
+  }
+
+  Future<void> _completeHawOnboarding() async {
+    if (!_ownsHawOnboarding(_hawOnboardingOwner)) return;
+    GuidedOnboardingController.instance.clear();
+    await _dismissOnboarding();
     unawaited(
       Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
     );
-    if (mounted) {
-      context.go('/');
+    if (mounted) context.go('/');
+  }
+
+  bool _ownsHawOnboarding(String? owner) =>
+      mounted &&
+      owner != null &&
+      owner == _currentUserId &&
+      owner == _hawOnboardingOwner;
+
+  HawEntryIntent? get _hawIntent =>
+      HawEntryIntent.fromWire(_onboardingProgress.entryIntent);
+
+  HawOnboardingSlide get _hawInitialSlide {
+    final progress = _onboardingProgress;
+    if (progress.hawSlide == null) return HawOnboardingSlide.exhale;
+    if (progress.hawSlide == 'exhale') return HawOnboardingSlide.exhale;
+    if (progress.hawSlide == 'calendarConnection') {
+      return HawOnboardingSlide.calendarConnection;
     }
+    if (_hawIntent == null) return HawOnboardingSlide.segmentation;
+    if (progress.hawSlide == 'segmentation') {
+      return HawOnboardingSlide.segmentation;
+    }
+    if (progress.hawSlide == 'orientation') {
+      return HawOnboardingSlide.orientation;
+    }
+    // Revalidate the exact saved occurrence before returning to Day View.
+    return HawOnboardingSlide.recommendedFlow;
+  }
+
+  Future<void> _saveHawCheckpoint(
+    OnboardingProgress progress,
+    String? owner,
+  ) async {
+    if (!_ownsHawOnboarding(owner)) {
+      throw StateError('Onboarding account changed.');
+    }
+    await _onboardingProgressStorage.saveRequired(owner!, progress);
+    if (!_ownsHawOnboarding(owner)) {
+      throw StateError('Onboarding account changed.');
+    }
+    _onboardingProgress = progress;
+  }
+
+  Future<void> _handleHawSlideChanged(HawOnboardingSlide slide) async {
+    await _saveHawCheckpoint(
+      _onboardingProgress.copyWith(
+        hawSlide: slide.name,
+        hasOpenedFirstFlowEvent: slide == HawOnboardingSlide.closing
+            ? true
+            : null,
+        currentStep: slide == HawOnboardingSlide.closing
+            ? TrueOnboardingStep.eventDetailObservedJournal
+            : null,
+        hasSeenWelcome: slide != HawOnboardingSlide.exhale,
+        hasSeenCurrentDecanIntro: slide == HawOnboardingSlide.recommendedFlow
+            ? true
+            : null,
+        calendarConnectionPending: slide == HawOnboardingSlide.segmentation
+            ? false
+            : null,
+      ),
+      _hawOnboardingOwner,
+    );
+  }
+
+  Future<void> _openHawCalendarConnection() async {
+    final owner = _hawOnboardingOwner;
+    await _saveHawCheckpoint(
+      _onboardingProgress.copyWith(
+        hawSlide: HawOnboardingSlide.calendarConnection.name,
+        calendarConnectionPending: true,
+      ),
+      owner,
+    );
+    if (!mounted || !_ownsHawOnboarding(owner)) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (pageContext) => HawCalendarConnectionPage(
+          onContinue: () async {
+            await _saveHawCheckpoint(
+              _onboardingProgress.copyWith(calendarConnectionPending: false),
+              owner,
+            );
+            if (pageContext.mounted && _ownsHawOnboarding(owner)) {
+              Navigator.of(pageContext).pop();
+            }
+          },
+        ),
+      ),
+    );
+    if (!_ownsHawOnboarding(owner)) return;
+    await _saveHawCheckpoint(
+      _onboardingProgress.copyWith(calendarConnectionPending: false),
+      owner,
+    );
   }
 
   Future<void> _handleHawEntryStateSelected(String entryState) async {
-    await _updateOnboardingProgress(
-      (progress) => progress.copyWith(
+    final owner = _hawOnboardingOwner;
+    final intent = HawEntryIntent.fromWire(entryState);
+    if (intent == null || !_ownsHawOnboarding(owner)) {
+      throw StateError('Choose a current intention.');
+    }
+    await DailyOrientationRepo(Supabase.instance.client).start(
+      userId: owner!,
+      localDate: DateTime.now(),
+      kemeticDayKey: kemeticDayKey(_today.kMonth, _today.kDay),
+      entryState: intent.name,
+      chosenReturn: _onboardingCompassCopy?.dayAlignedReturnKey,
+    );
+    await _saveHawCheckpoint(
+      _onboardingProgress.copyWith(
+        entryIntent: intent.name,
         hasSeenWelcome: true,
         currentStep: TrueOnboardingStep.currentDecanIntro,
       ),
+      owner,
     );
-    final userId = _currentUserId;
-    if (userId != null && userId.isNotEmpty) {
-      await DailyOrientationRepo(Supabase.instance.client).start(
-        userId: userId,
-        localDate: DateTime.now(),
-        kemeticDayKey: kemeticDayKey(_today.kMonth, _today.kDay),
-        entryState: entryState,
-        chosenReturn: _onboardingCompassCopy?.dayAlignedReturnKey,
-      );
-    }
+    if (_ownsHawOnboarding(owner)) setState(() {});
     unawaited(
-      Events.trackIfAuthed('onboarding_entry_state_selected', <String, dynamic>{
-        'entry_state': entryState,
+      Events.trackIfAuthed('onboarding_entry_state_selected', {
+        'entry_state': intent.name,
       }),
     );
   }
 
-  Future<void> _handleHawRecommendedFlowJoined(int flowId) async {
-    final template = _maatTemplateForKey(kEveningThresholdFlowKey);
-    if (template != null) {
-      CalendarPage._rememberJoinedMaatFlowTemplate(
-        templateKey: template.key,
-        flowId: flowId,
-      );
+  Future<void> _rememberHawEnrollment(int flowId) async {
+    final owner = _hawOnboardingOwner;
+    final intent = _hawIntent;
+    if (!_ownsHawOnboarding(owner) || intent == null || flowId <= 0) {
+      throw StateError('The selected flow is unavailable.');
     }
+    final template = _maatTemplateForKey(
+      const StarterFlowRecommendationService().recommend(intent).kind.flowKey,
+    );
+    if (template == null) throw StateError('The selected flow is unavailable.');
+    CalendarPage._rememberJoinedMaatFlowTemplate(
+      templateKey: template.key,
+      flowId: flowId,
+    );
+    // Retain a confirmed join before any presentation/hydration work can fail.
+    // Retry opens this same flow and can never enroll a second instance.
+    _firstMaatFlowId = flowId;
+    _onboardingProgress = _onboardingProgress.withHawEnrollment(
+      flowId: flowId,
+      templateKey: template.key,
+    );
+    await _saveHawCheckpoint(_onboardingProgress, owner);
+  }
+
+  Future<void> _handleHawRecommendedFlowJoined(int flowId) async {
+    final owner = _hawOnboardingOwner;
+    await _rememberHawEnrollment(flowId);
+    if (!_ownsHawOnboarding(owner)) return;
+    _applyPendingStagedFlow(flowId);
+    final savedCid = _onboardingProgress.firstMaatFlowEventClientEventId;
     _myFlowsFilingSnapshotCache = null;
     await _flowsRepo.clearMyFiledFlowsCache();
-    await _requestHydration(
-      _CalendarHydrationRequest.catalogReconcile(
-        reason: 'onboarding_evening_threshold_join',
-      ),
+    if (!_ownsHawOnboarding(owner)) return;
+    if (_firstChronologicalNoteForFlow(flowId, clientEventId: savedCid) ==
+        null) {
+      // The selected flow may begin beyond the current viewport. Reuse the
+      // account repository and range scheduler, never substitute today's date.
+      final row = await _flowsRepo.getFlowById(flowId);
+      if (!_ownsHawOnboarding(owner)) return;
+      if (row == null) throw StateError('The saved flow is unavailable.');
+      final flow = CalendarPage._flowFromFiledRowDetached(row);
+      _flows.removeWhere((candidate) => candidate.id == flowId);
+      _flows.add(flow);
+      final start = _onboardingProgress.firstMaatFlowEventDate ?? flow.start;
+      await _requestHydration(
+        _CalendarHydrationRequest.eventDataRefresh(
+          reason: 'onboarding_flow_join',
+          interval: start == null
+              ? null
+              : CalendarHydrationInterval(
+                  startUtc: DateUtils.dateOnly(start).toUtc(),
+                  endUtc: DateUtils.dateOnly(
+                    start,
+                  ).add(const Duration(days: 91)).toUtc(),
+                ),
+        ),
+      );
+    }
+    if (!_ownsHawOnboarding(owner)) return;
+    final firstEvent = _firstChronologicalNoteForFlow(
+      flowId,
+      clientEventId: savedCid,
     );
-    final firstEvent = _firstUpcomingNoteForFlow(flowId);
-    final eventDate = firstEvent == null
-        ? DateUtils.dateOnly(DateTime.now())
-        : DateUtils.dateOnly(
-            KemeticMath.toGregorian(
-              firstEvent.ky,
-              firstEvent.km,
-              firstEvent.kd,
-            ),
-          );
-    final kDate = firstEvent == null
-        ? KemeticMath.fromGregorian(eventDate)
-        : (kYear: firstEvent.ky, kMonth: firstEvent.km, kDay: firstEvent.kd);
-
-    _firstMaatFlowId = flowId;
-    _firstMaatFlowEventClientEventId = firstEvent?.note.clientEventId;
+    if (firstEvent == null ||
+        (firstEvent.note.clientEventId?.trim().isEmpty ?? true)) {
+      throw StateError('The flow is saved. Its first day is still loading.');
+    }
+    final eventDate = DateUtils.dateOnly(
+      KemeticMath.toGregorian(firstEvent.ky, firstEvent.km, firstEvent.kd),
+    );
+    _firstMaatFlowEventClientEventId = firstEvent.note.clientEventId;
     _firstMaatFlowEventKDate = (
-      ky: kDate.kYear,
-      km: kDate.kMonth,
-      kd: kDate.kDay,
+      ky: firstEvent.ky,
+      km: firstEvent.km,
+      kd: firstEvent.kd,
     );
-
-    await _updateOnboardingProgress(
-      (progress) => progress.copyWith(
-        hasChosenFirstMaatFlow: true,
-        firstMaatFlowId: flowId.toString(),
-        firstMaatFlowTemplateId: kEveningThresholdFlowKey,
+    await _saveHawCheckpoint(
+      _onboardingProgress.copyWith(
         firstMaatFlowEventDate: eventDate,
-        firstMaatFlowEventClientEventId: firstEvent?.note.clientEventId,
+        firstMaatFlowEventClientEventId: firstEvent.note.clientEventId,
         currentStep: TrueOnboardingStep.firstFlowDayEvent,
       ),
+      owner,
     );
-    if (mounted) {
-      setState(() {});
-    }
+    CalendarPage._consumeStagedFlowCompletion(flowId);
+    if (_ownsHawOnboarding(owner)) setState(() {});
     unawaited(
-      Events.trackIfAuthed(
-        'onboarding_evening_threshold_joined',
-        <String, dynamic>{'flow_id': flowId},
-      ),
+      Events.trackIfAuthed('onboarding_first_flow_joined', {
+        'flow_id': flowId,
+        'template_key': _onboardingProgress.firstMaatFlowTemplateId,
+      }),
     );
+  }
+
+  Future<void> _continueHawJoinedFlow(
+    int flowId,
+    Future<void> Function(int) advance,
+  ) async {
+    if (_hawOpeningFlow) return;
+    final owner = _hawOnboardingOwner;
+    setState(() {
+      _hawOpeningFlow = true;
+      _hawFlowOpenError = null;
+    });
+    try {
+      await _handleHawRecommendedFlowJoined(flowId);
+      if (_ownsHawOnboarding(owner)) await advance(flowId);
+    } catch (_) {
+      if (_ownsHawOnboarding(owner)) {
+        setState(() {
+          _hawFlowOpenError =
+              'Your flow is saved. Its first day could not open yet.';
+        });
+      }
+    } finally {
+      if (_ownsHawOnboarding(owner)) setState(() => _hawOpeningFlow = false);
+    }
   }
 
   Widget _buildHawRecommendedFlow(
     BuildContext context,
     Future<void> Function(int flowId) advance,
   ) {
-    final template = _maatTemplateForKey(kEveningThresholdFlowKey);
+    final owner = _hawOnboardingOwner;
+    final intent = _hawIntent;
+    final template = intent == null
+        ? null
+        : _maatTemplateForKey(
+            const StarterFlowRecommendationService()
+                .recommend(intent)
+                .kind
+                .flowKey,
+          );
+    final checkpointMatches =
+        template != null &&
+        _onboardingProgress.firstMaatFlowTemplateId == template.key;
+    final candidate = template == null
+        ? null
+        : _activeFlowForMaatTemplate(template.key);
+    // A live staged join still owns its detail surface until its observer has
+    // acknowledged it. Only recovered, settled instances bypass enrollment.
+    final existingFlow =
+        candidate != null &&
+            CalendarPage._pendingStagedFlows[candidate.id] == null
+        ? candidate
+        : null;
+    final savedId = checkpointMatches
+        ? int.tryParse(_onboardingProgress.firstMaatFlowId ?? '') ??
+              existingFlow?.id
+        : existingFlow?.id;
+    final savedFlows = _flows.where((flow) => flow.id == savedId);
+    final savedFlow = savedFlows.isEmpty ? existingFlow : savedFlows.first;
+    final editingReadingHouse =
+        intent == HawEntryIntent.reading &&
+        savedId != null &&
+        savedFlow != null &&
+        _onboardingProgress.firstMaatFlowEventClientEventId == null;
+    if (savedId != null && !editingReadingHouse) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _hawFlowOpenError ?? 'Your flow has a place in your time.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF8A7A58),
+                  fontFamily: 'CormorantGaramond',
+                  fontSize: 21,
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: _hawOpeningFlow
+                    ? null
+                    : () => _continueHawJoinedFlow(savedId, advance),
+                child: Text(
+                  _hawOpeningFlow ? 'Opening your flow…' : 'Open my flow',
+                  style: const TextStyle(color: Color(0xFFC9A84C)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (template == null) {
       return const Center(
         child: Text(
-          'The Evening Threshold is not available right now.',
+          'Your recommended flow is not available right now.',
           style: TextStyle(color: Colors.white70),
         ),
       );
     }
-    return _ActiveMaatFlowDetailSurface.fromComposition(
-      composition: resolveMaatFlowDetailComposition(
-        template: template,
-        relation: MaatFlowDetailRelation.catalogPreview,
-        calendar: _maatFlowCalendarPreview(),
-      ),
-      addInstance:
-          ({
-            required _MaatFlowTemplate template,
-            DateTime? startDate,
-            bool? useKemetic,
-            TrackSkyTimeZone? trackSkyTimeZone,
-            int? alertMinutesBefore,
-            OfferingTableLens? offeringTableLens,
-            bool? offeringNoCupMode,
-            CourseLens? courseLens,
-            MoonReturnLens? moonReturnLens,
-            DecanWatchLens? decanWatchLens,
-            OpenHandLens? openHandLens,
-            DjedLens? djedLens,
-            DjedV2Configuration? djedConfiguration,
-            List<ReadingHouseSitting>? readingHouseSittings,
-            String? eveningThresholdInitialCarry,
-          }) {
-            return _addMaatFlowInstance(
-              template: template,
-              startDate: startDate,
-              useKemetic: useKemetic ?? false,
-              trackSkyTimeZone: trackSkyTimeZone,
-              alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
-              offeringTableLens: offeringTableLens ?? OfferingTableLens.neutral,
-              offeringNoCupMode: offeringNoCupMode ?? false,
-              courseLens: courseLens ?? CourseLens.neutral,
-              moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
-              decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
-              openHandLens: openHandLens ?? OpenHandLens.neutral,
-              djedLens: djedLens ?? DjedLens.neutral,
-              djedConfiguration: djedConfiguration,
-              readingHouseSittings: readingHouseSittings,
-              eveningThresholdInitialCarry: eveningThresholdInitialCarry,
-            );
-          },
-      onJoined: (flowId) async {
-        await _handleHawRecommendedFlowJoined(flowId);
-        await advance(flowId);
+    // The same canonical page builder serves My Flows, discovery and this
+    // embedded recommendation. Onboarding only supplies its continuation.
+    return _buildMaatFlowDetailSurface(
+      template: template,
+      relation: editingReadingHouse
+          ? MaatFlowDetailRelation.owned
+          : MaatFlowDetailRelation.catalogPreview,
+      joinedFlow: editingReadingHouse ? savedFlow : null,
+      onEnrollmentConfirmed: (flowId) async {
+        if (!_showOnboarding || !_ownsHawOnboarding(owner)) {
+          CalendarPage._consumeStagedFlowCompletion(flowId);
+          return;
+        }
+        await _continueHawJoinedFlow(flowId, advance);
+      },
+      onPersisted: (snapshot) async {
+        if (!_ownsHawOnboarding(owner)) return;
+        final flowId = snapshot.flowId;
+        if (flowId == null) return;
+        await _rememberHawEnrollment(flowId);
+        if (snapshot.isScheduled) {
+          await _continueHawJoinedFlow(flowId, advance);
+        } else {
+          final row = await _flowsRepo.getFlowById(flowId);
+          if (!_ownsHawOnboarding(owner) || row == null) return;
+          setState(() {
+            _flows.removeWhere((flow) => flow.id == flowId);
+            _flows.add(CalendarPage._flowFromFiledRowDetached(row));
+          });
+        }
       },
     );
   }
@@ -16033,21 +16294,11 @@ class CalendarPageState extends State<CalendarPage>
       onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh,
       onboardingEventClientEventId: _firstMaatFlowEventClientEventId,
       onboardingEventTargetKey: _firstFlowEventBlockKey,
-      onOnboardingEventOpened: () {
-        _onboardingProgress = _onboardingProgress.copyWith(
-          hasOpenedFirstFlowEvent: true,
-          currentStep: TrueOnboardingStep.eventDetailObservedJournal,
-        );
-        final userId = _currentUserId;
-        if (userId != null) {
-          unawaited(
-            _onboardingProgressStorage.save(userId, _onboardingProgress),
-          );
-        }
-        onEventOpened();
-      },
+      onOnboardingEventOpened: onEventOpened,
       onboardingClosingBannerBuilder: (sheetContext) =>
           HawOnboardingClosingBanner(
+            copy: _hawIntent!.closingCopy,
+            onCommit: _persistHawOnboardingCompletion,
             onComplete: () {
               Navigator.of(sheetContext).maybePop();
               onClosingComplete();
@@ -16095,6 +16346,9 @@ class CalendarPageState extends State<CalendarPage>
         currentStep: TrueOnboardingStep.complete,
         completedOnboarding: true,
         skippedOnboarding: true,
+        replayActive: false,
+        calendarConnectionPending: false,
+        hawSlide: 'complete',
       ),
     );
     final userId = _currentUserId;
@@ -16163,7 +16417,7 @@ class CalendarPageState extends State<CalendarPage>
         await _routeToProfileBasics();
         return;
       case TrueOnboardingStep.firstMaatFlow:
-        unawaited(_openFirstMaatFlowOnboardingSheet());
+        setState(() => _showOnboarding = true);
         return;
       case TrueOnboardingStep.firstFlowCalendarDay:
         _hydrateFirstFlowTargetFromProgress(_onboardingProgress);
@@ -16280,156 +16534,13 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _openFirstMaatFlowOnboardingSheet() async {
-    if (!mounted || _firstMaatFlowSheetOpenOrOpening) return;
-    _firstMaatFlowSheetOpenOrOpening = true;
-    GuidedOnboardingController.instance.clear();
-    unawaited(
-      Events.trackIfAuthed(
-        'onboarding_first_maat_flow_sheet_opened',
-        const <String, dynamic>{},
-      ),
-    );
-
-    try {
-      await _requestHydration(
-        _CalendarHydrationRequest.catalogReconcile(
-          reason: 'onboarding_first_maat_flow',
-        ),
-      );
-      if (!mounted) return;
-      await showModalBottomSheet<void>(
-        context: context,
-        useSafeArea: true,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (sheetContext) {
-          return _FirstMaatFlowOnboardingSheet(
-            templates: _kCoreMaatFlowTemplates,
-            onAddFlow: (template) async {
-              final id = await _addMaatFlowInstance(
-                template: template,
-                completionRequired: false,
-                startDate: DateTime.now(),
-              );
-              if (id <= 0) return;
-              if (sheetContext.mounted) {
-                Navigator.of(sheetContext).pop();
-              }
-              await _handleFirstMaatFlowAdded(template, id);
-            },
-          );
-        },
-      );
-    } finally {
-      _firstMaatFlowSheetOpenOrOpening = false;
-    }
-  }
-
-  Future<void> _handleFirstMaatFlowAdded(
-    _MaatFlowTemplate template,
-    int flowId,
-  ) async {
-    CalendarPage._rememberJoinedMaatFlowTemplate(
-      templateKey: template.key,
-      flowId: flowId,
-    );
-    _myFlowsFilingSnapshotCache = null;
-    await _flowsRepo.clearMyFiledFlowsCache();
-    await _requestHydration(
-      _CalendarHydrationRequest.catalogReconcile(
-        reason: 'onboarding_first_maat_flow_added',
-      ),
-    );
-    final firstEvent = _firstUpcomingNoteForFlow(flowId);
-    final eventDate = firstEvent == null
-        ? DateUtils.dateOnly(DateTime.now())
-        : DateUtils.dateOnly(
-            KemeticMath.toGregorian(
-              firstEvent.ky,
-              firstEvent.km,
-              firstEvent.kd,
-            ),
-          );
-    final kDate = firstEvent == null
-        ? KemeticMath.fromGregorian(eventDate)
-        : (kYear: firstEvent.ky, kMonth: firstEvent.km, kDay: firstEvent.kd);
-
-    _firstMaatFlowId = flowId;
-    _firstMaatFlowEventClientEventId = firstEvent?.note.clientEventId;
-    _firstMaatFlowEventKDate = (
-      ky: kDate.kYear,
-      km: kDate.kMonth,
-      kd: kDate.kDay,
-    );
-
-    await _updateOnboardingProgress(
-      (progress) => progress.copyWith(
-        hasChosenFirstMaatFlow: true,
-        firstMaatFlowId: flowId.toString(),
-        firstMaatFlowTemplateId: template.key,
-        firstMaatFlowEventDate: eventDate,
-        firstMaatFlowEventClientEventId: firstEvent?.note.clientEventId,
-        currentStep: TrueOnboardingStep.firstFlowCalendarDay,
-      ),
-    );
-    unawaited(
-      Events.trackIfAuthed(
-        'onboarding_first_maat_flow_added',
-        <String, dynamic>{'flow_id': flowId, 'template_key': template.key},
-      ),
-    );
-    if (!mounted) return;
-    context.go('/');
-    _alignCalendarToFirstFlowEvent();
-    _showFirstFlowCalendarDayCoachmark();
-  }
-
-  ({int ky, int km, int kd, _Note note})? _firstUpcomingNoteForFlow(
-    int flowId,
-  ) {
-    final today = DateUtils.dateOnly(DateTime.now());
-    final candidates =
-        <({int ky, int km, int kd, DateTime date, _Note note})>[];
-    for (final entry in _notes.entries) {
-      final parts = entry.key.split('-');
-      if (parts.length != 3) continue;
-      final ky = int.tryParse(parts[0]);
-      final km = int.tryParse(parts[1]);
-      final kd = int.tryParse(parts[2]);
-      if (ky == null || km == null || kd == null) continue;
-      final date = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
-      for (final note in entry.value) {
-        if (note.flowId == flowId) {
-          candidates.add((ky: ky, km: km, kd: kd, date: date, note: note));
-        }
-      }
-    }
-    if (candidates.isEmpty) return null;
-    candidates.sort((a, b) {
-      final aFuture = !a.date.isBefore(today);
-      final bFuture = !b.date.isBefore(today);
-      if (aFuture != bFuture) return aFuture ? -1 : 1;
-      final byDate = a.date.compareTo(b.date);
-      if (byDate != 0) return byDate;
-      final aStart = a.note.allDay
-          ? 0
-          : (a.note.start?.hour ?? 9) * 60 + (a.note.start?.minute ?? 0);
-      final bStart = b.note.allDay
-          ? 0
-          : (b.note.start?.hour ?? 9) * 60 + (b.note.start?.minute ?? 0);
-      return aStart.compareTo(bStart);
-    });
-    final first = candidates.first;
-    return (ky: first.ky, km: first.km, kd: first.kd, note: first.note);
-  }
-
   /// Chronological first note for a flow: earliest date, then earliest start.
   /// Same-day tiebreak is start time only (Course dawn wins via date then start).
   /// Null only when the flow has no notes. Do not use upcoming-biased helpers.
   ({int ky, int km, int kd, _Note note})? _firstChronologicalNoteForFlow(
-    int flowId,
-  ) {
+    int flowId, {
+    String? clientEventId,
+  }) {
     final candidates =
         <({int ky, int km, int kd, DateTime date, _Note note})>[];
     for (final entry in _notes.entries) {
@@ -16441,7 +16552,8 @@ class CalendarPageState extends State<CalendarPage>
       if (ky == null || km == null || kd == null) continue;
       final date = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
       for (final note in entry.value) {
-        if (note.flowId == flowId) {
+        if (note.flowId == flowId &&
+            (clientEventId == null || note.clientEventId == clientEventId)) {
           candidates.add((ky: ky, km: km, kd: kd, date: date, note: note));
         }
       }
@@ -16621,6 +16733,7 @@ class CalendarPageState extends State<CalendarPage>
       for (final note in notes) {
         if (note.clientEventId == targetClientEventId) return note;
       }
+      return null;
     }
     final flowId = _firstMaatFlowId;
     if (flowId != null) {
@@ -16628,7 +16741,7 @@ class CalendarPageState extends State<CalendarPage>
         if (note.flowId == flowId) return note;
       }
     }
-    return notes.isEmpty ? null : notes.first;
+    return null;
   }
 
   void _alignCalendarToFirstFlowEvent() {
@@ -33260,6 +33373,14 @@ class CalendarPageState extends State<CalendarPage>
           content,
           Positioned.fill(
             child: OnboardingOverlay(
+              key: ValueKey<String?>('haw:$_hawOnboardingOwner'),
+              initialSlide: _hawInitialSlide,
+              initialEntryState: _onboardingProgress.entryIntent,
+              onBeforeSlideChanged: _handleHawSlideChanged,
+              onConnectCalendar: _openHawCalendarConnection,
+              recommendationReason: _hawIntent == null
+                  ? null
+                  : 'You said: ${_hawIntent!.label}',
               compassCopy:
                   _onboardingCompassCopy ??
                   DecanCompassCopyRepo.fallbackForDay(

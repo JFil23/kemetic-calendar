@@ -492,3 +492,84 @@ hold the first remote write, queue bookmark/exit progress, switch accounts, then
 verify the original account's remote targets and local key with no foreign data.
 The existing backend authorization, remote boundary, and cache schemas remain
 unchanged; no backend operation or deployment is part of this correction.
+
+
+## October 4 intention-based onboarding
+
+The supplied `correct onboard.mov` is the opening, typography, brightness and
+closing-animation reference. The existing overlay remains the visual owner.
+The optional calendar offer reuses ExternalCalendarSettings and
+DeviceCalendarSettings; their existing consent, source selection and controller
+owners remain authoritative. Entering the offer performs no permission request.
+The existing /settings callback resumes only the account with a saved unfinished
+calendar checkpoint. A declined or failed provider connection can continue.
+
+OnboardingProgressStorage keeps `onboarding_v2_progress:<account>` and adds
+optional hawSlide, entryIntent and calendarConnectionPending fields. Missing
+fields retain old enrollment, completion and helper history. Required checkpoint
+writes are serialized per account, report failure, and reload the preferences
+memory after a rejected write. Another account never waits on that queue.
+This is resumable presentation state, not a warm cache or a new flow repository.
+OnboardingStorage still owns the existing profile completion column and local
+completion flag; the closing seal waits for the completion write acknowledgment.
+Account checks fence late callbacks and a changed account removes the old overlay.
+
+Each intention resolves to one of the five current joinable catalog entries.
+The embedded recommendation calls the same canonical detail-page builder as
+My Flows and discovery. There are no onboarding copies of flow pages, schedules
+or join adapters. The existing production detail surfaces and FlowJoinService
+create events;
+ReadingHouseAuthority remains the Reading House owner. Its existing held versus
+scheduled distinction is retained: onboarding waits for a dated sitting before
+leaving that editor. Confirmed enrollment identity is retained before event
+navigation, and retries reuse that identity. The staged-flow lifecycle exposes
+its existing persistence result to onboarding, without starting a second write.
+The existing flow repository and calendar range scheduler hydrate a saved flow's
+start window when it is outside the mounted viewport. There is no today fallback
+for a missing first occurrence. The saved event CID identifies the Day View block.
+
+Automatic helper presentation is retired through the central visibility gate;
+helper IDs, aliases, local/cloud completion histories and sync behavior remain.
+Historical visibility assertions now require hidden while retaining completion,
+account-isolation and synchronization evidence. Source guards now verify the
+shared production glyph surfaces and conditional enrollment observer, replacing
+references to the removed wizard and unconditional staging flag. The obsolete first-flow wizard
+and obsolete recommendation products are removed; five-choice catalog tests
+replace the retired recommendation tests. No old fixture or approved visual
+reference is rewritten and no inventory threshold is reduced.
+
+The five-flow Day View housing and opening extents remain .58/.71. The closing
+card sits above that housing. Text-scaling captures exposed the Kꜣr detail's
+independently estimated calendar height; its existing shared calendar now sizes
+itself. Kꜣr and Follow the Sky preview event blocks grow with enlarged text. The
+shared detail shell opts the five authored heroes into enlarged text geometry;
+user-created flow heroes retain their separate contract. Carry buttons size to
+their text, and short onboarding
+viewports scroll without compressing those surfaces. The dissolved closing card
+retains finite geometry through its completion frame. Normal-size styling,
+flow instruments, event writers, cache namespaces and backend contracts remain.
+
+Verification includes the seven-slide sequence, five-way catalog mapping,
+production-font static captures, calendar callback/rejection/account-switch
+routes, legacy checkpoint restoration, rejected storage writes, confirmation
+retry, and retained persistence observers. The complete App gate remains required
+before deployment; live provider grants and production accounts are not test data.
+
+
+Settings' Replay onboarding row uses the existing compact action style and the
+same calendar-hosted onboarding overlay. Its acknowledged account checkpoint
+adds replayActive (absent means false), resets only presentation choices, and
+retains completion/helper history and existing enrollment identity. Completed
+accounts can explicitly replay until Skip or the final seal clears the flag.
+Cold startup and retained calendar hosts consume the same checkpoint; calendar
+OAuth return honors an active replay. No completion timestamp is erased, no
+flow or event is deleted, and no calendar permission or connection is reset.
+Settings checks the initiating account before and after its write, disables
+repeat taps, and stays in Settings on failed persistence. This uses the deployed
+onboarding key and existing root route, without a new cache or route owner.
+
+Replay verification covers the actual Settings row at normal and doubled text
+size, cold and retained-host launches into the existing overlay, Skip ending
+replay, failed checkpoint writes, repeated taps, account changes during writes,
+and completed-account calendar callbacks. The launch resolves its calendar
+host after the navigation frame so a cold route does not miss the request.

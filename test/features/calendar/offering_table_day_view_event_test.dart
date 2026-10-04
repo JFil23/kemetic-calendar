@@ -15,6 +15,9 @@ import 'package:mobile/features/calendar/the_offering_table/presentation/offerin
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
+import 'package:mobile/features/onboarding/onboarding_overlay.dart';
+import 'package:mobile/features/onboarding/starter_maat_flow_recommendation.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -64,6 +67,61 @@ void main() {
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
   tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
+
+  for (final isTarget in [true, false]) {
+    testWidgets(
+      'actual Offering Day View shows closing only for its target: $isTarget',
+      (tester) async {
+        var committed = 0;
+        var completed = 0;
+        await _pumpDayView(
+          tester,
+          flowId: 970,
+          onboardingEventClientEventId: isTarget
+              ? 'offering-table-event-970'
+              : 'another-event',
+          onboardingClosingBannerBuilder: (_) => HawOnboardingClosingBanner(
+            copy: HawEntryIntent.nourishment.closingCopy,
+            onCommit: () async {
+              committed++;
+            },
+            onComplete: () {
+              completed++;
+            },
+          ),
+        );
+        await tester.tap(find.byType(OfferingTableEventBlockVisual));
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<InstrumentEventSheetHost>(
+                find.byType(InstrumentEventSheetHost),
+              )
+              .initialExtent,
+          .71,
+        );
+        expect(
+          find.byType(HawOnboardingClosingBanner),
+          isTarget ? findsOneWidget : findsNothing,
+        );
+        if (isTarget) {
+          expect(
+            find.text(HawEntryIntent.nourishment.closingCopy),
+            findsOneWidget,
+          );
+          await tester.tap(find.text('×'));
+          await tester.pump();
+          expect(committed, 1);
+          await tester.pump(const Duration(milliseconds: 1200));
+          expect(find.text('this is ḥꜣw'), findsOneWidget);
+          await tester.pump(const Duration(seconds: 2));
+          expect(completed, 1);
+        }
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
 
   testWidgets('Offering block omits prompt while detail retains private need', (
     tester,
@@ -1182,6 +1240,8 @@ Future<void> _pumpDayView(
   String? initialIntention,
   OfferingTableDayViewState? initialDayState,
   List<NoteData> additionalNotes = const <NoteData>[],
+  String? onboardingEventClientEventId,
+  WidgetBuilder? onboardingClosingBannerBuilder,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -1243,6 +1303,8 @@ Future<void> _pumpDayView(
             },
             activeLedgerFlowIds: <int>{flowId},
             initialScrollOffset: 6 * 60,
+            onboardingEventClientEventId: onboardingEventClientEventId,
+            onboardingClosingBannerBuilder: onboardingClosingBannerBuilder,
           ),
         ),
       ),

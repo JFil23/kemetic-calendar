@@ -786,6 +786,7 @@ class _ReadingHouseDetailSurfaceState extends State<ReadingHouseDetailSurface> {
   @override
   Widget build(BuildContext context) {
     final body = MaatFlowDetailShell(
+      scaleHeroWithText: true,
       theme: ReadingHouseDetailTokens.theme,
       scrollController: _scrollController,
       scrollKey: const ValueKey<String>('reading-house-scroll'),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/features/onboarding/starter_maat_flow_recommendation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/onboarding/decan_compass_copy_repo.dart';
 import 'package:mobile/features/onboarding/onboarding_overlay.dart';
@@ -18,9 +19,7 @@ void main() {
     );
   }
 
-  testWidgets('runs slide 1 through slide 6 in one overlay sequence', (
-    tester,
-  ) async {
+  testWidgets('runs the seven slides in one overlay sequence', (tester) async {
     final slides = <HawOnboardingSlide>[];
     final selectedStates = <String>[];
     var joinedFlow = false;
@@ -69,10 +68,13 @@ void main() {
     await tester.tap(find.text('tap to begin'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Bring your time with you.'), findsOneWidget);
+    await tester.tap(find.text('not now'));
+    await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 900));
-    await tester.tap(find.text('I need focus'));
+    await tester.tap(find.text(HawEntryIntent.sky.label));
     await tester.pump(const Duration(milliseconds: 700));
-    expect(selectedStates, <String>['focus']);
+    expect(selectedStates, <String>['sky']);
 
     await tester.pump(const Duration(seconds: 4));
     expect(find.text('Today is Hathor 27'), findsOneWidget);
@@ -81,6 +83,7 @@ void main() {
       slides,
       containsAllInOrder(<HawOnboardingSlide>[
         HawOnboardingSlide.exhale,
+        HawOnboardingSlide.calendarConnection,
         HawOnboardingSlide.segmentation,
         HawOnboardingSlide.orientation,
       ]),

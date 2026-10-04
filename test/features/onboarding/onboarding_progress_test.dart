@@ -132,7 +132,7 @@ void main() {
   });
 
   test(
-    'helper visibility is one-time for a completed onboarding user',
+    'retired helper stays hidden before and after legacy completion',
     () async {
       final storage = OnboardingProgressStorage();
       await storage.save(
@@ -148,7 +148,7 @@ void main() {
           'user-a',
           OnboardingHelperIds.calendarToggle,
         ),
-        isTrue,
+        isFalse,
       );
 
       await storage.markHelperCompleted(
@@ -241,7 +241,7 @@ void main() {
         await storage.save(userId, completed);
         expect(
           await storage.shouldShowHelper(userId, helper.id),
-          isTrue,
+          isFalse,
           reason: '${helper.label} should be visible before display',
         );
         await storage.markHelperCompleted(userId, helper.id);
@@ -293,7 +293,7 @@ void main() {
         'user-b',
         OnboardingHelperIds.journalBadges,
       ),
-      isTrue,
+      isFalse,
     );
   });
 
@@ -491,12 +491,12 @@ void main() {
           'user-a',
           OnboardingHelperIds.flowStudioAddFlow,
         ),
-        isTrue,
+        isFalse,
       );
     },
   );
 
-  test('Flow Studio helper disappears after Got it', () async {
+  test('retired Flow Studio helper retains its completion write', () async {
     final storage = OnboardingProgressStorage();
     await storage.save(
       'user-a',
@@ -513,7 +513,7 @@ void main() {
         'user-a',
         OnboardingHelperIds.flowStudioAddFlow,
       ),
-      isTrue,
+      isFalse,
     );
 
     final completion = service.markHelperCompleted(
@@ -568,11 +568,11 @@ void main() {
       remoteCompleter.complete(const <String>{});
       await hydration;
 
-      expect(service.shouldShowHelperSync('user-a', helper.id), isTrue);
+      expect(service.shouldShowHelperSync('user-a', helper.id), isFalse);
     },
   );
 
-  test('Journal record/badges helper disappears after Got it', () async {
+  test('retired Journal helper retains its completion write', () async {
     const helper = OnboardingHelperRegistry.journalBadges;
     final storage = OnboardingProgressStorage();
     await storage.save(
@@ -585,7 +585,7 @@ void main() {
     final service = OnboardingHelperCompletionService.instance;
     await service.hydrateUser('user-a');
 
-    expect(service.shouldShowHelperSync('user-a', helper.id), isTrue);
+    expect(service.shouldShowHelperSync('user-a', helper.id), isFalse);
 
     final displayedHelperId = helper.id;
     final gotItCompletionHelperId = helper.id;
@@ -729,7 +729,7 @@ void main() {
           'user-a',
           OnboardingHelperIds.flowStudioAddFlow,
         ),
-        isTrue,
+        isFalse,
       );
 
       final gotItCompletion = service.markHelperCompleted(

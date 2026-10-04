@@ -2,8 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'starter_maat_flow_recommendation.dart';
+
 enum HawOnboardingSlide {
   exhale,
+  calendarConnection,
   segmentation,
   orientation,
   recommendedFlow,
@@ -69,8 +72,20 @@ class OnboardingOverlay extends StatefulWidget {
     required this.onSkip,
     required this.onComplete,
     this.onSlideChanged,
+    this.initialSlide = HawOnboardingSlide.exhale,
+    this.initialEntryState,
+    this.onConnectCalendar,
+    this.recommendationReason,
+    this.calendarConnectionBuilder,
+    this.onBeforeSlideChanged,
   });
 
+  final Future<void> Function(HawOnboardingSlide slide)? onBeforeSlideChanged;
+  final HawOnboardingSlide initialSlide;
+  final String? initialEntryState;
+  final Future<void> Function()? onConnectCalendar;
+  final String? recommendationReason;
+  final WidgetBuilder? calendarConnectionBuilder;
   final HawCompassCopy compassCopy;
   final HawRecommendedFlowBuilder recommendedFlowBuilder;
   final HawDayViewBuilder dayViewBuilder;
@@ -106,7 +121,10 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
   bool _s4Visible = false;
   bool _joinInFlight = false;
 
-  bool _showDayViewCoachmark = false;
+  String? _actionError;
+  bool _connectingCalendar = false;
+  bool _transitioning = false;
+  VoidCallback? _retryAction;
 
   bool get _reduceMotion {
     final media = MediaQuery.maybeOf(context);
@@ -117,6 +135,8 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
   @override
   void initState() {
     super.initState();
+    _slide = widget.initialSlide;
+    _selectedEntryState = widget.initialEntryState;
     WidgetsBinding.instance.addPostFrameCallback((_) => _enterSlide(_slide));
   }
 
@@ -150,13 +170,14 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
     widget.onSlideChanged?.call(slide);
 
     setState(() {
+      _actionError = null;
       _showNext = false;
       _nextLabel = '';
       _showSkip =
+          slide == HawOnboardingSlide.calendarConnection ||
           slide == HawOnboardingSlide.segmentation ||
           slide == HawOnboardingSlide.orientation ||
           slide == HawOnboardingSlide.recommendedFlow;
-      _showDayViewCoachmark = false;
 
       if (slide == HawOnboardingSlide.exhale) {
         _s1Line1 = false;
@@ -194,6 +215,8 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
             _showSkip = true;
           });
         });
+      case HawOnboardingSlide.calendarConnection:
+        break;
       case HawOnboardingSlide.segmentation:
         _after(const Duration(milliseconds: 240), () {
           setState(() => _s2Question = true);
@@ -221,35 +244,68 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
           setState(() => _s4Visible = true);
         });
       case HawOnboardingSlide.dayView:
-        _after(const Duration(milliseconds: 900), () {
-          if (_slide == HawOnboardingSlide.dayView) {
-            setState(() => _showDayViewCoachmark = true);
-          }
-        });
+        break;
       case HawOnboardingSlide.closing:
         break;
     }
   }
 
-  void _goTo(HawOnboardingSlide slide) {
-    if (_slide == slide) return;
+  Future<void> _goTo(HawOnboardingSlide slide) async {
+    if (_slide == slide || _transitioning) return;
     setState(() {
-      _slide = slide;
+      _transitioning = true;
+      _actionError = null;
     });
-    _enterSlide(slide);
+    try {
+      await widget.onBeforeSlideChanged?.call(slide);
+      if (!mounted) return;
+      setState(() => _slide = slide);
+      _enterSlide(slide);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _actionError = 'Could not save your place. Please try again.';
+          _retryAction = () => unawaited(_goTo(slide));
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _transitioning = false);
+    }
   }
 
   void _handleNext() {
     switch (_slide) {
       case HawOnboardingSlide.exhale:
-        _goTo(HawOnboardingSlide.segmentation);
+        _goTo(HawOnboardingSlide.calendarConnection);
       case HawOnboardingSlide.orientation:
         _goTo(HawOnboardingSlide.recommendedFlow);
+      case HawOnboardingSlide.calendarConnection:
       case HawOnboardingSlide.segmentation:
       case HawOnboardingSlide.recommendedFlow:
       case HawOnboardingSlide.dayView:
       case HawOnboardingSlide.closing:
         break;
+    }
+  }
+
+  Future<void> _connectCalendar() async {
+    if (_connectingCalendar) return;
+    setState(() {
+      _connectingCalendar = true;
+      _actionError = null;
+    });
+    try {
+      await widget.onConnectCalendar?.call();
+      if (mounted) await _goTo(HawOnboardingSlide.segmentation);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _actionError =
+              'Could not open calendar connection. Please try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _connectingCalendar = false);
     }
   }
 
@@ -259,11 +315,22 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
       _selectionInFlight = true;
       _selectedEntryState = option.value;
     });
-    await widget.onEntryStateSelected(option.value);
-    if (!mounted) return;
-    _after(const Duration(milliseconds: 500), () {
-      _goTo(HawOnboardingSlide.orientation);
-    });
+    try {
+      await widget.onEntryStateSelected(option.value);
+      if (!mounted) return;
+      _after(const Duration(milliseconds: 500), () {
+        unawaited(_goTo(HawOnboardingSlide.orientation));
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _selectedEntryState = null;
+          _selectionInFlight = false;
+          _actionError = 'Could not save your choice. Please try again.';
+          _retryAction = () => unawaited(_handleEntrySelected(option));
+        });
+      }
+    }
   }
 
   Future<void> _handleJoinedFromRecommendedFlow(int flowId) async {
@@ -272,7 +339,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
     try {
       await Future<void>.delayed(Duration.zero);
       if (!mounted) return;
-      _goTo(HawOnboardingSlide.dayView);
+      await _goTo(HawOnboardingSlide.dayView);
     } finally {
       if (mounted) setState(() => _joinInFlight = false);
     }
@@ -300,10 +367,39 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
               child: _buildSlide(context),
             ),
           ),
-          if (_showDayViewCoachmark && _slide == HawOnboardingSlide.dayView)
-            Positioned.fill(
-              child: _HawEventCoachmark(
-                targetKey: widget.dayViewEventTargetKey,
+          if (_actionError != null &&
+              _slide != HawOnboardingSlide.calendarConnection)
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: 16,
+              child: SafeArea(
+                child: Material(
+                  color: _HawColors.cardBg,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _actionError!,
+                            style: const TextStyle(
+                              color: _HawColors.goldMuted,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _retryAction,
+                          child: const Text(
+                            'Retry',
+                            style: TextStyle(color: _HawColors.goldPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           SafeArea(
@@ -323,7 +419,8 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
                   left: 44,
                   child: _TypographicCue(
                     label: _nextLabel,
-                    visible: _showNext && _nextLabel.isNotEmpty,
+                    visible:
+                        _showNext && _nextLabel.isNotEmpty && !_transitioning,
                     onTap: _handleNext,
                   ),
                 ),
@@ -344,6 +441,14 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
           wordmarkVisible: _s1Wordmark,
           reduceMotion: _reduceMotion,
         );
+      case HawOnboardingSlide.calendarConnection:
+        return widget.calendarConnectionBuilder?.call(context) ??
+            HawCalendarOffer(
+              onConnect: _connectingCalendar ? null : _connectCalendar,
+              onContinue: () => _goTo(HawOnboardingSlide.segmentation),
+              busy: _connectingCalendar,
+              error: _actionError,
+            );
       case HawOnboardingSlide.segmentation:
         return _SegmentationSlide(
           questionVisible: _s2Question,
@@ -362,6 +467,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
         );
       case HawOnboardingSlide.recommendedFlow:
         return _RecommendedFlowSlide(
+          reason: widget.recommendationReason,
           visible: _s4Visible,
           reduceMotion: _reduceMotion,
           child: widget.recommendedFlowBuilder(
@@ -387,15 +493,37 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
   }
 }
 
+class HawOnboardingDetailFrame extends StatelessWidget {
+  const HawOnboardingDetailFrame({
+    super.key,
+    required this.closing,
+    required this.detail,
+  });
+  final Widget closing, detail;
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Flexible(child: SingleChildScrollView(child: closing)),
+      detail,
+    ],
+  );
+}
+
 class HawOnboardingClosingBanner extends StatefulWidget {
   const HawOnboardingClosingBanner({
     super.key,
     required this.onComplete,
     this.onPhaseChanged,
+    this.onCommit,
+    this.copy =
+        'At the end of the day,\nmark your truth.\n\nThe next morning\nwill carry you forward.',
   });
 
   final VoidCallback onComplete;
   final ValueChanged<HawClosingPhase>? onPhaseChanged;
+  final String copy;
+  final Future<void> Function()? onCommit;
 
   @override
   State<HawOnboardingClosingBanner> createState() =>
@@ -407,6 +535,8 @@ class _HawOnboardingClosingBannerState
   final List<Timer> _timers = <Timer>[];
   HawClosingPhase _phase = HawClosingPhase.copyVisible;
   bool _entered = false;
+  bool _committing = false;
+  String? _completionError;
 
   bool get _reduceMotion {
     final media = MediaQuery.maybeOf(context);
@@ -445,8 +575,27 @@ class _HawOnboardingClosingBannerState
     _timers.add(timer);
   }
 
-  void _beginClose() {
-    if (_phase != HawClosingPhase.copyVisible) return;
+  Future<void> _beginClose() async {
+    if (_phase != HawClosingPhase.copyVisible || _committing) return;
+    if (widget.onCommit != null) {
+      setState(() {
+        _committing = true;
+        _completionError = null;
+      });
+      try {
+        await widget.onCommit!();
+      } catch (_) {
+        if (mounted) {
+          setState(
+            () => _completionError = 'Could not finish saving. Tap × to retry.',
+          );
+        }
+        return;
+      } finally {
+        if (mounted) setState(() => _committing = false);
+      }
+      if (!mounted) return;
+    }
     _setPhase(HawClosingPhase.copyFadingOut);
     _after(const Duration(milliseconds: 500), () {
       _setPhase(HawClosingPhase.sealFadingIn);
@@ -500,6 +649,8 @@ class _HawOnboardingClosingBannerState
           ),
           child: Stack(
             children: [
+              // Retain a finite card while both copy and seal are dissolved.
+              const SizedBox(width: double.infinity, height: 120),
               Positioned(
                 top: 0,
                 right: 0,
@@ -542,12 +693,13 @@ class _HawOnboardingClosingBannerState
                       : const Duration(milliseconds: 500),
                   curve: Curves.easeOut,
                   opacity: copyVisible ? 1 : 0,
-                  child: const Padding(
-                    padding: EdgeInsets.only(top: 34),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 34),
                     child: Text(
-                      'At the end of the day,\nmark your truth.\n\n'
-                      'The next morning\nwill carry you forward.',
-                      style: TextStyle(
+                      _completionError == null
+                          ? widget.copy
+                          : '${widget.copy}\n\n$_completionError',
+                      style: const TextStyle(
                         color: _HawColors.goldMuted,
                         fontFamily: _HawType.bodyFamily,
                         fontFamilyFallback: _HawType.bodyFallback,
@@ -593,6 +745,114 @@ class _HawOnboardingClosingBannerState
   }
 }
 
+/// The connection invitation uses the opening's type and spacing. Controllers
+/// and provider permissions are supplied by the host, never by this surface.
+class HawCalendarOffer extends StatelessWidget {
+  const HawCalendarOffer({
+    super.key,
+    required this.onConnect,
+    required this.onContinue,
+    this.busy = false,
+    this.error,
+  });
+  final VoidCallback? onConnect;
+  final VoidCallback onContinue;
+  final bool busy;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) => _HawCenteredFrame(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          'Bring your time with you.',
+          style: TextStyle(
+            color: _HawColors.goldPrimary,
+            fontFamily: _HawType.displayFamily,
+            fontFamilyFallback: _HawType.displayFallback,
+            fontSize: 30,
+            height: 1.22,
+          ),
+        ),
+        const SizedBox(height: 30),
+        const Text(
+          'Your existing calendar can live inside ḥꜣw.',
+          style: TextStyle(
+            color: _HawColors.goldMuted,
+            fontFamily: _HawType.bodyFamily,
+            fontFamilyFallback: _HawType.bodyFallback,
+            fontSize: 21,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 42),
+        OutlinedButton(
+          onPressed: onConnect,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _HawColors.goldPrimary,
+            disabledForegroundColor: _HawColors.goldMuted,
+            side: const BorderSide(color: _HawColors.goldMuted, width: .7),
+            minimumSize: const Size(double.infinity, 52),
+            textStyle: const TextStyle(
+              fontFamily: _HawType.bodyFamily,
+              fontFamilyFallback: _HawType.bodyFallback,
+              fontSize: 19,
+            ),
+          ),
+          child: Text(
+            busy ? 'Opening calendar connection…' : 'Connect calendar',
+          ),
+        ),
+        const SizedBox(height: 12),
+        _TypographicCue(label: 'not now', visible: true, onTap: onContinue),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Text(
+              error!,
+              style: const TextStyle(
+                color: _HawColors.goldMuted,
+                fontFamily: _HawType.bodyFamily,
+                fontFamilyFallback: _HawType.bodyFallback,
+                fontSize: 17,
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+class _HawCenteredFrame extends StatelessWidget {
+  const _HawCenteredFrame({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact =
+          constraints.maxHeight < 600 ||
+          MediaQuery.textScalerOf(context).scale(16) > 24;
+      return SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          44,
+          compact ? 80 : 0,
+          44,
+          compact ? 100 : 0,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: compact ? 0 : constraints.maxHeight,
+          ),
+          child: IntrinsicHeight(child: child),
+        ),
+      );
+    },
+  );
+}
+
 class _ExhaleSlide extends StatelessWidget {
   const _ExhaleSlide({
     required this.line1Visible,
@@ -608,8 +868,7 @@ class _ExhaleSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 44),
+    return _HawCenteredFrame(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -733,7 +992,7 @@ class _SegmentationSlide extends StatelessWidget {
             const SizedBox(height: 42),
             Expanded(
               child: ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
+                physics: const ClampingScrollPhysics(),
                 itemCount: _entryOptions.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 18),
                 itemBuilder: (context, index) {
@@ -831,8 +1090,7 @@ class _OrientationSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 44),
+    return _HawCenteredFrame(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -916,8 +1174,10 @@ class _RecommendedFlowSlide extends StatelessWidget {
     required this.visible,
     required this.reduceMotion,
     required this.child,
+    this.reason,
   });
 
+  final String? reason;
   final bool visible;
   final bool reduceMotion;
   final Widget child;
@@ -928,201 +1188,100 @@ class _RecommendedFlowSlide extends StatelessWidget {
       bottom: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(22, 56, 22, 34),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AnimatedOpacity(
-              duration: reduceMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 600),
-              curve: Curves.easeOut,
-              opacity: visible ? 1 : 0,
-              child: const Text(
-                'Recommended First Flow',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _HawColors.goldPrimary,
-                  fontFamily: _HawType.displayFamily,
-                  fontFamilyFallback: _HawType.displayFallback,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w400,
-                  height: 1.2,
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Expanded(
-              child: AnimatedOpacity(
-                duration: reduceMotion
-                    ? Duration.zero
-                    : const Duration(milliseconds: 800),
-                curve: Curves.easeOut,
-                opacity: visible ? 1 : 0,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final windowHeight = constraints.maxHeight > 650
-                        ? 650.0
-                        : constraints.maxHeight;
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 520),
-                        child: SizedBox(
-                          height: windowHeight,
-                          width: double.infinity,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: _HawColors.cardBg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _HawColors.border,
-                                width: 0.5,
-                              ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: child,
-                            ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final enlarged = MediaQuery.textScalerOf(context).scale(18) > 18;
+            final minimumHeight = enlarged ? 780.0 : 620.0;
+            return SingleChildScrollView(
+              child: SizedBox(
+                height: constraints.maxHeight < minimumHeight
+                    ? minimumHeight
+                    : constraints.maxHeight,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AnimatedOpacity(
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 600),
+                      curve: Curves.easeOut,
+                      opacity: visible ? 1 : 0,
+                      child: const Text(
+                        'Recommended First Flow',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _HawColors.goldPrimary,
+                          fontFamily: _HawType.displayFamily,
+                          fontFamilyFallback: _HawType.displayFallback,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w400,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                    if (reason != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          reason!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: _HawColors.goldMuted,
+                            fontFamily: _HawType.bodyFamily,
+                            fontSize: 17,
+                            fontStyle: FontStyle.italic,
+                            height: 1.3,
                           ),
                         ),
                       ),
-                    );
-                  },
+                    const SizedBox(height: 18),
+                    Expanded(
+                      child: AnimatedOpacity(
+                        duration: reduceMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 800),
+                        curve: Curves.easeOut,
+                        opacity: visible ? 1 : 0,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final windowHeight = constraints.maxHeight > 650
+                                ? 650.0
+                                : constraints.maxHeight;
+                            return Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 520,
+                                ),
+                                child: SizedBox(
+                                  height: windowHeight,
+                                  width: double.infinity,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: _HawColors.cardBg,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: _HawColors.border,
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: child,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+            );
+          },
         ),
-      ),
-    );
-  }
-}
-
-class _HawEventCoachmark extends StatefulWidget {
-  const _HawEventCoachmark({required this.targetKey});
-
-  final GlobalKey targetKey;
-
-  @override
-  State<_HawEventCoachmark> createState() => _HawEventCoachmarkState();
-}
-
-class _HawEventCoachmarkState extends State<_HawEventCoachmark> {
-  Timer? _timer;
-  Rect? _rect;
-
-  @override
-  void initState() {
-    super.initState();
-    _schedule();
-  }
-
-  @override
-  void didUpdateWidget(covariant _HawEventCoachmark oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.targetKey != widget.targetKey) _schedule();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _schedule() {
-    _timer?.cancel();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
-    _timer = Timer.periodic(
-      const Duration(milliseconds: 240),
-      (_) => _refresh(),
-    );
-  }
-
-  void _refresh() {
-    if (!mounted) return;
-    final context = widget.targetKey.currentContext;
-    final renderObject = context?.findRenderObject();
-    if (renderObject is! RenderBox ||
-        !renderObject.hasSize ||
-        renderObject.size.isEmpty) {
-      return;
-    }
-    final topLeft = renderObject.localToGlobal(Offset.zero);
-    final next = topLeft & renderObject.size;
-    if (_rect != null &&
-        (_rect!.left - next.left).abs() < 0.5 &&
-        (_rect!.top - next.top).abs() < 0.5 &&
-        (_rect!.width - next.width).abs() < 0.5 &&
-        (_rect!.height - next.height).abs() < 0.5) {
-      return;
-    }
-    setState(() => _rect = next);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final rect = _rect;
-    if (rect == null) return const SizedBox.shrink();
-    final media = MediaQuery.sizeOf(context);
-    final width = (rect.width).clamp(190.0, media.width - 40).toDouble();
-    final left = rect.left.clamp(20.0, media.width - width - 20).toDouble();
-    final top = (rect.bottom + 12).clamp(80.0, media.height - 110).toDouble();
-
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned(
-            left: left,
-            top: top,
-            width: width,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: _HawColors.cardBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: _HawColors.goldPrimary.withValues(alpha: 0.27),
-                  width: 0.5,
-                ),
-              ),
-              child: const Text(
-                'Tap to see details',
-                style: TextStyle(
-                  color: _HawColors.goldMuted,
-                  fontFamily: _HawType.bodyFamily,
-                  fontFamilyFallback: _HawType.bodyFallback,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w300,
-                  fontStyle: FontStyle.italic,
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: left + 24,
-            top: top - 4,
-            child: Transform.rotate(
-              angle: 0.78539816339,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: _HawColors.cardBg,
-                  border: Border(
-                    left: BorderSide(
-                      color: _HawColors.goldPrimary.withValues(alpha: 0.27),
-                      width: 0.5,
-                    ),
-                    top: BorderSide(
-                      color: _HawColors.goldPrimary.withValues(alpha: 0.27),
-                      width: 0.5,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1179,16 +1338,9 @@ class _EntryOption {
   final String label;
 }
 
-const List<_EntryOption> _entryOptions = [
-  _EntryOption(value: 'scattered', label: 'I feel scattered'),
-  _EntryOption(value: 'rhythm', label: "I want today's rhythm"),
-  _EntryOption(value: 'focus', label: 'I need focus'),
-  _EntryOption(value: 'kemetic', label: "I'm exploring Kemetic time"),
-  _EntryOption(value: 'ritual', label: 'I want a deeper daily ritual'),
-  _EntryOption(
-    value: 'growth',
-    label: "I'm trying to grow without burning out",
-  ),
+final List<_EntryOption> _entryOptions = [
+  for (final intent in HawEntryIntent.values)
+    _EntryOption(value: intent.name, label: intent.label),
 ];
 
 String _returnLineForKey(String key) {
@@ -1243,8 +1395,8 @@ class _HawColors {
   static const Color goldMuted = Color(0xFF8A7A58);
   static const Color goldStrong = Color(0xFFB8A06A);
   static const Color goldDim = Color(0xFF5A4E30);
-  static const Color goldGhost = Color(0xFF3A3220);
-  static const Color ghostDeep = Color(0xFF2A2518);
+  static const Color goldGhost = Color(0xFF8A7A58);
+  static const Color ghostDeep = Color(0xFF8A7A58);
   static const Color border = Color(0xFF2A2416);
   static const Color cardBg = Color(0xFF0D0B07);
 }

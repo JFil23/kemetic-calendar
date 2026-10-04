@@ -363,6 +363,14 @@ class FollowSkyDetailSurfaceState extends State<FollowSkyDetailSurface> {
         setState(() => _carried = true);
         _temporalController.lockCarried(persistedResolution: resolution);
       }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not carry Follow the Sky. Please retry.'),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _joining = false);
     }
@@ -449,6 +457,7 @@ class FollowSkyDetailSurfaceState extends State<FollowSkyDetailSurface> {
         .toList(growable: false);
 
     return MaatFlowDetailShell(
+      scaleHeroWithText: true,
       theme: FollowSkyV11Tokens.detailTheme,
       scrollKey: const ValueKey<String>('follow-sky-scroll'),
       scrollController: _scrollController,

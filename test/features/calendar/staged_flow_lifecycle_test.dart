@@ -2,6 +2,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/staged_flow_lifecycle.dart';
 
 void main() {
+  test(
+    'enrollment observers wait for persistence and share the same result',
+    () async {
+      final lifecycle = StagedFlowLifecycle(completionRequired: true);
+      var settled = false;
+      final observed = lifecycle.persistenceSettled.then((success) {
+        settled = true;
+        return success;
+      });
+      lifecycle.beginPersistence();
+      await Future<void>.delayed(Duration.zero);
+      expect(settled, isFalse);
+      lifecycle.completePersistence();
+      expect(await observed, isTrue);
+      expect(await lifecycle.persistenceSettled, isTrue);
+      expect(lifecycle.shouldCleanup, isFalse);
+      lifecycle.consumeCompletion();
+      expect(lifecycle.shouldCleanup, isTrue);
+    },
+  );
+  test(
+    'failed enrollment acknowledgment is observable without unhandled errors',
+    () async {
+      final lifecycle = StagedFlowLifecycle(completionRequired: true);
+      lifecycle.beginPersistence();
+      lifecycle.completePersistence(failure: StateError('rejected'));
+      expect(await lifecycle.persistenceSettled, isFalse);
+      expect(lifecycle.persistenceFailure, isStateError);
+    },
+  );
+
   test('armed completion retains terminal persistence until consumed', () {
     final lifecycle = StagedFlowLifecycle(completionRequired: true);
     final registry = StagedFlowLifecycleRegistry<StagedFlowLifecycle>()

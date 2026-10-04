@@ -58,6 +58,17 @@ class OnboardingStorage {
     return false;
   }
 
+  Future<void> markCompletedRequired(String userId) async {
+    await _client.from('profiles').upsert({
+      'id': userId,
+      'onboarding_completed_at': DateTime.now().toUtc().toIso8601String(),
+    });
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setBool(_localKeyForUser(userId), true)) {
+      throw StateError('Could not save onboarding completion.');
+    }
+  }
+
   Future<void> markCompleted(String userId) async {
     final nowIso = DateTime.now().toUtc().toIso8601String();
     try {
