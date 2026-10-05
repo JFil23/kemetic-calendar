@@ -16,6 +16,7 @@ import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'profile_avatar_glyphs.dart';
+import 'account_operation_fence.dart';
 import 'profile_model.dart';
 import 'share_models.dart';
 import 'flow_post_model.dart';
@@ -84,6 +85,8 @@ class ProfileRepo {
   static const _kInsightPostsCacheKeyPrefix = 'profile:insight_posts:v1';
   static final Map<String, UserProfile> _profileMemoryCache = {};
   static final Map<String, List<FlowPost>> _flowPostsMemoryCache = {};
+  static final Map<String, int> _flowPostsCacheVersions = {};
+  static Future<void>? _flowPostsCacheWrites;
   static final Map<String, List<InsightPost>> _insightPostsMemoryCache = {};
   static Future<void>? _preloadLocalCachesFuture;
 
@@ -224,12 +227,13 @@ class ProfileRepo {
   List<FlowPost>? getCachedFlowPostsSync(String userId) {
     final posts = _flowPostsMemoryCache[userId];
     if (posts == null) return null;
-    return List<FlowPost>.unmodifiable(posts);
+    return List<FlowPost>.unmodifiable(posts.where((post) => !post.isHidden));
   }
 
   Future<List<FlowPost>?> restoreCachedFlowPosts(String userId) async {
     final memoryPosts = getCachedFlowPostsSync(userId);
     if (memoryPosts != null) return memoryPosts;
+    final version = _flowPostsCacheVersions[userId] ?? 0;
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -240,7 +244,11 @@ class ProfileRepo {
       final posts = decoded
           .whereType<Map>()
           .map((row) => FlowPost.fromJson(Map<String, dynamic>.from(row)))
+          .where((post) => !post.isHidden)
           .toList(growable: false);
+      if (version != (_flowPostsCacheVersions[userId] ?? 0)) {
+        return getCachedFlowPostsSync(userId);
+      }
       _flowPostsMemoryCache[userId] = List<FlowPost>.unmodifiable(posts);
       return posts;
     } catch (e) {
@@ -252,21 +260,43 @@ class ProfileRepo {
   Future<void> _cacheFlowPosts({
     required String userId,
     required List<FlowPost> posts,
+    int? expectedVersion,
   }) async {
-    final frozen = List<FlowPost>.unmodifiable(posts);
+    final version = expectedVersion ?? (_flowPostsCacheVersions[userId] ?? 0);
+    if (version != (_flowPostsCacheVersions[userId] ?? 0)) return;
+    final frozen = List<FlowPost>.unmodifiable(
+      posts.where((post) => !post.isHidden),
+    );
     _flowPostsMemoryCache[userId] = frozen;
     if (userId == _client.auth.currentUser?.id) {
       AccountViewCache.instance.publish(userId, 'social.posts', frozen);
     }
 
+    // Keep confirmed account snapshots ordered on disk as well as in memory.
+    // An earlier read cannot finish its disk write after a removal receipt.
+    Future<void> persist() async {
+      if (!identical(_flowPostsMemoryCache[userId], frozen)) return;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (!identical(_flowPostsMemoryCache[userId], frozen)) return;
+        await prefs.setString(
+          _flowPostsCacheKey(userId),
+          jsonEncode(frozen.map((post) => post.toJson()).toList()),
+        );
+      } catch (e) {
+        _log('[ProfileRepo] persist cached flow posts failed: $e');
+      }
+    }
+
+    final previous = _flowPostsCacheWrites;
+    final write = previous == null
+        ? persist()
+        : previous.then((_) => persist());
+    _flowPostsCacheWrites = write;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _flowPostsCacheKey(userId),
-        jsonEncode(frozen.map((post) => post.toJson()).toList()),
-      );
-    } catch (e) {
-      _log('[ProfileRepo] persist cached flow posts failed: $e');
+      await write;
+    } finally {
+      if (identical(_flowPostsCacheWrites, write)) _flowPostsCacheWrites = null;
     }
   }
 
@@ -882,23 +912,44 @@ class ProfileRepo {
 
   /// List flow posts for a given user (newest first)
   Future<List<FlowPost>> getFlowPosts(String userId) async {
+    final account = AccountOperationFence(_client);
+    final version = _flowPostsCacheVersions[userId] ?? 0;
+    List<FlowPost> cancelled() => _client.auth.currentUser?.id == account.userId
+        ? getCachedFlowPostsSync(userId) ?? const []
+        : const [];
     try {
       final rows = await _client
           .from('flow_posts')
           .select()
           .eq('user_id', userId)
+          .eq('is_hidden', false)
           .order('created_at', ascending: false);
 
       final posts = (rows as List)
           .cast<Map<String, dynamic>>()
           .map(FlowPost.fromJson)
+          .where((post) => !post.isHidden)
           .toList();
       final visiblePosts = await _filterBlockedFlowPosts(posts);
-      unawaited(_cacheFlowPosts(userId: userId, posts: visiblePosts));
+      if (!account.isCurrent) return cancelled();
+      if (version != (_flowPostsCacheVersions[userId] ?? 0)) {
+        return getCachedFlowPostsSync(userId) ?? const [];
+      }
+      unawaited(
+        _cacheFlowPosts(
+          userId: userId,
+          posts: visiblePosts,
+          expectedVersion: version,
+        ),
+      );
       return visiblePosts;
     } catch (e) {
       _log('[ProfileRepo] Error fetching flow posts: $e');
-      return await restoreCachedFlowPosts(userId) ?? const [];
+      if (!account.isCurrent) return cancelled();
+      final cached = await restoreCachedFlowPosts(userId);
+      return account.isCurrent ? cached ?? const [] : cancelled();
+    } finally {
+      account.dispose();
     }
   }
 
@@ -1097,9 +1148,9 @@ class ProfileRepo {
     final raw = WarmSnapshotStore.instance
         .peek(uid, 'social.post.$postId')
         ?.data;
-    return raw is Map
-        ? FlowPost.fromJson(Map<String, dynamic>.from(raw))
-        : null;
+    if (raw is! Map) return null;
+    final post = FlowPost.fromJson(Map<String, dynamic>.from(raw));
+    return post.isHidden ? null : post;
   }
 
   Future<FlowPost?> getFlowPostById(
@@ -1126,7 +1177,7 @@ class ProfileRepo {
 
       if (row == null) return null;
       final post = FlowPost.fromJson(Map<String, dynamic>.from(row as Map));
-      return post;
+      return post.isHidden ? null : post;
     } catch (e) {
       if (strict || cachedOnly) rethrow;
       if (kDebugMode) {
@@ -1356,6 +1407,7 @@ class ProfileRepo {
   }
 
   Future<bool> deleteFlowPost(String postId) async {
+    final account = AccountOperationFence(_client);
     final warmAccount = _client.auth.currentUser?.id;
     invalidateWarmDomains(warmAccount, [
       'social.',
@@ -1365,8 +1417,12 @@ class ProfileRepo {
     ]);
     try {
       try {
-        final userId = _client.auth.currentUser?.id;
+        final userId = account.userId;
         if (userId == null) return false;
+        final cachedPosts = await restoreCachedFlowPosts(userId);
+        if (!account.isCurrent) {
+          return false;
+        }
         final hidden = await _client
             .from('flow_posts')
             .update(<String, dynamic>{'is_hidden': true})
@@ -1374,12 +1430,28 @@ class ProfileRepo {
             .eq('user_id', userId)
             .select('id')
             .maybeSingle();
-        return hidden != null;
+        if (hidden == null) {
+          return false;
+        }
+        final version = (_flowPostsCacheVersions[userId] ?? 0) + 1;
+        _flowPostsCacheVersions[userId] = version;
+        await _cacheFlowPosts(
+          userId: userId,
+          posts:
+              (getCachedFlowPostsSync(userId) ??
+                      cachedPosts ??
+                      const <FlowPost>[])
+                  .where((post) => post.id != postId)
+                  .toList(),
+          expectedVersion: version,
+        );
+        return account.isCurrent;
       } catch (e) {
         _log('[ProfileRepo] Error hiding flow post: $e');
         return false;
       }
     } finally {
+      account.dispose();
       invalidateWarmDomains(warmAccount, [
         'social.',
         'commons.',

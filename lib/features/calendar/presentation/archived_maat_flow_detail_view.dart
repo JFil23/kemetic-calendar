@@ -116,8 +116,10 @@ class ArchivedMaatFlowDetailView extends StatefulWidget {
     this.onBack,
     this.onEndOrLeave,
     this.onDismiss,
+    this.bottomDock,
   });
 
+  final Widget? bottomDock;
   final ArchivedMaatFlowFixture fixture;
   final int? legacyLocalStateFlowId;
   final VoidCallback? onBack;
@@ -192,6 +194,7 @@ class _ArchivedMaatFlowDetailViewState
         children: <Widget>[
           MaatFlowDetailShell(
             theme: ArchivedMaatFlowTokens.theme,
+            bottomDock: widget.bottomDock,
             referenceHeroHeight: 258,
             referenceSheetOverlap: 26,
             scrollKey: const ValueKey<String>('archived-flow-scroll'),

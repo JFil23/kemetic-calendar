@@ -518,7 +518,8 @@ void main() {
       contains('CalendarPage._mountedState?._userFlowCalendarPreviewForWindow'),
     );
     expect(detail, contains("label: 'Remove from profile'"));
-    expect(detail, contains('FlowDetailActionKind.manage'));
+    expect(detail, contains('FlowDetailActionKind.removeProfilePost'));
+    expect(detail, isNot(contains('FlowDetailActionKind.manage')));
     expect(detail, contains('resolveCanonicalCustomFlowActionPolicy('));
     expect(detail, isNot(contains('FlowPostEngagementRow(')));
     expect(sharedDetail, contains('this.useCanonicalUserFlowDetail = false'));

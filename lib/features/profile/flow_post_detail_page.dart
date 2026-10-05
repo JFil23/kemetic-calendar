@@ -8,6 +8,7 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../../core/navigation_fallback.dart';
 import '../../data/flow_post_model.dart';
 import '../../data/profile_repo.dart';
+import '../../data/account_operation_fence.dart';
 import '../calendar/calendar_page.dart'
     show
         CalendarPage,
@@ -40,7 +41,7 @@ class FlowPostDetailPage extends StatefulWidget {
 class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
   final _repo = ProfileRepo(Supabase.instance.client);
   late List<FlowPost> _posts;
-  late final PageController _pageController;
+  late PageController _pageController;
   late int _activeIndex;
   bool _saving = false;
   bool _removing = false;
@@ -59,8 +60,14 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     _posts = widget.posts != null && widget.posts!.isNotEmpty
         ? List<FlowPost>.unmodifiable(widget.posts!)
         : <FlowPost>[widget.post];
-    _activeIndex = widget.initialIndex.clamp(0, _posts.length - 1);
-    _pageController = PageController(initialPage: _activeIndex);
+    final selected = _posts.indexWhere((post) => post.id == widget.post.id);
+    _activeIndex = selected >= 0
+        ? selected
+        : widget.initialIndex.clamp(0, _posts.length - 1);
+    _pageController = PageController(
+      initialPage: _activeIndex,
+      keepPage: false,
+    );
     _refreshSavedStateFor(_activePost);
     unawaited(() async {
       try {
@@ -80,13 +87,29 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
   void didUpdateWidget(covariant FlowPostDetailPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.post != widget.post || oldWidget.posts != widget.posts) {
-      final selectedId = _activePost.id;
+      final selectedId = oldWidget.post.id != widget.post.id
+          ? widget.post.id
+          : _activePost.id;
       _posts = widget.posts != null && widget.posts!.isNotEmpty
           ? List<FlowPost>.of(widget.posts!)
           : [widget.post];
       final selected = _posts.indexWhere((post) => post.id == selectedId);
       _activeIndex = selected >= 0 ? selected : 0;
       _fullPostFutures.remove(widget.post.id);
+      if (!_pageController.hasClients) {
+        _pageController.dispose();
+        _pageController = PageController(
+          initialPage: _activeIndex,
+          keepPage: false,
+        );
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _pageController.hasClients) {
+            _pageController.jumpToPage(_activeIndex);
+          }
+        });
+      }
+      _refreshSavedStateFor(_activePost);
     }
   }
 
@@ -126,6 +149,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
       return _buildHydratedDetail(post);
     }
     return FutureBuilder<FlowPost?>(
+      key: ValueKey(post.id),
       future: _fullPostFor(post),
       initialData: _repo.cachedFlowPostById(post.id),
       builder: (context, snapshot) {
@@ -179,7 +203,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     if (widget.isOwner) {
       return FlowDetailActionPolicy(
         source: FlowDetailSource.profilePost,
-        kind: FlowDetailActionKind.manage,
+        kind: FlowDetailActionKind.removeProfilePost,
         label: 'Remove from profile',
         busyLabel: 'Removing...',
         icon: Icons.delete_outline,
@@ -333,24 +357,36 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
   }
 
   Future<void> _removePost(FlowPost post) async {
-    setState(() => _removing = true);
-    final ok = await _repo.deleteFlowPost(post.id);
-    if (!mounted) return;
-    setState(() => _removing = false);
-    if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to remove this flow.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    final client = Supabase.instance.client;
+    if (_removing ||
+        !widget.isOwner ||
+        client.auth.currentUser?.id != post.userId) {
       return;
     }
-    popOrGo(
-      context,
-      '/profile/${Uri.encodeComponent(post.userId)}',
-      result: true,
-    );
+    final account = AccountOperationFence(client);
+    setState(() => _removing = true);
+    try {
+      final ok = await _repo.deleteFlowPost(post.id);
+      if (!mounted) return;
+      setState(() => _removing = false);
+      if (!account.isCurrent) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to remove this flow.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      popOrGo(
+        context,
+        '/profile/${Uri.encodeComponent(post.userId)}',
+        result: true,
+      );
+    } finally {
+      account.dispose();
+    }
   }
 
   Future<void> _reportPost() async {

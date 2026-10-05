@@ -10,7 +10,7 @@
     {
       "path": "/calendars",
       "owner": "lib/data/flows_repo.dart",
-      "policy": "Calendar/flow account repository and existing restoration owner; complete detail coverage before persistence."
+      "policy": "Calendar/flow account repository and existing restoration owner; complete detail coverage before persistence. SharedCalendarsRepo retains accepted-calendar list ownership; acknowledged removal prunes the existing account caches and fences earlier reads without changing namespaces or storing pending writes."
     },
     {
       "path": "/event-invite/:shareId",
@@ -20,7 +20,7 @@
     {
       "path": "/flow-post/:postId",
       "owner": "lib/data/profile_repo.dart",
-      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner."
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. Selected post identity and pager position stay aligned across warm hydration. Owner removal is acknowledged before dismissal and parent-profile refresh."
     },
     {
       "path": "/flows",
@@ -90,7 +90,7 @@
     {
       "path": "/profile/:userId",
       "owner": "lib/data/profile_repo.dart",
-      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. One Posts carousel merges both snapshots by publication time. Existing profile surface restoration adds an optional typed post identity, resolves legacy flow indices, and keeps selection through refresh/removal without changing cache owners or keys."
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. One Posts carousel merges both snapshots by publication time. Existing profile surface restoration adds an optional typed post identity, resolves legacy flow indices, and keeps selection through refresh/removal without changing cache owners or keys. Confirmed hidden flow posts are excluded from reads and restored snapshots; acknowledged removal updates the existing account caches and fences stale reads."
     },
     {
       "path": "/profile/:userId/followers",

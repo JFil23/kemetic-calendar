@@ -21,6 +21,7 @@ enum FlowDetailSource {
 
 enum FlowDetailActionKind {
   join,
+  removeProfilePost,
   manage,
   importFlow,
   openImported,
@@ -325,6 +326,48 @@ class FlowDetailActionPolicy {
 
   String get effectiveLabel => busy ? (busyLabel ?? label) : label;
   bool get canRun => enabled && !busy && onPressed != null;
+}
+
+Widget _buildExternalFlowDetailDock({
+  required FlowDetailActionPolicy policy,
+  required MaatFlowDetailTheme theme,
+}) {
+  void runAction() {
+    final result = policy.onPressed?.call();
+    if (result is Future<void>) unawaited(result);
+  }
+
+  return MediaQuery.withClampedTextScaling(
+    maxScaleFactor: 1.4,
+    child: MaatFlowDetailDock(
+      theme: theme,
+      joined: false,
+      busy: policy.busy,
+      onPressed: policy.canRun ? runAction : null,
+      actionLabel: policy.effectiveLabel,
+      actionNote: '',
+      joinedLabel: policy.label,
+      joinedNote: '',
+      actionKey: const ValueKey<String>('user-flow-external-action'),
+      joinedKey: const ValueKey<String>('user-flow-external-action-complete'),
+      showNote: false,
+    ),
+  );
+}
+
+MaatFlowDetailPrimaryAction _maatPrimaryActionFor(
+  FlowDetailActionPolicy policy,
+) {
+  return MaatFlowDetailPrimaryAction(
+    label: policy.effectiveLabel,
+    busy: policy.busy,
+    onPressed: policy.canRun
+        ? () {
+            final result = policy.onPressed?.call();
+            if (result is Future<void>) unawaited(result);
+          }
+        : null,
+  );
 }
 
 class _FlowPreviewMetrics {

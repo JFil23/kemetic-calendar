@@ -3767,8 +3767,7 @@ class _FlowPostRoutePageState extends State<FlowPostRoutePage> {
     }
   }
 
-  Future<({FlowPost post, List<FlowPost>? posts, int initialIndex})?>
-  _load() async {
+  ({FlowPost post, List<FlowPost>? posts, int initialIndex})? _dataFromExtra() {
     final extra = widget.extra;
     if (extra is FlowPost && extra.id == widget.postId) {
       return (post: extra, posts: null, initialIndex: 0);
@@ -3782,15 +3781,21 @@ class _FlowPostRoutePageState extends State<FlowPostRoutePage> {
         return (post: raw, posts: posts, initialIndex: initialIndex);
       }
     }
+    return null;
+  }
+
+  Future<({FlowPost post, List<FlowPost>? posts, int initialIndex})?>
+  _load() async {
+    final extraData = _dataFromExtra();
+    if (extraData != null) return extraData;
+    final postId = widget.postId;
     try {
-      await ProfileRepo(
-        supabase,
-      ).getFlowPostById(widget.postId, cachedOnly: true);
-      if (mounted) setState(() {});
+      await ProfileRepo(supabase).getFlowPostById(postId, cachedOnly: true);
+      if (mounted && widget.postId == postId) setState(() {});
     } catch (_) {}
     final post = await ProfileRepo(
       supabase,
-    ).getFlowPostById(widget.postId, strict: true);
+    ).getFlowPostById(postId, strict: true);
     if (post == null) {
       return null;
     }
@@ -3802,6 +3807,7 @@ class _FlowPostRoutePageState extends State<FlowPostRoutePage> {
     return FutureBuilder<
       ({FlowPost post, List<FlowPost>? posts, int initialIndex})?
     >(
+      key: ValueKey(widget.postId),
       future: _future,
       builder: (context, snapshot) {
         final cached = ProfileRepo(supabase).cachedFlowPostById(widget.postId);
@@ -3810,6 +3816,7 @@ class _FlowPostRoutePageState extends State<FlowPostRoutePage> {
             !snapshot.hasError &&
             snapshot.data == null;
         final data =
+            _dataFromExtra() ??
             snapshot.data ??
             (!gone && cached != null
                 ? (post: cached, posts: null, initialIndex: 0)
@@ -3817,6 +3824,7 @@ class _FlowPostRoutePageState extends State<FlowPostRoutePage> {
         if (data != null) {
           final currentUserId = supabase.auth.currentUser?.id;
           return FlowPostDetailPage(
+            key: ValueKey(widget.postId),
             post: data.post,
             posts: data.posts,
             initialIndex: data.initialIndex,

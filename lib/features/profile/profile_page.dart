@@ -20,6 +20,7 @@ import '../../data/commons_models.dart';
 import '../../data/commons_repo.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
+import '../../data/account_operation_fence.dart';
 import '../../data/flow_post_model.dart';
 import '../../data/flow_appearance.dart';
 import '../../data/insight_post_model.dart';
@@ -750,8 +751,14 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     if (_posts.isEmpty) {
       setState(() => _postsLoading = true);
     }
-    final posts = await _repo.getFlowPosts(widget.userId);
-    if (!mounted) return;
+    final account = Supabase.instance.client.auth.currentUser?.id;
+    final profileId = widget.userId;
+    final posts = await _repo.getFlowPosts(profileId);
+    if (!mounted ||
+        widget.userId != profileId ||
+        Supabase.instance.client.auth.currentUser?.id != account) {
+      return;
+    }
     _applyPosts(posts);
   }
 
@@ -3868,31 +3875,48 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     return normalized.isEmpty ? 'Untitled insight' : normalized;
   }
 
-  void _openPostDetails(FlowPost post) {
+  Future<void> _openPostDetails(FlowPost post) async {
     final initialIndex = _posts.indexWhere(
       (candidate) => candidate.id == post.id,
     );
-    unawaited(
-      openDetailRoute<void>(
-        context,
-        '/flow-post/${Uri.encodeComponent(post.id)}',
-        extra: <String, Object?>{
-          'post': post,
-          'posts': _posts,
-          'initialIndex': initialIndex,
-        },
-      ),
+    await _openFlowPostAndRefresh(
+      post,
+      extra: <String, Object?>{
+        'post': post,
+        'posts': _posts,
+        'initialIndex': initialIndex,
+      },
     );
   }
 
-  void _openFeedFlowPost(FlowPost post) {
-    unawaited(
-      openDetailRoute<void>(
+  Future<void> _openFeedFlowPost(FlowPost post) =>
+      _openFlowPostAndRefresh(post, extra: post);
+
+  Future<void> _openFlowPostAndRefresh(
+    FlowPost post, {
+    required Object extra,
+  }) async {
+    final account = AccountOperationFence(Supabase.instance.client);
+    final profileId = widget.userId;
+    try {
+      final removed = await openDetailRoute<bool>(
         context,
         '/flow-post/${Uri.encodeComponent(post.id)}',
-        extra: post,
-      ),
-    );
+        extra: extra,
+      );
+      if (!mounted ||
+          removed != true ||
+          widget.userId != profileId ||
+          !account.isCurrent) {
+        return;
+      }
+      await _loadPosts();
+      if (mounted && _feedRevealed && account.isCurrent) {
+        await _loadFeedPage(reset: true);
+      }
+    } finally {
+      account.dispose();
+    }
   }
 
   Future<void> _openPostChooser() async {
@@ -4298,15 +4322,20 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   Future<void> _removePost(String postId) async {
-    final ok = await _repo.deleteFlowPost(postId);
-    if (!mounted) return;
-    if (!ok) {
-      _showError('Unable to remove post. Please try again.');
-      return;
-    }
-    await _loadPosts();
-    if (_feedRevealed) {
-      await _loadFeedPage(reset: true);
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      final ok = await _repo.deleteFlowPost(postId);
+      if (!mounted || !account.isCurrent) return;
+      if (!ok) {
+        _showError('Unable to remove post. Please try again.');
+        return;
+      }
+      await _loadPosts();
+      if (mounted && _feedRevealed && account.isCurrent) {
+        await _loadFeedPage(reset: true);
+      }
+    } finally {
+      account.dispose();
     }
   }
 

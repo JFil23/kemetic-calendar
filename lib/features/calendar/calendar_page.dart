@@ -4181,6 +4181,7 @@ class CalendarPage extends StatefulWidget {
     DateTime? intendedStart,
     DateTime? intendedEnd,
     FollowSkyCalendarPreview? calendarPreview,
+    FlowDetailActionPolicy? actionPolicy,
   }) {
     final templateKey = _canonicalMaatTemplateKeyForSnapshot(
       name: name,
@@ -4195,6 +4196,12 @@ class CalendarPage extends StatefulWidget {
     if (kind != null && kArchivedCompatibilityMaatFlowKinds.contains(kind)) {
       return Builder(
         builder: (context) => ArchivedMaatFlowDetailView(
+          bottomDock: actionPolicy == null
+              ? null
+              : _buildExternalFlowDetailDock(
+                  policy: actionPolicy,
+                  theme: ArchivedMaatFlowTokens.theme,
+                ),
           fixture: _archivedMaatFlowFixtureFromSnapshot(
             kind: kind,
             name: name,
@@ -4247,6 +4254,9 @@ class CalendarPage extends StatefulWidget {
             followSkyMeasurementIntervals: sky?.intervals ?? const [],
           ),
           addInstance: _addMaatFlowInstanceHeadless,
+          primaryAction: actionPolicy == null
+              ? null
+              : _maatPrimaryActionFor(actionPolicy),
           onPersisted: (_) => _refreshDetachedReadingHouseTimeline(),
           onBack: () => popMaatFlowDetailOrGo(
             context,

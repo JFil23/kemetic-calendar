@@ -2,6 +2,7 @@ import 'warm_state/warm_json_reads.dart';
 import 'warm_state/warm_mutation.dart';
 import 'dart:async';
 import 'account_view_cache.dart';
+import 'account_operation_fence.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -38,6 +39,8 @@ class SharedCalendarsRepo {
       'shared_calendars:sent_invites:v1';
   static final Map<String, List<SharedCalendarSummary>>
   _acceptedCalendarsMemoryCache = {};
+  static final Map<String, int> _acceptedCalendarVersions = {};
+  static Future<void>? _acceptedCalendarWrites;
   static final Map<String, List<SharedCalendarInvite>>
   _pendingInvitesMemoryCache = {};
   static final Map<String, List<SharedCalendarSentInvite>>
@@ -69,53 +72,101 @@ class SharedCalendarsRepo {
     return List<SharedCalendarSummary>.unmodifiable(items);
   }
 
-  Future<List<SharedCalendarSummary>?> restoreCachedAcceptedCalendars() async {
-    final uid = _currentUserId;
-    if (uid == null || uid.isEmpty) return null;
-    final memoryItems = _acceptedCalendarsMemoryCache[uid];
-    if (memoryItems != null) {
-      return List<SharedCalendarSummary>.unmodifiable(memoryItems);
-    }
+  int _acceptedCalendarVersion(String userId) =>
+      _acceptedCalendarVersions[userId] ?? 0;
 
+  int _invalidateAcceptedCalendarReads(String userId) =>
+      _acceptedCalendarVersions[userId] = _acceptedCalendarVersion(userId) + 1;
+
+  List<SharedCalendarSummary>? _acceptedCalendarsForAccount(String userId) {
+    if (_currentUserId != userId) return null;
+    final items = _acceptedCalendarsMemoryCache[userId];
+    return items == null
+        ? null
+        : List<SharedCalendarSummary>.unmodifiable(items);
+  }
+
+  Future<List<SharedCalendarSummary>?> restoreCachedAcceptedCalendars() async {
+    final accountFence = AccountOperationFence(_client);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_acceptedCalendarsCacheKey(uid));
-      if (raw == null || raw.isEmpty) return null;
-      final decoded = jsonDecode(raw);
-      if (decoded is! List) return null;
-      final items = decoded
-          .whereType<Map>()
-          .map(
-            (row) =>
-                SharedCalendarSummary.fromRow(Map<String, dynamic>.from(row)),
-          )
-          .toList(growable: false);
-      _acceptedCalendarsMemoryCache[uid] =
-          List<SharedCalendarSummary>.unmodifiable(items);
-      return items;
-    } catch (e) {
-      _log('restore accepted calendar cache failed: $e');
-      return null;
+      final uid = accountFence.userId;
+      if (uid == null || uid.isEmpty) return null;
+      final version = _acceptedCalendarVersion(uid);
+      final memoryItems = _acceptedCalendarsForAccount(uid);
+      if (memoryItems != null) return memoryItems;
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (!accountFence.isCurrent ||
+            version != _acceptedCalendarVersion(uid)) {
+          return _acceptedCalendarsForAccount(uid);
+        }
+        final raw = prefs.getString(_acceptedCalendarsCacheKey(uid));
+        if (raw == null || raw.isEmpty) return null;
+        final decoded = jsonDecode(raw);
+        if (decoded is! List) return null;
+        final items = decoded
+            .whereType<Map>()
+            .map(
+              (row) =>
+                  SharedCalendarSummary.fromRow(Map<String, dynamic>.from(row)),
+            )
+            .toList(growable: false);
+        _acceptedCalendarsMemoryCache[uid] =
+            List<SharedCalendarSummary>.unmodifiable(items);
+        return items;
+      } catch (e) {
+        _log('restore accepted calendar cache failed: $e');
+        return null;
+      }
+    } finally {
+      accountFence.dispose();
     }
   }
 
   Future<void> _cacheAcceptedCalendars(
-    List<SharedCalendarSummary> calendars,
-  ) async {
-    final uid = _currentUserId;
-    if (uid == null || uid.isEmpty) return;
+    String userId,
+    List<SharedCalendarSummary> calendars, {
+    required int version,
+    bool acknowledgedMutation = false,
+  }) async {
+    bool isCurrent() =>
+        version == _acceptedCalendarVersion(userId) &&
+        (acknowledgedMutation || _currentUserId == userId);
+    if (!isCurrent()) return;
     final frozen = List<SharedCalendarSummary>.unmodifiable(calendars);
-    _acceptedCalendarsMemoryCache[uid] = frozen;
-    AccountViewCache.instance.publish(uid, 'calendars.list', frozen);
+    _acceptedCalendarsMemoryCache[userId] = frozen;
+    if (_currentUserId == userId) {
+      AccountViewCache.instance.publish(userId, 'calendars.list', frozen);
+    }
 
+    // Keep disk publication in the same order as memory publication. A read
+    // that began before a confirmed removal cannot later restore the old row.
+    bool mayPersist() =>
+        identical(_acceptedCalendarsMemoryCache[userId], frozen) &&
+        (acknowledgedMutation || _currentUserId == userId);
+    final write = (_acceptedCalendarWrites ?? Future<void>.value()).then((
+      _,
+    ) async {
+      if (!mayPersist()) return;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (!mayPersist()) return;
+        await prefs.setString(
+          _acceptedCalendarsCacheKey(userId),
+          jsonEncode(frozen.map((item) => item.toCacheJson()).toList()),
+        );
+      } catch (e) {
+        _log('persist accepted calendar cache failed: $e');
+      }
+    });
+    _acceptedCalendarWrites = write;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _acceptedCalendarsCacheKey(uid),
-        jsonEncode(frozen.map((item) => item.toCacheJson()).toList()),
-      );
-    } catch (e) {
-      _log('persist accepted calendar cache failed: $e');
+      await write;
+    } finally {
+      if (identical(_acceptedCalendarWrites, write)) {
+        _acceptedCalendarWrites = null;
+      }
     }
   }
 
@@ -277,62 +328,92 @@ class SharedCalendarsRepo {
   }
 
   Future<List<SharedCalendarSummary>> readAcceptedCalendarsOnly() async {
-    final cached = cachedAcceptedCalendarsSync();
-    if (cached != null) return cached;
-    final rows = await _client
-        .from(_calendarFilingView)
-        .select()
-        .order('is_personal', ascending: false)
-        .order('name')
-        .limit(100);
-    if (rows.length == 100) {
-      throw StateError('Calendar preview coverage unavailable');
-    }
-    return rows
-        .map((r) => SharedCalendarSummary.fromRow(r))
-        .toList(growable: false);
-  }
-
-  Future<List<SharedCalendarSummary>> getAcceptedCalendars() async {
-    await ensurePersonalCalendar();
-    await ensureBirthdaysCalendar();
+    final accountFence = AccountOperationFence(_client);
     try {
+      final uid = accountFence.userId;
+      if (uid == null || uid.isEmpty) return const [];
+      final version = _acceptedCalendarVersion(uid);
+      final cached = _acceptedCalendarsForAccount(uid);
+      if (cached != null) return cached;
       final rows = await _client
           .from(_calendarFilingView)
           .select()
           .order('is_personal', ascending: false)
-          .order('name', ascending: true);
-      final calendars = (rows as List)
-          .whereType<Map>()
-          .map(
-            (row) => SharedCalendarSummary.fromRow(row.cast<String, dynamic>()),
-          )
+          .order('name')
+          .limit(100);
+      if (!accountFence.isCurrent || version != _acceptedCalendarVersion(uid)) {
+        return _acceptedCalendarsForAccount(uid) ?? const [];
+      }
+      if (rows.length == 100) {
+        throw StateError('Calendar preview coverage unavailable');
+      }
+      return rows
+          .map((r) => SharedCalendarSummary.fromRow(r))
           .toList(growable: false);
-      unawaited(_cacheAcceptedCalendars(calendars));
-      return calendars;
-    } catch (e) {
-      _log('getAcceptedCalendars filing view failed: $e');
-      final cached = await restoreCachedAcceptedCalendars();
-      if (cached != null) return cached;
+    } finally {
+      accountFence.dispose();
     }
+  }
 
+  Future<List<SharedCalendarSummary>> getAcceptedCalendars() async {
+    final accountFence = AccountOperationFence(_client);
     try {
-      final rows = await _client
-          .from(_legacyCalendarSummaryView)
-          .select()
-          .order('is_personal', ascending: false)
-          .order('name', ascending: true);
-      final calendars = (rows as List)
-          .whereType<Map>()
-          .map(
-            (row) => SharedCalendarSummary.fromRow(row.cast<String, dynamic>()),
-          )
-          .toList(growable: false);
-      unawaited(_cacheAcceptedCalendars(calendars));
-      return calendars;
-    } catch (e) {
-      _log('getAcceptedCalendars legacy fallback failed: $e');
-      return await restoreCachedAcceptedCalendars() ?? const [];
+      final uid = accountFence.userId;
+      if (uid == null || uid.isEmpty) return const [];
+      final version = _acceptedCalendarVersion(uid);
+      bool isCurrent() =>
+          accountFence.isCurrent && version == _acceptedCalendarVersion(uid);
+      await ensurePersonalCalendar();
+      if (!isCurrent()) return _acceptedCalendarsForAccount(uid) ?? const [];
+      await ensureBirthdaysCalendar();
+      if (!isCurrent()) return _acceptedCalendarsForAccount(uid) ?? const [];
+      try {
+        final rows = await _client
+            .from(_calendarFilingView)
+            .select()
+            .order('is_personal', ascending: false)
+            .order('name', ascending: true);
+        if (!isCurrent()) return _acceptedCalendarsForAccount(uid) ?? const [];
+        final calendars = (rows as List)
+            .whereType<Map>()
+            .map(
+              (row) =>
+                  SharedCalendarSummary.fromRow(row.cast<String, dynamic>()),
+            )
+            .toList(growable: false);
+        await _cacheAcceptedCalendars(uid, calendars, version: version);
+        return _acceptedCalendarsForAccount(uid) ?? const [];
+      } catch (e) {
+        _log('getAcceptedCalendars filing view failed: $e');
+        if (!isCurrent()) return _acceptedCalendarsForAccount(uid) ?? const [];
+        final cached = await restoreCachedAcceptedCalendars();
+        if (cached != null) return cached;
+      }
+
+      if (!isCurrent()) return _acceptedCalendarsForAccount(uid) ?? const [];
+      try {
+        final rows = await _client
+            .from(_legacyCalendarSummaryView)
+            .select()
+            .order('is_personal', ascending: false)
+            .order('name', ascending: true);
+        if (!isCurrent()) return _acceptedCalendarsForAccount(uid) ?? const [];
+        final calendars = (rows as List)
+            .whereType<Map>()
+            .map(
+              (row) =>
+                  SharedCalendarSummary.fromRow(row.cast<String, dynamic>()),
+            )
+            .toList(growable: false);
+        await _cacheAcceptedCalendars(uid, calendars, version: version);
+        return _acceptedCalendarsForAccount(uid) ?? const [];
+      } catch (e) {
+        _log('getAcceptedCalendars legacy fallback failed: $e');
+        if (!isCurrent()) return _acceptedCalendarsForAccount(uid) ?? const [];
+        return await restoreCachedAcceptedCalendars() ?? const [];
+      }
+    } finally {
+      accountFence.dispose();
     }
   }
 
@@ -1248,25 +1329,55 @@ class SharedCalendarsRepo {
   }
 
   Future<void> leaveCalendar(String calendarId) async {
-    final warmAccount = _client.auth.currentUser?.id;
-    invalidateWarmDomains(warmAccount, [
-      'filing.calendar.',
-      'pages.calendar',
-      'calendars.',
-      'pages.member',
-    ]);
+    final accountFence = AccountOperationFence(_client);
     try {
-      await _client.rpc(
-        'leave_shared_calendar',
-        params: <String, dynamic>{'p_calendar_id': calendarId},
-      );
-    } finally {
-      invalidateWarmDomains(warmAccount, [
+      final account = accountFence.userId;
+      if (account == null || account.isEmpty) {
+        throw StateError('Sign in before removing a calendar.');
+      }
+      final trimmedId = calendarId.trim();
+      if (trimmedId.isEmpty) {
+        throw ArgumentError.value(calendarId, 'calendarId');
+      }
+      // Restore the established snapshot before changing it, including when this
+      // write is the repository's first operation after an app restart.
+      await restoreCachedAcceptedCalendars();
+      if (!accountFence.isCurrent) {
+        throw StateError('Account changed before removing the calendar.');
+      }
+      _invalidateAcceptedCalendarReads(account);
+      invalidateWarmDomains(account, [
         'filing.calendar.',
         'pages.calendar',
         'calendars.',
         'pages.member',
       ]);
+      try {
+        await _client.rpc(
+          'leave_shared_calendar',
+          params: <String, dynamic>{'p_calendar_id': trimmedId},
+        );
+        final version = _invalidateAcceptedCalendarReads(account);
+        final current = _acceptedCalendarsMemoryCache[account];
+        if (current != null) {
+          await _cacheAcceptedCalendars(
+            account,
+            current.where((calendar) => calendar.id != trimmedId).toList(),
+            version: version,
+            acknowledgedMutation: true,
+          );
+        }
+      } finally {
+        _invalidateAcceptedCalendarReads(account);
+        invalidateWarmDomains(account, [
+          'filing.calendar.',
+          'pages.calendar',
+          'calendars.',
+          'pages.member',
+        ]);
+      }
+    } finally {
+      accountFence.dispose();
     }
   }
 

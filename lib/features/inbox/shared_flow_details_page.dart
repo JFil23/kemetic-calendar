@@ -402,7 +402,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     if (widget.showRemoveButton && widget.onRemove != null) {
       return FlowDetailActionPolicy(
         source: FlowDetailSource.profilePost,
-        kind: FlowDetailActionKind.manage,
+        kind: FlowDetailActionKind.removeProfilePost,
         label: 'Remove from profile',
         busyLabel: 'Removing...',
         icon: Icons.delete_outline,
@@ -634,6 +634,12 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           intendedFlowId: data.flowId,
           intendedStart: data.startDate,
           intendedEnd: data.endDate,
+          actionPolicy:
+              widget.actionPolicy?.source == FlowDetailSource.profilePost &&
+                  widget.actionPolicy?.kind ==
+                      FlowDetailActionKind.removeProfilePost
+              ? widget.actionPolicy
+              : null,
         );
         if (maatDetail != null) return maatDetail;
 

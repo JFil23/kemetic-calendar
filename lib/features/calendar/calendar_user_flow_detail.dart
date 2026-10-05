@@ -1089,29 +1089,7 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
   }) {
     final externalPolicy = widget.actionPolicy;
     if (externalPolicy != null) {
-      void runExternalAction() {
-        final result = externalPolicy.onPressed?.call();
-        if (result is Future<void>) unawaited(result);
-      }
-
-      return MediaQuery.withClampedTextScaling(
-        maxScaleFactor: 1.4,
-        child: MaatFlowDetailDock(
-          theme: theme,
-          joined: false,
-          busy: externalPolicy.busy,
-          onPressed: externalPolicy.canRun ? runExternalAction : null,
-          actionLabel: externalPolicy.effectiveLabel,
-          actionNote: '',
-          joinedLabel: externalPolicy.label,
-          joinedNote: '',
-          actionKey: const ValueKey<String>('user-flow-external-action'),
-          joinedKey: const ValueKey<String>(
-            'user-flow-external-action-complete',
-          ),
-          showNote: false,
-        ),
-      );
+      return _buildExternalFlowDetailDock(policy: externalPolicy, theme: theme);
     }
 
     if (widget.mode == _FlowPreviewMode.saved) {

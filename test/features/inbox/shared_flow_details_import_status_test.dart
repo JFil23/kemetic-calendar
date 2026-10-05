@@ -325,8 +325,9 @@ void main() {
   );
 
   testWidgets(
-    'archived Ma’at payload renders read-only history before custom policy',
+    'owner can remove an archived post while its history stays read-only',
     (tester) async {
+      var removalCalls = 0;
       await tester.pumpWidget(
         MaterialApp(
           home: SharedFlowDetailsPage(
@@ -335,15 +336,17 @@ void main() {
               'color': 4293890652,
               'notes': '',
               'rules': [],
-              'events': [],
+              'events': [
+                {'title': 'Archived sitting', 'date': '2026-09-03'},
+              ],
             },
             showImportFooter: false,
             actionPolicy: FlowDetailActionPolicy(
               source: FlowDetailSource.profilePost,
-              kind: FlowDetailActionKind.manage,
+              kind: FlowDetailActionKind.removeProfilePost,
               label: 'Remove from profile',
               icon: Icons.delete_outline,
-              onPressed: () {},
+              onPressed: () => removalCalls++,
             ),
             fallbackLocation: '/profile/source-user',
           ),
@@ -356,10 +359,64 @@ void main() {
       expect(find.text('Dawn House Rite'), findsWidgets);
       expect(find.text('This flow is archived'), findsOneWidget);
       expect(find.textContaining('Join'), findsNothing);
-      expect(find.text('Remove from profile'), findsNothing);
+      expect(find.text('Remove from profile'), findsOneWidget);
+      expect(find.text('Historical events'), findsOneWidget);
+      expect(find.text('Archived sitting'), findsOneWidget);
       expect(find.text('Overview'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('user-flow-external-action')));
+      await tester.pump();
+      expect(removalCalls, 1);
     },
   );
+  for (final action in [
+    (FlowDetailActionKind.addToMyFlows, 'Add to My Flows'),
+    (FlowDetailActionKind.openSaved, 'Manage Flow'),
+    (FlowDetailActionKind.manage, 'Remove from profile'),
+  ]) {
+    testWidgets('archived post ignores non-removal policy ${action.$1.name}', (
+      tester,
+    ) async {
+      var actionCalls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SharedFlowDetailsPage(
+            payloadJson: const {
+              'name': 'Dawn House Rite',
+              'color': 4293890652,
+              'notes': '',
+              'rules': [],
+              'events': [
+                {'title': 'Archived sitting', 'date': '2026-09-03'},
+              ],
+            },
+            showImportFooter: false,
+            actionPolicy: FlowDetailActionPolicy(
+              source: FlowDetailSource.profilePost,
+              kind: action.$1,
+              label: action.$2,
+              icon: Icons.add,
+              onPressed: () => actionCalls++,
+            ),
+            fallbackLocation: '/profile/source-user',
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('Dawn House Rite'), findsWidgets);
+      expect(find.text('This flow is archived'), findsOneWidget);
+      expect(find.text('Historical events'), findsOneWidget);
+      expect(find.text('Archived sitting'), findsOneWidget);
+      expect(find.textContaining('Join'), findsNothing);
+      expect(find.text('Overview'), findsNothing);
+      expect(find.text(action.$2), findsNothing);
+      expect(
+        find.byKey(const ValueKey('user-flow-external-action')),
+        findsNothing,
+      );
+      expect(actionCalls, 0);
+    });
+  }
 }
 
 Future<void> _pumpSharedFlowImport(WidgetTester tester) async {

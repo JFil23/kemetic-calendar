@@ -738,3 +738,47 @@ copy and table equality, retired identity and insight search, restart bookmarks,
 link-picker omission/unlinking, direct archived routes, overlapping link taps,
 rotation, table gestures, and every restored table in portrait and landscape.
 Approved visual references and old-release persistence fixtures are unchanged.
+
+
+## October 5 profile detail identity and acknowledged removal
+
+The October 5 screen recording and the served RC at
+`f2e862122eee4b06d4ee700d933fafc831aabd3a` are the behavior and visual
+references for this repair. Profile post cards, the shared detail sheet, its
+Remove from profile action, and the Calendars sheet retain their existing
+composition. A profile post detail must display the selected post's own snapshot
+when a warm single-post render expands into the full pager. The selected identity
+and the visible pager position must agree. The existing action dock is also
+carried through canonical Ma’at details, including the archived Dawn House Rite,
+so profile-owner removal remains available without changing flow lifecycle
+authority. The former archived-payload test also suppressed the social-post
+removal action; that assertion now follows the requested profile ownership
+contract. It continues to verify archived history and the absence of join/import
+actions, with an explicit visitor-policy regression preventing flow revival.
+Only the typed profile-post removal action crosses this boundary.
+
+ProfileRepo continues to own profile posts and the existing acknowledged
+`is_hidden` removal. Hidden posts must be excluded from profile reads and
+restored snapshots. A confirmed removal updates the existing memory and
+persistent profile caches; failed writes retain the post. Late reads cannot
+replace that confirmed removal, and returning from the detail refreshes the
+profile without losing the retained parent view. Removing a social post does
+not delete its source flow.
+
+SharedCalendarsRepo retains accepted-calendar ownership and the existing
+`leave_shared_calendar` mutation. Only an acknowledged removal prunes the
+account's memory and persistent accepted-calendar lists. Reads started before
+that acknowledgement cannot restore the removed calendar, failed refreshes
+retain the corrected snapshot, and account changes fence publication. Cache
+keys, payload schemas, immutable fixtures, and inventory thresholds do not
+change. No pending mutation is placed in a disposable cache.
+
+The cascade-to-event-trash foreign-key repair belongs to the backend checkout
+and gate. It retains the original calendar identity in the archived event's
+row payload while allowing a nullable live calendar reference after the parent
+is deleted. The app does not bypass the existing owner/member deletion RPC.
+
+Regression evidence covers distinct posted-flow snapshots, warm pager selection,
+acknowledged and failed removal, cold/warm reopening, stale refreshes and account
+changes. Capture-only detail evidence is written outside approved references.
+The complete App and backend gates remain required for deployment.
