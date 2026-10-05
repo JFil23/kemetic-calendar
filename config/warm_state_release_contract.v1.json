@@ -70,12 +70,12 @@
     {
       "path": "/nodes",
       "owner": "lib/data/insight_link_repo.dart",
-      "policy": "Existing Library persistence boundary; warm cache cannot own authored node content."
+      "policy": "Existing Library persistence boundary; warm cache cannot own authored node content. The 61-node canon is bundled content. Retired IDs remain distinct for saved routes and account-owned insights; no read-state or authored-content migration."
     },
     {
       "path": "/nodes/:nodeId",
       "owner": "lib/data/insight_link_repo.dart",
-      "policy": "Existing Library persistence boundary; warm cache cannot own authored node content."
+      "policy": "Existing Library persistence boundary; warm cache cannot own authored node content. The 61-node canon is bundled content. Retired IDs remain distinct for saved routes and account-owned insights; no read-state or authored-content migration."
     },
     {
       "path": "/pages",

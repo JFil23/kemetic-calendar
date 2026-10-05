@@ -9,13 +9,13 @@ void main() {
   final reference =
       jsonDecode(
             File(
-              'test/fixtures/library/simplified_first_pass_updated.v1.json',
+              'test/fixtures/library/approved_library_rewrite.v2.json',
             ).readAsStringSync(),
           )['nodes']
           as Map<String, dynamic>;
 
-  test('the complete supplied 71-article inventory is present', () {
-    expect(reference.length, 71);
+  test('the complete supplied 61-article inventory is present', () {
+    expect(reference.length, 61);
     expect(
       KemeticNodeLibrary.nodes.map((node) => node.id).toSet(),
       reference.keys.toSet(),
@@ -33,6 +33,19 @@ void main() {
       expect(node.glyph, expected['glyph']);
       expect(node.aliases, expected['aliases']);
       expect(node.isSystemOwned, isTrue);
+      expect(node.body.startsWith(expected['opening_hook'] as String), isTrue);
+      expect(
+        node.body
+            .split('\n\n')
+            .where((b) => b.startsWith('## '))
+            .map((b) => b.substring(3))
+            .toList(),
+        expected['section_headings'],
+      );
+      expect(
+        node.body.split('\n\n').where((b) => b.startsWith('|')).toList(),
+        expected['tables'],
+      );
       for (final link in node.linkMap) {
         expect(node.body, contains(link.phrase));
         const letters = r'A-Za-z\u00C0-\u024F\u1E00-\u1EFF';
@@ -45,6 +58,7 @@ void main() {
         );
         expect(link.targetId.toLowerCase(), isNot(node.id.toLowerCase()));
         expect(KemeticNodeLibrary.resolve(link.targetId), isNotNull);
+        expect(KemeticNodeLibrary.isRetired(link.targetId), isFalse);
       }
     });
   }
@@ -132,7 +146,11 @@ void main() {
     };
 
     for (final entry in expectedGlyphs.entries) {
-      expect(glyphs[entry.key], entry.value, reason: entry.key);
+      expect(
+        KemeticNodeLibrary.resolve(entry.key)?.glyph,
+        entry.value,
+        reason: entry.key,
+      );
     }
 
     expect(

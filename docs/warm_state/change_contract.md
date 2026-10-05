@@ -705,3 +705,36 @@ Static and real-profile checks compare card dimensions and placement across both
 types, node text ownership, action access, ordering and restoration. The gesture
 inventory follows the existing flow menu into the shared profile frame; its
 behavior and inventory count remain unchanged.
+
+
+## October 5 approved Library rewrite
+
+The active Library now contains the approved 61-node selection. Its 165 named
+sections, opening hooks, and 12 distinct restored tables are bound to the user's
+final draft by `test/fixtures/library/approved_library_rewrite.v2.json`. The
+previous 71-node fixture remains immutable. Article bodies are bundled app
+content; they are not copied into the warm cache.
+
+The ten removed entries remain resolvable, under their original IDs and frozen
+copy, solely for existing routes and account-owned links. They carry an archive
+notice and are omitted from the canon, ordinary article search, and new-link
+picker. Search can still find a user's insight attached to an archived entry.
+No archived subject is silently renamed or merged into a related subject. The
+account insight repository and LibraryReadProgressStore keep their existing
+owners, keys, payload schemas, bookmarks, scroll positions, and mutation paths.
+Archived progress is preserved without marking a different active chapter read.
+
+Active article and Calendar clickthroughs use reviewed surviving targets. Labels
+with no corresponding retained subject remain plain text. Exact article titles
+resolve before overlapping thematic aliases. In the reader, complete names take
+priority over shorter overlapping names; skipped short matches can still link a
+later standalone occurrence. Table cells share the same reading-order link
+tracking as prose. A column cannot exceed the available reader width, and table
+panning must not unwind article history.
+
+The established reader/list styling, history, exit responsiveness, account
+switching, and saved-progress contracts remain in force. Coverage includes exact
+copy and table equality, retired identity and insight search, restart bookmarks,
+link-picker omission/unlinking, direct archived routes, overlapping link taps,
+rotation, table gestures, and every restored table in portrait and landscape.
+Approved visual references and old-release persistence fixtures are unchanged.

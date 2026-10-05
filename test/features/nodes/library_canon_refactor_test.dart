@@ -444,7 +444,7 @@ void main() {
       );
 
       await firstStore.setBookmark(
-        nodeId: 'ancient_african_tree',
+        nodeId: 'green_sahara',
         progressPercent: 19,
         scrollOffset: 190,
       );
@@ -462,9 +462,9 @@ void main() {
           canonicalNodeIds: _canonicalIds,
           readSnapshot: snapshot,
         ),
-        'ancient_african_tree',
+        'green_sahara',
       );
-      expect(snapshot.progressFor('ancient_african_tree')!.isBookmarked, true);
+      expect(snapshot.progressFor('green_sahara')!.isBookmarked, true);
     });
 
     test(

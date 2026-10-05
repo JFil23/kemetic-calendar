@@ -585,6 +585,13 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
                 .toList(),
           ),
         ],
+        if (KemeticNodeLibrary.isRetired(_node.id)) ...[
+          const SizedBox(height: 12),
+          const KemeticText(
+            'Archived entry · Kept for your saved links and insights.',
+            style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+          ),
+        ],
         const SizedBox(height: 12),
         Container(
           height: 1,
@@ -679,48 +686,59 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     final columnCount = rows
         .map((row) => row.length)
         .reduce((value, element) => value > element ? value : element);
-    final widths = <int, TableColumnWidth>{
-      for (var i = 0; i < columnCount; i++)
-        i: FixedColumnWidth(_tableColumnWidth(columnCount, i)),
-    };
-    final tableWidth = widths.values.fold<double>(
-      0,
-      (sum, width) => sum + (width as FixedColumnWidth).value,
-    );
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SizedBox(
-        width: tableWidth,
-        child: Table(
-          border: TableBorder.all(color: Colors.white24),
-          columnWidths: widths,
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+    final tableRows = <TableRow>[
+      for (var rowIndex = 0; rowIndex < rows.length; rowIndex++)
+        TableRow(
+          decoration: BoxDecoration(
+            color: rowIndex == 0
+                ? Colors.white.withValues(alpha: 0.08)
+                : rowIndex.isEven
+                ? Colors.white.withValues(alpha: 0.03)
+                : Colors.transparent,
+          ),
           children: [
-            for (var rowIndex = 0; rowIndex < rows.length; rowIndex++)
-              TableRow(
-                decoration: BoxDecoration(
-                  color: rowIndex == 0
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : rowIndex.isEven
-                      ? Colors.white.withValues(alpha: 0.03)
-                      : Colors.transparent,
-                ),
-                children: [
-                  for (var colIndex = 0; colIndex < columnCount; colIndex++)
-                    _buildTableCell(
-                      colIndex < rows[rowIndex].length
-                          ? rows[rowIndex][colIndex]
-                          : '',
-                      isHeader: rowIndex == 0,
-                      linkMap: linkMap,
-                      used: used,
-                    ),
-                ],
+            for (var colIndex = 0; colIndex < columnCount; colIndex++)
+              _buildTableCell(
+                colIndex < rows[rowIndex].length
+                    ? rows[rowIndex][colIndex]
+                    : '',
+                isHeader: rowIndex == 0,
+                linkMap: linkMap,
+                used: used,
               ),
           ],
         ),
-      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Every column must fit on its own when scrolled into view on a phone.
+        final widths = <int, TableColumnWidth>{
+          for (var i = 0; i < columnCount; i++)
+            i: FixedColumnWidth(
+              _tableColumnWidth(
+                columnCount,
+                i,
+              ).clamp(0, constraints.maxWidth).toDouble(),
+            ),
+        };
+        final tableWidth = widths.values.fold<double>(
+          0,
+          (sum, width) => sum + (width as FixedColumnWidth).value,
+        );
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            child: Table(
+              border: TableBorder.all(color: Colors.white24),
+              columnWidths: widths,
+              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+              children: tableRows,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -854,24 +872,28 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
   }) {
     final matches = <_LinkMatch>[];
     for (final link in linkMap) {
-      if (used.contains(link.phrase)) continue;
-      final matchIndex = _findFirstOccurrence(paragraph, link.phrase);
-      if (matchIndex == null) continue;
-      matches.add(
-        _LinkMatch(
-          link: link,
-          start: matchIndex,
-          end: matchIndex + link.phrase.length,
-        ),
-      );
-      used.add(link.phrase);
+      var searchFrom = 0;
+      while (searchFrom < paragraph.length) {
+        final relativeIndex = _findFirstOccurrence(
+          paragraph.substring(searchFrom),
+          link.phrase,
+        );
+        if (relativeIndex == null) break;
+        final start = searchFrom + relativeIndex;
+        final end = start + link.phrase.length;
+        matches.add(_LinkMatch(link: link, start: start, end: end));
+        searchFrom = end;
+      }
     }
-    matches.sort((a, b) => a.start.compareTo(b.start));
+    matches.sort((a, b) {
+      final byStart = a.start.compareTo(b.start);
+      return byStart != 0 ? byStart : b.end.compareTo(a.end);
+    });
 
     final spans = <InlineSpan>[];
     int cursor = 0;
     for (final match in matches) {
-      if (match.start < cursor) continue; // avoid overlaps
+      if (match.start < cursor) continue;
       if (match.start > cursor) {
         spans.add(
           TextSpan(
@@ -880,7 +902,11 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
           ),
         );
       }
-      spans.add(_buildLinkSpan(match.link, baseStyle));
+      if (used.add(match.link.phrase)) {
+        spans.add(_buildLinkSpan(match.link, baseStyle));
+      } else {
+        spans.add(TextSpan(text: match.link.phrase, style: textStyle));
+      }
       cursor = match.end;
     }
     if (cursor < paragraph.length) {

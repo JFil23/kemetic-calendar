@@ -1,0 +1,974 @@
+{
+  "source": "Approved library-rewrite.json, final emphasis pass, 2026-10-05",
+  "source_sha256": "e6a174dd0558c5d9b94e7e35f514187b1f9c0c38a40b0d73f1605ed120a0fb14",
+  "nodes": {
+    "cosmic_order": {
+      "body_sha256": "8dc6d51bf692c168af25bb597ad2b0df3c285e81072e0801b3624746bd7132c0",
+      "title": "Cosmic Order",
+      "glyph": "𓆄",
+      "aliases": [
+        "Cosmic Beginnings",
+        "Elemental Memory",
+        "Stardust Becomes Life"
+      ],
+      "section_headings": [
+        "Stardust Becomes Life",
+        "Order Is Not the Same as Certainty"
+      ],
+      "opening_hook": "Before there was a world to order, there was only potential.",
+      "tables": [
+        "| Event | Modern Science | Ma'at-Based Interpretation |\n| --- | --- | --- |\n| Big Bang | Sudden release of energy and matter | Ra emerges from Nun — order born from undifferentiated potential |\n| Inflation | Rapid expansion | Breath of Ma’at — establishing space, time, and motion |\n| First atoms | Hydrogen and helium form | Sia (perception) and Hu (utterance) begin shaping matter |\n| First stars | Light returns to the cosmos | Ra’s eye opens — energy begins organizing into memory |",
+        "| Function | Purpose |\n| --- | --- |\n| Creates elements | Carbon, oxygen, iron, calcium, and other essential elements originate in stars |\n| Distributes energy | Stars bathe nearby planets in light and radiation |\n| Regulates galactic rhythm | Stellar life cycles shape time, transformation, and decay |\n| Feeds Loosh (in Ma'at lens) | Light functions as life-giving, law-making cosmic speech |",
+        "| Event or Shift | Impact |\n| --- | --- |\n| Sapiens emerge (~300,000 BCE) | Brain-to-body ratio expands; symbolic language becomes possible |\n| Emotional range deepens | Grief, awe, reverence, and imagination intensify |\n| Fire use becomes widespread | Warmth, ritual, protection, and communal focus emerge |\n| Group memory develops | Oral lineage, ritual continuity, proto-time awareness |\n| Celestial observation begins | Stars become meaningful; patterns begin to be remembered |\n| First Loosh-based exchange | Emotional presence begins feeding the field, not only the tribe |\n| Ma'at awakens | Not as deity alone, but as felt alignment — consciousness recognizing order |"
+      ]
+    },
+    "human_emergence": {
+      "body_sha256": "50106cd97f4d1f7eb2f5dca77a30f863474b87dbc0a03d49678334336df76a0e",
+      "title": "Human Emergence",
+      "glyph": "𓀀",
+      "aliases": [
+        "Great Awakening",
+        "Hominid Lineage",
+        "Sapiens Awakening"
+      ],
+      "section_headings": [
+        "The African Human Story",
+        "When Survival Starts Remembering Itself"
+      ],
+      "opening_hook": "Human emergence is not a ladder with one clean step at the top.",
+      "tables": [
+        "| Species | Timeframe | Region | Notes |\n| --- | --- | --- | --- |\n| Australopithecus afarensis | ~4–3 million BCE | East Africa | \"Lucy\"; upright walking but small brain |\n| Homo habilis | ~2.4–1.4 million BCE | East Africa | First tool user (Oldowan tools) |\n| Homo erectus | ~1.9 million–140,000 BCE | Started in Africa, spread to Asia | First to leave Africa; colonized Asia; ancestor of Neanderthals & Denisovans |\n| Homo heidelbergensis | ~700,000–200,000 BCE | Africa and Europe | Last shared ancestor of Neanderthals and sapiens |\n| Neanderthals (Homo neanderthalensis) | ~400,000–40,000 BCE | Europe, W. Asia | Cold-adapted offshoot of heidelbergensis in Europe |\n| Denisovans | ~300,000–50,000 BCE | Central/East Asia | Offshoot of heidelbergensis or erectus in Asia |\n| Homo sapiens | ~300,000 BCE–present | Emerged in East Africa | Only surviving human species |",
+        "| Trait | Homo habilis (\"Handy Man\") | Homo erectus (\"Upright Man\") |\n| --- | --- | --- |\n| Timeframe | ~2.4–1.4 million BCE | ~1.9 million–140,000 BCE |\n| Brain Size | ~510–600 cc | ~850–1100 cc, nearly doubled |\n| Posture | Still somewhat hunched | Fully upright, long legs, better stride |\n| Tool Use | Simple stone flakes (Oldowan) | Sophisticated tools, including Acheulean hand axes |\n| Fire Use | Likely none | Mastery of fire begins |\n| Migration | Africa-only | First to leave Africa into Asia and Europe |\n| Social Behavior | Limited, uncertain | Cooperative hunting, long-distance travel |",
+        "| Theory | Explanation | Flaws / Mysteries |\n| --- | --- | --- |\n| Meat consumption | Better nutrition supported brain growth | Does not explain social and symbolic leaps by itself |\n| Climate pressure | Forced adaptation under changing conditions | Still appears fast and coordinated |\n| Fire mastery | Enabled cooking, safety, warmth, and culture | Fire may be part of the result, not only the cause |\n| Spiritual Mutation | Sudden jump in symbolic awareness | Outside mainstream science; belongs to sacred interpretation |\n| External Intervention (theoretical) | Some propose cosmic or ancestral seeding | Outside mainstream science; echoes certain ancient traditions |",
+        "| Region | New Species | Traits |\n| --- | --- | --- |\n| Africa | Homo heidelbergensis | Larger brains, advanced tools |\n| Asia | Homo erectus soloensis, later Denisovans | Adapted to mountains and cold |\n| Europe | Homo antecessor → Neanderthals | Robust build, cold-weather traits |",
+        "| Region | Offspring | Notes |\n| --- | --- | --- |\n| Africa | Homo sapiens | Light-boned, adaptable, symbolic |\n| Europe | Neanderthals (H. neanderthalensis) | Short, strong, cold-adapted |\n| Asia | Denisovans (from a sibling branch) | Little-known, adapted to high altitude; Tibetan populations retain some Denisovan inheritance |",
+        "| Lineage | Core Traits | Ecological Context |\n| --- | --- | --- |\n| Neanderthal | Physical strength, cold-resistance, tight social groups | Ice Age Europe; extreme climate demanded specialization |\n| Denisovan | High-altitude adaptation, regional niche traits | Central and East Asian highlands; relative isolation |\n| Sapiens | Language, symbolic thought, wide social networks, adaptability | Varied African environments; flexibility over specialization |",
+        "| Event or Shift | Impact |\n| --- | --- |\n| Sapiens emerge (~300,000 BCE) | Brain-to-body ratio expands; symbolic language becomes possible |\n| Emotional range deepens | Grief, awe, reverence, and imagination awaken |\n| Fire use becomes widespread | First external tool of spiritual focus: warmth, ritual, community |\n| Group memory begins | Oral lineage, early ritual, proto-time awareness |\n| Celestial observation begins | Stars become meaningful; constellations are silently named |\n| Ma'at awakens | Not as a deity, but as felt alignment — Earth's intelligence mirroring itself through humanity |",
+        "| Cosmic Process | Human Mirror |\n| --- | --- |\n| Galactic alignment (spiritual reading) | Pineal attunement, symbolic dreams |\n| Solar cycles | Calendar observation, circadian attunement |\n| Orbital changes | Nomadic patterning, seasonal wisdom |\n| Sahara's greening | First sacred geographies, star-watching cultures |"
+      ]
+    },
+    "green_sahara": {
+      "body_sha256": "cffba6be5e4a1ba1e979672665cdebbd19a9e0e7649e888c53ab3cec236cf51e",
+      "title": "Green Sahara",
+      "glyph": "𓇅𓇾",
+      "aliases": [
+        "African Humid Period",
+        "Garden of Eden",
+        "Prehistoric Civilizations in Saharan Africa",
+        "Great Departure",
+        "Saharan Eden"
+      ],
+      "section_headings": [
+        "A World Hidden by Sand",
+        "The Great Drying"
+      ],
+      "opening_hook": "The Sahara was not always desert.",
+      "tables": []
+    },
+    "nile": {
+      "body_sha256": "5cbe4ea493ed8756f5dbfc64b63e5d7c7d8148b97560b834f1a32439f2ec2a8b",
+      "title": "Nile & Hapy (Inundation)",
+      "glyph": "𓈘",
+      "aliases": [
+        "Hapy",
+        "Nile",
+        "Inundation",
+        "Nile Inundation"
+      ],
+      "section_headings": [
+        "The Gift That Could Not Be Forced",
+        "Measure Was a Moral Problem"
+      ],
+      "opening_hook": "The Nile is the river. Hapy is the inundation.",
+      "tables": []
+    },
+    "kemet": {
+      "body_sha256": "ebd934453e2be42c74c35d2e5af86b891e184f638d0f391cf2c280df8356abf9",
+      "title": "Kemet (Black Land)",
+      "glyph": "𓇾",
+      "aliases": [],
+      "section_headings": [
+        "Black Land, Red Land",
+        "A Country That Had to Be Re-Made"
+      ],
+      "opening_hook": "Kemet means the Black Land.",
+      "tables": []
+    },
+    "rise_of_kush_and_kemet": {
+      "body_sha256": "400a4361ee11d04ed4c275dede218af30142282e4bf6d045e2c151da5b8aa82d",
+      "title": "Rise of Kush and Kemet",
+      "glyph": "𓈘𓊖",
+      "aliases": [
+        "Kush",
+        "Kemet and Kush",
+        "Nile Silt",
+        "Ethiopian Highlands",
+        "Medu Neter",
+        "Symbolic Literacy",
+        "Words of the Divine"
+      ],
+      "section_headings": [
+        "The River Made Scale Possible",
+        "Kemet and Kush",
+        "Memory Becomes Institution"
+      ],
+      "opening_hook": "Kemet and Kush did not appear from an empty map.",
+      "tables": [
+        "| Volcanic Feature | Location | Relevance |\n| --- | --- | --- |\n| Mount Dendi | West of Addis Ababa | One of the largest stratovolcanoes near Lake Tana's watershed |\n| Mount Zuqualla | Southeast Ethiopia | Sacred crater lake volcano, culturally significant |\n| Erta Ale (active) | Danakil Depression | Part of the same tectonic system |\n| East African Rift | Runs through Ethiopia | Major geological source of uplift and erosion feeding silt into Blue Nile |"
+      ]
+    },
+    "maat": {
+      "body_sha256": "79b0413a94fac18540d2d1c33c775309e2a3c01fe52111ef1f03c4d537771151",
+      "title": "Ma'at",
+      "glyph": "𓆄",
+      "aliases": [],
+      "section_headings": [
+        "The Standard Is Practical",
+        "The Feather"
+      ],
+      "opening_hook": "What holds when no one is watching?",
+      "tables": []
+    },
+    "isfet": {
+      "body_sha256": "79bb836c1e579fdef44252e50fb09c6a3cedcdafaf555fc7c3fa2d71a669851d",
+      "title": "Isfet",
+      "glyph": "𓆙",
+      "aliases": [],
+      "section_headings": [
+        "Isfet Spreads",
+        "Disorder With Intelligence"
+      ],
+      "opening_hook": "Isfet is what happens when right relation is not maintained.",
+      "tables": []
+    },
+    "palermo_stone": {
+      "body_sha256": "30e464db0b25b4ade0fdd2005cc57a2ca77912d30d7c25ed4ff86a9afe3c3992",
+      "title": "Palermo Stone",
+      "glyph": "𓆳",
+      "aliases": [
+        "Royal Annals",
+        "Early Royal Chronicle",
+        "Annals Stone"
+      ],
+      "section_headings": [
+        "A Year Had Contents",
+        "Memory Under Measure"
+      ],
+      "opening_hook": "The Palermo Stone is broken, but it still shows what early kingship wanted remembered.",
+      "tables": []
+    },
+    "wadi_el_jarf_papyri": {
+      "body_sha256": "86e396f9dab77bfa7d3eac13dcd12a380a85b07b5fd0843fc0dc1e19e4508f6f",
+      "title": "Wadi el-Jarf Papyri",
+      "glyph": "𓏞",
+      "aliases": [
+        "Diary of Merer",
+        "Khufu Harbor Papyri",
+        "Old Kingdom Work Logs"
+      ],
+      "section_headings": [
+        "Monument Becomes Logistics",
+        "Record Prevents Scale From Becoming Chaos"
+      ],
+      "opening_hook": "The Wadi el-Jarf Papyri make the Great Pyramid smaller in the best possible way.",
+      "tables": []
+    },
+    "imhotep": {
+      "body_sha256": "7dfbf63b1d2c1f8437b36b41aa4760e9af6f82f7882d82c84e4d8b398d2adc69",
+      "title": "Imhotep",
+      "glyph": "𓉴",
+      "aliases": [
+        "Imhotep"
+      ],
+      "section_headings": [
+        "The Step Pyramid as Proof",
+        "Why He Endured"
+      ],
+      "opening_hook": "The Step Pyramid has been standing for roughly forty-five centuries.",
+      "tables": []
+    },
+    "house_of_life": {
+      "body_sha256": "4b0a0f889acef5f6568c99e44c0ba73e16bfa338919f7beb074a687d03dc9875",
+      "title": "House of Life",
+      "glyph": "𓉐𓋹",
+      "aliases": [
+        "Per Ankh",
+        "House of Living Knowledge",
+        "Temple Scriptorium"
+      ],
+      "section_headings": [
+        "Knowledge Had to Remain Usable",
+        "Accuracy Is Part of the Sacred Work"
+      ],
+      "opening_hook": "The House of Life was where knowledge was kept alive by being used.",
+      "tables": []
+    },
+    "rekh_wer": {
+      "body_sha256": "7860c92decad30bc5cee5d5226ff834b0a3a326917f78693bd392a66639a73b6",
+      "title": "Rekh-Wer",
+      "glyph": "𓁹𓏞",
+      "aliases": [
+        "Great Burning",
+        "Rḫ Wr",
+        "Rekh Wer"
+      ],
+      "section_headings": [
+        "A Name Inside the Calendar",
+        "What hꜣw Can Carry From It"
+      ],
+      "opening_hook": "Rekh-Wer is a calendar name before it is a philosophy.",
+      "tables": []
+    },
+    "ptah": {
+      "body_sha256": "35f96db2b3535964e35d0adad0caf8c5400d0136a1f5d639dfa867ffb056559a",
+      "title": "Ptah",
+      "glyph": "𓊪𓏏𓎛",
+      "aliases": [],
+      "section_headings": [
+        "Heart, Tongue, Hand",
+        "Creation Is Responsible"
+      ],
+      "opening_hook": "Ptah creates before the hand moves.",
+      "tables": []
+    },
+    "shu": {
+      "body_sha256": "62ef5ff0dcdf772263a1169d7f239c50b8e1fb959705e4c894f29519226c862b",
+      "title": "Shu",
+      "glyph": "𓇯𓇾",
+      "aliases": [],
+      "section_headings": [
+        "The Space Between",
+        "Separation Is Not Rejection"
+      ],
+      "opening_hook": "Shu is the space that lets things become themselves.",
+      "tables": []
+    },
+    "nut": {
+      "body_sha256": "b50e5eac695cc1aee86e5d9c85703e6c3c207846697a97d696b7219f48d17624",
+      "title": "Nut",
+      "glyph": "𓇯",
+      "aliases": [
+        "Sky Mother",
+        "Celestial Vault",
+        "Mother of Stars"
+      ],
+      "section_headings": [
+        "The Body Above",
+        "Holding Is Work"
+      ],
+      "opening_hook": "Nut is the sky as body.",
+      "tables": []
+    },
+    "ra": {
+      "body_sha256": "9d12fe7f9f4bdf59e0932fcc26926ffe6515d74dfefdbafd1339462d04c07349",
+      "title": "Ra",
+      "glyph": "𓇳",
+      "aliases": [],
+      "section_headings": [
+        "Khepri, Ra, Atum",
+        "Ra and Ma'at"
+      ],
+      "opening_hook": "Ra is not simply the sun.",
+      "tables": []
+    },
+    "khepri": {
+      "body_sha256": "5e3911f356f098867dad94e0cfa28576d69ebca6b92ed8d233bc4f267be40e57",
+      "title": "Khepri",
+      "glyph": "𓆣",
+      "aliases": [
+        "Scarab",
+        "Becoming",
+        "Morning Sun",
+        "Dawn Form of Ra"
+      ],
+      "section_headings": [
+        "Becoming Happens Before Appearance",
+        "Becoming Is Not Escape"
+      ],
+      "opening_hook": "Khepri is the moment when becoming becomes visible.",
+      "tables": []
+    },
+    "khnum": {
+      "body_sha256": "4f29a7e2ad507ca3acbd0148cde83421d792758a829958f5647b2c58c2417b70",
+      "title": "Khnum",
+      "glyph": "𓃝",
+      "aliases": [
+        "Ram Creator",
+        "Potter of Life",
+        "Lord of the Wheel"
+      ],
+      "section_headings": [
+        "The Potter's Wheel",
+        "Body and Ka"
+      ],
+      "opening_hook": "Khnum creates with his hands.",
+      "tables": []
+    },
+    "djehuty": {
+      "body_sha256": "52d942f82120631889998348e7be260703af3fdaf064c51beca2de4692d10095",
+      "title": "Djehuty",
+      "glyph": "𓅝",
+      "aliases": [
+        "Thoth",
+        "Djehuty"
+      ],
+      "section_headings": [
+        "Measure Before Judgment",
+        "Ibis, Baboon, Moon",
+        "Exact Speech"
+      ],
+      "opening_hook": "Djehuty keeps the loudest voice from deciding what counts as truth.",
+      "tables": []
+    },
+    "ausar": {
+      "body_sha256": "181552072a7940d1e7742378f9880c1e06cf373dae39d427f1d31e4b96330321",
+      "title": "Ausar",
+      "glyph": "𓊨𓁹",
+      "aliases": [
+        "Asar",
+        "Osiris",
+        "Wsir"
+      ],
+      "section_headings": [
+        "Gathered, Not Replaced",
+        "Renewal in the Hidden Place",
+        "Vindication"
+      ],
+      "opening_hook": "Ausar is the god who is restored without having death erased from his story.",
+      "tables": []
+    },
+    "aset": {
+      "body_sha256": "a807086eee3dd070b4b7c5ee7af2c4aa88b56dc134ec679b20121dc320a3c41c",
+      "title": "Aset",
+      "glyph": "𓊨",
+      "aliases": [
+        "Isis",
+        "Aset"
+      ],
+      "section_headings": [
+        "She Finds What Was Scattered",
+        "The Secret Name of Ra",
+        "Protecting Heru"
+      ],
+      "opening_hook": "Aset rarely wins by using more force.",
+      "tables": []
+    },
+    "nebet_het": {
+      "body_sha256": "535f10bdb156283fdc910a0c9e960861ef893193ae4f28f09d099129190c18fd",
+      "title": "Nebet-Het",
+      "glyph": "𓎟𓉐",
+      "aliases": [
+        "Nephthys",
+        "Lady of the House",
+        "Mistress of the House"
+      ],
+      "section_headings": [
+        "Mourning Is Work",
+        "The Edge of the House"
+      ],
+      "opening_hook": "Nebet-Het is the presence that keeps a threshold from becoming abandonment.",
+      "tables": []
+    },
+    "heru": {
+      "body_sha256": "dd202f1d5c22fac5845dddd2c52bc549d03c3a952a2ecbcc22b637ec774829b5",
+      "title": "Heru",
+      "glyph": "𓅃",
+      "aliases": [
+        "Horus",
+        "Heru"
+      ],
+      "section_headings": [
+        "The Son Who Tends His Father",
+        "Contest and Recognition",
+        "Heru in the Living King"
+      ],
+      "opening_hook": "Set is stronger.",
+      "tables": []
+    },
+    "set": {
+      "body_sha256": "c6240d04739baa44f66630c0a2fda4a6b744e66f14c68fd2fdf4efd6aece3385",
+      "title": "Set",
+      "glyph": "𓃩",
+      "aliases": [
+        "Seth",
+        "Sutekh",
+        "Adversarial Force",
+        "Red Land Power"
+      ],
+      "section_headings": [
+        "Force at the Boundary",
+        "The Crime Against Ausar",
+        "Pressure Reveals Structure"
+      ],
+      "opening_hook": "Set is not chaos in animal form.",
+      "tables": []
+    },
+    "jackal": {
+      "body_sha256": "cc0e4e742cdf5015486dbc98c1a06db75270a73de73cf66f4672fbea7052fa02",
+      "title": "Jackal (Anpu)",
+      "glyph": "𓃢",
+      "aliases": [
+        "Anubis",
+        "Anpu"
+      ],
+      "section_headings": [
+        "Black Like Fertile Earth",
+        "He Holds the Scale",
+        "What Boundaries Need"
+      ],
+      "opening_hook": "The jackal was seen where the dead were placed.",
+      "tables": []
+    },
+    "serpent": {
+      "body_sha256": "d27b71c729acc99ca8d1caf7719078005b63edad30ec020abb73420764bfe76b",
+      "title": "Serpent",
+      "glyph": "𓆙",
+      "aliases": [
+        "Apophis",
+        "Mehen"
+      ],
+      "section_headings": [
+        "Apepi and Mehen",
+        "The Uraeus",
+        "Aset's Serpent"
+      ],
+      "opening_hook": "No single meaning can contain the serpent in Kemetic thought.",
+      "tables": []
+    },
+    "hathor": {
+      "body_sha256": "2f87dbbc9dc1a8a2ec27ec452948cffab152e1224d295f564868ee66b58d3144",
+      "title": "Hathor",
+      "glyph": "𓃒",
+      "aliases": [],
+      "section_headings": [
+        "Joy Is Not Outside the Sacred",
+        "The Eye Comes Home",
+        "Lady of the West"
+      ],
+      "opening_hook": "Hathor refuses to fit into one mood.",
+      "tables": []
+    },
+    "eye_of_ra": {
+      "body_sha256": "fdb784efcd03f201b6bea3bad01471b5cd6ced28d1531f85a578cf6f5b1b937b",
+      "title": "Eye of Ra",
+      "glyph": "𓁹",
+      "aliases": [
+        "Solar Eye",
+        "Daughter of Ra",
+        "Active Sight"
+      ],
+      "section_headings": [
+        "Sight Becomes Action",
+        "The Distant Eye",
+        "Seeing Is Not Enough"
+      ],
+      "opening_hook": "The Eye of Ra is sight that can leave the one who sees.",
+      "tables": []
+    },
+    "sekhmet": {
+      "body_sha256": "b7897f0a19f57a8e4197255abc519b0be4a3a792702dc07d44a69f0eba422ed9",
+      "title": "Sekhmet",
+      "glyph": "𓃭",
+      "aliases": [
+        "The Powerful One",
+        "Eye of Ra",
+        "Lioness Fire"
+      ],
+      "section_headings": [
+        "The Eye Sent Forth",
+        "Healing and Harm",
+        "The Necessary Limit"
+      ],
+      "opening_hook": "Sekhmet is what happens when order needs teeth.",
+      "tables": []
+    },
+    "sopdet": {
+      "body_sha256": "562b529857729d83a5cfef693733db9b3ccaea33cbdfc283c357474a81ef317d",
+      "title": "Sopdet (Sirius)",
+      "glyph": "𓇼",
+      "aliases": [
+        "Sopdet",
+        "Sothis",
+        "Sirius"
+      ],
+      "section_headings": [
+        "Seventy Days of Absence",
+        "A Fixed Reference",
+        "The Long Drift"
+      ],
+      "opening_hook": "Sopdet is Sirius at the moment it returns.",
+      "tables": []
+    },
+    "sah": {
+      "body_sha256": "934e8565f30de482b9c05285b8c5770eef909a4d287ff44f21efb321f87445b7",
+      "title": "Sah (Orion)",
+      "glyph": "𓇼𓇼𓇼",
+      "aliases": [
+        "Orion",
+        "Sah"
+      ],
+      "section_headings": [
+        "The Striding One",
+        "Return Without Permanence",
+        "What the Sky Teaches"
+      ],
+      "opening_hook": "Sah is conventionally identified with Orion in the Kemetic sky. That identification is strong, but the ancient figure should not be forced star-for-star into the modern constellation boundaries and line drawing.",
+      "tables": []
+    },
+    "decans": {
+      "body_sha256": "c027fd8637915ac04eda02f3b6a6a5bcc7101aa306508c849839236f53fcb789",
+      "title": "Decans",
+      "glyph": "𓇼𓇼𓇼",
+      "aliases": [],
+      "section_headings": [
+        "A Clock Made of Stars",
+        "Ten Days at a Time",
+        "Why the Decans Matter Here"
+      ],
+      "opening_hook": "The decans turned the night sky into a clock.",
+      "tables": []
+    },
+    "dendera": {
+      "body_sha256": "509a675d8931790988902e7c2808eb97ee4481a6f00803d4181b1b477121b253",
+      "title": "Dendera",
+      "glyph": "𓉗",
+      "aliases": [],
+      "section_headings": [
+        "A Temple That Orients",
+        "Hathor and the Return of the Eye",
+        "The Roof and the New Year"
+      ],
+      "opening_hook": "Dendera puts the sky on the ceiling.",
+      "tables": []
+    },
+    "architrave": {
+      "body_sha256": "cdeae5d611a5d7ab079643f11410afdc1e4e76e1cbdcc649013f5892f6de32e8",
+      "title": "Architrave",
+      "glyph": "𓉹",
+      "aliases": [
+        "Temple Lintel",
+        "Inscribed Beam",
+        "Sacred Support"
+      ],
+      "section_headings": [
+        "Weight Has to Go Somewhere",
+        "Inscribed Support",
+        "Bearing Without Display"
+      ],
+      "opening_hook": "An architrave is the stone that carries what is above a passage.",
+      "tables": []
+    },
+    "abydos": {
+      "body_sha256": "505d006f7fed9e2fd5f4c682211ca20135b71303ac1e2c50bde2ae8f5ce25150",
+      "title": "Abydos",
+      "glyph": "𓊖",
+      "aliases": [],
+      "section_headings": [
+        "Where Ausar Was Present",
+        "Thousands of Names",
+        "The King List"
+      ],
+      "opening_hook": "Abydos became one of the great places of sacred memory in Kemet.",
+      "tables": []
+    },
+    "duat": {
+      "body_sha256": "97b10072b8f58cf5e9eed34b4f1d8fe3b0f03595be5f8c7a6424be74d8f0768c",
+      "title": "Duat",
+      "glyph": "𓇽",
+      "aliases": [
+        "Underworld",
+        "Hidden Region",
+        "Netherworld"
+      ],
+      "section_headings": [
+        "The Night Has Architecture",
+        "The Dead Need Equipment",
+        "Hidden Work"
+      ],
+      "opening_hook": "The Duat is not simply “the underworld.”",
+      "tables": []
+    },
+    "ka": {
+      "body_sha256": "6dc28ac0fbac7fc4d6940b7c6b62a6177bd1f9de4999dd8371d445c931793111",
+      "title": "Ka",
+      "glyph": "𓂓",
+      "aliases": [],
+      "section_headings": [
+        "What the Ka Needs",
+        "Ka and Ba",
+        "The Human Meaning"
+      ],
+      "opening_hook": "The Ka is one of the hardest Kemetic ideas to translate cleanly because “soul” is too broad and “life force” is too thin.",
+      "tables": []
+    },
+    "ba": {
+      "body_sha256": "6df644a0e1ccf1bd3b7caccff9bfad1e3d0e919257bd95cfeb6bdb3bb86d30b7",
+      "title": "Ba",
+      "glyph": "𓅽",
+      "aliases": [],
+      "section_headings": [
+        "The Way Must Be Open",
+        "Freedom Needs a Home",
+        "The Ma'at of Movement"
+      ],
+      "opening_hook": "The Ba is the part of the person that can move.",
+      "tables": []
+    },
+    "akh": {
+      "body_sha256": "a9e3ee97b896364793360d6212cb53322bd2ad96adff49227038c2eed0fd4f51",
+      "title": "Akh",
+      "glyph": "𓅜",
+      "aliases": [],
+      "section_headings": [
+        "Not Just Survival",
+        "The Imperishable Stars",
+        "Effectiveness Through Relation"
+      ],
+      "opening_hook": "The Akh is what a person becomes when the parts hold together well enough to remain effective beyond ordinary life.",
+      "tables": []
+    },
+    "ren": {
+      "body_sha256": "d842c014ebfb4a668c792e090edf50db3fef148e94ec41c596af1d0e5b364d25",
+      "title": "Ren (Name)",
+      "glyph": "𓍷",
+      "aliases": [],
+      "section_headings": [
+        "A Name Can Be Injured",
+        "The Secret Name",
+        "More Than One Name"
+      ],
+      "opening_hook": "The Ren is the name as a living address.",
+      "tables": []
+    },
+    "ib": {
+      "body_sha256": "87deb8fcdd7d288ca8b027056c7b941db3d0ce1c9a1fd6b93017e3a39b11330d",
+      "title": "Ib (Heart)",
+      "glyph": "𓄣",
+      "aliases": [],
+      "section_headings": [
+        "“Heart of My Mother”",
+        "Heart and Tongue",
+        "The Heart Is Being Made Now"
+      ],
+      "opening_hook": "The Ib is the heart as witness.",
+      "tables": []
+    },
+    "sheut": {
+      "body_sha256": "b7974b4b7f4dddce403c0e005083d67ad1e038062d855fda86d5e5aea3033861",
+      "title": "Sheut (Shadow)",
+      "glyph": "𓋺",
+      "aliases": [],
+      "section_headings": [
+        "Presence Has Effects",
+        "The Shadow Must Also Move",
+        "Seeing Your Own Shadow"
+      ],
+      "opening_hook": "You cannot stand in light without casting a shadow.",
+      "tables": []
+    },
+    "shai": {
+      "body_sha256": "2077d6de230754b0918c0e17dc2f5f689ce91d1caad89780e2070ec31b2d88fa",
+      "title": "Shai",
+      "glyph": "𓀭",
+      "aliases": [
+        "Destiny",
+        "Fate",
+        "Allotted Portion"
+      ],
+      "section_headings": [
+        "The Portion Given",
+        "Fate and Conduct",
+        "Renenutet and Shai"
+      ],
+      "opening_hook": "Shai is the portion a life receives before choice has had its say.",
+      "tables": []
+    },
+    "natron": {
+      "body_sha256": "9dc218e6a28eeae51b49ff62d0b3c439747181c55a367de5b41205f2b8aa153b",
+      "title": "Natron",
+      "glyph": "𓈗",
+      "aliases": [
+        "Purifying Salt",
+        "Wadi Natrun Salt",
+        "Sacred Cleansing Mineral"
+      ],
+      "section_headings": [
+        "Purity as Function",
+        "What Must Be Removed"
+      ],
+      "opening_hook": "Natron is a naturally occurring mineral salt that became one of the practical foundations of Kemetic purification.",
+      "tables": []
+    },
+    "false_door": {
+      "body_sha256": "110a517176a20978dbb97798312b3fe84030c4cc576eae37a77f3cbd7f9822c1",
+      "title": "False Door",
+      "glyph": "𓉿",
+      "aliases": [
+        "Ka Door",
+        "Tomb Doorway",
+        "Door of Offerings"
+      ],
+      "section_headings": [
+        "An Address for the Dead",
+        "Stone Waiting for Voice",
+        "The Human Lesson"
+      ],
+      "opening_hook": "A false door was not built for the living to walk through.",
+      "tables": []
+    },
+    "offering_formula": {
+      "body_sha256": "fb70502e4260fe0683a53607eec29a9c64ca9ec393baa0a917fc80f6b1adc7f1",
+      "title": "Offering Formula",
+      "glyph": "𓊵",
+      "aliases": [
+        "Hotep-di-nesu",
+        "Offering Prayer",
+        "Bread and Beer Formula"
+      ],
+      "section_headings": [
+        "Food Needs an Address",
+        "Bread and Beer",
+        "Voice Offering",
+        "What Offering Teaches"
+      ],
+      "opening_hook": "The offering formula turns provision into relationship.",
+      "tables": []
+    },
+    "hotep": {
+      "body_sha256": "691c82c6cc1af304ae77f6c0bad37bfb103878e6c4dfa137568bc1147e4b545a",
+      "title": "Hotep",
+      "glyph": "𓊵",
+      "aliases": [
+        "Peace",
+        "Offering",
+        "Satisfaction",
+        "Rest"
+      ],
+      "section_headings": [
+        "The Offering Is the Image",
+        "Hotep-di-nesu",
+        "False Peace"
+      ],
+      "opening_hook": "Hotep is often translated as peace.",
+      "tables": []
+    },
+    "pyramid_texts": {
+      "body_sha256": "33ace43627a0b1dba5c34c2049a13a75a5ac3bf29888c8f031c3cf3f2c4a94f6",
+      "title": "Pyramid Texts",
+      "glyph": "𓉴𓏞",
+      "aliases": [],
+      "section_headings": [
+        "Text Placed Into Architecture",
+        "“Osiris Unas”",
+        "From Royal Walls to Wider Use",
+        "Why They Matter Here"
+      ],
+      "opening_hook": "The Pyramid Texts are the oldest surviving large body of Kemetic religious literature.",
+      "tables": []
+    },
+    "coffin_texts": {
+      "body_sha256": "5bd6590e295bca62162e72f0920e3eb27473abe2185354b31f6ade8a6b0fbcb6",
+      "title": "Coffin Texts",
+      "glyph": "𓏞",
+      "aliases": [],
+      "section_headings": [
+        "A Small Cosmos",
+        "Transformation",
+        "From King to Person"
+      ],
+      "opening_hook": "The Coffin Texts put sacred knowledge close to the body.",
+      "tables": []
+    },
+    "book_of_the_dead": {
+      "body_sha256": "4c4ed12f63ffd67e58f6f07b469045187541685d756f71d8ea1a2ce40cdb0910",
+      "title": "Book of Coming Forth by Day",
+      "glyph": "𓏞",
+      "aliases": [
+        "Book of the Dead",
+        "Per Em Hru",
+        "Peret Em Heru",
+        "Coming Forth by Day"
+      ],
+      "section_headings": [
+        "A Portable Ritual World",
+        "Coming Forth",
+        "Image and Word",
+        "The Human Meaning"
+      ],
+      "opening_hook": "The Book of the Dead is better understood by its Kemetic title: Book of Coming Forth by Day.",
+      "tables": []
+    },
+    "papyrus_chester_beatty_iv": {
+      "body_sha256": "abbff4bd4e963571ddbeb68ffd5ec8b38e8adf10da6f0f3a02caba846b83d80a",
+      "title": "Papyrus Chester Beatty IV",
+      "glyph": "𓏞",
+      "aliases": [],
+      "section_headings": [
+        "The Immortality of Writers",
+        "Copying Is the Technology",
+        "Worth Copying"
+      ],
+      "opening_hook": "Papyrus Chester Beatty IV makes an argument that still feels modern:\n\na text can outlive a monument because a text can be copied.",
+      "tables": []
+    },
+    "instruction_ptahhotep": {
+      "body_sha256": "5357319f74e845ca085bf6996edc02cc53cfde7c0d4962c960fd39a10a4bec3f",
+      "title": "Instruction of Ptahhotep",
+      "glyph": "𓏞",
+      "aliases": [
+        "Maxims of Ptahhotep",
+        "Sebait of Ptahhotep"
+      ],
+      "section_headings": [
+        "What He Saw",
+        "Example Outlives Advice"
+      ],
+      "opening_hook": "The Instruction of Ptahhotep is one of the oldest surviving wisdom traditions in the world, and much of its power comes from how ordinary its problems are.",
+      "tables": []
+    },
+    "instruction_amenemope": {
+      "body_sha256": "9e3884eaf6e78a5dc14cd30fd26ab5df62aed9027146e2a4e095b45cc4360f20",
+      "title": "Instruction of Amenemope",
+      "glyph": "𓏞",
+      "aliases": [
+        "Amenemope",
+        "Teaching of Amenemope",
+        "Wisdom of Amenemope"
+      ],
+      "section_headings": [
+        "Quiet and Heated",
+        "Do Not Move the Boundary",
+        "Wealth and Rest",
+        "The Human Lesson"
+      ],
+      "opening_hook": "The Instruction of Amenemope admires the quiet person.",
+      "tables": []
+    },
+    "epagomenal_days": {
+      "body_sha256": "fc2e8cd3021e89d7068af29fefd0448162d35a15ce4c60995f1d7cd9d3c8025e",
+      "title": "Epagomenal Days",
+      "glyph": "𓏤𓏤𓏤𓏤𓏤",
+      "aliases": [
+        "Five Days Outside the Year",
+        "Birth Days of the Gods",
+        "Days Upon the Year"
+      ],
+      "section_headings": [
+        "Births at the Edge",
+        "Time Outside the Usual Count",
+        "Threshold Time"
+      ],
+      "opening_hook": "The civil year counted twelve months of thirty days.",
+      "tables": []
+    },
+    "wp_rnpt": {
+      "body_sha256": "fce0fea6010a4d1db4fb91d3f379d00df6030024b1ef64114cff6c8ba76ce40a",
+      "title": "Wp Rnpt",
+      "glyph": "𓊃𓆳",
+      "aliases": [
+        "Opening of the Year",
+        "Opener of the Year",
+        "Wep Renpet",
+        "New Year"
+      ],
+      "section_headings": [
+        "Sopdet Opens the Cycle",
+        "Not a Reset"
+      ],
+      "opening_hook": "Wp Rnpt is better held as “Opening” or “Opener of the Year” than as a simple synonym for New Year's Day.",
+      "tables": []
+    },
+    "akhet": {
+      "body_sha256": "f597fea675f899237a79f3dd2c81cded6daf624b14bec963d59192d5c7e7131c",
+      "title": "Akhet Season",
+      "glyph": "𓈗",
+      "aliases": [
+        "Inundation Season",
+        "Flood Season",
+        "Season of the Nile Rising"
+      ],
+      "section_headings": [
+        "Covered Ground",
+        "Measure Still Matters",
+        "Before Peret"
+      ],
+      "opening_hook": "Akhet is the inundation season.",
+      "tables": []
+    },
+    "peret": {
+      "body_sha256": "702db43835f9e89e3de044b43f36cdb0ccb92527c0ae904935434e83461c2f48",
+      "title": "Peret",
+      "glyph": "𓇾",
+      "aliases": [
+        "Emergence Season",
+        "Growing Season",
+        "Season of Coming Forth"
+      ],
+      "section_headings": [
+        "Emergence Is Not Completion",
+        "Khepri and Coming Forth",
+        "The Work of Peret"
+      ],
+      "opening_hook": "Peret begins when the land comes back.",
+      "tables": []
+    },
+    "shemu": {
+      "body_sha256": "967cd50e81d35d134b91730fd98244a3b2c3cf9bf37f96e3237f9ec558f00123",
+      "title": "Shemu",
+      "glyph": "𓇓",
+      "aliases": [
+        "Harvest Season",
+        "Dry Season",
+        "Season of Gathering"
+      ],
+      "section_headings": [
+        "The Field Gives an Answer",
+        "Gathering Is Not the End",
+        "Seed for Return"
+      ],
+      "opening_hook": "Shemu is conventionally rendered the harvest or dry season, and hꜣw uses it as the gathering phase of the agricultural arc.",
+      "tables": []
+    },
+    "renenutet": {
+      "body_sha256": "fba00bfd8edbf2cd63e02806fd55c84e3b82c32a48c6077a1495d97517dcd2f7",
+      "title": "Renenutet",
+      "glyph": "𓆤",
+      "aliases": [
+        "Harvest Serpent",
+        "Nourishing Cobra",
+        "Lady of the Granary"
+      ],
+      "section_headings": [
+        "The Granary Is Stored Time",
+        "Nursing and Raising",
+        "Renenutet and Shai"
+      ],
+      "opening_hook": "Renenutet appears where growth becomes security.",
+      "tables": []
+    },
+    "haw": {
+      "body_sha256": "7cfdb195b418c9edac57f8ce69b4ad9d6cf9b3272d47c9c72389566c36cb3481",
+      "title": "ḥꜣw",
+      "glyph": "𓇉𓄿𓅱𓏛𓏥",
+      "aliases": [
+        "Haw",
+        "HAw",
+        "ḥꜣw",
+        "Ḥꜣw",
+        "Increase",
+        "Surplus",
+        "Abundance",
+        "Excess",
+        "Wealth",
+        "haw"
+      ],
+      "section_headings": [
+        "Surplus Creates a Question",
+        "Increase in Right Relation",
+        "Why the App Is Called ḥꜣw"
+      ],
+      "opening_hook": "ḥꜣw is increase.",
+      "tables": []
+    }
+  }
+}

@@ -8,21 +8,18 @@ void main() {
     expect(ids, [
       'cosmic_order',
       'human_emergence',
-      'ancient_african_tree',
       'green_sahara',
       'nile',
       'kemet',
       'rise_of_kush_and_kemet',
       'maat',
       'isfet',
-      'regnal_year',
       'palermo_stone',
       'wadi_el_jarf_papyri',
       'imhotep',
       'house_of_life',
       'rekh_wer',
       'ptah',
-      'memphite_theology',
       'shu',
       'nut',
       'ra',
@@ -34,7 +31,6 @@ void main() {
       'nebet_het',
       'heru',
       'set',
-      'hawk',
       'jackal',
       'serpent',
       'hathor',
@@ -44,12 +40,9 @@ void main() {
       'sah',
       'decans',
       'dendera',
-      'esna_temple',
       'architrave',
       'abydos',
       'duat',
-      'amduat',
-      'horizon',
       'ka',
       'ba',
       'akh',
@@ -61,12 +54,9 @@ void main() {
       'false_door',
       'offering_formula',
       'hotep',
-      'tomb_inscriptions',
       'pyramid_texts',
-      'middle_kingdom_funerary',
       'coffin_texts',
       'book_of_the_dead',
-      'declarations_of_innocence',
       'papyrus_chester_beatty_iv',
       'instruction_ptahhotep',
       'instruction_amenemope',
@@ -99,21 +89,9 @@ void main() {
     expect(indexOf('nile'), lessThan(indexOf('kemet')));
     expect(indexOf('kemet'), lessThan(indexOf('rise_of_kush_and_kemet')));
 
-    expect(
-      indexOf('pyramid_texts'),
-      lessThan(indexOf('middle_kingdom_funerary')),
-    );
-    expect(
-      indexOf('middle_kingdom_funerary'),
-      lessThan(indexOf('coffin_texts')),
-    );
+    expect(indexOf('pyramid_texts'), lessThan(indexOf('coffin_texts')));
     expect(indexOf('coffin_texts'), lessThan(indexOf('book_of_the_dead')));
-    expect(
-      indexOf('book_of_the_dead'),
-      lessThan(indexOf('declarations_of_innocence')),
-    );
-
-    expect(indexOf('horizon'), lessThan(indexOf('ka')));
+    expect(indexOf('duat'), lessThan(indexOf('ka')));
     expect(indexOf('akhet'), greaterThan(indexOf('wp_rnpt')));
     expect(indexOf('akhet'), lessThan(indexOf('peret')));
     expect(indexOf('shemu'), lessThan(indexOf('renenutet')));

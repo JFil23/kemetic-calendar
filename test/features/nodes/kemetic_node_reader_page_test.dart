@@ -603,7 +603,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     for (final entry in const [
-      ('declarations_of_innocence', '𓉹𓆄𓆄'),
+      ('rise_of_kush_and_kemet', '𓈘𓊖'),
       ('nile', '𓈘'),
       ('epagomenal_days', '𓏤𓏤𓏤𓏤𓏤'),
     ]) {
@@ -642,16 +642,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Cosmic Order'), findsOneWidget);
-    expect(find.byType(Table), findsNothing);
+    expect(find.byType(Table), findsNWidgets(3));
     expect(find.text('Stardust Becomes Life'), findsNWidgets(2));
     expect(find.text('Order Is Not the Same as Certainty'), findsOneWidget);
-    expect(
-      find.textContaining(
-        'The mystery does not need a false answer',
-        findRichText: true,
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Modern Science'), findsOneWidget);
   });
 
   testWidgets('renders supplied human emergence prose and headings', (
@@ -672,7 +666,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Human Emergence'), findsOneWidget);
-    expect(find.byType(Table), findsNothing);
+    expect(find.byType(Table), findsNWidgets(8));
     expect(find.text('The African Human Story'), findsOneWidget);
     expect(
       find.text('When Survival Starts Remembering Itself'),
@@ -788,7 +782,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Rise of Kush and Kemet'), findsOneWidget);
-    expect(find.byType(Table), findsNothing);
+    expect(find.byType(Table), findsOneWidget);
     expect(find.text('The River Made Scale Possible'), findsOneWidget);
     expect(find.text('Memory Becomes Institution'), findsOneWidget);
   });

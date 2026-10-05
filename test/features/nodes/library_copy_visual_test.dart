@@ -35,6 +35,11 @@ void main() {
     for (final id in [
       'list',
       'cosmic_order',
+      'human_emergence',
+      'rise_of_kush_and_kemet',
+      'maat',
+      'djehuty',
+      'esna_temple',
       'nile',
       'rekh_wer',
       'epagomenal_days',
@@ -77,6 +82,81 @@ void main() {
             await file.writeAsBytes(data!.buffer.asUint8List());
             image.dispose();
           });
+        }
+        final expectedTables = switch (id) {
+          'cosmic_order' => 3,
+          'human_emergence' => 8,
+          'rise_of_kush_and_kemet' => 1,
+          _ => 0,
+        };
+        final tables = find.byType(Table);
+        expect(tables, findsNWidgets(expectedTables));
+        if (expectedTables > 0) {
+          final expectedRows = KemeticNodeLibrary.resolve(id)!.body
+              .split('\n\n')
+              .where((b) => b.startsWith('|'))
+              .map((b) => b.split('\n').length - 1)
+              .toList();
+          for (var index = 0; index < expectedTables; index++) {
+            final tableFinder = tables.at(index);
+            final table = tester.widget<Table>(tableFinder);
+            for (final width in table.columnWidths!.values) {
+              expect(
+                (width as FixedColumnWidth).value,
+                lessThanOrEqualTo(size.width - 40),
+              );
+            }
+            expect(
+              tester.widget<Table>(tableFinder).children.length,
+              expectedRows[index],
+            );
+            await Scrollable.ensureVisible(
+              tester.element(tableFinder),
+              alignment: 0.05,
+            );
+            await tester.pumpAndSettle();
+            final horizontal = find
+                .ancestor(
+                  of: tableFinder,
+                  matching: find.byWidgetPredicate(
+                    (w) =>
+                        w is SingleChildScrollView &&
+                        w.scrollDirection == Axis.horizontal,
+                  ),
+                )
+                .first;
+            final position = tester
+                .state<ScrollableState>(
+                  find
+                      .descendant(
+                        of: horizontal,
+                        matching: find.byType(Scrollable),
+                      )
+                      .first,
+                )
+                .position;
+            if (position.maxScrollExtent > 0) {
+              position.jumpTo(position.maxScrollExtent);
+              await tester.pumpAndSettle();
+              expect(position.pixels, position.maxScrollExtent);
+            }
+            if (captureDir != null) {
+              await tester.runAsync(() async {
+                final boundary =
+                    key.currentContext!.findRenderObject()!
+                        as RenderRepaintBoundary;
+                final image = await boundary.toImage(pixelRatio: 2);
+                final data = await image.toByteData(
+                  format: ui.ImageByteFormat.png,
+                );
+                await File(
+                  '$captureDir/$id-table-$index-${size.width.toInt()}.png',
+                ).writeAsBytes(data!.buffer.asUint8List());
+                image.dispose();
+              });
+            }
+            expect(tester.takeException(), isNull);
+          }
         }
         if (id != 'list') {
           final scroll = find.byWidgetPredicate(

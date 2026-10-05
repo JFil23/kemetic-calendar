@@ -1971,8 +1971,8 @@ const List<KemeticNodeLink> _baseDecanLinks = [
   KemeticNodeLink(phrase: 'Thoth', targetId: 'djehuty'),
   KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
   KemeticNodeLink(phrase: 'Coffin Texts', targetId: 'coffin_texts'),
-  KemeticNodeLink(phrase: 'Memphite Theology', targetId: 'memphite_theology'),
-  KemeticNodeLink(phrase: 'Shabaka Stone', targetId: 'memphite_theology'),
+  KemeticNodeLink(phrase: 'Memphite Theology', targetId: 'ptah'),
+  KemeticNodeLink(phrase: 'Shabaka Stone', targetId: 'ptah'),
   KemeticNodeLink(
     phrase: 'Papyrus Chester Beatty IV',
     targetId: 'papyrus_chester_beatty_iv',
@@ -1986,7 +1986,7 @@ const List<KemeticNodeLink> _baseDecanLinks = [
   KemeticNodeLink(phrase: 'šai', targetId: 'shai'),
   KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
   KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
-  KemeticNodeLink(phrase: 'Amduat', targetId: 'amduat'),
+  KemeticNodeLink(phrase: 'Amduat', targetId: 'duat'),
   KemeticNodeLink(phrase: 'Khepri', targetId: 'khepri'),
   KemeticNodeLink(phrase: 'Heru', targetId: 'heru'),
   KemeticNodeLink(phrase: 'Sekhmet', targetId: 'sekhmet'),
@@ -2004,7 +2004,6 @@ const List<KemeticNodeLink> _baseDecanLinks = [
   KemeticNodeLink(phrase: 'House of Life', targetId: 'house_of_life'),
   KemeticNodeLink(phrase: 'Dendera', targetId: 'dendera'),
   KemeticNodeLink(phrase: 'Abydos', targetId: 'abydos'),
-  KemeticNodeLink(phrase: 'Esna Temple', targetId: 'esna_temple'),
   KemeticNodeLink(phrase: 'isfet', targetId: 'isfet'),
   KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
   KemeticNodeLink(phrase: 'ka', targetId: 'ka'),
@@ -2084,7 +2083,6 @@ final Map<int, List<KemeticNodeLink>> _monthLinkMap = {
     KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
     KemeticNodeLink(phrase: 'Coffin Texts', targetId: 'coffin_texts'),
     KemeticNodeLink(phrase: 'Dendera', targetId: 'dendera'),
-    KemeticNodeLink(phrase: 'Esna Temple', targetId: 'esna_temple'),
   ],
   8: const [
     KemeticNodeLink(phrase: 'Renenutet', targetId: 'renenutet'),
@@ -2098,7 +2096,7 @@ final Map<int, List<KemeticNodeLink>> _monthLinkMap = {
     KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
     KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
     KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
-    KemeticNodeLink(phrase: 'Amduat', targetId: 'amduat'),
+    KemeticNodeLink(phrase: 'Amduat', targetId: 'duat'),
     KemeticNodeLink(phrase: 'Khepri', targetId: 'khepri'),
   ],
   10: const [
@@ -2116,10 +2114,9 @@ final Map<int, List<KemeticNodeLink>> _monthLinkMap = {
   ],
   11: const [
     KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
-    KemeticNodeLink(phrase: 'Tomb inscriptions', targetId: 'tomb_inscriptions'),
     KemeticNodeLink(
       phrase: 'Middle Kingdom funerary tradition',
-      targetId: 'middle_kingdom_funerary',
+      targetId: 'coffin_texts',
     ),
     KemeticNodeLink(phrase: 'Asar', targetId: 'ausar'),
     KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
@@ -2130,7 +2127,6 @@ final Map<int, List<KemeticNodeLink>> _monthLinkMap = {
     KemeticNodeLink(phrase: 'Nut', targetId: 'nut'),
     KemeticNodeLink(phrase: 'Dendera', targetId: 'dendera'),
     KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
-    KemeticNodeLink(phrase: 'horizon', targetId: 'horizon'),
     KemeticNodeLink(phrase: 'natron', targetId: 'natron'),
   ],
   13: const [

@@ -11,7 +11,10 @@ void main() {
     );
 
     expect(
-      delegate.debugMatchingNodeIds('right order', const <InsightEntry>[]),
+      delegate.debugMatchingNodeIds(
+        'granary overseer Baki',
+        const <InsightEntry>[],
+      ),
       contains('maat'),
     );
   });
