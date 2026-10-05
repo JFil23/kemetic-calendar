@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show precisionErrorTolerance;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../core/navigation_fallback.dart';
 import '../../../widgets/keyboard_aware.dart';
@@ -267,7 +269,9 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
                 key: widget.scrollKey,
                 controller: _controller,
                 slivers: [
-                  SliverToBoxAdapter(
+                  _MaatFlowHeroSliver(
+                    responsiveExtra:
+                        heroHeight - fittedHero + (scrollHero ? overlap : 0),
                     child: scrollHero
                         ? SizedBox(
                             key: widget.heroLayerKey,
@@ -316,6 +320,62 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
         );
       },
     );
+  }
+}
+
+/// Keep added hero clearance from displacing a reader who has already passed
+/// it. The original fitted-height response still moves the body as the viewport
+/// resizes; only the measured minimum and scrolling-mode overlap are anchored.
+class _MaatFlowHeroSliver extends SliverToBoxAdapter {
+  const _MaatFlowHeroSliver({
+    required this.responsiveExtra,
+    required super.child,
+  });
+
+  final double responsiveExtra;
+
+  @override
+  _RenderMaatFlowHeroSliver createRenderObject(BuildContext context) =>
+      _RenderMaatFlowHeroSliver(responsiveExtra);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderMaatFlowHeroSliver renderObject,
+  ) {
+    renderObject.responsiveExtra = responsiveExtra;
+  }
+}
+
+class _RenderMaatFlowHeroSliver extends RenderSliverToBoxAdapter {
+  _RenderMaatFlowHeroSliver(this._responsiveExtra);
+
+  double _responsiveExtra;
+  double? _laidOutExtra;
+  double? _laidOutExtent;
+
+  set responsiveExtra(double value) {
+    if (_responsiveExtra == value) return;
+    _responsiveExtra = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final previousExtra = _laidOutExtra;
+    final previousExtent = _laidOutExtent;
+    super.performLayout();
+    _laidOutExtra = _responsiveExtra;
+    _laidOutExtent = geometry!.scrollExtent;
+    if (previousExtra == null ||
+        previousExtent == null ||
+        constraints.scrollOffset < previousExtent) {
+      return;
+    }
+    final correction = _responsiveExtra - previousExtra;
+    if (correction.abs() > precisionErrorTolerance) {
+      geometry = SliverGeometry(scrollOffsetCorrection: correction);
+    }
   }
 }
 

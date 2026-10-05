@@ -15,7 +15,9 @@ void main() {
 
   setUpAll(() {
     catalog = SkyCatalogRepository.parseJsonString(
-      File('assets/follow_the_sky/sky_catalog_v2_graphics_v1.json').readAsStringSync(),
+      File(
+        'assets/follow_the_sky/sky_catalog_v2_graphics_v1.json',
+      ).readAsStringSync(),
     );
   });
 
@@ -650,6 +652,118 @@ void main() {
       );
       expect(dock, findsOneWidget);
       expect(dockControl, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'compact landscape intention preserves focus and viewport round trips',
+    (tester) async {
+      const fullSize = Size(844, 390);
+      const visibleSize = Size(844, 280);
+      tester.view.physicalSize = fullSize;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) =>
+              KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
+          home: Scaffold(
+            body: FollowSkyDetailSurface(
+              initialCatalog: catalog,
+              now: DateTime.utc(2026, 8, 24, 12),
+              isJoined: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final field = find.byKey(
+        const ValueKey<String>('follow-sky-worked-intention'),
+      );
+      final question = find.text(
+        'What do you want to stay true to when conditions change?',
+      );
+      final dock = find.byType(FollowSkyV11Dock);
+      final dockControl = find.byKey(
+        const ValueKey<String>('follow-sky-carried'),
+      );
+      final scrollable = _followSkyScrollable();
+      final position = tester.state<ScrollableState>(scrollable).position;
+      await tester.scrollUntilVisible(field, 100, scrollable: scrollable);
+      await tester.pumpAndSettle();
+      // Begin with both the question and input fully readable in the already
+      // compact layout, before focus or keyboard metrics can change it.
+      position.jumpTo(position.pixels + tester.getRect(field).bottom - 200);
+      await tester.pump();
+      final readingField = tester.getRect(field);
+      final readingQuestion = tester.getRect(question);
+      final readingOffset = position.pixels;
+      expect(readingQuestion.top, greaterThanOrEqualTo(0));
+      expect(readingQuestion.bottom, lessThan(readingField.top));
+      expect(readingField.bottom, lessThan(tester.getRect(dockControl).top));
+
+      for (var cycle = 0; cycle < 2; cycle++) {
+        await tester.tap(field);
+        await tester.pump();
+        expect(tester.getRect(field), rectMoreOrLessEquals(readingField));
+        expect(tester.getRect(question), rectMoreOrLessEquals(readingQuestion));
+        expect(position.pixels, closeTo(readingOffset, 0.01));
+
+        // Safari can first publish a smaller visual viewport with no inset.
+        // The same shell must later accept layout coordinates plus an inset
+        // without moving the focused question or input behind either dock.
+        tester.view.physicalSize = visibleSize;
+        tester.view.viewInsets = FakeViewPadding.zero;
+        await tester.pump();
+        final visualField = tester.getRect(field);
+        final visualQuestion = tester.getRect(question);
+        expect(visualQuestion.top, greaterThanOrEqualTo(0));
+        expect(visualQuestion.bottom, lessThan(visualField.top));
+        expect(visualField.bottom, lessThan(tester.getRect(dockControl).top));
+        expect(visualField.bottom, lessThanOrEqualTo(visibleSize.height));
+
+        await tester.enterText(field, 'Landscape draft survives $cycle');
+        await tester.pump();
+        expect(tester.getRect(field), rectMoreOrLessEquals(visualField));
+
+        tester.view.physicalSize = fullSize;
+        tester.view.viewInsets = const FakeViewPadding(bottom: 110);
+        await tester.pump();
+        expect(tester.getRect(question), rectMoreOrLessEquals(visualQuestion));
+        expect(tester.getRect(field), rectMoreOrLessEquals(visualField));
+        expect(dock, findsNothing);
+        final editable = tester.state<EditableTextState>(
+          find.descendant(of: field, matching: find.byType(EditableText)),
+        );
+        expect(editable.widget.focusNode.hasFocus, isTrue);
+        expect(
+          editable.textEditingValue.text,
+          'Landscape draft survives $cycle',
+        );
+
+        FocusManager.instance.primaryFocus?.unfocus();
+        tester.view.viewInsets = FakeViewPadding.zero;
+        await tester.pumpAndSettle();
+        expect(dock, findsOneWidget);
+        expect(tester.getRect(question), rectMoreOrLessEquals(readingQuestion));
+        expect(tester.getRect(field), rectMoreOrLessEquals(readingField));
+        expect(position.pixels, closeTo(readingOffset, 0.01));
+        expect(
+          tester.widget<TextField>(field).controller!.text,
+          'Landscape draft survives $cycle',
+        );
+      }
+
+      // Responsive compensation must not prevent returning to the complete
+      // compact hero after editing the content below it.
+      position.jumpTo(0);
+      await tester.pump();
+      final glyph = find.byKey(const ValueKey<String>('follow-sky-hero-star'));
+      expect(tester.getRect(glyph).top, greaterThanOrEqualTo(0));
+      expect(position.pixels, 0);
       expect(tester.takeException(), isNull);
     },
   );
