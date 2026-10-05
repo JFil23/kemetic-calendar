@@ -480,8 +480,59 @@ class _OfferingTableDetailSurfaceState
   }
 }
 
-class _OfferingTableHero extends StatelessWidget {
+class _OfferingTableHero extends StatelessWidget
+    implements MaatFlowHeroGeometry {
   const _OfferingTableHero();
+
+  static const _title = 'The Offering\nTable';
+  static const _titleStyle = TextStyle(
+    color: OfferingTableDetailTokens.warmGold,
+    fontFamily: MaatFlowListTokens.fontFamily,
+    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+    fontSize: 48,
+    fontWeight: FontWeight.w500,
+    height: 1,
+    letterSpacing: -.48,
+    shadows: <Shadow>[
+      Shadow(color: Color(0xB8000000), blurRadius: 8, offset: Offset(0, 1)),
+    ],
+  );
+  static const _subtitleStyle = TextStyle(
+    color: Color(0xFFD7CDBA),
+    fontFamily: MaatFlowListTokens.fontFamily,
+    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+    fontSize: 19,
+    fontWeight: FontWeight.w300,
+    fontStyle: FontStyle.italic,
+    height: 1.2,
+    shadows: <Shadow>[
+      Shadow(color: Color(0xC7000000), blurRadius: 8, offset: Offset(0, 1)),
+    ],
+  );
+
+  @override
+  double minimumHeightFor(BuildContext context, double width) {
+    final contentWidth = (width - 44).clamp(0.0, double.infinity);
+    // Preserve the authored safe-area glyph offset independently of the
+    // minimum needed by the local glyph/title composition.
+    return 6 +
+        52 +
+        10 +
+        MaatFlowDetailHero.measureTextHeight(
+          context,
+          text: _title,
+          style: _titleStyle,
+          width: contentWidth,
+        ) +
+        8 +
+        MaatFlowDetailHero.measureTextHeight(
+          context,
+          text: kOfferingTableTagline,
+          style: _subtitleStyle,
+          width: contentWidth.clamp(0.0, 250.0),
+        ) +
+        27;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -528,47 +579,11 @@ class _OfferingTableHero extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                'The Offering\nTable',
-                style: TextStyle(
-                  color: OfferingTableDetailTokens.warmGold,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 48,
-                  fontWeight: FontWeight.w500,
-                  height: 1,
-                  letterSpacing: -.48,
-                  shadows: <Shadow>[
-                    Shadow(
-                      color: Color(0xB8000000),
-                      blurRadius: 8,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
+              Text(_title, style: _titleStyle),
               SizedBox(height: 8),
               SizedBox(
                 width: 250,
-                child: Text(
-                  kOfferingTableTagline,
-                  style: TextStyle(
-                    color: Color(0xFFD7CDBA),
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w300,
-                    fontStyle: FontStyle.italic,
-                    height: 1.2,
-                    shadows: <Shadow>[
-                      Shadow(
-                        color: Color(0xC7000000),
-                        blurRadius: 8,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                ),
+                child: Text(kOfferingTableTagline, style: _subtitleStyle),
               ),
             ],
           ),

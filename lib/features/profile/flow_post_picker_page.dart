@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 import '../../core/navigation_fallback.dart';
+import '../../data/account_operation_fence.dart';
 import '../../data/flows_repo.dart';
 import '../../data/profile_repo.dart';
 import '../calendar/calendar_page.dart';
@@ -30,55 +31,49 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   final _profileRepo = ProfileRepo(Supabase.instance.client);
 
   bool _posting = false;
-  List<FlowRow> _filedFlows = const <FlowRow>[];
-
-  @override
-  void initState() {
-    super.initState();
-    _restoreCachedThenRefresh();
-  }
-
-  Future<void> _restoreCachedThenRefresh() async {
-    final cached = await _flowsRepo.restoreCachedFiledFlows();
-    if (mounted && cached != null) {
-      setState(() => _filedFlows = cached);
-    }
-    await _load();
-  }
-
-  Future<void> _load() async {
-    final flows = await _flowsRepo.refreshMyFiledFlows();
-    if (!mounted) return;
-    setState(() => _filedFlows = flows);
-  }
 
   FlowRow? _flowById(int flowId) {
-    for (final flow in _filedFlows) {
+    final flows = _flowsRepo.cachedMyFiledFlowsSync() ?? const <FlowRow>[];
+    for (final flow in flows) {
       if (flow.id == flowId) return flow;
     }
     return null;
   }
 
   Future<void> _postFlowById(int flowId) async {
-    var flow = _flowById(flowId);
-    if (flow == null) {
-      final refreshed = await _flowsRepo.refreshMyFiledFlows();
-      if (!mounted) return;
-      setState(() => _filedFlows = refreshed);
-      flow = _flowById(flowId);
-    }
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      var flow = _flowById(flowId);
+      if (flow == null) {
+        try {
+          await _flowsRepo.refreshMyFiledFlows();
+        } catch (_) {
+          if (!mounted || !account.isCurrent) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not load this flow. Please try again.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+          return;
+        }
+        if (!mounted || !account.isCurrent) return;
+        flow = _flowById(flowId);
+      }
 
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    if (flow == null || !canUserPublishFlow(flow, currentUserId)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only flows you own can be posted.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-      return;
+      if (flow == null || !canUserPublishFlow(flow, account.userId)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only flows you own can be posted.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+      await _postFlow(flow, account);
+    } finally {
+      account.dispose();
     }
-    await _postFlow(flow);
   }
 
   void _showDebugHapticsSnackBar(AppHapticResult result) {
@@ -93,7 +88,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
       );
   }
 
-  Future<void> _postFlow(FlowRow flow) async {
+  Future<void> _postFlow(FlowRow flow, AccountOperationFence account) async {
     if (_posting) return;
     final caption = await showFlowPostCaptionSheet(
       context: context,
@@ -107,16 +102,17 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
         appearance: flow.appearance,
       ),
     );
-    if (caption == null || !mounted) return;
+    if (caption == null || !mounted || !account.isCurrent) return;
     final hapticResult = await AppHaptics.productiveAction(
       reason: 'profile_flow_post',
     );
-    if (!mounted) return;
+    if (!mounted || !account.isCurrent) return;
     _showDebugHapticsSnackBar(hapticResult);
     setState(() => _posting = true);
     final created = await _profileRepo.postFlow(flow.id, sharedNote: caption);
     if (!mounted) return;
     setState(() => _posting = false);
+    if (!account.isCurrent) return;
 
     if (created == null) {
       ScaffoldMessenger.of(context).showSnackBar(

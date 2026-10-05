@@ -7,15 +7,16 @@ import '../../../presentation/maat_flow_detail_shell.dart';
 import 'follow_sky_v11_tokens.dart';
 
 /// Follow the Sky's own art direction inside the shared Ma'at hero geometry.
-class FollowSkyHero extends StatelessWidget {
+class FollowSkyHero extends StatelessWidget with MaatFlowHeroGeometryDelegate {
   const FollowSkyHero({super.key, required this.title, required this.subtitle});
 
   final String title;
   final String subtitle;
 
   @override
-  Widget build(BuildContext context) {
+  MaatFlowDetailHero buildHero(BuildContext context) {
     return MaatFlowDetailHero(
+      minimumTopClearance: 52,
       theme: FollowSkyV11Tokens.detailTheme,
       background: const _FollowSkyHeroBackdrop(),
       glyph: kFollowSkyGlyph,

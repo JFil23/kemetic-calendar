@@ -782,3 +782,37 @@ Regression evidence covers distinct posted-flow snapshots, warm pager selection,
 acknowledged and failed removal, cold/warm reopening, stale refreshes and account
 changes. Capture-only detail evidence is written outside approved references.
 The complete App and backend gates remain required for deployment.
+
+
+## October 5 profile flow picker read ownership
+
+The profile flow picker now resolves a selection from FlowsRepo's existing
+account-scoped filed-flow snapshot. The canonical My Flows viewer remains the
+single owner of initial refresh and its existing Retry presentation; the
+picker no longer starts a duplicate, unhandled background refresh. If that
+snapshot has been cleared before selection, the picker uses the same repository
+refresh, reports failure, and rejects a result after the initiating account
+changes, including departure and return to the same account. The existing
+account-operation fence also covers the open caption. ProfileRepo remains the
+publishing owner. No route, cache key,
+payload schema, pending-write store, or backend contract changes.
+
+Regression checks cover cold failure and Retry, successful selection/publishing,
+warm selection during slow refresh, selection after cache invalidation, and
+account changes while selection is waiting. The iPad caption checks exercise
+keyboard reachability and rotation without changing the established composer.
+
+
+Publishing now requires UserEventsRepo.getFlowDetailEvents's complete paged
+refresh through the existing `flow.events.<id>` resource. The publisher sorts
+its own copy chronologically, preserving the existing serialized event order
+without changing the detail reader's cache. Its default warm read refreshes (or joins an in-flight refresh); a failed read preserves the prior
+cache but cannot publish that cache as current data or replace events with an
+empty list. The existing account-operation fence also rejects account departure
+and return before the write and suppresses a late result after departure.
+ProfileRepo remains the acknowledged publisher; there is no new route, key,
+schema, write store, or backend contract.
+
+Repository regressions cover cold and warm event-read timeouts without an
+insert, snapshots over 1,000 events, a later-page failure without a partial post,
+and account departure or departure-and-return without an insert.

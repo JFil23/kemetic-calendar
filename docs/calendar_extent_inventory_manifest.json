@@ -75,9 +75,9 @@
     {
       "name": "responsive_text_scaler",
       "file": "lib/main.dart",
-      "start": "  MediaQuery _scaledMediaQuery({",
-      "end": "  Widget _buildLoginApp() {",
-      "sha256": "71575ec1a1dc3b915f99421496cce182ca8b6448829a67a791fe7fcbe08bda16"
+      "start": "  Widget _buildLoginApp() {",
+      "end": "  @override\n  Widget build(BuildContext context) {\n    if (_debugDaySheetSmokeBootRequested) {",
+      "sha256": "28993ea75fc6fa5a21b050a0efcf33be2ebf2d1cf1c6d278fba1ad8bbb8c78ce"
     },
     {
       "name": "scrolling_banner_fixed_extent",

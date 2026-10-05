@@ -112,6 +112,25 @@ abstract final class MaatFlowDetailGeometry {
   static const double sheetRadius = 26;
 }
 
+/// An authored hero supplies its content minimum without duplicating its text
+/// or typography in the scroll shell.
+abstract interface class MaatFlowHeroGeometry {
+  double minimumHeightFor(BuildContext context, double width);
+}
+
+/// Hero wrappers retain one descriptor for both layout measurement and paint.
+mixin MaatFlowHeroGeometryDelegate on StatelessWidget
+    implements MaatFlowHeroGeometry {
+  MaatFlowDetailHero buildHero(BuildContext context);
+
+  @override
+  Widget build(BuildContext context) => buildHero(context);
+
+  @override
+  double minimumHeightFor(BuildContext context, double width) =>
+      buildHero(context).minimumHeightFor(context, width);
+}
+
 /// One continuous scroll surface with a receding hero and fixed action dock.
 class MaatFlowDetailShell extends StatefulWidget {
   const MaatFlowDetailShell({
@@ -140,8 +159,9 @@ class MaatFlowDetailShell extends StatefulWidget {
   final double referenceHeroHeight;
   final double referenceSheetOverlap;
 
-  /// Authored Ma’at heroes can grow and scroll with accessibility type. Custom
-  /// flow heroes retain their independently owned geometry.
+  /// Authored Ma’at heroes retain their reference geometry on tablets and can
+  /// grow and scroll with accessibility type. Custom flow heroes retain their
+  /// independently owned geometry.
   final bool scaleHeroWithText;
 
   @override
@@ -186,14 +206,43 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
             (widget.referenceHeroHeight /
                 MaatFlowDetailGeometry.referenceHeight);
         final textScale = MediaQuery.textScalerOf(context).scale(20) / 20;
-        // The existing scroll view carries the authored hero's extra height.
-        final scrollHero = widget.scaleHeroWithText && textScale > 1;
-        final heroHeight = scrollHero
+        final enlargedHero = widget.scaleHeroWithText && textScale > 1;
+        final fittedHero = math.min(widthScaledHero, heightScaledHero);
+        final hero = widget.hero;
+        final minimumHeroHeight =
+            widget.scaleHeroWithText && hero is MaatFlowHeroGeometry
+            ? (hero as MaatFlowHeroGeometry).minimumHeightFor(context, width) +
+                  // The authored width fit already owns its safe-area
+                  // placement. When height compresses that fit, reserve the
+                  // inherited inset too so fixed Back cannot enter the glyph.
+                  (heightScaledHero < widthScaledHero
+                      ? MediaQuery.paddingOf(context).top
+                      : 0.0)
+            : 0.0;
+        // Keep the authored fit when its content has room. Smaller phone and
+        // tablet windows must not compress unchanged typography into Back or
+        // glyphs; the content supplies its own minimum without a size cutoff.
+        final normalHeroHeight = math.max(minimumHeroHeight, fittedHero);
+        // The parallax hero moves more slowly than its foreground sheet. In a
+        // short viewport that sheet would overtake identity text before it
+        // could clear the fixed dock. Reuse the existing accessible scrolling
+        // hero so its content and sheet retain their relative positions.
+        final shortHeroViewport =
+            widget.scaleHeroWithText &&
+            showBottomDock &&
+            normalHeroHeight + MaatFlowDetailGeometry.bottomContentClearance >
+                constraints.maxHeight;
+        final scrollHero = enlargedHero || shortHeroViewport;
+        final heroHeight = enlargedHero
             ? widthScaledHero * math.max(1, textScale)
-            : math.min(widthScaledHero, heightScaledHero);
+            : normalHeroHeight;
+        final widthScale = width / MaatFlowDetailGeometry.referenceWidth;
+        // The foreground must not grow over the fixed-size hero typography
+        // merely because a tablet (including narrow Split View) has more
+        // horizontal room. Custom heroes keep their own overlap calculation.
         final overlap =
             widget.referenceSheetOverlap *
-            (width / MaatFlowDetailGeometry.referenceWidth);
+            (widget.scaleHeroWithText ? math.min(1.0, widthScale) : widthScale);
         final parallax =
             _scrollOffset * MaatFlowDetailGeometry.heroParallaxFactor;
         final fadeT =
@@ -272,7 +321,8 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
 
 /// Shared hero typography and placement. Each flow supplies its own backdrop
 /// and glyph treatment while retaining the same hierarchy and proportions.
-class MaatFlowDetailHero extends StatelessWidget {
+class MaatFlowDetailHero extends StatelessWidget
+    implements MaatFlowHeroGeometry {
   const MaatFlowDetailHero({
     super.key,
     required this.theme,
@@ -298,6 +348,7 @@ class MaatFlowDetailHero extends StatelessWidget {
     this.subtitleFontSize = 19,
     this.subtitleColor,
     this.subtitleHeight = 1.2,
+    this.minimumTopClearance = 40,
   });
 
   final MaatFlowDetailTheme theme;
@@ -323,6 +374,96 @@ class MaatFlowDetailHero extends StatelessWidget {
   final double subtitleFontSize;
   final Color? subtitleColor;
   final double subtitleHeight;
+
+  /// Space occupied by this flow's fixed Back control, excluding safe padding.
+  final double minimumTopClearance;
+
+  TextStyle _titleStyle(double titleScale) => TextStyle(
+    color: theme.accent,
+    fontFamily: MaatFlowListTokens.fontFamily,
+    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+    fontSize: titleFontSize * titleScale,
+    fontWeight: FontWeight.w500,
+    height: titleHeight,
+    letterSpacing: titleLetterSpacing * titleScale,
+    shadows: const [
+      Shadow(color: Color(0xB8000000), blurRadius: 8, offset: Offset(0, 1)),
+    ],
+  );
+
+  TextStyle get _subtitleStyle => TextStyle(
+    color: subtitleColor ?? theme.primaryText,
+    fontFamily: MaatFlowListTokens.fontFamily,
+    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+    fontSize: subtitleFontSize,
+    fontWeight: FontWeight.w300,
+    fontStyle: FontStyle.italic,
+    height: subtitleHeight,
+    shadows: const [
+      Shadow(color: Color(0xC7000000), blurRadius: 8, offset: Offset(0, 1)),
+    ],
+  );
+
+  /// Measure exactly the style, scaler and available width used by Text.
+  static double measureTextHeight(
+    BuildContext context, {
+    required String text,
+    required TextStyle style,
+    required double width,
+  }) {
+    final defaults = DefaultTextStyle.of(context);
+    var effectiveStyle = defaults.style.merge(style);
+    if (MediaQuery.boldTextOf(context)) {
+      effectiveStyle = effectiveStyle.merge(
+        const TextStyle(fontWeight: FontWeight.bold),
+      );
+    }
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: effectiveStyle),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      locale: Localizations.maybeLocaleOf(context),
+      textHeightBehavior:
+          defaults.textHeightBehavior ??
+          DefaultTextHeightBehavior.maybeOf(context),
+    )..layout(maxWidth: math.max(0, width));
+    final height = painter.height;
+    painter.dispose();
+    return height;
+  }
+
+  @override
+  double minimumHeightFor(BuildContext context, double width) {
+    final titleScale = math.min(
+      1.0,
+      width / MaatFlowDetailGeometry.referenceWidth,
+    );
+    final contentWidth = math.max(0.0, width - contentLeft - contentRight);
+    final titleExtent = measureTextHeight(
+      context,
+      text: title,
+      style: _titleStyle(titleScale),
+      width: contentWidth,
+    );
+    final subtitleExtent = subtitle.isEmpty
+        ? 0.0
+        : subtitleSpacing +
+              measureTextHeight(
+                context,
+                text: subtitle,
+                style: _subtitleStyle,
+                width: math.min(subtitleWidth, contentWidth),
+              );
+    // This local minimum measures the bottom-anchored identity. The shell
+    // reserves inherited safe padding when height compresses the authored fit.
+    return minimumTopClearance +
+        math.max(0.0, -glyphOffset.dy) +
+        52 +
+        glyphToTitleSpacing +
+        titleExtent +
+        subtitleExtent +
+        contentBottom;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -401,48 +542,12 @@ class MaatFlowDetailHero extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: glyphToTitleSpacing),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: theme.accent,
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                        fontSize: titleFontSize * titleScale,
-                        fontWeight: FontWeight.w500,
-                        height: titleHeight,
-                        letterSpacing: titleLetterSpacing * titleScale,
-                        shadows: const [
-                          Shadow(
-                            color: Color(0xB8000000),
-                            blurRadius: 8,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                    ),
+                    Text(title, style: _titleStyle(titleScale)),
                     if (subtitle.isNotEmpty) ...[
                       SizedBox(height: subtitleSpacing),
                       SizedBox(
                         width: subtitleWidth,
-                        child: Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: subtitleColor ?? theme.primaryText,
-                            fontFamily: MaatFlowListTokens.fontFamily,
-                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                            fontSize: subtitleFontSize,
-                            fontWeight: FontWeight.w300,
-                            fontStyle: FontStyle.italic,
-                            height: subtitleHeight,
-                            shadows: const [
-                              Shadow(
-                                color: Color(0xC7000000),
-                                blurRadius: 8,
-                                offset: Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                        ),
+                        child: Text(subtitle, style: _subtitleStyle),
                       ),
                     ],
                   ],

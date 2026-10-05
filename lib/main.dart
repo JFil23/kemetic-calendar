@@ -2339,33 +2339,15 @@ class _MyAppState extends State<MyApp> {
     debugPrint('$stackTrace');
   }
 
-  MediaQuery _scaledMediaQuery({
-    required BuildContext context,
-    required Widget child,
-  }) {
-    final mq = MediaQuery.of(context);
-    final isTablet = mq.size.shortestSide >= 600;
-    final baseTextScaleFactor = mq.textScaler.scale(16) / 16;
-    final textScaler = isTablet
-        ? TextScaler.linear(baseTextScaleFactor * 1.5)
-        : mq.textScaler;
-    return MediaQuery(
-      data: mq.copyWith(textScaler: textScaler),
-      child: child,
-    );
-  }
-
+  // Inherit the platform TextScaler on every display. Enlarging all tablet
+  // text independently of layout also activates accessibility-only flow
+  // geometry and clips fixed-height controls at the 600px breakpoint.
   Widget _buildLoginApp() {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       builder: (context, child) {
-        return NavigationTraceOverlay(
-          child: _scaledMediaQuery(
-            context: context,
-            child: child ?? const SizedBox.shrink(),
-          ),
-        );
+        return NavigationTraceOverlay(child: child ?? const SizedBox.shrink());
       },
       home: Builder(
         builder: (context) =>
@@ -2379,12 +2361,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       builder: (context, child) {
-        return NavigationTraceOverlay(
-          child: _scaledMediaQuery(
-            context: context,
-            child: child ?? const SizedBox.shrink(),
-          ),
-        );
+        return NavigationTraceOverlay(child: child ?? const SizedBox.shrink());
       },
       home: PasswordRecoveryScreen(
         onPasswordUpdated: () async {
@@ -2411,14 +2388,11 @@ class _MyAppState extends State<MyApp> {
       routerConfig: _appRouter,
       builder: (context, child) {
         return NavigationTraceOverlay(
-          child: _scaledMediaQuery(
-            context: context,
-            child: SessionLifecycleBridge(
-              child: PushIntentBridge(
-                child: _AppChrome(
-                  router: _appRouter,
-                  child: child ?? const SizedBox.shrink(),
-                ),
+          child: SessionLifecycleBridge(
+            child: PushIntentBridge(
+              child: _AppChrome(
+                router: _appRouter,
+                child: child ?? const SizedBox.shrink(),
               ),
             ),
           ),

@@ -83,8 +83,8 @@ height of 36, 62, and 98 respectively.
 
 All four expansion modes share a fixed 28-pixel day-number header inside the
 chip. The 23-pixel number opts out of ambient text scaling so the application's
-1.5x tablet scaler cannot make that internal header overflow. This does not
-remove `TextScaler` from the section environment: month, season, decan, and
+former 1.5x tablet scaler could not make that internal header overflow. This does
+not remove `TextScaler` from the section environment: month, season, decan, and
 weekday text remain scale-sensitive extent contributors.
 
 The shared tile padding is 1 pixel vertically. After the header, stacked mode
@@ -141,9 +141,10 @@ hydration status banner is a `Positioned` overlay and adds no scroll extent.
 The scrolling month banner has a fixed height of 58 and reduces the body
 viewport; it is not part of any month section.
 
-The application multiplies the incoming text scale by 1.5 on screens whose
-shortest side is at least 600. `_SoftMonthNameTitle`, `_SeasonHeader`, weekday
-labels, and the Heriu header make the old assumption that portrait section
+At the audited implementation parent, the application multiplied the incoming
+text scale by 1.5 on screens whose shortest side was at least 600. The October 5
+re-audit below replaces that root policy with platform-owned text scaling.
+`_SoftMonthNameTitle`, `_SeasonHeader`, weekday labels, and the Heriu header make the old assumption that portrait section
 extents ignore text scale unsafe. Phase 1 still decides, by measurement across
 the supported scaler matrix, whether `TextScaler` changes a projected extent;
 if it does, it is mandatory in the epoch environment key.
@@ -507,3 +508,22 @@ Only the audited `year_and_month_sections` digest is updated to
 `87a1577ad74a0cbbf432ca4b2f8d4d7a5cbaa0001f1da490f12af53c2f6276df`.
 No guard assertions, contributor inventory, approved visual reference, geometry
 constant, or restoration layout revision is relaxed or regenerated.
+
+## 2026-10-05 iPad text-scale ownership re-audit
+
+The login, recovery, and authenticated root builders now inherit the framework's
+MediaQuery and TextScaler unchanged. Removing the tablet-only 1.5 multiplier
+also removes conversion of nonlinear platform scaling into a linear factor.
+The `responsive_text_scaler` inventory fragment now covers all three root
+builders; the contributor and fragment counts are retained.
+
+Month, season, decan, and weekday text remain scale-sensitive extent
+contributors. The fixed day-number scaler and 28px header, chip heights, event
+caps, pill allocations, section topology, and geometry-marker ownership are
+unchanged. RenderCalendarGeometry proxies continue to report measured size
+changes to CalendarGeometryCollector after layout. Tablet section extents may
+change because their inherited scaler changes; the extent equations and closed
+contributor list remain valid. Existing enlarged-text tests and approved visual
+references are retained. The app-root tablet regression exercises platform
+scaling at phone, tablet, rotated, and Split View widths with representative
+Pages and flow-detail content.

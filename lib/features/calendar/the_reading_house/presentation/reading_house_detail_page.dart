@@ -1285,11 +1285,12 @@ class _ReadingHouseDetailSurfaceState extends State<ReadingHouseDetailSurface> {
   }
 }
 
-class _ReadingHouseHero extends StatelessWidget {
+class _ReadingHouseHero extends StatelessWidget
+    with MaatFlowHeroGeometryDelegate {
   const _ReadingHouseHero();
 
   @override
-  Widget build(BuildContext context) {
+  MaatFlowDetailHero buildHero(BuildContext context) {
     return MaatFlowDetailHero(
       key: const ValueKey<String>('reading-house-hero'),
       theme: ReadingHouseDetailTokens.theme,

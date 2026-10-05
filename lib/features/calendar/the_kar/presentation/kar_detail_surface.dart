@@ -803,11 +803,12 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
   }
 }
 
-class _KarHero extends StatelessWidget {
+class _KarHero extends StatelessWidget with MaatFlowHeroGeometryDelegate {
   const _KarHero({required this.theme});
   final MaatFlowDetailTheme theme;
   @override
-  Widget build(BuildContext context) => MaatFlowDetailHero(
+  MaatFlowDetailHero buildHero(BuildContext context) => MaatFlowDetailHero(
+    minimumTopClearance: 46,
     theme: theme,
     background: Stack(
       fit: StackFit.expand,

@@ -437,11 +437,11 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
   }
 }
 
-class _DjedHero extends StatelessWidget {
+class _DjedHero extends StatelessWidget with MaatFlowHeroGeometryDelegate {
   const _DjedHero();
 
   @override
-  Widget build(BuildContext context) {
+  MaatFlowDetailHero buildHero(BuildContext context) {
     return MaatFlowDetailHero(
       key: const ValueKey<String>('djed-hero'),
       theme: DjedDetailTokens.theme,

@@ -1189,7 +1189,8 @@ class ProfileRepo {
 
   /// Create a flow post for the current user from an existing flow.
   Future<FlowPost?> postFlow(int flowId, {String? sharedNote}) async {
-    final warmAccount = _client.auth.currentUser?.id;
+    final account = AccountOperationFence(_client);
+    final warmAccount = account.userId;
     invalidateWarmDomains(warmAccount, [
       'social.',
       'commons.',
@@ -1198,13 +1199,25 @@ class ProfileRepo {
     ]);
     try {
       try {
-        final userId = _client.auth.currentUser?.id;
+        final userId = account.userId;
         if (userId == null) return null;
 
         final flow = await FlowsRepo(_client).getFlowById(flowId);
-        if (flow == null || flow.userId != userId) return null;
+        if (!account.isCurrent || flow == null || flow.userId != userId) {
+          return null;
+        }
 
-        final events = await UserEventsRepo(_client).getEventsForFlow(flow.id);
+        // Preserve chronological snapshot order independently of the detail
+        // reader's pagination order, without changing its cached list.
+        final events =
+            List<FlowEventRow>.of(
+              await UserEventsRepo(_client).getFlowDetailEvents(flow.id),
+            )..sort((a, b) {
+              final byStart = a.startsAtUtc.compareTo(b.startsAtUtc);
+              return byStart != 0
+                  ? byStart
+                  : (a.id ?? '').compareTo(b.id ?? '');
+            });
         final startDate = flow.startDate;
         Map<String, dynamic> eventToPayload(e) {
           int offset = 0;
@@ -1254,6 +1267,7 @@ class ProfileRepo {
             'shared_note': normalizedSharedNote,
         };
 
+        if (!account.isCurrent) return null;
         final inserted = await _client
             .from('flow_posts')
             .insert({
@@ -1277,12 +1291,13 @@ class ProfileRepo {
             .select()
             .single();
 
-        return FlowPost.fromJson(inserted);
+        return account.isCurrent ? FlowPost.fromJson(inserted) : null;
       } catch (e) {
         _log('[ProfileRepo] Error creating flow post: $e');
         return null;
       }
     } finally {
+      account.dispose();
       invalidateWarmDomains(warmAccount, [
         'social.',
         'commons.',
