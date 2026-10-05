@@ -18,7 +18,8 @@ void main() {
         tester,
         size: const Size(390, 844),
         rawInset: 344,
-        resolver: (media) => KeyboardViewportMetrics.resolve(media: media),
+        resolver: (media, {required hasFocusedEditable}) =>
+            KeyboardViewportMetrics.resolve(media: media),
       );
 
       expect(_ownerPad(tester), 344);
@@ -34,10 +35,15 @@ void main() {
           tester,
           size: const Size(390, 844),
           rawInset: 0,
-          resolver: (media) => KeyboardViewportMetrics.resolve(
-            media: media,
-            webViewport: const (height: 500, layoutHeight: 844, offsetTop: 0),
-          ),
+          resolver: (media, {required hasFocusedEditable}) =>
+              KeyboardViewportMetrics.resolve(
+                media: media,
+                webViewport: const (
+                  height: 500,
+                  layoutHeight: 844,
+                  offsetTop: 0,
+                ),
+              ),
         );
 
         expect(_ownerPad(tester), 344);
@@ -54,10 +60,11 @@ void main() {
         tester,
         size: const Size(390, 500),
         rawInset: 0,
-        resolver: (media) => KeyboardViewportMetrics.resolve(
-          media: media,
-          webViewport: const (height: 500, layoutHeight: 844, offsetTop: 0),
-        ),
+        resolver: (media, {required hasFocusedEditable}) =>
+            KeyboardViewportMetrics.resolve(
+              media: media,
+              webViewport: const (height: 500, layoutHeight: 844, offsetTop: 0),
+            ),
       );
 
       expect(_ownerPad(tester), 0);
@@ -71,10 +78,15 @@ void main() {
         tester,
         size: const Size(390, 844),
         rawInset: 0,
-        resolver: (media) => KeyboardViewportMetrics.resolve(
-          media: media,
-          webViewport: const (height: 500, layoutHeight: 844, offsetTop: 100),
-        ),
+        resolver: (media, {required hasFocusedEditable}) =>
+            KeyboardViewportMetrics.resolve(
+              media: media,
+              webViewport: const (
+                height: 500,
+                layoutHeight: 844,
+                offsetTop: 100,
+              ),
+            ),
       );
 
       expect(_ownerPad(tester), 244);
@@ -88,10 +100,15 @@ void main() {
           tester,
           size: const Size(390, 524),
           rawInset: 320,
-          resolver: (media) => KeyboardViewportMetrics.resolve(
-            media: media,
-            webViewport: const (height: 524, layoutHeight: 844, offsetTop: 120),
-          ),
+          resolver: (media, {required hasFocusedEditable}) =>
+              KeyboardViewportMetrics.resolve(
+                media: media,
+                webViewport: const (
+                  height: 524,
+                  layoutHeight: 844,
+                  offsetTop: 120,
+                ),
+              ),
         );
 
         expect(_ownerPad(tester), 0);

@@ -485,6 +485,50 @@ class _FlowStudioDraft {
     };
   }
 
+  /// Compare the loaded editor projection, excluding only appearance metadata.
+  /// Sets/maps are canonicalized; note order and every note field remain meaningful.
+  String get scheduleFingerprint {
+    final json = toJson();
+    const fields = <String>{
+      'name',
+      'overview',
+      'calendarId',
+      'active',
+      'buildColorArgb',
+      'useKemetic',
+      'startDate',
+      'endDate',
+      'splitByPeriod',
+      'selectedDecanDays',
+      'selectedWeekdays',
+      'perDecanSel',
+      'perWeekSel',
+      'draftsByDay',
+      'draftsByPattern',
+      'flowAlertMinutesBefore',
+      'flowAlertMixed',
+    };
+    json.removeWhere((key, _) => !fields.contains(key));
+    json['selectedDecanDays'] = selectedDecanDays.toList()..sort();
+    json['selectedWeekdays'] = selectedWeekdays.toList()..sort();
+    json['perDecanSel'] = perDecanSel.map(
+      (key, value) => MapEntry(key, value.toList()..sort()),
+    );
+    json['perWeekSel'] = perWeekSel.map(
+      (key, value) => MapEntry(key, value.toList()..sort()),
+    );
+    Object? canonical(Object? value) {
+      if (value is Map) {
+        final keys = value.keys.cast<String>().toList()..sort();
+        return {for (final key in keys) key: canonical(value[key])};
+      }
+      if (value is List) return value.map(canonical).toList();
+      return value;
+    }
+
+    return jsonEncode(canonical(json));
+  }
+
   static _FlowStudioDraft? fromJson(Object? raw) {
     final json = _flowStudioJsonMap(raw);
     if (json == null) return null;
@@ -656,6 +700,12 @@ class _FlowStudioResult {
   final int? deleteFlowId;
   final List<_PlannedNote> plannedNotes;
 
+  /// The complete loaded schedule is unchanged; update only flow metadata.
+  final bool preserveExistingEvents;
+
+  /// Unmodified server rules for an appearance-only save.
+  final String? preservedRulesJson;
+
   /// The editor session began as an add-to-calendar operation.
   ///
   /// This is deliberately independent of [savedFlow.id]: AI composition may
@@ -672,6 +722,8 @@ class _FlowStudioResult {
     this.savedFlow,
     this.deleteFlowId,
     this.plannedNotes = const [],
+    this.preserveExistingEvents = false,
+    this.preservedRulesJson,
     this.completionRequired = false,
     this.originType,
     this.originFlowId,

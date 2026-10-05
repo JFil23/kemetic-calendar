@@ -321,6 +321,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   // Loading flag for async flow loading
   bool _isLoadingFlow = false;
   bool _closeInFlight = false;
+  bool _saveInFlight = false;
+  String? _loadError;
+  FlowRow? _loadedFlowRow;
+  _FlowStudioDraft? _loadedEditorDraft;
+  late final AccountOperationFence _editorAccount;
   late bool _completionRequired;
 
   // cached spans + per-period selections
@@ -346,6 +351,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   FlowAppearance _appearance = FlowAppearance.empty;
   Uint8List? _pendingAppearanceImageBytes;
   String? _pendingAppearanceImageName;
+  String? _pendingAppearanceUploadedPath;
   bool _appearanceImageBusy = false;
   final TextEditingController _flowSignLabelCtrl = TextEditingController();
   int _appearancePreviewIndex = 0;
@@ -629,6 +635,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       if (!mounted) return;
       setState(() {
         _pendingAppearanceImageBytes = bytes;
+        _pendingAppearanceUploadedPath = null;
         _pendingAppearanceImageName = picked.name;
         _appearance = _appearance.copyWith(accentArgb: accent?.toARGB32());
       });
@@ -647,6 +654,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   void _removeAppearanceImage() {
     setState(() {
       _pendingAppearanceImageBytes = null;
+      _pendingAppearanceUploadedPath = null;
       _pendingAppearanceImageName = null;
       _appearance = _appearance.copyWith(
         clearImage: true,
@@ -656,36 +664,42 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     _schedulePersistentDraftSave();
   }
 
-  Future<FlowAppearance> _materializeAppearanceForSave() async {
-    var result = _studioAppearance;
-    try {
-      final store = FlowAppearanceStore(Supabase.instance.client);
-      if (_pendingAppearanceImageBytes != null) {
-        final path = await store.uploadOwnedImage(
-          bytes: _pendingAppearanceImageBytes!,
-          filename: _pendingAppearanceImageName ?? 'flow-image.jpg',
-        );
-        result = result.copyWith(imageObjectPath: path);
-      } else if (widget.importData != null && result.hasImage) {
-        final path = await store.materializeOwnedCopy(result.imageObjectPath);
-        result = result.copyWith(imageObjectPath: path);
-      }
-      _appearance = result;
-      _pendingAppearanceImageBytes = null;
-      _pendingAppearanceImageName = null;
-      return result;
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'The flow was saved without the optional image. You can add it again later.',
-            ),
-          ),
-        );
-      }
-      return result.copyWith(clearImage: true);
+  void _requireCurrentEditorAccount() {
+    if (!mounted || !_editorAccount.isCurrent) {
+      throw StateError('Your account changed. Reopen this flow to continue.');
     }
+  }
+
+  Future<FlowAppearance> _materializeAppearanceForSave() async {
+    _requireCurrentEditorAccount();
+    var result = _studioAppearance;
+    final store = FlowAppearanceStore(Supabase.instance.client);
+    if (_pendingAppearanceImageBytes != null) {
+      final path =
+          _pendingAppearanceUploadedPath ??
+          await store.uploadOwnedImage(
+            bytes: _pendingAppearanceImageBytes!,
+            filename: _pendingAppearanceImageName ?? 'flow-image.jpg',
+          );
+      _requireCurrentEditorAccount();
+      _pendingAppearanceUploadedPath = path;
+      result = result.copyWith(imageObjectPath: path);
+    } else if (widget.importData != null && result.hasImage) {
+      final path = await store.materializeOwnedCopy(result.imageObjectPath);
+      _requireCurrentEditorAccount();
+      result = result.copyWith(imageObjectPath: path);
+    }
+    // Keep the selected image until the flow write is acknowledged. A retry
+    // can reuse an acknowledged upload without discarding the user's selection.
+    return result;
+  }
+
+  void _acceptSavedAppearance(_FlowStudioResult result) {
+    if (result.savedFlow == null || !mounted) return;
+    _appearance = result.savedFlow!.appearance;
+    _pendingAppearanceImageBytes = null;
+    _pendingAppearanceImageName = null;
+    _pendingAppearanceUploadedPath = null;
   }
 
   double get _activeStudioHue => _studioMode == _FlowStudioMode.build
@@ -872,6 +886,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   static String _iso(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  void _recordLoadedSchedule(FlowRow row) {
+    _loadedFlowRow = row;
+    _loadedEditorDraft = _captureDraft();
+  }
 
   _FlowStudioDraft? _captureDraft() {
     final hasContent =
@@ -1070,6 +1089,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _appearance = draft.appearance;
       _invitedPeople = List<UserSearchResult>.from(draft.invitedPeople);
       _pendingAppearanceImageBytes = null;
+      _pendingAppearanceUploadedPath = null;
       _pendingAppearanceImageName = null;
       _flowSignLabelCtrl.text = draft.appearance.signLabel ?? '';
 
@@ -1172,8 +1192,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final raw = await AppRestorationService.instance.readEditorState(
       _kFlowStudioDraftEditorKey,
     );
+    _requireCurrentEditorAccount();
     final draft = _FlowStudioDraft.fromJson(raw);
-    if (!mounted || draft == null) return;
+    if (draft == null) return;
     if (expectedEditFlowId != null &&
         draft.editingFlowId != expectedEditFlowId) {
       return;
@@ -1964,7 +1985,38 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   // ---------- save/delete ----------
 
+  String get _saveFailureMessage => _editorAccount.isCurrent
+      ? 'Unable to save flow. Your changes are still here. Try again.'
+      : 'Your account changed. Reopen this flow to continue.';
+
   Future<void> _save() async {
+    if (_saveInFlight ||
+        _appearanceImageBusy ||
+        _isLoadingFlow ||
+        _loadError != null) {
+      return;
+    }
+    setState(() => _saveInFlight = true);
+    FocusManager.instance.primaryFocus?.unfocus();
+    try {
+      _requireCurrentEditorAccount();
+      await _saveDraft();
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        _calendarDebugPrint('[FlowStudio] save failed: $error');
+        _calendarDebugPrint('$stackTrace');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_saveFailureMessage)));
+      }
+    } finally {
+      if (mounted) setState(() => _saveInFlight = false);
+    }
+  }
+
+  Future<void> _saveDraft() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(
@@ -2170,21 +2222,39 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final flowIsSaved =
         (_editing?.isSaved ?? false) || saveAsUnscheduledTemplate;
 
+    // Only a complete, freshly loaded editor projection can preserve events.
+    // Keep server metadata because the editor normalizes dates/rules for display.
+    final loaded = _loadedFlowRow?.id == _editing?.id ? _loadedFlowRow : null;
+    final initial = _loadedEditorDraft;
+    final preserveExistingEvents =
+        !_completionRequired &&
+        loaded != null &&
+        initial != null &&
+        loaded.id == _editing?.id &&
+        initial.scheduleFingerprint == _captureDraft()?.scheduleFingerprint;
+
     final flow = _Flow(
       id: _editing?.id ?? -1,
-      calendarId: selectedCalendarId,
+      calendarId: preserveExistingEvents
+          ? loaded.calendarId
+          : selectedCalendarId,
       name: name,
       color: _buildColor,
       active: _active,
-      isSaved: flowIsSaved,
-      savedAt: flowIsSaved ? (_editing?.savedAt ?? DateTime.now()) : null,
-      rules: rulesToSave, // ✅ Empty rules for non-AI imports
-      start: _startDate,
-      end: _endDate,
-      notes: notes,
+      isSaved: preserveExistingEvents ? loaded.isSaved : flowIsSaved,
+      savedAt: preserveExistingEvents
+          ? loaded.savedAt
+          : (flowIsSaved ? (_editing?.savedAt ?? DateTime.now()) : null),
+      rules: preserveExistingEvents
+          ? CalendarPage._parseDetachedFlowRowRules(loaded.rules)
+          : rulesToSave,
+      start: preserveExistingEvents ? loaded.startDate : _startDate,
+      end: preserveExistingEvents ? loaded.endDate : _endDate,
+      notes: preserveExistingEvents ? loaded.notes : notes,
       shareId: widget.importData?.share.shareId,
-      isHidden:
-          _editing?.isHidden ?? false, // Preserve hidden status if editing
+      isHidden: loaded?.isHidden ?? _editing?.isHidden ?? false,
+      isReminder: loaded?.isReminder ?? _editing?.isReminder ?? false,
+      reminderUuid: loaded?.reminderUuid ?? _editing?.reminderUuid,
       appearance: await _materializeAppearanceForSave(),
     );
 
@@ -2208,7 +2278,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     await _finishWithResult(
       _FlowStudioResult(
         savedFlow: flow,
-        plannedNotes: planned,
+        plannedNotes: preserveExistingEvents ? const [] : planned,
+        preserveExistingEvents: preserveExistingEvents,
+        preservedRulesJson: preserveExistingEvents
+            ? jsonEncode(loaded.rules)
+            : null,
         completionRequired: _completionRequired,
         originType: originType,
         originFlowId: originFlowId,
@@ -2224,10 +2298,17 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   Future<void> _finishWithResult(_FlowStudioResult result) async {
+    _requireCurrentEditorAccount();
     final routeResultHandler = widget.onRouteResult;
     if (routeResultHandler != null) {
       try {
         await routeResultHandler(result);
+        if (!_editorAccount.isCurrent) {
+          throw StateError(
+            'Your account changed. Reopen this flow to continue.',
+          );
+        }
+        _acceptSavedAppearance(result);
         _clearSessionDraft();
         _suppressDraftSave = true;
       } catch (error, stackTrace) {
@@ -2238,7 +2319,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Unable to save flow: $error')));
+        ).showSnackBar(SnackBar(content: Text(_saveFailureMessage)));
       }
       return;
     }
@@ -2442,6 +2523,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   void _clearEditorForNew() {
+    _loadedFlowRow = null;
+    _loadedEditorDraft = null;
     setState(() {
       _completionRequired = true;
       _editing = null;
@@ -2487,6 +2570,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _overviewCtrl.text = '';
       _appearance = FlowAppearance.empty;
       _pendingAppearanceImageBytes = null;
+      _pendingAppearanceUploadedPath = null;
       _pendingAppearanceImageName = null;
       _flowSignLabelCtrl.clear();
       _invitedPeople = <UserSearchResult>[];
@@ -2500,6 +2584,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   // Load an existing flow into the editor (best-effort reconstruction of rules)
   void _loadFlowForEdit(_Flow f, {bool preserveCompletionIntent = false}) {
+    _loadedFlowRow = null;
+    _loadedEditorDraft = null;
     // Add debug logging
     if (kDebugMode) {
       _calendarDebugPrint(
@@ -2519,6 +2605,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _setBuildExactColor(f.color);
       _appearance = f.appearance;
       _pendingAppearanceImageBytes = null;
+      _pendingAppearanceUploadedPath = null;
       _pendingAppearanceImageName = null;
       _flowSignLabelCtrl.text = f.appearance.signLabel ?? '';
       _invitedPeople = <UserSearchResult>[];
@@ -2590,13 +2677,14 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       // 1. Fetch the flow from database
       final repo = FlowsRepo(Supabase.instance.client);
       final flow = await repo.getFlowById(flowId);
+      _requireCurrentEditorAccount();
       if (flow == null) {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Flow not found')));
         }
-        return;
+        throw StateError('Flow not found');
       }
 
       // 2. Convert FlowRow to _Flow
@@ -2621,7 +2709,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
       // 3. Fetch events for this flow
       final eventsRepo = UserEventsRepo(Supabase.instance.client);
-      final eventRecords = await eventsRepo.getEventsForFlow(flowId);
+      final eventRecords = await eventsRepo.getFlowDetailEvents(flowId);
+      _requireCurrentEditorAccount();
 
       // Convert record type to UserEvent objects
       final userEvents = eventRecords.map((record) {
@@ -2713,6 +2802,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           // treat it like an unsaved generated draft.
           _isAIGeneratedFlow = false;
         });
+        _recordLoadedSchedule(flow);
         return;
       }
 
@@ -2774,6 +2864,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         // Note: _startDate, _endDate, _useKemetic, _splitByPeriod already set above
       });
 
+      _recordLoadedSchedule(flow);
+
       // 11. Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2800,6 +2892,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           context,
         ).showSnackBar(SnackBar(content: Text('Error loading AI flow: $e')));
       }
+      rethrow;
     }
   }
 
@@ -2817,6 +2910,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
     // 1️⃣ Load the flow row
     final flowRow = await flowsRepo.getFlowById(flowId);
+    _requireCurrentEditorAccount();
     if (flowRow == null) {
       if (kDebugMode) {
         _calendarDebugPrint('🔍 [LoadFlow] ERROR: Flow not found');
@@ -2826,7 +2920,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           context,
         ).showSnackBar(const SnackBar(content: Text('Flow not found')));
       }
-      return;
+      throw StateError('Flow not found');
     }
 
     if (kDebugMode) {
@@ -2848,7 +2942,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     }
 
     // 2️⃣ Load all events for this flow (this is what the importer writes)
-    final eventRecords = await eventsRepo.getEventsForFlow(flowId);
+    final eventRecords = await eventsRepo.getFlowDetailEvents(flowId);
+    _requireCurrentEditorAccount();
 
     if (kDebugMode) {
       _calendarDebugPrint(
@@ -2904,6 +2999,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _nameCtrl.text = f.name;
       _active = f.active;
       _loadFlowForEdit(f, preserveCompletionIntent: preserveCompletionIntent);
+      _recordLoadedSchedule(flowRow);
       return;
     }
 
@@ -3082,6 +3178,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _active = f.active;
       _studioMode = _FlowStudioMode.build;
       _setBuildExactColor(f.color);
+      _appearance = f.appearance;
+      _pendingAppearanceImageBytes = null;
+      _pendingAppearanceImageName = null;
+      _pendingAppearanceUploadedPath = null;
+      _flowSignLabelCtrl.text = f.appearance.signLabel ?? '';
 
       _overviewCtrl.text = _effectiveOverview(f.notes, meta.overview);
 
@@ -3089,6 +3190,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       // ⛔️ Do NOT set _useKemetic, _splitByPeriod, _syncReady - already set above
       // ⛔️ Do NOT set _isAIGeneratedFlow - this is an imported flow
     });
+
+    _recordLoadedSchedule(flowRow);
 
     if (kDebugMode) {
       _calendarDebugPrint('🔍 [LoadFlow] After setState:');
@@ -3298,6 +3401,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _setBuildExactColor(Color(data.color));
       _appearance = data.appearance;
       _pendingAppearanceImageBytes = null;
+      _pendingAppearanceUploadedPath = null;
       _pendingAppearanceImageName = null;
       _flowSignLabelCtrl.text = data.appearance.signLabel ?? '';
 
@@ -3483,40 +3587,36 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   /// Helper to load a flow from DB with loading spinner
   void _loadFromDbWithSpinner(int flowId) {
-    if (kDebugMode) {
-      _calendarDebugPrint(
-        '🔧 [FlowStudio] _loadFromDbWithSpinner: flowId=$flowId',
-      );
+    if (!_nameControllerReady) {
+      _nameCtrl = TextEditingController();
+      _markNameControllerReady();
     }
-
-    _nameCtrl = TextEditingController();
-    _markNameControllerReady();
-    _active = true;
-    _isLoadingFlow = true;
-
+    setState(() {
+      _isLoadingFlow = true;
+      _loadError = null;
+      _loadedFlowRow = null;
+      _loadedEditorDraft = null;
+    });
     _loadFlowByIdFromDb(flowId)
         .then((_) async {
-          if (!mounted) return;
+          _requireCurrentEditorAccount();
           await _restorePersistentDraftIfAny(expectedEditFlowId: flowId);
-          if (!mounted) return;
-          setState(() {
-            _isLoadingFlow = false;
-          });
+          _requireCurrentEditorAccount();
+          setState(() => _isLoadingFlow = false);
         })
-        .catchError((e) {
+        .catchError((Object error) {
           if (!mounted) return;
           setState(() {
             _isLoadingFlow = false;
+            _loadError = 'Could not load this flow. Please try again.';
           });
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error loading flow: $e')));
         });
   }
 
   @override
   void initState() {
     super.initState();
+    _editorAccount = AccountOperationFence(Supabase.instance.client);
     WidgetsBinding.instance.addObserver(this);
     _completionRequired = widget.editFlowId == null;
 
@@ -3580,6 +3680,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _editorAccount.dispose();
     _draftPersistDebounce?.cancel();
     if (widget.debugDisableDraftPersistence) {
       _sessionDraft = null;
@@ -5454,7 +5555,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   Future<void> _handleClose() async {
     // Close/cancel never deletes a flow. Deletion is only allowed through the
     // explicit Flow Studio delete action returned as _FlowStudioResult.
-    if (!mounted || _closeInFlight) return;
+    if (!mounted || _closeInFlight || _saveInFlight) return;
     _closeInFlight = true;
     try {
       _suppressDraftSave = true;
@@ -5488,7 +5589,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   @override
   Widget build(BuildContext context) {
     // ✅ Show loading indicator while loading flow from DB
-    if (_isLoadingFlow) {
+    if (_isLoadingFlow || _loadError != null) {
       return Scaffold(
         backgroundColor: _bg,
         appBar: AppBar(
@@ -5497,14 +5598,29 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           leading: IconButton(
             tooltip: 'Close',
             icon: const Icon(Icons.close, color: Colors.white),
-            onPressed: _handleClose,
+            onPressed: _saveInFlight ? null : _handleClose,
           ),
           title: const Text(
             'Flow Studio',
             style: TextStyle(color: Colors.white),
           ),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: _isLoadingFlow
+              ? const CircularProgressIndicator()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_loadError!, style: const TextStyle(color: _silver)),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () =>
+                          _loadFromDbWithSpinner(widget.editFlowId!),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+        ),
       );
     }
 
@@ -5545,7 +5661,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints.tightFor(width: 44, height: 44),
             icon: const Icon(Icons.close, color: _gold),
-            onPressed: _handleClose,
+            onPressed: _saveInFlight ? null : _handleClose,
           ),
         ),
         title: Row(
@@ -5572,7 +5688,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             IconButton(
               tooltip: 'Delete',
               icon: const Icon(Icons.delete_outline, color: _silver, size: 22),
-              onPressed: _delete,
+              onPressed: _saveInFlight ? null : _delete,
             ),
           if (_studioMode == _FlowStudioMode.build)
             Padding(
@@ -5581,7 +5697,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                 width: 66,
                 height: 36,
                 child: TextButton(
-                  onPressed: _save,
+                  onPressed: _saveInFlight || _appearanceImageBusy
+                      ? null
+                      : _save,
                   style: TextButton.styleFrom(
                     foregroundColor: _gold,
                     side: BorderSide(color: tone.ctaBorder),
@@ -5592,19 +5710,30 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  child: const Text(
-                    'Save',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'GentiumPlus',
-                    ),
-                  ),
+                  child: _saveInFlight
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            semanticsLabel: 'Saving flow',
+                            strokeWidth: 2,
+                            color: _gold,
+                          ),
+                        )
+                      : const Text(
+                          'Save',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'GentiumPlus',
+                          ),
+                        ),
                 ),
               ),
             ),
           if (widget.existingFlows.isNotEmpty)
             PopupMenuButton<int>(
+              enabled: !_saveInFlight,
               tooltip: 'Flows menu',
               icon: const Icon(Icons.more_vert, color: _silver, size: 22),
               padding: EdgeInsets.zero,
@@ -5648,307 +5777,314 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           ),
         ),
       ),
-      body: ListView(
-        padding: bodyPadding,
-        children: [
-          _studioTopTintFade(tone),
-          _studioModeToggle(tone),
-          const SizedBox(height: 30),
-          if (_studioMode == _FlowStudioMode.build) ...[
-            _studioSectionLabel('Name'),
-            const SizedBox(height: 18),
-            TextField(
-              controller: _nameCtrl,
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(
-                color: Color(0xFFF2E4C5),
-                fontSize: 38,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'GentiumPlus',
-              ),
-              decoration:
-                  _studioInputDecoration(
-                    tone: tone,
-                    hint: 'FLOW TITLE',
-                    radius: 4,
-                  ).copyWith(
-                    filled: false,
-                    contentPadding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: tone.fieldBorder),
-                    ),
-                    focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: tone.ctaBorder, width: 1.2),
-                    ),
-                  ),
-            ),
-            const SizedBox(height: 32),
-            if (_isItineraryImport) ...[
-              _itineraryImportBadge(),
-              const SizedBox(height: 24),
-            ],
-            _colorStudioSection(tone),
-            const SizedBox(height: 34),
-            _appearancePreviewSection(tone),
-            const SizedBox(height: 24),
-            _appearanceControls(tone),
-            const SizedBox(height: 34),
-            _studioSectionLabel('Overview'),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 86,
-              child: TextField(
-                controller: _overviewCtrl,
+      body: IgnorePointer(
+        ignoring: _saveInFlight,
+        child: ListView(
+          padding: bodyPadding,
+          children: [
+            _studioTopTintFade(tone),
+            _studioModeToggle(tone),
+            const SizedBox(height: 30),
+            if (_studioMode == _FlowStudioMode.build) ...[
+              _studioSectionLabel('Name'),
+              const SizedBox(height: 18),
+              TextField(
+                controller: _nameCtrl,
+                onChanged: (_) => setState(() {}),
                 style: const TextStyle(
-                  color: Color(0xFFE8E1D5),
-                  fontSize: 16,
-                  height: 1.3,
-                  fontStyle: FontStyle.italic,
+                  color: Color(0xFFF2E4C5),
+                  fontSize: 38,
+                  fontWeight: FontWeight.w700,
                   fontFamily: 'GentiumPlus',
                 ),
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
-                expands: true,
-                maxLines: null,
-                minLines: null,
                 decoration:
                     _studioInputDecoration(
                       tone: tone,
-                      hint:
-                          'Describe the purpose, outcomes, links, or context.',
+                      hint: 'FLOW TITLE',
+                      radius: 4,
                     ).copyWith(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
+                      filled: false,
+                      contentPadding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: tone.fieldBorder),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: tone.ctaBorder,
+                          width: 1.2,
+                        ),
                       ),
                     ),
               ),
-            ),
-            const SizedBox(height: 20),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _active,
-              onChanged: (v) => setState(() => _active = v),
-              title: _studioSectionLabel('Active'),
-              activeThumbColor: tone.ctaText,
-              activeTrackColor: tone.softenedAccent.withValues(alpha: 0.55),
-            ),
-            const Divider(color: Color(0x1FFFFFFF), height: 28),
-            InkWell(
-              onTap: !canEditSelectedCalendar
-                  ? null
-                  : () async {
-                      await _ensureCalendarChoicesLoaded();
-                      if (!context.mounted) return;
-                      if (_selectedCalendarId == null) {
-                        final defaultCalendarId = _defaultCalendarId();
-                        if (defaultCalendarId != null) {
-                          setState(() {
-                            _selectedCalendarId = defaultCalendarId;
-                          });
+              const SizedBox(height: 32),
+              if (_isItineraryImport) ...[
+                _itineraryImportBadge(),
+                const SizedBox(height: 24),
+              ],
+              _colorStudioSection(tone),
+              const SizedBox(height: 34),
+              _appearancePreviewSection(tone),
+              const SizedBox(height: 24),
+              _appearanceControls(tone),
+              const SizedBox(height: 34),
+              _studioSectionLabel('Overview'),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 86,
+                child: TextField(
+                  controller: _overviewCtrl,
+                  style: const TextStyle(
+                    color: Color(0xFFE8E1D5),
+                    fontSize: 16,
+                    height: 1.3,
+                    fontStyle: FontStyle.italic,
+                    fontFamily: 'GentiumPlus',
+                  ),
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  expands: true,
+                  maxLines: null,
+                  minLines: null,
+                  decoration:
+                      _studioInputDecoration(
+                        tone: tone,
+                        hint:
+                            'Describe the purpose, outcomes, links, or context.',
+                      ).copyWith(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _active,
+                onChanged: (v) => setState(() => _active = v),
+                title: _studioSectionLabel('Active'),
+                activeThumbColor: tone.ctaText,
+                activeTrackColor: tone.softenedAccent.withValues(alpha: 0.55),
+              ),
+              const Divider(color: Color(0x1FFFFFFF), height: 28),
+              InkWell(
+                onTap: !canEditSelectedCalendar
+                    ? null
+                    : () async {
+                        await _ensureCalendarChoicesLoaded();
+                        if (!context.mounted) return;
+                        if (_selectedCalendarId == null) {
+                          final defaultCalendarId = _defaultCalendarId();
+                          if (defaultCalendarId != null) {
+                            setState(() {
+                              _selectedCalendarId = defaultCalendarId;
+                            });
+                          }
                         }
-                      }
-                      final calendars = _editableCalendars;
-                      if (calendars.isEmpty) return;
-                      final sheetContext = context;
-                      final chosenId = await showCupertinoModalPopup<String>(
-                        context: sheetContext,
-                        builder: (popupCtx) {
-                          return CupertinoActionSheet(
-                            title: const GlossyText(
-                              text: 'Calendar',
-                              gradient: silverGloss,
-                              style: TextStyle(fontSize: 18),
-                            ),
-                            actions: [
-                              for (final calendar in calendars)
-                                CupertinoActionSheetAction(
-                                  onPressed: () {
-                                    Navigator.of(popupCtx).pop(calendar.id);
-                                  },
-                                  child: Text(
-                                    calendar.name,
-                                    style: TextStyle(
-                                      color: calendar.color,
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w600,
+                        final calendars = _editableCalendars;
+                        if (calendars.isEmpty) return;
+                        final sheetContext = context;
+                        final chosenId = await showCupertinoModalPopup<String>(
+                          context: sheetContext,
+                          builder: (popupCtx) {
+                            return CupertinoActionSheet(
+                              title: const GlossyText(
+                                text: 'Calendar',
+                                gradient: silverGloss,
+                                style: TextStyle(fontSize: 18),
+                              ),
+                              actions: [
+                                for (final calendar in calendars)
+                                  CupertinoActionSheetAction(
+                                    onPressed: () {
+                                      Navigator.of(popupCtx).pop(calendar.id);
+                                    },
+                                    child: Text(
+                                      calendar.name,
+                                      style: TextStyle(
+                                        color: calendar.color,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                ),
-                            ],
-                            cancelButton: CupertinoActionSheetAction(
-                              isDestructiveAction: true,
-                              onPressed: () => Navigator.of(popupCtx).pop(),
-                              child: const Text('Cancel'),
+                              ],
+                              cancelButton: CupertinoActionSheetAction(
+                                isDestructiveAction: true,
+                                onPressed: () => Navigator.of(popupCtx).pop(),
+                                child: const Text('Cancel'),
+                              ),
+                            );
+                          },
+                        );
+                        if (chosenId == null) return;
+                        setState(() {
+                          _selectedCalendarId = chosenId;
+                        });
+                      },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _studioSectionLabel('Calendar'),
+                      Row(
+                        children: [
+                          Text(
+                            _calendarLabelFor(selectedCalendarId),
+                            style: TextStyle(
+                              color: selectedCalendar?.color ?? _gold,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'GentiumPlus',
                             ),
-                          );
-                        },
-                      );
-                      if (chosenId == null) return;
-                      setState(() {
-                        _selectedCalendarId = chosenId;
-                      });
-                    },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _studioSectionLabel('Calendar'),
-                    Row(
-                      children: [
-                        Text(
-                          _calendarLabelFor(selectedCalendarId),
-                          style: TextStyle(
-                            color: selectedCalendar?.color ?? _gold,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'GentiumPlus',
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.chevron_right,
-                          size: 18,
-                          color: Color(0xFF6F604A),
-                        ),
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: Color(0xFF6F604A),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            if (!canEditSelectedCalendar) ...[
+              if (!canEditSelectedCalendar) ...[
+                const SizedBox(height: 4),
+                const Text(
+                  'You can view this calendar, but you cannot edit it.',
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ],
+              const Divider(color: Color(0x1FFFFFFF), height: 28),
+              _studioSectionLabel('People'),
+              const SizedBox(height: 12),
+              _studioInvitesSection(tone),
+              const Divider(color: Color(0x1FFFFFFF), height: 34),
+              Row(
+                children: [
+                  _studioSectionLabel('System'),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 200),
+                      child: _modeToggle(tone),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 34),
+              _dateRangeSection(),
+              const SizedBox(height: 12),
+              if (!_hasFullRange)
+                _preRulesHint()
+              else if (_useKemetic)
+                (_splitByPeriod ? _kemeticPerDecan() : _kemeticSingleRow())
+              else
+                (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
+              SizedBox(key: _editorsAnchorKey, height: 0),
+              _notesEditorsPanel(),
+              const SizedBox(height: 24),
+              _studioCta(
+                key: const ValueKey('flow-studio-save-cta'),
+                tone: tone,
+                text: 'Save Flow',
+                busy: _saveInFlight,
+                onPressed: _appearanceImageBusy ? null : _save,
+              ),
+            ] else ...[
+              _colorStudioSection(tone),
+              const SizedBox(height: 34),
+              _studioSectionLabel('Describe your flow'),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 176,
+                child: TextField(
+                  controller: _composePromptCtrl,
+                  expands: true,
+                  maxLines: null,
+                  minLines: null,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  style: const TextStyle(
+                    color: Color(0xFFE8E1D5),
+                    fontSize: 18,
+                    height: 1.36,
+                    fontStyle: FontStyle.italic,
+                    fontFamily: 'GentiumPlus',
+                  ),
+                  decoration:
+                      _studioInputDecoration(
+                        tone: tone,
+                        hint: 'Describe what you want this flow to become.',
+                      ).copyWith(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 16,
+                        ),
+                      ),
+                ),
+              ),
+              const SizedBox(height: 34),
+              Row(
+                children: [
+                  _studioSectionLabel('System'),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 200),
+                      child: _composeSystemToggle(tone),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 34),
+              _composeDateRangeSection(tone),
+              if (_composeError != null) ...[
+                const SizedBox(height: 18),
+                Text(
+                  _composeError!,
+                  style: const TextStyle(
+                    color: Color(0xFFFFA99A),
+                    fontSize: 13,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 34),
+              _studioCta(
+                key: const ValueKey('flow-studio-shape-cta'),
+                tone: tone,
+                text: 'Shape this flow',
+                onPressed: () => unawaited(_shapeComposeFlow()),
+                busy: _composeGenerating,
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                key: const ValueKey('flow-studio-build-manually'),
+                onPressed: _composeGenerating
+                    ? null
+                    : _switchComposeToManualBuild,
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Build manually'),
+                style: TextButton.styleFrom(foregroundColor: tone.ctaText),
+              ),
               const SizedBox(height: 4),
               const Text(
-                'You can view this calendar, but you cannot edit it.',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-            ],
-            const Divider(color: Color(0x1FFFFFFF), height: 28),
-            _studioSectionLabel('People'),
-            const SizedBox(height: 12),
-            _studioInvitesSection(tone),
-            const Divider(color: Color(0x1FFFFFFF), height: 34),
-            Row(
-              children: [
-                _studioSectionLabel('System'),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 200),
-                    child: _modeToggle(tone),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 34),
-            _dateRangeSection(),
-            const SizedBox(height: 12),
-            if (!_hasFullRange)
-              _preRulesHint()
-            else if (_useKemetic)
-              (_splitByPeriod ? _kemeticPerDecan() : _kemeticSingleRow())
-            else
-              (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
-            SizedBox(key: _editorsAnchorKey, height: 0),
-            _notesEditorsPanel(),
-            const SizedBox(height: 24),
-            _studioCta(
-              key: const ValueKey('flow-studio-save-cta'),
-              tone: tone,
-              text: 'Save Flow',
-              onPressed: _save,
-            ),
-          ] else ...[
-            _colorStudioSection(tone),
-            const SizedBox(height: 34),
-            _studioSectionLabel('Describe your flow'),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 176,
-              child: TextField(
-                controller: _composePromptCtrl,
-                expands: true,
-                maxLines: null,
-                minLines: null,
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
-                style: const TextStyle(
-                  color: Color(0xFFE8E1D5),
-                  fontSize: 18,
-                  height: 1.36,
-                  fontStyle: FontStyle.italic,
-                  fontFamily: 'GentiumPlus',
-                ),
-                decoration:
-                    _studioInputDecoration(
-                      tone: tone,
-                      hint: 'Describe what you want this flow to become.',
-                    ).copyWith(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 16,
-                      ),
-                    ),
-              ),
-            ),
-            const SizedBox(height: 34),
-            Row(
-              children: [
-                _studioSectionLabel('System'),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 200),
-                    child: _composeSystemToggle(tone),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 34),
-            _composeDateRangeSection(tone),
-            if (_composeError != null) ...[
-              const SizedBox(height: 18),
-              Text(
-                _composeError!,
-                style: const TextStyle(
-                  color: Color(0xFFFFA99A),
-                  fontSize: 13,
-                  height: 1.25,
+                'Save becomes available in Build mode.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF8F8270),
+                  fontSize: 12,
+                  height: 1.2,
                 ),
               ),
             ],
-            const SizedBox(height: 34),
-            _studioCta(
-              key: const ValueKey('flow-studio-shape-cta'),
-              tone: tone,
-              text: 'Shape this flow',
-              onPressed: () => unawaited(_shapeComposeFlow()),
-              busy: _composeGenerating,
-            ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              key: const ValueKey('flow-studio-build-manually'),
-              onPressed: _composeGenerating
-                  ? null
-                  : _switchComposeToManualBuild,
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              label: const Text('Build manually'),
-              style: TextButton.styleFrom(foregroundColor: tone.ctaText),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Save becomes available in Build mode.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF8F8270),
-                fontSize: 12,
-                height: 1.2,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }

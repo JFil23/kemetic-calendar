@@ -12,7 +12,25 @@ typedef WebKeyboardViewportSnapshot = ({
 });
 
 typedef KeyboardViewportMetricsResolver =
-    KeyboardViewportMetrics Function(MediaQueryData media);
+    KeyboardViewportMetrics Function(
+      MediaQueryData media, {
+      required bool hasFocusedEditable,
+    });
+
+/// Shares the keyboard owner's focused target with callers outside its scope.
+EditableTextState? findFocusedEditableState() {
+  final focus = FocusManager.instance.primaryFocus;
+  final focusContext = focus?.context;
+  if (focusContext == null || !focusContext.mounted || !focus!.hasFocus) {
+    return null;
+  }
+  try {
+    return focusContext.findAncestorStateOfType<EditableTextState>();
+  } on FlutterError {
+    // Route replacement can briefly leave focus on a deactivated element.
+    return null;
+  }
+}
 
 /// One resolved description of the portion of the app viewport that is
 /// actually visible while a keyboard is present.
@@ -43,13 +61,18 @@ class KeyboardViewportMetrics {
   factory KeyboardViewportMetrics.resolve({
     required MediaQueryData media,
     WebKeyboardViewportSnapshot? webViewport,
+    bool hasFocusedEditable = true,
   }) {
     const coordinateEpsilon = 1.0;
     final mediaHeight = media.size.height;
     final mediaInset = media.viewInsets.bottom
         .clamp(0.0, mediaHeight)
         .toDouble();
-    if (webViewport == null) {
+    // iOS may retain a smaller visual viewport after editing or rotation.
+    // Flutter likewise uses that browser measurement only while an editor is
+    // active. Native insets still describe real keyboard occlusion on their
+    // own, including during dismissal.
+    if (webViewport == null || !hasFocusedEditable) {
       return KeyboardViewportMetrics(
         visibleTop: 0,
         visibleBottom: math.max(0, mediaHeight - mediaInset),
@@ -99,9 +122,15 @@ class KeyboardViewportMetrics {
   }
 }
 
-KeyboardViewportMetrics resolveKeyboardViewportMetrics(MediaQueryData media) {
+KeyboardViewportMetrics resolveKeyboardViewportMetrics(
+  MediaQueryData media, {
+  bool? hasFocusedEditable,
+}) {
   return KeyboardViewportMetrics.resolve(
     media: media,
     webViewport: readWebKeyboardViewport(),
+    hasFocusedEditable:
+        hasFocusedEditable ??
+        (findFocusedEditableState()?.widget.readOnly == false),
   );
 }

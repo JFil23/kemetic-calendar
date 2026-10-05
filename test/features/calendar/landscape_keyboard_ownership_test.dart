@@ -141,9 +141,11 @@ void main() {
                 child: ValueListenableBuilder<double>(
                   valueListenable: keyboardInset,
                   builder: (_, inset, _) => KemeticKeyboardHost(
-                    viewportMetricsResolver: (media) =>
+                    viewportMetricsResolver:
+                        (media, {required hasFocusedEditable}) =>
                         KeyboardViewportMetrics.resolve(
                           media: media,
+                          hasFocusedEditable: hasFocusedEditable,
                           webViewport: mode == 'native'
                               ? null
                               : (

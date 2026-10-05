@@ -816,3 +816,53 @@ schema, write store, or backend contract.
 Repository regressions cover cold and warm event-read timeouts without an
 insert, snapshots over 1,000 events, a later-page failure without a partial post,
 and account departure or departure-and-return without an insert.
+
+
+## October 5 iPad Flow Studio image editing and keyboard dismissal
+
+The user's October 5 iPad screenshots and the served app at
+`9859f6d8ab7d767fabafa8ed7af67440240a0982` are the visual and behavioral
+references. Flow Studio keeps its existing image row, preview, sheet and Save
+placement. Reopening an eventful flow must restore its saved appearance. A
+pending save has one owner; an image upload or definition acknowledgement
+failure retains the editor and its selected appearance for retry.
+
+UserEventsRepo remains the owner of flow definitions and occurrences. Editing
+an existing flow requires its complete, fresh paged event snapshot. Failed or
+partial reads expose Retry and cannot authorize a save from incomplete data.
+An appearance-only edit of a successfully loaded existing flow preserves its
+exact scheduled event set and raw server rules. The comparison uses the complete
+loaded editor projection, excluding appearance; any change to dates, recurrence,
+event content or order, alerts, calendar, active state, name, overview or color
+continues through the existing replacement path. New-flow completion never uses
+preservation. Both mounted and headless persistence skip event replacement for
+this result, and mounted rule scheduling also skips it. The original server
+notes, dates and saved state survive editor display normalization. Image bytes
+and owned object paths remain with FlowAppearanceStore and the existing editor
+draft. Regression coverage compares complete event rows (including IDs,
+client IDs, times, titles and count), raw rules and nullable metadata before and
+after appearance saves in both persistence paths. It also changes a note title
+and start time to prove that real edits still replace and persist occurrences.
+No new route, cache namespace, resource schema, pending-write store or backend
+contract is introduced. Approved visual references and old-release fixtures are
+unchanged.
+
+The shared keyboard owner uses its existing focused editable when interpreting
+browser viewport shrinkage. A retained Safari viewport measurement after the
+editor closes does not hide Today, Calendars or Inbox. Native keyboard insets,
+custom keyboard ownership, and remaining-occlusion geometry remain intact.
+Regression evidence includes editor cancellation, failed-save dismissal, photo
+picker return, rotation and reopening on iPad and phone.
+
+Image upload and imported-image copy operations are fenced to the initiating
+account through acknowledgement, including departure and return to that account.
+A late upload cannot populate another account's image cache. The existing owned
+storage object policy and cache keys do not change.
+
+Background reminder synchronization must confirm its existing flow owner before
+reading, pruning or materializing occurrences. A successful lookup with no owner
+skips the obsolete cached rule; a failed lookup retains it for later refresh and
+also performs no occurrence writes. The existing lookup is reused, without a new
+read boundary or pending-write cleanup. Account departure clears the transient
+reminder registry and fences in-flight sync and event-upsert work. Authored drafts
+and pending account writes remain with their existing owners.

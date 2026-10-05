@@ -4,6 +4,7 @@ import 'dart:async';
 import '../pages/pages_models.dart';
 import '../pages/pages_arrangement.dart';
 import '../../data/account_view_cache.dart';
+import '../../data/account_operation_fence.dart';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -8353,11 +8354,13 @@ class CalendarPage extends StatefulWidget {
 
   static Future<int> _upsertFlowStudioDefinition({
     required UserEventsRepo repo,
+    required AccountOperationFence account,
     required _Flow flow,
     required _FlowStudioResult result,
     required String rulesJson,
-  }) {
-    return repo.upsertFlow(
+  }) async {
+    _requireFlowStudioAccount(account);
+    final savedId = await repo.upsertFlow(
       id: flow.id > 0 ? flow.id : null,
       name: flow.name,
       color: flow.color.toARGB32(),
@@ -8366,7 +8369,7 @@ class CalendarPage extends StatefulWidget {
       startDate: flow.start,
       endDate: flow.end,
       notes: flow.notes,
-      rules: rulesJson,
+      rules: result.preservedRulesJson ?? rulesJson,
       isHidden: flow.isHidden,
       isSaved: flow.isSaved,
       originType: result.originType,
@@ -8377,6 +8380,14 @@ class CalendarPage extends StatefulWidget {
       aiMetadata: result.aiMetadata,
       appearance: flow.appearance,
     );
+    _requireFlowStudioAccount(account);
+    return savedId;
+  }
+
+  static void _requireFlowStudioAccount(AccountOperationFence account) {
+    if (account.userId == null || !account.isCurrent) {
+      throw StateError('Flow save was interrupted by an account change.');
+    }
   }
 
   static bool _didStageFlowStudioEvents(_FlowStudioResult result) =>
@@ -8397,13 +8408,28 @@ class CalendarPage extends StatefulWidget {
   static Future<int?> _persistFlowStudioResultHeadless(
     _FlowStudioResult r,
   ) async {
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      _requireFlowStudioAccount(account);
+      return await _persistFlowStudioResultHeadlessForAccount(r, account);
+    } finally {
+      account.dispose();
+    }
+  }
+
+  static Future<int?> _persistFlowStudioResultHeadlessForAccount(
+    _FlowStudioResult r,
+    AccountOperationFence account,
+  ) async {
     final userEventsRepo = UserEventsRepo(Supabase.instance.client);
 
     // Deletes
     final deleteId = r.deleteFlowId;
     if (deleteId != null) {
       await userEventsRepo.deleteByFlowId(deleteId);
+      _requireFlowStudioAccount(account);
       await userEventsRepo.deleteFlow(deleteId);
+      _requireFlowStudioAccount(account);
       _publishHeadlessCalendarInvalidation(
         reason: CalendarInvalidationReason.flowDeleted,
         flowId: deleteId,
@@ -8423,6 +8449,7 @@ class CalendarPage extends StatefulWidget {
 
     final savedId = await CalendarPage._upsertFlowStudioDefinition(
       repo: userEventsRepo,
+      account: account,
       flow: f,
       result: r,
       rulesJson: rulesJson,
@@ -8448,7 +8475,7 @@ class CalendarPage extends StatefulWidget {
       }
     }
 
-    if (r.plannedNotes.isNotEmpty) {
+    if (!r.preserveExistingEvents && r.plannedNotes.isNotEmpty) {
       if (!isNewFlowSave) {
         await userEventsRepo.deleteByFlowId(
           savedId,
@@ -8458,6 +8485,7 @@ class CalendarPage extends StatefulWidget {
           deleteScope: 'planned_flow_replace',
         );
       }
+      _requireFlowStudioAccount(account);
       final writes = <PlannedNoteWrite>[
         for (final planned in r.plannedNotes)
           CalendarPage._flowStudioPlannedNoteWrite(
@@ -8574,17 +8602,21 @@ class CalendarPage extends StatefulWidget {
       return savedId;
     }
 
+    _requireFlowStudioAccount(account);
     await commitGenerationIfNeeded();
+    _requireFlowStudioAccount(account);
     await _createTogetherOverlayForFlowStudioInvites(
       flowId: savedId,
       invitedUserIds: r.invitedUserIds,
       source: 'CalendarPage._persistFlowStudioResultHeadless',
     );
+    _requireFlowStudioAccount(account);
     await _ensureSharedExperienceForFlow(
       flowId: savedId,
       calendarId: f.calendarId,
       source: 'CalendarPage._persistFlowStudioResultHeadless',
     );
+    _requireFlowStudioAccount(account);
     if (isNewFlowSave) {
       await SharedCalendarsRepo(
         Supabase.instance.client,
@@ -8598,6 +8630,7 @@ class CalendarPage extends StatefulWidget {
         endDate: f.end,
       );
     }
+    _requireFlowStudioAccount(account);
     _publishHeadlessCalendarInvalidation(
       reason: CalendarInvalidationReason.flowStudioPersisted,
       flowId: savedId,
@@ -18964,12 +18997,15 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _loadReminderRules() async {
     if (_reminderRulesLoaded) return;
+    final account = AccountOperationFence(Supabase.instance.client);
     try {
       // The hydrated flow catalog is the only durable reminder authority.
       // Device storage may cache that confirmed catalog for first paint, but
       // an unconfirmed local rule is never promoted into account data.
       final metaRules = await _stageReminderRulesFromFlows(_flows);
+      if (!mounted || !account.isCurrent) return;
       final occRules = await _hydrateReminderRulesFromOccurrences();
+      if (!mounted || !account.isCurrent) return;
 
       final byId = <String, ReminderRule>{};
       for (final r in metaRules) {
@@ -19002,7 +19038,9 @@ class CalendarPageState extends State<CalendarPage>
         _reminderRulesLoaded = true;
       }
     } catch (_) {
-      _reminderRulesLoaded = true;
+      if (mounted && account.isCurrent) _reminderRulesLoaded = true;
+    } finally {
+      account.dispose();
     }
   }
 
@@ -19023,10 +19061,6 @@ class CalendarPageState extends State<CalendarPage>
   Future<List<ReminderRule>> _hydrateReminderRulesFromOccurrences() async {
     // With flow-backed reminders, occurrences are derived from flows; no direct reminder:* bootstrap.
     return const [];
-  }
-
-  Future<void> _ensureReminderRuleMeta(ReminderRule rule) async {
-    // No-op: reminder rules are persisted via flow rows with isReminder/reminderUuid.
   }
 
   void _upsertDebugDaySheetSmokeReminderRule(ReminderRule rule) {
@@ -20187,9 +20221,32 @@ class CalendarPageState extends State<CalendarPage>
     bool refreshUi = false,
     bool updateLocalCache = false,
   }) async {
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      if (account.userId == null) return;
+      await _performReminderSyncForAccount(
+        account: account,
+        refreshUi: refreshUi,
+        updateLocalCache: updateLocalCache,
+      );
+    } finally {
+      account.dispose();
+    }
+  }
+
+  Future<void> _performReminderSyncForAccount({
+    required AccountOperationFence account,
+    required bool refreshUi,
+    required bool updateLocalCache,
+  }) async {
+    bool isCurrent() => mounted && account.isCurrent;
+    if (!isCurrent()) return;
     await _reminderSyncGate.waitForOrientationCriticalSection();
+    if (!isCurrent()) return;
     await _loadOccurrenceExclusions(refreshServer: true);
+    if (!isCurrent()) return;
     await _loadReminderRules();
+    if (!isCurrent()) return;
     if (_reminderRules.isEmpty) return;
     final repo = UserEventsRepo(Supabase.instance.client);
     final today = DateUtils.dateOnly(
@@ -20205,10 +20262,26 @@ class CalendarPageState extends State<CalendarPage>
     var skippedUnchangedOccurrenceWrites = 0;
     var completedOccurrenceWrites = 0;
 
-    for (final rule in _reminderRules) {
+    // Hydration may replace the live registry while these reads are in flight.
+    final rules = List<ReminderRule>.of(_reminderRules);
+    for (final rule in rules) {
       await _reminderSyncGate.waitForOrientationCriticalSection();
-      // Persist meta before generating occurrences to keep server source-of-truth in sync.
-      await _ensureReminderRuleMeta(rule);
+      if (!isCurrent()) return;
+      final int? flowIdForReminder;
+      try {
+        // A cached rule is presentation, not permission to recreate a series.
+        // Failure leaves it available for a later refresh; confirmed absence
+        // must not read/prune occurrences or materialize new ones.
+        flowIdForReminder = await _findFlowIdByReminderUuid(
+          rule.id,
+          rethrowErrors: true,
+        );
+      } catch (_) {
+        if (!isCurrent()) return;
+        continue;
+      }
+      if (!isCurrent()) return;
+      if (flowIdForReminder == null || flowIdForReminder <= 0) continue;
       final overriddenDates = <String>{};
       List<_ReminderOccurrenceRow> existingRows = [];
       try {
@@ -20216,6 +20289,7 @@ class CalendarPageState extends State<CalendarPage>
           'reminder:${rule.id}:',
           fromUtc: today,
         );
+        if (!isCurrent()) return;
         for (final row in existingRows) {
           final cid = row.clientEventId ?? '';
           final parts = cid.split(':');
@@ -20227,6 +20301,7 @@ class CalendarPageState extends State<CalendarPage>
           }
         }
       } catch (_) {}
+      if (!isCurrent()) return;
       final existingRowsByClientEventId = <String, _ReminderOccurrenceRow>{
         for (final row in existingRows)
           if ((row.clientEventId ?? '').isNotEmpty) row.clientEventId!: row,
@@ -20248,6 +20323,7 @@ class CalendarPageState extends State<CalendarPage>
           suppressesClient: false,
           sourceFeature: 'CalendarPage._syncReminderEvents.inactive',
         );
+        if (!isCurrent()) return;
         continue;
       }
 
@@ -20281,6 +20357,7 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
       await _reminderSyncGate.waitForOrientationCriticalSection();
+      if (!isCurrent()) return;
       await _deleteReminderOccurrenceRows(
         repo,
         staleIdsToDelete,
@@ -20289,9 +20366,7 @@ class CalendarPageState extends State<CalendarPage>
         sourceFeature: 'CalendarPage._syncReminderEvents.stale',
       );
 
-      final flowIdForReminder = await _findFlowIdByReminderUuid(
-        rule.id,
-      ); // may be null/nonexistent
+      if (!isCurrent()) return;
       localCacheChanged =
           _applyReminderSyncVisibleMembership(
             updateLocalCache: updateLocalCache,
@@ -20305,7 +20380,9 @@ class CalendarPageState extends State<CalendarPage>
       if (!rule.id.startsWith('nutrition:')) {
         for (final day in occurrences) {
           await _reminderSyncGate.waitForOrientationCriticalSection();
+          if (!isCurrent()) return;
           await _yieldReminderSyncBatchIfNeeded(processedOccurrenceWrites);
+          if (!isCurrent()) return;
 
           final start = rule.allDay
               ? DateTime(day.year, day.month, day.day, 9, 0)
@@ -20363,9 +20440,7 @@ class CalendarPageState extends State<CalendarPage>
             allDay: rule.allDay,
             calendarId: rule.calendarId,
             category: rule.category,
-            flowLocalId: (flowIdForReminder != null && flowIdForReminder > 0)
-                ? flowIdForReminder
-                : null,
+            flowLocalId: flowIdForReminder,
           );
           final existingRow = existingRowsByClientEventId[cid];
           if (existingRow != null &&
@@ -20398,12 +20473,11 @@ class CalendarPageState extends State<CalendarPage>
               endsAtUtc: end?.toUtc(),
               calendarId: rule.calendarId,
               category: rule.category,
-              flowLocalId: (flowIdForReminder != null && flowIdForReminder > 0)
-                  ? flowIdForReminder
-                  : null,
+              flowLocalId: flowIdForReminder,
               caller: 'reminder_sync',
             );
 
+            if (!isCurrent()) return;
             final cleanedDetail = _cleanDetail(encodedDetail);
             final note = _Note(
               calendarId: rule.calendarId,
@@ -20422,6 +20496,7 @@ class CalendarPageState extends State<CalendarPage>
             );
 
             await _reminderSyncGate.waitForOrientationCriticalSection();
+            if (!isCurrent()) return;
             await _scheduleAlertForEvent(
               note: note,
               ky: kDate.kYear,
@@ -20430,6 +20505,7 @@ class CalendarPageState extends State<CalendarPage>
               clientEventId: savedEvent.clientEventId ?? cid,
               eventId: savedEvent.id,
             );
+            if (!isCurrent()) return;
             processedOccurrenceWrites += 1;
             completedOccurrenceWrites += 1;
           } catch (_) {
@@ -20440,6 +20516,7 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     await _reminderSyncGate.waitForOrientationCriticalSection();
+    if (!isCurrent()) return;
     if (refreshUi) {
       await _requestHydration(
         _CalendarHydrationRequest.targeted(
@@ -31890,6 +31967,19 @@ class CalendarPageState extends State<CalendarPage>
   // Persist flows + planned notes coming back from Flow Studio
   // AFTER
   Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async {
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      CalendarPage._requireFlowStudioAccount(account);
+      return await _persistFlowStudioResultForAccount(r, account);
+    } finally {
+      account.dispose();
+    }
+  }
+
+  Future<int?> _persistFlowStudioResultForAccount(
+    _FlowStudioResult r,
+    AccountOperationFence account,
+  ) async {
     final repo = UserEventsRepo(Supabase.instance.client);
     final isNewFlowSave = r.savedFlow != null && r.completionRequired;
     final opensDayView = CalendarPage._shouldOpenDayViewAfterFlowStudioAdd(r);
@@ -31903,6 +31993,7 @@ class CalendarPageState extends State<CalendarPage>
       // 🔧 KEY FIX: Delete ALL notes for this flow (not just future ones)
       try {
         await repo.deleteByFlowId(deleteId);
+        CalendarPage._requireFlowStudioAccount(account);
         if (kDebugMode) {
           _calendarDebugPrint(
             '[persistFlowStudio] ✓ Deleted ALL notes for flow',
@@ -31918,6 +32009,7 @@ class CalendarPageState extends State<CalendarPage>
       }
       try {
         await repo.deleteFlow(deleteId);
+        CalendarPage._requireFlowStudioAccount(account);
         if (kDebugMode) {
           _calendarDebugPrint(
             '[persistFlowStudio] ✓ Deleted flow from database',
@@ -31954,6 +32046,8 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
+      CalendarPage._requireFlowStudioAccount(account);
+
       // ✅ For imported flows (with plannedNotes), clear rules to prevent rule-based rescheduling
       // The rules are already cleared in _save() when widget.importData != null,
       // but we also check here as a safety measure
@@ -31965,6 +32059,7 @@ class CalendarPageState extends State<CalendarPage>
 
       final savedId = await CalendarPage._upsertFlowStudioDefinition(
         repo: repo,
+        account: account,
         flow: r.savedFlow!,
         result: r,
         rulesJson: rulesJson,
@@ -32056,7 +32151,7 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
 
-    if (r.plannedNotes.isNotEmpty) {
+    if (!r.preserveExistingEvents && r.plannedNotes.isNotEmpty) {
       final savedFlow = saved;
       if (savedFlow == null) {
         throw StateError('Planned Flow Studio notes require a saved flow.');
@@ -32073,6 +32168,7 @@ class CalendarPageState extends State<CalendarPage>
             sourceFeature: 'CalendarPage._persistFlowStudioResult',
             deleteScope: isAIFlow ? 'ai_flow_replace' : 'planned_flow_replace',
           );
+          CalendarPage._requireFlowStudioAccount(account);
           final removedLocal = _removeLocalNotesForFlowReplacement(flowId);
           if (kDebugMode) {
             _calendarDebugPrint(
@@ -32088,6 +32184,7 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
+      CalendarPage._requireFlowStudioAccount(account);
       final writes = <PlannedNoteWrite>[
         for (final planned in r.plannedNotes)
           CalendarPage._flowStudioPlannedNoteWrite(
@@ -32181,7 +32278,10 @@ class CalendarPageState extends State<CalendarPage>
     // Use shared scheduler for rule-only flows that did not return concrete
     // planned notes. PR 2's rules-materialize acceptance is the stop-the-line
     // gate before this producer can move onto the universal write API.
-    if (saved != null && saved.active && saved.rules.isNotEmpty) {
+    if (!r.preserveExistingEvents &&
+        saved != null &&
+        saved.active &&
+        saved.rules.isNotEmpty) {
       // If rules list was cleared (e.g., snapshot-only imports), skip scheduling.
       if (saved.rules.isEmpty) {
         if (kDebugMode) {
@@ -32198,6 +32298,7 @@ class CalendarPageState extends State<CalendarPage>
         // Check if this is an AI-generated flow before scheduling
         // (AI flows already have individually-titled events that shouldn't be regenerated)
         final flowRow = await _flowsRepo.getFlowById(saved.id);
+        CalendarPage._requireFlowStudioAccount(account);
 
         // Defensive type checking for ai_metadata.generated field
         final aiGenerated = flowRow?.aiMetadata?['generated'];
@@ -32231,6 +32332,7 @@ class CalendarPageState extends State<CalendarPage>
               startDate: saved.start,
               endDate: saved.end,
             );
+            CalendarPage._requireFlowStudioAccount(account);
 
             if (kDebugMode) {
               _calendarDebugPrint(
@@ -32266,12 +32368,16 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
 
+    CalendarPage._requireFlowStudioAccount(account);
     if (saved != null) {
       await commitGenerationIfNeeded();
+      CalendarPage._requireFlowStudioAccount(account);
       await createTogetherOverlayIfNeeded();
+      CalendarPage._requireFlowStudioAccount(account);
       await ensureSharedExperienceIfNeeded();
     }
 
+    CalendarPage._requireFlowStudioAccount(account);
     if (saved != null && isNewFlowSave) {
       await notifyFlowAdditionIfNeeded();
     } else if (saved != null) {
@@ -32284,8 +32390,11 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
 
-    setState(() {});
-    _notifyDayViewDataChanged();
+    CalendarPage._requireFlowStudioAccount(account);
+    if (mounted) {
+      setState(() {});
+      _notifyDayViewDataChanged();
+    }
     return saved?.id;
   }
 
@@ -35016,6 +35125,10 @@ class CalendarPageState extends State<CalendarPage>
   @visibleForTesting
   List<ReminderRule> get debugReminderRulesForTesting =>
       List<ReminderRule>.unmodifiable(_reminderRules);
+
+  @visibleForTesting
+  Future<void> debugRunReminderSyncForTesting() =>
+      _performReminderSync(updateLocalCache: true);
 
   @visibleForTesting
   Future<bool> debugRunPostCompleteReminderRegenForTesting() {

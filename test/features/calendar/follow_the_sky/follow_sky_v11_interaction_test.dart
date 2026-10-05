@@ -885,10 +885,12 @@ Future<void> _expectWorkedIntentionKeyboardContract(
   await tester.pumpWidget(
     MaterialApp(
       builder: (context, child) => KemeticKeyboardHost(
-        viewportMetricsResolver: (media) => KeyboardViewportMetrics.resolve(
-          media: media,
-          webViewport: webViewport,
-        ),
+        viewportMetricsResolver: (media, {required hasFocusedEditable}) =>
+            KeyboardViewportMetrics.resolve(
+              media: media,
+              hasFocusedEditable: hasFocusedEditable,
+              webViewport: webViewport,
+            ),
         child: child ?? const SizedBox.shrink(),
       ),
       home: standalone

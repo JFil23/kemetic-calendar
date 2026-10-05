@@ -67,22 +67,7 @@ class KemeticKeyboardController extends ChangeNotifier {
   EditableTextState? get editable => _editable;
   EditableTextState? get lastEditable => _lastEditable;
 
-  EditableTextState? _findEditableFromFocus() {
-    final focus = FocusManager.instance.primaryFocus;
-    final focusContext = focus?.context;
-    if (focusContext == null || !focusContext.mounted || !focus!.hasFocus) {
-      return null;
-    }
-    try {
-      return focusContext.findAncestorStateOfType<EditableTextState>();
-    } on FlutterError {
-      // A route replacement can leave primaryFocus pointing at an element
-      // that is mounted but already deactivated for the remainder of this
-      // frame. Treat that transient focus as absent; the next focus event
-      // will attach the new route's editable.
-      return null;
-    }
-  }
+  EditableTextState? _findEditableFromFocus() => findFocusedEditableState();
 
   void ensureEditableFromFocus() {
     final found = _findEditableFromFocus();
@@ -489,7 +474,10 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final viewport = widget.viewportMetricsResolver(media);
+    final viewport = widget.viewportMetricsResolver(
+      media,
+      hasFocusedEditable: _controller.hasFocusedEditable,
+    );
     final rawBottomInset = media.viewInsets.bottom;
     final layoutBottomInset = viewport.layoutViewInsetBottom;
     if (rawBottomInset > 60 &&

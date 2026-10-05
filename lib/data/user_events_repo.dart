@@ -1,3 +1,4 @@
+import 'account_operation_fence.dart';
 import 'warm_state/warm_mutation.dart';
 import 'warm_state/warm_json_reads.dart';
 import 'warm_state/warm_snapshot_store.dart';
@@ -891,7 +892,8 @@ class UserEventsRepo {
     String? calendarId,
     String? caller,
   }) async {
-    final warmAccount = _client.auth.currentUser?.id;
+    final account = AccountOperationFence(_client);
+    final warmAccount = account.userId;
     invalidateWarmDomains(warmAccount, [
       'flow.',
       'filing.',
@@ -900,6 +902,9 @@ class UserEventsRepo {
       'pages.calendar',
     ]);
     try {
+      if (warmAccount == null || !account.isCurrent) {
+        throw UserEventUpsertCancelledException(clientEventId);
+      }
       final pending = _registerPendingUpsert(clientEventId);
       try {
         try {
@@ -908,7 +913,7 @@ class UserEventsRepo {
               .select()
               .eq('client_event_id', clientEventId)
               .maybeSingle();
-          if (pending?.cancelled ?? false) {
+          if (!account.isCurrent || (pending?.cancelled ?? false)) {
             throw UserEventUpsertCancelledException(clientEventId);
           }
           if (existing != null &&
@@ -934,7 +939,7 @@ class UserEventsRepo {
           }
         }
 
-        if (pending?.cancelled ?? false) {
+        if (!account.isCurrent || (pending?.cancelled ?? false)) {
           throw UserEventUpsertCancelledException(clientEventId);
         }
         final payload = deterministicUpsertPayload(
@@ -965,7 +970,7 @@ class UserEventsRepo {
               .upsert(payload, onConflict: 'client_event_id')
               .select()
               .single();
-          if (pending?.cancelled ?? false) {
+          if (!account.isCurrent || (pending?.cancelled ?? false)) {
             throw UserEventUpsertCancelledException(clientEventId);
           }
           _log('upsert ✓ id=${row['id']} caller=$callerTag');
@@ -981,6 +986,7 @@ class UserEventsRepo {
         _settlePendingUpsert(pending);
       }
     } finally {
+      account.dispose();
       invalidateWarmDomains(warmAccount, [
         'flow.',
         'filing.',

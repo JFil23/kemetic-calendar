@@ -233,6 +233,10 @@ extension _CalendarPresentationPageAdapter on CalendarPageState {
     };
     _flows.clear();
     _notes.clear();
+    _reminderRules.clear();
+    _reminderRulesLoaded = false;
+    _pendingReminderSyncRefreshUi = false;
+    _pendingReminderSyncUpdateLocalCache = false;
     _calendarAuthoritativeFlows = null;
     _calendarAuthoritativeNotesByDay = null;
     _activeCalendarCoverage = null;

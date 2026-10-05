@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'account_operation_fence.dart';
 import 'warm_state/warm_snapshot_store.dart';
 import 'dart:collection';
 import 'dart:typed_data';
@@ -127,49 +128,62 @@ class FlowAppearanceStore {
     required Uint8List bytes,
     required String filename,
   }) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) throw StateError('No user session');
-    final mime = _contentTypeFor(filename, bytes);
-    final extension = switch (mime) {
-      'image/png' => 'png',
-      'image/webp' => 'webp',
-      _ => 'jpg',
-    };
-    final path = '$userId/${_uuid.v4()}.$extension';
-    await _client.storage
-        .from(bucket)
-        .uploadBinary(
-          path,
-          bytes,
-          fileOptions: FileOptions(contentType: mime, upsert: false),
-        );
-    rememberImageBytes(path, bytes);
-    return path;
+    final account = AccountOperationFence(_client);
+    try {
+      final userId = account.userId;
+      if (userId == null) throw StateError('No user session');
+      final mime = _contentTypeFor(filename, bytes);
+      final extension = switch (mime) {
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        _ => 'jpg',
+      };
+      final path = '$userId/${_uuid.v4()}.$extension';
+      await _client.storage
+          .from(bucket)
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(contentType: mime, upsert: false),
+          );
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      rememberImageBytes(path, bytes);
+      return path;
+    } finally {
+      account.dispose();
+    }
   }
 
   Future<String?> materializeOwnedCopy(String? sourcePath) async {
     final path = sourcePath?.trim();
-    final userId = _client.auth.currentUser?.id;
-    if (path == null || path.isEmpty || userId == null) return path;
-    if (path.startsWith('$userId/')) return path;
-    final bytes = await imageBytes(path);
-    final extension = path.split('.').last.toLowerCase();
-    final safeExtension = {'jpg', 'jpeg', 'png', 'webp'}.contains(extension)
-        ? extension
-        : 'jpg';
-    final ownedPath = '$userId/${_uuid.v4()}.$safeExtension';
-    await _client.storage
-        .from(bucket)
-        .uploadBinary(
-          ownedPath,
-          bytes,
-          fileOptions: FileOptions(
-            contentType: _contentTypeFor(ownedPath, bytes),
-            upsert: false,
-          ),
-        );
-    rememberImageBytes(ownedPath, bytes);
-    return ownedPath;
+    final account = AccountOperationFence(_client);
+    try {
+      final userId = account.userId;
+      if (path == null || path.isEmpty || userId == null) return path;
+      if (path.startsWith('$userId/')) return path;
+      final bytes = await imageBytes(path);
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      final extension = path.split('.').last.toLowerCase();
+      final safeExtension = {'jpg', 'jpeg', 'png', 'webp'}.contains(extension)
+          ? extension
+          : 'jpg';
+      final ownedPath = '$userId/${_uuid.v4()}.$safeExtension';
+      await _client.storage
+          .from(bucket)
+          .uploadBinary(
+            ownedPath,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: _contentTypeFor(ownedPath, bytes),
+              upsert: false,
+            ),
+          );
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      rememberImageBytes(ownedPath, bytes);
+      return ownedPath;
+    } finally {
+      account.dispose();
+    }
   }
 
   static String _contentTypeFor(String filename, Uint8List bytes) {

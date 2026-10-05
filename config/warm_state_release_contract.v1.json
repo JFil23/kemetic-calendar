@@ -30,7 +30,7 @@
     {
       "path": "/flows/:flowId/edit",
       "owner": "lib/data/flows_repo.dart",
-      "policy": "Calendar/flow account repository and existing restoration owner; complete detail coverage before persistence."
+      "policy": "Calendar/flow account repository and existing restoration owner; complete fresh paged detail coverage before persistence. UserEventsRepo owns acknowledged definition saves and occurrences. Failed reads block editing incomplete content; failed saves retain the selected appearance for Retry. An appearance-only save of a successfully loaded existing flow preserves exact occurrences and raw server rules in mounted and headless persistence; meaningful non-appearance changes retain the existing replacement path. FlowAppearanceStore retains owned image bytes and paths; no new cache or pending-write owner."
     },
     {
       "path": "/inbox",

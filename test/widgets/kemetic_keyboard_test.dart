@@ -22,6 +22,35 @@ void main() {
       expect(metrics.systemKeyboardVisible, isTrue);
     });
 
+    test('ignores retained browser shrink after its editable loses focus', () {
+      final metrics = KeyboardViewportMetrics.resolve(
+        media: const MediaQueryData(size: Size(1180, 820)),
+        webViewport: const (height: 520, layoutHeight: 820, offsetTop: 20),
+        hasFocusedEditable: false,
+      );
+
+      expect(metrics.visibleTop, 0);
+      expect(metrics.visibleBottom, 820);
+      expect(metrics.layoutViewInsetBottom, 0);
+      expect(metrics.systemKeyboardVisible, isFalse);
+    });
+
+    test('keeps native occlusion while a dismissed editor loses focus', () {
+      final metrics = KeyboardViewportMetrics.resolve(
+        media: const MediaQueryData(
+          size: Size(390, 844),
+          viewInsets: EdgeInsets.only(bottom: 344),
+        ),
+        webViewport: const (height: 500, layoutHeight: 844, offsetTop: 0),
+        hasFocusedEditable: false,
+      );
+
+      expect(metrics.visibleTop, 0);
+      expect(metrics.visibleBottom, 500);
+      expect(metrics.layoutViewInsetBottom, 344);
+      expect(metrics.systemKeyboardVisible, isTrue);
+    });
+
     test('uses visual coordinates when Flutter already shrank on web', () {
       final metrics = KeyboardViewportMetrics.resolve(
         media: const MediaQueryData(size: Size(390, 500)),
@@ -1093,10 +1122,12 @@ class _QuickAddSheetHarness extends StatelessWidget {
           valueListenable: viewportListenable,
           child: child ?? const SizedBox.shrink(),
           builder: (context, viewport, child) => KemeticKeyboardHost(
-            viewportMetricsResolver: (media) => KeyboardViewportMetrics.resolve(
-              media: media,
-              webViewport: viewport,
-            ),
+            viewportMetricsResolver: (media, {required hasFocusedEditable}) =>
+                KeyboardViewportMetrics.resolve(
+                  media: media,
+                  hasFocusedEditable: hasFocusedEditable,
+                  webViewport: viewport,
+                ),
             child: child!,
           ),
         );
