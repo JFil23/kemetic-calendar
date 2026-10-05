@@ -44,6 +44,10 @@ import 'flow_post_share_actions.dart';
 import 'posted_flow_artifact.dart';
 import 'haw_profile_icon.dart';
 import 'profile_flow_post_tile.dart';
+import 'profile_insight_post_tile.dart';
+import 'profile_post_frame.dart';
+import '../nodes/kemetic_node_library.dart';
+import '../nodes/library_canon_adapter.dart';
 import 'social_flow_post_tile.dart';
 
 const Color _profileGoldLight = Color(0xFFF7E09A);
@@ -1954,25 +1958,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _profileGoldTextWidget(
-    String text, {
-    required TextStyle style,
-    int? maxLines,
-    TextOverflow? overflow,
-    bool? softWrap,
-    TextAlign? textAlign,
-  }) {
-    return GlossyText(
-      text: text,
-      style: style,
-      gradient: _profileGoldGradient,
-      maxLines: maxLines,
-      overflow: overflow,
-      softWrap: softWrap,
-      textAlign: textAlign,
-    );
-  }
-
   Widget _profileGoldIcon(IconData icon, {double? size}) {
     return GlossyIcon(icon: icon, gradient: _profileGoldGradient, size: size);
   }
@@ -2454,7 +2439,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       ProfileFeedItemKind.insight => _buildInsightPostCard(
         item.insightPost!,
         onReadMore: () => _openInsightPost(item.insightPost!),
-        inPager: true,
       ),
     };
   }
@@ -2551,7 +2535,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       children: [
         SizedBox(
           key: const ValueKey<String>('profile-posts-pager'),
-          height: 392,
+          height: profilePostHeight(context),
           child: PageView.builder(
             controller: _postPageController,
             physics: const BouncingScrollPhysics(),
@@ -3802,180 +3786,31 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   Widget _buildInsightPostCard(
     InsightPost post, {
     required VoidCallback onReadMore,
-    bool inPager = false,
   }) {
-    final headerContent = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: _profileGoldBase.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _profileGoldMid.withValues(alpha: 0.28)),
-          ),
-          child: Text(
-            'Posted Insight',
-            style: TextStyle(
-              color: _profileGoldText.withValues(alpha: 0.96),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
-              Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Text(
-                  post.nodeGlyph!,
-                  style: const TextStyle(
-                    color: _profileGoldText,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            Expanded(
-              child: _profileGoldTextWidget(
-                post.nodeTitle,
-                maxLines: inPager ? 3 : 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  height: 1.12,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Dated ${_formatPostDate(post.entryDate)}',
-          style: TextStyle(
-            color: _postDateTextColor(0.58),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          _insightPreviewText(post.bodyText),
-          maxLines: inPager ? 9 : 6,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.88),
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            height: 1.35,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          'Posted ${_formatPostDate(post.createdAt)}',
-          style: TextStyle(
-            color: _postDateTextColor(0.5),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+    final profile = _profile!;
+    final node = KemeticNodeLibrary.resolve(post.nodeId);
+    final excerpt = node == null ? '' : extractOpeningLine(node.body);
+    return ProfileInsightPostTile(
+      post: post,
+      nodeExcerpt: excerpt.isEmpty ? post.nodeTitle : excerpt,
+      nodeGlyph: node?.glyph,
+      authorDisplayName: profile.effectiveName,
+      authorHandle: profile.handle,
+      authorAvatarUrl: profile.avatarUrl,
+      authorAvatarGlyphIds: profile.avatarGlyphIds,
+      relationshipLabel: _isViewingOwnProfile
+          ? 'You'
+          : _isFollowing
+          ? 'Following'
+          : '',
+      postedDateLabel: _formatPostDate(post.createdAt, compact: true),
+      entryDateLabel: _formatPostDate(post.entryDate),
+      onOpenAuthor: () {},
+      onReadMore: onReadMore,
+      onRemove: _isViewingOwnProfile
+          ? () => unawaited(_removeInsightPost(post.id))
+          : null,
     );
-
-    final fixedActions = Padding(
-      padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Wrap(
-          spacing: 6,
-          runSpacing: 4,
-          children: [
-            if (_isViewingOwnProfile)
-              TextButton.icon(
-                onPressed: () => _removeInsightPost(post.id),
-                icon: const Icon(
-                  Icons.remove_circle_outline,
-                  color: Colors.redAccent,
-                  size: 18,
-                ),
-                label: const Text(
-                  'Remove',
-                  style: TextStyle(
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            TextButton(
-              onPressed: onReadMore,
-              child: _profileGoldTextWidget(
-                'Read more',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    final card = Container(
-      margin: EdgeInsets.only(bottom: inPager ? 0 : 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.34)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 18,
-            spreadRadius: 1,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: Column(
-          mainAxisSize: inPager ? MainAxisSize.max : MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (inPager)
-              Expanded(
-                child: InkWell(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(18),
-                  ),
-                  onTap: onReadMore,
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-                    child: headerContent,
-                  ),
-                ),
-              )
-            else
-              InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: onReadMore,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-                  child: headerContent,
-                ),
-              ),
-            fixedActions,
-          ],
-        ),
-      ),
-    );
-    if (!inPager) return card;
-    return SizedBox.expand(child: card);
   }
 
   void _openInsightPost(InsightPost post) {

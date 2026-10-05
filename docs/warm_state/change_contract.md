@@ -684,3 +684,24 @@ empty states, delayed/failed refresh, removal, selection retention and legacy
 restoration. Capture-only checks use the existing cards and fonts; approved
 visual references are unchanged. The full App gate remains required for any
 deployment.
+
+
+## October 4 profile insight composition
+
+The supplied insight and flow screenshots establish the flow post as the visual
+reference. Both profile post types now use the same author/excerpt/card/actions
+composition and the same card geometry, typography and border treatment. An
+insight's excerpt comes from the existing immutable KemeticNodeLibrary and
+extractOpeningLine adapter; its personal reflection remains in the card. Unknown
+nodes retain their posted title and glyph without inventing a Library quotation.
+The card remains 236 points at normal text size; both post types grow their text
+regions together for larger accessibility text.
+
+ProfileRepo still owns the same post snapshots, reads and acknowledged removal.
+Chronological ordering, typed selection restoration, routes, account fencing,
+cache keys and payload schemas do not change. No additional network read or
+persistence owner is introduced. The existing flow golden is retained exactly.
+Static and real-profile checks compare card dimensions and placement across both
+types, node text ownership, action access, ordering and restoration. The gesture
+inventory follows the existing flow menu into the shared profile frame; its
+behavior and inventory count remain unchanged.

@@ -413,6 +413,12 @@ void main() {
       final profileTile = File(
         'lib/features/profile/profile_flow_post_tile.dart',
       ).readAsStringSync();
+      final postFrame = File(
+        'lib/features/profile/profile_post_frame.dart',
+      ).readAsStringSync();
+      final artifactFrame = File(
+        'lib/features/profile/posted_artifact_frame.dart',
+      ).readAsStringSync();
       final engagement = File(
         'lib/features/profile/flow_post_engagement_row.dart',
       ).readAsStringSync();
@@ -436,7 +442,8 @@ void main() {
       expect(profile, contains('BorderRadius.circular(pill ? 999 : 14)'));
       expect(profile, contains('const Positioned.fill('));
       expect(profile, contains('child: ProfileDayCycleBackdrop()'));
-      expect(profileTile, contains('ProfileAvatar('));
+      expect(profileTile, contains('ProfilePostFrame('));
+      expect(postFrame, contains('ProfileAvatar('));
       expect(profileTile, contains('profileV2: true'));
       expect(engagement, contains('final bool inlineUnified;'));
       expect(engagement, contains('final bool profileV2;'));
@@ -446,9 +453,10 @@ void main() {
       expect(picker, contains('PostedFlowArtifact('));
       expect(socialTile, contains('PostedFlowArtifact('));
       expect(artifact, contains('UserFlowAppearanceHero('));
-      expect(artifact, contains('const double _artifactHeight = 236'));
-      expect(artifact, contains('const double _artifactHeroHeight = 150'));
-      expect(artifact, contains('const double _artifactCopyHeight = 84'));
+      expect(artifact, contains('PostedArtifactFrame('));
+      expect(artifactFrame, contains('const double _artifactHeight = 236'));
+      expect(artifactFrame, contains('const double _artifactHeroHeight = 150'));
+      expect(artifactFrame, contains('const double _artifactCopyHeight = 84'));
       expect(artifact, isNot(contains('_buildCompactArtifact')));
       expect(artifact, isNot(contains('if (appearance.isEmpty)')));
       expect(artifact, isNot(contains('_firstCharacter')));

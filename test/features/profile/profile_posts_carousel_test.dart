@@ -13,6 +13,8 @@ import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/features/profile/profile_page.dart';
+import 'package:mobile/features/nodes/kemetic_node_library.dart';
+import 'package:mobile/features/nodes/library_canon_adapter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -251,6 +253,19 @@ void main() {
       expect(find.byType(PageView), findsOneWidget);
       expect(find.text('1 of 2'), findsOneWidget);
       expect(find.text('Djehuty').hitTestable(), findsOneWidget);
+      final excerpt = extractOpeningLine(
+        KemeticNodeLibrary.resolve('djehuty')!.body,
+      );
+      expect(find.text(excerpt).hitTestable(), findsOneWidget);
+      final insightCard = find.byKey(const ValueKey('posted-insight-artifact'));
+      final insightSize = tester.getSize(insightCard);
+      final insightTop = tester.getTopLeft(insightCard).dy;
+      expect(insightSize.height, 236);
+      expect(tester.getBottomLeft(find.text(excerpt)).dy, lessThan(insightTop));
+      expect(
+        tester.getTopLeft(find.text('Read more')).dy,
+        greaterThan(tester.getBottomLeft(insightCard).dy),
+      );
       await capture(tester, 'first-${width.toInt()}');
       await tester.drag(
         find.byKey(const ValueKey('profile-posts-pager')),
@@ -267,6 +282,9 @@ void main() {
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);
+      final flowCard = find.byKey(const ValueKey('posted-flow-artifact'));
+      expect(tester.getSize(flowCard), insightSize);
+      expect(tester.getTopLeft(flowCard).dy, insightTop);
       await capture(tester, 'second-${width.toInt()}');
       await close(tester);
     });
@@ -328,6 +346,29 @@ void main() {
       await close(tester);
     });
   }
+
+  scenario(
+    'missing Library node retains the posted identity without fabricated prose',
+    (tester) async {
+      insights = [
+        insight('unknown-node', '2026-10-04T12:00:00Z')
+          ..['node_slug'] = 'unavailable-node'
+          ..['node_title'] = 'Preserved node title',
+      ];
+      await pumpProfile(tester);
+      final excerpt = tester.widget<Text>(
+        find.byKey(const ValueKey('profile-insight-node-excerpt')),
+      );
+      expect(excerpt.data, 'Preserved node title');
+      expect(
+        find.text('insight test for posting').hitTestable(),
+        findsOneWidget,
+      );
+      expect(find.text('Read more').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    },
+  );
 
   scenario('delayed insight read reorders a warm flow without hiding it', (
     tester,
