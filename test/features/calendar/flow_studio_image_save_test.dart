@@ -15,6 +15,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/data/flow_appearance_store.dart';
 import 'package:mobile/data/warm_state/warm_snapshot_store.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/snapshot/calendar_snapshot_runtime.dart';
 import 'package:mobile/features/calendar/presentation/user_flow_appearance_visual.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,7 +30,6 @@ const _oldPath = '$uid/existing-image.jpg';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Uint8List imageBytes;
-  late Directory hiveDirectory;
   var insertedEventCount = 0;
   late Map<String, dynamic> flow;
   late List<Map<String, dynamic>> events;
@@ -44,11 +44,13 @@ void main() {
   Completer<void>? patchDelay;
 
   setUpAll(() async {
-    hiveDirectory = await Directory.systemTemp.createTemp('studio_image_save.');
-    Hive.init(hiveDirectory.path);
-    // Own native IO and the box notifier in the real test zone. A lazy open
-    // inside a widget's FakeAsync zone cannot close after that zone ends.
-    await Hive.openBox<String>('calendar_snapshot_store_v1');
+    // Match the existing external-calendar route fixtures: incidental snapshot
+    // writes stay in fake time rather than leaving a native IO queue at teardown.
+    await Hive.openBox<String>(
+      'calendar_snapshot_store_v1',
+      bytes: Uint8List(0),
+    );
+    await calendarSnapshotStore.initialize();
     SharedPreferences.setMockInitialValues({
       'app:has_seen_onboarding': true,
       'app:onboarding:completed': true,
@@ -249,7 +251,6 @@ void main() {
   tearDownAll(() async {
     await Supabase.instance.dispose();
     await Hive.close();
-    await hiveDirectory.delete(recursive: true);
   });
 
   testWidgets('eventful flow restores its image and sign before editing', (

@@ -25,15 +25,20 @@ void main() {
         '/// Schedules all note occurrences for a flow',
       );
 
-      final plannedBranch = body.indexOf('if (r.plannedNotes.isNotEmpty)');
+      const plannedCondition =
+          'if (!r.preserveExistingEvents && r.plannedNotes.isNotEmpty)';
+      final plannedBranch = body.indexOf(plannedCondition);
+      expect(plannedBranch, greaterThanOrEqualTo(0), reason: plannedCondition);
       final replaceCall = body.indexOf(
         'await repo.deleteByFlowId(',
         plannedBranch,
       );
+      expect(replaceCall, greaterThan(plannedBranch));
       final writeLoop = body.indexOf(
         'for (final planned in r.plannedNotes)',
         plannedBranch,
       );
+      expect(writeLoop, greaterThanOrEqualTo(0));
       final deferCall = body.indexOf(
         '.stagePlannedNotesAndDeferPersist(',
         writeLoop,
@@ -42,8 +47,6 @@ void main() {
         '_removeLocalNotesForFlowReplacement(flowId)',
         replaceCall,
       );
-      expect(plannedBranch, greaterThanOrEqualTo(0));
-      expect(replaceCall, greaterThan(plannedBranch));
       expect(replaceCall, lessThan(writeLoop));
       expect(localCleanup, greaterThan(replaceCall));
       expect(localCleanup, lessThan(writeLoop));
@@ -81,10 +84,12 @@ void main() {
       final existingLookup = body.indexOf(
         'final existing = await _getNotificationByEventId(',
       );
+      expect(existingLookup, greaterThanOrEqualTo(0));
       final cancelExisting = body.indexOf(
         'await _plugin.cancel(notificationId);',
         existingLookup,
       );
+      expect(cancelExisting, greaterThan(existingLookup));
       final localReconcile = body.indexOf(
         '_requestLocalWindowReconcile();',
         cancelExisting,
@@ -94,8 +99,6 @@ void main() {
         cancelExisting,
       );
 
-      expect(existingLookup, greaterThanOrEqualTo(0));
-      expect(cancelExisting, greaterThan(existingLookup));
       expect(localReconcile, greaterThan(cancelExisting));
       expect(localFallback, greaterThan(cancelExisting));
     },

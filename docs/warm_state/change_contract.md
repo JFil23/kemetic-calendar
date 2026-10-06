@@ -843,6 +843,8 @@ draft. Regression coverage compares complete event rows (including IDs,
 client IDs, times, titles and count), raw rules and nullable metadata before and
 after appearance saves in both persistence paths. It also changes a note title
 and start time to prove that real edits still replace and persist occurrences.
+The notification source guard recognizes the new preservation condition while
+retaining its replacement, cleanup, deferred-write and alert ordering checks.
 No new route, cache namespace, resource schema, pending-write store or backend
 contract is introduced. Approved visual references and old-release fixtures are
 unchanged.
