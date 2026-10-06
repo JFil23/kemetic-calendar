@@ -1001,3 +1001,22 @@ duplicate lookups, and failed lookups stop Save. Image-copy failures fail
 Save/Add instead of clearing the image.
 The existing staged calendar persistence and completion owner continues to own
 Add. Complete release gates and live replay are required before deployment.
+
+
+## October 6 built-in flow Inbox heroes
+
+The 4:26 PM RC screenshot exposed a missing presentation path: built-in flows
+have bundled hero artwork rather than a Storage image path. Inbox previews
+resolve the existing Ma’at identity from the shared name/notes and reuse the
+existing discovery hero asset and crop. An uploaded appearance still wins;
+user-created flows without an image keep the empty accent block. Existing
+shares receive the fix without rewriting snapshots or sending them again.
+
+ShareRepo still owns the account-scoped conversation on both RC and production;
+the configured Supabase project and server records are shared, while browser
+sessions and disposable warm caches are origin-local. No namespace, storage
+owner, route, mutation or backend boundary changes. The route regression opens
+a real Inbox row, loads the conversation through ShareRepo, checks the bundled
+and uploaded heroes, follows the share detail route, and reopens from the warm
+cache during an unavailable refresh. Captures are evidence, not replacement
+goldens.

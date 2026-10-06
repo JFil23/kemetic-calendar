@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../data/flow_appearance.dart';
 import '../../../utils/detail_sanitizer.dart';
 import '../../calendar/presentation/user_flow_appearance_visual.dart';
+import '../../calendar/maat_flow_identity.dart';
+import '../../calendar/presentation/maat_flow_discovery_view.dart';
 import '../../profile/posted_artifact_frame.dart';
 
 /// The same header treatment as a posted flow, with only its title in chat.
@@ -14,6 +16,7 @@ class FlowMessagePreview extends StatelessWidget {
     required this.title,
     required this.appearance,
     required this.color,
+    this.maatFlowKind,
     this.localImageBytes,
     this.allowImageFetch = true,
   });
@@ -21,6 +24,7 @@ class FlowMessagePreview extends StatelessWidget {
   final String title;
   final FlowAppearance appearance;
   final int color;
+  final MaatFlowKind? maatFlowKind;
   final Uint8List? localImageBytes;
   final bool allowImageFetch;
 
@@ -31,6 +35,13 @@ class FlowMessagePreview extends StatelessWidget {
     final accent = Color(
       appearance.accentArgb ?? (0xFF000000 | (color & 0xFFFFFF)),
     );
+    final builtInHeader = kCoreMaatFlowDiscoveryFixtures
+        .where((card) => card.flowKey == maatFlowKind?.flowKey)
+        .firstOrNull;
+    final showBuiltInHeader =
+        builtInHeader != null &&
+        !appearance.hasImage &&
+        localImageBytes == null;
     return Semantics(
       label: 'Flow: $label',
       child: Container(
@@ -46,20 +57,33 @@ class FlowMessagePreview extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            UserFlowAppearanceHero(
-              appearance: appearance,
-              accent: accent,
-              height: PostedArtifactFrame.heroHeight,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(15),
+            if (showBuiltInHeader)
+              SizedBox(
+                height: PostedArtifactFrame.heroHeight,
+                child: Image.asset(
+                  builtInHeader.heroAsset,
+                  key: const ValueKey('flow-message-built-in-hero'),
+                  fit: BoxFit.cover,
+                  alignment: builtInHeader.heroAlignment,
+                  cacheWidth: (280 * MediaQuery.devicePixelRatioOf(context))
+                      .ceil(),
+                ),
+              )
+            else
+              UserFlowAppearanceHero(
+                appearance: appearance,
+                accent: accent,
+                height: PostedArtifactFrame.heroHeight,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(15),
+                ),
+                showSignVisual: false,
+                showSignLabel: false,
+                localImageBytes: localImageBytes,
+                allowImageFetch: allowImageFetch,
+                imageCacheWidth: (280 * MediaQuery.devicePixelRatioOf(context))
+                    .ceil(),
               ),
-              showSignVisual: false,
-              showSignLabel: false,
-              localImageBytes: localImageBytes,
-              allowImageFetch: allowImageFetch,
-              imageCacheWidth: (280 * MediaQuery.devicePixelRatioOf(context))
-                  .ceil(),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(15, 12, 15, 15),
               child: Text(

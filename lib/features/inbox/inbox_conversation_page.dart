@@ -11,6 +11,7 @@ import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../data/share_models.dart';
 import '../../data/flow_appearance.dart';
+import '../calendar/maat_flow_identity.dart';
 import 'presentation/flow_message_preview.dart';
 import '../../data/share_repo.dart';
 import '../../repositories/inbox_repo.dart';
@@ -891,6 +892,10 @@ class _FlowBubble extends StatelessWidget {
             FlowMessagePreview(
               title: payload?['name'] as String? ?? share.title,
               appearance: FlowAppearance.fromJson(payload?['appearance']),
+              maatFlowKind: resolveMaatFlowKind(
+                flowName: payload?['name'] as String? ?? share.title,
+                flowNotes: payload?['notes'] as String?,
+              ),
               color:
                   (payload?['color'] as num?)?.toInt() ??
                   KemeticGold.base.toARGB32(),

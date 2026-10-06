@@ -6,6 +6,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flow_appearance.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
+import 'package:mobile/features/calendar/presentation/maat_flow_discovery_view.dart';
 import 'package:mobile/features/inbox/presentation/flow_message_preview.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
@@ -54,6 +56,7 @@ void main() {
                       alignment: Alignment.centerLeft,
                       child: FlowMessagePreview(
                         title: 'Follow the sky',
+                        maatFlowKind: MaatFlowKind.trackSky,
                         appearance: FlowAppearance.empty,
                         color: 0xFFD1AF32,
                       ),
@@ -94,11 +97,15 @@ void main() {
       );
       expect(
         find.byKey(const ValueKey('user-flow-appearance-fallback-layer')),
-        findsNWidgets(2),
+        findsOneWidget,
       );
       expect(
         find.byKey(const ValueKey('user-flow-appearance-sign-layer')),
         findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('flow-message-built-in-hero')),
+        findsOneWidget,
       );
       expect(tester.takeException(), isNull);
       final folder = Platform.environment['HAW_FLOW_PREVIEW_CAPTURE_DIR'];
@@ -117,5 +124,57 @@ void main() {
         });
       }
     });
+  }
+  for (final card in kCoreMaatFlowDiscoveryFixtures) {
+    testWidgets(
+      'built-in hero for ${card.flowKey}; uploaded image takes precedence',
+      (tester) async {
+        final kind = resolveMaatFlowKind(
+          behaviorPayload: {'flow_key': card.flowKey},
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: FlowMessagePreview(
+                title: card.title,
+                appearance: FlowAppearance.empty,
+                color: card.accent.toARGB32(),
+                maatFlowKind: kind,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final hero = tester.widget<Image>(
+          find.byKey(const ValueKey('flow-message-built-in-hero')),
+        );
+        expect(
+          (hero.image as ResizeImage).imageProvider,
+          AssetImage(card.heroAsset),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: FlowMessagePreview(
+                title: card.title,
+                appearance: const FlowAppearance(imageObjectPath: 'custom.jpg'),
+                color: card.accent.toARGB32(),
+                maatFlowKind: kind,
+                allowImageFetch: false,
+              ),
+            ),
+          ),
+        );
+        expect(
+          find.byKey(const ValueKey('flow-message-built-in-hero')),
+          findsNothing,
+        );
+        expect(
+          find.byKey(const ValueKey('user-flow-appearance-image-layer')),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 }
