@@ -39,9 +39,12 @@ class JournalController {
   Future<void> Function(List<EventBadgeToken> badges)?
   onCompletionBadgesRemoved;
 
-  JournalController(SupabaseClient client)
-    : _repo = JournalRepo(client),
-      _currentUserId = (() => client.auth.currentUser?.id);
+  JournalController(
+    SupabaseClient client, {
+    JournalRepo? repository,
+    String? Function()? currentUserId,
+  }) : _repo = repository ?? JournalRepo(client),
+       _currentUserId = currentUserId ?? (() => client.auth.currentUser?.id);
 
   @visibleForTesting
   JournalController.withRepo(this._repo, {String? Function()? currentUserId})

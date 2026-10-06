@@ -21,6 +21,7 @@ import '../../data/commons_repo.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../data/account_operation_fence.dart';
+import '../../data/account_view_cache.dart';
 import '../../data/flow_post_model.dart';
 import '../../data/flow_appearance.dart';
 import '../../data/insight_post_model.dart';
@@ -113,6 +114,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   static const double _feedRevealViewportThreshold = 0.74;
   static const double _feedPullToCloseThreshold = 96;
   final _repo = ProfileRepo(Supabase.instance.client);
+  final _pageAccount = AccountOperationFence(Supabase.instance.client);
   final _commonsRepo = CommonsRepo(Supabase.instance.client);
   late final PageController _postPageController;
   late final PageController _commonsPracticePageController;
@@ -164,6 +166,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   final Set<String> _commonsQuoteLikeBusyIds = <String>{};
   final Set<String> _savedFlowPostIds = <String>{};
   int _profileLoadSerial = 0;
+  int _postsLoadSerial = 0;
+  int _feedLoadSerial = 0;
   double _feedTopPullDistance = 0;
   Timer? _continuitySaveDebounce;
   StreamSubscription<CalendarInvalidated>? _flowLifecycleSub;
@@ -290,14 +294,21 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       unawaited(_loadFeedPage(reset: true));
       unawaited(_loadCommonsHome());
     }
+    AccountViewCache.instance.changes.addListener(_postedSnapshotChanged);
     _flowLifecycleSub = CalendarInvalidationBus.instance.stream
         .where(
           (event) =>
-              event.reason == CalendarInvalidationReason.flowEndedCommitted,
+              event.reason == CalendarInvalidationReason.flowEndedCommitted ||
+              event.reason == CalendarInvalidationReason.flowStudioPersisted,
         )
-        .listen((_) {
+        .listen((event) {
+          if (!mounted || !_pageAccount.isCurrent) return;
           if (_isViewingOwnProfile) {
             unawaited(_loadProfile(showSpinner: false));
+          }
+          if (event.reason == CalendarInvalidationReason.flowStudioPersisted &&
+              (_feedRevealed || _feedItems.isNotEmpty)) {
+            unawaited(_loadFeedPage(reset: true, force: true));
           }
         });
     unawaited(_restoreContinuityState());
@@ -308,6 +319,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _flowLifecycleSub?.cancel();
+    _pageAccount.dispose();
+    AccountViewCache.instance.changes.removeListener(_postedSnapshotChanged);
     _continuitySaveDebounce?.cancel();
     unawaited(_persistContinuityState());
     _profileScrollController
@@ -515,6 +528,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     final followFuture = _isViewingOwnProfile
         ? Future<bool>.value(false)
         : _repo.isFollowing(widget.userId);
+    final postsLoadSerial = ++_postsLoadSerial;
     final postsFuture = _repo.getFlowPosts(widget.userId);
     final insightPostsFuture = _repo.getInsightPosts(widget.userId);
 
@@ -556,7 +570,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
     unawaited(() async {
       final posts = await postsFuture;
-      if (!mounted || loadSerial != _profileLoadSerial) return;
+      if (!mounted ||
+          loadSerial != _profileLoadSerial ||
+          postsLoadSerial != _postsLoadSerial) {
+        return;
+      }
       _applyPosts(posts);
     }());
 
@@ -747,19 +765,62 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     }
   }
 
+  void _postedSnapshotChanged() {
+    if (!mounted ||
+        !_pageAccount.isCurrent ||
+        AccountViewCache.instance.changes.value != 'social.posts') {
+      return;
+    }
+    final accountId = _currentUserId;
+    if (accountId == null) return;
+    final posts = AccountViewCache.instance.peek<List<FlowPost>>(
+      accountId,
+      'social.posts',
+    );
+    if (posts == null) return;
+    final byId = {for (final post in posts) post.id: post};
+    setState(() {
+      if (widget.userId == accountId) {
+        _postsLoadSerial++;
+        _posts = posts;
+        _postsLoading = false;
+        _reconcilePostSelection();
+      }
+      _feedItems = _feedItems
+          .map((item) {
+            final post = item.flowPost;
+            final confirmed = byId[item.id];
+            if (post == null || post.userId != accountId || confirmed == null) {
+              return item;
+            }
+            return ProfileFeedItem.flow(
+              post.withAppearance(confirmed.payloadJson?['appearance']),
+            );
+          })
+          .toList(growable: false);
+    });
+    _syncPostsPager();
+  }
+
   Future<void> _loadPosts() async {
     if (_posts.isEmpty) {
       setState(() => _postsLoading = true);
     }
-    final account = Supabase.instance.client.auth.currentUser?.id;
-    final profileId = widget.userId;
-    final posts = await _repo.getFlowPosts(profileId);
-    if (!mounted ||
-        widget.userId != profileId ||
-        Supabase.instance.client.auth.currentUser?.id != account) {
-      return;
+    final serial = ++_postsLoadSerial;
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      final profileId = widget.userId;
+      final posts = await _repo.getFlowPosts(profileId);
+      if (!mounted ||
+          widget.userId != profileId ||
+          !account.isCurrent ||
+          serial != _postsLoadSerial) {
+        return;
+      }
+      _applyPosts(posts);
+    } finally {
+      account.dispose();
     }
-    _applyPosts(posts);
   }
 
   void _applyPosts(List<FlowPost> posts) {
@@ -938,78 +999,86 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     _scheduleContinuitySave();
   }
 
-  Future<void> _loadFeedPage({bool reset = false}) async {
-    if (_feedLoading || _feedLoadingMore) return;
+  Future<void> _loadFeedPage({bool reset = false, bool force = false}) async {
+    if (!force && (_feedLoading || _feedLoadingMore)) return;
     if (!reset && !_feedHasMore) return;
-
-    if (reset) {
-      _feedLoading = true;
-    } else {
-      _feedLoadingMore = true;
-    }
-    final nextOffset = reset ? 0 : _feedItems.length;
-    if (reset && _feedItems.isEmpty) {
-      try {
-        final local = await _repo.getProfileFeedResult(
-          limit: _profileFeedPageSize,
-          cachedOnly: true,
-        );
-        if (!mounted) return;
-        setState(() => _feedItems = local.data);
-      } catch (_) {}
-    }
-    if (reset) {
-      setState(() {
+    final account = AccountOperationFence(Supabase.instance.client);
+    final serial = ++_feedLoadSerial;
+    bool current() => mounted && account.isCurrent && serial == _feedLoadSerial;
+    try {
+      if (reset) {
         _feedLoading = true;
-        _feedHasMore = true;
-        _feedErrorMessage = null;
-      });
-    } else {
-      setState(() => _feedLoadingMore = true);
-    }
+      } else {
+        _feedLoadingMore = true;
+      }
+      final nextOffset = reset ? 0 : _feedItems.length;
+      if (reset && _feedItems.isEmpty) {
+        try {
+          final local = await _repo.getProfileFeedResult(
+            limit: _profileFeedPageSize,
+            cachedOnly: true,
+          );
+          if (!current()) return;
+          setState(() => _feedItems = local.data);
+        } catch (_) {}
+      }
+      if (reset) {
+        setState(() {
+          _feedLoading = true;
+          _feedHasMore = true;
+          _feedErrorMessage = null;
+        });
+      } else {
+        setState(() => _feedLoadingMore = true);
+      }
 
-    final result = await _repo.getProfileFeedResult(
-      limit: _profileFeedPageSize,
-      offset: nextOffset,
-    );
-    if (!mounted) return;
-    if (result.hasError) {
+      final result = await _repo.getProfileFeedResult(
+        limit: _profileFeedPageSize,
+        offset: nextOffset,
+      );
+      if (!current()) return;
+      if (result.hasError) {
+        setState(() {
+          _feedLoading = false;
+          _feedLoadingMore = false;
+          _feedHasMore = false;
+          _feedErrorMessage = result.errorMessage;
+        });
+        return;
+      }
+
+      final loaded = result.data;
+
+      final merged = reset
+          ? <ProfileFeedItem>[]
+          : List<ProfileFeedItem>.from(_feedItems);
+      final seenIds = merged
+          .map((item) => '${item.kind.name}:${item.id}')
+          .toSet();
+      for (final item in loaded) {
+        final key = '${item.kind.name}:${item.id}';
+        if (seenIds.add(key)) {
+          merged.add(item);
+        }
+      }
+
       setState(() {
+        _feedItems = merged;
         _feedLoading = false;
         _feedLoadingMore = false;
-        _feedHasMore = false;
-        _feedErrorMessage = result.errorMessage;
+        _feedHasMore = loaded.length >= _profileFeedPageSize;
+        _feedErrorMessage = null;
       });
-      return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_pageAccount.isCurrent || serial != _feedLoadSerial) {
+          return;
+        }
+        _applyPendingContinuityAfterFrame();
+        _maybeLoadMoreFeed();
+      });
+    } finally {
+      account.dispose();
     }
-
-    final loaded = result.data;
-
-    final merged = reset
-        ? <ProfileFeedItem>[]
-        : List<ProfileFeedItem>.from(_feedItems);
-    final seenIds = merged
-        .map((item) => '${item.kind.name}:${item.id}')
-        .toSet();
-    for (final item in loaded) {
-      final key = '${item.kind.name}:${item.id}';
-      if (seenIds.add(key)) {
-        merged.add(item);
-      }
-    }
-
-    setState(() {
-      _feedItems = merged;
-      _feedLoading = false;
-      _feedLoadingMore = false;
-      _feedHasMore = loaded.length >= _profileFeedPageSize;
-      _feedErrorMessage = null;
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _applyPendingContinuityAfterFrame();
-      _maybeLoadMoreFeed();
-    });
   }
 
   ({String id, String text}) _commonsQuestionSeed() =>

@@ -15,6 +15,7 @@ import '../features/calendar/end_flow_diagnostics.dart';
 import '../telemetry/telemetry.dart';
 import '../utils/flow_filter_engine.dart';
 import 'flow_appearance.dart';
+import 'profile_repo.dart';
 
 const _kTable = 'user_events';
 const _kReadableEventsTable = 'user_event_filing_items_client';
@@ -3124,7 +3125,8 @@ class UserEventsRepo {
     Map<String, dynamic>? aiMetadata,
     FlowAppearance? appearance,
   }) async {
-    final warmAccount = _client.auth.currentUser?.id;
+    final account = AccountOperationFence(_client);
+    final warmAccount = account.userId;
     invalidateWarmDomains(warmAccount, [
       'flow.',
       'filing.',
@@ -3195,12 +3197,14 @@ class UserEventsRepo {
       }
 
       try {
+        if (!account.isCurrent) throw const WarmReadCancelled();
         if (id == null || id <= 0) {
           final inserted = await _client
               .from('flows')
               .insert(payload)
               .select('id')
               .single();
+          if (!account.isCurrent) throw const WarmReadCancelled();
           return (inserted['id'] as num).toInt();
         } else {
           final patch = Map<String, dynamic>.from(payload)..remove('user_id');
@@ -3208,8 +3212,19 @@ class UserEventsRepo {
               .from('flows')
               .update(patch)
               .eq('id', id)
-              .select('id')
+              .select(appearance == null ? 'id' : 'id,user_id,appearance')
               .single();
+          if (!account.isCurrent) throw const WarmReadCancelled();
+          if (appearance != null &&
+              updated['user_id'] == user.id &&
+              updated.containsKey('appearance')) {
+            await ProfileRepo(_client).applyAcknowledgedFlowAppearance(
+              userId: user.id,
+              flowId: (updated['id'] as num).toInt(),
+              appearance: updated['appearance'],
+            );
+            if (!account.isCurrent) throw const WarmReadCancelled();
+          }
           return (updated['id'] as num).toInt();
         }
       } on PostgrestException catch (e, st) {
@@ -3222,6 +3237,7 @@ class UserEventsRepo {
         rethrow;
       }
     } finally {
+      account.dispose();
       invalidateWarmDomains(warmAccount, [
         'flow.',
         'filing.',

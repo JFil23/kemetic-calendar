@@ -12,11 +12,13 @@ import '../../data/account_operation_fence.dart';
 import '../calendar/calendar_page.dart'
     show
         CalendarPage,
-        FlowDetailActionKind,
         FlowDetailActionPolicy,
+        FlowDetailMenuAction,
         FlowDetailSource;
 import '../inbox/shared_flow_details_page.dart';
 import 'flow_post_engagement_row.dart';
+import 'flow_post_share_actions.dart';
+import '../calendar/calendar_invalidation.dart';
 
 class FlowPostDetailPage extends StatefulWidget {
   final FlowPost post;
@@ -53,6 +55,10 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
 
   FlowPost get _activePost => _posts[_activeIndex];
   bool get _showsPager => _posts.length > 1;
+  bool _ownsPost(FlowPost post) =>
+      widget.isOwner &&
+      Supabase.instance.client.auth.currentUser?.id == post.userId;
+  StreamSubscription<CalendarInvalidated>? _flowChangeSub;
 
   @override
   void initState() {
@@ -69,12 +75,19 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
       keepPage: false,
     );
     _refreshSavedStateFor(_activePost);
-    unawaited(() async {
-      try {
-        await _repo.getFlowPostById(_activePost.id, cachedOnly: true);
-        if (mounted) setState(() {});
-      } catch (_) {}
-    }());
+    _flowChangeSub = CalendarInvalidationBus.instance.stream.listen((event) {
+      if (event.reason != CalendarInvalidationReason.flowStudioPersisted) {
+        return;
+      }
+      for (final post in _posts.where(
+        (post) => post.sourceFlowId == event.flowId,
+      )) {
+        unawaited(_refreshPost(post));
+      }
+    });
+    // A complete navigation snapshot still needs a fresh read: another device
+    // may have changed its source image since this card entered the warm view.
+    unawaited(_refreshPost(_activePost));
     if (widget.openCommentsOnLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -116,7 +129,27 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
   @override
   void dispose() {
     _pageController.dispose();
+    _flowChangeSub?.cancel();
     super.dispose();
+  }
+
+  Future<void> _refreshPost(FlowPost post) async {
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      final updated = await _repo.getFlowPostById(post.id, strict: true);
+      if (!mounted || !account.isCurrent || updated == null) return;
+      setState(() {
+        _posts = [
+          for (final current in _posts)
+            current.id == post.id ? updated : current,
+        ];
+        _fullPostFutures[post.id] = Future.value(updated);
+      });
+    } catch (_) {
+      // Keep the acknowledged source detail visible if the social refresh fails.
+    } finally {
+      account.dispose();
+    }
   }
 
   Map<String, dynamic> _payloadFor(FlowPost post) {
@@ -181,6 +214,14 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     return SharedFlowDetailsPage(
       key: ValueKey(post.id),
       payloadJson: _payloadFor(post),
+      ownedSourceFlowId: _ownsPost(post) ? post.sourceFlowId : null,
+      menuActions: _menuActionsFor(post),
+      snapshotShareAction: FlowDetailMenuAction(
+        id: 'share-post',
+        label: 'Share Flow',
+        icon: Icons.ios_share,
+        onPressed: () => FlowPostShareActions.open(context, post),
+      ),
       showImportFooter: false,
       actionPolicy: _actionPolicyFor(post),
       useCanonicalUserFlowDetail: true,
@@ -192,23 +233,24 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     if (_saveLookupCompletePostIds.contains(post.id)) return;
     _saveLookupCompletePostIds.add(post.id);
     unawaited(() async {
-      final flowId = await _repo.getSavedFlowPostFlowId(post);
-      if (!mounted || flowId == null) return;
-      setState(() => _savedFlowIdsByPostId[post.id] = flowId);
+      final account = AccountOperationFence(Supabase.instance.client);
+      try {
+        final flowId = await _repo.getSavedFlowPostFlowId(post);
+        if (!mounted || !account.isCurrent || flowId == null) return;
+        setState(() => _savedFlowIdsByPostId[post.id] = flowId);
+      } finally {
+        account.dispose();
+      }
     }());
   }
 
   FlowDetailActionPolicy _actionPolicyFor(FlowPost post) {
     final savedFlowId = _savedFlowIdsByPostId[post.id];
-    if (widget.isOwner) {
-      return FlowDetailActionPolicy(
+    if (_ownsPost(post)) {
+      return CalendarPage.resolveCanonicalCustomFlowActionPolicy(
         source: FlowDetailSource.profilePost,
-        kind: FlowDetailActionKind.removeProfilePost,
-        label: 'Remove from profile',
-        busyLabel: 'Removing...',
-        icon: Icons.delete_outline,
-        busy: _removing,
-        onPressed: () => _removePost(post),
+        isLocalFlow: false,
+        isReadOnly: true,
       );
     }
     if (savedFlowId != null) {
@@ -247,6 +289,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                     onPageChanged: (index) {
                       setState(() => _activeIndex = index);
                       _refreshSavedStateFor(_posts[index]);
+                      unawaited(_refreshPost(_posts[index]));
                     },
                     itemBuilder: (context, index) =>
                         _buildCanonicalDetail(_posts[index]),
@@ -284,7 +327,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                   )
                 else
                   const Spacer(),
-                if (!widget.isOwner) _buildSafetyMenu(),
+                const SizedBox(width: 48),
               ],
             ),
           ),
@@ -293,33 +336,34 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     );
   }
 
-  Widget _buildSafetyMenu() {
-    return PopupMenuButton<_FlowPostSafetyAction>(
-      enabled: !_safetyActionRunning,
-      tooltip: 'Post options',
-      icon: const Icon(Icons.more_vert, color: Colors.white70),
-      color: const Color(0xFF151515),
-      onSelected: (action) {
-        switch (action) {
-          case _FlowPostSafetyAction.report:
-            _reportPost();
-            break;
-          case _FlowPostSafetyAction.block:
-            _confirmBlockAuthor();
-            break;
-        }
-      },
-      itemBuilder: (context) => const [
-        PopupMenuItem(
-          value: _FlowPostSafetyAction.report,
-          child: Text('Report post'),
+  List<FlowDetailMenuAction> _menuActionsFor(FlowPost post) {
+    if (_ownsPost(post)) {
+      return [
+        FlowDetailMenuAction(
+          id: 'remove-profile-post',
+          label: _removing ? 'Removing...' : 'Remove from profile',
+          icon: Icons.delete_outline,
+          enabled: !_removing,
+          onPressed: () => _removePost(post),
         ),
-        PopupMenuItem(
-          value: _FlowPostSafetyAction.block,
-          child: Text('Block user'),
-        ),
-      ],
-    );
+      ];
+    }
+    return [
+      FlowDetailMenuAction(
+        id: 'report-post',
+        label: 'Report post',
+        icon: Icons.flag_outlined,
+        enabled: !_safetyActionRunning,
+        onPressed: _reportPost,
+      ),
+      FlowDetailMenuAction(
+        id: 'block-user',
+        label: 'Block user',
+        icon: Icons.block,
+        enabled: !_safetyActionRunning,
+        onPressed: _confirmBlockAuthor,
+      ),
+    ];
   }
 
   Future<void> _savePost(FlowPost post) async {
@@ -458,5 +502,3 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     }
   }
 }
-
-enum _FlowPostSafetyAction { report, block }

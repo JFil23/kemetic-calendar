@@ -74,6 +74,8 @@ class AccountViewCache {
   void invalidate(String userId, String key) {
     if (_account != userId) return;
     _loadedAt.remove(key);
+    // A post-mutation refresh must not join a request for pre-mutation data.
+    _pending.remove(key);
     _versions[key] = (_versions[key] ?? 0) + 1;
     if (!failed(key)) _attemptedEntry.remove(key);
   }
@@ -147,7 +149,9 @@ class AccountViewCache {
     try {
       return await future as T?;
     } finally {
-      if (generation == _generation) _pending.remove(key);
+      if (generation == _generation && identical(_pending[key], future)) {
+        _pending.remove(key);
+      }
     }
   }
 }

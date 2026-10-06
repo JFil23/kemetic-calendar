@@ -211,8 +211,8 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
         final enlargedHero = widget.scaleHeroWithText && textScale > 1;
         final fittedHero = math.min(widthScaledHero, heightScaledHero);
         final hero = widget.hero;
-        final minimumHeroHeight =
-            widget.scaleHeroWithText && hero is MaatFlowHeroGeometry
+        final hasContentGeometry = hero is MaatFlowHeroGeometry;
+        final minimumHeroHeight = hasContentGeometry
             ? (hero as MaatFlowHeroGeometry).minimumHeightFor(context, width) +
                   // The authored width fit already owns its safe-area
                   // placement. When height compresses that fit, reserve the
@@ -230,7 +230,7 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
         // could clear the fixed dock. Reuse the existing accessible scrolling
         // hero so its content and sheet retain their relative positions.
         final shortHeroViewport =
-            widget.scaleHeroWithText &&
+            (widget.scaleHeroWithText || hasContentGeometry) &&
             showBottomDock &&
             normalHeroHeight + MaatFlowDetailGeometry.bottomContentClearance >
                 constraints.maxHeight;

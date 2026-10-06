@@ -298,6 +298,118 @@ List<PlannedNoteWrite> materializeFlowSnapshotWrites({
   return writes;
 }
 
+// The detached flow action keeps its journal draft with the initiating account.
+// A late flush can never rebind that draft to the next authenticated account.
+class _FlowDetailJournalRepo extends JournalRepo {
+  _FlowDetailJournalRepo(super.client, this.account);
+  final AccountOperationFence account;
+
+  void _requireAccount() {
+    if (!account.isCurrent) {
+      throw StateError('The account changed. Reopen this flow.');
+    }
+  }
+
+  @override
+  Future<JournalEntry?> getByDateStrict(DateTime localDate) async {
+    _requireAccount();
+    final entry = await super.getByDateStrict(localDate);
+    _requireAccount();
+    return entry;
+  }
+
+  @override
+  Future<void> upsert({
+    required DateTime localDate,
+    required String body,
+    Map<String, dynamic>? meta,
+    String? category,
+  }) async {
+    _requireAccount();
+    await super.upsert(
+      localDate: localDate,
+      body: body,
+      meta: meta,
+      category: category,
+    );
+    _requireAccount();
+  }
+}
+
+/// Actions outside the flow lifecycle (for example, removing its profile post)
+/// use the same detail menu without acquiring source-flow write authority.
+@immutable
+class FlowDetailMenuAction {
+  const FlowDetailMenuAction({
+    required this.id,
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.enabled = true,
+  });
+
+  final String id;
+  final String label;
+  final IconData icon;
+  final FutureOr<void> Function() onPressed;
+  final bool enabled;
+}
+
+class _FlowDetailOptionsMenu extends StatelessWidget {
+  const _FlowDetailOptionsMenu({required this.actions, this.color});
+
+  final List<FlowDetailMenuAction> actions;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<FlowDetailMenuAction>(
+    key: const ValueKey<String>('user-flow-detail-options'),
+    tooltip: 'Flow options',
+    icon: Icon(Icons.more_vert, color: color ?? const Color(0xFF9E9A94)),
+    color: const Color(0xFF15110B),
+    onSelected: (action) async => await action.onPressed(),
+    itemBuilder: (context) => [
+      for (final action in actions)
+        PopupMenuItem<FlowDetailMenuAction>(
+          key: ValueKey<String>('flow-detail-action-${action.id}'),
+          value: action,
+          enabled: action.enabled,
+          child: Row(
+            children: [
+              KemeticGold.icon(action.icon),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  action.label,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+    ],
+  );
+}
+
+Widget _withFlowDetailOptions(
+  Widget detail,
+  List<FlowDetailMenuAction> actions,
+) {
+  if (actions.isEmpty) return detail;
+  return Builder(
+    builder: (context) => Stack(
+      children: [
+        Positioned.fill(child: detail),
+        Positioned(
+          top: MediaQuery.paddingOf(context).top + 4,
+          right: 10,
+          child: _FlowDetailOptionsMenu(actions: actions),
+        ),
+      ],
+    ),
+  );
+}
+
 @immutable
 class FlowDetailActionPolicy {
   const FlowDetailActionPolicy({
@@ -469,6 +581,7 @@ class _FlowPreviewPage extends StatefulWidget {
     this.initialEventsByFlow,
     this.actionPolicy,
     this.showFlowOptions = true,
+    this.additionalMenuActions = const [],
     this.backFallbackLocation = kMaatFlowsListRoute,
     this.useMySavedExpansionParity = false,
     this.appearanceImageBytesForTesting,
@@ -485,6 +598,7 @@ class _FlowPreviewPage extends StatefulWidget {
   final Map<int, List<FlowEventRow>>? initialEventsByFlow;
   final FlowDetailActionPolicy? actionPolicy;
   final bool showFlowOptions;
+  final List<FlowDetailMenuAction> additionalMenuActions;
   final String backFallbackLocation;
   final bool useMySavedExpansionParity;
   final Uint8List? appearanceImageBytesForTesting;
@@ -903,8 +1017,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     _Flow flow,
     List<FlowEventRow> events,
   ) async {
-    final cb = widget.onAppendToJournal;
-    if (cb == null) return;
+    final cb = widget.onAppendToJournal ?? CalendarPage._appendFlowToJournal;
     final token = _buildFlowBadgeToken(flow, events);
     try {
       await cb('$token ');
@@ -918,7 +1031,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         );
       }
     } catch (_) {
-      // ignore
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to add this flow to your journal. Please retry.',
+          ),
+        ),
+      );
     }
   }
 

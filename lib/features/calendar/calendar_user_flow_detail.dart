@@ -90,7 +90,7 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
               ),
             ),
           ),
-          if (widget.showFlowOptions)
+          if (widget.showFlowOptions || widget.additionalMenuActions.isNotEmpty)
             Positioned(
               top: MediaQuery.paddingOf(context).top + 4,
               right: 10,
@@ -145,69 +145,14 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
         ? 'SAVED · $total ${total == 1 ? 'DAY' : 'DAYS'}'
         : 'DAY $activeDay OF $total';
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scaledOverlap =
-            MaatFlowDetailGeometry.sheetOverlap *
-            (constraints.maxWidth / MaatFlowDetailGeometry.referenceWidth);
-        final titleBottom = math.max(62.0, scaledOverlap + 16);
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            UserFlowAppearanceHero(
-              key: const ValueKey<String>('user-flow-detail-appearance'),
-              appearance: appearance,
-              accent: theme.accent,
-              localImageBytes: widget.appearanceImageBytesForTesting,
-              height: double.infinity,
-              borderRadius: BorderRadius.zero,
-              surface: UserFlowAppearanceSurface.fullDetail,
-              completedOccurrences: metrics.completedEventCount,
-              totalOccurrences: total,
-            ),
-            Positioned(
-              left: 22,
-              right: 22,
-              bottom: titleBottom,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    caption,
-                    key: const ValueKey<String>('user-flow-detail-caption'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: theme.glow,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 2.0,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  _UserFlowDetailTitle(
-                    text: flow.name,
-                    key: const ValueKey<String>('user-flow-detail-title'),
-                    style: TextStyle(
-                      color: theme.primaryText,
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                      fontSize: 40,
-                      fontWeight: FontWeight.w500,
-                      height: 1.02,
-                      shadows: const [
-                        Shadow(color: Color(0xD0000000), blurRadius: 10),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
+    return _UserFlowDetailHero(
+      appearance: appearance,
+      theme: theme,
+      caption: caption,
+      name: flow.name,
+      completedOccurrences: metrics.completedEventCount,
+      totalOccurrences: total,
+      imageBytes: widget.appearanceImageBytesForTesting,
     );
   }
 
@@ -1174,59 +1119,38 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
     List<FlowEventRow> events,
     MaatFlowDetailTheme theme,
   ) {
-    return PopupMenuButton<String>(
-      key: const ValueKey<String>('user-flow-detail-options'),
-      icon: Icon(Icons.more_vert, color: theme.secondaryText),
-      tooltip: 'Flow options',
-      color: const Color(0xFF15110B),
-      onSelected: (value) async {
-        if (value == 'journal') {
-          await _handleAddFlowToJournal(flow, events);
-        } else if (value == 'edit') {
-          await _editAndRefreshFlow(flow);
-        } else if (value == 'share') {
-          _FlowPreviewPageState._openShareSheet(context, flow);
-        } else if (value == 'save') {
-          await _toggleSaved(flow);
-        }
-      },
-      itemBuilder: (context) => [
-        _userFlowOption(
-          value: 'journal',
-          icon: Icons.check_circle,
-          label: 'Done / Add to journal',
-        ),
-        _userFlowOption(value: 'edit', icon: Icons.edit, label: 'Edit Flow'),
-        _userFlowOption(
-          value: 'share',
-          icon: Icons.ios_share,
-          label: 'Share Flow',
-        ),
-        _userFlowOption(
-          value: 'save',
-          icon: flow.isSaved ? Icons.bookmark_remove : Icons.bookmark_add,
-          label: flow.isSaved ? 'Remove from Saved Flows' : 'Save Flow',
-        ),
-      ],
-    );
-  }
-
-  PopupMenuItem<String> _userFlowOption({
-    required String value,
-    required IconData icon,
-    required String label,
-  }) {
-    return PopupMenuItem<String>(
-      value: value,
-      child: Row(
-        children: [
-          KemeticGold.icon(icon),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(label, style: const TextStyle(color: Colors.white)),
+    return _FlowDetailOptionsMenu(
+      color: theme.secondaryText,
+      actions: [
+        if (widget.showFlowOptions) ...[
+          FlowDetailMenuAction(
+            id: 'journal',
+            label: 'Done / Add to journal',
+            icon: Icons.check_circle,
+            onPressed: () => _handleAddFlowToJournal(flow, events),
+          ),
+          FlowDetailMenuAction(
+            id: 'edit',
+            label: 'Edit Flow',
+            icon: Icons.edit,
+            onPressed: () => _editAndRefreshFlow(flow),
+          ),
+          FlowDetailMenuAction(
+            id: 'share',
+            label: 'Share Flow',
+            icon: Icons.ios_share,
+            onPressed: () =>
+                _FlowPreviewPageState._openShareSheet(context, flow),
+          ),
+          FlowDetailMenuAction(
+            id: 'save',
+            label: flow.isSaved ? 'Remove from Saved Flows' : 'Save Flow',
+            icon: flow.isSaved ? Icons.bookmark_remove : Icons.bookmark_add,
+            onPressed: () => _toggleSaved(flow),
           ),
         ],
-      ),
+        ...widget.additionalMenuActions,
+      ],
     );
   }
 }
@@ -1243,6 +1167,118 @@ class _UserFlowScheduleBuckets {
   final List<_FlowDashboardDay> later;
 }
 
+/// The same custom hero supplies its measured content minimum and its paint.
+/// Short windows may scroll it, but never compress its title into the controls.
+class _UserFlowDetailHero extends StatelessWidget
+    implements MaatFlowHeroGeometry {
+  const _UserFlowDetailHero({
+    required this.appearance,
+    required this.theme,
+    required this.caption,
+    required this.name,
+    required this.completedOccurrences,
+    required this.totalOccurrences,
+    this.imageBytes,
+  });
+
+  final FlowAppearance appearance;
+  final MaatFlowDetailTheme theme;
+  final String caption;
+  final String name;
+  final int completedOccurrences;
+  final int totalOccurrences;
+  final Uint8List? imageBytes;
+
+  static double _titleBottom(double width) => math.max(
+    62.0,
+    MaatFlowDetailGeometry.sheetOverlap *
+            (width / MaatFlowDetailGeometry.referenceWidth) +
+        16,
+  );
+
+  TextStyle get _captionStyle => TextStyle(
+    color: theme.glow,
+    fontSize: 9,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 2.0,
+    height: 1.1,
+  );
+
+  TextStyle get _titleStyle => TextStyle(
+    color: theme.primaryText,
+    fontFamily: MaatFlowListTokens.fontFamily,
+    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+    fontSize: 40,
+    fontWeight: FontWeight.w500,
+    height: 1.02,
+    shadows: const [Shadow(color: Color(0xD0000000), blurRadius: 10)],
+  );
+
+  @override
+  double minimumHeightFor(BuildContext context, double width) {
+    final contentWidth = math.max(0.0, width - 44);
+    final title = _UserFlowDetailTitle.measure(
+      context,
+      text: name,
+      style: _titleStyle,
+      width: contentWidth,
+    );
+    final captionHeight = MaatFlowDetailHero.measureTextHeight(
+      context,
+      text: caption,
+      style: _captionStyle,
+      width: contentWidth,
+    );
+    // Back ends at 46; the options button ends at 52. Preserve an eight-point
+    // gap before the caption. The shared shell adds inherited safe padding.
+    return 60 + captionHeight + 7 + title.height + _titleBottom(width);
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Stack(
+      fit: StackFit.expand,
+      children: [
+        UserFlowAppearanceHero(
+          key: const ValueKey<String>('user-flow-detail-appearance'),
+          appearance: appearance,
+          accent: theme.accent,
+          localImageBytes: imageBytes,
+          height: double.infinity,
+          borderRadius: BorderRadius.zero,
+          surface: UserFlowAppearanceSurface.fullDetail,
+          completedOccurrences: completedOccurrences,
+          totalOccurrences: totalOccurrences,
+        ),
+        Positioned(
+          left: 22,
+          right: 22,
+          bottom: _titleBottom(constraints.maxWidth),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                caption,
+                key: const ValueKey<String>('user-flow-detail-caption'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _captionStyle,
+              ),
+              const SizedBox(height: 7),
+              _UserFlowDetailTitle(
+                text: name,
+                key: const ValueKey<String>('user-flow-detail-title'),
+                style: _titleStyle,
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class _UserFlowDetailTitle extends StatelessWidget {
   const _UserFlowDetailTitle({
     super.key,
@@ -1253,29 +1289,60 @@ class _UserFlowDetailTitle extends StatelessWidget {
   final String text;
   final TextStyle style;
 
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final direction = Directionality.of(context);
-        final scaler = MediaQuery.textScalerOf(context);
-        final largeStyle = style.copyWith(fontSize: 40);
-        final painter = TextPainter(
-          text: TextSpan(text: text, style: largeStyle),
-          textDirection: direction,
-          textScaler: scaler,
-          maxLines: 3,
-        )..layout(maxWidth: constraints.maxWidth);
-        final resolvedStyle = painter.didExceedMaxLines
-            ? style.copyWith(fontSize: 34)
-            : largeStyle;
-        return Text(
-          text,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-          style: resolvedStyle,
+  static ({TextStyle style, double height}) measure(
+    BuildContext context, {
+    required String text,
+    required TextStyle style,
+    required double width,
+  }) {
+    final defaults = DefaultTextStyle.of(context);
+    TextPainter painterFor(TextStyle candidate) {
+      var effective = defaults.style.merge(candidate);
+      if (MediaQuery.boldTextOf(context)) {
+        effective = effective.merge(
+          const TextStyle(fontWeight: FontWeight.bold),
         );
-      },
-    );
+      }
+      return TextPainter(
+        text: TextSpan(text: text, style: effective),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+        locale: Localizations.maybeLocaleOf(context),
+        textHeightBehavior:
+            defaults.textHeightBehavior ??
+            DefaultTextHeightBehavior.maybeOf(context),
+        maxLines: 3,
+        ellipsis: '…',
+      )..layout(maxWidth: width);
+    }
+
+    var resolved = style.copyWith(fontSize: 40);
+    var painter = painterFor(resolved);
+    if (painter.didExceedMaxLines) {
+      painter.dispose();
+      resolved = style.copyWith(fontSize: 34);
+      painter = painterFor(resolved);
+    }
+    final height = painter.height;
+    painter.dispose();
+    return (style: resolved, height: height);
   }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final resolved = measure(
+        context,
+        text: text,
+        style: style,
+        width: constraints.maxWidth,
+      );
+      return Text(
+        text,
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+        style: resolved.style,
+      );
+    },
+  );
 }

@@ -169,6 +169,17 @@ Future<void> close(
   harness.appRouter.dispose();
 }
 
+Future<void> tapRemovePost(WidgetTester tester) async {
+  await tester.tap(
+    find.byKey(const ValueKey('user-flow-detail-options')).hitTestable(),
+  );
+  await settle(tester);
+  await tester.tap(
+    find.byKey(const ValueKey('flow-detail-action-remove-profile-post')),
+  );
+  await tester.pump();
+}
+
 Future<void> warmPosts(WidgetTester tester) async {
   await tester.runAsync(() async {
     for (final row in rows) {
@@ -269,7 +280,7 @@ void main() {
       await settle(tester);
       expect(find.text('Dawn House Rite'), findsWidgets);
       expect(
-        find.byKey(const ValueKey('user-flow-external-action')),
+        find.byKey(const ValueKey('user-flow-detail-options')),
         findsOneWidget,
       );
       await capture(tester, 'owner-detail-${size.width.toInt()}');
@@ -414,10 +425,17 @@ void main() {
       await tester.tap(target);
       await settle(tester);
       await Supabase.instance.client.auth.refreshSession();
-      final action = find.byKey(const ValueKey('user-flow-external-action'));
       holdRemoval = Completer<void>();
-      await tester.tap(action);
-      await tester.tap(action);
+      await tapRemovePost(tester);
+      await tester.tap(
+        find.byKey(const ValueKey('user-flow-detail-options')).hitTestable(),
+      );
+      await settle(tester);
+      final action = tester.widget<PopupMenuItem>(
+        find.byKey(const ValueKey('flow-detail-action-remove-profile-post')),
+      );
+      expect(action.enabled, false);
+      await tester.tapAt(const Offset(10, 10));
       await tester.pump();
       expect(removals, [rows.first['id']]);
       expect(find.byType(FlowPostDetailPage), findsOneWidget);
@@ -448,7 +466,7 @@ void main() {
     unawaited(h.router.push<bool>('/flow-post/${post.id}', extra: post));
     await settle(tester);
     failRemoval = true;
-    await tester.tap(find.byKey(const ValueKey('user-flow-external-action')));
+    await tapRemovePost(tester);
     await settle(tester);
     expect(find.byType(FlowPostDetailPage), findsOneWidget);
     expect(find.text('Unable to remove this flow.'), findsWidgets);
@@ -456,7 +474,7 @@ void main() {
     failRemoval = false;
     await tester.pump(const Duration(seconds: 5));
     await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('user-flow-external-action')));
+    await tapRemovePost(tester);
     await settle(tester);
     expect(find.byType(FlowPostDetailPage), findsNothing);
     expect(removals, [post.id, post.id]);
@@ -471,7 +489,7 @@ void main() {
     unawaited(h.router.push<bool>('/flow-post/${post.id}', extra: post));
     await settle(tester);
     holdRemoval = Completer<void>();
-    await tester.tap(find.byKey(const ValueKey('user-flow-external-action')));
+    await tapRemovePost(tester);
     await tester.pump();
     await Supabase.instance.client.auth.recoverSession(session(nextOwner));
     holdRemoval!.complete();

@@ -1593,6 +1593,7 @@ GoRoute _flowDetailSheetRoute({
         : fallbackLocation;
     return UtilitySheetRouteScaffold(
       semanticLabel: 'Flow details',
+      maxWidth: 640,
       onClose: () => closeOrReturn(context, fallback),
       child: builder(context, state),
     );

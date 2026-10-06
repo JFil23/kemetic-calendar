@@ -146,6 +146,27 @@ class FlowPost {
     };
   }
 
+  /// Preserve the published snapshot while replacing its confirmed appearance.
+  FlowPost withAppearance(Object? appearance) {
+    final metadataPayload = aiMetadata?['payload'];
+    final row = toJson();
+    if (!hasLikesCount) row.remove('likes_count');
+    if (!hasCommentsCount) row.remove('comments_count');
+    if (!hasLikedByMe) row.remove('liked_by_me');
+    return FlowPost.fromJson({
+      ...row,
+      'payload': <String, dynamic>{...?payloadJson, 'appearance': appearance},
+      'ai_metadata': <String, dynamic>{
+        ...?aiMetadata,
+        'payload': <String, dynamic>{
+          if (metadataPayload is Map)
+            ...Map<String, dynamic>.from(metadataPayload),
+          'appearance': appearance,
+        },
+      },
+    });
+  }
+
   String get authorLabel {
     final display = authorDisplayName?.trim();
     if (display != null && display.isNotEmpty) {

@@ -111,6 +111,41 @@ void main() {
       expect(cache.peek<int>('u', 'slice'), 11);
     },
   );
+  test(
+    'mutation refresh detaches an older read without losing the new flight',
+    () async {
+      final cache = AccountViewCache()
+        ..enterAccount('u')
+        ..beginVisibleEntry();
+      final oldDone = Completer<int>();
+      final newDone = Completer<int>();
+      final old = cache.load(
+        'u',
+        'slice',
+        () => oldDone.future,
+        mayFetch: () => true,
+      );
+      await Future<void>.delayed(Duration.zero);
+      cache.invalidate('u', 'slice');
+      var newReads = 0;
+      Future<int> fetchNew() {
+        newReads++;
+        return newDone.future;
+      }
+
+      final fresh = cache.load('u', 'slice', fetchNew, mayFetch: () => true);
+      await Future<void>.delayed(Duration.zero);
+      oldDone.complete(1);
+      expect(await old, isNull);
+      final joined = cache.load('u', 'slice', fetchNew, mayFetch: () => true);
+      newDone.complete(2);
+      expect(await fresh, 2);
+      expect(await joined, 2);
+      expect(newReads, 1);
+      expect(cache.peek<int>('u', 'slice'), 2);
+    },
+  );
+
   test('leaving before dispatch does not consume a failure retry', () async {
     final cache = AccountViewCache()
       ..enterAccount('u')

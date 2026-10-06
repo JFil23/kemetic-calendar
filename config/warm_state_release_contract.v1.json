@@ -20,7 +20,7 @@
     {
       "path": "/flow-post/:postId",
       "owner": "lib/data/profile_repo.dart",
-      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. Selected post identity and pager position stay aligned across warm hydration. Owner removal is acknowledged before dismissal and parent-profile refresh."
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. Selected post identity and pager position stay aligned across warm hydration. Owner removal is acknowledged before dismissal and parent-profile refresh. Owned posts resolve their real account-owned source through FlowsRepo and complete UserEventsRepo event reads, then reuse the My Flows or Ma\u2019at detail and actions. Visitors and unavailable sources retain the published snapshot without private-flow edit authority. Profile removal remains a separate menu action. Source-save acknowledgements refresh the selected detail without changing pager identity. Flow details use the canonical 640-pixel maximum, with full available width on narrower phones."
     },
     {
       "path": "/flows",
@@ -30,7 +30,7 @@
     {
       "path": "/flows/:flowId/edit",
       "owner": "lib/data/flows_repo.dart",
-      "policy": "Calendar/flow account repository and existing restoration owner; complete fresh paged detail coverage before persistence. UserEventsRepo owns acknowledged definition saves and occurrences. Failed reads block editing incomplete content; failed saves retain the selected appearance for Retry. An appearance-only save of a successfully loaded existing flow preserves exact occurrences and raw server rules in mounted and headless persistence; meaningful non-appearance changes retain the existing replacement path. FlowAppearanceStore retains owned image bytes and paths; no new cache or pending-write owner."
+      "policy": "Calendar/flow account repository and existing restoration owner; complete fresh paged detail coverage before persistence. UserEventsRepo owns acknowledged definition saves and occurrences. Failed reads block editing incomplete content; failed saves retain the selected appearance for Retry. An appearance-only save of a successfully loaded existing flow preserves exact occurrences and raw server rules in mounted and headless persistence; meaningful non-appearance changes retain the existing replacement path. FlowAppearanceStore retains owned image bytes and paths; no new cache or pending-write owner. Acknowledged owner appearance updates atomically project to linked same-author profile posts in the backend, preserving all other published fields. ProfileRepo mirrors only the server-returned appearance into existing profile snapshots and invalidates social, posts and activity reads; prior requests and account departures cannot restore stale images. Shares and imported copies retain their own snapshots."
     },
     {
       "path": "/inbox",
@@ -80,7 +80,7 @@
     {
       "path": "/pages",
       "owner": "lib/features/pages/pages_controller.dart",
-      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state. Sheets and their internal navigation retain the mounted Pages view, selection, search and scroll state until Pages itself is dismissed."
+      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state. Sheets and their internal navigation retain the mounted Pages view, selection, search and scroll state until Pages itself is dismissed. Posted-flow activity images use the existing pages.activityPost resource; acknowledged owner appearance saves invalidate that resource with account and in-flight read fencing."
     },
     {
       "path": "/profile-search",
@@ -90,7 +90,7 @@
     {
       "path": "/profile/:userId",
       "owner": "lib/data/profile_repo.dart",
-      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. One Posts carousel merges both snapshots by publication time. Existing profile surface restoration adds an optional typed post identity, resolves legacy flow indices, and keeps selection through refresh/removal without changing cache owners or keys. Confirmed hidden flow posts are excluded from reads and restored snapshots; acknowledged removal updates the existing account caches and fences stale reads."
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. One Posts carousel merges both snapshots by publication time. Existing profile surface restoration adds an optional typed post identity, resolves legacy flow indices, and keeps selection through refresh/removal without changing cache owners or keys. Confirmed hidden flow posts are excluded from reads and restored snapshots; acknowledged removal updates the existing account caches and fences stale reads. Retained profile and timeline cards consume acknowledged appearance updates and refresh on flowStudioPersisted while preserving selection and scroll state. ProfileRepo and AccountViewCache fence superseded reads and ordered persistent snapshots; failed saves cannot publish an appearance change."
     },
     {
       "path": "/profile/:userId/followers",
@@ -175,12 +175,12 @@
     {
       "path": "/shared-flow/:shareId",
       "owner": "lib/data/share_repo.dart",
-      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner."
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. The shared canonical detail housing uses a 640-pixel tablet maximum; direct-share payload ownership remains unchanged."
     },
     {
       "path": "/shared-flow/by-flow/:flowId",
       "owner": "lib/data/share_repo.dart",
-      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner."
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. The shared canonical detail housing uses a 640-pixel tablet maximum; direct-share payload ownership remains unchanged."
     },
     {
       "path": "/shared-practice/:roomId",

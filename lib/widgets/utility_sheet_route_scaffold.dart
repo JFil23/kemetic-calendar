@@ -25,6 +25,7 @@ class UtilitySheetRouteScaffold extends StatefulWidget {
     this.showRouteChrome = true,
     this.heightFactor,
     this.topRadius = 24,
+    this.maxWidth,
   });
 
   final Widget child;
@@ -36,6 +37,7 @@ class UtilitySheetRouteScaffold extends StatefulWidget {
   final bool showRouteChrome;
   final double? heightFactor;
   final double topRadius;
+  final double? maxWidth;
 
   @override
   State<UtilitySheetRouteScaffold> createState() =>
@@ -145,9 +147,11 @@ class _UtilitySheetRouteScaffoldState extends State<UtilitySheetRouteScaffold> {
                   ),
                   child: FractionallySizedBox(
                     heightFactor: heightFactor,
-                    widthFactor: 1,
+                    widthFactor: widget.maxWidth == null ? 1 : null,
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 720),
+                      constraints: BoxConstraints(
+                        maxWidth: widget.maxWidth ?? 720,
+                      ),
                       child: AnimatedContainer(
                         duration: _isDragging
                             ? Duration.zero

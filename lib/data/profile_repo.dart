@@ -300,6 +300,48 @@ class ProfileRepo {
     }
   }
 
+  /// Mirrors only the appearance that the source-flow write acknowledged.
+  /// The backend commits the same projection to linked, same-author posts.
+  /// All other published payload fields remain the original snapshot.
+  Future<void> applyAcknowledgedFlowAppearance({
+    required String userId,
+    required int flowId,
+    required Object? appearance,
+  }) async {
+    final account = AccountOperationFence(_client);
+    try {
+      if (account.userId != userId || !account.isCurrent) return;
+      final version = (_flowPostsCacheVersions[userId] ?? 0) + 1;
+      _flowPostsCacheVersions[userId] = version;
+      invalidateWarmDomains(userId, [
+        'social.',
+        'pages.posts',
+        'pages.activityPost.',
+      ]);
+      final cached = await restoreCachedFlowPosts(userId);
+      if (!account.isCurrent ||
+          version != (_flowPostsCacheVersions[userId] ?? 0) ||
+          cached == null) {
+        return;
+      }
+      final posts = cached
+          .map((post) {
+            if (post.userId != userId || post.sourceFlowId != flowId) {
+              return post;
+            }
+            return post.withAppearance(appearance);
+          })
+          .toList(growable: false);
+      await _cacheFlowPosts(
+        userId: userId,
+        posts: posts,
+        expectedVersion: version,
+      );
+    } finally {
+      account.dispose();
+    }
+  }
+
   List<InsightPost>? getCachedInsightPostsSync(String userId) {
     final posts = _insightPostsMemoryCache[userId];
     if (posts == null) return null;
@@ -1005,26 +1047,30 @@ class ProfileRepo {
     int offset = 0,
     bool cachedOnly = false,
   }) async {
+    final account = AccountOperationFence(_client);
     try {
-      final rows = await WarmJsonReads(_client, cachedOnly: cachedOnly).rows(
-        'social.feed.$limit.$offset',
-        () async {
-          final result = await _fetchProfileFeedResult(
-            limit: limit,
-            offset: offset,
-          );
-          if (result.hasError) throw StateError(result.errorMessage!);
-          return result.data
-              .map(
-                (item) => <String, dynamic>{
-                  'post_type': item.kind.name,
-                  ...?item.flowPost?.toJson(),
-                  ...?item.insightPost?.toJson(),
-                },
-              )
-              .toList();
-        },
-      );
+      final rows =
+          await WarmJsonReads(
+            _client,
+            cachedOnly: cachedOnly,
+            mayFetch: () => account.isCurrent,
+          ).rows('social.feed.$limit.$offset', () async {
+            final result = await _fetchProfileFeedResult(
+              limit: limit,
+              offset: offset,
+            );
+            if (result.hasError) throw StateError(result.errorMessage!);
+            return result.data
+                .map(
+                  (item) => <String, dynamic>{
+                    'post_type': item.kind.name,
+                    ...?item.flowPost?.toJson(),
+                    ...?item.insightPost?.toJson(),
+                  },
+                )
+                .toList();
+          });
+      if (!account.isCurrent) throw const WarmReadCancelled();
       return ProfileFeedResult(
         data: rows.map(ProfileFeedItem.fromJson).toList(),
       );
@@ -1034,6 +1080,8 @@ class ProfileRepo {
         data: [],
         errorMessage: 'Feed could not refresh.',
       );
+    } finally {
+      account.dispose();
     }
   }
 
@@ -1158,23 +1206,27 @@ class ProfileRepo {
     bool cachedOnly = false,
     bool strict = false,
   }) async {
+    final account = AccountOperationFence(_client);
     try {
-      final row = await WarmJsonReads(_client, cachedOnly: cachedOnly).value(
-        'social.post.$postId',
-        () async {
-          final row = await _client
-              .from('flow_posts')
-              .select()
-              .eq('id', postId)
-              .maybeSingle();
-          if (row == null) return null;
-          final visible = await _filterBlockedFlowPosts([
-            FlowPost.fromJson(row),
-          ]);
-          return visible.isEmpty ? null : visible.single.toJson();
-        },
-      );
+      final row =
+          await WarmJsonReads(
+            _client,
+            cachedOnly: cachedOnly,
+            mayFetch: () => account.isCurrent,
+          ).value('social.post.$postId', () async {
+            final row = await _client
+                .from('flow_posts')
+                .select()
+                .eq('id', postId)
+                .maybeSingle();
+            if (row == null) return null;
+            final visible = await _filterBlockedFlowPosts([
+              FlowPost.fromJson(row),
+            ]);
+            return visible.isEmpty ? null : visible.single.toJson();
+          });
 
+      if (!account.isCurrent) throw const WarmReadCancelled();
       if (row == null) return null;
       final post = FlowPost.fromJson(Map<String, dynamic>.from(row as Map));
       return post.isHidden ? null : post;
@@ -1184,6 +1236,8 @@ class ProfileRepo {
         debugPrint('[ProfileRepo] Error fetching flow post by id: $e');
       }
       return null;
+    } finally {
+      account.dispose();
     }
   }
 

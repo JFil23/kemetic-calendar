@@ -868,3 +868,65 @@ also performs no occurrence writes. The existing lookup is reused, without a new
 read boundary or pending-write cleanup. Account departure clears the transient
 reminder registry and fences in-flight sync and event-upsert work. Authored drafts
 and pending account writes remain with their existing owners.
+
+
+## October 5 posted-flow appearance and canonical details
+
+The user's 18:23 and 18:25 iPad recordings are the visual and behavioral
+references. The existing My Flows detail is the custom-flow presentation owner;
+the existing canonical Ma’at detail remains the owner for each Ma’at kind.
+Profile and timeline entry reuse those components, including the three-dot
+menu and actual source-flow actions when ownership is confirmed. The canonical
+640-pixel maximum and full available width on narrower phones apply in
+portrait and landscape. The parent Notes/Reminders/Flows tabs remain parent navigation.
+No new detail design replaces the established hero, content or Manage Flow
+control, and the five-flow Day View housing contract is unchanged. Custom-flow
+heroes provide a measured content minimum to the existing shared geometry
+boundary, keeping captions and long titles below fixed controls in short phone
+landscape windows. The existing scrolling-hero path preserves access to the
+content and action dock without changing normal portrait or tablet geometry.
+
+A posted flow retains its published content snapshot, but its appearance follows
+its same-author source flow. The backend migration
+`20261006013056_sync_posted_flow_appearance.sql` projects only
+`ai_metadata.payload.appearance` in the same transaction as the owner's source
+appearance update. Image removal uses the same boundary. Publication and stale
+caption updates normalize appearance against the current same-author source;
+source/post lock ordering prevents older appearance from winning a concurrent
+save. The narrow idempotent backfill repairs already-stale linked posts.
+Post IDs, creation dates, captions, event snapshots, rules, unknown metadata and
+engagement remain intact. Missing sources, mismatched authors, direct shares and
+imported copies retain their snapshots. Existing shared-calendar editor RLS is
+unchanged; this owner-update projection does not grant collaborators authority
+over the owner's social posts.
+
+UserEventsRepo remains the source writer. Its acknowledgement contains the
+server-returned appearance; there is no second app-side social write. ProfileRepo
+reconciles that appearance into existing same-author/source memory and disk
+snapshots, preserving both payload representations. Social feed/detail, posted
+cards and Pages activity reads are invalidated through existing resource keys.
+Versioned reads, ordered disk writes and account-operation fences prevent stale
+results or an A-to-B-to-A account change from restoring an older image. Retained
+profile, timeline and detail views refresh through the existing source-save
+invalidation signal. Failed saves retain the previous confirmed social state.
+Cache namespaces, resource schemas, immutable fixtures, inventory thresholds and
+pending-write ownership do not change.
+
+Owned post details require an actual owner-matching FlowRow and complete event
+read before enabling source actions. They reuse existing edit, share, journal,
+saved-state and lifecycle boundaries; a synthetic posted ID cannot authorize a
+source write. The profile-post removal action stays separate in the context
+menu and removes only the social post. Visitors keep snapshot share, save and
+safety actions. A failed, deleted or inaccessible source falls back to the
+published snapshot. Account changes fence pending source loads and actions.
+Detached journal actions use the existing JournalController and JournalRepo
+ownership with the initiating account fixed for the operation.
+
+Regression evidence includes exact posted-payload preservation, replacement and
+removal of images, all linked posts, concurrent saves/caption edits/publication,
+viewer image access, cold and warm caches, stale reads and account changes.
+Detail checks cover canonical phone/tablet layouts, post/pager identity,
+owner/visitor/missing-source actions and Ma’at presentation. Capture-only visual
+evidence lives outside approved references. Complete App and backend gates are
+required before release; the backend migration must precede an app deployment
+that relies on its acknowledgement contract.

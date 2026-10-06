@@ -517,8 +517,16 @@ void main() {
       File('lib/features/calendar/calendar_page.dart').readAsStringSync(),
       contains('CalendarPage._mountedState?._userFlowCalendarPreviewForWindow'),
     );
-    expect(detail, contains("label: 'Remove from profile'"));
-    expect(detail, contains('FlowDetailActionKind.removeProfilePost'));
+    expect(detail, contains("id: 'remove-profile-post'"));
+    expect(detail, contains('FlowDetailMenuAction('));
+    expect(
+      detail,
+      contains('ownedSourceFlowId: _ownsPost(post) ? post.sourceFlowId : null'),
+    );
+    expect(
+      sharedDetail,
+      contains('CalendarPage.buildCanonicalOwnedFlowDetail('),
+    );
     expect(detail, isNot(contains('FlowDetailActionKind.manage')));
     expect(detail, contains('resolveCanonicalCustomFlowActionPolicy('));
     expect(detail, isNot(contains('FlowPostEngagementRow(')));

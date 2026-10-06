@@ -232,10 +232,11 @@ void main() {
           );
           final bounds = tester.getRect(find.byType(MaatFlowDetailShell));
           expect(bounds.top, greaterThan(44));
-          // Match the existing Flow Studio sheet's phone/tablet side insets.
+          // Flow routes share the available width up to 640 points, while
+          // retaining the existing phone/tablet outer insets.
           expect(
             bounds.width,
-            size.width - (size.shortestSide >= 600 ? 48 : 0),
+            math.min(640, size.width - (size.shortestSide >= 600 ? 48 : 0)),
           );
           expect(bounds.bottom, lessThanOrEqualTo(size.height));
           expect(find.text('Background'), findsOneWidget);

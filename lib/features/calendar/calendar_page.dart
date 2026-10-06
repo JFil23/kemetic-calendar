@@ -21,6 +21,7 @@ import '../../data/user_events_repo.dart';
 import '../../data/external_calendar_repository.dart'
     show externalCalendarBuildLane, externalCalendarRepository;
 import '../../data/flows_repo.dart';
+import '../../data/journal_repo.dart';
 import '../../data/warm_state/warm_snapshot_store.dart' show WarmCacheMiss;
 import '../../data/flow_appearance.dart';
 import '../../data/flow_appearance_store.dart';
@@ -4094,6 +4095,124 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  /// Live owned flows use the same detail and action implementation as My Flows.
+  /// The caller must have resolved the source through its account repository.
+  static Widget buildCanonicalOwnedFlowDetail({
+    required FlowRow row,
+    required List<FlowEventRow> events,
+    List<FlowDetailMenuAction> additionalMenuActions = const [],
+    String backFallbackLocation = kMaatFlowsListRoute,
+  }) {
+    final flow = _flowFromFiledRowDetached(row);
+    final maat = buildCanonicalMaatFlowDetail(
+      name: row.name,
+      notes: row.notes,
+      relation: MaatFlowDetailRelation.owned,
+      ownedFlow: row,
+      ownedEvents: events,
+      intendedFlowId: row.id,
+      intendedStart: row.startDate,
+      intendedEnd: row.endDate,
+      backFallbackLocation: backFallbackLocation,
+      menuActions: additionalMenuActions,
+    );
+    if (maat != null) return maat;
+    return Builder(
+      builder: (context) => _FlowPreviewPage(
+        flow: flow,
+        mode: row.active ? _FlowPreviewMode.active : _FlowPreviewMode.saved,
+        metricsByFlow: {
+          row.id: _metricsForCanonicalFlowDetail(events, template: !row.active),
+        },
+        initialEventsByFlow: {row.id: events},
+        getDecanLabel: (km, di) =>
+            (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
+        fmt: _formatDetachedGregorian,
+        onEdit: (current) async {
+          final client = Supabase.instance.client;
+          final account = AccountOperationFence(client);
+          try {
+            if (account.userId != row.userId) return null;
+            final saved = await openDetailRoute<bool>(
+              context,
+              flowEditorRouteLocation(
+                flowId: current.id,
+                calendarId: current.calendarId,
+                fallbackLocation: backFallbackLocation,
+              ),
+            );
+            if (saved != true || !account.isCurrent) return null;
+            final updated = await FlowsRepo(client).getFlowById(current.id);
+            if (!account.isCurrent ||
+                updated == null ||
+                updated.userId != account.userId) {
+              return null;
+            }
+            final updatedEvents = await UserEventsRepo(
+              client,
+            ).getFlowDetailEvents(current.id);
+            if (!account.isCurrent) return null;
+            return _FlowPreviewRefresh(
+              flow: _flowFromFiledRowDetached(updated),
+              metrics: _metricsForCanonicalFlowDetail(
+                updatedEvents,
+                template: !updated.active,
+              ),
+            );
+          } finally {
+            account.dispose();
+          }
+        },
+        completeAdd: (flowId) => _completeDetachedStagedFlowWithDayView(
+          navigator: Navigator.of(context),
+          flowId: flowId,
+        ),
+        onAppendToJournal: (text) async {
+          if (Supabase.instance.client.auth.currentUser?.id != row.userId) {
+            throw StateError('The account changed. Reopen this flow.');
+          }
+          await _appendFlowToJournal(text);
+        },
+        onEndMaatFlow: (flow) => _endFlowHeadless(flow.id),
+        showFlowOptions: true,
+        additionalMenuActions: additionalMenuActions,
+        backFallbackLocation: backFallbackLocation,
+        useMySavedExpansionParity: true,
+        calendarPreviewForWindow:
+            _mountedState?._userFlowCalendarPreviewForWindow,
+      ),
+    );
+  }
+
+  static Future<void> _appendFlowToJournal(String text) async {
+    final client = Supabase.instance.client;
+    final account = AccountOperationFence(client);
+    JournalController? detached;
+    try {
+      if (account.userId == null) return;
+      final host = _mountedState;
+      if (host?.mounted == true) {
+        await host!._appendToJournalAndRefresh(text);
+        return;
+      }
+      detached = JournalController(
+        client,
+        repository: _FlowDetailJournalRepo(client, account),
+        currentUserId: () => account.userId,
+      );
+      await detached.init();
+      if (!account.isCurrent) return;
+      await detached.appendToToday(text);
+      if (!account.isCurrent) return;
+      if (!await detached.forceSave()) {
+        throw StateError('Unable to save to journal. Please retry.');
+      }
+    } finally {
+      detached?.dispose();
+      account.dispose();
+    }
+  }
+
   static Widget buildCanonicalCustomFlowDetail({
     required String name,
     required int color,
@@ -4109,6 +4228,7 @@ class CalendarPage extends StatefulWidget {
     FlowDetailActionPolicy? actionPolicy,
     bool useMySavedExpansionParity = false,
     bool showFlowOptions = false,
+    List<FlowDetailMenuAction> additionalMenuActions = const [],
     String backFallbackLocation = kMaatFlowsListRoute,
     FlowAppearance appearance = FlowAppearance.empty,
     List<FlowEventRow>? initialFlowEvents,
@@ -4165,6 +4285,7 @@ class CalendarPage extends StatefulWidget {
       onEndMaatFlow: null,
       actionPolicy: actionPolicy,
       showFlowOptions: showFlowOptions,
+      additionalMenuActions: additionalMenuActions,
       backFallbackLocation: backFallbackLocation,
       useMySavedExpansionParity: useMySavedExpansionParity,
       calendarPreviewForWindow:
@@ -4183,6 +4304,9 @@ class CalendarPage extends StatefulWidget {
     DateTime? intendedEnd,
     FollowSkyCalendarPreview? calendarPreview,
     FlowDetailActionPolicy? actionPolicy,
+    FlowRow? ownedFlow,
+    List<FlowEventRow>? ownedEvents,
+    List<FlowDetailMenuAction> menuActions = const [],
   }) {
     final templateKey = _canonicalMaatTemplateKeyForSnapshot(
       name: name,
@@ -4195,30 +4319,41 @@ class CalendarPage extends StatefulWidget {
       behaviorPayload: <String, dynamic>{'flow_key': templateKey},
     );
     if (kind != null && kArchivedCompatibilityMaatFlowKinds.contains(kind)) {
-      return Builder(
-        builder: (context) => ArchivedMaatFlowDetailView(
-          bottomDock: actionPolicy == null
-              ? null
-              : _buildExternalFlowDetailDock(
-                  policy: actionPolicy,
-                  theme: ArchivedMaatFlowTokens.theme,
-                ),
-          fixture: _archivedMaatFlowFixtureFromSnapshot(
-            kind: kind,
-            name: name,
-            eventsJson: eventsJson,
-          ),
-          onBack: () => popMaatFlowDetailOrGo(
-            context,
-            fallbackLocation: backFallbackLocation,
+      return _withFlowDetailOptions(
+        Builder(
+          builder: (context) => ArchivedMaatFlowDetailView(
+            bottomDock: actionPolicy == null
+                ? null
+                : _buildExternalFlowDetailDock(
+                    policy: actionPolicy,
+                    theme: ArchivedMaatFlowTokens.theme,
+                  ),
+            fixture: ownedFlow != null && ownedEvents != null
+                ? _archivedMaatFlowFixtureFromRows(
+                    kind: kind,
+                    flow: _flowFromFiledRowDetached(ownedFlow),
+                    events: ownedEvents,
+                  )
+                : _archivedMaatFlowFixtureFromSnapshot(
+                    kind: kind,
+                    name: name,
+                    eventsJson: eventsJson,
+                  ),
+            onBack: () => popMaatFlowDetailOrGo(
+              context,
+              fallbackLocation: backFallbackLocation,
+            ),
           ),
         ),
+        menuActions,
       );
     }
 
     for (final template in _kCoreMaatFlowTemplates) {
       if (template.key != templateKey) continue;
-      final intended = intendedFlowId == null
+      final intended = ownedFlow != null
+          ? _flowFromFiledRowDetached(ownedFlow)
+          : intendedFlowId == null
           ? null
           : _Flow(
               id: intendedFlowId,
@@ -4244,26 +4379,32 @@ class CalendarPage extends StatefulWidget {
             ? _mountedState?._maatFlowCalendarPreview()
             : null;
       }
-      return Builder(
-        builder: (context) => _ActiveMaatFlowDetailSurface.fromComposition(
-          composition: resolveMaatFlowDetailComposition(
-            template: template,
-            relation: relation,
-            intendedInstance: intended,
-            calendar: resolvedCalendar,
-            followSkyCandidates: sky?.candidates ?? const [],
-            followSkyMeasurementIntervals: sky?.intervals ?? const [],
-          ),
-          addInstance: _addMaatFlowInstanceHeadless,
-          primaryAction: actionPolicy == null
-              ? null
-              : _maatPrimaryActionFor(actionPolicy),
-          onPersisted: (_) => _refreshDetachedReadingHouseTimeline(),
-          onBack: () => popMaatFlowDetailOrGo(
-            context,
-            fallbackLocation: backFallbackLocation,
+      return _withFlowDetailOptions(
+        Builder(
+          builder: (context) => _ActiveMaatFlowDetailSurface.fromComposition(
+            composition: resolveMaatFlowDetailComposition(
+              template: template,
+              relation: relation,
+              intendedInstance: intended,
+              calendar: resolvedCalendar,
+              followSkyCandidates: sky?.candidates ?? const [],
+              followSkyMeasurementIntervals: sky?.intervals ?? const [],
+            ),
+            addInstance: _addMaatFlowInstanceHeadless,
+            primaryAction: actionPolicy == null
+                ? null
+                : _maatPrimaryActionFor(actionPolicy),
+            onPersisted: (_) => _refreshDetachedReadingHouseTimeline(),
+            onEndFlow: relation == MaatFlowDetailRelation.owned
+                ? _endFlowHeadless
+                : null,
+            onBack: () => popMaatFlowDetailOrGo(
+              context,
+              fallbackLocation: backFallbackLocation,
+            ),
           ),
         ),
+        menuActions,
       );
     }
     return null;
@@ -8997,6 +9138,7 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
     );
     return UtilitySheetRouteScaffold(
       semanticLabel: 'Flow Studio',
+      maxWidth: 640,
       onClose: _closeRoute,
       onBackPressed: _handleSystemBack,
       child: Navigator(

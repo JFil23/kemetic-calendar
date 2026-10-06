@@ -1,3 +1,5 @@
+import 'account_operation_fence.dart';
+import 'warm_state/warm_snapshot_store.dart';
 import 'warm_state/warm_json_reads.dart';
 import 'commons_question_selection.dart';
 import '../features/journal/journal_event_badge.dart';
@@ -247,27 +249,38 @@ class PagesReadRepository {
   }
 
   Future<List<FlowPost>> activityPost({String? postId, int? flowId}) async {
-    var query = client
-        .from('flow_posts')
-        .select(
-          'id,user_id,flow_id,name,color,start_date,end_date,is_hidden,created_at,appearance:ai_metadata->payload->appearance',
-        )
-        .eq('user_id', uid)
-        .eq('is_hidden', false);
-    if (postId != null) query = query.eq('id', postId);
-    if (flowId != null) query = query.eq('flow_id', flowId);
-    final rows = await _warm.rows(
-      'pages.activityPost.$postId.$flowId',
-      () async => query.order('created_at', ascending: false).limit(1),
-    );
-    return rows
-        .map(
-          (r) => FlowPost.fromJson({
-            ...r,
-            'payload': {'appearance': r['appearance']},
-          }),
-        )
-        .toList();
+    final account = AccountOperationFence(client);
+    try {
+      var query = client
+          .from('flow_posts')
+          .select(
+            'id,user_id,flow_id,name,color,start_date,end_date,is_hidden,created_at,appearance:ai_metadata->payload->appearance',
+          )
+          .eq('user_id', account.userId!)
+          .eq('is_hidden', false);
+      if (postId != null) query = query.eq('id', postId);
+      if (flowId != null) query = query.eq('flow_id', flowId);
+      final rows =
+          await WarmJsonReads(
+            client,
+            cachedOnly: cachedOnly,
+            mayFetch: () => account.isCurrent && mayFetch(),
+          ).rows(
+            'pages.activityPost.$postId.$flowId',
+            () async => query.order('created_at', ascending: false).limit(1),
+          );
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      return rows
+          .map(
+            (r) => FlowPost.fromJson({
+              ...r,
+              'payload': {'appearance': r['appearance']},
+            }),
+          )
+          .toList();
+    } finally {
+      account.dispose();
+    }
   }
 
   /// Selected people only; no profile bootstrap or progress writes.
