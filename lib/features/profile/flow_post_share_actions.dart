@@ -104,8 +104,7 @@ abstract final class FlowPostShareActions {
           builder: (context) => ShareFlowSheet(
             flowId: null,
             flowTitle: cleanFlowTitle(post.name),
-            noteShareText: text,
-            sendTextInInbox: true,
+            flowPostId: post.id,
           ),
         );
         return;

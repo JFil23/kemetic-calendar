@@ -207,12 +207,10 @@ List<PlannedNoteWrite> materializeFlowSnapshotWrites({
       final allDay = event['all_day'] as bool? ?? false;
 
       TimeOfDay parseTime(Object? raw, TimeOfDay fallback) {
-        final value = raw as String?;
-        if (value == null || value.length < 5) return fallback;
-        final hour = int.tryParse(value.substring(0, 2));
-        final minute = int.tryParse(value.substring(3, 5));
-        if (hour == null || minute == null) return fallback;
-        return TimeOfDay(hour: hour, minute: minute);
+        final parsed = parseFlowSnapshotTime(raw);
+        return parsed == null
+            ? fallback
+            : TimeOfDay(hour: parsed.$1, minute: parsed.$2);
       }
 
       final startTime = parseTime(
@@ -232,13 +230,23 @@ List<PlannedNoteWrite> materializeFlowSnapshotWrites({
           event['end_time'],
           TimeOfDay.fromDateTime(startsAt.add(const Duration(hours: 1))),
         );
+        final endOffset = (event['end_offset_days'] as num?)?.toInt();
         endsAt = DateTime(
           date.year,
           date.month,
-          date.day,
+          date.day + (endOffset ?? 0),
           endTime.hour,
           endTime.minute,
         );
+        if (endOffset == null && !endsAt.isAfter(startsAt)) {
+          endsAt = DateTime(
+            date.year,
+            date.month,
+            date.day + 1,
+            endTime.hour,
+            endTime.minute,
+          );
+        }
       }
       final title = ((event['title'] as String?) ?? fallbackTitle).trim();
       final safeTitle = title.isEmpty ? fallbackTitle : title;

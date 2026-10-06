@@ -1,3 +1,4 @@
+import 'flow_share_snapshot.dart';
 import 'warm_state/warm_mutation.dart';
 import 'warm_state/warm_json_reads.dart';
 import 'warm_state/warm_snapshot_store.dart';
@@ -76,6 +77,8 @@ class CommunityRhythmRollup {
 }
 
 class ProfileRepo {
+  // Coalesce repeated taps across surfaces using the same authenticated client.
+  static final _pendingFlowPostSaves = Expando<Map<String, Future<int?>>>();
   final SupabaseClient _client;
 
   ProfileRepo(this._client);
@@ -1276,9 +1279,12 @@ class ProfileRepo {
         Map<String, dynamic> eventToPayload(e) {
           int offset = 0;
           if (startDate != null) {
-            offset = DateUtils.dateOnly(
-              e.startsAtUtc.toLocal(),
-            ).difference(DateUtils.dateOnly(startDate)).inDays;
+            final local = e.startsAtUtc.toLocal();
+            offset = DateTime.utc(local.year, local.month, local.day)
+                .difference(
+                  DateTime.utc(startDate.year, startDate.month, startDate.day),
+                )
+                .inDays;
           }
 
           String formatTime(DateTime dt) {
@@ -1300,6 +1306,19 @@ class ProfileRepo {
             'detail': detail,
             'location': location == null || location.isEmpty ? null : location,
             'all_day': e.allDay,
+            'action_id': e.actionId,
+            'behavior_payload': e.behaviorPayload,
+            'end_offset_days': endLocal == null
+                ? null
+                : DateTime.utc(endLocal.year, endLocal.month, endLocal.day)
+                      .difference(
+                        DateTime.utc(
+                          startLocal.year,
+                          startLocal.month,
+                          startLocal.day,
+                        ),
+                      )
+                      .inDays,
             'start_time': e.allDay ? null : formatTime(startLocal),
             'end_time': e.allDay || endLocal == null
                 ? null
@@ -1556,14 +1575,19 @@ class ProfileRepo {
     }
   }
 
-  Future<int?> getSavedFlowPostFlowId(FlowPost post) async {
+  Future<int?> getSavedFlowPostFlowId(
+    FlowPost post, {
+    bool strict = false,
+  }) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return null;
 
       final saveRows = await _client
           .from('flow_saves')
-          .select('flow_id,saved_at')
+          .select('flow_id,saved_at,flows!inner(is_hidden,is_saved)')
+          .eq('flows.is_hidden', false)
+          .eq('flows.is_saved', true)
           .eq('user_id', userId)
           .eq('saved_from', 'profile')
           .eq('metadata->>flow_post_id', post.id)
@@ -1575,6 +1599,7 @@ class ProfileRepo {
       }
     } catch (e) {
       _log('[ProfileRepo] flow_post save lookup failed: $e');
+      if (strict) rethrow;
     }
 
     try {
@@ -1587,6 +1612,8 @@ class ProfileRepo {
           .select('id,created_at')
           .eq('user_id', userId)
           .eq('origin_type', 'profile_import')
+          .eq('is_hidden', false)
+          .eq('is_saved', true)
           .eq('origin_flow_id', sourceFlowId)
           .order('created_at', ascending: false)
           .limit(1);
@@ -1595,6 +1622,7 @@ class ProfileRepo {
       return (flows.first['id'] as num?)?.toInt();
     } catch (e) {
       _log('[ProfileRepo] profile_import flow lookup failed: $e');
+      if (strict) rethrow;
       return null;
     }
   }
@@ -1604,24 +1632,60 @@ class ProfileRepo {
     FlowPost post, {
     DateTime? startDateOverride,
   }) async {
-    var resolvedPost = post;
-    if (post.payloadJson?['events'] is! List) {
-      resolvedPost = await getFlowPostById(post.id) ?? post;
-    }
-    return _saveResolvedFlowPostToMyFlows(
-      resolvedPost,
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return null;
+    final pending = _pendingFlowPostSaves[_client] ??= {};
+    final key = '$userId:${post.id}';
+    final existing = pending[key];
+    if (existing != null) return existing;
+    final operation = _resolveAndSaveFlowPost(
+      post,
       startDateOverride: startDateOverride,
     );
+    pending[key] = operation;
+    try {
+      return await operation;
+    } finally {
+      if (identical(pending[key], operation)) pending.remove(key);
+    }
+  }
+
+  Future<int?> _resolveAndSaveFlowPost(
+    FlowPost post, {
+    DateTime? startDateOverride,
+  }) async {
+    final account = AccountOperationFence(_client);
+    try {
+      var resolvedPost = post;
+      if (post.payloadJson?['events'] is! List) {
+        resolvedPost = await getFlowPostById(post.id, strict: true) ?? post;
+        if (resolvedPost.payloadJson?['events'] is! List) return null;
+      }
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      return await _saveResolvedFlowPostToMyFlows(
+        resolvedPost,
+        account: account,
+        startDateOverride: startDateOverride,
+      );
+    } catch (e) {
+      _log('[ProfileRepo] Error resolving saved flow post: $e');
+      return null;
+    } finally {
+      account.dispose();
+    }
   }
 
   Future<int?> _saveResolvedFlowPostToMyFlows(
     FlowPost post, {
+    required AccountOperationFence account,
     DateTime? startDateOverride,
   }) async {
+    final userEventsRepo = UserEventsRepo(_client);
     try {
-      final userId = _client.auth.currentUser?.id;
+      final userId = account.userId;
       if (userId == null) return null;
-      final existingFlowId = await getSavedFlowPostFlowId(post);
+      final existingFlowId = await getSavedFlowPostFlowId(post, strict: true);
+      if (!account.isCurrent) throw const WarmReadCancelled();
       if (existingFlowId != null) return existingFlowId;
       ensureNewFlowCreationAllowedByMaatCatalog(
         flowName: post.name,
@@ -1659,8 +1723,16 @@ class ProfileRepo {
         final endOnly = dateOnly(post.endDate!);
         if (originalStart != null) {
           final startOnly = dateOnly(originalStart);
-          final span = endOnly.difference(startOnly);
-          effectiveEnd = dateOnly(effectiveStart.add(span));
+          final span = DateTime.utc(endOnly.year, endOnly.month, endOnly.day)
+              .difference(
+                DateTime.utc(startOnly.year, startOnly.month, startOnly.day),
+              )
+              .inDays;
+          effectiveEnd = DateTime(
+            effectiveStart.year,
+            effectiveStart.month,
+            effectiveStart.day + span,
+          );
         } else {
           effectiveEnd = endOnly.isBefore(effectiveStart)
               ? effectiveStart
@@ -1668,7 +1740,6 @@ class ProfileRepo {
         }
       }
 
-      final userEventsRepo = UserEventsRepo(_client);
       final rulesString = jsonEncode(post.rules);
       final sourceAppearance = FlowAppearance.fromJson(
         post.payloadJson?['appearance'],
@@ -1685,9 +1756,10 @@ class ProfileRepo {
           );
         } catch (error) {
           _log('[ProfileRepo] appearance image copy failed: $error');
-          importedAppearance = sourceAppearance.copyWith(clearImage: true);
+          rethrow;
         }
       }
+      if (!account.isCurrent) throw const WarmReadCancelled();
       final newId = await userEventsRepo.upsertFlow(
         name: post.name,
         color: post.color,
@@ -1695,7 +1767,9 @@ class ProfileRepo {
         // template in Saved Flows. The user must explicitly import it later
         // before it appears on the active calendar timeline.
         active: false,
-        isSaved: true,
+        // Neither active nor saved until all copied content is acknowledged.
+        // Hidden means deleted to the database and cannot accept event writes.
+        isSaved: false,
         isHidden: false,
         startDate: effectiveStart,
         endDate: effectiveEnd,
@@ -1707,17 +1781,7 @@ class ProfileRepo {
         appearance: importedAppearance,
       );
 
-      try {
-        await _client.from('flow_saves').upsert({
-          'user_id': userId,
-          'flow_id': newId,
-          'saved_from': 'profile',
-          'saved_at': DateTime.now().toUtc().toIso8601String(),
-          'metadata': {'flow_post_id': post.id, 'source_user_id': post.userId},
-        }, onConflict: 'user_id,flow_id');
-      } catch (e) {
-        _log('[ProfileRepo] flow_saves upsert failed: $e');
-      }
+      if (!account.isCurrent) throw const WarmReadCancelled();
 
       // Keep event snapshots attached to the saved template so the Saved Flows
       // preview and later Import Flow action preserve the original structure.
@@ -1725,9 +1789,28 @@ class ProfileRepo {
         targetFlowId: newId,
         post: post,
         userEventsRepo: userEventsRepo,
+        account: account,
         baseStart: effectiveStart,
       );
 
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      await _client.from('flow_saves').upsert({
+        'user_id': userId,
+        'flow_id': newId,
+        'saved_from': 'profile',
+        'saved_at': DateTime.now().toUtc().toIso8601String(),
+        'metadata': {'flow_post_id': post.id, 'source_user_id': post.userId},
+      }, onConflict: 'user_id,flow_id');
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      await _client
+          .from('flows')
+          .update({'is_saved': true})
+          .eq('id', newId)
+          .eq('user_id', userId)
+          .select('id')
+          .single();
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      invalidateWarmDomains(userId, ['flow.', 'filing.', 'pages.flows']);
       return newId;
     } catch (e) {
       _log('[ProfileRepo] Error saving flow post: $e');
@@ -1739,36 +1822,25 @@ class ProfileRepo {
     required int targetFlowId,
     required FlowPost post,
     required UserEventsRepo userEventsRepo,
+    required AccountOperationFence account,
     required DateTime baseStart,
   }) async {
     final payload = post.payloadJson;
     final events = payload?['events'] as List<dynamic>?;
     if (events == null || events.isEmpty) return;
 
-    (int hour, int minute)? parseTime(String? raw) {
-      if (raw == null) return null;
-      final match = RegExp(
-        r'^\s*(\d{1,2}):(\d{2})\s*(am|pm)?\s*$',
-        caseSensitive: false,
-      ).firstMatch(raw);
-      if (match == null) return null;
-      var hour = int.tryParse(match.group(1) ?? '');
-      final minute = int.tryParse(match.group(2) ?? '');
-      if (hour == null || minute == null) return null;
-      final meridian = match.group(3)?.toLowerCase();
-      if (meridian == 'pm' && hour < 12) hour += 12;
-      if (meridian == 'am' && hour == 12) hour = 0;
-      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
-      return (hour, minute);
-    }
-
     final baseStartLocal = DateUtils.dateOnly(baseStart);
 
     for (final raw in events) {
+      if (!account.isCurrent) throw const WarmReadCancelled();
       final e = raw as Map<String, dynamic>;
 
       final offset = (e['offset_days'] as num?)?.toInt() ?? 0;
-      final date = baseStartLocal.add(Duration(days: offset));
+      final date = DateTime(
+        baseStartLocal.year,
+        baseStartLocal.month,
+        baseStartLocal.day + offset,
+      );
 
       final allDay = e['all_day'] as bool? ?? false;
       final rawTitle = (e['title'] as String?) ?? post.name;
@@ -1783,8 +1855,8 @@ class ProfileRepo {
           ? null
           : locationRaw;
 
-      final parsedStart = parseTime(e['start_time'] as String?);
-      final parsedEnd = parseTime(e['end_time'] as String?);
+      final parsedStart = parseFlowSnapshotTime(e['start_time']);
+      final parsedEnd = parseFlowSnapshotTime(e['end_time']);
 
       final startHour = parsedStart?.$1 ?? 9;
       final startMinute = parsedStart?.$2 ?? 0;
@@ -1803,10 +1875,19 @@ class ProfileRepo {
           endDt = DateTime(
             date.year,
             date.month,
-            date.day,
+            date.day + ((e['end_offset_days'] as num?)?.toInt() ?? 0),
             parsedEnd.$1,
             parsedEnd.$2,
           );
+          if (e['end_offset_days'] == null && !endDt.isAfter(startDt)) {
+            endDt = DateTime(
+              date.year,
+              date.month,
+              date.day + 1,
+              parsedEnd.$1,
+              parsedEnd.$2,
+            );
+          }
         } else {
           endDt = startDt.add(const Duration(hours: 1));
         }
@@ -1833,6 +1914,10 @@ class ProfileRepo {
         allDay: allDay,
         endsAtUtc: endDt?.toUtc(),
         flowLocalId: targetFlowId,
+        actionId: e['action_id'] as String?,
+        behaviorPayload: e['behavior_payload'] is Map
+            ? Map<String, dynamic>.from(e['behavior_payload'] as Map)
+            : null,
         caller: 'profile_import_events',
       );
     }

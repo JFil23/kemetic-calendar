@@ -970,3 +970,34 @@ covers all four followed metrics, public/private/hidden/skipped distinctions,
 both block directions, more than 24 public answers, publication/edit/delete,
 empty follows, and anonymous denial. Full release gates remain required before
 deployment.
+
+
+## October 6 sent flow preview and snapshot preservation
+
+The user's October 6 conversation screenshot and existing posted-flow header
+are the references. Conversation flow messages use the existing appearance
+renderer: header image or empty accent treatment, then the title. Capture-only
+evidence at phone and landscape widths lives in /tmp/haw-flow-preview. Event
+invites and text messages keep their existing renderer and detail routes.
+The current active import identity controls the recipient's Added label.
+
+ShareRepo remains the send/inbox owner. Posted-flow Inbox sharing sends the
+readable published snapshot through create_flow_share. Direct shares use complete
+paged events, sender-local civil times, and fail without sending on read errors.
+The existing database trigger and Storage RLS retain appearance snapshot ownership.
+The optional end_offset_days field preserves overnight/multiday timed events;
+old snapshots and both 12-hour and 24-hour times remain readable. No cache key,
+resource namespace, old fixture, inventory minimum, or route is replaced.
+
+ProfileRepo keeps Save dormant and copies event action metadata. Repeated Save
+taps for the same account and post share one in-flight operation; this is not a
+cache or a background write queue. It records the saved reference only after
+event acknowledgements and marks its initially inactive, unsaved template saved
+only after all writes succeed. Incomplete copies remain inactive and unsaved;
+no broad calendar-deletion path runs on save failure. Hidden means deleted in
+the database, so it is never used as a staging flag. Continuation is fenced to
+the initiating account. Incomplete and hidden copies are excluded from both
+duplicate lookups, and failed lookups stop Save. Image-copy failures fail
+Save/Add instead of clearing the image.
+The existing staged calendar persistence and completion owner continues to own
+Add. Complete release gates and live replay are required before deployment.

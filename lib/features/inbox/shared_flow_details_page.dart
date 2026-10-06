@@ -366,6 +366,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
               'all_day': e.allDay,
               'start_time': e.startTime,
               'end_time': e.endTime,
+              'end_offset_days': e.endOffsetDays,
               'action_id': e.actionId,
               'behavior_payload': e.behaviorPayload,
             },

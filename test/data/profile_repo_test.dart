@@ -494,6 +494,16 @@ void main() {
           }
 
           if (request.uri.path == '/rest/v1/flows' &&
+              request.method == 'PATCH') {
+            final update = await _readJsonMap(request);
+            expect(update, {'is_saved': true});
+            expect(eventUpserts, hasLength(1));
+            expect(saveUpserts, hasLength(1));
+            await _sendJson(request, body: {'id': 901});
+            return;
+          }
+
+          if (request.uri.path == '/rest/v1/flows' &&
               request.method == 'POST') {
             final payload = await _readJsonMap(request);
             flowInserts.add(payload);
@@ -536,10 +546,18 @@ void main() {
           await client.auth.recoverSession(_sessionJson(ownerUserId));
           final repo = ProfileRepo(client);
 
-          final flowId = await repo.saveFlowPostToMyFlows(
-            _profileFlowPost(),
-            startDateOverride: DateTime(2026, 8, 3),
-          );
+          final ids = await Future.wait([
+            repo.saveFlowPostToMyFlows(
+              _profileFlowPost(),
+              startDateOverride: DateTime(2026, 8, 3),
+            ),
+            ProfileRepo(client).saveFlowPostToMyFlows(
+              _profileFlowPost(),
+              startDateOverride: DateTime(2026, 8, 3),
+            ),
+          ]);
+          expect(ids, [901, 901]);
+          final flowId = ids.first;
 
           return (
             flowId: flowId,
@@ -560,7 +578,8 @@ void main() {
       expect(flowPayload['user_id'], ownerUserId);
       expect(flowPayload['name'], 'CODEX_PROFILE_IMPORT_SMOKE');
       expect(flowPayload['active'], isFalse);
-      expect(flowPayload['is_saved'], isTrue);
+      expect(flowPayload['is_hidden'], isFalse);
+      expect(flowPayload['is_saved'], isFalse);
       expect(flowPayload['origin_type'], 'profile_import');
       expect(flowPayload['origin_flow_id'], 321);
       expect(flowPayload['root_flow_id'], 321);
@@ -587,10 +606,140 @@ void main() {
       expect(eventPayload['title'], 'Opening sitting');
       expect(eventPayload['detail'], 'snapshot detail');
       expect(eventPayload['location'], 'Temple room');
+      expect(eventPayload['action_id'], 'reflect');
+      expect(eventPayload['behavior_payload'], {'prompt': 'Keep this prompt'});
       expect(eventPayload['all_day'], isFalse);
       expect(eventPayload['starts_at'], contains('2026-08-05'));
     },
   );
+
+  test(
+    'account change during Save lookup prevents writes for the next user',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      late SupabaseClient activeClient;
+      var writes = 0;
+      var switched = false;
+      final result = await _withProfileServer(
+        (request) async {
+          if (!switched && request.uri.path == '/rest/v1/flow_saves') {
+            switched = true;
+            await activeClient.auth.recoverSession(
+              _sessionJson('different-user'),
+            );
+          }
+          if (request.method == 'POST' || request.method == 'PATCH') writes++;
+          await _sendJson(request, body: <Object?>[]);
+        },
+        (client, _) async {
+          activeClient = client;
+          await client.auth.recoverSession(_sessionJson(ownerUserId));
+          return ProfileRepo(client).saveFlowPostToMyFlows(_profileFlowPost());
+        },
+      );
+      expect(result, isNull);
+      expect(writes, 0);
+    },
+  );
+
+  for (final lookup in ['flow_saves', 'flows']) {
+    test('failed $lookup lookup cannot create a duplicate Save', () async {
+      SharedPreferences.setMockInitialValues({});
+      var writes = 0;
+      final result = await _withProfileServer(
+        (request) async {
+          if (request.method != 'GET') writes++;
+          if (request.uri.path == '/rest/v1/$lookup') {
+            await _sendJson(
+              request,
+              statusCode: 503,
+              body: {'message': 'lookup unavailable'},
+            );
+          } else {
+            await _sendJson(request, body: <Object?>[]);
+          }
+        },
+        (client, _) async {
+          await client.auth.recoverSession(_sessionJson(ownerUserId));
+          return ProfileRepo(client).saveFlowPostToMyFlows(_profileFlowPost());
+        },
+      );
+      expect(result, isNull);
+      expect(writes, 0);
+    });
+  }
+
+  for (final failedWrite in ['user_events', 'flow_saves']) {
+    test(
+      'failed $failedWrite never acknowledges an incomplete saved flow',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        var savedReferences = 0;
+        var dormantCopies = 0;
+        var revealedCopies = 0;
+        final result = await _withProfileServer(
+          (request) async {
+            final path = request.uri.path;
+            if (request.method == 'POST' && path == '/rest/v1/$failedWrite') {
+              await _sendJson(
+                request,
+                statusCode: 400,
+                body: {'code': '23514', 'message': 'fixture write rejected'},
+              );
+              return;
+            }
+            if (path == '/rest/v1/flows' && request.method == 'POST') {
+              final inserted = await _readJsonMap(request);
+              if (inserted['is_saved'] == false &&
+                  inserted['active'] == false &&
+                  inserted['is_hidden'] == false) {
+                dormantCopies++;
+              }
+              await _sendJson(request, body: {'id': 902});
+              return;
+            }
+            if (path == '/rest/v1/flows' && request.method == 'PATCH') {
+              final update = await _readJsonMap(request);
+              if (update['is_saved'] == true) revealedCopies++;
+              await _sendJson(request, body: null);
+              return;
+            }
+            if (path == '/rest/v1/flow_saves' && request.method == 'POST') {
+              savedReferences++;
+            }
+            if (path == '/rest/v1/user_events' && request.method == 'POST') {
+              final event = await _readJsonMap(request);
+              await _sendJson(
+                request,
+                body: {
+                  ...event,
+                  'id': 'event-1',
+                  'created_at': '2026-10-06T00:00:00Z',
+                },
+              );
+              return;
+            }
+            if (request.headers.value('accept')?.contains('vnd.pgrst.object') ==
+                true) {
+              await _sendJson(request, body: null);
+            } else {
+              await _sendJson(request, body: <Object?>[]);
+            }
+          },
+          (client, _) async {
+            await client.auth.recoverSession(_sessionJson(ownerUserId));
+            return ProfileRepo(
+              client,
+            ).saveFlowPostToMyFlows(_profileFlowPost());
+          },
+        );
+        expect(result, isNull);
+        expect(savedReferences, 0);
+        expect(dormantCopies, 1);
+        expect(revealedCopies, 0);
+      },
+    );
+  }
 
   test(
     'saveFlowPostToMyFlows returns existing save without duplicate writes',
@@ -830,6 +979,8 @@ FlowPost _profileFlowPost() {
         {
           'offset_days': 2,
           'title': 'Opening sitting',
+          'action_id': 'reflect',
+          'behavior_payload': {'prompt': 'Keep this prompt'},
           'detail': 'snapshot detail',
           'location': 'Temple room',
           'all_day': false,

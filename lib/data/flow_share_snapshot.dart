@@ -11,6 +11,7 @@ class FlowShareEventSnapshot {
   final bool allDay;
   final String? startTime; // "HH:mm"
   final String? endTime; // "HH:mm"
+  final int? endOffsetDays;
   final String? actionId;
   final Map<String, dynamic>? behaviorPayload;
 
@@ -22,6 +23,7 @@ class FlowShareEventSnapshot {
     required this.allDay,
     this.startTime,
     this.endTime,
+    this.endOffsetDays,
     this.actionId,
     this.behaviorPayload,
   });
@@ -35,6 +37,7 @@ class FlowShareEventSnapshot {
       allDay: (json['all_day'] ?? false) as bool,
       startTime: json['start_time'] as String?,
       endTime: json['end_time'] as String?,
+      endOffsetDays: (json['end_offset_days'] as num?)?.toInt(),
       actionId: json['action_id'] as String?,
       behaviorPayload: json['behavior_payload'] is Map
           ? Map<String, dynamic>.from(json['behavior_payload'] as Map)
@@ -75,4 +78,25 @@ class FlowSharePayload {
       appearance: FlowAppearance.fromJson(json['appearance']),
     );
   }
+}
+
+/// Accept both deployed posted-flow times and current share snapshot times.
+(int, int)? parseFlowSnapshotTime(Object? raw) {
+  if (raw is! String) return null;
+  final match = RegExp(
+    r'^\s*(\d{1,2}):(\d{2})\s*(am|pm)?\s*$',
+    caseSensitive: false,
+  ).firstMatch(raw);
+  if (match == null) return null;
+  var hour = int.parse(match.group(1)!);
+  final minute = int.parse(match.group(2)!);
+  final meridian = match.group(3)?.toLowerCase();
+  if (minute > 59 ||
+      hour > 23 ||
+      (meridian != null && (hour < 1 || hour > 12))) {
+    return null;
+  }
+  if (meridian == 'pm' && hour < 12) hour += 12;
+  if (meridian == 'am' && hour == 12) hour = 0;
+  return (hour, minute);
 }

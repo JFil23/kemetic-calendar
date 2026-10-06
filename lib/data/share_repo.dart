@@ -682,11 +682,16 @@ class ShareRepo {
 
   /// Share a flow with recipients
   Future<List<ShareResult>> shareFlow({
-    required int flowId,
+    int? flowId,
+    String? flowPostId,
     required List<ShareRecipient> recipients,
     SuggestedSchedule? suggestedSchedule,
   }) async {
     final normalizedRecipients = dedupeShareRecipients(recipients);
+    if ((flowId == null) == (flowPostId == null) ||
+        normalizedRecipients.isEmpty) {
+      return [ShareResult(error: 'Choose one flow and at least one recipient')];
+    }
     _log(
       '[ShareRepo] Current user: '
       '${safeLogIdentifier(_client.auth.currentUser?.id)}',
@@ -699,7 +704,8 @@ class ShareRepo {
       final response = await _client.functions.invoke(
         'create_flow_share',
         body: {
-          'flow_id': flowId,
+          if (flowId != null) 'flow_id': flowId,
+          if (flowPostId != null) 'flow_post_id': flowPostId,
           'recipients': normalizedRecipients.map((r) => r.toJson()).toList(),
           if (suggestedSchedule != null)
             'suggested_schedule': suggestedSchedule.toJson(),
@@ -785,7 +791,7 @@ class ShareRepo {
     } on FunctionException catch (e, stackTrace) {
       _log('[ShareRepo] Error sharing flow: $e');
       _log('[ShareRepo] Stack trace: $stackTrace');
-      if (e.status == 404) {
+      if (e.status == 404 && flowPostId == null && flowId != null) {
         _log(
           '[ShareRepo] create_flow_share missing on backend; falling back to direct flow_shares writes',
         );
@@ -832,7 +838,9 @@ class ShareRepo {
 
     final rawFlow = await _client
         .from('flows')
-        .select('id, name, color, notes, rules, appearance, user_id')
+        .select(
+          'id, name, color, notes, rules, appearance, user_id, start_date, end_date',
+        )
         .eq('id', flowId)
         .maybeSingle();
     final flowRow = rawFlow is Map<String, dynamic> ? rawFlow : null;
@@ -1459,43 +1467,56 @@ class ShareRepo {
     int flowId,
     Map<String, dynamic> flowRow,
   ) async {
-    final rawFlowEvents = await _client
-        .from('user_event_filing_items_client')
-        .select(
-          'title, detail, location, all_day, starts_at, ends_at, action_id, behavior_payload',
-        )
-        .eq('filed_flow_id', flowId)
-        .order('starts_at', ascending: true)
-        .order('created_at', ascending: true);
+    final rows = await UserEventsRepo(_client).getFlowDetailEvents(flowId);
+    final flowEvents =
+        rows
+            .map(
+              (e) => <String, dynamic>{
+                'id': e.id,
+                'title': e.title,
+                'detail': e.detail,
+                'location': e.location,
+                'all_day': e.allDay,
+                'starts_at': e.startsAtUtc.toIso8601String(),
+                'ends_at': e.endsAtUtc?.toIso8601String(),
+                'action_id': e.actionId,
+                'behavior_payload': e.behaviorPayload,
+              },
+            )
+            .toList()
+          ..sort((a, b) {
+            final time = (a['starts_at'] as String).compareTo(
+              b['starts_at'] as String,
+            );
+            return time != 0 ? time : '${a['id']}'.compareTo('${b['id']}');
+          });
 
-    final flowEvents = (rawFlowEvents as List<dynamic>? ?? const <dynamic>[])
-        .whereType<Map>()
-        .map((row) => row.cast<String, dynamic>())
-        .toList(growable: false);
-
-    DateTime? firstStartsAtUtc;
+    DateTime? firstStartLocal;
     for (final row in flowEvents) {
-      final startUtc = _parseDateTimeValue(row['starts_at'])?.toUtc();
-      if (startUtc == null) continue;
-      firstStartsAtUtc = startUtc;
+      final startLocal = _parseDateTimeValue(row['starts_at'])?.toLocal();
+      if (startLocal == null) continue;
+      firstStartLocal = startLocal;
       break;
     }
 
+    final baseDate =
+        _parseDateTimeValue(flowRow['start_date']) ?? firstStartLocal;
     final flowName = _cleanNullableString(flowRow['name']) ?? 'Shared Flow';
     final flowNotes = _cleanNullableString(flowRow['notes']);
     final eventSnapshots = flowEvents
         .map((row) {
-          final startUtc = _parseDateTimeValue(row['starts_at'])?.toUtc();
-          final endUtc = _parseDateTimeValue(row['ends_at'])?.toUtc();
+          final startLocal = _parseDateTimeValue(row['starts_at'])?.toLocal();
+          final endLocal = _parseDateTimeValue(row['ends_at'])?.toLocal();
           final allDay = _parseBoolishValue(row['all_day']);
           final actionId = _cleanNullableString(row['action_id']);
           final behaviorPayload = _asBehaviorPayload(row['behavior_payload']);
           final detail = _cleanNullableString(row['detail']);
-          final offsetDays = firstStartsAtUtc != null && startUtc != null
-              ? ((startUtc.millisecondsSinceEpoch -
-                            firstStartsAtUtc.millisecondsSinceEpoch) /
-                        Duration.millisecondsPerDay)
-                    .round()
+          final offsetDays = baseDate != null && startLocal != null
+              ? DateTime.utc(startLocal.year, startLocal.month, startLocal.day)
+                    .difference(
+                      DateTime.utc(baseDate.year, baseDate.month, baseDate.day),
+                    )
+                    .inDays
               : 0;
 
           return <String, dynamic>{
@@ -1504,9 +1525,21 @@ class ShareRepo {
             'detail': detail,
             'location': _cleanNullableString(row['location']),
             'all_day': allDay,
-            if (!allDay && startUtc != null)
-              'start_time': _formatShareTime(startUtc),
-            if (!allDay && endUtc != null) 'end_time': _formatShareTime(endUtc),
+            if (!allDay && startLocal != null)
+              'start_time': _formatShareTime(startLocal),
+            if (!allDay && endLocal != null)
+              'end_time': _formatShareTime(endLocal),
+            if (!allDay && endLocal != null && startLocal != null)
+              'end_offset_days':
+                  DateTime.utc(endLocal.year, endLocal.month, endLocal.day)
+                      .difference(
+                        DateTime.utc(
+                          startLocal.year,
+                          startLocal.month,
+                          startLocal.day,
+                        ),
+                      )
+                      .inDays,
             if (actionId != null) 'action_id': actionId,
             if (behaviorPayload != null) 'behavior_payload': behaviorPayload,
           };
@@ -1520,6 +1553,8 @@ class ShareRepo {
       'notes': flowNotes,
       'rules': (flowRow['rules'] as List?) ?? const <dynamic>[],
       'appearance': flowRow['appearance'],
+      'start_date': flowRow['start_date'],
+      'end_date': flowRow['end_date'],
       'events': eventSnapshots,
     };
   }

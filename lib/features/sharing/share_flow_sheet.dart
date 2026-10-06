@@ -17,6 +17,7 @@ import '../../widgets/profile_avatar.dart';
 
 class ShareFlowSheet extends StatefulWidget {
   final int? flowId;
+  final String? flowPostId;
   final String flowTitle;
   final String? noteShareText; // When present, share a note instead of a flow
   final String? eventId; // When present, call create_event_share
@@ -28,6 +29,7 @@ class ShareFlowSheet extends StatefulWidget {
     super.key,
     required this.flowId,
     required this.flowTitle,
+    this.flowPostId,
     this.noteShareText,
     this.eventId,
     this.sendTextInInbox = false,
@@ -57,10 +59,14 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
 
   bool get _isEventShare => widget.eventId != null || widget.selectForDraft;
   bool get _isTextShare =>
-      widget.flowId == null && widget.noteShareText != null && !_isEventShare;
+      widget.flowId == null &&
+      widget.flowPostId == null &&
+      widget.noteShareText != null &&
+      !_isEventShare;
   bool get _isInboxTextShare => _isTextShare && widget.sendTextInInbox;
-  bool get _isFlowShare => widget.flowId != null;
-  bool get _supportsExternalRecipients => !_isEventShare && !_isInboxTextShare;
+  bool get _isFlowShare => widget.flowId != null || widget.flowPostId != null;
+  bool get _supportsExternalRecipients =>
+      !_isEventShare && !_isInboxTextShare && widget.flowPostId == null;
   String get _sheetTitle {
     if (_isEventShare) return 'Invite People';
     if (_isInboxTextShare) return 'Send in Inbox';
@@ -921,7 +927,8 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     try {
       debugPrint('[ShareFlowSheet] Calling shareFlow...');
       final results = await _repo.shareFlow(
-        flowId: widget.flowId!,
+        flowId: widget.flowId,
+        flowPostId: widget.flowPostId,
         recipients: _recipients,
         suggestedSchedule:
             null, // No schedule suggestion - Ma'at flows have their own

@@ -10,6 +10,8 @@ import '../../core/navigation_fallback.dart';
 import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../data/share_models.dart';
+import '../../data/flow_appearance.dart';
+import 'presentation/flow_message_preview.dart';
 import '../../data/share_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import '../../shared/candlelit_mahogany_background.dart';
@@ -877,6 +879,32 @@ class _FlowBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEvent = share.isEvent;
+    if (share.isFlow) {
+      final payload = share.payloadJson;
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FlowMessagePreview(
+              title: payload?['name'] as String? ?? share.title,
+              appearance: FlowAppearance.fromJson(payload?['appearance']),
+              color:
+                  (payload?['color'] as num?)?.toInt() ??
+                  KemeticGold.base.toARGB32(),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              '${_formatTime(share.createdAt)}${!isMine && share.isCurrentlyImported ? ' · Added' : ''}',
+              textAlign: isMine ? TextAlign.right : TextAlign.left,
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+          ],
+        ),
+      );
+    }
     final payload = share.eventPayload;
     final title = payload?.title ?? share.title;
     final label = isEvent ? 'Invite' : 'Flow';

@@ -110,6 +110,37 @@ void main() {
       expect(writes.map((write) => write.clientEventId).toSet(), hasLength(91));
     });
 
+    test('posted AM/PM times and overnight ends survive calendar import', () {
+      final writes = materializeFlowSnapshotWrites(
+        flowId: 88,
+        events: [
+          {
+            'offset_days': 1,
+            'title': 'Night practice',
+            'all_day': false,
+            'start_time': '11:30 PM',
+            'end_time': '1:15 AM',
+            'end_offset_days': 1,
+          },
+          {
+            'offset_days': 2,
+            'title': 'Morning',
+            'all_day': false,
+            'start_time': '6:20 AM',
+            'end_time': '7:00 AM',
+          },
+        ],
+        startDate: DateTime(2026, 10, 31),
+        fallbackTitle: 'Flow',
+        caller: 'test',
+        alertDebugLabel: 'test',
+      );
+      expect(writes, hasLength(2));
+      expect(writes[0].startsAtLocal, DateTime(2026, 11, 1, 23, 30));
+      expect(writes[0].endsAtLocal, DateTime(2026, 11, 2, 1, 15));
+      expect(writes[1].startsAtLocal, DateTime(2026, 11, 2, 6, 20));
+    });
+
     test('snapshot materialization preserves event behavior and ordering', () {
       final writes = materializeFlowSnapshotWrites(
         flowId: 88,

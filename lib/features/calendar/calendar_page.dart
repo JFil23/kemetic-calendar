@@ -1,3 +1,4 @@
+import '../../data/flow_share_snapshot.dart' show parseFlowSnapshotTime;
 import 'note_draft_invitations.dart';
 import '../onboarding/haw_calendar_connection.dart';
 import 'dart:async';
@@ -8868,7 +8869,7 @@ class CalendarPage extends StatefulWidget {
             '[SharedFlowImport] appearance image copy failed: $error',
           );
         }
-        importedAppearance = importedAppearance.copyWith(clearImage: true);
+        rethrow;
       }
     }
     final savedId = await repo.upsertFlow(
