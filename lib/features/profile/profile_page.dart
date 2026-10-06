@@ -21,6 +21,7 @@ import '../../data/commons_repo.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../data/account_operation_fence.dart';
+import '../../data/warm_state/warm_snapshot_store.dart';
 import '../../data/account_view_cache.dart';
 import '../../data/flow_post_model.dart';
 import '../../data/flow_appearance.dart';
@@ -147,6 +148,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   CommonsHomeSnapshot? _commonsHome;
   bool _feedCloseInFlight = false;
   bool _commonsLoading = false;
+  int _commonsLoadSerial = 0;
+  bool _commonsAnswersLoading = false;
+  String? _commonsAnswersError;
   bool _commonsAnswerEditing = false;
   bool _commonsAnswerSaving = false;
   bool _commonsAnswerDeleting = false;
@@ -345,6 +349,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         unawaited(_persistContinuityState());
         break;
       case AppLifecycleState.resumed:
+        if (_feedRevealed && _pageAccount.isCurrent) {
+          unawaited(_loadCommonsHome(force: true));
+        }
         break;
     }
   }
@@ -924,7 +931,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     if (!_feedLoading) {
       unawaited(_loadFeedPage(reset: true));
     }
-    if (_commonsHome == null && !_commonsLoading) {
+    if (!_commonsLoading) {
       unawaited(_loadCommonsHome());
     }
   }
@@ -1089,10 +1096,18 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   Future<void> _loadCommonsHome({bool force = false}) async {
     if (_commonsLoading && !force) return;
+    final serial = ++_commonsLoadSerial;
     final seed = _commonsQuestionSeed();
-    if (!mounted) return;
+    bool current() =>
+        mounted &&
+        _pageAccount.isCurrent &&
+        serial == _commonsLoadSerial &&
+        _commonsQuestionSeed().id == seed.id;
+    if (!current()) return;
     setState(() {
       _commonsLoading = true;
+      _commonsAnswersLoading = false;
+      _commonsAnswersError = null;
       _commonsErrorMessage = null;
     });
     if (_commonsHome == null) {
@@ -1103,7 +1118,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           questionText: seed.text,
           cachedOnly: true,
         );
-        if (!mounted) return;
+        if (!current()) return;
         setState(() => _commonsHome = local);
       } catch (_) {}
     }
@@ -1114,7 +1129,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         questionText: seed.text,
         strict: _commonsHome != null,
       );
-      if (!mounted) return;
+      if (!current()) return;
       final question = snapshot.questions.isNotEmpty
           ? snapshot.questions.first
           : CommonsQuestion(id: seed.id, question: seed.text);
@@ -1140,10 +1155,50 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         }
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!current()) return;
       setState(() {
         _commonsLoading = false;
-        _commonsErrorMessage = 'Commons could not load. Pull back later.';
+        if (e is WarmAccessDenied) _commonsHome = null;
+        _commonsErrorMessage = 'Commons could not refresh. Please try again.';
+      });
+    }
+  }
+
+  Future<void> _loadMoreCommonsAnswers() async {
+    if (_commonsAnswersLoading || _commonsLoading) return;
+    final question = _activeCommonsQuestion();
+    if (!question.hasMoreAnswers || question.answers.isEmpty) return;
+    final serial = _commonsLoadSerial;
+    bool current() =>
+        mounted &&
+        _pageAccount.isCurrent &&
+        serial == _commonsLoadSerial &&
+        _commonsQuestionSeed().id == question.id;
+    setState(() {
+      _commonsAnswersLoading = true;
+      _commonsAnswersError = null;
+    });
+    try {
+      final page = await _commonsRepo.getQuestionAnswers(
+        questionId: question.id,
+        before: question.answers.last,
+      );
+      if (!current()) return;
+      final updated = question.appendAnswers(page);
+      setState(() {
+        _commonsHome = _commonsHome?.copyWith(questions: [updated]);
+        _commonsAnswersLoading = false;
+      });
+    } catch (error) {
+      if (!current()) return;
+      if (error is WarmAccessDenied) {
+        setState(() => _commonsHome = null);
+        unawaited(_loadCommonsHome(force: true));
+        return;
+      }
+      setState(() {
+        _commonsAnswersLoading = false;
+        _commonsAnswersError = 'Could not load more answers. Please try again.';
       });
     }
   }
@@ -1162,19 +1217,36 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     }
     setState(() => _commonsAnswerSaving = true);
     try {
-      await _commonsRepo.answerQuestion(
+      final answer = await _commonsRepo.answerQuestion(
         questionId: question.id,
         questionText: question.question,
         body: body,
       );
-      if (!mounted) return;
+      if (!mounted || !_pageAccount.isCurrent) return;
       setState(() {
+        if (_commonsQuestionSeed().id == question.id) {
+          final updated = CommonsQuestion(
+            id: question.id,
+            question: question.question,
+            answers: question.answers
+                .map((a) => a.id == answer.id ? answer : a)
+                .toList(),
+            myAnswer: answer,
+            hasMoreAnswers: question.hasMoreAnswers,
+          );
+          final home =
+              _commonsHome ??
+              CommonsHomeSnapshot(
+                rhythm: CommonsRhythmSummary.fromJson(const {}),
+              );
+          _commonsHome = home.copyWith(questions: [updated]);
+        }
         _commonsAnswerSaving = false;
         _commonsAnswerEditing = false;
       });
       unawaited(_loadCommonsHome(force: true));
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || !_pageAccount.isCurrent) return;
       setState(() => _commonsAnswerSaving = false);
       _showCommonsActionSnack(
         'Could not save your answer. Your draft stayed here.',
@@ -1213,7 +1285,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     setState(() => _commonsAnswerDeleting = true);
     try {
       await _commonsRepo.deleteAnswer(answer.id);
-      if (!mounted) return;
+      if (!mounted || !_pageAccount.isCurrent) return;
       _commonsAnswerController.clear();
       setState(() {
         _commonsAnswerDeleting = false;
@@ -1221,7 +1293,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       });
       unawaited(_loadCommonsHome(force: true));
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || !_pageAccount.isCurrent) return;
       setState(() => _commonsAnswerDeleting = false);
       _showCommonsActionSnack('Could not delete that answer.');
     }
@@ -1441,6 +1513,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       _showError('Could not update follow status. Please try again.');
     } else {
       await _loadProfile(showSpinner: false);
+      if (_commonsHome != null) unawaited(_loadCommonsHome(force: true));
     }
 
     if (mounted) {
@@ -2809,9 +2882,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     if (_feedItems.isEmpty && !_feedLoading) {
       unawaited(_loadFeedPage(reset: true));
     }
-    if (tab == _SocialFeedTab.todaysCommons &&
-        _commonsHome == null &&
-        !_commonsLoading) {
+    if (tab == _SocialFeedTab.todaysCommons && !_commonsLoading) {
       await _loadCommonsHome();
     }
   }
@@ -3126,6 +3197,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     composer: _buildCommonsAnswerComposer(_activeCommonsQuestion()),
     editing: _commonsAnswerEditing,
     loading: _commonsLoading,
+    loadingMore: _commonsAnswersLoading,
+    hasMoreAnswers: _activeCommonsQuestion().hasMoreAnswers,
+    answersError: _commonsAnswersError,
+    onLoadMore: _loadMoreCommonsAnswers,
     answerBuilder: (answer, isMine) =>
         _buildCommonsAnswerCard(answer, isMine: isMine),
   );

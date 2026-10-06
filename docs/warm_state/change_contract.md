@@ -930,3 +930,43 @@ owner/visitor/missing-source actions and Ma’at presentation. Capture-only visu
 evidence lives outside approved references. Complete App and backend gates are
 required before release; the backend migration must precede an app deployment
 that relies on its acknowledgement contract.
+
+
+## October 6 Commons followed rhythm and public answers
+
+CommonsRepo retains account ownership of public question reads and acknowledged
+answer edits/deletes. The backend's canonical Commons home now calculates rhythm
+from explicitly public, visible activity by accounts the viewer follows, with
+blocks in either direction excluded. People and observed/partial steps are
+counted separately. Fragments count published posts; open practices count public
+groups hosted by followed accounts that the viewer may request to join. Private
+journals and completion records are not a social source.
+
+Question answers remain public across the Commons independently of follows.
+The existing daily question identity is unchanged. The home includes the first
+bounded answer page; CommonsRepo owns subsequent commons.answers. reads using
+an immutable created_at/ID cursor, retaining the raw timestamp for web precision.
+The shared question component renders every loaded answer with the existing
+card styling and an explicit Show more answers control. Retry preserves loaded
+content; a fresh home replaces the paginated list. Public answer mutations and
+follow/block changes invalidate the existing Commons/Pages domains. Account
+and load-generation fences reject obsolete results. Returning to Commons and
+foreground resume refresh the current home without clearing confirmed content.
+
+No cache namespace, resource schema, old fixture, or pending-write owner changes.
+Additive has-more/scope fields preserve old payload readability. Old unscoped
+rhythm payloads retain their decoded data but display unavailable marks until a
+following-scoped refresh; they must never masquerade as followed totals. Failed
+home reads no longer synthesize global fallback counts or a successful empty
+answer list. The new read uses the registered commons. resource family. Authored
+private journal entries remain with JournalRepo and are never auto-published.
+
+Evidence: commons_repo_test covers cold/cached reads, raw cursor identity,
+failed/malformed refresh retention, mutation and unfollow invalidation, access
+denial and A/B/A account departure. commons_public_answers_test exercises more
+than six answers and the unchanged card hierarchy; captures go to /tmp rather
+than replacing approved references. The backend's transactional Commons smoke
+covers all four followed metrics, public/private/hidden/skipped distinctions,
+both block directions, more than 24 public answers, publication/edit/delete,
+empty follows, and anonymous denial. Full release gates remain required before
+deployment.

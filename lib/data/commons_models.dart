@@ -11,6 +11,7 @@ class CommonsRhythmSummary {
     required this.publicRoomsOpenLabel,
     this.topFlowTitle,
     this.topFlowCountLabel,
+    this.isFollowingOnly = true,
   });
 
   final String activeUsersTodayLabel;
@@ -19,6 +20,7 @@ class CommonsRhythmSummary {
   final String publicRoomsOpenLabel;
   final String? topFlowTitle;
   final String? topFlowCountLabel;
+  final bool isFollowingOnly;
 
   factory CommonsRhythmSummary.empty() {
     return const CommonsRhythmSummary(
@@ -32,6 +34,7 @@ class CommonsRhythmSummary {
   factory CommonsRhythmSummary.fromJson(Map<String, dynamic> json) {
     final topFlow = _mapOrNull(json['top_flow']);
     return CommonsRhythmSummary(
+      isFollowingOnly: json['scope'] == 'following',
       activeUsersTodayLabel: _metricLabel(
         json,
         labelKey: 'active_users_today_label',
@@ -66,6 +69,7 @@ class CommonsRhythmSummary {
     String? topFlowCountLabel,
   }) {
     return CommonsRhythmSummary(
+      isFollowingOnly: isFollowingOnly,
       activeUsersTodayLabel:
           activeUsersTodayLabel ?? this.activeUsersTodayLabel,
       flowsKeptTodayLabel: flowsKeptTodayLabel ?? this.flowsKeptTodayLabel,
@@ -92,6 +96,7 @@ class CommonsAnswer {
     this.isMine = false,
     this.createdAt,
     this.updatedAt,
+    this.createdAtCursor,
   });
 
   final String id;
@@ -106,6 +111,8 @@ class CommonsAnswer {
   final bool isMine;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  // Preserve Postgres precision even on web DateTime implementations.
+  final String? createdAtCursor;
 
   String get authorLabel {
     final display = authorDisplayName?.trim();
@@ -129,6 +136,7 @@ class CommonsAnswer {
         json['author_avatar_glyphs'],
       ),
       isMine: json['is_mine'] == true,
+      createdAtCursor: _cleanString(json['created_at']),
       createdAt: _parseDateTime(json['created_at']),
       updatedAt: _parseDateTime(json['updated_at']),
     );
@@ -141,12 +149,31 @@ class CommonsQuestion {
     required this.question,
     this.answers = const <CommonsAnswer>[],
     this.myAnswer,
+    this.hasMoreAnswers = false,
   });
 
   final String id;
   final String question;
   final List<CommonsAnswer> answers;
   final CommonsAnswer? myAnswer;
+  final bool hasMoreAnswers;
+
+  CommonsQuestion appendAnswers(CommonsAnswerPage page) {
+    final byId = {for (final answer in answers) answer.id: answer};
+    for (final answer in page.answers) {
+      if (answer.questionId != id) {
+        throw const FormatException('Wrong question');
+      }
+      byId[answer.id] = answer;
+    }
+    return CommonsQuestion(
+      id: id,
+      question: question,
+      answers: byId.values.toList(growable: false),
+      myAnswer: myAnswer,
+      hasMoreAnswers: page.hasMore,
+    );
+  }
 
   factory CommonsQuestion.fromJson(Map<String, dynamic> json) {
     final answersRaw = json['answers'];
@@ -167,8 +194,39 @@ class CommonsQuestion {
       id: _cleanString(json['id']) ?? '',
       question: _cleanString(json['question']) ?? '',
       answers: answers,
+      hasMoreAnswers: json['answers_has_more'] == true,
       myAnswer: myAnswer?.id.isEmpty == true ? null : myAnswer,
     );
+  }
+}
+
+class CommonsAnswerPage {
+  const CommonsAnswerPage({required this.answers, required this.hasMore});
+  final List<CommonsAnswer> answers;
+  final bool hasMore;
+
+  factory CommonsAnswerPage.fromJson(Object? value) {
+    if (value is! Map ||
+        value['answers'] is! List ||
+        value['has_more'] is! bool) {
+      throw const FormatException('Invalid Commons answer page');
+    }
+    final answers = <CommonsAnswer>[];
+    for (final raw in value['answers'] as List) {
+      if (raw is! Map) throw const FormatException('Invalid Commons answer');
+      final answer = CommonsAnswer.fromJson(Map<String, dynamic>.from(raw));
+      if (answer.id.isEmpty ||
+          answer.questionId.isEmpty ||
+          answer.createdAt == null) {
+        throw const FormatException('Incomplete Commons answer');
+      }
+      answers.add(answer);
+    }
+    final more = value['has_more'] as bool;
+    if (more && answers.isEmpty) {
+      throw const FormatException('Missing answer cursor');
+    }
+    return CommonsAnswerPage(answers: answers, hasMore: more);
   }
 }
 

@@ -22,7 +22,7 @@ class CommonsRhythmBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!pane) return _buildSection();
-    final data = summary;
+    final data = _followingSummary(summary);
     if (data == null) return const SizedBox.shrink();
     return buildCommonsCard(
       padding: const EdgeInsets.all(10),
@@ -78,7 +78,7 @@ class CommonsRhythmBlock extends StatelessWidget {
   }
 
   Widget _buildSection() {
-    final rhythm = this.summary;
+    final rhythm = _followingSummary(this.summary);
     if (loading && rhythm == null) {
       return buildCommonsSection(
         numeral: 'I',
@@ -93,11 +93,15 @@ class CommonsRhythmBlock extends StatelessWidget {
       );
     }
 
-    final summary = rhythm ?? CommonsRhythmSummary.empty();
+    final summary = rhythm ?? _unavailable;
     return buildCommonsSection(
       numeral: 'I',
       title: 'Public Rhythm',
-      note: errorMessage,
+      note:
+          errorMessage ??
+          (this.summary?.isFollowingOnly == false
+              ? 'Refresh to load public activity from people you follow.'
+              : 'Public activity from people you follow.'),
       children: [
         _buildCommonsPulseRow(
           count: summary.activeUsersTodayLabel,
@@ -125,6 +129,20 @@ class CommonsRhythmBlock extends StatelessWidget {
       ],
     );
   }
+
+  static const _unavailable = CommonsRhythmSummary(
+    activeUsersTodayLabel: '—',
+    flowsKeptTodayLabel: '—',
+    publicFragmentsTodayLabel: '—',
+    publicRoomsOpenLabel: '—',
+  );
+
+  CommonsRhythmSummary? _followingSummary(CommonsRhythmSummary? value) =>
+      value == null
+      ? null
+      : value.isFollowingOnly
+      ? value
+      : _unavailable;
 
   Widget _buildCommonsPulseRow({
     required String count,

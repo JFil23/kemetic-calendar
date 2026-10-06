@@ -2,15 +2,14 @@ import 'warm_state/warm_mutation.dart';
 import 'dart:async';
 import 'warm_state/warm_json_reads.dart';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show DateUtils;
 import 'package:mobile/core/supabase_auth_retry.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'commons_models.dart';
 import 'account_view_cache.dart';
-import 'profile_repo.dart';
-import 'profile_feed_item_model.dart';
+import 'account_operation_fence.dart';
+import 'warm_state/warm_snapshot_store.dart';
 import 'shared_practice_models.dart';
 
 class CommonsRepo {
@@ -18,9 +17,19 @@ class CommonsRepo {
 
   final SupabaseClient _client;
 
-  void _log(String message) {
-    if (kDebugMode) {
-      debugPrint('[CommonsRepo] $message');
+  Future<T> _answerWrite<T>(Future<T> Function() request) async {
+    final account = AccountOperationFence(_client);
+    try {
+      final result = await withSupabaseAuthRetry(_client, () {
+        if (!account.isCurrent || account.userId == null) {
+          throw const WarmReadCancelled();
+        }
+        return request();
+      });
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      return result;
+    } finally {
+      account.dispose();
     }
   }
 
@@ -32,11 +41,16 @@ class CommonsRepo {
     bool cachedOnly = false,
     bool strict = false,
   }) async {
-    final uid = _client.auth.currentUser?.id;
+    final account = AccountOperationFence(_client);
+    final uid = account.userId;
     final date = DateUtils.dateOnly(localDate.toLocal());
     try {
-      final response = await WarmJsonReads(_client, cachedOnly: cachedOnly)
-          .value(
+      final response =
+          await WarmJsonReads(
+            _client,
+            cachedOnly: cachedOnly,
+            mayFetch: () => account.isCurrent,
+          ).value(
             'commons.home.${_dateOnly(date)}.$questionId.$limit',
             () => withSupabaseAuthRetry(
               _client,
@@ -56,8 +70,12 @@ class CommonsRepo {
           'Unexpected Commons home response: ${response.runtimeType}',
         );
       }
-      final quoteResponse = await WarmJsonReads(_client, cachedOnly: cachedOnly)
-          .value(
+      final quoteResponse =
+          await WarmJsonReads(
+            _client,
+            cachedOnly: cachedOnly,
+            mayFetch: () => account.isCurrent,
+          ).value(
             'commons.quotes.$limit',
             () => withSupabaseAuthRetry(
               _client,
@@ -67,6 +85,7 @@ class CommonsRepo {
               ),
             ),
           );
+      if (!account.isCurrent) throw const WarmReadCancelled();
       final snapshot = CommonsHomeSnapshot.fromJson(<String, dynamic>{
         ...Map<String, dynamic>.from(response),
         'group_quote_posts': quoteResponse is List
@@ -77,15 +96,54 @@ class CommonsRepo {
         AccountViewCache.instance.publish(uid, 'social.commons', snapshot);
       }
       return snapshot;
-    } catch (e) {
-      if (cachedOnly || strict) rethrow;
-      _log('get_commons_home unavailable: $e');
-      return _fallbackHome(
-        localDate: date,
-        questionId: questionId,
-        questionText: questionText,
-        limit: limit,
-      );
+    } finally {
+      account.dispose();
+    }
+  }
+
+  Future<CommonsAnswerPage> getQuestionAnswers({
+    required String questionId,
+    required CommonsAnswer before,
+    int limit = 12,
+    bool cachedOnly = false,
+  }) async {
+    if (before.createdAt == null || before.questionId != questionId) {
+      throw const FormatException('Invalid Commons answer cursor');
+    }
+    final account = AccountOperationFence(_client);
+    try {
+      final stamp =
+          before.createdAtCursor ?? before.createdAt!.toUtc().toIso8601String();
+      final response =
+          await WarmJsonReads(
+            _client,
+            cachedOnly: cachedOnly,
+            mayFetch: () => account.isCurrent,
+          ).value(
+            'commons.answers.$questionId.$stamp.${before.id}.$limit',
+            () => withSupabaseAuthRetry(
+              _client,
+              () => _client.rpc(
+                'get_commons_question_answers',
+                params: {
+                  'p_question_id': questionId,
+                  'p_before_created_at': stamp,
+                  'p_before_id': before.id,
+                  'p_limit': limit,
+                },
+              ),
+            ),
+            validate: (raw) {
+              final page = CommonsAnswerPage.fromJson(raw);
+              if (page.answers.any((a) => a.questionId != questionId)) {
+                throw const FormatException('Wrong Commons question');
+              }
+            },
+          );
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      return CommonsAnswerPage.fromJson(response);
+    } finally {
+      account.dispose();
     }
   }
 
@@ -101,8 +159,7 @@ class CommonsRepo {
       'pages.commons',
     ]);
     try {
-      final response = await withSupabaseAuthRetry(
-        _client,
+      final response = await _answerWrite(
         () => _client.rpc(
           'answer_commons_question',
           params: <String, dynamic>{
@@ -138,8 +195,7 @@ class CommonsRepo {
       'pages.commons',
     ]);
     try {
-      await withSupabaseAuthRetry(
-        _client,
+      await _answerWrite(
         () => _client.rpc(
           'delete_commons_answer',
           params: <String, dynamic>{'p_answer_id': answerId.trim()},
@@ -341,50 +397,6 @@ class CommonsRepo {
         'pages.commons',
       ]);
     }
-  }
-
-  Future<CommonsHomeSnapshot> _fallbackHome({
-    required DateTime localDate,
-    required String questionId,
-    required String questionText,
-    required int limit,
-  }) async {
-    final profileRepo = ProfileRepo(_client);
-    CommonsRhythmSummary rhythm = CommonsRhythmSummary.empty();
-    try {
-      final rollups = await profileRepo.getCommunityRhythmRollups(
-        localDate: localDate,
-      );
-      if (rollups != null) {
-        final labels = <String, String>{};
-        for (final rollup in rollups) {
-          if (rollup.isVisible) labels[rollup.metric] = rollup.countLabel!;
-        }
-        rhythm = rhythm.copyWith(
-          activeUsersTodayLabel: labels['flow_steps_completed'] ?? '0',
-          flowsKeptTodayLabel: labels['flow_steps_completed'] ?? '0',
-          publicFragmentsTodayLabel: labels['insight_fragments_shared'] ?? '0',
-        );
-      }
-    } catch (e) {
-      _log('fallback rhythm failed: $e');
-    }
-
-    final discover = await profileRepo
-        .getProfileFeedResult(limit: limit, offset: 0)
-        .then<List<ProfileFeedItem>>((result) => result.data)
-        .catchError((Object e) {
-          _log('fallback discover failed: $e');
-          return <ProfileFeedItem>[];
-        });
-
-    return CommonsHomeSnapshot(
-      rhythm: rhythm,
-      questions: <CommonsQuestion>[
-        CommonsQuestion(id: questionId, question: questionText),
-      ],
-      discover: discover,
-    );
   }
 
   Future<({bool likedByMe, int likesCount})> toggleQuoteLike({

@@ -182,11 +182,18 @@ class CommonsQuestionBlock extends StatelessWidget {
     this.pane = false,
     this.editing = false,
     this.loading = false,
+    this.loadingMore = false,
+    this.hasMoreAnswers = false,
+    this.onLoadMore,
+    this.answersError,
   });
   final CommonsQuestion question;
   final Widget composer;
   final Widget Function(CommonsAnswer, bool) answerBuilder;
   final bool editing, loading;
+  final bool loadingMore, hasMoreAnswers;
+  final VoidCallback? onLoadMore;
+  final String? answersError;
   final bool pane;
   final double topPadding;
   @override
@@ -364,13 +371,9 @@ class CommonsQuestionBlock extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                for (final answer
-                    in question.answers
-                        .where((answer) => answer.id != myAnswer?.id)
-                        .take(6)) ...[
-                  answerBuilder(answer, false),
-                  const SizedBox(height: 8),
-                ],
+                for (final answer in question.answers.where(
+                  (answer) => answer.id != myAnswer?.id,
+                )) ...[answerBuilder(answer, false), const SizedBox(height: 8)],
               ] else if (!loading && myAnswer == null) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -382,6 +385,20 @@ class CommonsQuestionBlock extends StatelessWidget {
                     fontStyle: FontStyle.italic,
                     fontSize: 15,
                   ),
+                ),
+              ],
+              if (answersError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  answersError!,
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+              if (hasMoreAnswers) ...[
+                const SizedBox(height: 8),
+                buildCommonsCompactButton(
+                  loadingMore ? 'Loading answers…' : 'Show more answers',
+                  onPressed: loadingMore ? null : onLoadMore,
                 ),
               ],
             ],

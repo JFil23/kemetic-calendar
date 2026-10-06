@@ -40,5 +40,6 @@ CommonsQuestion activeCommonsQuestion(
         : matching.question,
     answers: matching?.answers ?? const [],
     myAnswer: matching?.myAnswer,
+    hasMoreAnswers: matching?.hasMoreAnswers ?? false,
   );
 }
