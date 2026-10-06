@@ -938,7 +938,11 @@ void main() {
     expect(saveAttempts, 1);
     expect(find.text('Flow Studio'), findsOneWidget);
     _expectNameFieldValue(tester, 'Spanish Conjugation Practice');
-    expect(find.textContaining('planned note insert failed'), findsOneWidget);
+    expect(
+      find.text('Unable to save flow. Your changes are still here. Try again.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('planned note insert failed'), findsNothing);
     expect(find.text('Save'), findsOneWidget);
 
     await _closeFlowStudio(tester);
@@ -1081,7 +1085,23 @@ void main() {
       'void _delete()',
     );
     expect(finishBody, contains('await routeResultHandler(result);'));
-    expect(finishBody, contains('Unable to save flow'));
+    final failureBody = finishBody.substring(
+      finishBody.indexOf('catch (error, stackTrace)'),
+    );
+    expect(failureBody, contains('Text(_saveFailureMessage)'));
+    final failureMessage = _sliceBetween(
+      source,
+      'String get _saveFailureMessage',
+      'Future<void> _save() async',
+    );
+    expect(
+      failureMessage,
+      contains('Unable to save flow. Your changes are still here. Try again.'),
+    );
+    expect(
+      failureMessage,
+      contains('Your account changed. Reopen this flow to continue.'),
+    );
     expect(finishBody.indexOf('_clearSessionDraft()'), greaterThan(0));
 
     final applyBody = _sliceBetween(
