@@ -247,7 +247,18 @@ void main() {
       expect(saveStart, isNonNegative);
       expect(saveEnd, greaterThan(saveStart));
       final saveSection = source.substring(saveStart, saveEnd);
-      expect(saveSection, contains('calendarId: selectedCalendarId,'));
+      final normalizedSave = saveSection.replaceAll(RegExp(r'\s+'), ' ');
+      expect(
+        normalizedSave,
+        contains(
+          'calendarId: preserveExistingEvents ? loaded.calendarId : selectedCalendarId,',
+        ),
+      );
+      expect(
+        normalizedSave,
+        contains('final preserveExistingEvents = !_completionRequired &&'),
+        reason: 'New flows and imports must retain the selected calendar.',
+      );
 
       final calendarPageSource = File(
         'lib/features/calendar/calendar_page.dart',
