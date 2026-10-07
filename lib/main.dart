@@ -2001,6 +2001,9 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         return SessionTrackedRoute(
           location: state.uri.toString(),
           child: DecanReflectionDetailPage(
+            // Creation replaces /new with its saved identity on this same route.
+            // Mount that identity's reader instead of retaining creation state.
+            key: ValueKey('decan-reflection:$reflectionId'),
             compose: state.uri.queryParameters['compose'] == '1',
             reflectionId: reflectionId,
             initialWindow: reflectionId == 'new'
