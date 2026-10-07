@@ -204,6 +204,7 @@ class _InboxPageState extends State<InboxPage> {
   List<_UnifiedInboxItem> _unified = const [];
   final Set<String> _optimisticReadShareIds = <String>{};
   bool _loading = true;
+  bool _inboxUnavailable = false;
   InboxActivityItem? _latestFollow;
   InboxActivityItem? _latestEngagement;
   List<InboxActivityItem> _activity = const [];
@@ -332,16 +333,32 @@ class _InboxPageState extends State<InboxPage> {
     final subscriptionSerial = ++_inboxItemsSubscriptionSerial;
     final itemsStream =
         widget.inboxItemsStreamForTesting ?? _inboxRepo.watchInbox();
-    _inboxItemsSub = itemsStream.listen((items) {
-      if (!mounted || subscriptionSerial != _inboxItemsSubscriptionSerial) {
-        return;
-      }
-      _applyInboxItems(items);
-      setState(() {
-        _unified = _buildUnifiedItems();
-        _loading = false;
-      });
-    });
+    _inboxItemsSub = itemsStream.listen(
+      (items) {
+        if (!mounted || subscriptionSerial != _inboxItemsSubscriptionSerial) {
+          return;
+        }
+        _applyInboxItems(items);
+        setState(() {
+          _inboxUnavailable = false;
+          _unified = _buildUnifiedItems();
+          _loading = false;
+        });
+      },
+      onError: (Object error, StackTrace stack) {
+        if (!mounted || subscriptionSerial != _inboxItemsSubscriptionSerial) {
+          return;
+        }
+        setState(() {
+          if (ShareRepo.isInboxAccessDenied(error)) {
+            _applyInboxItems(const []);
+            _unified = _buildUnifiedItems();
+          }
+          _inboxUnavailable = true;
+          _loading = false;
+        });
+      },
+    );
   }
 
   void _subscribeTogetherInboxChanges() {
@@ -379,6 +396,27 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Future<void> _handleRefresh() async {
+    try {
+      final items = await _shareRepo.getInboxItems(
+        limit: null,
+        throwOnError: true,
+      );
+      if (!mounted) return;
+      _applyInboxItems(items);
+      setState(() {
+        _inboxUnavailable = false;
+        _unified = _buildUnifiedItems();
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        if (ShareRepo.isInboxAccessDenied(error)) {
+          _applyInboxItems(const []);
+          _unified = _buildUnifiedItems();
+        }
+        _inboxUnavailable = true;
+      });
+    }
     await _refreshUnified();
   }
 
@@ -1075,6 +1113,14 @@ class _InboxPageState extends State<InboxPage> {
         onRetry: () => unawaited(_refreshReadingHouseRooms(showLoading: true)),
       ),
       _buildSectionLabel('Messages', topMargin: 30),
+      if (_inboxUnavailable)
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: Text(
+            'Messages temporarily unavailable. Pull down to retry.',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ),
       for (final item in _unified)
         if (item.kind == _UnifiedKind.message)
           _buildConversationBar(
@@ -1112,7 +1158,7 @@ class _InboxPageState extends State<InboxPage> {
                 ),
               ],
             )
-          : (_unified.isEmpty && !_hasSummaries
+          : (_unified.isEmpty && !_hasSummaries && !_inboxUnavailable
                 ? _buildEmptyState()
                 : ListView(
                     physics: const AlwaysScrollableScrollPhysics(),

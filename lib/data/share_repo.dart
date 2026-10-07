@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'account_view_cache.dart';
+import 'account_operation_fence.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -146,6 +147,9 @@ class ShareRepo {
   static final Map<String, List<InboxShareItem>> _inboxItemsMemoryCache = {};
   static final Map<String, List<InboxActivityItem>> _activityMemoryCache = {};
 
+  static final _inboxReads = Expando<Map<String, _InboxReadFlight>>();
+  static final Map<String, int> _inboxCacheRevisions = {};
+
   final SupabaseClient _client;
 
   ShareRepo(this._client);
@@ -212,8 +216,13 @@ class ShareRepo {
       return List<InboxShareItem>.unmodifiable(memoryItems);
     }
 
+    final account = AccountOperationFence(_client);
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (!account.isCurrent) return null;
+      // A fresh read or acknowledged mutation may have won during restoration.
+      final newer = _inboxItemsMemoryCache[uid];
+      if (newer != null) return newer;
       final raw = prefs.getString(_inboxItemsStorageKey(uid));
       if (raw == null || raw.isEmpty) return null;
       final decoded = jsonDecode(raw);
@@ -229,6 +238,8 @@ class ShareRepo {
     } catch (e) {
       _log('[ShareRepo] restore inbox cache failed: $e');
       return null;
+    } finally {
+      account.dispose();
     }
   }
 
@@ -236,6 +247,8 @@ class ShareRepo {
     required String uid,
     required List<InboxShareItem> items,
   }) async {
+    if (_client.auth.currentUser?.id != uid) return;
+    final account = AccountOperationFence(_client);
     final frozen = List<InboxShareItem>.unmodifiable(
       items.where((item) => !item.isDeleted),
     );
@@ -244,12 +257,18 @@ class ShareRepo {
 
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (!account.isCurrent ||
+          !identical(_inboxItemsMemoryCache[uid], frozen)) {
+        return;
+      }
       await prefs.setString(
         _inboxItemsStorageKey(uid),
         jsonEncode(frozen.map((item) => item.toJson()).toList()),
       );
     } catch (e) {
       _log('[ShareRepo] persist inbox cache failed: $e');
+    } finally {
+      account.dispose();
     }
   }
 
@@ -258,6 +277,7 @@ class ShareRepo {
     required String shareId,
     required Map<String, dynamic> values,
   }) async {
+    _inboxCacheRevisions[uid] = (_inboxCacheRevisions[uid] ?? 0) + 1;
     final current =
         _inboxItemsMemoryCache[uid] ?? await restoreCachedInboxItems();
     if (current == null || current.isEmpty) return;
@@ -2749,7 +2769,7 @@ class ShareRepo {
 
   /// Get inbox items for current user
   Future<List<InboxShareItem>> getInboxItems({
-    int limit = 50,
+    int? limit = 50,
     int offset = 0,
     bool throwOnError = false,
   }) async {
@@ -2939,12 +2959,73 @@ class ShareRepo {
     );
   }
 
+  static bool isInboxAccessDenied(Object error) =>
+      error is PostgrestException &&
+      (error.code == '42501' || error.code == '403');
+
+  Future<void> _clearDeniedInbox(AccountOperationFence account) async {
+    final uid = account.userId;
+    if (uid == null || !account.isCurrent) return;
+    _inboxCacheRevisions[uid] = (_inboxCacheRevisions[uid] ?? 0) + 1;
+    _inboxItemsMemoryCache.remove(uid);
+    AccountViewCache.instance.evictPrefix(uid, 'social.inbox');
+    final prefs = await SharedPreferences.getInstance();
+    if (account.isCurrent) await prefs.remove(_inboxItemsStorageKey(uid));
+  }
+
   Future<List<InboxShareItem>> _fetchInboxItems({
     int? limit,
     int offset = 0,
     bool verbose = false,
-  }) async {
+  }) {
     final uid = _client.auth.currentUser?.id;
+    if (uid == null) return Future.value(const []);
+    final reads = _inboxReads[_client] ??= {};
+    final key = '$uid:$limit:$offset';
+    final revision = _inboxCacheRevisions[uid] ?? 0;
+    final existing = reads[key];
+    if (existing != null &&
+        existing.account.isCurrent &&
+        existing.revision == revision) {
+      return existing.result;
+    }
+    final account = AccountOperationFence(_client);
+    late final _InboxReadFlight flight;
+    final result =
+        _loadInboxItems(
+              limit: limit,
+              offset: offset,
+              verbose: verbose,
+              account: account,
+              revision: revision,
+            )
+            .catchError((Object error, StackTrace stack) async {
+              if (isInboxAccessDenied(error)) await _clearDeniedInbox(account);
+              Error.throwWithStackTrace(error, stack);
+            })
+            .whenComplete(() {
+              account.dispose();
+              if (identical(reads[key], flight)) reads.remove(key);
+            });
+    flight = _InboxReadFlight(account, revision, result);
+    reads[key] = flight;
+    return result;
+  }
+
+  Future<List<InboxShareItem>> _loadInboxItems({
+    int? limit,
+    int offset = 0,
+    bool verbose = false,
+    required AccountOperationFence account,
+    required int revision,
+  }) async {
+    final uid = account.userId;
+    void requireCurrent() {
+      if (!account.isCurrent || (_inboxCacheRevisions[uid] ?? 0) != revision) {
+        throw const ViewReadCancelled();
+      }
+    }
+
     if (verbose) {
       _log('📬 [ShareRepo] Querying $_shareFilingView...');
     }
@@ -2960,6 +3041,8 @@ class ShareRepo {
       }
       response = await query;
     } catch (e) {
+      requireCurrent();
+      if (isInboxAccessDenied(e)) rethrow;
       _log('[ShareRepo] $_shareFilingView unavailable, using legacy view: $e');
       dynamic query = _client
           .from(_legacyInboxView)
@@ -2975,6 +3058,7 @@ class ShareRepo {
       _log('📬 [ShareRepo] Raw response ${safeLogCollectionSummary(response)}');
     }
 
+    requireCurrent();
     final rows = response.cast<Map<String, dynamic>>();
     final filtered = uid == null
         ? rows
@@ -3003,6 +3087,7 @@ class ShareRepo {
             _client,
           ).getCurrentlyActiveImportedFlowIds(flowShareIds);
 
+    requireCurrent();
     final items = <InboxShareItem>[];
     for (final rawItem in filtered) {
       final item = Map<String, dynamic>.from(rawItem);
@@ -3028,7 +3113,15 @@ class ShareRepo {
       _log('✅ [ShareRepo] Successfully parsed ${items.length} items');
     }
     if (uid != null && offset == 0) {
-      unawaited(_cacheInboxItems(uid: uid, items: items));
+      // A bounded home read must not erase already cached older chat messages.
+      final cached = _inboxItemsMemoryCache[uid];
+      final retained = limit != null && cached != null
+          ? <String, InboxShareItem>{
+              for (final item in cached) item.shareId: item,
+              for (final item in items) item.shareId: item,
+            }.values.toList()
+          : items;
+      unawaited(_cacheInboxItems(uid: uid, items: retained));
     }
     return items;
   }
@@ -3097,12 +3190,16 @@ class ShareRepo {
     final controller = StreamController<List<InboxShareItem>>();
     final channelName =
         'inbox_watch_${uid}_${DateTime.now().microsecondsSinceEpoch}';
-    List<InboxShareItem> lastItems = const [];
+    final account = AccountOperationFence(_client);
+    bool cancelled = false;
+    bool getCurrent() =>
+        !cancelled && account.isCurrent && !controller.isClosed;
     Timer? refreshDebounce;
     bool refreshInFlight = false;
     bool refreshQueued = false;
 
     Future<void> emitLatest() async {
+      if (!getCurrent()) return;
       if (refreshInFlight) {
         refreshQueued = true;
         return;
@@ -3110,8 +3207,7 @@ class ShareRepo {
       refreshInFlight = true;
       try {
         final items = await _fetchInboxItems();
-        lastItems = items;
-        if (!controller.isClosed) {
+        if (getCurrent()) {
           controller.add(items);
         }
       } catch (e, st) {
@@ -3119,12 +3215,19 @@ class ShareRepo {
         if (kDebugMode) {
           debugPrint('$st');
         }
-        if (!controller.isClosed) {
-          controller.add(lastItems);
+        if (getCurrent()) {
+          final retained = isInboxAccessDenied(e)
+              ? null
+              : cachedInboxItemsSync();
+          if (retained != null) {
+            controller.add(retained);
+          } else {
+            controller.addError(e, st);
+          }
         }
       } finally {
         refreshInFlight = false;
-        if (refreshQueued) {
+        if (refreshQueued && getCurrent()) {
           refreshQueued = false;
           unawaited(emitLatest());
         }
@@ -3132,6 +3235,7 @@ class ShareRepo {
     }
 
     void scheduleRefresh() {
+      if (!getCurrent()) return;
       refreshDebounce?.cancel();
       refreshDebounce = Timer(const Duration(milliseconds: 120), () {
         unawaited(emitLatest());
@@ -3218,17 +3322,28 @@ class ShareRepo {
 
     unawaited(() async {
       final cached = cachedInboxItemsSync() ?? await restoreCachedInboxItems();
-      if (cached != null && !controller.isClosed) {
-        lastItems = cached;
+      if (cached != null && getCurrent()) {
         controller.add(cached);
       }
       await emitLatest();
     }());
 
+    final authSub = _client.auth.onAuthStateChange.listen((state) {
+      if (state.event == AuthChangeEvent.signedOut ||
+          state.session?.user.id != uid) {
+        if (!cancelled && !controller.isClosed) controller.add(const []);
+        cancelled = true;
+        refreshDebounce?.cancel();
+        unawaited(channel.unsubscribe());
+      }
+    });
     controller.onCancel = () async {
+      cancelled = true;
       refreshDebounce?.cancel();
+      account.dispose();
+      await authSub.cancel();
       await channel.unsubscribe();
-      await controller.close();
+      unawaited(controller.close());
     };
 
     return controller.stream;
@@ -3598,4 +3713,12 @@ class InboxActivityItem {
         return InboxActivityBucket.movement;
     }
   }
+}
+
+/// Coalesces reads from the Inbox, badge and conversation without another cache.
+class _InboxReadFlight {
+  const _InboxReadFlight(this.account, this.revision, this.result);
+  final AccountOperationFence account;
+  final int revision;
+  final Future<List<InboxShareItem>> result;
 }

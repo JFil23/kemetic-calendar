@@ -1143,3 +1143,37 @@ no creation writes, failure feedback, departure during a delayed read, and every
 civil date in normal/leap Kemetic years including supplementary days and DST.
 The full App gate, sealed lane artifacts and canonical served checks remain
 required for the authorized RC-to-production promotion.
+
+## October 7 Inbox sharing and keyboard continuity
+
+The user's 14:16 recording and the existing Inbox flow-card and Kemetic keyboard
+renders are the reference. The conversation retains a single stream for its
+account and recipient, just as the group DM already does. Its first frame uses
+ShareRepo's synchronous account snapshot, including the full existing flow
+payload and appearance. Refresh remains in the background. Neither keyboard
+resizing nor message-like updates restart the subscription. Shared chat scroll
+physics retain the latest-message anchor through resizing without moving someone
+who is reading older messages. The existing card hierarchy and top alignment of
+short chats remain unchanged. The browser keyboard owner applies input suppression
+and re-enters each DOM editor once, preserving selection; subsequent focus events
+do not repeat the handoff, and system mode restores the original attributes.
+
+ShareRepo retains inbox:shares:v1:<account>; no cache namespace or payload schema
+changes. Existing FlowAppearanceStore and bundled hero assets retain image
+ownership. Concurrent identical Inbox reads share a single account-fenced
+request. Bounded reads merge into the existing snapshot rather than truncating
+older conversation previews. A full refresh can replace a confirmed snapshot;
+failed refreshes retain it. Acknowledged item mutations invalidate older in-flight
+reads. Account departure, including A-B-A, fences publication and subscription
+emissions. Confirmed permission denial removes cached private previews and does
+not bypass denial through the legacy view. Passive refresh performs no send,
+mark-viewed, import or draft writes. Existing account mutation and editor
+restoration owners remain unchanged.
+
+Evidence includes the real conversation with delayed and failed HTTP reads,
+warm first paint, new-chat typing, system/custom keyboard transitions, caret
+movement, latest-message and older-history scroll positions, concurrent reads,
+bounded refreshes, old cache restoration, account changes and access denial.
+The DOM handoff runs in the browser gate. Capture-only images remain outside
+approved visual references. The complete App gate is required before release;
+these automated checks do not measure physical iPhone frame timing.

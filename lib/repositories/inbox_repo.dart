@@ -316,21 +316,30 @@ class InboxRepo {
     }
   }
 
-  /// Watch a specific conversation with another user
-  Stream<List<InboxShareItem>> watchConversationWith(String otherUserId) {
-    return watchInbox().map((items) {
-      final uid = currentUserId;
-      if (uid == null) return <InboxShareItem>[];
-
-      final conv = items.where((item) {
-        final a = item.senderId == uid && item.recipientId == otherUserId;
-        final b = item.senderId == otherUserId && item.recipientId == uid;
-        return (a || b) && !item.isDeleted && !item.isEvent && !item.isCalendar;
-      }).toList()..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
-      return conv;
-    });
+  List<InboxShareItem>? cachedConversationWith(String otherUserId) {
+    final items = _shareRepo.cachedInboxItemsSync();
+    return items == null ? null : _conversationItems(items, otherUserId);
   }
+
+  List<InboxShareItem> _conversationItems(
+    List<InboxShareItem> items,
+    String otherUserId,
+  ) {
+    final uid = currentUserId;
+    if (uid == null) return const [];
+    return items.where((item) {
+      final outgoing = item.senderId == uid && item.recipientId == otherUserId;
+      final incoming = item.senderId == otherUserId && item.recipientId == uid;
+      return (outgoing || incoming) &&
+          !item.isDeleted &&
+          !item.isEvent &&
+          !item.isCalendar;
+    }).toList()..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+  }
+
+  /// Keep this stream for the mounted conversation, as with group DMs.
+  Stream<List<InboxShareItem>> watchConversationWith(String otherUserId) =>
+      watchInbox().map((items) => _conversationItems(items, otherUserId));
 
   Future<void> _sendTextMessageDirect({
     required String senderId,

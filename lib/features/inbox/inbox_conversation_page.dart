@@ -17,6 +17,7 @@ import '../../data/share_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import '../../shared/candlelit_mahogany_background.dart';
 import 'conversation_user.dart';
+import 'conversation_scroll_physics.dart';
 import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
@@ -50,6 +51,11 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   final ScrollController _scrollController = ScrollController();
   late final InboxRepo _inboxRepo;
   late final ShareRepo _shareRepo;
+  late Stream<List<InboxShareItem>> _conversation;
+  List<InboxShareItem>? _initialItems;
+  StreamSubscription<AuthState>? _accountSub;
+  String? _accountId;
+  int _conversationGeneration = 0;
   int _lastItemCount = 0;
   Map<String, int> _messageLikeCounts = const {};
   Set<String> _messageLikedByMeIds = const <String>{};
@@ -65,6 +71,25 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     super.initState();
     _inboxRepo = InboxRepo(Supabase.instance.client);
     _shareRepo = ShareRepo(Supabase.instance.client);
+    _accountId = _inboxRepo.currentUserId;
+    _bindConversation();
+    _accountSub = Supabase.instance.client.auth.onAuthStateChange.listen((
+      state,
+    ) {
+      if (!mounted) return;
+      final nextAccount = state.session?.user.id;
+      if (nextAccount == _accountId &&
+          state.event != AuthChangeEvent.signedOut) {
+        return;
+      }
+      setState(() {
+        _accountId = nextAccount;
+        _messageController.removeListener(_persistResumeState);
+        _messageController.clear();
+        _messageController.addListener(_persistResumeState);
+        _bindConversation();
+      });
+    });
     _messageController.text = widget.initialDraftText ?? '';
     _messageController.addListener(_persistResumeState);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -72,8 +97,32 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     });
   }
 
+  void _bindConversation() {
+    _conversationGeneration++;
+    _initialItems = _inboxRepo.cachedConversationWith(widget.otherUserId);
+    _conversation = _inboxRepo.watchConversationWith(widget.otherUserId);
+    _pendingMessages.clear();
+    _locallyDeleted.clear();
+    _locallyViewedShareIds.clear();
+    _messageLikeUpdatingIds.clear();
+    _messageLikeCounts = const {};
+    _messageLikedByMeIds = const {};
+    _messageLikeSignature = '';
+    _lastItemCount = 0;
+  }
+
+  @override
+  void didUpdateWidget(covariant InboxConversationPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.otherUserId != widget.otherUserId) {
+      _messageController.text = widget.initialDraftText ?? '';
+      _bindConversation();
+    }
+  }
+
   @override
   void dispose() {
+    _accountSub?.cancel();
     _messageController.removeListener(_persistResumeState);
     unawaited(SessionResumeService.clearResumeEntry(kind: _resumeKind));
     _messageController.dispose();
@@ -120,9 +169,13 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     );
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
+      if (!animate) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        return;
+      }
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 250),
@@ -481,9 +534,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                 child: CandlelitMahoganyBackground(
                   paintBottomScrimAboveChild: false,
                   child: StreamBuilder<List<InboxShareItem>>(
-                    stream: _inboxRepo.watchConversationWith(
-                      widget.otherUserId,
-                    ),
+                    key: ValueKey(_conversationGeneration),
+                    stream: _conversation,
+                    initialData: _initialItems,
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         if (kDebugMode) {
@@ -543,8 +596,14 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                       final itemCount = items.length + visiblePending.length;
 
                       if (itemCount != _lastItemCount) {
+                        final firstPaint = _lastItemCount == 0;
+                        final followingLatest =
+                            !_scrollController.hasClients ||
+                            _scrollController.position.extentAfter < 48;
                         _lastItemCount = itemCount;
-                        _scrollToBottom();
+                        if (firstPaint || followingLatest) {
+                          _scrollToBottom(animate: !firstPaint);
+                        }
                       }
 
                       if (itemCount == 0) {
@@ -559,7 +618,11 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                       const listBottomPadding = 24.0;
 
                       return ListView.builder(
+                        key: ValueKey(
+                          'conversation-list-$_conversationGeneration',
+                        ),
                         controller: _scrollController,
+                        physics: const ConversationScrollPhysics(),
                         padding: EdgeInsets.fromLTRB(
                           16,
                           16,
@@ -572,6 +635,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                             final pending =
                                 visiblePending[index - items.length];
                             return Align(
+                              key: ValueKey(pending.clientId),
                               alignment: Alignment.centerRight,
                               child: _MessageBubble(
                                 text: pending.text,
@@ -593,6 +657,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                               : (share.isEvent ? 'Invite' : 'Flow');
 
                           return Align(
+                            key: ValueKey(share.shareId),
                             alignment: isMine
                                 ? Alignment.centerRight
                                 : Alignment.centerLeft,

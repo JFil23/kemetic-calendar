@@ -35,12 +35,12 @@
     {
       "path": "/inbox",
       "owner": "lib/data/share_repo.dart",
-      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming."
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Mounted conversations retain one account/recipient stream and paint the existing inbox:shares:v1 snapshot before refresh. Coalesced account-fenced reads preserve older previews through bounded refreshes and retain confirmed data on transient failure; denial evicts it. Keyboard transitions do not restart reads or alter cache namespaces. Shared conversation scroll physics retain the latest anchor and older-history position."
     },
     {
       "path": "/inbox/conversation/:userId",
       "owner": "lib/data/share_repo.dart",
-      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Flow messages render the existing immutable snapshot appearance and title through the posted-flow header renderer; image reads retain FlowAppearanceStore ownership. Built-in flow identity reuses the existing bundled discovery hero when no uploaded image exists; old share snapshots need no rewrite. Active imported identity controls the recipient status. Direct and published-flow Inbox sends use ShareRepo and the backend create_flow_share boundary."
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Flow messages render the existing immutable snapshot appearance and title through the posted-flow header renderer; image reads retain FlowAppearanceStore ownership. Built-in flow identity reuses the existing bundled discovery hero when no uploaded image exists; old share snapshots need no rewrite. Active imported identity controls the recipient status. Direct and published-flow Inbox sends use ShareRepo and the backend create_flow_share boundary. Mounted conversations retain one account/recipient stream and paint the existing inbox:shares:v1 snapshot before refresh. Coalesced account-fenced reads preserve older previews through bounded refreshes and retain confirmed data on transient failure; denial evicts it. Keyboard transitions do not restart reads or alter cache namespaces. Shared conversation scroll physics retain the latest anchor and older-history position."
     },
     {
       "path": "/inbox/dm/:conversationId",

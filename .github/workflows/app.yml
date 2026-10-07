@@ -167,7 +167,7 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: Verify real browser session diagnostics and quota recovery
-        run: flutter test --platform chrome test/widgets/boot_storage_browser_test.dart test/services/restoration_quota_browser_test.dart
+        run: flutter test --platform chrome test/widgets/boot_storage_browser_test.dart test/services/restoration_quota_browser_test.dart test/widgets/kemetic_web_keyboard_browser_test.dart
 
       - name: Run the complete app test suite
         run: flutter test

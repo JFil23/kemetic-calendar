@@ -11,6 +11,7 @@ import '../../shared/candlelit_mahogany_background.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 import 'conversation_user.dart';
+import 'conversation_scroll_physics.dart';
 import 'dm_conversation_models.dart';
 
 class InboxDmConversationPage extends StatefulWidget {
@@ -192,6 +193,7 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
 
                         return ListView.builder(
                           controller: _scrollController,
+                          physics: const ConversationScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                           itemCount: messages.length,
                           itemBuilder: (context, index) {

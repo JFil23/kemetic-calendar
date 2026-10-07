@@ -21,6 +21,7 @@ final Expando<_EditingElementState> _editingElementState =
 web.Element? _trackedEditingElement;
 JSFunction? _focusInListener;
 bool _customKeyboardActive = false;
+bool _syncingTarget = false;
 
 bool _hasProperty(JSAny target, String name) {
   return js_util.hasProperty(target, name);
@@ -122,13 +123,6 @@ void _restoreKeyboardBehavior(web.Element element) {
   final saved = _editingElementState[element];
   if (saved == null) return;
 
-  _restoreAttribute(element, 'inputmode', saved.inputMode);
-  _restoreAttribute(
-    element,
-    'virtualkeyboardpolicy',
-    saved.virtualKeyboardPolicy,
-  );
-
   try {
     js_util.setProperty(element, 'inputMode', saved.inputMode ?? '');
   } catch (_) {}
@@ -140,6 +134,13 @@ void _restoreKeyboardBehavior(web.Element element) {
       saved.virtualKeyboardPolicy ?? 'auto',
     );
   } catch (_) {}
+  _restoreAttribute(element, 'inputmode', saved.inputMode);
+  _restoreAttribute(
+    element,
+    'virtualkeyboardpolicy',
+    saved.virtualKeyboardPolicy,
+  );
+  _editingElementState[element] = null;
 }
 
 void _ensureFocusInListener() {
@@ -168,25 +169,30 @@ void activateWebCustomKeyboardInput() {
 }
 
 void syncWebCustomKeyboardInputTarget() {
-  if (!_customKeyboardActive) {
-    return;
-  }
-
+  if (!_customKeyboardActive || _syncingTarget) return;
   final editingElement = _currentEditingElement();
-  if (editingElement == null) {
-    return;
-  }
+  if (editingElement == null) return;
 
-  if (!identical(_trackedEditingElement, editingElement)) {
-    if (_trackedEditingElement != null) {
-      _restoreKeyboardBehavior(_trackedEditingElement!);
+  _syncingTarget = true;
+  try {
+    final changedTarget = !identical(_trackedEditingElement, editingElement);
+    if (changedTarget) {
+      if (_trackedEditingElement != null) {
+        _restoreKeyboardBehavior(_trackedEditingElement!);
+      }
+      _trackedEditingElement = editingElement;
     }
-    _trackedEditingElement = editingElement;
+    _saveAndApplyKeyboardSuppression(editingElement);
+    _hideBrowserVirtualKeyboard();
+    // Safari applies inputmode when focus enters the input. Merely changing
+    // the attribute on the already focused Flutter editor leaves its native
+    // keyboard covering the custom panel. Re-focus once per target, with
+    // preventScroll; subsequent focus notifications must not repeat the handoff.
+    if (changedTarget) _blurElement(editingElement);
+    _focusElement(editingElement);
+  } finally {
+    _syncingTarget = false;
   }
-
-  _saveAndApplyKeyboardSuppression(editingElement);
-  _hideBrowserVirtualKeyboard();
-  _focusElement(editingElement);
 }
 
 void deactivateWebCustomKeyboardInput({bool requestSystemKeyboard = false}) {

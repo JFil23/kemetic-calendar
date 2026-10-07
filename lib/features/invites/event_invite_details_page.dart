@@ -34,7 +34,11 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
   @override
   void initState() {
     super.initState();
-    _shareSubscription = _repo.watchInbox().listen(_syncShareFromInbox);
+    _shareSubscription = _repo.watchInbox().listen(
+      _syncShareFromInbox,
+      // The passed invitation remains readable during an unavailable refresh.
+      onError: (Object error, StackTrace stack) {},
+    );
     unawaited(_markViewedIfRecipient());
   }
 
