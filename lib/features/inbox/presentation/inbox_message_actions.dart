@@ -234,7 +234,7 @@ class InboxReplyPreview extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
     decoration: const BoxDecoration(
       border: Border(left: BorderSide(color: Color(0xFFD1AF32), width: 2)),
-      color: Color(0x20101010),
+      color: Color(0xFF171719),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,

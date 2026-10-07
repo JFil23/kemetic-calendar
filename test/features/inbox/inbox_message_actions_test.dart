@@ -132,4 +132,63 @@ void main() {
     expect(removed, isTrue);
     expect(tester.takeException(), isNull);
   });
+  testWidgets(
+    'quoted context stays readable inside dark and gold message bubbles',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: const Key('quote-capture'),
+          child: MaterialApp(
+            theme: AppTheme.dark,
+            home: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (final color in [
+                      const Color(0xFF302911),
+                      const Color(0xFFD1AF32),
+                    ])
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const InboxReplyPreview(
+                          text:
+                              'Follow the sky — a longer quoted message that wraps to the second line',
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Replying to'), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+      final folder = Platform.environment['HAW_MESSAGE_ACTION_CAPTURE_DIR'];
+      if (folder != null) {
+        await tester.runAsync(() async {
+          final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.byKey(const Key('quote-capture')),
+          );
+          final shot = await boundary.toImage();
+          final data = await shot.toByteData(format: ui.ImageByteFormat.png);
+          await File(
+            '$folder/reply-contrast.png',
+          ).writeAsBytes(data!.buffer.asUint8List());
+          shot.dispose();
+        });
+      }
+    },
+  );
 }
