@@ -2505,6 +2505,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       MaterialPageRoute(
         builder: (_) => _FlowPreviewPage(
           flow: f,
+          mode: f.active ? _FlowPreviewMode.active : _FlowPreviewMode.saved,
           getDecanLabel: (km, di) =>
               (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
           fmt: (d) => _fmtGregorian(d),

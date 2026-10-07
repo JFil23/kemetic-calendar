@@ -1,6 +1,6 @@
 part of 'calendar_page.dart';
 
-enum _FlowPreviewMode { legacy, active, saved }
+enum _FlowPreviewMode { active, saved }
 
 typedef _CalendarPreviewForWindow =
     FollowSkyCalendarPreview Function(DateTime windowStart, DateTime windowEnd);
@@ -596,7 +596,7 @@ class _FlowPreviewPage extends StatefulWidget {
     this.onEndMaatFlow,
     this.flowSequence,
     this.initialIndex = 0,
-    this.mode = _FlowPreviewMode.legacy,
+    required this.mode,
     this.metricsByFlow = const <int, _FlowPreviewMetrics>{},
     this.initialEventsByFlow,
     this.actionPolicy,
@@ -1838,7 +1838,6 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   }
 
   bool _usesDashboardBody(_Flow flow, ReminderRule? reminderRule) {
-    if (widget.mode == _FlowPreviewMode.legacy) return false;
     return reminderRule == null && !flow.isReminder;
   }
 
@@ -4249,9 +4248,7 @@ Widget buildMyFlowDetailPreviewForTesting({
     key: previewKey,
     flow: flow,
     flowSequence: previewFlows,
-    mode: reminderBacked
-        ? _FlowPreviewMode.legacy
-        : (saved ? _FlowPreviewMode.saved : _FlowPreviewMode.active),
+    mode: saved ? _FlowPreviewMode.saved : _FlowPreviewMode.active,
     metricsByFlow: <int, _FlowPreviewMetrics>{
       for (final previewFlow in previewFlows)
         previewFlow.id: previewMetricsFor(previewFlow),

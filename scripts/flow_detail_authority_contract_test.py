@@ -23,7 +23,7 @@ for path, source in files.items():
     for match in pattern.finditer(source):
         if owners.get(match[1]) != path:
             errors.append(f'{path}: unregistered full-detail owner {match[1]}')
-    for retired in ('useCanonicalUserFlowDetail', 'useMySavedExpansionParity', 'InboxFlowDetailsPage', 'Widget _buildDashboardBody(', 'Widget _buildFlowBody('):
+    for retired in ('useCanonicalUserFlowDetail', 'useMySavedExpansionParity', 'InboxFlowDetailsPage', 'Widget _buildDashboardBody(', 'Widget _buildFlowBody(', '_FlowPreviewMode.legacy'):
         if retired in source:
             errors.append(f'{path}: retired alternate detail contract {retired}')
 

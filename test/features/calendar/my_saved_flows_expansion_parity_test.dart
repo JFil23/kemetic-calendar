@@ -36,6 +36,27 @@ void main() {
     expect(source, isNot(contains('class _SavedFlowPreviewPage')));
   });
 
+  test('Flow Studio uses the same explicit active or saved detail state', () {
+    final studio = File(
+      'lib/features/calendar/calendar_flow_studio_page.dart',
+    ).readAsStringSync();
+    final detail = File(
+      'lib/features/calendar/calendar_flow_pages.dart',
+    ).readAsStringSync();
+    expect(
+      studio,
+      contains(
+        'mode: f.active ? _FlowPreviewMode.active : _FlowPreviewMode.saved',
+      ),
+    );
+    expect(detail, contains('required this.mode,'));
+    expect(detail, isNot(contains('_FlowPreviewMode.legacy')));
+    final expansion = detail
+        .split('bool _usesDashboardBody(')[1]
+        .split('List<_FlowDashboardDay>')[0];
+    expect(expansion, isNot(contains('widget.mode')));
+  });
+
   test('parity authority never initiates automatic scrolling', () {
     final source = File(
       'lib/features/calendar/calendar_flow_pages.dart',
