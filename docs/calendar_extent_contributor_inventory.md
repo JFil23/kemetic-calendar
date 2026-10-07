@@ -138,8 +138,9 @@ The content snapshot must contain, per month:
 state, and hydration availability do not currently change section extent.
 Heriu uses `Visibility.maintainSize` for its alternate header labels. The
 hydration status banner is a `Positioned` overlay and adds no scroll extent.
-The scrolling month banner has a fixed height of 58 and reduces the body
-viewport; it is not part of any month section.
+The scrolling month banner has a fixed 58-pixel month band and a 24-pixel
+weekday band, totaling 82 logical pixels. It reduces the body viewport and is
+not part of any month section.
 
 At the audited implementation parent, the application multiplied the incoming
 text scale by 1.5 on screens whose shortest side was at least 600. The October 5
@@ -527,3 +528,35 @@ contributor list remain valid. Existing enlarged-text tests and approved visual
 references are retained. The app-root tablet regression exercises platform
 scaling at phone, tablet, rotated, and Split View widths with representative
 Pages and flow-detail content.
+
+
+## 2026-10-06 month pronunciation button re-audit
+
+Compared `ScrollingCalendarMonthHeader` against the served parent
+`d47cfe934c8a613e6d44fadbba7f19d2ea7870cf`. Both versions constrain the outer
+banner to `58 + 24 = 82` logical pixels, with the divider painted as a foreground
+border. The earlier prose's 58-pixel statement described only the month band;
+the 24-pixel weekday band already existed in that parent.
+
+The pronunciation control adds horizontal allocation inside the month band.
+Its 48-pixel touch target fits within the existing 58-pixel band after the
+internal vertical padding changes from 6/7 to 5/5. The fitted text remains
+single-line; only the text fits down, leaving the button and 4-pixel gap fixed.
+Speech activity replaces the icon inside the same control and adds no extent.
+
+The parent `Column` still places the banner above `Expanded(child: body)`.
+The body viewport therefore loses the same 82 pixels. Ordinary-month and Heriu
+section renderers, marker proxies, sliver topology, expansion equations,
+scroll-coordinate ownership, and restoration geometry are unchanged. All
+other audited source-fragment digests still match. The closed contributor
+list and section equations remain complete, with no new contributor.
+
+The month-header regression verifies the exact 82-pixel outer height,
+24-pixel weekday band, 48-by-48 touch target and 22-by-22 icon for all 13 months
+at widths 320/390/430 and text scales 1.0/1.5 on iOS and Android. Existing
+forward/backward banner handoff tests and the real-calendar scroll smoke
+retain their assertions and additionally check the matching month recording.
+Local render-box sizes preserve exact dimension checks without floating-point
+roundoff from subtracting global coordinates; coordinate comparisons retain
+only the framework's numeric precision tolerance. No approved visual
+references, extent constants, contributor counts or guard assertions changed.

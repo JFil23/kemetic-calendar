@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show precisionErrorTolerance;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/app_theme.dart';
@@ -58,17 +59,39 @@ void main() {
             );
             final button = find.byType(PronounceIconButton);
             final target = tester.getRect(button);
-            final icon = tester.getRect(
-              find.descendant(of: button, matching: find.byType(Icon)),
+            final iconFinder = find.descendant(
+              of: button,
+              matching: find.byType(Icon),
             );
+            final icon = tester.getRect(iconFinder);
             final contextLabel = tester.getRect(
               find.byKey(const Key('scrolling-calendar-season-year')),
             );
             expect(target.left - label.right, closeTo(4, 0.001));
             expect(icon.left - label.right, closeTo(17, 0.001));
-            expect(target.size, const Size(48, 48));
-            expect(icon.size, const Size(22, 22));
-            expect(contextLabel.left - target.right, greaterThanOrEqualTo(12));
+            // Read local render sizes directly: subtracting fractional global
+            // coordinates can introduce roundoff even for exact fixed sizes.
+            expect(tester.getSize(button), const Size(48, 48));
+            expect(tester.getSize(iconFinder), const Size(22, 22));
+            expect(
+              contextLabel.left - target.right,
+              anyOf(
+                greaterThanOrEqualTo(12),
+                closeTo(12, precisionErrorTolerance),
+              ),
+            );
+            expect(
+              tester.getSize(find.byType(ScrollingCalendarMonthHeader)).height,
+              82,
+            );
+            expect(
+              tester
+                  .getSize(
+                    find.byKey(const Key('scrolling-calendar-weekday-row')),
+                  )
+                  .height,
+              24,
+            );
             expect(
               speechClipIds[tester
                   .widget<PronounceIconButton>(button)

@@ -84,7 +84,7 @@
       "file": "lib/features/calendar/scrolling_calendar_month_header.dart",
       "start": "class ScrollingCalendarMonthHeader extends StatelessWidget {",
       "end": null,
-      "sha256": "fa535225073349df60c7a49471ffdae3b4101a5971e4e6789a4295b5e0108273"
+      "sha256": "5d09712bdbf5fc0cd36a7238c12f6282c5b68a4fb974b1bd76d6f527784b7166"
     },
     {
       "name": "logical_section_domain",
