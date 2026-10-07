@@ -560,3 +560,29 @@ Local render-box sizes preserve exact dimension checks without floating-point
 roundoff from subtracting global coordinates; coordinate comparisons retain
 only the framework's numeric precision tolerance. No approved visual
 references, extent constants, contributor counts or guard assertions changed.
+
+
+## 2026-10-06 subdued pronunciation alignment re-audit
+
+Compared the banner with served parent
+`689544dbcdf08ec925fa5d2b92598595794a7774`. The month band remains 58 pixels,
+the weekday band remains 24, and the 82-pixel banner still sits outside the
+calendar viewport. The speech control retains a fixed 48-by-48 hit area with
+a 4-pixel layout gap. Only its glyph changes to 16 pixels and muted gold.
+The glyph moves inside that area: its horizontal offset retains the 17-pixel
+visible gap, while its vertical offset follows the fitted parenthetical's
+measured center. Measurement uses the same text styles, scaler and height
+behavior as MonthNameText. It neither changes label fitting nor adds height.
+
+The alignment regression retains every existing extent and spacing assertion,
+updates the icon-size expectation to the newly requested 16 pixels, and checks
+the icon/parenthetical centers for all 13 months at 320/390/430 pixels and
+1.0/1.5 text scale on iOS, Android and macOS. Static captures verify the real
+fonts in idle and active speech states. The real CalendarPage regression now
+scrolls forward and backward at 390-by-844 while one recording stays active,
+then verifies natural completion without replacing the recording.
+
+The section equations, sliver topology, scroll/restoration ownership, closed
+contributor list and all other fragment digests are unchanged. No approved
+visual reference was regenerated. Speech playback no longer schedules unused
+per-frame position polling; it still ends through the audio completion stream.

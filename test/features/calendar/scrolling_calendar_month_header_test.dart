@@ -69,10 +69,14 @@ void main() {
             );
             expect(target.left - label.right, closeTo(4, 0.001));
             expect(icon.left - label.right, closeTo(17, 0.001));
+            final parenthetical = tester.getRect(
+              find.byKey(const Key('scrolling-calendar-month-parenthetical')),
+            );
+            expect(icon.center.dy, closeTo(parenthetical.center.dy, 0.001));
             // Read local render sizes directly: subtracting fractional global
             // coordinates can introduce roundoff even for exact fixed sizes.
             expect(tester.getSize(button), const Size(48, 48));
-            expect(tester.getSize(iconFinder), const Size(22, 22));
+            expect(tester.getSize(iconFinder), const Size(16, 16));
             expect(
               contextLabel.left - target.right,
               anyOf(
@@ -106,6 +110,7 @@ void main() {
     variant: TargetPlatformVariant({
       TargetPlatform.iOS,
       TargetPlatform.android,
+      TargetPlatform.macOS,
     }),
   );
 

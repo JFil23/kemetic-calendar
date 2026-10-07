@@ -10,6 +10,9 @@ class PronounceIconButton extends StatelessWidget {
   final double size;
   final bool isPhonetic;
 
+  /// Optical alignment of the glyph within the unchanged touch target.
+  final Offset iconOffset;
+
   const PronounceIconButton({
     super.key,
     required this.speakText,
@@ -17,6 +20,7 @@ class PronounceIconButton extends StatelessWidget {
     required this.color,
     this.size = 22,
     this.isPhonetic = false,
+    this.iconOffset = Offset.zero,
   });
 
   @override
@@ -42,10 +46,13 @@ class PronounceIconButton extends StatelessWidget {
           ),
           constraints: expandedIconButtonConstraints(context),
           visualDensity: expandedVisualDensity(context),
-          icon: Icon(
-            isActive ? Icons.stop_circle_outlined : Icons.volume_up_rounded,
-            color: color,
-            size: size,
+          icon: Transform.translate(
+            offset: iconOffset,
+            child: Icon(
+              isActive ? Icons.stop_circle_outlined : Icons.volume_up_rounded,
+              color: color,
+              size: size,
+            ),
           ),
           onPressed: () async {
             try {

@@ -28,6 +28,8 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
   static const double height = monthBandHeight + weekdayBandHeight;
   static const double _weekdayHorizontalInset = 26;
   static const double _weekdayColumnGap = 3;
+  static const double _speechTargetSize = 48;
+  static const double _speechGap = 4;
 
   final KemeticMonth month;
   final String yearLabel;
@@ -35,6 +37,23 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
   final String gregorianMonthName;
   final String gregorianYearLabel;
   final List<String> weekdayLabels;
+
+  static const _primaryStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 29,
+    height: 1,
+    fontWeight: FontWeight.w600,
+    fontFamily: 'CormorantGaramond',
+    fontFamilyFallback: ['GentiumPlus', 'NotoSans', 'Roboto'],
+  );
+  static final _parentheticalStyle = TextStyle(
+    color: const Color(0xFFA08648).withValues(alpha: 0.88),
+    fontSize: 17,
+    height: 1,
+    fontWeight: FontWeight.w400,
+    fontFamily: 'CormorantGaramond',
+    fontFamilyFallback: const ['GentiumPlus', 'NotoSans', 'Roboto'],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -72,85 +91,89 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Row(
-                        children: [
-                          // Fit only the label so the speech target and its
-                          // gap never shrink with a longer month name.
-                          Flexible(
-                            child: FittedBox(
-                              key: const Key('scrolling-calendar-month-label'),
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
-                                children: [
-                                  ShaderMask(
-                                    shaderCallback: monthGradient.createShader,
-                                    blendMode: BlendMode.srcIn,
-                                    child: MonthNameText(
-                                      primaryMonthName,
-                                      key: const Key(
-                                        'scrolling-calendar-month-name',
-                                      ),
-                                      maxLines: 1,
-                                      softWrap: false,
-                                      overflow: TextOverflow.fade,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 29,
-                                        height: 1,
-                                        fontWeight: FontWeight.w600,
-                                        fontFamily: 'CormorantGaramond',
-                                        fontFamilyFallback: [
-                                          'GentiumPlus',
-                                          'NotoSans',
-                                          'Roboto',
-                                        ],
-                                      ),
-                                    ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final iconOffset = _speechIconOffset(
+                            context,
+                            constraints,
+                          );
+                          return Row(
+                            children: [
+                              // Fit only the label so the speech target and its
+                              // gap never shrink with a longer month name.
+                              Flexible(
+                                child: FittedBox(
+                                  key: const Key(
+                                    'scrolling-calendar-month-label',
                                   ),
-                                  if (!showGregorian &&
-                                      month.displayTransliteration
-                                          .trim()
-                                          .isNotEmpty) ...[
-                                    const SizedBox(width: 8),
-                                    MonthNameText(
-                                      '(${month.displayTransliteration})',
-                                      maxLines: 1,
-                                      softWrap: false,
-                                      overflow: TextOverflow.fade,
-                                      style: TextStyle(
-                                        color: const Color(
-                                          0xFFA08648,
-                                        ).withValues(alpha: 0.88),
-                                        fontSize: 17,
-                                        height: 1,
-                                        fontWeight: FontWeight.w400,
-                                        fontFamily: 'CormorantGaramond',
-                                        fontFamilyFallback: const [
-                                          'GentiumPlus',
-                                          'NotoSans',
-                                          'Roboto',
-                                        ],
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      ShaderMask(
+                                        shaderCallback:
+                                            monthGradient.createShader,
+                                        blendMode: BlendMode.srcIn,
+                                        child: MonthNameText(
+                                          primaryMonthName,
+                                          key: const Key(
+                                            'scrolling-calendar-month-name',
+                                          ),
+                                          maxLines: 1,
+                                          softWrap: false,
+                                          overflow: TextOverflow.fade,
+                                          style: _primaryStyle,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ],
+                                      if (!showGregorian &&
+                                          month.displayTransliteration
+                                              .trim()
+                                              .isNotEmpty) ...[
+                                        const SizedBox(width: 8),
+                                        MonthNameText(
+                                          '(${month.displayTransliteration})',
+                                          key: const Key(
+                                            'scrolling-calendar-month-parenthetical',
+                                          ),
+                                          maxLines: 1,
+                                          softWrap: false,
+                                          overflow: TextOverflow.fade,
+                                          style: _parentheticalStyle,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          if (!showGregorian) ...[
-                            const SizedBox(width: 4),
-                            PronounceIconButton(
-                              key: const Key('scrolling-calendar-month-speech'),
-                              speakText: SpeechResolver.month(month: month),
-                              utteranceId: 'calendar-banner-month-${month.id}',
-                              color: KemeticGold.base,
-                            ),
-                          ],
-                        ],
+                              if (!showGregorian) ...[
+                                const SizedBox(width: _speechGap),
+                                SizedBox(
+                                  width: _speechTargetSize,
+                                  height: _speechTargetSize,
+                                  child: PronounceIconButton(
+                                    key: const Key(
+                                      'scrolling-calendar-month-speech',
+                                    ),
+                                    speakText: SpeechResolver.month(
+                                      month: month,
+                                    ),
+                                    utteranceId:
+                                        'calendar-banner-month-${month.id}',
+                                    color: const Color(
+                                      0xFFA08648,
+                                    ).withValues(alpha: 0.72),
+                                    size: 16,
+                                    iconOffset: iconOffset,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -225,5 +248,73 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Offset _speechIconOffset(BuildContext context, BoxConstraints constraints) {
+    if (showGregorian || month.displayTransliteration.trim().isEmpty) {
+      return const Offset(-3, 0);
+    }
+    // Match MonthNameText's baseline and height behavior, then apply the same
+    // scale-down fit. This keeps the icon centered on the actual parenthetical
+    // text without shifting either label or reducing the button's hit area.
+    TextPainter measure(String text, TextStyle style) => TextPainter(
+      text: TextSpan(
+        text: text,
+        style: DefaultTextStyle.of(
+          context,
+        ).style.merge(style).copyWith(letterSpacing: 0),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      textHeightBehavior: const TextHeightBehavior(
+        applyHeightToFirstAscent: false,
+        applyHeightToLastDescent: false,
+      ),
+      maxLines: 1,
+    )..layout();
+    final primary = measure(month.displayShort, _primaryStyle);
+    final parenthetical = measure(
+      '(${month.displayTransliteration})',
+      _parentheticalStyle,
+    );
+    final primaryBaseline = primary.computeDistanceToActualBaseline(
+      TextBaseline.alphabetic,
+    );
+    final parentheticalBaseline = parenthetical.computeDistanceToActualBaseline(
+      TextBaseline.alphabetic,
+    );
+    final baseline = primaryBaseline > parentheticalBaseline
+        ? primaryBaseline
+        : parentheticalBaseline;
+    final primaryDescent = primary.height - primaryBaseline;
+    final parentheticalDescent = parenthetical.height - parentheticalBaseline;
+    final height =
+        baseline +
+        (primaryDescent > parentheticalDescent
+            ? primaryDescent
+            : parentheticalDescent);
+    final naturalSize = Size(primary.width + 8 + parenthetical.width, height);
+    final fitted = applyBoxFit(
+      BoxFit.scaleDown,
+      naturalSize,
+      Size(
+        (constraints.maxWidth - _speechTargetSize - _speechGap).clamp(
+          0,
+          double.infinity,
+        ),
+        _speechTargetSize,
+      ),
+    );
+    final scale = fitted.destination.height / height;
+    final centerOffset =
+        (baseline -
+            parentheticalBaseline +
+            parenthetical.height / 2 -
+            height / 2) *
+        scale;
+    primary.dispose();
+    parenthetical.dispose();
+    // Keep the visible 17px gap as the icon shrinks, without moving its target.
+    return Offset(-3, centerOffset);
   }
 }

@@ -10,7 +10,9 @@ abstract interface class SpeechAudio {
 
 /// Each utterance owns a player, so old completion events cannot stop a new clip.
 class DeviceSpeechAudio implements SpeechAudio {
-  final _player = AudioPlayer();
+  // Pronunciation has no progress UI. Avoid scheduling position queries on
+  // every scroll frame, including queries that can outlive clip completion.
+  final _player = AudioPlayer()..positionUpdater = null;
   bool _disposed = false;
   @override
   Stream<void> get completed => _player.onPlayerComplete;
