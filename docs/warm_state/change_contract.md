@@ -1050,3 +1050,13 @@ image comparison across actual registered Inbox/profile/feed/Pages routes,
 1002-row pagination, cold/warm reads, background refresh, account change and
 access-denial behavior. Existing per-kind and My Flows visual references remain
 unchanged; the full App gate is still required.
+
+## October 6 Library familiar-wisdom integration
+
+The approved wording pass updates the same 61 bundled articles. The new
+`approved_library_rewrite.v3.json` fixture binds their bodies to the approved
+editorial source; the v2 and earlier fixtures remain unchanged. Opening hooks,
+165 section headings, and 12 distinct tables are preserved. Hathor's existing
+Ma'at clickthrough follows the revised curly-apostrophe spelling and retains
+its target. The reader, routes, retired entries, account-owned insights,
+bookmarks, cache keys, and persistence owners are unchanged.

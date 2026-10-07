@@ -5,11 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/nodes/kemetic_node_library.dart';
 
 void main() {
-  // Immutable expectations derived from the user attachment, not app output.
+  // Immutable expectations from the user-approved editorial draft, not app output.
   final reference =
       jsonDecode(
             File(
-              'test/fixtures/library/approved_library_rewrite.v2.json',
+              'test/fixtures/library/approved_library_rewrite.v3.json',
             ).readAsStringSync(),
           )['nodes']
           as Map<String, dynamic>;

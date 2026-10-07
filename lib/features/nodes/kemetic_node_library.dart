@@ -192,7 +192,7 @@ Matter gathered into stars; stars produced the elements of later worlds; Earth f
 | First Loosh-based exchange | Emotional presence begins feeding the field, not only the tribe |
 | Ma'at awakens | Not as deity alone, but as felt alignment — consciousness recognizing order |
 
-Ma'at is present in these relations of formation, inheritance, and change. Recognizing them means recognizing the conditions on which a life depends, including those that began long before it.''',
+Ma'at belongs to these relations from the beginning, before Earth takes form. A human life depends on this order of formation, inheritance, and change, already at work long before it.''',
     linkMap: [
       KemeticNodeLink(phrase: "Ra", targetId: "ra"),
       KemeticNodeLink(phrase: "Ma'at", targetId: "maat"),
@@ -280,7 +280,7 @@ Changes in anatomy, diet, climate, social life, technology, and communication ac
 
 ## When Survival Starts Remembering Itself
 
-A burial gave the dead deliberate care. A repeated mark could remain after the hand that made it had gone. A shared story let people who had never witnessed an event act on what others remembered. Human activity could reach beyond its immediate occasion.
+A burial gave the dead deliberate care. A repeated mark could remain after the hand that made it had gone. A shared story could carry what one generation had learned to children yet to be born, who could tell it to their children. Experience gained a life beyond its first witness, allowing people to act on what others remembered.
 
 **Shared life and sacred awareness**
 
@@ -306,7 +306,7 @@ Keeping time and recognizing place also meant attending to sky and land.
 | Orbital changes | Nomadic patterning, seasonal wisdom |
 | Sahara's greening | First sacred geographies, star-watching cultures |
 
-Memory and coordination let intelligence serve a shared life. What one person learned could remain useful to others, and what a person did could be considered beyond the appetite that prompted it.''',
+Memory and coordination let intelligence serve a shared life. A person could consider what an action meant for others, beyond the appetite that prompted it.''',
     linkMap: [
       KemeticNodeLink(phrase: "Ma'at", targetId: "maat"),
       KemeticNodeLink(phrase: "Sahara's greening", targetId: "green_sahara"),
@@ -337,7 +337,7 @@ Pottery, burials, bones, tools, rock art, and campsites preserve the activities 
 
 ## The Great Drying
 
-As the Sahara dried, communities moved toward the Nile, the Sahel, the Mediterranean, and other places where water and grazing remained. People took different routes, at different times, carrying experience of land and seasons with them.
+The time of lakes and grasslands gave way to drier conditions. Communities moved toward the Nile, the Sahel, the Mediterranean, and other places where water and grazing remained. They took different routes, at different times, carrying knowledge of land and seasons into the places where life could continue.
 
 Kemet emerged within this older northeastern African world. Pastoral traditions, cattle symbolism, and observation of land and sky preceded the dynastic state. Some of those practices continued, changed, and became established in the Nile Valley.
 
@@ -371,7 +371,7 @@ Too little water could bring scarcity; too much could destroy settlements and in
 
 Water also covered field boundaries. When it withdrew, the land had to be measured again. A false boundary could take a household's ground; a false flood reading could change what it owed in tax. An accurate measure helped people keep what was theirs.
 
-Preparation, fair distribution, and storage carried the flood's benefit beyond its arrival. Ma'at continued in the food available to a household, the tax it paid, and the grain kept for a leaner year. The water could not be ordered to come, but its abundance could be received with care.''',
+What the flood brings must be measured honestly, distributed fairly, and gathered into store for leaner years. Ma'at continues in the food a household receives, the land it keeps, and the tax it is asked to pay.''',
     linkMap: [
       KemeticNodeLink(phrase: "Ausar", targetId: "ausar"),
       KemeticNodeLink(phrase: "hꜣw", targetId: "haw"),
@@ -399,7 +399,7 @@ The contrast entered sacred imagery. Set could belong to the Red Land, while cul
 
 ## A Country That Had to Be Re-Made
 
-The flood covered fields and blurred their boundaries. Records and measurement helped restore those divisions when the water withdrew. Ma'at required that care again each time the land reappeared.
+The flood covered fields and blurred their boundaries. When the water withdrew, each boundary had to return to its rightful place, not be moved for someone else's gain. Records and measurement helped each household keep its ground. Ma'at required that care again each time the land reappeared.
 
 The narrow southern valley and the broad northern Delta also remained distinct within their union. Kingship named them the Two Lands, bringing Upper and Lower Kemet together without erasing their different landscapes, histories, and connections.
 
@@ -454,7 +454,7 @@ During the Twenty-Fifth Dynasty, Kushite rulers conquered Kemet and ruled as pha
 
 Medu Neter joined sound, image, object, title, number, ritual, and sacred association in writing used for administration and religion. The House of Life trained scribes, copied texts, preserved calendars, and maintained medical and ritual knowledge. Names could remain legible beyond the lives of those who first wrote them.
 
-Measuring, writing, copying, teaching, and building gave communal knowledge forms that others could use. Ma'at depended on that repeated work as power and surplus grew: people had to preserve what had been learned and keep it available to those who came after them.''',
+Each generation received knowledge it had not first discovered and records it had not first written. Measuring, copying, teaching, and building kept that inheritance usable. As power and surplus grew, Ma'at depended on the work of passing it to those who would come next.''',
     linkMap: [
       KemeticNodeLink(phrase: "Kemet", targetId: "kemet"),
       KemeticNodeLink(phrase: "Nile", targetId: "nile"),
@@ -481,9 +481,9 @@ An account of living by ma’at gives that responsibility particulars. In his au
 
 In funerary judgment scenes, the deceased’s heart is weighed against Ma’at’s feather, or sometimes a small image of the goddess. Ma’at supplies the standard for the assessment. The declarations associated with judgment make its requirements specific.
 
-In the *Book of Coming Forth by Day*, commonly called the *Book of the Dead*, the deceased denies stealing, lying, causing hunger, and taking another person’s land. The Declarations of Innocence extend to altering the weights of a balance and diverting water from its course. Obligations to the gods and the dead appear among them, including the protection of food offerings. The broad terms truth, justice, and order take the form of things a person could do to another person’s livelihood, possessions, or means of support.
+In the *Book of Coming Forth by Day*, commonly called the *Book of the Dead*, the deceased denies stealing, lying, causing hunger, and taking another person’s land. A just balance and honest weights belong among the requirements of Ma’at: the Declarations of Innocence deny altering the weights or diverting water from its course. Obligations to the gods and the dead include protecting food offerings. Truth and justice reach into the things by which a household keeps its livelihood.
 
-The deceased then addresses the divine judges with an account of what they have given: bread to the hungry, water to the thirsty, clothing to those without it, a boat to someone needing passage, and offerings to the gods and the departed. These acts form part of the same justification as the denials. Alongside the claim to have caused no hunger stands the claim to have fed someone who was hungry.''',
+The deceased then tells the divine judges they have fed the hungry, given water to the thirsty, clothed the naked, provided a boat for someone needing passage, and made offerings to the gods and departed. These acts form part of the same justification as the denials. Alongside the claim to have caused no hunger stands the claim to have fed someone who was hungry.''',
     linkMap: [
       KemeticNodeLink(phrase: "heart", targetId: "ib"),
       KemeticNodeLink(
@@ -507,7 +507,7 @@ The royal formula places Ma'at “in the place of Isfet.” Keeping it there req
 
 Apepi threatens Ra's night journey and the return of dawn. The serpent's threat recurs, and the response must recur with it.
 
-An error can also travel through an ordinary record. A false grain count produces a bad levy and harms a household. Left in use, that count may become a precedent: the next decision inherits the wrong in the last one.
+One false count can undo much good. Entered into a grain record, it produces a bad levy and harms a household. Left uncorrected, it can become a precedent: the next decision inherits the wrong in the last one.
 
 ## Disorder With Intelligence
 
@@ -532,7 +532,7 @@ Its fragments preserve royal annals: kings in sequence, reigns divided into year
 
 ## A Year Had Contents
 
-A reign becomes a series of particular years: a flood measured, cattle counted, a ceremony held, an act of administration recorded. Sacred events and material conditions occupy the same account.
+The acts of a reign were written into particular years: a flood measured, cattle counted, a ceremony held, an act of administration recorded. Sacred events and material conditions occupy the same account.
 
 The flood level affected cultivation, taxation, storage, and expectations for the coming year. Recorded beside a king's acts, it keeps the conditions of his rule visible alongside what he did.
 
@@ -560,13 +560,13 @@ Among them is the diary of Merer, an inspector whose crew transported limestone 
 
 Stone had to be quarried, then moved along river and canal routes. Crews needed provisions, officials coordinated timing, and deliveries had to arrive in sequence. Records accompanied the work as it moved.
 
-Akhet-Khufu, the “horizon of Khufu,” depended on thousands of these coordinated actions. A schedule, a handoff, a repeated task, an entry in a record—each had a place in the undertaking.
+Akhet-Khufu, the “horizon of Khufu,” depended on thousands of these coordinated actions. Faithfulness in the small task helped make the great work possible: a boat arriving, a delivery recorded, a handoff made at the right time.
 
 ## Record Prevents Scale From Becoming Chaos
 
 Merer's notes place Djehuty's measure within the making of sacred architecture. The monument's purpose depended on work that could be followed and coordinated, delivery by delivery.
 
-At that scale, the smaller actions still had to reach their appointed places and times. The records let the work remain manageable at the level where people actually performed it.''',
+The diary lets the pyramid be understood at the scale where people could actually build it.''',
     linkMap: [KemeticNodeLink(phrase: "Djehuty", targetId: "djehuty")],
   ),
   KemeticNode(
@@ -581,7 +581,7 @@ Imhotep served Djoser in the Third Dynasty and became associated with royal monu
 
 ## The Step Pyramid as Proof
 
-A stone building needs foundations that can carry its weight. Blocks must be quarried, transported, shaped, and placed, with a large labor force working together. Geometry, materials, supervision, correction, and time all entered the construction.
+A wise builder begins with what will hold. Foundations must carry the stone above them; blocks must be quarried, transported, shaped, and placed, with a large labor force working together. Geometry, materials, supervision, correction, and time all entered the construction.
 
 Ptah's conception taking form and Djehuty's measure meet in this work. The plan has to remain recognizable as it passes into material, through the hands that build it.
 
@@ -615,7 +615,7 @@ Papyrus Chester Beatty IV describes how a writer's name can endure in copied wor
 
 A copied error can change a name, a quantity, a ritual sequence, or a formula. Djehuty's care for accuracy belongs within the act of preservation: what is passed on must remain trustworthy enough to use.
 
-People had to read, understand, test, teach, and apply the knowledge they received. That work kept it available across generations, leaving another person able to continue the practice.''',
+People had to read, understand, test, and apply the knowledge they received, then teach it diligently enough for another person to use it. Accuracy mattered each time the practice changed hands.''',
     linkMap: [
       KemeticNodeLink(
         phrase: "Papyrus Chester Beatty IV",
@@ -639,7 +639,7 @@ The 365-day civil calendar moved gradually against the natural solar year. Over 
 
 ## What hꜣw Can Carry From It
 
-In hꜣw's Peret sequence, Great Burning turns attention to knowledge under pressure. A method that works in easy conditions may meet fatigue, resistance, and repetition. What has been learned must still be able to guide the action.
+In hꜣw's Peret sequence, Great Burning gives an image of knowledge tried under pressure. A method meets fatigue, resistance, and repetition; what has been learned must still be able to guide the action.
 
 Ma'at gives that pressure a measure. Pressure can refine what is sound, but intensity that damages what it was meant to strengthen becomes Isfet.''',
     linkMap: [
@@ -664,7 +664,7 @@ Ptah is shown mummiform, holding signs of life, stability, and authority. His co
 
 The account survives on the Shabaka Stone, a Twenty-Fifth Dynasty monument from around 710 BCE. The inscription says it preserves an older, damaged source.
 
-Perception reaches the heart, the heart conceives, and the tongue gives command. The same sequence enters ritual and craft: words give an offering its direction, a decree gives intention a recognized form, and a sculptor or builder works from an idea toward measured stone.
+Perception reaches the heart, and the heart teaches the tongue what to say. Utterance gives what was conceived a place in the world. In ritual and craft, that movement continues into what is made: an offering directed, a decree expressed, stone shaped according to a plan.
 
 ## Creation Is Responsible
 
@@ -688,7 +688,7 @@ The Instruction of Ptahhotep asks that speech remain within knowledge. Djehuty b
     aliases: [],
     body: r'''Shu is the space that lets things become themselves.
 
-In the Heliopolitan creation tradition, Shu lifts Nut, the sky, away from Geb, the earth. Their separation opens the room in which air and light can move. Sky and earth can begin to function because there is space between them.
+In the Heliopolitan creation tradition, Shu divides the sky above from the earth below, lifting Nut away from Geb. Their separation opens the room in which air and light can move, allowing sky and earth to function.
 
 ## The Space Between
 
@@ -720,7 +720,7 @@ She arches over the earth with the stars within her. In the west she receives th
 
 Ra's daily course passes through a mother's body, from being swallowed at evening to rebirth at dawn. The heavens hold the stars and carry the sun through its disappearance.
 
-Coffin lids can identify with Nut's body, placing the deceased beneath a sky that is also a womb. Night and death take on the possibility of being carried through a change whose outcome is still hidden.
+Beneath Nut, the dead are held as a child is held by its mother. Coffin lids can identify with her body, placing the deceased beneath a sky that is also a womb. Night and death take on the possibility of being carried through a change whose outcome is still hidden.
 
 ## Holding Is Work
 
@@ -745,7 +745,7 @@ He is the sun completing its course. Kemetic solar imagery follows his movement 
 
 Khepri names the sun becoming visible at dawn. Ra is solar power fully underway; Atum is its completion, the setting form entering the west. The three names mark stages of one course.
 
-In the solar barque, Ra crosses the day and enters the Duat at night. The Amduat gives the night twelve hours, through which he passes opposition and finds renewal. In its deepest region that renewal is linked with Ausar, the power of restoration within death. Khepri's dawn is prepared there, before the sun returns.
+In the solar barque, Ra crosses the day and enters the Duat at evening. The Amduat gives the night twelve hours, through which he passes opposition and finds renewal. In its deepest region that renewal is linked with Ausar, the power of restoration within death. By morning, he comes forth renewed as Khepri. Dawn brings into view what the night has carried through.
 
 ## Ra and Ma'at
 
@@ -776,7 +776,7 @@ The scarab rolls its rounded ball across the ground and works with buried materi
 
 Dawn can look sudden. The sun has already made its night journey by the time it appears.
 
-A practiced skill can look effortless; a decision can become clear after months of confusion. A restored life can look new to people who never saw the work done in darkness. The Duat gives that hidden phase a sacred structure, and Khepri is the emergence that follows it.
+We can watch a life change without knowing all that made it grow. A practiced skill may suddenly look effortless; a decision may become clear after months of confusion. A restored life can look new to people who never saw the work done in darkness. The Duat gives that hidden phase a sacred structure, and Khepri is the emergence that follows it.
 
 ## Becoming Is Not Escape
 
@@ -805,7 +805,7 @@ Intention meets the conditions of what is being shaped. Bodies have limits and c
 
 ## Body and Ka
 
-Kemetic scenes can show Khnum forming the body and ka together. Material structure and animating presence are prepared in relation, the vessel alongside what will live through it.
+In scenes of Khnum at work, body and ka take form together under the potter's hands. Material structure and animating presence are prepared in relation, the vessel alongside what will live through it.
 
 Purpose needs a form capable of carrying it: tools, routines, and spaces that can sustain what is intended. Ptah gives conception its place in creation; Khnum attends to the shaping. Form affects what can live within it, and careful work gives that life a durable place to stay.''',
     linkMap: [
@@ -826,7 +826,7 @@ Writing, reckoning, measurement, the moon, time, speech, and divine record fall 
 
 ## Measure Before Judgment
 
-In the Hall of Two Truths, Anpu steadies the scale, Ma'at's feather supplies the standard, and Djehuty records the result. What the measure reveals becomes what is written. Desire has no place to alter the weight.
+An account may seem right before it has been examined. Judgment requires a hearing and an honest measure. In the Hall of Two Truths, Anpu steadies the scale, Ma'at's feather supplies the standard, and Djehuty records the result. What is written must answer to what the measure reveals; desire has no place to alter the weight.
 
 Calendars, boundaries, offerings, taxes, and ritual timing depend on the same care. A count carries consequences into everything arranged by it.
 
@@ -856,7 +856,7 @@ Set kills and scatters him. Aset searches, Nebet-Het mourns and attends, and Anp
 
 ## Gathered, Not Replaced
 
-The Pyramid Texts repeatedly describe Heru gathering his father's limbs. The pieces must be found and placed in relation before the body can be whole.
+Restoration gathers what was scattered and binds the broken parts together. The Pyramid Texts repeatedly describe Heru gathering his father's limbs, finding the pieces and placing them in relation so the body can be whole.
 
 The dead likewise needed body, ka, ba, ren, ib, sheut, memory, and offering kept together. Ausar gave funerary thought a form for this work of assembly, through which continuation became possible.
 
@@ -896,7 +896,7 @@ Repair includes establishing the truth of what happened. What has been gathered 
     aliases: ["Isis", "Aset"],
     body: r'''Aset rarely wins by using more force.
 
-She searches carefully, finds what is hidden, protects what is vulnerable, and speaks when speech can change the situation. Heka, effective sacred power, belongs to this resourceful work. Her stories follow actions placed where direct force cannot reach.
+She puts wisdom to work: searching for what is hidden, sheltering what is vulnerable, and speaking when words can change the situation. Heka, effective sacred power, belongs to this resourceful work. Her care depends on finding where an action can make a difference.
 
 ## She Finds What Was Scattered
 
@@ -942,7 +942,7 @@ Someone must remain near those who can no longer speak for themselves. Nebet-Het
 
 Between inside and outside, the living and the dead, the known and the hidden, care can fall away because everyone assumes someone else is providing it. Nebet-Het attends these boundaries.
 
-A funeral or a hospital room can require accompaniment through a passage no one can hurry or solve. Ma'at gives weight to this continued presence: staying while the old condition has ended and the new one has yet to arrive.''',
+A funeral or a hospital room may ask someone to sit beside the grieving and weep with them. There may be no word that makes the passage easier. Ma'at gives weight to remaining there, keeping company through what no one can hurry or solve.''',
     linkMap: [
       KemeticNodeLink(phrase: "Aset", targetId: "aset"),
       KemeticNodeLink(phrase: "Ausar", targetId: "ausar"),
@@ -960,15 +960,15 @@ Heru has the rightful claim. In the Contendings of Heru and Set, occupying a pos
 
 ## The Son Who Tends His Father
 
-The Pyramid Texts repeatedly describe Heru gathering his father's limbs, providing for him, and restoring what was damaged. His claim begins in this care for Ausar. What the heir receives in broken condition becomes part of his work.
+Heru honors his father by tending what has been broken. The Pyramid Texts repeatedly describe him gathering Ausar's limbs, providing for him, and restoring what was damaged. The inheritance reaches him as work to be done.
 
 Lineage places Heru in the succession; what he does for his father demonstrates his fitness to continue it.
 
 ## Contest and Recognition
 
-Set can defend, fight, and seize. His strength keeps the dispute alive, while Heru's claim rests on continuity through Ausar. The divine tribunal must determine which claim can support order over time.
+A throne is made secure through the right relation it preserves. Set can defend, fight, and seize; his strength keeps the dispute alive. Heru's claim rests on continuity through Ausar, and the divine tribunal must determine which claim can sustain order beyond the contest.
 
-Force has necessary uses, but authority reaches everyone placed beneath it. The recognition of a rightful claim establishes more than who is strongest.
+Force has necessary uses, but the tribunal’s judgment concerns everyone who will live beneath that authority.
 
 ## Heru in the Living King
 
@@ -1006,7 +1006,7 @@ The Contendings with Heru carries this injury into the question of authority. Se
 
 Pressure can expose weakness in an unchallenged claim or reveal whether a boundary can hold. Set gives trial a place in the discovery of what is stable.
 
-Some threats require confrontation. The force used against them remains answerable to what it protects; its place in Ma'at depends on that relation.''',
+Some threats require confrontation. What strength makes possible must still be judged by what it sustains. Its place in Ma'at depends on whether it protects the relations that allow the whole to continue.''',
     linkMap: [
       KemeticNodeLink(phrase: "Nile", targetId: "nile"),
       KemeticNodeLink(phrase: "Apepi", targetId: "serpent"),
@@ -1032,7 +1032,7 @@ Natron, wrapping, anointing, ritual speech, and preservation make that preparati
 
 ## He Holds the Scale
 
-In the Hall of Two Truths, Anpu steadies the balance so that it can reveal the relation between heart and feather accurately. Djehuty records the result, and Ma'at supplies the standard. Anpu's care belongs to the procedure through which the result becomes known.
+Anpu keeps the balance just. In the Hall of Two Truths, he steadies it so that the relation between heart and feather can be known accurately. His care lies in the holding: Ma'at supplies the standard, and Djehuty records what the scale reveals.
 
 ## What Boundaries Need
 
@@ -1062,7 +1062,7 @@ Apepi seeks to stop the solar barque and prevent dawn. Mehen coils around Ra to 
 
 ## The Uraeus
 
-At the king's brow, the rearing cobra of the uraeus directs danger outward. It warns and protects, placing the power to strike where it can defend the king.
+Set upon the king's brow, the rearing cobra of the uraeus directs danger outward. It warns and protects. The form that can threaten life can also stand guard over it.
 
 ## Aset's Serpent
 
@@ -1087,9 +1087,9 @@ Sky and cow, motherhood and sexuality, music, joy, intoxication, welcome, the we
 
 ## Joy Is Not Outside the Sacred
 
-The sistrum, music, beer, dance, beauty, and festival give pleasure a sacred place. Hathor brings these pleasures into the life that order sustains.
+The sistrum, music, beer, dance, beauty, and festival make room for a glad heart. Hathor gives these pleasures a place in the life that Ma’at sustains.
 
-Music can bring bodies into rhythm together; celebration can renew relationships. Beauty makes order felt, and delight gives people a way to be restored.
+Such gladness can do a person good. Music brings bodies into rhythm together; celebration renews relationships. Beauty makes order felt, and delight gives people a way to be restored.
 
 ## The Eye Comes Home
 
@@ -1101,11 +1101,11 @@ Sekhmet and Hathor can express different conditions of the same power: burning f
 
 Hathor receives the dead at the western horizon, where the sun enters the hidden region. Her welcome reaches from joy at the beginning of life to a threshold people fear.
 
-Pleasure, beauty, and warmth belong within Ma'at's sustaining work. They help make a stable life worth inhabiting while that work is still being done.''',
+Pleasure, beauty, and warmth help make a stable life worth inhabiting.''',
     linkMap: [
       KemeticNodeLink(phrase: "Eye of Ra", targetId: "eye_of_ra"),
       KemeticNodeLink(phrase: "Sekhmet", targetId: "sekhmet"),
-      KemeticNodeLink(phrase: "Ma'at", targetId: "maat"),
+      KemeticNodeLink(phrase: "Ma’at", targetId: "maat"),
     ],
   ),
   KemeticNode(
@@ -1133,7 +1133,7 @@ Attention can narrow into obsession, protection turn into aggression, or a respo
 
 Ma'at holds perception, action, and proportion in relation. What has been seen may require a response strong enough to restore what is threatened.
 
-The response also needs an end. When its work is done, power must be able to return; otherwise action continues as wrath.''',
+Power must also be able to govern its own response. When its purpose has been met, the Eye must be able to return; otherwise action continues as wrath.''',
     linkMap: [
       KemeticNodeLink(phrase: "Ra", targetId: "ra"),
       KemeticNodeLink(phrase: "Sekhmet", targetId: "sekhmet"),
@@ -1164,7 +1164,7 @@ Heat can kill or purge; a blade can wound or remove what is killing the body. Se
 
 Sekhmet's force is terrifying. A boundary may require defense, a disease aggressive treatment, or a violent threat resistance; protection can call on dangerous powers.
 
-Their use remains answerable to what needs protecting. Enough force must reach the threat without becoming an appetite of its own.''',
+Anger may answer a threat; it must still answer to what needs protecting. Sekhmet’s force has to reach the danger and stop where its work is done. Allowed to continue beyond that point, a response begins to feed its own appetite.''',
     linkMap: [
       KemeticNodeLink(
         phrase: "Book of the Heavenly Cow",
@@ -1191,7 +1191,7 @@ Sopdet was associated with Aset, and Sah (Orion) with Ausar. Their movements gav
 
 ## A Fixed Reference
 
-Sopdet's rising gave observers a starting point from which to follow the other stars and the calendar. Repeated observation supported the decanal system. Djehuty's work of measurement begins with such a reference: something known well enough for a count to proceed from it.
+Sopdet's return became a sign for the season and the year, a starting point from which to follow the other stars and the calendar. Repeated observation supported the decanal system. Djehuty's work of measurement begins with such a reference: something known well enough for a count to proceed from it.
 
 ## The Long Drift
 
@@ -1227,7 +1227,7 @@ The circumpolar, imperishable stars remain above the horizon. Sah disappears and
 
 ## What the Sky Teaches
 
-Generations watched and recognized this pattern. Its position could change, and it could pass out of sight for a season, while the relationships that made it recognizable endured. Ma'at is present in that steadiness within movement, including the interval when the familiar form cannot be seen.''',
+The order of the heavens could be watched in Sah's course. Generations learned to recognize its movement, disappearance, and return. Its position changed, but the relationships that made the figure recognizable endured, including through the season when it passed out of sight. Ma'at is present in that steadiness within movement.''',
     linkMap: [
       KemeticNodeLink(phrase: "Ausar (Osiris)", targetId: "ausar"),
       KemeticNodeLink(phrase: "Sopdet (Sirius)", targetId: "sopdet"),
@@ -1253,7 +1253,7 @@ That orientation belonged with the dead as well. Their passage had gates, hours,
 
 ## Ten Days at a Time
 
-The civil year held twelve thirty-day months and five epagomenal days, with three ten-day periods in each month. hꜣw follows this ten-day rhythm, allowing time to notice movement and change before the month ends. Its reflective themes accompany those periods in the app.
+The civil year held twelve thirty-day months and five epagomenal days, with three ten-day periods in each month. hꜣw follows this rhythm as a way of numbering our days with attention. Its reflective themes give time to notice what has changed and consider it before the month ends.
 
 ## Why the Decans Matter Here
 
@@ -1282,7 +1282,7 @@ Music, sistrums, procession, and sacred drink belong to Hathor's festivals at De
 
 ## The Roof and the New Year
 
-At moments of renewal, ritual movement toward the roof brought the divine image into relation with solar light. The event depended on the image reaching that place at that time, bringing architecture, timing, and action together.''',
+Festival had its season, and the divine image its appointed place. At moments of renewal, movement toward the roof brought the image into relation with solar light. Architecture, timing, and action met in the observance.''',
     linkMap: [
       KemeticNodeLink(phrase: "Hathor", targetId: "hathor"),
       KemeticNodeLink(phrase: "decans", targetId: "decans"),
@@ -1310,7 +1310,7 @@ Royal names, divine titles, and offering language often run across Kemetic archi
 
 People, habits, and institutions can provide this kind of unnoticed support, carrying pressure that allows something else to remain open. Their work belongs to Ma'at through the passage it sustains.
 
-A support must also be able to pass the load onward. Absorbing it until the structure cracks defeats the purpose of holding it. Attention to where the weight belongs, and where it can go next, keeps the opening usable.''',
+A load can become too heavy for the support carrying it. Those who hold a household or institution open need others to bear the burden with them. Holding it alone until the structure cracks defeats the purpose of keeping a passage open.''',
     linkMap: [
       KemeticNodeLink(phrase: "offering", targetId: "offering_formula"),
       KemeticNodeLink(phrase: "Ma'at", targetId: "maat"),
@@ -1337,7 +1337,7 @@ Private individuals erected stelae at Abydos even when they could not be buried 
 
 In Seti I's temple, a sequence of earlier kings records a chosen lineage. Some rulers are absent from the Abydos King List; the names preserved make visible the inheritance the tradition wished to claim.
 
-What a culture continues to name helps form what later generations understand themselves to have inherited. At Abydos, place, ritual, and repetition kept that chosen memory active.''',
+The generations to come would inherit the names this tradition kept before them. At Abydos, processions, festivals, and inscriptions gave that chosen memory a place they could enter, take part in, and pass on.''',
     linkMap: [
       KemeticNodeLink(phrase: "Kemet", targetId: "kemet"),
       KemeticNodeLink(phrase: "Ausar (Osiris)", targetId: "ausar"),
@@ -1359,7 +1359,7 @@ The Amduat maps twelve hours of the solar journey, each asking something differe
 
 ## The Dead Need Equipment
 
-The Book of Coming Forth by Day and related funerary traditions provide names, formulas, identifications, and protections for the journey. A gate has conditions the traveler needs to understand before passing.
+Even in the shadow of death, the traveler needs a passage to follow. The Book of Coming Forth by Day and related funerary traditions provide names, formulas, identifications, and protections for the journey. A gate has conditions the traveler needs to understand before passing.
 
 The Ba must be free to travel, the Ren preserved, the heart ready for judgment, and the body maintained. These preparations keep the person from scattering and equip them to meet what the hidden region asks of them.
 
@@ -1404,7 +1404,7 @@ The Ba goes out and returns. The Ka is closer to an abiding presence, providing 
 
 ## The Human Meaning
 
-A body needs food, a relationship needs contact, and a craft needs practice. Keeping them alive is a continuing work of Ma'at, carried through what we give them day after day. Even remembrance needs someone to speak the name again.''',
+A body needs its daily food, a relationship its contact, a craft its practice. Ma'at continues through the care that reaches them day after day. Even remembrance needs someone to speak the name once more.''',
     linkMap: [
       KemeticNodeLink(phrase: "offering formula", targetId: "offering_formula"),
       KemeticNodeLink(phrase: "Ba", targetId: "ba"),
@@ -1430,7 +1430,7 @@ While the Ba travels, the Ka remains as a sustaining presence. Body, tomb, name,
 
 ## The Ma'at of Movement
 
-A stable home can support the freedom to go out. Travel, ambition, and creativity may expand a life and bring something back to it, provided the person remains connected to what keeps them coherent. The Ba holds going and returning together: exploration has a foundation strong enough to receive what it brings back.''',
+The Ba’s going out and coming in both need protection. Travel, ambition, and creativity may expand a life, provided the person remains connected to what keeps them coherent. That connection gives movement a home to return to, able to receive what the journey has made possible.''',
     linkMap: [
       KemeticNodeLink(
         phrase: "Book of Coming Forth by Day",
@@ -1455,7 +1455,7 @@ A body preserved, a name remembered, a Ba free to move, and a Ka sustained by of
 
 ## The Imperishable Stars
 
-Circumpolar stars stay above the observer's horizon. Their enduring presence gave the Akhu a luminous company to join, and a deceased king could be addressed as an imperishable star. Later funerary traditions extended an effective afterlife beyond kingship.
+Circumpolar stars stay above the observer’s horizon. The Akhu join their enduring brightness, and a deceased king could be addressed as an imperishable star. Later funerary traditions extended an effective afterlife beyond kingship.
 
 ## Effectiveness Through Relation
 
@@ -1479,7 +1479,7 @@ An effective life depends on these relations holding together. Through them, wha
     aliases: [],
     body: r'''The Ren is the name as a living address.
 
-Through a name, a person could be called, remembered, recorded, invoked, and given offerings. It distinguished them from others and kept a way of reaching them open when the body was absent.
+Even in absence, a person could be called by name, remembered, recorded, invoked, and given offerings. The Ren distinguished them from others and kept a way of reaching them open.
 
 ## A Name Can Be Injured
 
@@ -1520,11 +1520,11 @@ The Book of Coming Forth by Day speaks directly to the heart. The heart scarab a
 
 In the Memphite Theology, perception reaches the heart, the heart conceives, and the tongue speaks. The heart takes part in creation as well as judgment.
 
-What is repeatedly entertained inwardly becomes easier to say, and repeated speech easier to enact. Habit shapes the heart throughout life, long before it comes to the scale.
+What fills the heart finds its way to the tongue, and repeated words become easier to act upon.
 
 ## The Heart Is Being Made Now
 
-Ordinary choices accumulate into character. The heart has been taking shape through those days before judgment gives its record a visible form.
+Care for the heart begins in these ordinary choices, long before it reaches the scale. Habit is already making the witness that will speak there.
 
 Living in Ma'at allows room to face that record honestly. A heart in right relation can have made mistakes and still be willing to acknowledge what it knows. Self-honesty makes it possible to bring the inner record and the outward account of a life into agreement.''',
     linkMap: [
@@ -1547,7 +1547,7 @@ The Sheut belongs among the Kemetic aspects of the person. It follows your form 
 
 ## Presence Has Effects
 
-Others may feel the atmosphere we create before we recognize it ourselves. Warmth can arrive as pressure; an ordinary presence can offer protection. Someone who feels invisible may leave an absence that changes a room. Our presence has effects beyond those we intend or notice.
+Warmth can arrive as pressure; an ordinary presence can offer protection. Someone who feels invisible may leave an absence that changes a room.
 
 ## The Shadow Must Also Move
 
@@ -1555,9 +1555,9 @@ Some funerary compositions ask for the way to be opened for both Ba and shadow. 
 
 ## Seeing Your Own Shadow
 
-A Coffin Text passage expresses the desire to see one's shadow. Others may already perceive something in our presence that is difficult for us to see. What we intend and what we produce both belong to the account.
+A Coffin Text passage expresses the desire to see one’s shadow. Others may see our shadow before we see it ourselves. Our presence becomes known through what it produces, including effects we never intended.
 
-Ma'at asks for attention to those effects. Curiosity leaves room to learn what other people experience of us, without requiring control of every interpretation or fear of having an impact.''',
+Ma'at asks us to look at our own part in that experience and leave room for what another person can show us, without requiring control of every interpretation or fear of having an impact.''',
     linkMap: [
       KemeticNodeLink(phrase: "Ba", targetId: "ba"),
       KemeticNodeLink(phrase: "Ma'at", targetId: "maat"),
@@ -1586,7 +1586,7 @@ The Instruction of Amenemope calls for restraint, fairness, honesty, and protect
 
 A portion also needs nourishment. Renenutet belongs to fields, harvests, birth, and provision, the care that sustains what Shai has given. A child, a field, or a talent may be part of someone's portion; what it becomes depends partly on what it receives.
 
-Recognizing what was given and what cannot be changed leaves room to attend to the response. Ma'at can guide that work within the life already here, where control has limits and care still has consequences.''',
+Time and chance enter every life. There can be joy in what a portion holds, and work in caring for it. Ma'at can guide that work within the life already here: what was given sets conditions, and what is done within them still matters.''',
     linkMap: [
       KemeticNodeLink(
         phrase: "Instruction of Amenemope",
@@ -1612,9 +1612,9 @@ A body prepared for burial needs protection from decay. A ritual object must be 
 
 ## What Must Be Removed
 
-Preparation sometimes begins with less to carry. A cluttered room needs clearing, an unresolved argument attention, and an overburdened body rest before another demand. Restoring function may require removing what has accumulated around it.
+Washing, clearing, and putting away prepare something for use again. A room needs its clutter removed; an argument needs attention to what keeps it unsettled; an overburdened body needs rest before another demand.
 
-Salt, water, time, and attention to what must be removed can help something become ready for use again.''',
+Salt, water, time, and attention to what must be removed belong to that preparation.''',
     linkMap: [],
   ),
   KemeticNode(
@@ -1636,7 +1636,7 @@ Someone still has to return to read the name and speak the offering formula. The
 
 ## The Human Lesson
 
-A visit to a grave, a spoken name, a kept recipe, or an observed anniversary gives memory a form people can return to. Relationships across absence remain active through such places and habits.''',
+A visit to a grave, a spoken name, a kept recipe, an observed anniversary: each can become a memorial carried through a family’s generations. Returning gives memory a place in the living relationship.''',
     linkMap: [
       KemeticNodeLink(phrase: "Ren", targetId: "ren"),
       KemeticNodeLink(phrase: "Ka", targetId: "ka"),
@@ -1666,7 +1666,7 @@ When physical provision was limited or absent, Kemetic practice also allowed for
 
 ## What Offering Teaches
 
-The offering carries forward a circulation of life: what has been received is transformed and returned. Ma’at is present in that movement, as a gift leaves one person’s possession to sustain a relationship.''',
+Those who give have also been nourished. What has been received is transformed and given again, carrying provision into another relationship. Ma’at is present in this movement of a gift beyond one person’s possession.''',
     linkMap: [
       KemeticNodeLink(phrase: "Ka", targetId: "ka"),
       KemeticNodeLink(phrase: "Ren", targetId: "ren"),
@@ -1693,7 +1693,7 @@ The familiar offering formula joins giving with satisfaction. Provision is direc
 
 ## False Peace
 
-An argument can end while resentment remains. Avoidance, too, can preserve quiet without resolving harm. The rest associated with hotep depends on enough being set right for distress to subside. As matters are brought into Ma’at, the conditions for peace return.''',
+An argument can end with talk of peace while resentment remains. Avoidance, too, can preserve quiet without resolving harm. In hotep, the work of setting things right makes rest possible. As matters return to Ma’at, distress has room to subside.''',
     linkMap: [
       KemeticNodeLink(phrase: "offering formula", targetId: "offering_formula"),
       KemeticNodeLink(phrase: "Ka", targetId: "ka"),
@@ -1712,7 +1712,7 @@ Beginning with Unas, they appear on the interior walls of Old Kingdom royal pyra
 
 ## Text Placed Into Architecture
 
-The utterances occupy the burial chamber, antechamber, and corridors. Their placement gives offering, protection, and ascent a direction within the tomb; the words belong to the space in which their work is done.
+Written upon the walls of the burial chamber, antechamber, and corridors, the utterances give offering, protection, and ascent a direction within the tomb. Sacred words are arranged around the passage they prepare, held in the architecture where their work is to be done.
 
 Some provision the king, restore and awaken him, or protect him from danger. Others identify him with Ausar or raise him toward Ra and the imperishable stars. Together they provide several means by which he may continue.
 
@@ -1754,7 +1754,7 @@ Beginning in the Middle Kingdom, spells written across coffin surfaces extended 
 
 A decorated coffin could place the dead between sky and earth, oriented to the directions of solar movement and surrounded by words for protection, transformation, and guidance.
 
-Some carried the Book of the Two Ways, an early map of afterlife routes. Others held diagonal star tables, arranging the decans for reckoning the night. Knowledge of the cosmos was placed within the burial, close to the person who would need it.
+Some carried the Book of the Two Ways, an early map of afterlife routes. Others held diagonal star tables, arranging the decans for reckoning the night. The words were brought near, placing knowledge of the cosmos within reach of the person who would need it.
 
 ## Transformation
 
@@ -1803,9 +1803,7 @@ A judgment scene places the deceased visibly before the tribunal; a spell gives 
 
 ## The Human Meaning
 
-An unknown passage calls for preparation: names and maps, words and protections, a sense of who is traveling and what it means to arrive well. This manual for the dead gathers those needs around a person.
-
-Readiness includes the truth of the life being carried forward. The knowledge needed at a gate accompanies the character of the person who will pass through it; both belong to preparation in Ma’at.''',
+The words for passage accompany a life already lived. At the balance, the heart bears witness to what the person has done as well as said. Names and formulas equip the traveler; lived conduct belongs to that preparation in Ma’at too.''',
     linkMap: [
       KemeticNodeLink(phrase: "Ba", targetId: "ba"),
       KemeticNodeLink(phrase: "heart", targetId: "ib"),
@@ -1826,7 +1824,7 @@ Writing depends on people continuing to pass it on. Stone may endure as an objec
 
 ## The Immortality of Writers
 
-The papyrus recalls sages whose tombs, families, and monuments could disappear while their names remained in books people still read. A reader could reach someone whose other traces had gone.
+The body can be buried while the name lives on in words. The papyrus recalls sages whose tombs, families, and monuments could disappear while their names remained in books people still read. A reader could reach someone whose other traces had gone.
 
 The Ren keeps a person available to be addressed. Each copy of a work creates another occasion for its writer’s name to be spoken, continuing the relationship through use.
 
@@ -1856,15 +1854,13 @@ Listening, greed, speech, household responsibility, authority, age, and reputati
 
 ## What He Saw
 
-Ptahhotep asks a person to listen fully before answering and to keep listening after gaining authority. He warns against repeating what one does not know or confusing greed with intelligence. The care required in speech also belongs in the household.
+A wise person still has more to hear. Ptahhotep asks that listening continue after authority has been gained, and that an answer wait until the other person has been heard. He warns against repeating what one does not know or confusing greed with intelligence. The care required in speech also belongs in the household.
 
 Habits reach into trust, family, work, and judgment. Their consequences are also seen by the people who are learning how to act from watching.
 
 ## Example Outlives Advice
 
-Children receive patterns of conduct along with instructions. Ma’at has to become visible in the way a life is lived for it to be passed on.
-
-Favoritism in a household weakens its lessons about fairness. A life governed by appetite does the same to teaching about restraint. Ptahhotep holds advice and conduct together, because those watching learn from both.''',
+What is learned must become visible in what is done. Children receive the lesson and the example together: favoritism weakens teaching about fairness, and unchecked appetite weakens teaching about restraint. Ma’at passes through the conduct they see.''',
     linkMap: [KemeticNodeLink(phrase: "Ma’at", targetId: "maat")],
   ),
   KemeticNode(
@@ -1878,21 +1874,19 @@ The quiet person remains steady under pressure.
 
 ## Quiet and Heated
 
-The “heated” person reacts loudly and quickly, turning pressure into harm. The quiet person can wait long enough to see what the moment requires. That pause gives conduct a steadiness that anger alone cannot supply.
+The “heated” person reacts loudly and quickly, turning pressure into harm. It is easy to learn those ways by answering in kind. Amenemope’s quiet person lets the first surge cool and waits long enough to see what the moment requires. That pause gives judgment time to guide the response.
 
 ## Do Not Move the Boundary
 
-Moving a field boundary takes someone else’s land. A false measure can build one person’s wealth at another’s expense. Amenemope warns against these acts and against exploiting the poor because they lack power.
-
-A line shifted slightly or a weight adjusted in one person’s favor can erode Ma’at by degrees. These small acts use another person’s vulnerability to take what belongs to them.
+Do not move the boundary or take from the poor because they lack the power to resist. A shifted line takes someone else’s land; a false weight turns their vulnerability into another person’s wealth. Amenemope brings Ma’at to the point where that taking begins.
 
 ## Wealth and Rest
 
-Wealth gained through disorder carries that disorder with it. Amenemope values modest security over abundance that leaves its owner anxious, questioning the appetite that keeps raising the amount needed before peace can begin.
+Wealth gained through disorder carries that disorder with it. Labor given entirely to becoming rich can leave little room for rest. Amenemope values modest security over abundance that keeps its owner anxious, always raising the amount required before peace can begin.
 
 ## The Human Lesson
 
-Appetite, anger, fear, and concern for status can fill a moment before judgment has had time to work. Letting that first surge cool makes room to assess what is happening and choose how to act.''',
+Appetite, anger, fear, and concern for status can fill a moment before judgment has had time to work. A little time between impulse and action leaves room to choose a response.''',
     linkMap: [KemeticNodeLink(phrase: "Ma’at", targetId: "maat")],
   ),
   KemeticNode(
@@ -1920,7 +1914,7 @@ The solar year exceeded twelve thirty-day months, so the remainder was given a p
 
 Associated with risk, purification, birth, and preparation, this interval invited clearing, completing, remembering, and protecting. The familiar structure of one year was ending before another began.
 
-A transition deserves attention to what has changed and what should be left behind. The pause between cycles allows that work to have its time.''',
+A transition deserves attention to what has changed and what should be left behind. Preparation has a time of its own before the regular count begins again.''',
     linkMap: [
       KemeticNodeLink(phrase: "Ausar", targetId: "ausar"),
       KemeticNodeLink(phrase: "Heru the Elder", targetId: "heru"),
@@ -1955,7 +1949,7 @@ The 365-day civil calendar drifted against the solar year, carrying its first da
 
 The epagomenal days complete the old count, and Sopdet offers renewed orientation. What has been lived comes into the new cycle too: skills and debts, relationships, consequences, and memory.
 
-Opening the year with Ma’at means taking stock of what is ready, what remains unfinished, and what deserves release or renewed commitment. The change of count gives that attention an occasion; disorder left unattended can continue across the threshold.''',
+Opening the year with Ma’at gives an occasion to examine our ways: what is ready, what remains unfinished, and what deserves release or renewed commitment. Disorder left unattended can cross the threshold with us.''',
     linkMap: [
       KemeticNodeLink(phrase: "Sopdet", targetId: "sopdet"),
       KemeticNodeLink(phrase: "Nile", targetId: "nile"),
@@ -1984,7 +1978,7 @@ Too little water brings scarcity; too much can damage settlements, boundaries, a
 
 Akhet leads into Peret and Shemu, through flood, emergence, and harvest. Water must withdraw, land reappear, and seed enter the prepared ground for the sequence to continue.
 
-The yield comes later. This phase is given to receiving and restoring the conditions on which that later work depends.''',
+There is a time to plant and a time to gather. The yield belongs to another season; Akhet restores the conditions that make it possible.''',
     linkMap: [
       KemeticNodeLink(phrase: "Nile", targetId: "nile"),
       KemeticNodeLink(phrase: "Ma’at", targetId: "maat"),
@@ -2003,7 +1997,7 @@ As the flood withdraws, prepared ground appears, seed enters the soil, and growt
 
 ## Emergence Is Not Completion
 
-A green shoot brings the excitement of visible growth while the harvest is still ahead. Water needs managing, growth needs tending, and weakness needs attention before it becomes loss. The appearance of life begins another period of care.
+The first green shoot still has a season of care ahead of it. Patience belongs beside the work of tending: water managed, weakness noticed before it becomes loss, growth given time. That steady attention has to outlast the excitement of seeing something begin.
 
 ## Khepri and Coming Forth
 
@@ -2011,7 +2005,7 @@ Khepri appears at dawn after the hidden work of night. The seed develops undergr
 
 ## The Work of Peret
 
-Care has to continue after the first success. A new habit or relationship can be lost through neglect, or disturbed by constant interference. Ma’at asks for enough continuity that what has begun can grow with ordinary care, without needing to be rescued every day.''',
+A new habit or relationship can be lost through neglect, or disturbed by constant interference. Ma’at asks for enough continuity that what has begun can grow with ordinary care, without needing to be rescued every day.''',
     linkMap: [
       KemeticNodeLink(phrase: "Khepri", targetId: "khepri"),
       KemeticNodeLink(phrase: "Ma’at", targetId: "maat"),
@@ -2035,11 +2029,11 @@ Flood, seed, timing, labor, and care have all entered the crop, along with weath
 
 Grain must be brought from the field and placed where it can serve as food, seed, wages, offerings, and protection against scarcity. The granary makes those uses possible.
 
-Djehuty’s measure belongs in the honest count. A full field can still lead to Isfet through theft, poor records, hoarding, waste, or a distribution that leaves the people who raised it hungry.
+A granary can be full while the people who raised the grain go hungry. Food withheld and wages unpaid carry Isfet into the harvest, as do theft, poor records, and waste. Djehuty’s honest count must be followed by a fair distribution, so that what was gathered reaches the people it should sustain.
 
 ## Seed for Return
 
-Part of the grain must remain as seed. Sharing and using the harvest then go together with preserving its return: Ma’at keeps provision for the present in relation to the needs of the next season.''',
+The harvest must leave bread to eat and seed to sow. Ma’at holds those needs together as the crop is shared and used, keeping today’s provision in relation to the next season.''',
     linkMap: [
       KemeticNodeLink(phrase: "hꜣw", targetId: "haw"),
       KemeticNodeLink(phrase: "Akhet", targetId: "akhet"),
@@ -2060,7 +2054,7 @@ Her associations join nursing and nourishment with harvest, granaries, and desti
 
 ## The Granary Is Stored Time
 
-Stored grain carries the results of floodwater, sunlight, seed, and labor beyond the harvest. It can support households and temples, supply offerings, and make the next planting possible. What is kept now determines part of what will be available later.
+Food laid up in a good year can sustain a household through a lean one. The granary holds the work of floodwater, sunlight, seed, and labor until it is needed again. Stored grain can support households and temples, supply offerings, and make the next planting possible.
 
 ## Nursing and Raising
 
@@ -2107,7 +2101,7 @@ In Ma’at, surplus helps sustain the relationships that produced it. Held apart
 
 ## Why the App Is Called ḥꜣw
 
-A day can fill with tasks while attention fragments. Opportunities and money can multiply without making a life more livable. Increase needs a purpose that holds the whole in view.
+A life is more than the abundance of its possessions. Tasks, opportunities, and money can multiply while attention fragments and relationships weaken. Increase needs a purpose that holds the whole in view.
 
 “What is this increase for?” is the question behind ḥꜣw. The calendar is intended to help arrange activity and resources so that they strengthen the life they belong to, giving abundance a place within Ma’at.''',
     linkMap: [
