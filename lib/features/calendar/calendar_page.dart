@@ -164,6 +164,7 @@ import 'calendar_completion.dart';
 import 'reminder_sync_idempotence.dart';
 import 'reminder_sync_gate.dart';
 import 'decan_reflection_badge.dart';
+import 'decan_reflection_window.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_palette.dart';
 import 'maat_flow_visual_tokens.dart';
@@ -3580,6 +3581,31 @@ class CalendarPage extends StatefulWidget {
     final state = _mountedState;
     if (state == null) return;
     await state._maybePresentOnboarding();
+  }
+
+  /// Settings supplies an explicit invitation; Calendar remains the badge owner.
+  static Future<void> presentRequestedReflectionBadge() async {
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      final state = _mountedState;
+      if (state == null || !account.isCurrent || account.userId == null) return;
+      try {
+        await state._loadDecanReflectionPrompt(force: true, requested: true);
+      } catch (_) {
+        if (state.mounted && account.isCurrent) {
+          ScaffoldMessenger.of(state.context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Could not load your reflection badge. Try again from Settings.',
+              ),
+            ),
+          );
+        }
+      }
+    } finally {
+      account.dispose();
+    }
   }
 
   static String _flowEndOperationKey(int flowId) {
@@ -10252,7 +10278,8 @@ class CalendarPageState extends State<CalendarPage>
 
   // Decan reflection prompt state
   CalendarDecanReflectionPrompt? _reflectionPrompt;
-  bool _reflectionInFlight = false;
+  Future<void>? _reflectionPromptLoad;
+  String? _requestedReflectionOwner;
   bool _archivingReflection = false;
   DateTime? _lastReflectionCheckDay;
 
@@ -15324,6 +15351,16 @@ class CalendarPageState extends State<CalendarPage>
     _scrollCtrl.addListener(_onVerticalScroll);
 
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (_requestedReflectionOwner != null &&
+          (data.event == AuthChangeEvent.signedOut ||
+              data.session?.user.id != _requestedReflectionOwner) &&
+          mounted) {
+        setState(() {
+          _reflectionPrompt = null;
+          _requestedReflectionOwner = null;
+          _lastReflectionCheckDay = null;
+        });
+      }
       if (_hawOnboardingOwner != null &&
           _hawOnboardingOwner != data.session?.user.id &&
           mounted) {
@@ -33862,6 +33899,7 @@ class CalendarPageState extends State<CalendarPage>
   void _showReflectionSheet() {
     final prompt = _reflectionPrompt;
     if (prompt == null) return;
+    _requestedReflectionOwner = null;
     final reviewWindow = prompt.reviewWindow;
     if (reviewWindow != null) {
       final location = prompt.id != null
@@ -34020,11 +34058,6 @@ class CalendarPageState extends State<CalendarPage>
     return '$yyyy-$mm-$dd';
   }
 
-  DateTime _dateOnlyLocal(DateTime date) {
-    final d = date.toLocal();
-    return DateTime(d.year, d.month, d.day);
-  }
-
   Future<void> _dismissReflectionPrompt() async {
     final prompt = _reflectionPrompt;
     if (prompt == null) return;
@@ -34038,70 +34071,6 @@ class CalendarPageState extends State<CalendarPage>
         DateUtils.isSameDay(current.decanStart, prompt.decanStart)) {
       setState(() => _reflectionPrompt = null);
     }
-  }
-
-  ({
-    DateTime start,
-    DateTime end,
-    String decanName,
-    String? decanTheme,
-    String decanContextKey,
-    int kMonth,
-    int kYear,
-  })?
-  _latestCompletedDecanWindow() {
-    final now = DateTime.now();
-    final kem = KemeticMath.fromGregorian(now);
-
-    // Skip epagomenal days (month 13) for reflection generation; fall back to month 12.
-    int kMonth = kem.kMonth;
-    int kYear = kem.kYear;
-    int completedDecan = kem.kDay ~/ 10; // 1-based decan completion count
-
-    if (kMonth == 13) {
-      kMonth = 12;
-      completedDecan = 3;
-    }
-
-    if (completedDecan == 0) {
-      if (kMonth <= 1) {
-        kYear -= 1;
-        kMonth = 12;
-      } else {
-        kMonth -= 1;
-      }
-      completedDecan = 3;
-    }
-
-    completedDecan = completedDecan.clamp(1, 3);
-    if (kMonth == 13) return null; // guard epagomenal month fallback
-
-    final decanStartDay = ((completedDecan - 1) * 10) + 1;
-    final decanEndDay = completedDecan * 10;
-
-    final start = KemeticMath.toGregorian(kYear, kMonth, decanStartDay);
-    final end = KemeticMath.toGregorian(kYear, kMonth, decanEndDay);
-    final todayLocal = _dateOnlyLocal(DateTime.now());
-    if (_dateOnlyLocal(end).isAfter(todayLocal)) {
-      return null; // only after completion
-    }
-
-    final decanLabel = DecanMetadata.decanNameFor(
-      kMonth: kMonth,
-      kDay: decanEndDay,
-      expanded: true,
-    );
-    final monthLabel = getMonthById(kMonth).displayShort;
-
-    return (
-      start: start,
-      end: end,
-      decanName: '$monthLabel — $decanLabel',
-      decanTheme: decanLabel,
-      decanContextKey: '$kMonth-$completedDecan',
-      kMonth: kMonth,
-      kYear: kYear,
-    );
   }
 
   Future<bool> _hasInteractedWithReflectionPrompt(DateTime decanStart) async {
@@ -34152,10 +34121,53 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {
-    if (!mounted || _reflectionInFlight) return;
+    await _loadDecanReflectionPrompt(force: force);
+  }
+
+  Future<void> _loadDecanReflectionPrompt({
+    bool force = false,
+    bool requested = false,
+  }) async {
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      // The explicit request follows an existing automatic read, so a late
+      // dismissal result cannot erase the badge the user just asked to see.
+      while (_reflectionPromptLoad != null) {
+        if (!requested) return;
+        await _reflectionPromptLoad;
+        if (!mounted || !account.isCurrent) return;
+      }
+      if (!mounted || !account.isCurrent || account.userId == null) return;
+      final operation = _readDecanReflectionPrompt(
+        force: force,
+        requested: requested,
+      );
+      _reflectionPromptLoad = operation;
+      try {
+        await operation;
+      } finally {
+        if (identical(_reflectionPromptLoad, operation)) {
+          _reflectionPromptLoad = null;
+        }
+      }
+    } finally {
+      account.dispose();
+    }
+  }
+
+  Future<void> _readDecanReflectionPrompt({
+    required bool force,
+    required bool requested,
+  }) async {
+    if (!mounted) return;
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
+    if (!requested &&
+        _requestedReflectionOwner == user.id &&
+        _reflectionPrompt != null) {
+      return;
+    }
     final today = DateUtils.dateOnly(DateTime.now());
     if (_lastReflectionCheckDay != null &&
         DateUtils.isSameDay(today, _lastReflectionCheckDay) &&
@@ -34165,7 +34177,10 @@ class CalendarPageState extends State<CalendarPage>
     }
     _lastReflectionCheckDay = today;
 
-    final window = _latestCompletedDecanWindow();
+    final window = latestCompletedDecanReflectionWindow(
+      DateTime.now(),
+      availableOnly: requested,
+    );
     if (window == null) {
       if (_reflectionPrompt != null) {
         setState(() => _reflectionPrompt = null);
@@ -34173,23 +34188,16 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
-    // Gate visibility until 8pm local on the 10th day of the decan
-    final decanStartLocal = window.start.toLocal();
-    final gateLocal = DateTime(
-      decanStartLocal.year,
-      decanStartLocal.month,
-      decanStartLocal.day + 9,
-      20,
-    ); // Day 10 at 8pm local, including a daylight-saving change.
+    // Gate visibility until 8pm local on day ten, without shifting UTC civil dates.
+    final gateLocal = decanReflectionAvailableAt(window.start);
     if (DateTime.now().isBefore(gateLocal)) {
       if (_reflectionPrompt != null) setState(() => _reflectionPrompt = null);
       return;
     }
 
     final account = AccountOperationFence(Supabase.instance.client);
-    _reflectionInFlight = true;
     try {
-      if (await _hasInteractedWithReflectionPrompt(window.start)) {
+      if (!requested && await _hasInteractedWithReflectionPrompt(window.start)) {
         if (!mounted || !account.isCurrent) return;
         if (_reflectionPrompt != null) {
           setState(() => _reflectionPrompt = null);
@@ -34210,6 +34218,7 @@ class CalendarPageState extends State<CalendarPage>
             : null;
         if (!mounted || !account.isCurrent) return;
         setState(() {
+          _requestedReflectionOwner = requested ? user.id : null;
           _reflectionPrompt = CalendarDecanReflectionPrompt(
             id: existing.id,
             decanName: existing.decanName,
@@ -34234,6 +34243,7 @@ class CalendarPageState extends State<CalendarPage>
 
       if (!mounted || !account.isCurrent) return;
       setState(() {
+        _requestedReflectionOwner = requested ? user.id : null;
         _reflectionPrompt = CalendarDecanReflectionPrompt(
           id: null,
           decanName: window.decanName,
@@ -34251,12 +34261,12 @@ class CalendarPageState extends State<CalendarPage>
         );
       });
     } catch (e) {
+      if (requested) rethrow;
       if (kDebugMode) {
         _calendarDebugPrint('[DecanReflection] prompt load failed: $e');
       }
     } finally {
       account.dispose();
-      _reflectionInFlight = false;
     }
   }
 

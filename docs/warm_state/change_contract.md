@@ -1118,3 +1118,28 @@ invalidation assertions. No guard threshold, historical fixture, approved golden
 or full-detail owner allowlist was relaxed. Backend migrations and functions must
 pass their release gate and be applied before the app is deployed; local tests
 alone are not a served-RC or physical-device release receipt.
+
+
+## October 7 — manual reflection invitation in Settings
+
+The Settings control reuses its existing section card and gold button. Actual
+Settings renders at 320/402/768 widths were inspected before wiring. “Show
+reflection badge” navigates through openPrimarySection, then asks the existing
+Calendar host to show its canonical badge for the latest available completed
+decan. It can reopen a previously seen period without clearing interaction
+history, creating duplicate reviews, or touching Journal/public content.
+
+The invitation is process-local and account-fenced, including departure during
+an in-flight read. It waits for an existing automatic prompt read and remains
+visible until opened; subsequent automatic checks cannot erase it. The shared
+DecanReflectionRepo and detail route retain all persistence ownership. No new
+route, cache key, saved model, backend write, or background job is introduced.
+Date selection reuses the existing Kemetic calculation. UTC-tagged civil dates
+are kept as civil dates when calculating the intended local day-ten 20:00 gate.
+Before that time, the manual button uses the preceding available decan.
+
+Tests cover the actual Settings button, repeated badge-to-saved-review navigation,
+no creation writes, failure feedback, departure during a delayed read, and every
+civil date in normal/leap Kemetic years including supplementary days and DST.
+The full App gate, sealed lane artifacts and canonical served checks remain
+required for the authorized RC-to-production promotion.

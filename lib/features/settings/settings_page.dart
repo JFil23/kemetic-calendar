@@ -142,6 +142,11 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  void _showReflectionBadge() {
+    openPrimarySection(context, AppSection.calendar);
+    unawaited(CalendarPage.presentRequestedReflectionBadge());
+  }
+
   Future<void> _signOut() async {
     if (_signingOut) return;
 
@@ -1429,6 +1434,18 @@ class _SettingsPageState extends State<SettingsPage> {
                       'Shows today\'s Day Card rhythm once per local Gregorian day.',
                   value: _dailyCosmicContextBadgeEnabled,
                   onChanged: _setDailyCosmicContextBadgeEnabled,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _sectionCard(
+              title: 'Decan reflection',
+              description:
+                  'Return to your latest completed decan, even if you’ve already reflected.',
+              children: [
+                _primaryButton(
+                  onPressed: _hasSession ? _showReflectionBadge : null,
+                  child: const Text('Show reflection badge'),
                 ),
               ],
             ),
