@@ -40,6 +40,7 @@ Map<String, dynamic> message(int i, {bool flow = false}) => {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   var reads = 0;
+  final sentBodies = <Map<String, dynamic>>[];
   var unavailable = false;
   Completer<void>? refresh;
   final rows = [
@@ -65,6 +66,14 @@ void main() {
       authOptions: const FlutterAuthClientOptions(autoRefreshToken: false),
       httpClient: MockClient((request) async {
         Object data = [];
+        if (request.url.path.endsWith('/send_dm_message')) {
+          sentBodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+          data = {
+            'success': true,
+            'share': {'id': 'sent-reply'},
+            'push': {'delivered': true},
+          };
+        }
         if (request.url.path.endsWith('/share_filing_items_client') ||
             request.url.path.endsWith('/inbox_share_items_filtered')) {
           reads++;
@@ -242,4 +251,46 @@ void main() {
     });
     await tester.pumpAndSettle();
   });
+  testWidgets(
+    'real Inbox menu replies with source identity and retains keyboard input',
+    (tester) async {
+      await mount(tester);
+      await tester.longPress(find.text('Follow the sky'));
+      await tester.pumpAndSettle();
+      expect(find.text('Delete for me'), findsOneWidget);
+      expect(find.text('Unsend'), findsOneWidget);
+      await tester.tap(find.text('Reply'));
+      await tester.pumpAndSettle();
+      expect(find.text('Replying to'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Thank you for this flow');
+      expect(
+        tester
+            .getRect(find.byKey(const ValueKey('kemetic-toggle-hit-target')))
+            .overlaps(tester.getRect(find.byType(ElevatedButton))),
+        isFalse,
+      );
+      await record(tester, 'reply-composer-toggle-clearance');
+      await tester.tap(find.byIcon(Icons.send));
+      await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+      await tester.pumpAndSettle();
+      expect(sentBodies.last['replyToId'], 'share-31');
+      expect(sentBodies.last['replyToKind'], 'flow');
+      expect(sentBodies.last['text'], 'Thank you for this flow');
+      expect(find.text('Thank you for this flow'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      tester.view.reset();
+      await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        await Supabase.instance.client.removeAllChannels();
+        await Supabase.instance.client.realtime.disconnect();
+        Supabase.instance.client.realtime.reconnectTimer.reset();
+      });
+      await tester.pumpAndSettle();
+      reads = 0;
+    },
+  );
 }

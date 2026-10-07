@@ -235,6 +235,7 @@ class DmConversationRepo {
     required String conversationId,
     required String text,
     String? clientMessageId,
+    String? replyToId,
   }) async {
     final warmAccount = _client.auth.currentUser?.id;
     invalidateWarmDomains(warmAccount, ['dm.']);
@@ -250,6 +251,7 @@ class DmConversationRepo {
           body: {
             'conversationId': conversationId,
             'text': trimmed,
+            if (replyToId != null) 'replyToId': replyToId,
             if (clientMessageId?.trim().isNotEmpty == true)
               'clientMessageId': clientMessageId!.trim(),
           },
@@ -265,6 +267,27 @@ class DmConversationRepo {
       }
     } finally {
       invalidateWarmDomains(warmAccount, ['dm.']);
+    }
+  }
+
+  Future<void> actOnMessage(String id, {required bool unsend}) async {
+    final uid = currentUserId;
+    if (uid == null) throw Exception('Not signed in');
+    invalidateWarmDomains(uid, ['dm.']);
+    try {
+      final result = await _client.rpc(
+        'inbox_message_action',
+        params: {
+          'p_kind': 'dm',
+          'p_id': id,
+          'p_action': unsend ? 'unsend' : 'hide',
+        },
+      );
+      if (result != true) {
+        throw Exception('Message action was not acknowledged');
+      }
+    } finally {
+      invalidateWarmDomains(uid, ['dm.']);
     }
   }
 
@@ -445,6 +468,17 @@ class DmConversationRepo {
       ..onPostgresChanges(
         event: PostgresChangeEvent.all,
         schema: 'public',
+        table: 'dm_message_hides',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
         table: 'dm_conversation_members',
         callback: (_) => scheduleRefresh(),
       )
@@ -534,6 +568,17 @@ class DmConversationRepo {
     }
 
     final channel = _client.channel(channelName)
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'dm_message_hides',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
       ..onPostgresChanges(
         event: PostgresChangeEvent.all,
         schema: 'public',

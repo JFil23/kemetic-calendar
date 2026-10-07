@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
 import 'package:mobile/services/app_haptics.dart';
@@ -21,7 +22,9 @@ import 'conversation_scroll_physics.dart';
 import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
-import '../../widgets/kemetic_heart_icon.dart';
+import 'presentation/inbox_message_bubble.dart';
+import 'presentation/inbox_message_actions.dart';
+import 'presentation/inbox_message_action_host.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 
@@ -57,6 +60,8 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   String? _accountId;
   int _conversationGeneration = 0;
   int _lastItemCount = 0;
+  InboxReplyTarget? _replyTo;
+  final FocusNode _composerFocus = FocusNode();
   Map<String, int> _messageLikeCounts = const {};
   Set<String> _messageLikedByMeIds = const <String>{};
   bool _messageLikesUnavailable = false;
@@ -101,6 +106,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     _conversationGeneration++;
     _initialItems = _inboxRepo.cachedConversationWith(widget.otherUserId);
     _conversation = _inboxRepo.watchConversationWith(widget.otherUserId);
+    _replyTo = null;
     _pendingMessages.clear();
     _locallyDeleted.clear();
     _locallyViewedShareIds.clear();
@@ -125,6 +131,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     _accountSub?.cancel();
     _messageController.removeListener(_persistResumeState);
     unawaited(SessionResumeService.clearResumeEntry(kind: _resumeKind));
+    _composerFocus.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -188,15 +195,18 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
+    final reply = _replyTo;
     final clientId = 'pending:${DateTime.now().microsecondsSinceEpoch}';
     final pending = _PendingDmMessage(
       clientId: clientId,
       text: text,
       createdAt: DateTime.now(),
+      reply: reply,
     );
 
     setState(() {
       _pendingMessages.add(pending);
+      _replyTo = null;
     });
     _messageController.clear();
     unawaited(RestorationCoordinator.instance.clearEditorState(_editorKey));
@@ -207,6 +217,8 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
       await _inboxRepo.sendTextMessage(
         recipientId: widget.otherUserId,
         text: text,
+        replyToId: reply?.id,
+        replyToKind: reply?.kind,
       );
     } catch (e) {
       if (!mounted) return;
@@ -637,14 +649,28 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                             return Align(
                               key: ValueKey(pending.clientId),
                               alignment: Alignment.centerRight,
-                              child: _MessageBubble(
-                                text: pending.text,
+                              child: InboxMessageActions(
                                 createdAt: pending.createdAt,
-                                isMine: true,
-                                likesCount: 0,
-                                likedByMe: false,
-                                likeUpdating: false,
-                                failed: pending.failed,
+                                onCopy: () => Clipboard.setData(
+                                  ClipboardData(text: pending.text),
+                                ),
+                                onDeleteForMe: pending.failed
+                                    ? () => setState(
+                                        () => _pendingMessages.removeWhere(
+                                          (m) => m.clientId == pending.clientId,
+                                        ),
+                                      )
+                                    : null,
+                                child: InboxMessageBubble(
+                                  text: pending.text,
+                                  replyText: pending.reply?.text,
+                                  createdAt: pending.createdAt,
+                                  isMine: true,
+                                  likesCount: 0,
+                                  likedByMe: false,
+                                  likeUpdating: false,
+                                  failed: pending.failed,
+                                ),
                               ),
                             );
                           }
@@ -652,204 +678,83 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                           final share = items[index];
                           final isMine = share.senderId == currentUserId;
                           final isText = share.isTextMessage;
-                          final itemLabel = isText
-                              ? 'Message'
-                              : (share.isEvent ? 'Invite' : 'Flow');
 
                           return Align(
                             key: ValueKey(share.shareId),
                             alignment: isMine
                                 ? Alignment.centerRight
                                 : Alignment.centerLeft,
-                            child: GestureDetector(
-                              onTap: isText
-                                  ? null
-                                  : () async {
-                                      if (kDebugMode) {
-                                        debugPrint(
-                                          '[InboxConversationPage] tapped share '
-                                          'shareId=${share.shareId} kind=${share.kind.asString} '
-                                          'title=${share.title}',
-                                        );
-                                      }
-                                      if (share.isEvent) {
+                            child: InboxMessageActionHost(
+                              target: InboxReplyTarget(
+                                id: share.shareId,
+                                kind: share.isEvent ? 'event' : 'flow',
+                                text: share.messageText ?? share.title,
+                              ),
+                              createdAt: share.createdAt,
+                              isMine: isMine,
+                              isText: isText,
+                              onReply: (target) {
+                                setState(() => _replyTo = target);
+                                _composerFocus.requestFocus();
+                              },
+                              onRemoved: () => setState(
+                                () => _locallyDeleted.add(share.shareId),
+                              ),
+                              child: GestureDetector(
+                                onTap: isText
+                                    ? null
+                                    : () async {
+                                        if (kDebugMode) {
+                                          debugPrint(
+                                            '[InboxConversationPage] tapped share '
+                                            'shareId=${share.shareId} kind=${share.kind.asString} '
+                                            'title=${share.title}',
+                                          );
+                                        }
+                                        if (share.isEvent) {
+                                          unawaited(
+                                            openDetailRoute<void>(
+                                              context,
+                                              '/event-invite/${Uri.encodeComponent(share.shareId)}',
+                                              extra: share,
+                                            ),
+                                          );
+                                          return;
+                                        }
                                         unawaited(
                                           openDetailRoute<void>(
                                             context,
-                                            '/event-invite/${Uri.encodeComponent(share.shareId)}',
-                                            extra: share,
+                                            '/shared-flow/${Uri.encodeComponent(share.shareId)}',
+                                            extra: <String, Object?>{
+                                              'share': share,
+                                              'fallbackLocation':
+                                                  _conversationLocation,
+                                            },
                                           ),
                                         );
-                                        return;
-                                      }
-                                      unawaited(
-                                        openDetailRoute<void>(
-                                          context,
-                                          '/shared-flow/${Uri.encodeComponent(share.shareId)}',
-                                          extra: <String, Object?>{
-                                            'share': share,
-                                            'fallbackLocation':
-                                                _conversationLocation,
-                                          },
-                                        ),
-                                      );
-                                    },
-                              onDoubleTap: isText
-                                  ? () => _toggleMessageLike(share)
-                                  : null,
-                              onLongPress: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  backgroundColor: const Color(0xFF0D0D0F),
-                                  builder: (context) => SafeArea(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        ListTile(
-                                          leading: Icon(
-                                            isMine ? Icons.undo : Icons.delete,
-                                            color: Colors.red,
-                                          ),
-                                          title: Text(
-                                            isMine
-                                                ? 'Unsend $itemLabel'
-                                                : 'Delete $itemLabel',
-                                            style: const TextStyle(
-                                              color: Colors.red,
-                                            ),
-                                          ),
-                                          onTap: () async {
-                                            Navigator.pop(context);
-
-                                            final confirmed = await showDialog<bool>(
-                                              context: context,
-                                              builder: (context) => AlertDialog(
-                                                backgroundColor: const Color(
-                                                  0xFF0D0D0F,
-                                                ),
-                                                title: Text(
-                                                  isMine
-                                                      ? 'Unsend this ${itemLabel.toLowerCase()}?'
-                                                      : 'Delete this ${itemLabel.toLowerCase()}?',
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                                content: Text(
-                                                  isMine
-                                                      ? 'This will remove it from the conversation for both you and the recipient. They may have already seen it.'
-                                                      : 'This will hide it from your inbox and conversation. '
-                                                            'It may still be visible to the sender until they delete or unsend it.',
-                                                  style: const TextStyle(
-                                                    color: Colors.white70,
-                                                  ),
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          context,
-                                                          false,
-                                                        ),
-                                                    child: const Text('Cancel'),
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          context,
-                                                          true,
-                                                        ),
-                                                    style: TextButton.styleFrom(
-                                                      foregroundColor:
-                                                          Colors.red,
-                                                    ),
-                                                    child: Text(
-                                                      isMine
-                                                          ? 'Unsend'
-                                                          : 'Delete',
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-
-                                            if (confirmed != true) return;
-
-                                            final shareRepo = ShareRepo(
-                                              Supabase.instance.client,
-                                            );
-
-                                            final bool ok = isMine
-                                                ? await shareRepo.unsendShare(
-                                                    share.shareId,
-                                                    isFlow: share.isFlow,
-                                                  )
-                                                : await shareRepo
-                                                      .deleteInboxItem(
-                                                        share.shareId,
-                                                        isFlow: share.isFlow,
-                                                      );
-
-                                            if (!ok && context.mounted) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    isMine
-                                                        ? 'Could not unsend this item. Please try again.'
-                                                        : 'Could not delete this item. Please try again.',
-                                                  ),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                            } else if (ok &&
-                                                mounted &&
-                                                context.mounted) {
-                                              setState(() {
-                                                _locallyDeleted.add(
-                                                  share.shareId,
-                                                );
-                                              });
-
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    isMine
-                                                        ? '$itemLabel unsent'
-                                                        : '$itemLabel deleted',
-                                                  ),
-                                                  duration: const Duration(
-                                                    seconds: 1,
-                                                  ),
-                                                  backgroundColor: Colors.green,
-                                                ),
-                                              );
-                                            }
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: isText
-                                  ? _MessageBubble(
-                                      text: share.messageText ?? share.title,
-                                      createdAt: share.createdAt,
-                                      isMine: isMine,
-                                      likesCount:
-                                          _messageLikeCounts[share.shareId] ??
-                                          0,
-                                      likedByMe: _messageLikedByMeIds.contains(
-                                        share.shareId,
-                                      ),
-                                      likeUpdating: _messageLikeUpdatingIds
-                                          .contains(share.shareId),
-                                    )
-                                  : _FlowBubble(share: share, isMine: isMine),
+                                      },
+                                onDoubleTap: isText
+                                    ? () => _toggleMessageLike(share)
+                                    : null,
+                                child: isText
+                                    ? InboxMessageBubble(
+                                        text: share.messageText ?? share.title,
+                                        replyText:
+                                            (share.payloadJson?['reply_to']
+                                                    as Map?)?['text']
+                                                as String?,
+                                        createdAt: share.createdAt,
+                                        isMine: isMine,
+                                        likesCount:
+                                            _messageLikeCounts[share.shareId] ??
+                                            0,
+                                        likedByMe: _messageLikedByMeIds
+                                            .contains(share.shareId),
+                                        likeUpdating: _messageLikeUpdatingIds
+                                            .contains(share.shareId),
+                                      )
+                                    : _FlowBubble(share: share, isMine: isMine),
+                              ),
                             ),
                           );
                         },
@@ -858,6 +763,17 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                   ),
                 ),
               ),
+              if (_replyTo != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: InboxReplyPreview(
+                      text: _replyTo!.text,
+                      onCancel: () => setState(() => _replyTo = null),
+                    ),
+                  ),
+                ),
               _buildComposer(),
             ],
           ),
@@ -883,6 +799,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
               ),
               child: TextField(
                 controller: _messageController,
+                focusNode: _composerFocus,
                 style: const TextStyle(color: Colors.white),
                 maxLines: 4,
                 minLines: 1,
@@ -918,12 +835,14 @@ class _PendingDmMessage {
   final String text;
   final DateTime createdAt;
   final bool failed;
+  final InboxReplyTarget? reply;
 
   const _PendingDmMessage({
     required this.clientId,
     required this.text,
     required this.createdAt,
     this.failed = false,
+    this.reply,
   });
 
   _PendingDmMessage copyWith({bool? failed}) {
@@ -932,6 +851,7 @@ class _PendingDmMessage {
       text: text,
       createdAt: createdAt,
       failed: failed ?? this.failed,
+      reply: reply,
     );
   }
 }
@@ -1151,137 +1071,6 @@ class _FlowBubble extends StatelessWidget {
         return Colors.orangeAccent;
       case EventInviteResponseStatus.noResponse:
         return Colors.white70;
-    }
-  }
-}
-
-class _MessageBubble extends StatelessWidget {
-  final String text;
-  final DateTime createdAt;
-  final bool isMine;
-  final int likesCount;
-  final bool likedByMe;
-  final bool likeUpdating;
-  final bool failed;
-
-  const _MessageBubble({
-    required this.text,
-    required this.createdAt,
-    required this.isMine,
-    required this.likesCount,
-    required this.likedByMe,
-    required this.likeUpdating,
-    this.failed = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      constraints: const BoxConstraints(maxWidth: 320),
-      decoration: BoxDecoration(
-        color: isMine
-            ? KemeticGold.base.withValues(alpha: 0.2)
-            : Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isMine
-              ? KemeticGold.base.withValues(alpha: 0.4)
-              : Colors.white.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            text,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.95),
-              fontSize: 15,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _formatTime(createdAt),
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.45),
-                  fontSize: 11,
-                ),
-              ),
-              if (likeUpdating) ...[
-                const SizedBox(width: 8),
-                const SizedBox(
-                  width: 11,
-                  height: 11,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.redAccent),
-                  ),
-                ),
-              ] else if (failed) ...[
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.error_outline,
-                  size: 12,
-                  color: Colors.redAccent,
-                ),
-                const SizedBox(width: 3),
-                const Text(
-                  'Not sent',
-                  style: TextStyle(
-                    color: Colors.redAccent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ] else if (likesCount > 0) ...[
-                const SizedBox(width: 8),
-                KemeticHeartIcon(
-                  size: 12,
-                  color: likedByMe
-                      ? Colors.redAccent
-                      : Colors.redAccent.withValues(alpha: 0.75),
-                ),
-                if (likesCount > 1) ...[
-                  const SizedBox(width: 3),
-                  Text(
-                    '$likesCount',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.55),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatTime(DateTime date) {
-    final localDate = date.toLocal();
-    final now = DateTime.now();
-    final diff = now.difference(localDate);
-
-    if (diff.inDays == 0) {
-      final hours = localDate.hour % 12 == 0 ? 12 : localDate.hour % 12;
-      final minutes = localDate.minute.toString().padLeft(2, '0');
-      final suffix = localDate.hour >= 12 ? 'PM' : 'AM';
-      return '$hours:$minutes $suffix';
-    } else if (diff.inDays == 1) {
-      return 'Yesterday';
-    } else if (diff.inDays < 7) {
-      return '${diff.inDays}d ago';
-    } else {
-      return '${localDate.month}/${localDate.day}/${localDate.year}';
     }
   }
 }

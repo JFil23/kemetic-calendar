@@ -13,6 +13,8 @@ import '../../widgets/profile_avatar.dart';
 import 'conversation_user.dart';
 import 'conversation_scroll_physics.dart';
 import 'dm_conversation_models.dart';
+import 'presentation/inbox_message_actions.dart';
+import 'presentation/inbox_message_action_host.dart';
 
 class InboxDmConversationPage extends StatefulWidget {
   const InboxDmConversationPage({super.key, required this.conversationId});
@@ -28,9 +30,14 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late final DmConversationRepo _repo;
+  StreamSubscription<AuthState>? _accountSub;
+  String? _accountId;
   late Future<DmConversationSummary?> _summaryFuture;
   int _lastMessageCount = 0;
   bool _sending = false;
+  InboxReplyTarget? _replyTo;
+  final _locallyDeleted = <String>{};
+  final FocusNode _composerFocus = FocusNode();
 
   late Stream<List<DmConversationMessage>> _messages;
 
@@ -38,6 +45,21 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
   void initState() {
     super.initState();
     _repo = DmConversationRepo(Supabase.instance.client);
+    _accountId = _repo.currentUserId;
+    _accountSub = Supabase.instance.client.auth.onAuthStateChange.listen((
+      state,
+    ) {
+      final next = state.session?.user.id;
+      if (!mounted || next == _accountId) return;
+      setState(() {
+        _accountId = next;
+        _replyTo = null;
+        _messageController.clear();
+        _locallyDeleted.clear();
+        _messages = _repo.watchMessages(widget.conversationId);
+        _summaryFuture = _repo.getConversationSummary(widget.conversationId);
+      });
+    });
     _messages = _repo.watchMessages(widget.conversationId);
     _summaryFuture = _repo.getConversationSummary(widget.conversationId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -52,12 +74,16 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
       _messages = _repo.watchMessages(widget.conversationId);
       _summaryFuture = _repo.getConversationSummary(widget.conversationId);
       _lastMessageCount = 0;
+      _replyTo = null;
+      _locallyDeleted.clear();
       unawaited(_repo.markRead(widget.conversationId));
     }
   }
 
   @override
   void dispose() {
+    _accountSub?.cancel();
+    _composerFocus.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -79,18 +105,24 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    setState(() => _sending = true);
+    final reply = _replyTo;
+    setState(() {
+      _sending = true;
+      _replyTo = null;
+    });
     _messageController.clear();
     try {
       await _repo.sendMessage(
         conversationId: widget.conversationId,
         text: text,
+        replyToId: reply?.id,
         clientMessageId: 'mobile:${DateTime.now().microsecondsSinceEpoch}',
       );
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       _messageController.text = text;
+      _replyTo = reply;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(userFacingDmConversationError(e)),
@@ -172,7 +204,9 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
                           );
                         }
 
-                        final messages = snapshot.data!;
+                        final messages = snapshot.data!
+                            .where((m) => !_locallyDeleted.contains(m.id))
+                            .toList();
                         if (messages.length != _lastMessageCount) {
                           _lastMessageCount = messages.length;
                           _scrollToBottom();
@@ -199,10 +233,27 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
                           itemBuilder: (context, index) {
                             final message = messages[index];
                             final isMine = message.senderId == currentUserId;
-                            return _DmMessageRow(
-                              message: message,
+                            return InboxMessageActionHost(
+                              target: InboxReplyTarget(
+                                id: message.id,
+                                kind: 'dm',
+                                text: message.body,
+                              ),
+                              createdAt: message.createdAt,
                               isMine: isMine,
-                              showSender: isGroup && !isMine,
+                              isText: true,
+                              onReply: (target) {
+                                setState(() => _replyTo = target);
+                                _composerFocus.requestFocus();
+                              },
+                              onRemoved: () => setState(
+                                () => _locallyDeleted.add(message.id),
+                              ),
+                              child: _DmMessageRow(
+                                message: message,
+                                isMine: isMine,
+                                showSender: isGroup && !isMine,
+                              ),
                             );
                           },
                         );
@@ -210,6 +261,17 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
                     ),
                   ),
                 ),
+                if (_replyTo != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: InboxReplyPreview(
+                        text: _replyTo!.text,
+                        onCancel: () => setState(() => _replyTo = null),
+                      ),
+                    ),
+                  ),
                 _buildComposer(),
               ],
             ),
@@ -236,6 +298,7 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
               ),
               child: TextField(
                 controller: _messageController,
+                focusNode: _composerFocus,
                 style: const TextStyle(color: Colors.white),
                 maxLines: 4,
                 minLines: 1,
@@ -288,6 +351,7 @@ class _DmMessageRow extends StatelessWidget {
     final sender = message.sender;
     final bubble = _DmMessageBubble(
       text: message.body,
+      replyText: (message.payloadJson?['reply_to'] as Map?)?['text'] as String?,
       createdAt: message.createdAt,
       isMine: isMine,
       senderName: showSender ? _displayName(sender) : null,
@@ -328,12 +392,14 @@ class _DmMessageBubble extends StatelessWidget {
     required this.createdAt,
     required this.isMine,
     this.senderName,
+    this.replyText,
   });
 
   final String text;
   final DateTime createdAt;
   final bool isMine;
   final String? senderName;
+  final String? replyText;
 
   @override
   Widget build(BuildContext context) {
@@ -354,6 +420,7 @@ class _DmMessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (replyText != null) InboxReplyPreview(text: replyText!),
           if (senderName != null) ...[
             Text(
               senderName!,

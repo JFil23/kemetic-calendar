@@ -51,6 +51,12 @@ void main() {
       authOptions: const AuthClientOptions(autoRefreshToken: false),
       httpClient: MockClient((request) async {
         Object body = [];
+        if (request.url.path.endsWith('/inbox_message_action')) {
+          if (unavailable) {
+            return http.Response('unavailable', 503, request: request);
+          }
+          body = true;
+        }
         if (request.url.path.endsWith('/share_filing_items_client') ||
             request.url.path.endsWith('/inbox_share_items_filtered')) {
           reads++;
@@ -81,6 +87,48 @@ void main() {
     repo = ShareRepo(client);
   });
   tearDown(() async => client.dispose());
+
+  test(
+    'private deletion removes acknowledged warm snapshot and survives repository reopen',
+    () async {
+      await repo.getInboxItems(throwOnError: true);
+      final first = repo.cachedInboxItemsSync()!.first;
+      await repo.actOnInboxMessage('flow', first.shareId, unsend: false);
+      expect(
+        repo.cachedInboxItemsSync()!.where(
+          (item) => item.shareId == first.shareId,
+        ),
+        isEmpty,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final stored =
+          jsonDecode(prefs.getString('inbox:shares:v1:$account')!) as List;
+      expect(
+        stored.where((item) => item['share_id'] == first.shareId),
+        isEmpty,
+      );
+      expect(
+        ShareRepo(client).cachedInboxItemsSync()!.where(
+          (item) => item.shareId == first.shareId,
+        ),
+        isEmpty,
+      );
+    },
+  );
+
+  test('failed private deletion retains the confirmed warm message', () async {
+    await repo.getInboxItems(throwOnError: true);
+    final first = repo.cachedInboxItemsSync()!.first;
+    unavailable = true;
+    await expectLater(
+      repo.actOnInboxMessage('flow', first.shareId, unsend: false),
+      throwsA(anything),
+    );
+    expect(
+      repo.cachedInboxItemsSync()!.any((item) => item.shareId == first.shareId),
+      isTrue,
+    );
+  });
 
   test(
     'simultaneous account reads share one request and retain full preview payload',

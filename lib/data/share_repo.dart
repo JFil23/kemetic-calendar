@@ -704,11 +704,13 @@ class ShareRepo {
   Future<List<ShareResult>> shareFlow({
     int? flowId,
     String? flowPostId,
+    String? sourceShareId,
     required List<ShareRecipient> recipients,
     SuggestedSchedule? suggestedSchedule,
   }) async {
     final normalizedRecipients = dedupeShareRecipients(recipients);
-    if ((flowId == null) == (flowPostId == null) ||
+    if ([flowId, flowPostId, sourceShareId].where((id) => id != null).length !=
+            1 ||
         normalizedRecipients.isEmpty) {
       return [ShareResult(error: 'Choose one flow and at least one recipient')];
     }
@@ -726,6 +728,7 @@ class ShareRepo {
         body: {
           if (flowId != null) 'flow_id': flowId,
           if (flowPostId != null) 'flow_post_id': flowPostId,
+          if (sourceShareId != null) 'source_share_id': sourceShareId,
           'recipients': normalizedRecipients.map((r) => r.toJson()).toList(),
           if (suggestedSchedule != null)
             'suggested_schedule': suggestedSchedule.toJson(),
@@ -2870,93 +2873,57 @@ class ShareRepo {
     }
   }
 
-  /// Low-level helper: soft-delete a share row by role (sender or recipient).
-  /// Returns true if update succeeds, false on error.
-  /// Note: This will fail silently until backend adds `deleted_at` column.
-  Future<bool> _softDeleteShare({
-    required String shareId,
-    required bool isFlow,
-    required String roleColumn, // 'sender_id' or 'recipient_id'
+  /// Acknowledged, account-owned dismissal; never a global recipient delete.
+  Future<void> actOnInboxMessage(
+    String kind,
+    String id, {
+    required bool unsend,
   }) async {
+    final account = AccountOperationFence(_client);
+    final uid = account.userId;
     try {
-      final user = _client.auth.currentUser;
-      if (user == null) {
-        if (kDebugMode) {
-          debugPrint('[ShareRepo] softDelete: no auth user');
-        }
-        return false;
-      }
-
-      final userId = user.id;
-      final table = isFlow ? 'flow_shares' : 'event_shares';
-      final now = DateTime.now().toUtc().toIso8601String();
-
-      if (kDebugMode) {
-        debugPrint(
-          '[ShareRepo] softDelete table=$table shareId=$shareId roleColumn=$roleColumn userId=$userId',
-        );
-      }
-
-      final updated = await _updateShareRow(
-        table: table,
-        shareId: shareId,
-        roleColumn: roleColumn,
-        userId: userId,
-        values: {'deleted_at': now},
+      if (uid == null) throw Exception('Not signed in');
+      final ok = await _client.rpc(
+        'inbox_message_action',
+        params: {
+          'p_kind': kind,
+          'p_id': id,
+          'p_action': unsend ? 'unsend' : 'hide',
+        },
       );
-      if (!updated) {
-        if (kDebugMode) {
-          debugPrint(
-            '[ShareRepo] softDelete: no matching row updated for '
-            'shareId=${safeLogIdentifier(shareId)}',
-          );
-        }
-        return false;
-      }
+      if (ok != true) throw Exception('Message action was not acknowledged');
+      if (!account.isCurrent) return;
+      await _patchCachedInboxItem(
+        uid: uid,
+        shareId: id,
+        values: {'deleted_at': DateTime.now().toUtc().toIso8601String()},
+      );
+      _unreadTrackers[uid]?.scheduleRefresh(immediate: true);
+    } finally {
+      account.dispose();
+    }
+  }
 
-      if (kDebugMode) {
-        debugPrint(
-          '[ShareRepo] ✓ softDelete success for '
-          'shareId=${safeLogIdentifier(shareId)}',
-        );
-      }
-
+  Future<bool> deleteInboxItem(String shareId, {required bool isFlow}) async {
+    try {
+      await actOnInboxMessage(
+        isFlow ? 'flow' : 'event',
+        shareId,
+        unsend: false,
+      );
       return true;
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('[ShareRepo] ✗ softDelete error: $e');
-        debugPrint('$st');
-        // In dev, you can distinguish error types for better debugging:
-        if (e is PostgrestException) {
-          debugPrint(
-            '[ShareRepo] Postgrest error: code=${e.code}, message=${e.message}',
-          );
-          if (e.code == 'PGRST116') {
-            // Column doesn't exist
-            debugPrint('[ShareRepo] ⚠️ deleted_at column may not exist yet');
-          }
-        }
-      }
+    } catch (_) {
       return false;
     }
   }
 
-  /// Delete from your inbox (you are the recipient).
-  Future<bool> deleteInboxItem(String shareId, {required bool isFlow}) {
-    return _softDeleteShare(
-      shareId: shareId,
-      isFlow: isFlow,
-      roleColumn: 'recipient_id',
-    );
-  }
-
-  /// Unsend something you sent (you are the sender).
-  Future<bool> unsendShare(String shareId, {required bool isFlow}) {
-    return _softDeleteShare(
-      shareId: shareId,
-      isFlow: isFlow,
-      roleColumn: 'sender_id',
-    );
+  Future<bool> unsendShare(String shareId, {required bool isFlow}) async {
+    try {
+      await actOnInboxMessage(isFlow ? 'flow' : 'event', shareId, unsend: true);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   static bool isInboxAccessDenied(Object error) =>

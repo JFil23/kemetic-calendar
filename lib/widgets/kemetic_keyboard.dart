@@ -600,6 +600,16 @@ class _KeyboardToggleState extends State<_KeyboardToggle> {
   final GlobalKey _fabKey = GlobalKey();
   Size _toggleSize = _fallbackSize;
   Offset? _customOffset;
+  Rect? _lastEditableRect;
+
+  Rect? _editableRect() {
+    final editable = widget.controller.editable;
+    if (editable == null || !editable.mounted) return null;
+    final render = editable.context.findRenderObject();
+    if (render is! RenderBox || !render.hasSize || !render.attached)
+      return null;
+    return render.localToGlobal(Offset.zero) & render.size;
+  }
 
   @override
   void initState() {
@@ -611,6 +621,10 @@ class _KeyboardToggleState extends State<_KeyboardToggle> {
     final ctx = _fabKey.currentContext;
     if (ctx == null) return;
     final measured = ctx.size;
+    final editableRect = _editableRect();
+    if (_customOffset == null && editableRect != _lastEditableRect) {
+      setState(() => _lastEditableRect = editableRect);
+    }
     if (measured != null &&
         (((measured.width - _toggleSize.width).abs() > 0.5) ||
             ((measured.height - _toggleSize.height).abs() > 0.5))) {
@@ -625,7 +639,16 @@ class _KeyboardToggleState extends State<_KeyboardToggle> {
     final safeBottom = max(widget.bottomInset, padding.bottom);
     final bottomAnchor = max((safeBottom > 0 ? safeBottom : 0) + 12.0, 32.0);
     final x = screenSize.width - padding.right - 16.0 - _toggleSize.width;
-    final y = screenSize.height - bottomAnchor - _toggleSize.height;
+    var y = screenSize.height - bottomAnchor - _toggleSize.height;
+    final editor = _editableRect();
+    // Keep the default toggle out of the editor's horizontal control row
+    // (including adjacent Send/Save buttons). A dragged position stays owned
+    // by the user and is only clamped to the visible viewport.
+    if (editor != null &&
+        y < editor.bottom + 12 &&
+        y + _toggleSize.height > editor.top - 12) {
+      y = editor.top - _toggleSize.height - 12;
+    }
     return Offset(x, y);
   }
 

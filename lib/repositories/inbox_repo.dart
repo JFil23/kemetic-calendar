@@ -245,6 +245,8 @@ class InboxRepo {
   Future<InboxShareItem?> sendTextMessage({
     required String recipientId,
     required String text,
+    String? replyToId,
+    String? replyToKind,
   }) async {
     final senderId = currentUserId;
     if (senderId == null) {
@@ -257,7 +259,12 @@ class InboxRepo {
     try {
       final response = await _client.functions.invoke(
         'send_dm_message',
-        body: {'recipientId': recipientId, 'text': trimmed},
+        body: {
+          'recipientId': recipientId,
+          'text': trimmed,
+          if (replyToId != null) 'replyToId': replyToId,
+          if (replyToKind != null) 'replyToKind': replyToKind,
+        },
       );
       final body = _asDmMap(response.data);
       if (response.status >= 400) {
@@ -278,7 +285,7 @@ class InboxRepo {
       }
       return null;
     } on FunctionException catch (e, st) {
-      if (isMissingDmFunctionError(e)) {
+      if (replyToId == null && isMissingDmFunctionError(e)) {
         if (kDebugMode) {
           debugPrint(
             '[InboxRepo] send_dm_message missing, using direct DM fallback',
@@ -294,7 +301,7 @@ class InboxRepo {
       }
       rethrow;
     } catch (e, st) {
-      if (isMissingDmFunctionError(e)) {
+      if (replyToId == null && isMissingDmFunctionError(e)) {
         if (kDebugMode) {
           debugPrint(
             '[InboxRepo] send_dm_message unavailable, using direct DM fallback',

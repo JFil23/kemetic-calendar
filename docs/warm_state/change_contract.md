@@ -1177,3 +1177,40 @@ bounded refreshes, old cache restoration, account changes and access denial.
 The DOM handoff runs in the browser gate. Capture-only images remain outside
 approved visual references. The complete App gate is required before release;
 these automated checks do not measure physical iPhone frame timing.
+
+## October 7 Inbox message actions
+
+The user's 15:43 Instagram recording is the interaction reference: lifted
+message, blurred conversation, nearby action list and no emoji strip. The
+existing Hꜣw bubble typography/color are preserved. InboxMessageActions owns
+bounded phone/wide layouts, dismissal and action presentation; the shared
+InboxMessageActionHost connects direct/group route identities to the existing
+repositories. No separate detail page or new message storage authority is added.
+Core actions are Reply, Forward, Copy, Delete for me and sender-only Unsend.
+Failed local sends expose copy/discard without claiming they can be unsent.
+
+ShareRepo and DmConversationRepo remain the account write owners. The backend
+resolves reply quotes from readable messages and persists them in the existing
+optional payload_json.reply_to field. Old snapshots remain valid. Forwarding
+uses the existing text or complete-flow delivery boundary and recipient picker.
+Private deletion is an acknowledged account mutation, separate from global
+sender unsending. ShareRepo patches the existing inbox:shares:v1:<account>
+snapshot only after acknowledgement; failures retain confirmed content. Group
+writes invalidate the existing dm.* snapshots. Account fences prevent departed
+writes from publishing into a new account, and reply/composer state is cleared
+on account changes. Warm caches never contain queued writes or own deletion.
+
+Visual tests cover 320/390/844 widths, dismissal/action dispatch, and the real
+Inbox route replying with source identity through its existing keyboard. Cache
+tests cover acknowledged hide persistence/reopen and failed-write retention;
+existing cold/warm, refresh, account-change and keyboard tests remain required.
+The backend gate additionally verifies real account ownership, first-time sends,
+recipient/member/outsider permissions, private hiding after a fresh client,
+server-validated quotes, unsending and complete flow snapshot forwarding.
+
+The real Reply-to-Send test also caught the floating keyboard toggle covering
+Send. The canonical keyboard toggle now defaults above the focused editor's
+control row when they overlap; user-dragged positions retain their existing
+clamp behavior. It guards stale/unmounted editor geometry. This changes neither
+keyboard occlusion authority nor focus/DOM input ownership. The real route asserts
+that the controls do not overlap, taps Send, and verifies quoted source metadata.
