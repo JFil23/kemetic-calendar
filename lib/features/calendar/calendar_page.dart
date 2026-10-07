@@ -4175,7 +4175,27 @@ class CalendarPage extends StatefulWidget {
           }
           await _appendFlowToJournal(text);
         },
-        onEndMaatFlow: (flow) => _endFlowHeadless(flow.id),
+        onEndMaatFlow: (flow) async {
+          final messenger = ScaffoldMessenger.of(context);
+          final result = await _endFlowHeadless(flow.id);
+          if (result.result != EndFlowActionResult.success &&
+              messenger.mounted) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(endFlowFailureDisplayMessage(result)),
+                action: SnackBarAction(
+                  label: 'Copy diagnostics',
+                  onPressed: () => unawaited(
+                    EndFlowDiagnostics.instance.copyTerminalDiagnostics(
+                      result.operationId,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+          return result;
+        },
         showFlowOptions: true,
         additionalMenuActions: additionalMenuActions,
         backFallbackLocation: backFallbackLocation,

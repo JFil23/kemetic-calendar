@@ -1109,6 +1109,29 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
       );
     }
 
+    if (_metaFor(flow).maatKey != null && widget.onEndMaatFlow != null) {
+      // Historical/unrecognized Ma’at rows retain their end permission while
+      // using the same full detail and action dock as every other flow.
+      return ValueListenableBuilder<bool>(
+        valueListenable: EndFlowAuthReadiness.instance.listenable,
+        builder: (context, sessionReady, _) => sessionReady
+            ? MaatFlowDetailDock(
+                theme: theme,
+                joined: false,
+                busy: _endingFlowIds.contains(flow.id),
+                onPressed: () => unawaited(_endFlowAndClose(flow)),
+                actionLabel: 'End Flow',
+                actionNote: '',
+                joinedLabel: 'Ended',
+                joinedNote: '',
+                actionKey: const ValueKey<String>('user-flow-end'),
+                joinedKey: const ValueKey<String>('user-flow-ended'),
+                showNote: false,
+              )
+            : const SizedBox.shrink(),
+      );
+    }
+
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.4,
       child: MaatFlowDetailDock(

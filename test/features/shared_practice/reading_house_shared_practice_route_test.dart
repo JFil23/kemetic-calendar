@@ -239,7 +239,7 @@ void main() {
     expect(routeSource, isNot(contains('CommonsReadingHousePage')));
     expect(
       sharedFlowSource,
-      contains('CalendarPage.buildCanonicalMaatFlowDetail('),
+      contains('CalendarPage.buildCanonicalFlowDetail('),
     );
     expect(calendarSource, contains('return ReadingHouseDetailSurface('));
     expect(calendarSource, contains('LiveReadingHouseAuthority('));

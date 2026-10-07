@@ -1327,7 +1327,7 @@ void main() {
       expect(route, contains("extra['share']"));
       expect(route, contains('fallbackLocation: _fallbackLocation'));
       expect(entry, contains('final String fallbackLocation'));
-      expect(entry, contains('fallbackLocation: widget.fallbackLocation'));
+      expect(entry, contains('fallbackLocation: fallbackLocation'));
     });
 
     test(

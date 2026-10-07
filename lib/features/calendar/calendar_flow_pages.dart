@@ -2050,6 +2050,24 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
   }
 
+  Future<void> _endFlowAndClose(_Flow flow) async {
+    final endFlow = widget.onEndMaatFlow;
+    if (endFlow == null || _endingFlowIds.contains(flow.id)) return;
+    final navigator = Navigator.of(context);
+    setState(() => _endingFlowIds.add(flow.id));
+    try {
+      final operation = endFlow(flow);
+      if (navigator.mounted) await navigator.maybePop();
+      await operation;
+    } finally {
+      if (mounted) {
+        setState(() => _endingFlowIds.remove(flow.id));
+      } else {
+        _endingFlowIds.remove(flow.id);
+      }
+    }
+  }
+
   Widget? _buildMaatDetail(_Flow currentFlow) {
     final currentMeta = _metaFor(currentFlow);
     final currentEvents = _eventsByFlow[currentFlow.id] ?? const [];
@@ -2218,33 +2236,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                             ),
                             onPressed: _endingFlowIds.contains(currentFlow.id)
                                 ? null
-                                : () async {
-                                    final onEndMaatFlow = widget.onEndMaatFlow;
-                                    if (onEndMaatFlow == null) return;
-                                    final navigator = Navigator.of(context);
-                                    setState(
-                                      () => _endingFlowIds.add(currentFlow.id),
-                                    );
-                                    try {
-                                      final operation = onEndMaatFlow(
-                                        currentFlow,
-                                      );
-                                      if (navigator.mounted) {
-                                        await navigator.maybePop();
-                                      }
-                                      await operation;
-                                    } finally {
-                                      if (mounted) {
-                                        setState(
-                                          () => _endingFlowIds.remove(
-                                            currentFlow.id,
-                                          ),
-                                        );
-                                      } else {
-                                        _endingFlowIds.remove(currentFlow.id);
-                                      }
-                                    }
-                                  },
+                                : () => _endFlowAndClose(currentFlow),
                             child: Text(
                               _endingFlowIds.contains(currentFlow.id)
                                   ? 'Ending…'
