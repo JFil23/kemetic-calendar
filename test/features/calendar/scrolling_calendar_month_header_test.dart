@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/calendar_geometry_snapshot.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/calendar_scroll_coordinator.dart';
@@ -10,11 +11,81 @@ import 'package:mobile/features/calendar/calendar_section_index.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/scrolling_calendar_month_header.dart';
+import 'package:mobile/services/speech/speech_catalog.g.dart';
 import 'package:mobile/widgets/month_name_text.dart';
+import 'package:mobile/widgets/pronounce_icon_button.dart';
+
+import '../../support/maat_flow_visual_test_fonts.dart';
 
 const _testWeekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S', 'M', 'T', 'W'];
 
 void main() {
+  setUpAll(loadMaatFlowVisualTestFonts);
+
+  testWidgets(
+    'speech follows every month label with a fixed gap and full touch target',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      for (final width in [320.0, 390.0, 430.0]) {
+        tester.view.physicalSize = Size(width, 180);
+        for (final scale in [1.0, 1.5]) {
+          for (var monthId = 1; monthId <= 13; monthId++) {
+            await tester.pumpWidget(
+              MaterialApp(
+                theme: AppTheme.dark,
+                home: MediaQuery(
+                  data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+                  child: Scaffold(
+                    body: Align(
+                      alignment: Alignment.topCenter,
+                      child: ScrollingCalendarMonthHeader(
+                        month: getMonthById(monthId),
+                        yearLabel: '2026/2027',
+                        showGregorian: false,
+                        gregorianMonthName: 'October',
+                        gregorianYearLabel: '2026',
+                        weekdayLabels: _testWeekdayLabels,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+            final label = tester.getRect(
+              find.byKey(const Key('scrolling-calendar-month-label')),
+            );
+            final button = find.byType(PronounceIconButton);
+            final target = tester.getRect(button);
+            final icon = tester.getRect(
+              find.descendant(of: button, matching: find.byType(Icon)),
+            );
+            final contextLabel = tester.getRect(
+              find.byKey(const Key('scrolling-calendar-season-year')),
+            );
+            expect(target.left - label.right, closeTo(4, 0.001));
+            expect(icon.left - label.right, closeTo(17, 0.001));
+            expect(target.size, const Size(48, 48));
+            expect(icon.size, const Size(22, 22));
+            expect(contextLabel.left - target.right, greaterThanOrEqualTo(12));
+            expect(
+              speechClipIds[tester
+                  .widget<PronounceIconButton>(button)
+                  .speakText],
+              'month-${monthId.toString().padLeft(2, '0')}',
+            );
+            expect(tester.takeException(), isNull);
+          }
+        }
+      }
+    },
+    variant: TargetPlatformVariant({
+      TargetPlatform.iOS,
+      TargetPlatform.android,
+    }),
+  );
+
   testWidgets('shows the active leading Kemetic month and its year context', (
     tester,
   ) async {
@@ -154,6 +225,7 @@ void main() {
     expect(find.text('Šef-Bedet'), findsNothing);
     expect(find.text('(Šf-bdt)'), findsNothing);
     expect(find.text('Peret 2026'), findsNothing);
+    expect(find.byType(PronounceIconButton), findsNothing);
     expect(find.byType(MonthNameText), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -237,10 +309,12 @@ void main() {
     await rig.scrollTo(tester, 77.999);
     expect(rig.coordinator.activeBannerMonth.value, _month12);
     expect(find.text('Mesut-Ra'), findsOneWidget);
+    _expectSpokenMonth(tester, 12);
 
     await rig.scrollTo(tester, 78);
     expect(rig.coordinator.activeBannerMonth.value, _heriu);
     expect(find.text('Heriu Renpet'), findsOneWidget);
+    _expectSpokenMonth(tester, 13);
 
     await rig.scrollTo(tester, 122.999);
     expect(rig.coordinator.activeBannerMonth.value, _heriu);
@@ -248,6 +322,7 @@ void main() {
     await rig.scrollTo(tester, 123);
     expect(rig.coordinator.activeBannerMonth.value, _thoth);
     expect(find.text('Thoth'), findsOneWidget);
+    _expectSpokenMonth(tester, 1);
   });
 
   testWidgets('switches at the buffered final day block toward the past', (
@@ -261,10 +336,12 @@ void main() {
     await rig.scrollTo(tester, 107.001);
     expect(rig.coordinator.activeBannerMonth.value, _thoth);
     expect(find.text('Thoth'), findsOneWidget);
+    _expectSpokenMonth(tester, 1);
 
     await rig.scrollTo(tester, 107);
     expect(rig.coordinator.activeBannerMonth.value, _heriu);
     expect(find.text('Heriu Renpet'), findsOneWidget);
+    _expectSpokenMonth(tester, 13);
 
     await rig.scrollTo(tester, 62.001);
     expect(rig.coordinator.activeBannerMonth.value, _heriu);
@@ -272,6 +349,7 @@ void main() {
     await rig.scrollTo(tester, 62);
     expect(rig.coordinator.activeBannerMonth.value, _month12);
     expect(find.text('Mesut-Ra'), findsOneWidget);
+    _expectSpokenMonth(tester, 12);
   });
 
   test('production banner binds only to coordinator banner authority', () {
@@ -362,6 +440,17 @@ void main() {
     expect(find.text('Peret 2026/2027'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+void _expectSpokenMonth(WidgetTester tester, int monthId) {
+  final button = tester.widget<PronounceIconButton>(
+    find.byType(PronounceIconButton),
+  );
+  expect(
+    speechClipIds[button.speakText],
+    'month-${monthId.toString().padLeft(2, '0')}',
+  );
+  expect(button.utteranceId, 'calendar-banner-month-$monthId');
 }
 
 final _month12 = MonthRef(year: 4, month: 12);

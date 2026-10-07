@@ -8,6 +8,8 @@ import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/calendar_scroll_coordinator.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
+import 'package:mobile/widgets/pronounce_icon_button.dart';
+import 'package:mobile/services/speech/speech_catalog.g.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -90,6 +92,13 @@ void main() {
           widget.text == expectedBannerText,
     );
     expect(activeBanner, findsOneWidget);
+    final speechButton = tester.widget<PronounceIconButton>(
+      find.byKey(const Key('scrolling-calendar-month-speech')),
+    );
+    expect(
+      speechClipIds[speechButton.speakText],
+      'month-${activeBannerMonth.month.toString().padLeft(2, '0')}',
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 2));
