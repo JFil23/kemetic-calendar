@@ -3341,8 +3341,10 @@ class ShareRepo {
       cancelled = true;
       refreshDebounce?.cancel();
       account.dispose();
+      // Stop channel retry timers synchronously with stream cancellation.
+      final unsubscribe = channel.unsubscribe();
       await authSub.cancel();
-      await channel.unsubscribe();
+      await unsubscribe;
       unawaited(controller.close());
     };
 

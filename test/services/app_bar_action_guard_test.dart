@@ -1286,7 +1286,7 @@ void main() {
       final persist = _sourceBetween(
         source,
         'void _persistResumeState()',
-        'void _scrollToBottom()',
+        'void _scrollToBottom(',
       );
       final inbox = await File(
         'lib/features/inbox/inbox_page.dart',
