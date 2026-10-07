@@ -272,52 +272,50 @@ void main() {
       find.byType(SharedFlowDetailsPage),
     );
     expect(detail.flowId, 42);
-    expect(detail.useCanonicalUserFlowDetail, isTrue);
+    expect(find.byType(SharedFlowDetailsPage), findsOneWidget);
     expect(detail.fallbackLocation, '/pages');
     expect(find.byTooltip('Back'), findsOneWidget);
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox());
   });
 
-  for (final canonicalSurface in [false, true]) {
+  {
     for (final restored in [false, true]) {
-      testWidgets(
-        'flow detail Back returns to Pages: canonical=$canonicalSurface restored=$restored',
-        (tester) async {
-          final router = GoRouter(
-            initialLocation: restored ? '/detail' : '/pages',
-            routes: [
-              GoRoute(
-                path: '/pages',
-                builder: (_, _) => const Scaffold(body: Text('Pages return')),
+      testWidgets('flow detail Back returns to Pages: restored=$restored', (
+        tester,
+      ) async {
+        final router = GoRouter(
+          initialLocation: restored ? '/detail' : '/pages',
+          routes: [
+            GoRoute(
+              path: '/pages',
+              builder: (_, _) => const Scaffold(body: Text('Pages return')),
+            ),
+            GoRoute(
+              path: '/detail',
+              builder: (_, _) => CalendarPage.buildCanonicalFlowDetail(
+                name: 'Navigation fixture',
+                color: 0xffd4af37,
+                isSaved: true,
+                backFallbackLocation: '/pages',
               ),
-              GoRoute(
-                path: '/detail',
-                builder: (_, _) => CalendarPage.buildCanonicalCustomFlowDetail(
-                  name: 'Navigation fixture',
-                  color: 0xffd4af37,
-                  isSaved: true,
-                  useMySavedExpansionParity: canonicalSurface,
-                  backFallbackLocation: '/pages',
-                ),
-              ),
-            ],
-          );
-          await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-          if (!restored) {
-            unawaited(router.push<void>('/detail'));
-          }
-          await tester.pumpAndSettle();
-          final back = find.byTooltip('Back');
-          expect(back, findsOneWidget);
-          await tester.tap(back);
-          await tester.pumpAndSettle();
-          expect(find.text('Pages return'), findsOneWidget);
-          expect(tester.takeException(), isNull);
-          await tester.pumpWidget(const SizedBox());
-          router.dispose();
-        },
-      );
+            ),
+          ],
+        );
+        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+        if (!restored) {
+          unawaited(router.push<void>('/detail'));
+        }
+        await tester.pumpAndSettle();
+        final back = find.byTooltip('Back');
+        expect(back, findsOneWidget);
+        await tester.tap(back);
+        await tester.pumpAndSettle();
+        expect(find.text('Pages return'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        router.dispose();
+      });
     }
   }
 

@@ -1,4 +1,6 @@
+import 'account_operation_fence.dart';
 import 'warm_state/warm_json_reads.dart';
+import 'warm_state/warm_snapshot_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -89,85 +91,95 @@ class EventFilingRepo {
     DateTime? startsOnOrAfterUtc,
     bool strict = false,
   }) async {
-    final trimmedCalendarId = calendarId?.trim();
-    final boundedPageSize = pageSize <= 0 ? 1000 : pageSize;
-    final boundedMaxRows = maxRows != null && maxRows > 0 ? maxRows : null;
-    final rows = <Map<String, dynamic>>[];
-    var offset = 0;
-
+    final account = AccountOperationFence(_client);
     try {
-      while (true) {
-        var query = _client.from(viewName).select(selectColumns);
-        if (trimmedCalendarId != null && trimmedCalendarId.isNotEmpty) {
-          query = query.eq('calendar_id', trimmedCalendarId);
-        }
-        if (liveOnly) {
-          query = query.eq('live_on_calendar', true);
-        }
-        final windowStart = startsOnOrAfterUtc?.toUtc();
-        if (windowStart != null) {
-          query = query.gte('starts_at', windowStart.toIso8601String());
-        }
+      final trimmedCalendarId = calendarId?.trim();
+      final boundedPageSize = pageSize <= 0 ? 1000 : pageSize;
+      final boundedMaxRows = maxRows != null && maxRows > 0 ? maxRows : null;
+      final rows = <Map<String, dynamic>>[];
+      var offset = 0;
 
-        final remaining = boundedMaxRows == null
-            ? boundedPageSize
-            : boundedMaxRows - rows.length;
-        if (remaining <= 0) break;
-        final requestSize = remaining < boundedPageSize
-            ? remaining
-            : boundedPageSize;
+      try {
+        while (true) {
+          if (!account.isCurrent) throw const WarmReadCancelled();
+          var query = _client.from(viewName).select(selectColumns);
+          if (trimmedCalendarId != null && trimmedCalendarId.isNotEmpty) {
+            query = query.eq('calendar_id', trimmedCalendarId);
+          }
+          if (liveOnly) {
+            query = query.eq('live_on_calendar', true);
+          }
+          final windowStart = startsOnOrAfterUtc?.toUtc();
+          if (windowStart != null) {
+            query = query.gte('starts_at', windowStart.toIso8601String());
+          }
 
-        final page = await query
-            .order('starts_at', ascending: true)
-            .order('id', ascending: true)
-            .range(offset, offset + requestSize - 1);
+          final remaining = boundedMaxRows == null
+              ? boundedPageSize
+              : boundedMaxRows - rows.length;
+          if (remaining <= 0) break;
+          final requestSize = remaining < boundedPageSize
+              ? remaining
+              : boundedPageSize;
 
-        final typedPage = (page as List)
-            .whereType<Map>()
-            .map((row) => row.cast<String, dynamic>())
-            .toList(growable: false);
-        rows.addAll(typedPage);
-        if (boundedMaxRows != null && rows.length >= boundedMaxRows) break;
-        if (typedPage.length < requestSize) break;
-        offset += requestSize;
+          final page = await query
+              .order('starts_at', ascending: true)
+              .order('id', ascending: true)
+              .range(offset, offset + requestSize - 1);
+
+          if (!account.isCurrent) throw const WarmReadCancelled();
+          final typedPage = (page as List)
+              .whereType<Map>()
+              .map((row) => row.cast<String, dynamic>())
+              .toList(growable: false);
+          rows.addAll(typedPage);
+          if (boundedMaxRows != null && rows.length >= boundedMaxRows) break;
+          if (typedPage.length < requestSize) break;
+          offset += requestSize;
+        }
+      } catch (e) {
+        _log('getEventCabinet failed: $e');
+        rethrow;
       }
-    } catch (e) {
-      _log('getEventCabinet failed: $e');
-      rethrow;
-    }
 
-    try {
-      final birthdayOccurrences =
-          await BirthdayCalendarRepo(
-            _client,
-            strict: strict,
-          ).getUpcomingOccurrences(
-            calendarId: trimmedCalendarId,
-            startsOnOrAfterUtc: startsOnOrAfterUtc,
+      try {
+        final birthdayOccurrences =
+            await BirthdayCalendarRepo(
+              _client,
+              strict: strict,
+            ).getUpcomingOccurrences(
+              calendarId: trimmedCalendarId,
+              startsOnOrAfterUtc: startsOnOrAfterUtc,
+            );
+        rows.addAll(
+          birthdayOccurrences.map(
+            (occurrence) => occurrence.toFilingBackendRow(),
+          ),
+        );
+      } catch (e) {
+        if (strict) rethrow;
+        _log('birthday occurrence merge failed: $e');
+      }
+
+      if (boundedMaxRows != null && rows.length > boundedMaxRows) {
+        rows.sort((a, b) {
+          final aStart = DateTime.tryParse(a['starts_at']?.toString() ?? '');
+          final bStart = DateTime.tryParse(b['starts_at']?.toString() ?? '');
+          final byStart = (aStart ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(bStart ?? DateTime.fromMillisecondsSinceEpoch(0));
+          if (byStart != 0) return byStart;
+          return (a['id']?.toString() ?? '').compareTo(
+            b['id']?.toString() ?? '',
           );
-      rows.addAll(
-        birthdayOccurrences.map(
-          (occurrence) => occurrence.toFilingBackendRow(),
-        ),
-      );
-    } catch (e) {
-      if (strict) rethrow;
-      _log('birthday occurrence merge failed: $e');
-    }
+        });
+        rows.removeRange(boundedMaxRows, rows.length);
+      }
 
-    if (boundedMaxRows != null && rows.length > boundedMaxRows) {
-      rows.sort((a, b) {
-        final aStart = DateTime.tryParse(a['starts_at']?.toString() ?? '');
-        final bStart = DateTime.tryParse(b['starts_at']?.toString() ?? '');
-        final byStart = (aStart ?? DateTime.fromMillisecondsSinceEpoch(0))
-            .compareTo(bStart ?? DateTime.fromMillisecondsSinceEpoch(0));
-        if (byStart != 0) return byStart;
-        return (a['id']?.toString() ?? '').compareTo(b['id']?.toString() ?? '');
-      });
-      rows.removeRange(boundedMaxRows, rows.length);
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      return rows;
+    } finally {
+      account.dispose();
     }
-
-    return rows;
   }
 
   Future<List<UserEvent>> getLiveCalendarEvents(

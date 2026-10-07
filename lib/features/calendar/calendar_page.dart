@@ -1,3 +1,4 @@
+import 'flow_detail_calendar_scope.dart';
 import '../../data/flow_share_snapshot.dart' show parseFlowSnapshotTime;
 import 'note_draft_invitations.dart';
 import '../onboarding/haw_calendar_connection.dart';
@@ -4178,7 +4179,6 @@ class CalendarPage extends StatefulWidget {
         showFlowOptions: true,
         additionalMenuActions: additionalMenuActions,
         backFallbackLocation: backFallbackLocation,
-        useMySavedExpansionParity: true,
         calendarPreviewForWindow:
             _mountedState?._userFlowCalendarPreviewForWindow,
       ),
@@ -4214,7 +4214,7 @@ class CalendarPage extends StatefulWidget {
     }
   }
 
-  static Widget buildCanonicalCustomFlowDetail({
+  static Widget buildCanonicalFlowDetail({
     required String name,
     required int color,
     String? notes,
@@ -4227,13 +4227,27 @@ class CalendarPage extends StatefulWidget {
     bool isSaved = false,
     bool previewAsTemplate = false,
     FlowDetailActionPolicy? actionPolicy,
-    bool useMySavedExpansionParity = false,
     bool showFlowOptions = false,
     List<FlowDetailMenuAction> additionalMenuActions = const [],
     String backFallbackLocation = kMaatFlowsListRoute,
     FlowAppearance appearance = FlowAppearance.empty,
     List<FlowEventRow>? initialFlowEvents,
   }) {
+    // Entry points provide data and permissions; this gateway owns the kind
+    // dispatch. A snapshot never grants ownership of a matching personal flow.
+    final maat = buildCanonicalMaatFlowDetail(
+      name: name,
+      notes: notes,
+      eventsJson: eventsJson,
+      rulesJson: rulesJson,
+      intendedStart: startDate,
+      intendedEnd: endDate,
+      relation: MaatFlowDetailRelation.invited,
+      actionPolicy: actionPolicy,
+      backFallbackLocation: backFallbackLocation,
+      menuActions: additionalMenuActions,
+    );
+    if (maat != null) return maat;
     final syntheticId = flowId ?? _syntheticFlowIdForSnapshot(name, eventsJson);
     final flow = _Flow(
       id: syntheticId,
@@ -4288,7 +4302,6 @@ class CalendarPage extends StatefulWidget {
       showFlowOptions: showFlowOptions,
       additionalMenuActions: additionalMenuActions,
       backFallbackLocation: backFallbackLocation,
-      useMySavedExpansionParity: useMySavedExpansionParity,
       calendarPreviewForWindow:
           CalendarPage._mountedState?._userFlowCalendarPreviewForWindow,
     );
@@ -4298,6 +4311,7 @@ class CalendarPage extends StatefulWidget {
     required String name,
     String? notes,
     List<dynamic> eventsJson = const <dynamic>[],
+    List<dynamic> rulesJson = const <dynamic>[],
     String backFallbackLocation = kMaatFlowsListRoute,
     MaatFlowDetailRelation relation = MaatFlowDetailRelation.catalogPreview,
     int? intendedFlowId,
@@ -4323,10 +4337,12 @@ class CalendarPage extends StatefulWidget {
       return _withFlowDetailOptions(
         Builder(
           builder: (context) => ArchivedMaatFlowDetailView(
-            bottomDock: actionPolicy == null
+            bottomDock:
+                actionPolicy?.source != FlowDetailSource.profilePost ||
+                    actionPolicy?.kind != FlowDetailActionKind.removeProfilePost
                 ? null
                 : _buildExternalFlowDetailDock(
-                    policy: actionPolicy,
+                    policy: actionPolicy!,
                     theme: ArchivedMaatFlowTokens.theme,
                   ),
             fixture: ownedFlow != null && ownedEvents != null
@@ -4367,45 +4383,50 @@ class CalendarPage extends StatefulWidget {
               notes: notes,
             );
       FollowSkyCalendarPreview? resolvedCalendar = calendarPreview;
-      final sky =
-          template.key == 'track-the-sky' &&
-              relation != MaatFlowDetailRelation.invited
+      final sky = template.key == 'track-the-sky'
           ? _mountedState?._followSkyLiveInputs()
           : null;
-      if (resolvedCalendar == null &&
-          relation != MaatFlowDetailRelation.invited) {
-        resolvedCalendar = template.key == 'track-the-sky'
-            ? sky?.preview
-            : maatFlowDetailUsesCalendarPreview(template.key)
-            ? _mountedState?._maatFlowCalendarPreview()
-            : null;
-      }
-      return _withFlowDetailOptions(
-        Builder(
-          builder: (context) => _ActiveMaatFlowDetailSurface.fromComposition(
-            composition: resolveMaatFlowDetailComposition(
-              template: template,
-              relation: relation,
-              intendedInstance: intended,
-              calendar: resolvedCalendar,
-              followSkyCandidates: sky?.candidates ?? const [],
-              followSkyMeasurementIntervals: sky?.intervals ?? const [],
-            ),
-            addInstance: _addMaatFlowInstanceHeadless,
-            primaryAction: actionPolicy == null
-                ? null
-                : _maatPrimaryActionFor(actionPolicy),
-            onPersisted: (_) => _refreshDetachedReadingHouseTimeline(),
-            onEndFlow: relation == MaatFlowDetailRelation.owned
-                ? _endFlowHeadless
+      resolvedCalendar ??= template.key == 'track-the-sky'
+          ? sky?.preview
+          : maatFlowDetailUsesCalendarPreview(template.key)
+          ? _mountedState?._maatFlowCalendarPreview()
+          : null;
+      return Builder(
+        builder: (context) => _ActiveMaatFlowDetailSurface.fromComposition(
+          menuActions: menuActions,
+          composition: resolveMaatFlowDetailComposition(
+            template: template,
+            relation: relation,
+            intendedInstance: intended,
+            previewFlow: relation == MaatFlowDetailRelation.invited
+                ? _Flow(
+                    id: _syntheticFlowIdForSnapshot(name, eventsJson),
+                    name: name,
+                    color: template.color,
+                    active: false,
+                    notes: notes,
+                    start: intendedStart,
+                    end: intendedEnd,
+                    rules: _parseCanonicalFlowDetailRules(rulesJson),
+                  )
                 : null,
-            onBack: () => popMaatFlowDetailOrGo(
-              context,
-              fallbackLocation: backFallbackLocation,
-            ),
+            calendar: resolvedCalendar,
+            followSkyCandidates: sky?.candidates ?? const [],
+            followSkyMeasurementIntervals: sky?.intervals ?? const [],
+          ),
+          addInstance: _addMaatFlowInstanceHeadless,
+          primaryAction: actionPolicy == null
+              ? null
+              : _maatPrimaryActionFor(actionPolicy),
+          onPersisted: (_) => _refreshDetachedReadingHouseTimeline(),
+          onEndFlow: relation == MaatFlowDetailRelation.owned
+              ? _endFlowHeadless
+              : null,
+          onBack: () => popMaatFlowDetailOrGo(
+            context,
+            fallbackLocation: backFallbackLocation,
           ),
         ),
-        menuActions,
       );
     }
     return null;

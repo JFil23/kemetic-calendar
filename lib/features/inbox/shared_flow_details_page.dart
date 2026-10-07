@@ -24,8 +24,7 @@ import '../../features/calendar/calendar_page.dart'
         FlowDetailActionPolicy,
         FlowDetailMenuAction,
         FlowDetailSource,
-        ImportFlowData,
-        MaatFlowDetailRelation;
+        ImportFlowData;
 import '../../features/calendar/calendar_invalidation.dart';
 import '../../widgets/flow_start_date_picker.dart';
 
@@ -41,7 +40,6 @@ class SharedFlowDetailsPage extends StatefulWidget {
   final bool showRemoveButton;
   final Future<void> Function()? onRemove;
   final FlowDetailActionPolicy? actionPolicy;
-  final bool useCanonicalUserFlowDetail;
   final String fallbackLocation;
   final int? ownedSourceFlowId;
   final List<FlowDetailMenuAction> menuActions;
@@ -57,7 +55,6 @@ class SharedFlowDetailsPage extends StatefulWidget {
     this.showRemoveButton = false,
     this.onRemove,
     this.actionPolicy,
-    this.useCanonicalUserFlowDetail = false,
     this.fallbackLocation = '/inbox',
     this.ownedSourceFlowId,
     this.menuActions = const [],
@@ -88,6 +85,26 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     final flowId = _localImportedFlowId ?? widget.importedFlowId;
     return flowId == _endedCommittedFlowId ? null : flowId;
   }
+
+  Map<String, dynamic>? get _snapshotPayload =>
+      widget.payloadJson ?? widget.share?.payloadJson;
+
+  int? get _ownedSourceId {
+    if (widget.ownedSourceFlowId != null) return widget.ownedSourceFlowId;
+    final share = widget.share;
+    if (share == null) return null;
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return null;
+    if (share.senderId == uid) {
+      return int.tryParse(share.payloadId) ??
+          (share.payloadJson?['flow_id'] as num?)?.toInt();
+    }
+    return share.recipientId == uid ? _effectiveImportedFlowId : null;
+  }
+
+  _SharedFlowData _snapshotFallback() => widget.payloadJson != null
+      ? _fromPayload(widget.payloadJson!)
+      : _fromShare(widget.share!, importedFlowId: _effectiveImportedFlowId);
 
   /// Merge duplicate events (same day/title/time/detail/location) to avoid double rendering
   List<Map<String, dynamic>> _dedupeEvents(List<Map<String, dynamic>> events) {
@@ -130,7 +147,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     _flowLifecycleSub = CalendarInvalidationBus.instance.stream.listen((event) {
       if (!mounted) return;
       if (event.reason == CalendarInvalidationReason.flowStudioPersisted &&
-          event.flowId == (widget.ownedSourceFlowId ?? widget.flowId)) {
+          event.flowId == (_ownedSourceId ?? widget.flowId)) {
         setState(_configureFutures);
       } else if (event.reason ==
               CalendarInvalidationReason.flowEndedCommitted &&
@@ -203,8 +220,8 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   void _configureFutures() {
     final generation = ++_loadGeneration;
     _warmData = null;
-    if (widget.ownedSourceFlowId != null && widget.payloadJson != null) {
-      final id = widget.ownedSourceFlowId!;
+    if (_ownedSourceId != null && _snapshotPayload != null) {
+      final id = _ownedSourceId!;
       final row = FlowsRepo(Supabase.instance.client).cachedFlowById(id);
       final events = _userEventsRepo.cachedFlowDetailEvents(id);
       if (row?.userId == Supabase.instance.client.auth.currentUser?.id &&
@@ -213,7 +230,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           events != null) {
         _warmData = _fromRow(row, id, events);
       } else {
-        _warmData = _fromPayload(widget.payloadJson!);
+        _warmData = _snapshotFallback();
       }
       _flowFuture = _loadOwnedSource(id).then((data) {
         if (generation == _loadGeneration) _warmData = data;
@@ -257,7 +274,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   Future<_SharedFlowData> _loadOwnedSource(int id) async {
     final client = Supabase.instance.client;
     final account = AccountOperationFence(client);
-    final fallback = _fromPayload(widget.payloadJson!);
+    final fallback = _snapshotFallback();
     try {
       final row = await FlowsRepo(client).getFlowById(id);
       if (!account.isCurrent ||
@@ -471,6 +488,16 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   }
 
   FlowDetailActionPolicy _actionPolicyFor(_SharedFlowData data) {
+    if (widget.share != null &&
+        widget.share!.senderId ==
+            Supabase.instance.client.auth.currentUser?.id &&
+        data.ownedRow == null) {
+      return CalendarPage.resolveCanonicalCustomFlowActionPolicy(
+        source: FlowDetailSource.other,
+        isLocalFlow: false,
+        isReadOnly: true,
+      );
+    }
     final explicitPolicy = widget.actionPolicy;
     if (explicitPolicy != null) return explicitPolicy;
 
@@ -696,8 +723,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 
         final data = snapshot.data ?? _warmData!;
         final owned = data.ownedRow;
-        if (widget.ownedSourceFlowId != null &&
-            owned != null &&
+        if (owned != null &&
             owned.userId == Supabase.instance.client.auth.currentUser?.id) {
           return CalendarPage.buildCanonicalOwnedFlowDetail(
             row: owned,
@@ -713,30 +739,8 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         final eventsJson = _dedupeEvents(
           data.eventsJson.whereType<Map<String, dynamic>>().toList(),
         );
-        final maatDetail = CalendarPage.buildCanonicalMaatFlowDetail(
-          name: cleanFlowTitle(data.name),
-          notes: data.notes,
-          eventsJson: eventsJson,
-          backFallbackLocation: widget.fallbackLocation,
-          relation: data.isImported && data.flowId != null
-              ? MaatFlowDetailRelation.owned
-              : MaatFlowDetailRelation.invited,
-          intendedFlowId: data.flowId,
-          intendedStart: data.startDate,
-          intendedEnd: data.endDate,
-          menuActions: menuActions,
-          actionPolicy:
-              widget.actionPolicy?.source == FlowDetailSource.profilePost &&
-                  widget.actionPolicy?.kind ==
-                      FlowDetailActionKind.removeProfilePost
-              ? widget.actionPolicy
-              : null,
-        );
-        if (maatDetail != null) return maatDetail;
-
         final actionPolicy = _actionPolicyFor(data);
-
-        return CalendarPage.buildCanonicalCustomFlowDetail(
+        return CalendarPage.buildCanonicalFlowDetail(
           name: cleanFlowTitle(data.name),
           color: data.color,
           notes: data.notes,
@@ -749,7 +753,6 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           isSaved: data.isSaved,
           previewAsTemplate: !data.isImported,
           actionPolicy: actionPolicy,
-          useMySavedExpansionParity: widget.useCanonicalUserFlowDetail,
           showFlowOptions: false,
           additionalMenuActions: menuActions,
           backFallbackLocation: widget.fallbackLocation,

@@ -14,6 +14,7 @@ class FollowSkyCalendarPreviewRow {
     required this.eventColor,
     this.eventId,
     this.flowName,
+    this.flowId,
     this.allDay = false,
   });
 
@@ -24,6 +25,7 @@ class FollowSkyCalendarPreviewRow {
   final Color eventColor;
   final String? eventId;
   final String? flowName;
+  final int? flowId;
   final bool allDay;
 }
 

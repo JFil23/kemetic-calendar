@@ -224,7 +224,6 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
       ),
       showImportFooter: false,
       actionPolicy: _actionPolicyFor(post),
-      useCanonicalUserFlowDetail: true,
       fallbackLocation: '/profile/${Uri.encodeComponent(post.userId)}',
     );
   }

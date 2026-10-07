@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flow_appearance.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -26,7 +27,7 @@ void main() {
     await _ensureSupabaseInitialized();
   });
 
-  testWidgets('appearance detail adds a hero to the existing dashboard', (
+  testWidgets('appearance detail uses the one My Flows hero and schedule', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -49,7 +50,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: CalendarPage.buildCanonicalCustomFlowDetail(
+        home: CalendarPage.buildCanonicalFlowDetail(
           name: 'Study the Duat',
           color: 0xFF6F93A8,
           flowId: 77,
@@ -71,7 +72,7 @@ void main() {
       findsOneWidget,
     );
     final existingDashboard = find.byKey(
-      const PageStorageKey<String>('flow-dashboard-77-active'),
+      const ValueKey<String>('user-flow-detail-scroll-77'),
     );
     expect(existingDashboard, findsOneWidget);
     expect(find.text('THE FLOW CALENDAR'), findsNothing);
@@ -79,34 +80,66 @@ void main() {
       find.byKey(const ValueKey('user-flow-remaining-occurrences')),
       findsNothing,
     );
-    final progressFooter = find.byKey(
-      const ValueKey<String>('user-flow-appearance-progress-footer'),
-    );
-    expect(progressFooter, findsOneWidget);
-    expect(
-      find.descendant(
-        of: progressFooter,
-        matching: find.byWidgetPredicate(
-          (widget) => widget is Text && widget.data?.endsWith('OF 7') == true,
-        ),
-      ),
-      findsOneWidget,
-    );
+    final caption = find.byKey(const ValueKey('user-flow-detail-caption'));
+    expect(caption, findsOneWidget);
+    expect(tester.widget<Text>(caption).data, endsWith('OF 7'));
     if (_captureUserFlowDetail) {
       await expectLater(
         find.byType(Overlay).first,
         matchesGoldenFile('/tmp/user-flow-detail.png'),
       );
     }
-    final detailScroll = find
-        .descendant(of: existingDashboard, matching: find.byType(Scrollable))
-        .first;
-    await tester.scrollUntilVisible(
-      find.text('Practice 6'),
-      260,
-      scrollable: detailScroll,
-    );
+    Future<void> reveal(Finder target) async {
+      for (var attempt = 0; attempt < 40; attempt++) {
+        if (target.evaluate().isNotEmpty &&
+            tester.getRect(target).top >= 40 &&
+            tester.getRect(target).bottom <=
+                tester.getRect(find.byType(MaatFlowDetailDock)).top) {
+          return;
+        }
+        await tester.drag(existingDashboard, const Offset(0, -260));
+        await tester.pumpAndSettle();
+      }
+      final controller = tester
+          .widget<CustomScrollView>(existingDashboard)
+          .controller!;
+      fail(
+        'Schedule content must be reachable above the fixed dock: '
+        '${target.evaluate().isEmpty ? "missing" : tester.getRect(target)} '
+        'scroll=${controller.offset}/${controller.position.maxScrollExtent}',
+      );
+    }
+
+    final later = find.byKey(const ValueKey('user-flow-show-later'));
+    await reveal(later);
+    await tester.tap(later);
+    await tester.pumpAndSettle();
+    await reveal(find.text('Practice 6'));
     expect(find.text('Practice 6'), findsOneWidget);
+  });
+
+  testWidgets('historical source data still uses the one My Flows fallback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CalendarPage.buildCanonicalFlowDetail(
+          name: 'The Moon Return',
+          notes: 'maat=the-moon-return',
+          color: 0xFF6F93A8,
+          flowId: 78,
+          initialFlowEvents: const [],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('user-flow-detail-surface-78')),
+      findsOneWidget,
+    );
+    expect(find.byType(MaatFlowDetailShell), findsOneWidget);
+    expect(find.text('Overview'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('saved appearance replaces the open detail snapshot', (

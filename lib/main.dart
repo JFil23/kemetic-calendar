@@ -3953,7 +3953,6 @@ class _SharedFlowRoutePageState extends State<SharedFlowRoutePage> {
     if (flowId != null) {
       return SharedFlowDetailsPage(
         flowId: flowId,
-        useCanonicalUserFlowDetail: true,
         fallbackLocation: _fallbackLocation,
       );
     }

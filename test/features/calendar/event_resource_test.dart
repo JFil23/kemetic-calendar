@@ -268,7 +268,7 @@ void main() {
     ).readAsStringSync();
     final dashboard = source.substring(
       source.indexOf('_FlowDayContent _contentForDashboardDay('),
-      source.indexOf('Widget _buildDashboardBody({'),
+      source.indexOf('Widget _buildDashboardMessage('),
     );
     expect(dashboard, contains('resolveEventResource('));
     expect(dashboard, contains('EventResourceSource('));

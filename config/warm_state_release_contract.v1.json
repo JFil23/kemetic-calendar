@@ -20,12 +20,12 @@
     {
       "path": "/flow-post/:postId",
       "owner": "lib/data/profile_repo.dart",
-      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. Selected post identity and pager position stay aligned across warm hydration. Owner removal is acknowledged before dismissal and parent-profile refresh. Owned posts resolve their real account-owned source through FlowsRepo and complete UserEventsRepo event reads, then reuse the My Flows or Ma\u2019at detail and actions. Visitors and unavailable sources retain the published snapshot without private-flow edit authority. Profile removal remains a separate menu action. Source-save acknowledgements refresh the selected detail without changing pager identity. Flow details use the canonical 640-pixel maximum, with full available width on narrower phones."
+      "policy": "Existing profile/post cache and account repositories; editors require acknowledged account writes. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. Selected post identity and pager position stay aligned across warm hydration. Owner removal is acknowledged before dismissal and parent-profile refresh. Owned posts resolve their real account-owned source through FlowsRepo and complete UserEventsRepo event reads, then reuse the My Flows or Ma’at detail and actions. Visitors and unavailable sources retain the published snapshot without private-flow edit authority. Profile removal remains a separate menu action. Source-save acknowledgements refresh the selected detail without changing pager identity. Flow details use the canonical 640-pixel maximum, with full available width on narrower phones. Universal full-detail owner is mandatory: the canonical gateway dispatches custom/My Flows and authored Ma’at views. Viewer calendar context uses the existing account filing, flow and external-calendar repositories through FlowDetailCalendarScope, with cached/background reads and account fences; no route-specific layout or build-specific storage."
     },
     {
       "path": "/flows",
       "owner": "lib/data/flows_repo.dart",
-      "policy": "Calendar/flow account repository and existing restoration owner; complete detail coverage before persistence. Internal mode URLs replace only the active sheet page with its existing key; retain the nested Navigator and all parent routes, including Pages. Returning to the hub obeys the same rule."
+      "policy": "Calendar/flow account repository and existing restoration owner; complete detail coverage before persistence. Internal mode URLs replace only the active sheet page with its existing key; retain the nested Navigator and all parent routes, including Pages. Returning to the hub obeys the same rule. Universal full-detail owner is mandatory: the canonical gateway dispatches custom/My Flows and authored Ma’at views. Viewer calendar context uses the existing account filing, flow and external-calendar repositories through FlowDetailCalendarScope, with cached/background reads and account fences; no route-specific layout or build-specific storage."
     },
     {
       "path": "/flows/:flowId/edit",
@@ -175,12 +175,12 @@
     {
       "path": "/shared-flow/:shareId",
       "owner": "lib/data/share_repo.dart",
-      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. The shared canonical detail housing uses a 640-pixel tablet maximum; direct-share payload ownership remains unchanged."
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. The shared canonical detail housing uses a 640-pixel tablet maximum; direct-share payload ownership remains unchanged. Universal full-detail owner is mandatory: the canonical gateway dispatches custom/My Flows and authored Ma’at views. Viewer calendar context uses the existing account filing, flow and external-calendar repositories through FlowDetailCalendarScope, with cached/background reads and account fences; no route-specific layout or build-specific storage."
     },
     {
       "path": "/shared-flow/by-flow/:flowId",
       "owner": "lib/data/share_repo.dart",
-      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. The shared canonical detail housing uses a 640-pixel tablet maximum; direct-share payload ownership remains unchanged."
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Presentation uses the shared Flow Studio sheet scaffold on push and direct restoration; the URL retains its existing persistence owner. The shared canonical detail housing uses a 640-pixel tablet maximum; direct-share payload ownership remains unchanged. Universal full-detail owner is mandatory: the canonical gateway dispatches custom/My Flows and authored Ma’at views. Viewer calendar context uses the existing account filing, flow and external-calendar repositories through FlowDetailCalendarScope, with cached/background reads and account fences; no route-specific layout or build-specific storage."
     },
     {
       "path": "/shared-practice/:roomId",

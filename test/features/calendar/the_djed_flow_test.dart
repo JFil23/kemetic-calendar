@@ -253,7 +253,10 @@ void main() {
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
 
-    expect(activeCoordinator, contains('Widget _buildDjed()'));
+    expect(
+      activeCoordinator,
+      contains('Widget _buildDjed(FollowSkyCalendarPreview calendarPreview)'),
+    );
     expect(activeCoordinator, contains('return DjedDetailSurface('));
     expect(activeCoordinator, contains('djedConfiguration: configuration'));
     expect(joinService, contains('required DjedV2Configuration configuration'));

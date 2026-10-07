@@ -58,7 +58,10 @@ void main() {
       ]) {
         expect(active, isNot(contains(retiredPicker)), reason: retiredPicker);
       }
-      expect(active, contains('Widget _buildDjed()'));
+      expect(
+        active,
+        contains('Widget _buildDjed(FollowSkyCalendarPreview calendarPreview)'),
+      );
       expect(active, contains('djedNextEnrollmentWindow'));
     },
   );

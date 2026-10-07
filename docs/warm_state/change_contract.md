@@ -1020,3 +1020,33 @@ a real Inbox row, loads the conversation through ShareRepo, checks the bundled
 and uploaded heroes, follows the share detail route, and reopens from the warm
 cache during an unavailable refresh. Captures are evidence, not replacement
 goldens.
+
+## October 6 — universal full flow details
+
+Full flow details have one presentation owner per kind across every entry. The
+My Flows custom surface and the five authored Ma'at surfaces are reused in their
+entirety. The shared source adapter resolves a verified owner/imported row with
+complete flow events; otherwise it keeps the published/shared snapshot and its
+permissions. It never substitutes another personal instance by matching a name.
+Snapshot configuration is display data, not an owned flow ID. The old opt-in
+layout flags and unused Inbox detail page are removed. The canonical gateway owns
+kind dispatch. Archived details retain their existing non-enrollment contract.
+
+`FlowDetailCalendarScope` supplies viewer-owned calendar context to the existing
+custom and Ma'at renderers, including Inbox invitations. It reads EventFilingRepo's
+complete, ordered, paged live cabinet and existing birthday projection, FlowsRepo
+metadata and ExternalCalendarRepository; hidden-calendar preferences retain their
+SharedCalendarsRepo owner. There is no new event store, pending-write owner, cache
+namespace, release/version suffix, or mutation path. The deployed filing resource
+keys and schemas remain unchanged. Cached reads paint before refresh; cold misses
+and failures do not certify an empty calendar. The boundary refreshes after
+acknowledged calendar invalidations, external background reads and app resume.
+Account departure clears displayed rows and fences outstanding reads, including
+A -> B -> A. Access denial removes stale context. The shared dock preserves import
+start-date selection and uses the existing acknowledged import/save/add actions.
+
+Release evidence includes the structural authority guard, complete rendered
+image comparison across actual registered Inbox/profile/feed/Pages routes,
+1002-row pagination, cold/warm reads, background refresh, account change and
+access-denial behavior. Existing per-kind and My Flows visual references remain
+unchanged; the full App gate is still required.

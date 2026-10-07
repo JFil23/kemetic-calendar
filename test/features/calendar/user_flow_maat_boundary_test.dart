@@ -52,14 +52,7 @@ void main() {
         'lib/features/calendar/day_view.dart',
       ).readAsString();
 
-      expect(
-        detail,
-        contains('meta.maatKey == null && !flow.appearance.isEmpty'),
-      );
-      expect(
-        detail,
-        contains("'flow-dashboard-\${flow.id}-\${widget.mode.name}'"),
-      );
+      expect(detail, isNot(contains('Widget _buildDashboardBody(')));
       expect(detail, isNot(contains('_buildAppearanceDashboardBody')));
       expect(detail, isNot(contains('_buildUserFlowKemeticCalendar')));
       expect(detail, isNot(contains('_buildAppearanceOccurrence')));
@@ -92,39 +85,28 @@ void main() {
     expect(dayView, contains('surface: UserFlowAppearanceSurface.daySheet'));
     expect(dayView, contains('height: 190'));
     expect(dayView, contains('flow.appearance.hasSign'));
-    expect(
-      dashboard,
-      contains('surface: UserFlowAppearanceSurface.fullDetail'),
-    );
+    expect(dashboard, isNot(contains('Widget _buildDashboardBody(')));
     expect(detail, contains('surface: UserFlowAppearanceSurface.fullDetail'));
     expect(profile, contains('PostedFlowArtifact('));
     expect(profile, isNot(contains('appearance.copyWith(clearImage: true)')));
   });
 
-  test(
-    'canonical saved-flow detail parity is explicit at entry boundaries',
-    () async {
-      final calendar = await File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsString();
-      final sharedDetail = await File(
-        'lib/features/inbox/shared_flow_details_page.dart',
-      ).readAsString();
-      final socialDetail = await File(
-        'lib/features/profile/flow_post_detail_page.dart',
-      ).readAsString();
+  test('canonical flow detail is mandatory at every entry boundary', () async {
+    final calendar = await File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsString();
+    final sharedDetail = await File(
+      'lib/features/inbox/shared_flow_details_page.dart',
+    ).readAsString();
+    final socialDetail = await File(
+      'lib/features/profile/flow_post_detail_page.dart',
+    ).readAsString();
 
-      expect(calendar, contains('bool useMySavedExpansionParity = false'));
-      expect(calendar, contains("label: 'Manage Flow'"));
-      expect(calendar, contains("label: 'Add to My Flows'"));
-      expect(sharedDetail, contains('this.useCanonicalUserFlowDetail = false'));
-      expect(
-        sharedDetail,
-        contains(
-          'useMySavedExpansionParity: widget.useCanonicalUserFlowDetail',
-        ),
-      );
-      expect(socialDetail, contains('useCanonicalUserFlowDetail: true'));
-    },
-  );
+    expect(calendar, isNot(contains('useMySavedExpansionParity')));
+    expect(calendar, contains("label: 'Manage Flow'"));
+    expect(calendar, contains("label: 'Add to My Flows'"));
+    expect(sharedDetail, isNot(contains('useCanonicalUserFlowDetail')));
+    expect(sharedDetail, contains('CalendarPage.buildCanonicalFlowDetail('));
+    expect(socialDetail, contains('SharedFlowDetailsPage('));
+  });
 }

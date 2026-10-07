@@ -631,12 +631,16 @@ class MaatFlowDetailPrimaryAction {
     required this.onPressed,
     this.busy = false,
     this.note,
+    this.startDateLabel,
+    this.onStartDatePressed,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool busy;
   final String? note;
+  final String? startDateLabel;
+  final VoidCallback? onStartDatePressed;
 }
 
 class MaatFlowDetailDock extends StatelessWidget {
@@ -654,6 +658,8 @@ class MaatFlowDetailDock extends StatelessWidget {
     required this.joinedKey,
     this.onJoinedPressed,
     this.primaryAction,
+    this.startDateLabel,
+    this.onStartDatePressed,
     this.showNote = true,
     this.actionNoteWidget,
     this.joinedNoteWidget,
@@ -671,6 +677,8 @@ class MaatFlowDetailDock extends StatelessWidget {
   final Key joinedKey;
   final VoidCallback? onJoinedPressed;
   final MaatFlowDetailPrimaryAction? primaryAction;
+  final String? startDateLabel;
+  final VoidCallback? onStartDatePressed;
   final bool showNote;
   final Widget? actionNoteWidget;
   final Widget? joinedNoteWidget;
@@ -679,8 +687,97 @@ class MaatFlowDetailDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final enlargedText = MediaQuery.textScalerOf(context).scale(20) > 20;
     final action = primaryAction;
+    final dateLabel = action?.startDateLabel ?? startDateLabel;
+    final pickDate = action?.onStartDatePressed ?? onStartDatePressed;
     final actionBusy = busy || (action?.busy ?? false);
     final passiveJoined = joined && action == null;
+    // Keep both actions reachable without a tall dock covering short windows.
+    final compact = MediaQuery.sizeOf(context).height < 500 && !enlargedText;
+    final dateButton = dateLabel != null && pickDate != null
+        ? SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              key: const ValueKey('flow-detail-start-date'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: theme.primaryText,
+                side: BorderSide(color: theme.accent.withValues(alpha: .35)),
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              onPressed: actionBusy ? null : pickDate,
+              child: Text(
+                dateLabel,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: 16,
+                  height: 1.2,
+                ),
+              ),
+            ),
+          )
+        : null;
+    final primaryButton = SizedBox(
+      height: enlargedText ? null : 54,
+      width: double.infinity,
+      child: ElevatedButton(
+        key: action != null
+            ? const ValueKey<String>('maat-flow-primary-action')
+            : joined
+            ? joinedKey
+            : actionKey,
+        style: ElevatedButton.styleFrom(
+          minimumSize: enlargedText ? const Size(double.infinity, 54) : null,
+          padding: enlargedText
+              ? const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
+              : null,
+          backgroundColor: theme.pageBackground,
+          foregroundColor: passiveJoined ? theme.secondaryText : theme.glow,
+          disabledBackgroundColor: theme.pageBackground,
+          disabledForegroundColor: theme.secondaryText,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+            side: BorderSide(
+              color: passiveJoined
+                  ? theme.accent.withValues(alpha: 0.22)
+                  : theme.accent,
+              width: 1.5,
+            ),
+          ),
+          elevation: 0,
+        ),
+        onPressed: actionBusy
+            ? null
+            : action != null
+            ? action.onPressed
+            : joined
+            ? onJoinedPressed
+            : onPressed,
+        child: actionBusy
+            ? SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: theme.accent,
+                ),
+              )
+            : Text(
+                action?.label ?? (joined ? joinedLabel : actionLabel),
+                textAlign: enlargedText ? TextAlign.center : null,
+                style: TextStyle(
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: passiveJoined ? 17 : 20,
+                  fontWeight: passiveJoined ? FontWeight.w400 : FontWeight.w500,
+                  height: 1,
+                ),
+              ),
+      ),
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -698,73 +795,21 @@ class MaatFlowDetailDock extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                height: enlargedText ? null : 54,
-                width: double.infinity,
-                child: ElevatedButton(
-                  key: action != null
-                      ? const ValueKey<String>('maat-flow-primary-action')
-                      : joined
-                      ? joinedKey
-                      : actionKey,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: enlargedText
-                        ? const Size(double.infinity, 54)
-                        : null,
-                    padding: enlargedText
-                        ? const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          )
-                        : null,
-                    backgroundColor: theme.pageBackground,
-                    foregroundColor: passiveJoined
-                        ? theme.secondaryText
-                        : theme.glow,
-                    disabledBackgroundColor: theme.pageBackground,
-                    disabledForegroundColor: theme.secondaryText,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
-                      side: BorderSide(
-                        color: passiveJoined
-                            ? theme.accent.withValues(alpha: 0.22)
-                            : theme.accent,
-                        width: 1.5,
-                      ),
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: actionBusy
-                      ? null
-                      : action != null
-                      ? action.onPressed
-                      : joined
-                      ? onJoinedPressed
-                      : onPressed,
-                  child: actionBusy
-                      ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: theme.accent,
-                          ),
-                        )
-                      : Text(
-                          action?.label ?? (joined ? joinedLabel : actionLabel),
-                          textAlign: enlargedText ? TextAlign.center : null,
-                          style: TextStyle(
-                            fontFamily: MaatFlowListTokens.fontFamily,
-                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                            fontSize: passiveJoined ? 17 : 20,
-                            fontWeight: passiveJoined
-                                ? FontWeight.w400
-                                : FontWeight.w500,
-                            height: 1,
-                          ),
-                        ),
-                ),
-              ),
+              if (compact && dateButton != null)
+                Row(
+                  children: [
+                    Expanded(child: dateButton),
+                    const SizedBox(width: 12),
+                    Expanded(child: primaryButton),
+                  ],
+                )
+              else ...[
+                if (dateButton != null) ...[
+                  dateButton,
+                  const SizedBox(height: 12),
+                ],
+                primaryButton,
+              ],
               if (showNote) ...<Widget>[
                 const SizedBox(height: 9),
                 action?.note != null

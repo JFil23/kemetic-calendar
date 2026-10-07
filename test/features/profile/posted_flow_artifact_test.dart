@@ -511,7 +511,7 @@ void main() {
     expect(engagement, contains("'flow-post-share-action'"));
     expect(engagement, contains("'Share'"));
     expect(detail, contains('SharedFlowDetailsPage('));
-    expect(detail, contains('useCanonicalUserFlowDetail: true'));
+    expect(detail, isNot(contains('useCanonicalUserFlowDetail')));
     expect(userDetail, contains(r'NEXT ${visibleUpcoming.length} UPCOMING'));
     expect(
       File('lib/features/calendar/calendar_page.dart').readAsStringSync(),
@@ -530,11 +530,8 @@ void main() {
     expect(detail, isNot(contains('FlowDetailActionKind.manage')));
     expect(detail, contains('resolveCanonicalCustomFlowActionPolicy('));
     expect(detail, isNot(contains('FlowPostEngagementRow(')));
-    expect(sharedDetail, contains('this.useCanonicalUserFlowDetail = false'));
-    expect(
-      sharedDetail,
-      contains('useMySavedExpansionParity: widget.useCanonicalUserFlowDetail'),
-    );
+    expect(sharedDetail, isNot(contains('useCanonicalUserFlowDetail')));
+    expect(sharedDetail, contains('CalendarPage.buildCanonicalFlowDetail('));
     expect(userDetail, contains('final externalPolicy = widget.actionPolicy'));
     expect(userDetail, contains('if (externalPolicy != null)'));
     expect(profile, contains('color: _profileSurface'));

@@ -1,3 +1,4 @@
+import 'package:mobile/data/flows_repo.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -68,10 +69,7 @@ void main() {
       expect(detachedBody, contains('MaatFlowDetailRelation.owned'));
       expect(canonicalBody, contains('resolveMaatFlowDetailComposition('));
       expect(canonicalBody, contains('intendedInstance: intended'));
-      expect(
-        canonicalBody,
-        isNot(contains('_activeFlowForMaatTemplate(')),
-      );
+      expect(canonicalBody, isNot(contains('_activeFlowForMaatTemplate(')));
       expect(
         File(
           'lib/features/calendar/the_djed/presentation/djed_detail_page.dart',
@@ -85,9 +83,13 @@ void main() {
     final source = File(
       'lib/features/inbox/shared_flow_details_page.dart',
     ).readAsStringSync();
-    expect(source, contains('MaatFlowDetailRelation.invited'));
-    expect(source, contains('MaatFlowDetailRelation.owned'));
-    expect(source, contains('intendedFlowId: data.flowId'));
+    expect(source, contains('CalendarPage.buildCanonicalOwnedFlowDetail('));
+    expect(source, contains('CalendarPage.buildCanonicalFlowDetail('));
+    expect(
+      source,
+      contains('owned.userId == Supabase.instance.client.auth.currentUser?.id'),
+    );
+    expect(source, isNot(contains('buildCanonicalMaatFlowDetail(')));
     expect(source, isNot(contains('_activeFlowForMaatTemplate')));
   });
 
@@ -131,4 +133,33 @@ void main() {
     expect(find.byKey(const ValueKey<String>('djed-carried')), findsOneWidget);
     expect(find.byKey(const ValueKey<String>('djed-carry')), findsNothing);
   });
+  testWidgets(
+    'a saved Djed uses the same detail with add permissions, not active-event authority',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CalendarPage.buildCanonicalOwnedFlowDetail(
+            row: FlowRow.fromRow({
+              'id': 72,
+              'user_id': 'owner',
+              'name': 'The Djed',
+              'active': false,
+              'is_saved': true,
+              'rules': [],
+              'notes': 'maat=the-djed',
+            }),
+            events: const [],
+          ),
+        ),
+      );
+      await tester.pump();
+      final detail = tester.widget<DjedDetailSurface>(
+        find.byType(DjedDetailSurface),
+      );
+      expect(detail.joined, isFalse);
+      expect(detail.canActOnEvents, isFalse);
+      expect(detail.flowId, isNull);
+      expect(detail.onCarryConfiguration, isNotNull);
+    },
+  );
 }

@@ -262,16 +262,38 @@ void main() {
       source.indexOf('class _ActiveMaatFlowDetailSurfaceState'),
     );
 
-    expect(state, contains('Widget _buildFollowSky()'));
-    expect(state, contains('Widget _buildOfferingTable()'));
+    expect(
+      state,
+      contains(
+        'Widget _buildFollowSky(FollowSkyCalendarPreview calendarPreview)',
+      ),
+    );
+    expect(
+      state,
+      contains(
+        'Widget _buildOfferingTable(FollowSkyCalendarPreview calendarPreview)',
+      ),
+    );
     expect(state, contains('Widget _buildReadingHouse()'));
-    expect(state, contains('Widget _buildDjed()'));
-    expect(state, contains('Widget _buildKar()'));
-    expect(state, contains("'track-the-sky' => _buildFollowSky()"));
-    expect(state, contains('kOfferingTableFlowKey => _buildOfferingTable()'));
+    expect(
+      state,
+      contains('Widget _buildDjed(FollowSkyCalendarPreview calendarPreview)'),
+    );
+    expect(
+      state,
+      contains('Widget _buildKar(FollowSkyCalendarPreview calendarPreview)'),
+    );
+    expect(
+      state,
+      contains("'track-the-sky' => _buildFollowSky(calendarPreview)"),
+    );
+    expect(
+      state,
+      contains('kOfferingTableFlowKey => _buildOfferingTable(calendarPreview)'),
+    );
     expect(state, contains('kReadingHouseFlowKey => _buildReadingHouse()'));
-    expect(state, contains('kTheDjedFlowKey => _buildDjed()'));
-    expect(state, contains('kKarFlowKey => _buildKar()'));
+    expect(state, contains('kTheDjedFlowKey => _buildDjed(calendarPreview)'));
+    expect(state, contains('kKarFlowKey => _buildKar(calendarPreview)'));
     expect(state, isNot(contains('_buildTheWeighingScaffold')));
     expect(state, isNot(contains('_buildWagScaffold')));
   });

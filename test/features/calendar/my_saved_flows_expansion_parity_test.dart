@@ -20,8 +20,13 @@ void main() {
       ),
     );
     expect(source, contains('builder: (_) => _FlowPreviewPage('));
-    expect(source, contains('useMySavedExpansionParity: true'));
-    expect(source, contains('Widget _buildDashboardExpandableRow({'));
+    expect(source, isNot(contains('useMySavedExpansionParity')));
+    final presentation = File(
+      'lib/features/calendar/calendar_user_flow_detail.dart',
+    ).readAsStringSync();
+    expect(presentation, contains('Widget _buildUserFlowScheduleDay({'));
+    expect(presentation, contains('_handleDashboardDayTap('));
+    expect(source, isNot(contains('Widget _buildDashboardExpandableRow({')));
     expect(
       source,
       contains('final List<String> _expandedDayKeys = <String>[];'),

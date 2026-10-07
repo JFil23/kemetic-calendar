@@ -28,25 +28,38 @@ void main() {
     }
   });
 
-  test(
-    'active detail coordinator has no historical-flow visual dispatcher',
-    () {
-      final source = File(
-        'lib/features/calendar/calendar_active_maat_flows.dart',
-      ).readAsStringSync();
+  test('active detail coordinator has no historical-flow visual dispatcher', () {
+    final source = File(
+      'lib/features/calendar/calendar_active_maat_flows.dart',
+    ).readAsStringSync();
 
-      expect(source, contains('class _ActiveMaatFlowDetailSurfaceState'));
-      expect(source, contains('Widget _buildFollowSky()'));
-      expect(source, contains('Widget _buildOfferingTable()'));
-      expect(source, contains('Widget _buildReadingHouse()'));
-      expect(source, contains('Widget _buildDjed()'));
-      expect(source, contains('Widget _buildKar()'));
-      expect(source, isNot(contains('Widget _buildTheWeighingScaffold')));
-      expect(source, isNot(contains('Widget _buildWagScaffold')));
-      expect(source, isNot(contains('_MaatFlowTemplateDetailPage')));
-      expect(source, isNot(contains('_maatFlowDetailSheetRoute')));
-    },
-  );
+    expect(source, contains('class _ActiveMaatFlowDetailSurfaceState'));
+    expect(
+      source,
+      contains(
+        'Widget _buildFollowSky(FollowSkyCalendarPreview calendarPreview)',
+      ),
+    );
+    expect(
+      source,
+      contains(
+        'Widget _buildOfferingTable(FollowSkyCalendarPreview calendarPreview)',
+      ),
+    );
+    expect(source, contains('Widget _buildReadingHouse()'));
+    expect(
+      source,
+      contains('Widget _buildDjed(FollowSkyCalendarPreview calendarPreview)'),
+    );
+    expect(
+      source,
+      contains('Widget _buildKar(FollowSkyCalendarPreview calendarPreview)'),
+    );
+    expect(source, isNot(contains('Widget _buildTheWeighingScaffold')));
+    expect(source, isNot(contains('Widget _buildWagScaffold')));
+    expect(source, isNot(contains('_MaatFlowTemplateDetailPage')));
+    expect(source, isNot(contains('_maatFlowDetailSheetRoute')));
+  });
 
   test('all identities resolve while only five own active details', () {
     expect(MaatFlowKind.values, hasLength(34));

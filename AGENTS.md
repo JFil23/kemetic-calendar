@@ -28,3 +28,28 @@ For every change to a route, repository read, account write, or persisted model:
 
 Passing the inventory guard alone is not proof of visible readiness or durable
 storage. Verify the requested behavior and existing visual reference too.
+
+# Universal presentation and behavior authority
+
+Repeated features have one implementation owner throughout the app. Entry points
+supply identity, source data, navigation and verified permissions; they must reuse
+the existing canonical view and behavior. Do not create an entry-specific page,
+copy a renderer, or add a flag that lets a route opt out of the canonical design.
+Fix or refactor the shared owner so every entry receives the change.
+
+For a full flow detail this applies to the entire view: hero and assets, housing,
+typography, spacing, calendar and flow blocks, expansion, controls, loading/error
+states, account ownership and acknowledged actions. Custom flows use the My Flows
+full detail; each Ma'at kind uses its existing authored full detail. My Flows,
+Saved Flows, Inbox, profile, social feed, Pages, Calendar and future entries must
+reuse those owners. Different verified permissions may enable different actions
+through the shared action policy, never through another detail page. Calendar
+context belongs to the viewer and must work without a mounted Calendar screen.
+The separately approved Day View event housing remains a distinct surface.
+
+Run `python3 scripts/flow_detail_authority_contract_test.py` and the real-route
+`test/features/calendar/flow_detail_entry_parity_test.dart` with relevant behavior
+and visual tests. A structural guard alone is not visual or behavioral proof.
+Do not bypass these checks or expand their owner allowlist to add a competing
+view. A legitimate ownership refactor must preserve equivalent route, account,
+action and complete-view visual evidence.

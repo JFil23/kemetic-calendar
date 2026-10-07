@@ -58,10 +58,23 @@ void main() {
       'lib/features/calendar/calendar_active_maat_flows.dart',
     ).readAsStringSync();
 
-    expect(source, contains('Widget _buildFollowSky()'));
-    expect(source, contains('Widget _buildOfferingTable()'));
+    expect(
+      source,
+      contains(
+        'Widget _buildFollowSky(FollowSkyCalendarPreview calendarPreview)',
+      ),
+    );
+    expect(
+      source,
+      contains(
+        'Widget _buildOfferingTable(FollowSkyCalendarPreview calendarPreview)',
+      ),
+    );
     expect(source, contains('Widget _buildReadingHouse()'));
-    expect(source, contains('Widget _buildDjed()'));
+    expect(
+      source,
+      contains('Widget _buildDjed(FollowSkyCalendarPreview calendarPreview)'),
+    );
     expect(source, isNot(contains('Widget _buildDjedEventTile')));
     expect(source, isNot(contains('Widget _buildWagEventTile')));
     expect(source, isNot(contains('Widget _buildMoonReturnOccurrenceTile')));
@@ -130,7 +143,10 @@ void main() {
       ]) {
         expect(source, isNot(contains(retiredBuilder)), reason: retiredBuilder);
       }
-      expect(source, contains('Widget _buildDjed()'));
+      expect(
+        source,
+        contains('Widget _buildDjed(FollowSkyCalendarPreview calendarPreview)'),
+      );
       expect(source, contains('ArchivedMaatFlowDetailView('));
     },
   );
@@ -147,7 +163,7 @@ void main() {
       active,
       contains('djedNextEnrollmentWindow(_timezone).opensAtLocal'),
     );
-    expect(active, contains('initialStartDate: widget.joinedFlow?.start'));
+    expect(active, contains('initialStartDate: _displayFlow?.start'));
     expect(service, contains('_resolveDjedWindow('));
     expect(service, contains('_resolveTemporalStart('));
     expect(service, contains('FlowJoinFailureCode.noEnrollmentWindow'));

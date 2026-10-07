@@ -33,6 +33,7 @@ class MaatFlowDetailComposition {
     required this.template,
     required this.relation,
     this.intendedInstance,
+    this.previewFlow,
     this.calendar = FollowSkyCalendarPreview.unavailable,
     this.followSkyCandidates = const <CourseActivitySignal>[],
     this.followSkyMeasurementIntervals = const <CourseMeasurementInterval>[],
@@ -41,17 +42,20 @@ class MaatFlowDetailComposition {
   final _MaatFlowTemplate template;
   final MaatFlowDetailRelation relation;
   final _Flow? intendedInstance;
+  final _Flow? previewFlow;
   final FollowSkyCalendarPreview calendar;
   final List<CourseActivitySignal> followSkyCandidates;
   final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
 
   bool get canJoin =>
-      relation != MaatFlowDetailRelation.invited && intendedInstance == null;
+      relation != MaatFlowDetailRelation.invited &&
+      (intendedInstance == null || !intendedInstance!.active);
 
   bool get canEditConfiguration => relation != MaatFlowDetailRelation.invited;
 
   bool get canActOnEvents =>
-      relation == MaatFlowDetailRelation.owned && intendedInstance != null;
+      relation == MaatFlowDetailRelation.owned &&
+      intendedInstance?.active == true;
 }
 
 /// Shared resolution for calendar, `/flows`, and inbox adapters.
@@ -63,6 +67,7 @@ MaatFlowDetailComposition resolveMaatFlowDetailComposition({
   required _MaatFlowTemplate template,
   required MaatFlowDetailRelation relation,
   _Flow? intendedInstance,
+  _Flow? previewFlow,
   FollowSkyCalendarPreview? calendar,
   List<CourseActivitySignal> followSkyCandidates =
       const <CourseActivitySignal>[],
@@ -73,6 +78,7 @@ MaatFlowDetailComposition resolveMaatFlowDetailComposition({
     template: template,
     relation: relation,
     intendedInstance: intendedInstance,
+    previewFlow: previewFlow,
     calendar: calendar ?? FollowSkyCalendarPreview.unavailable,
     followSkyCandidates: followSkyCandidates,
     followSkyMeasurementIntervals: followSkyMeasurementIntervals,
@@ -948,13 +954,16 @@ bool maatFlowFilingSnapshotMarksInstanceActiveForTesting({
 
 class _ActiveMaatFlowDetailSurface extends StatefulWidget {
   const _ActiveMaatFlowDetailSurface({
+    super.key,
     required this.template,
     required this.addInstance,
     this.onJoined,
     this.onEnrollmentConfirmed,
     this.primaryAction,
+    this.menuActions = const [],
     this.onPersisted,
     this.joinedFlow,
+    this.previewFlow,
     this.relation = MaatFlowDetailRelation.catalogPreview,
     this.onBack,
     this.followSkyCandidates = const <CourseActivitySignal>[],
@@ -972,6 +981,7 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
     Future<void> Function(int flowId)? onJoined,
     Future<void> Function(int flowId)? onEnrollmentConfirmed,
     MaatFlowDetailPrimaryAction? primaryAction,
+    List<FlowDetailMenuAction> menuActions = const [],
     Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted,
     VoidCallback? onBack,
     Future<void> Function(TrackSkyCourse? course, String notes)?
@@ -986,13 +996,18 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
     KarRepository? karRepository,
   }) {
     return _ActiveMaatFlowDetailSurface(
+      key: ValueKey(
+        'canonical-maat-${composition.template.key}-${composition.relation.name}-${composition.intendedInstance?.id}',
+      ),
       template: composition.template,
       addInstance: addInstance,
       onJoined: onJoined,
       onEnrollmentConfirmed: onEnrollmentConfirmed,
       primaryAction: primaryAction,
+      menuActions: menuActions,
       onPersisted: onPersisted,
       joinedFlow: composition.intendedInstance,
+      previewFlow: composition.previewFlow,
       relation: composition.relation,
       onBack: onBack,
       followSkyCandidates: composition.followSkyCandidates,
@@ -1010,8 +1025,10 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
   final Future<void> Function(int flowId)? onJoined;
   final Future<void> Function(int flowId)? onEnrollmentConfirmed;
   final MaatFlowDetailPrimaryAction? primaryAction;
+  final List<FlowDetailMenuAction> menuActions;
   final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
   final _Flow? joinedFlow;
+  final _Flow? previewFlow;
   final MaatFlowDetailRelation relation;
   final VoidCallback? onBack;
   final List<CourseActivitySignal> followSkyCandidates;
@@ -1029,12 +1046,16 @@ class _ActiveMaatFlowDetailSurface extends StatefulWidget {
   final KarRepository? karRepository;
 
   bool get alreadyJoined =>
-      joinedFlow != null && relation == MaatFlowDetailRelation.owned;
+      relation == MaatFlowDetailRelation.owned &&
+      joinedFlow != null &&
+      (joinedFlow!.active ||
+          (template.key == kReadingHouseFlowKey && !joinedFlow!.isSaved));
 
   MaatFlowDetailComposition get composition => MaatFlowDetailComposition(
     template: template,
     relation: relation,
     intendedInstance: joinedFlow,
+    previewFlow: previewFlow,
     calendar: calendarPreview,
     followSkyCandidates: followSkyCandidates,
     followSkyMeasurementIntervals: followSkyMeasurementIntervals,
@@ -1053,6 +1074,8 @@ class _ActiveMaatFlowDetailSurfaceState
   ReadingHouseAuthority? _readingHouseAuthority;
   KarRepository? _karRepository;
   bool _djedJoinInFlight = false;
+
+  _Flow? get _displayFlow => widget.joinedFlow ?? widget.previewFlow;
 
   @override
   void initState() {
@@ -1094,15 +1117,33 @@ class _ActiveMaatFlowDetailSurfaceState
     return List<DateTime>.unmodifiable(ordered);
   }
 
-  Widget _buildFollowSky() {
+  Widget _buildFollowSky(FollowSkyCalendarPreview calendarPreview) {
+    // The turning blocks already represent Sky occurrences. Preserve other
+    // account events alongside them without repeating the generated flow.
+    final contextPreview = FollowSkyCalendarPreview(
+      rows: calendarPreview.rows
+          .where(
+            (row) =>
+                !(row.flowId != null && row.flowId == widget.joinedFlow?.id) &&
+                resolveMaatFlowKind(flowName: row.flowName) !=
+                    MaatFlowKind.trackSky,
+          )
+          .toList(growable: false),
+      windowStart: calendarPreview.windowStart,
+      windowEnd: calendarPreview.windowEnd,
+      supply: calendarPreview.supply,
+      coverageComplete: calendarPreview.coverageComplete,
+      candidates: calendarPreview.candidates,
+      intervals: calendarPreview.intervals,
+    );
     final surface = FollowSkyDetailSurface(
       primaryAction: widget.primaryAction,
       key: _followSkyDetailKey,
       onBack: widget.onBack,
       isJoined: widget.alreadyJoined,
-      existingFlowNotes: widget.joinedFlow?.notes,
-      existingFlowId: widget.joinedFlow?.id,
-      calendarPreview: widget.calendarPreview,
+      existingFlowNotes: _displayFlow?.notes,
+      existingFlowId: widget.alreadyJoined ? widget.joinedFlow?.id : null,
+      calendarPreview: contextPreview,
       title: widget.template.title,
       timezone:
           FollowSkyTimeZoneX.tryParse(_timezone.key) ??
@@ -1141,16 +1182,16 @@ class _ActiveMaatFlowDetailSurfaceState
     return KeyboardAwareEditableSurface(child: surface);
   }
 
-  Widget _buildOfferingTable() {
-    final joinedFlow = widget.joinedFlow;
+  Widget _buildOfferingTable(FollowSkyCalendarPreview calendarPreview) {
+    final joinedFlow = _displayFlow;
     return OfferingTableDetailSurface(
       primaryAction: widget.primaryAction,
       timezone: offeringTableTimeZoneFromNotes(
         joinedFlow?.notes,
         fallback: _timezone,
       ),
-      calendarPreview: widget.calendarPreview,
-      joinedFlowId: joinedFlow?.id,
+      calendarPreview: calendarPreview,
+      joinedFlowId: widget.alreadyJoined ? widget.joinedFlow?.id : null,
       joinedStartDate: joinedFlow?.start,
       joinedScheduleDates: _joinedDateRuleDates(joinedFlow),
       lens: offeringTableLensFromNotes(joinedFlow?.notes),
@@ -1217,8 +1258,8 @@ class _ActiveMaatFlowDetailSurfaceState
     }
   }
 
-  Widget _buildDjed() {
-    final joinedFlow = widget.joinedFlow;
+  Widget _buildDjed(FollowSkyCalendarPreview calendarPreview) {
+    final joinedFlow = _displayFlow;
     final startDate =
         joinedFlow?.start ?? djedNextEnrollmentWindow(_timezone).opensAtLocal;
     final configuration = djedV2ConfigurationFromNotes(joinedFlow?.notes);
@@ -1243,10 +1284,12 @@ class _ActiveMaatFlowDetailSurfaceState
       primaryAction: widget.primaryAction,
       startDate: DateUtils.dateOnly(startDate),
       supports: supports,
-      calendarPreview: widget.calendarPreview,
+      calendarPreview: calendarPreview,
       joined: widget.alreadyJoined,
       busy: _djedJoinInFlight,
-      flowId: composition.intendedInstance?.id,
+      flowId: composition.canActOnEvents
+          ? composition.intendedInstance?.id
+          : null,
       canActOnEvents: composition.canActOnEvents,
       onCarryConfiguration: composition.canJoin
           ? (value) => unawaited(_joinDjed(startDate, value))
@@ -1260,17 +1303,17 @@ class _ActiveMaatFlowDetailSurfaceState
       kMaatFlowResponseDraftStore.valuesForFlow(kReadingHouseFlowKey),
     );
     final initialPlan = readingHousePlanFromFlowNotes(
-      widget.joinedFlow?.notes,
+      _displayFlow?.notes,
       fallback: draftPlan,
     );
     return ReadingHouseDetailSurface(
       primaryAction: widget.primaryAction,
       timezone: _timezone,
-      initialStartDate: widget.joinedFlow?.start,
+      initialStartDate: _displayFlow?.start,
       initialPlan: initialPlan,
       initialSittings: readingHouseStarterSittingsForAuthoring(),
       initiallyHeld: widget.alreadyJoined,
-      initialFlowId: widget.joinedFlow?.id,
+      initialFlowId: widget.alreadyJoined ? widget.joinedFlow?.id : null,
       initialCalendarId: widget.joinedFlow?.calendarId,
       authority: _readingHouseAuthority ??= LiveReadingHouseAuthority(
         Supabase.instance.client,
@@ -1325,19 +1368,20 @@ class _ActiveMaatFlowDetailSurfaceState
     return id;
   }
 
-  Widget _buildKar() {
-    final joined = widget.joinedFlow;
+  Widget _buildKar(FollowSkyCalendarPreview calendarPreview) {
+    final joined = _displayFlow;
     return KarDetailSurface(
       primaryAction: widget.primaryAction,
       repository: _karRepository ??=
           widget.karRepository ??
-          (Supabase.instance.client.auth.currentUser == null
+          (!widget.composition.canEditConfiguration ||
+                  Supabase.instance.client.auth.currentUser == null
               ? MemoryKarRepository()
               : SupabaseKarRepository(Supabase.instance.client)),
       initialNetjer: karNetjerFromFlowNotes(joined?.notes),
-      joinedFlowId: joined?.id,
+      joinedFlowId: widget.alreadyJoined ? widget.joinedFlow?.id : null,
       joinedStartDate: joined?.start,
-      calendarPreview: widget.calendarPreview,
+      calendarPreview: calendarPreview,
       onBack: widget.onBack,
       onJoin: _scheduleKar,
       onJoined: widget.onEnrollmentConfirmed,
@@ -1360,25 +1404,47 @@ class _ActiveMaatFlowDetailSurfaceState
 
   @override
   Widget build(BuildContext context) {
-    return switch (widget.template.key) {
-      'track-the-sky' => _buildFollowSky(),
-      kOfferingTableFlowKey => _buildOfferingTable(),
-      kReadingHouseFlowKey => _buildReadingHouse(),
-      kTheDjedFlowKey => _buildDjed(),
-      kKarFlowKey => _buildKar(),
-      _ => ArchivedMaatFlowDetailView(
-        fixture: ArchivedMaatFlowFixture(
-          flowKey: widget.template.key,
-          title: widget.template.title,
-          glyph: widget.template.glyph,
-          dateRange: _archivedDateRange(widget.joinedFlow),
-          events: const <ArchivedMaatFlowEventFixture>[],
-          responses: const <ArchivedMaatFlowResponseFixture>[],
-          ended: widget.joinedFlow?.active == false,
-        ),
-        onBack: widget.onBack,
+    final start = DateUtils.dateOnly(DateTime.now());
+    return _withFlowDetailOptions(
+      FlowDetailCalendarScope(
+        start: start,
+        end: start.add(const Duration(days: 119)),
+        initialPreview: widget.calendarPreview,
+        builder: (context, calendarPreview) => switch (widget.template.key) {
+          'track-the-sky' => _buildFollowSky(calendarPreview),
+          kOfferingTableFlowKey => _buildOfferingTable(calendarPreview),
+          kReadingHouseFlowKey => _buildReadingHouse(),
+          kTheDjedFlowKey => _buildDjed(calendarPreview),
+          kKarFlowKey => _buildKar(calendarPreview),
+          _ => ArchivedMaatFlowDetailView(
+            fixture: ArchivedMaatFlowFixture(
+              flowKey: widget.template.key,
+              title: widget.template.title,
+              glyph: widget.template.glyph,
+              dateRange: _archivedDateRange(widget.joinedFlow),
+              events: const <ArchivedMaatFlowEventFixture>[],
+              responses: const <ArchivedMaatFlowResponseFixture>[],
+              ended: widget.joinedFlow?.active == false,
+            ),
+            onBack: widget.onBack,
+          ),
+        },
       ),
-    };
+      [
+        if (widget.relation == MaatFlowDetailRelation.owned &&
+            widget.joinedFlow != null)
+          FlowDetailMenuAction(
+            id: 'share',
+            label: 'Share Flow',
+            icon: Icons.ios_share,
+            onPressed: () => _FlowPreviewPageState._openShareSheet(
+              context,
+              widget.joinedFlow!,
+            ),
+          ),
+        ...widget.menuActions,
+      ],
+    );
   }
 }
 

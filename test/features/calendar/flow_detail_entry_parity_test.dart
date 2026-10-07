@@ -1,0 +1,470 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:mobile/data/flow_post_model.dart';
+import 'package:mobile/data/share_models.dart';
+import 'package:mobile/data/warm_state/warm_snapshot_store.dart';
+import 'package:mobile/features/calendar/calendar_invalidation.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_detail_page.dart';
+import 'package:mobile/features/calendar/flow_detail_calendar_scope.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
+import 'package:mobile/main.dart' show createAppRouterForTesting;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../support/maat_flow_visual_test_fonts.dart';
+import '../profile/flow_post_owned_detail_test.dart'
+    show owner, visitor, session;
+
+const captureKey = ValueKey('universal-flow-detail-capture');
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late Map<String, dynamic> flow;
+  late List<Map<String, dynamic>> events;
+  var offline = false;
+  var denied = false;
+  var calendarReads = 0;
+  Completer<void>? readHold;
+  const personalTitle = 'Dinner with family';
+  final today = DateUtils.dateOnly(DateTime.now());
+
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    for (final name in ['messages', 'events']) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            MethodChannel('com.llfbandit.app_links/$name'),
+            (_) async => null,
+          );
+    }
+    await loadMaatFlowVisualTestFonts();
+    await Supabase.initialize(
+      url: 'https://example.supabase.test',
+      anonKey: 'fixture',
+      authOptions: const FlutterAuthClientOptions(autoRefreshToken: false),
+      httpClient: MockClient((request) async {
+        final table = request.url.path.split('/').last;
+        Object? data = [];
+        var status = 200;
+        if (table == 'flows') {
+          data = request.url.queryParameters.containsKey('origin_flow_id')
+              ? []
+              : flow;
+        }
+        if (table == 'get_my_filed_flows_v1') data = [flow];
+        if (table == 'user_event_filing_items_client') {
+          final detail = request.url.queryParameters.containsKey(
+            'filed_flow_id',
+          );
+          if (!detail) {
+            calendarReads++;
+            await readHold?.future;
+          }
+          if (offline || denied) {
+            status = denied ? 403 : 503;
+            data = {
+              'code': denied ? '42501' : '503',
+              'message': 'fixture unavailable',
+            };
+          } else {
+            final all = detail
+                ? events.where((e) => e['filed_flow_id'] == 42).toList()
+                : events;
+            final offset =
+                int.tryParse(request.url.queryParameters['offset'] ?? '') ?? 0;
+            final limit =
+                int.tryParse(request.url.queryParameters['limit'] ?? '') ??
+                1000;
+            data = all.skip(offset).take(limit).toList();
+          }
+        }
+        if (table == 'logout') data = {};
+        return http.Response(
+          jsonEncode(data),
+          status,
+          request: request,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+  });
+  setUp(() async {
+    offline = false;
+    denied = false;
+    readHold = null;
+    calendarReads = 0;
+    await Supabase.instance.client.auth.recoverSession(session(owner));
+    await WarmSnapshotStore.instance.forgetAccount(owner);
+    await WarmSnapshotStore.instance.forgetAccount(visitor);
+    flow = {
+      'id': 42,
+      'user_id': owner,
+      'calendar_id': 'personal',
+      'name': 'Evening practice',
+      'color': 0x8fa88a,
+      'active': true,
+      'is_saved': false,
+      'is_hidden': false,
+      'start_date': today.toIso8601String(),
+      'end_date': today.add(const Duration(days: 120)).toIso8601String(),
+      'notes': 'mode=gregorian;ov=An%20evening%20practice',
+      'rules': [],
+    };
+    events = [
+      for (var i = 0; i < 120; i++)
+        {
+          'id': 'personal-$i',
+          'user_id': owner,
+          'calendar_id': 'personal',
+          'client_event_id': 'personal-$i',
+          'title': personalTitle,
+          'all_day': false,
+          'starts_at': DateTime(
+            today.year,
+            today.month,
+            today.day + i,
+            18,
+          ).toUtc().toIso8601String(),
+          'ends_at': DateTime(
+            today.year,
+            today.month,
+            today.day + i,
+            19,
+          ).toUtc().toIso8601String(),
+          'item_kind': 'note',
+          'lifecycle': 'active',
+          'live_on_calendar': true,
+          'calendar_color': 0x4285f4,
+        },
+      {
+        'id': 'practice',
+        'client_event_id': 'practice',
+        'user_id': owner,
+        'title': 'Read and reflect',
+        'all_day': true,
+        'starts_at': today.toUtc().toIso8601String(),
+        'filed_flow_id': 42,
+        'flow_local_id': 42,
+        'flow_active': true,
+        'item_kind': 'flow',
+        'lifecycle': 'active',
+        'live_on_calendar': true,
+      },
+    ];
+  });
+  tearDownAll(() async => Supabase.instance.dispose());
+
+  Future<void> settle(WidgetTester tester) async {
+    for (var i = 0; i < 25; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 80));
+    }
+  }
+
+  InboxShareItem share({bool sent = true, bool imported = false}) =>
+      InboxShareItem(
+        shareId: 'shared-flow',
+        kind: InboxShareKind.flow,
+        senderId: sent ? owner : visitor,
+        recipientId: sent ? visitor : owner,
+        payloadId: '42',
+        title: flow['name'] as String,
+        createdAt: today,
+        viewedAt: today,
+        currentlyActiveImportedFlowId: imported ? 42 : null,
+        payloadJson: {
+          'name': flow['name'],
+          'notes': flow['notes'],
+          'color': flow['color'],
+          'start_date': flow['start_date'],
+          'rules': [],
+          'events': [
+            {'title': 'Read and reflect', 'offset_days': 0, 'all_day': true},
+          ],
+        },
+      );
+  FlowPost post() => FlowPost.fromJson({
+    'id': 'flow-post',
+    'flow_id': 42,
+    'user_id': owner,
+    'name': flow['name'],
+    'color': flow['color'],
+    'rules': [],
+    'created_at': today.toIso8601String(),
+    'payload': share().payloadJson,
+  });
+
+  testWidgets(
+    'universal details: complete route visuals, calendar coverage, warm refresh and account boundaries',
+    (tester) async {
+      for (final sky in [false, true]) {
+        WarmSnapshotStore.instance.invalidate(owner);
+
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        if (sky) {
+          flow['name'] = 'Follow the Sky';
+          flow['notes'] = 'maat=track-the-sky';
+        }
+        final app = createAppRouterForTesting();
+        final routes = app.configuration.routes
+            .whereType<GoRoute>()
+            .where(
+              (r) => [
+                '/shared-flow/:shareId',
+                '/shared-flow/by-flow/:flowId',
+                '/flow-post/:postId',
+              ].contains(r.path),
+            )
+            .toList();
+        expect(routes, hasLength(3));
+        final references = <String, ui.Image>{};
+        for (final entry in [
+          'pages',
+          'inbox-sent',
+          'inbox-imported',
+          'profile',
+          'feed',
+        ]) {
+          final router = GoRouter(
+            initialLocation: '/launch',
+            routes: [
+              GoRoute(path: '/launch', builder: (_, _) => const Scaffold()),
+              ...routes,
+            ],
+          );
+          await tester.pumpWidget(
+            MaterialApp.router(
+              debugShowCheckedModeBanner: false,
+              theme: ThemeData(fontFamily: 'GentiumPlus'),
+              routerConfig: router,
+              builder: (context, child) =>
+                  RepaintBoundary(key: captureKey, child: child!),
+            ),
+          );
+          if (entry == 'pages') {
+            unawaited(router.push('/shared-flow/by-flow/42'));
+          } else if (entry.startsWith('inbox')) {
+            unawaited(
+              router.push(
+                '/shared-flow/shared-flow',
+                extra: share(
+                  sent: entry == 'inbox-sent',
+                  imported: entry == 'inbox-imported',
+                ),
+              ),
+            );
+          } else {
+            unawaited(router.push('/flow-post/flow-post', extra: post()));
+          }
+          await settle(tester);
+          expect(
+            find.byType(FlowDetailCalendarScope),
+            findsOneWidget,
+            reason: entry,
+          );
+          if (sky) {
+            final surface = tester.widget<FollowSkyDetailSurface>(
+              find.byType(FollowSkyDetailSurface),
+            );
+            expect(surface.existingFlowId, 42, reason: entry);
+            expect(surface.isJoined, isTrue, reason: entry);
+            expect(
+              surface.calendarPreview.rows.any((r) => r.title == personalTitle),
+              isTrue,
+              reason: entry,
+            );
+          } else {
+            expect(
+              find.byKey(const ValueKey('user-flow-detail-surface-42')),
+              findsOneWidget,
+              reason: entry,
+            );
+            expect(find.text(personalTitle), findsWidgets, reason: entry);
+          }
+          expect(tester.takeException(), isNull, reason: entry);
+          final scroll = tester
+              .widget<CustomScrollView>(
+                find.byKey(
+                  ValueKey(
+                    sky ? 'follow-sky-scroll' : 'user-flow-detail-scroll-42',
+                  ),
+                ),
+              )
+              .controller!;
+          for (final phase in {
+            'hero': 0.0,
+            'calendar': 550.0,
+            'schedule': 1050.0,
+            'end': scroll.position.maxScrollExtent,
+          }.entries) {
+            scroll.jumpTo(
+              phase.value.clamp(0.0, scroll.position.maxScrollExtent),
+            );
+            await tester.pumpAndSettle();
+            final boundary = tester.renderObject<RenderRepaintBoundary>(
+              find.byKey(captureKey),
+            );
+            final rendered = (await tester.runAsync(() => boundary.toImage()))!;
+            final reference = references[phase.key];
+            if (reference == null) {
+              references[phase.key] = rendered;
+            } else {
+              await expectLater(
+                rendered,
+                matchesReferenceImage(reference),
+                reason: '$entry ${phase.key}',
+              );
+              rendered.dispose();
+            }
+            final folder = Platform.environment['HAW_FLOW_DETAIL_CAPTURE_DIR'];
+            if (folder != null && entry == 'pages') {
+              await tester.runAsync(() async {
+                final bytes = await references[phase.key]!.toByteData(
+                  format: ui.ImageByteFormat.png,
+                );
+                await Directory(folder).create(recursive: true);
+                await File(
+                  '$folder/${sky ? 'sky' : 'custom'}-${phase.key}-390x844.png',
+                ).writeAsBytes(bytes!.buffer.asUint8List());
+              });
+            }
+          }
+          await tester.pumpWidget(const SizedBox());
+          router.dispose();
+          await settle(tester);
+        }
+        for (final reference in references.values) {
+          reference.dispose();
+        }
+        app.dispose();
+      }
+      // Receiving a snapshot uses the same Sky view and the viewer's calendar,
+      // but does not bind the sender's ID or offer owned-flow actions.
+      final invitationApp = createAppRouterForTesting();
+      final shareRoute = invitationApp.configuration.routes
+          .whereType<GoRoute>()
+          .singleWhere((r) => r.path == '/shared-flow/:shareId');
+      final invitationRouter = GoRouter(
+        initialLocation: '/launch',
+        routes: [
+          GoRoute(path: '/launch', builder: (_, _) => const Scaffold()),
+          shareRoute,
+        ],
+      );
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: invitationRouter),
+      );
+      unawaited(
+        invitationRouter.push(
+          '/shared-flow/shared-flow',
+          extra: share(sent: false),
+        ),
+      );
+      await settle(tester);
+      final invitation = tester.widget<FollowSkyDetailSurface>(
+        find.byType(FollowSkyDetailSurface),
+      );
+      expect(invitation.existingFlowId, isNull);
+      expect(invitation.isJoined, isFalse);
+      expect(invitation.existingFlowNotes, flow['notes']);
+      expect(
+        invitation.calendarPreview.rows.any((r) => r.title == personalTitle),
+        isTrue,
+      );
+      expect(find.text('Import Flow'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('flow-detail-start-date')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('flow-detail-start-date')));
+      await tester.pumpAndSettle();
+      expect(find.text('Gregorian Calendar'), findsOneWidget);
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox());
+      invitationRouter.dispose();
+      invitationApp.dispose();
+      await settle(tester);
+      calendarReads = 0;
+      WarmSnapshotStore.instance.invalidate(owner);
+
+      // Force more than one filing page; calendar context must not stop at a cap.
+      events = [
+        for (var i = 0; i < 1002; i++)
+          {...events.first, 'id': 'event-$i', 'client_event_id': 'event-$i'},
+      ];
+      FollowSkyCalendarPreview? preview;
+      Widget scope() => MaterialApp(
+        home: FlowDetailCalendarScope(
+          start: today,
+          end: today.add(const Duration(days: 29)),
+          builder: (_, value) {
+            preview = value;
+            return Text('${value.rows.length}');
+          },
+        ),
+      );
+      await tester.pumpWidget(scope());
+      await settle(tester);
+      expect(preview!.rows, hasLength(1002));
+      expect(calendarReads, 2);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+      offline = true;
+      await tester.pumpWidget(scope());
+      await settle(tester);
+      expect(preview!.rows, hasLength(1002));
+      expect(preview!.supply, CalendarPreviewSupply.loaded);
+      offline = false;
+      events = [
+        {...events.first, 'title': 'Acknowledged edit'},
+      ];
+      CalendarInvalidationBus.instance.publish(
+        const CalendarInvalidated(
+          reason: CalendarInvalidationReason.eventSaved,
+        ),
+      );
+      await settle(tester);
+      expect(preview!.rows.single.title, 'Acknowledged edit');
+      // An in-flight old-account read cannot paint after an A -> B -> A change.
+      readHold = Completer<void>();
+      CalendarInvalidationBus.instance.publish(
+        const CalendarInvalidated(
+          reason: CalendarInvalidationReason.eventSaved,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 80));
+      await Supabase.instance.client.auth.recoverSession(session(visitor));
+      await tester.pump();
+      expect(preview!.rows, isEmpty);
+      await Supabase.instance.client.auth.recoverSession(session(owner));
+      readHold!.complete();
+      readHold = null;
+      await settle(tester);
+      denied = true;
+      CalendarInvalidationBus.instance.publish(
+        const CalendarInvalidated(
+          reason: CalendarInvalidationReason.eventSaved,
+        ),
+      );
+      await settle(tester);
+      expect(preview!.supply, CalendarPreviewSupply.unavailable);
+      expect(preview!.rows, isEmpty);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+}

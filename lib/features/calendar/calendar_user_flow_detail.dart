@@ -6,12 +6,16 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
     ({bool kemetic, bool split, String overview, String? maatKey}) meta,
     ReminderRule? reminderRule,
   ) {
-    if (widget.mode != _FlowPreviewMode.active &&
-        widget.mode != _FlowPreviewMode.saved) {
-      return false;
-    }
-    if (!widget.useMySavedExpansionParity) return false;
-    return meta.maatKey == null && reminderRule == null && !flow.isReminder;
+    final kind = resolveMaatFlowKind(
+      flowName: flow.name,
+      flowNotes: flow.notes,
+    );
+    // Known, supported Ma’at kinds are handled by the common owner first.
+    // Historical or unrecognized source data still uses the My Flows surface.
+    return !kDiscoverableMaatFlowKinds.contains(kind) &&
+        !kArchivedCompatibilityMaatFlowKinds.contains(kind) &&
+        reminderRule == null &&
+        !flow.isReminder;
   }
 
   Widget _buildUserFlowDetailSurface({
@@ -28,7 +32,7 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
     final partition = _partitionDashboardDays(flow, events);
     final days = _dashboardDaysFor(flow, events);
     final schedule = _userFlowScheduleBuckets(flow, days);
-    final calendarPreview = _calendarPreviewForUserFlow(
+    final initialCalendarPreview = _calendarPreviewForUserFlow(
       flow: flow,
       days: days,
       schedule: schedule,
@@ -38,65 +42,76 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
         ? metrics.totalEventCount
         : events.length;
 
-    return Material(
-      key: ValueKey<String>('user-flow-detail-surface-${flow.id}'),
-      color: theme.pageBackground,
-      child: Stack(
-        children: [
-          MaatFlowDetailShell(
-            theme: theme,
-            scrollKey: ValueKey<String>('user-flow-detail-scroll-${flow.id}'),
-            heroLayerKey: ValueKey<String>(
-              'user-flow-detail-hero-layer-${flow.id}',
-            ),
-            sheetKey: ValueKey<String>('user-flow-detail-sheet-${flow.id}'),
-            hero: _buildUserFlowDetailHero(
-              flow: flow,
+    var calendarEnd = _userFlowToday.add(const Duration(days: 29));
+    for (final day in schedule.visibleUpcoming) {
+      final date = _userFlowDisplayDate(flow, day, days);
+      if (date.isAfter(calendarEnd)) calendarEnd = date;
+    }
+    return FlowDetailCalendarScope(
+      start: _userFlowToday,
+      end: calendarEnd,
+      initialPreview: initialCalendarPreview,
+      builder: (context, calendarPreview) => Material(
+        key: ValueKey<String>('user-flow-detail-surface-${flow.id}'),
+        color: theme.pageBackground,
+        child: Stack(
+          children: [
+            MaatFlowDetailShell(
               theme: theme,
-              metrics: metrics,
-              total: total,
-              partition: partition,
+              scrollKey: ValueKey<String>('user-flow-detail-scroll-${flow.id}'),
+              heroLayerKey: ValueKey<String>(
+                'user-flow-detail-hero-layer-${flow.id}',
+              ),
+              sheetKey: ValueKey<String>('user-flow-detail-sheet-${flow.id}'),
+              hero: _buildUserFlowDetailHero(
+                flow: flow,
+                theme: theme,
+                metrics: metrics,
+                total: total,
+                partition: partition,
+              ),
+              sheet: _buildUserFlowDetailSheet(
+                flow: flow,
+                meta: meta,
+                events: events,
+                days: days,
+                partition: partition,
+                schedule: schedule,
+                calendarPreview: calendarPreview,
+                palette: palette,
+                theme: theme,
+                loading: loading,
+                error: error,
+                overview: overview,
+              ),
+              bottomDock: _buildUserFlowDetailDock(flow: flow, theme: theme),
             ),
-            sheet: _buildUserFlowDetailSheet(
-              flow: flow,
-              meta: meta,
-              events: events,
-              days: days,
-              partition: partition,
-              schedule: schedule,
-              calendarPreview: calendarPreview,
-              palette: palette,
-              theme: theme,
-              loading: loading,
-              error: error,
-              overview: overview,
-            ),
-            bottomDock: _buildUserFlowDetailDock(flow: flow, theme: theme),
-          ),
-          Positioned(
-            top: MediaQuery.paddingOf(context).top + 6,
-            left: 16,
-            child: MaatFlowDetailBackButton(
-              key: const ValueKey<String>('user-flow-detail-back'),
-              color: MaatFlowListTokens.gold,
-              backgroundColor: Colors.transparent,
-              borderColor: Colors.transparent,
-              size: 40,
-              iconSize: 27,
-              icon: Icons.chevron_left,
-              onPressed: () => popMaatFlowDetailOrGo(
-                context,
-                fallbackLocation: widget.backFallbackLocation,
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 6,
+              left: 16,
+              child: MaatFlowDetailBackButton(
+                key: const ValueKey<String>('user-flow-detail-back'),
+                color: MaatFlowListTokens.gold,
+                backgroundColor: Colors.transparent,
+                borderColor: Colors.transparent,
+                size: 40,
+                iconSize: 27,
+                icon: Icons.chevron_left,
+                onPressed: () => popMaatFlowDetailOrGo(
+                  context,
+                  fallbackLocation: widget.backFallbackLocation,
+                ),
               ),
             ),
-          ),
-          if (widget.showFlowOptions || widget.additionalMenuActions.isNotEmpty)
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + 4,
-              right: 10,
-              child: _buildUserFlowDetailOptions(flow, events, theme),
-            ),
-        ],
+            if (widget.showFlowOptions ||
+                widget.additionalMenuActions.isNotEmpty)
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 4,
+                right: 10,
+                child: _buildUserFlowDetailOptions(flow, events, theme),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -530,7 +545,6 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
                       key: ValueKey<String>('my_flow_day_card_${day.key}'),
                       content: content,
                       palette: palette,
-                      variant: _MyFlowDayCardVariant.expandedInline,
                       eyebrow: 'DAY ${day.dayNumber}',
                     ),
                   ),
@@ -649,7 +663,6 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
                 key: ValueKey<String>('my_flow_day_card_${day.key}'),
                 content: content,
                 palette: palette,
-                variant: _MyFlowDayCardVariant.expandedInline,
                 eyebrow: 'DAY ${day.dayNumber}',
               ),
             ),
