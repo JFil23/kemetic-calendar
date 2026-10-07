@@ -451,6 +451,7 @@ int _editableParagraphIndex(List<JournalBlock> blocks) {
   return blocks.indexWhere(
     (block) =>
         block is ParagraphBlock &&
+        !block.id.startsWith('decan_reflection:') &&
         maatJournalResponseSourceIdFromBlockId(block.id) == null,
   );
 }

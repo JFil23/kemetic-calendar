@@ -1,3 +1,6 @@
+import 'account_operation_fence.dart';
+import '../features/calendar/maat_flow_catalog.dart';
+import '../features/calendar/maat_flow_identity.dart';
 import 'warm_state/warm_mutation.dart';
 import 'warm_state/warm_json_reads.dart';
 import 'warm_state/warm_snapshot_store.dart';
@@ -892,6 +895,42 @@ class FlowsRepo {
     final ledger = await loadMyFlowLedger();
     _log('fetchAll ✓ ${ledger.entries.length} rows');
     return ledger.activeItems;
+  }
+
+  /// Only identities are needed for optional reflection continuations. If the
+  /// bounded result saturates, conservatively omit flow recommendations.
+  Future<Set<String>> decanContinuationJoinedKeys() async {
+    final fence = AccountOperationFence(_client);
+    try {
+      if (fence.userId == null) throw StateError('Sign in to explore flows');
+      final rows = await WarmJsonReads(_client).rows(
+        'flow.continuation-kinds',
+        () => _client
+            .from(_kFlows)
+            .select('name,notes')
+            .eq('user_id', fence.userId!)
+            .eq('active', true)
+            .eq('is_hidden', false)
+            .limit(65),
+      );
+      final houses = _rpcFlowRows(
+        await _client.rpc(_kHeldReadingHousesRpc, params: {'p_limit': 1}),
+      );
+      if (!fence.isCurrent) throw StateError('Account changed');
+      if (rows.length >= 65)
+        return kDiscoverableMaatFlowKinds.map((k) => k.flowKey).toSet();
+      return [...rows, ...houses]
+          .map(
+            (r) => resolveMaatFlowKind(
+              flowName: r['name'] as String?,
+              flowNotes: r['notes'] as String?,
+            )?.flowKey,
+          )
+          .whereType<String>()
+          .toSet();
+    } finally {
+      fence.dispose();
+    }
   }
 
   Future<List<FlowRow>> listMyFlows({int limit = 200}) async {

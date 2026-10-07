@@ -18,6 +18,11 @@ class InsightPost {
   final List<String> authorAvatarGlyphIds;
   final double? feedScore;
   final bool isFollowingAuthor;
+  final String sourceKind;
+  final String? sourceReflectionId, questionText;
+  final Map<String, dynamic>? readingLink;
+  final int revision;
+  bool get isDecanReflection => sourceKind == 'decan';
 
   const InsightPost({
     required this.id,
@@ -37,6 +42,11 @@ class InsightPost {
     this.authorAvatarGlyphIds = const [],
     this.feedScore,
     this.isFollowingAuthor = false,
+    this.sourceKind = 'library',
+    this.sourceReflectionId,
+    this.questionText,
+    this.readingLink,
+    this.revision = 1,
   });
 
   factory InsightPost.fromJson(Map<String, dynamic> json) {
@@ -88,6 +98,13 @@ class InsightPost {
       ),
       feedScore: (json['score'] as num?)?.toDouble(),
       isFollowingAuthor: (json['is_following_author'] as bool?) ?? false,
+      sourceKind: json['source_kind'] as String? ?? 'library',
+      sourceReflectionId: json['source_reflection_id'] as String?,
+      questionText: json['question_text'] as String?,
+      readingLink: json['reading_link'] is Map
+          ? Map<String, dynamic>.from(json['reading_link'] as Map)
+          : null,
+      revision: (json['revision'] as num?)?.toInt() ?? 1,
     );
   }
 
@@ -110,6 +127,11 @@ class InsightPost {
       'author_avatar_glyphs': authorAvatarGlyphIds,
       'score': feedScore,
       'is_following_author': isFollowingAuthor,
+      'source_kind': sourceKind,
+      'source_reflection_id': sourceReflectionId,
+      'question_text': questionText,
+      'reading_link': readingLink,
+      'revision': revision,
     };
   }
 

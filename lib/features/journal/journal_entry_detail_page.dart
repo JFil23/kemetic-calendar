@@ -1,3 +1,6 @@
+import '../../data/account_operation_fence.dart';
+import 'journal_controller.dart';
+import 'journal_document_view.dart';
 import '../../data/warm_state/warm_snapshot_store.dart';
 import 'dart:async';
 
@@ -22,13 +25,27 @@ class JournalEntryDetailPage extends StatefulWidget {
 class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
   final _repo = JournalRepo(Supabase.instance.client);
   final _insightRepo = InsightLinkRepo();
+  late final _controller = JournalController(
+    Supabase.instance.client,
+    repository: _repo,
+  );
   JournalEntry? _entry;
   List<InsightLink> _links = [];
   bool _loading = true;
+  late final _account = AccountOperationFence(Supabase.instance.client);
+  StreamSubscription<AuthState>? _auth;
 
   @override
   void initState() {
     super.initState();
+    _auth = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      if (mounted && !_account.isCurrent)
+        setState(() {
+          _entry = null;
+          _links = [];
+          _loading = false;
+        });
+    });
     _load();
   }
 
@@ -37,8 +54,9 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
     if (_entry == null) {
       try {
         final local = await _repo.getById(widget.entryId, cachedOnly: true);
-        if (!mounted) return;
+        if (!mounted || !_account.isCurrent) return;
         if (local != null) {
+          await _controller.loadEntry(local);
           setState(() {
             _entry = local;
             _loading = false;
@@ -50,7 +68,7 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
     try {
       entry = await _repo.getById(widget.entryId, strict: true);
     } catch (error) {
-      if (mounted) {
+      if (mounted && _account.isCurrent) {
         setState(() {
           if (error is WarmAccessDenied) {
             _entry = null;
@@ -60,13 +78,14 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
       }
       return;
     }
-    if (!mounted) return;
+    if (entry != null) await _controller.loadEntry(entry);
+    if (!mounted || !_account.isCurrent) return;
     setState(() {
       _entry = entry;
       _loading = false;
     });
     final links = await _insightRepo.fetchLinks(userId);
-    if (!mounted) return;
+    if (!mounted || !_account.isCurrent) return;
     setState(() {
       _entry = entry;
       if (entry != null) {
@@ -87,7 +106,26 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
   }
 
   @override
+  void dispose() {
+    _auth?.cancel();
+    _account.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_account.isCurrent &&
+        JournalDocumentView.containsDecan(_controller.currentDocument)) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0B0906),
+        resizeToAvoidBottomInset: false,
+        body: JournalDocumentView(
+          controller: _controller,
+          onClose: () => popOrGo(context, '/journal'),
+        ),
+      );
+    }
     const bodyBottomPadding = 16.0;
 
     return Scaffold(

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/journal_repo.dart';
+import '../../data/account_operation_fence.dart';
 import '../../core/feature_flags.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_constants.dart';
@@ -29,7 +30,22 @@ class JournalController {
   JournalDocument? _currentDocument;
   Future<void>? _initFuture;
   Future<void>? _reloadTodayFuture;
+  Future<bool>? _autosaveFuture;
   int _localEditRevision = 0;
+  int _documentBaseRevision = 0;
+  List<JournalRecoveryDraft> _recoveryDrafts = const [];
+  List<JournalRecoveryDraft> get recoveryDrafts => _recoveryDrafts;
+  String? get accountIdentity => _currentUserId();
+  Stream<String?> get accountChanges =>
+      _client?.auth.onAuthStateChange
+          .map((s) => s.session?.user.id)
+          .distinct() ??
+      const Stream.empty();
+  Future<void> _localWrites = Future.value();
+  final List<AccountOperationFence> _operations = [];
+  SupabaseClient? _client;
+  StreamSubscription<AuthState>? _accountSubscription;
+  String? _seenAccount;
   int _initRunCount = 0;
   int _reloadTodayRunCount = 0;
 
@@ -44,7 +60,26 @@ class JournalController {
     JournalRepo? repository,
     String? Function()? currentUserId,
   }) : _repo = repository ?? JournalRepo(client),
-       _currentUserId = currentUserId ?? (() => client.auth.currentUser?.id);
+       _currentUserId = currentUserId ?? (() => client.auth.currentUser?.id) {
+    _client = client;
+    _seenAccount = _currentUserId();
+    _accountSubscription = client.auth.onAuthStateChange.listen((state) {
+      final next = _currentUserId();
+      if (next != _seenAccount || state.event == AuthChangeEvent.signedOut) {
+        _seenAccount = next;
+        _autosaveTimer?.cancel();
+        _localEditRevision++;
+        _currentDocument = null;
+        _currentDraft = '';
+        _currentDate = null;
+        _documentBaseRevision = 0;
+        _recoveryDrafts = const [];
+        _lastSyncError = null;
+        _hasUnsavedChanges = false;
+        onDraftChanged?.call();
+      }
+    });
+  }
 
   @visibleForTesting
   JournalController.withRepo(this._repo, {String? Function()? currentUserId})
@@ -169,11 +204,14 @@ class JournalController {
     required bool localDirty,
     required DateTime? localModifiedAt,
     required JournalEntry? serverEntry,
+    int? baseRevision,
   }) {
-    if (!localDirty) return false;
-    if (serverEntry == null) return true;
-    if (localModifiedAt == null) return false;
-    return !localModifiedAt.isBefore(serverEntry.updatedAt.toUtc());
+    // Timestamps cannot resolve two authored versions. Keep the offline draft;
+    // the shared revisioned writer will surface a conflict without losing either.
+    return localDirty &&
+        (serverEntry == null ||
+            localModifiedAt != null ||
+            baseRevision != null);
   }
 
   bool _v1DraftShouldReplaceExistingV2({
@@ -317,27 +355,27 @@ class JournalController {
     }
   }
 
-  Future<void> _setLocalDirty({
-    required SharedPreferences prefs,
+  Future<void> _markLocalClean({
     required String dateKey,
-    required bool dirty,
-  }) async {
-    await prefs.setBool(_documentDirtyKey(dateKey), dirty);
-    if (dirty) {
-      await prefs.setString(
-        _documentModifiedKey(dateKey),
-        DateTime.now().toUtc().toIso8601String(),
-      );
-    }
-  }
+    required String scope,
+    required int editRevision,
+  }) => _queueLocalWrite(() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_cacheScope != scope ||
+        _localEditRevision != editRevision ||
+        _activeDateKey != dateKey)
+      return;
+    if (!await prefs.setBool(
+      _cacheKeyForScope(scope, 'document_dirty', dateKey),
+      false,
+    ))
+      throw StateError('Could not confirm Journal save on this device');
+  });
 
-  Future<void> _markLocalClean({required String dateKey}) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await _setLocalDirty(prefs: prefs, dateKey: dateKey, dirty: false);
-    } catch (e) {
-      _log('_markLocalClean error: $e');
-    }
+  Future<void> _queueLocalWrite(Future<void> Function() write) {
+    final next = _localWrites.catchError((_) {}).then((_) => write());
+    _localWrites = next;
+    return next;
   }
 
   Future<void> _removeLocalScopeDocument(
@@ -492,8 +530,11 @@ class JournalController {
   }
 
   /// Load document for today (V2 behavior)
-  Future<void> _loadDocumentForToday() async {
-    final today = _today;
+  Future<void> _loadDocumentForToday({
+    DateTime? localDate,
+    JournalEntry? snapshot,
+  }) async {
+    final today = localDate ?? _today;
     _currentDate = today;
     final dateKey = _formatDate(today);
     final cacheScope = _cacheScope;
@@ -503,6 +544,10 @@ class JournalController {
     await _migrateV1DraftsIfNeeded(prefs);
     final localDocJson = prefs.getString(_documentKey(dateKey));
     final localDirty = prefs.getBool(_documentDirtyKey(dateKey)) ?? false;
+    final savedBaseRevision = prefs.getInt(
+      '${_documentKey(dateKey)}:base_revision',
+    );
+    _documentBaseRevision = savedBaseRevision ?? 0;
     final localModifiedAt = _parsePrefsDate(
       prefs.getString(_documentModifiedKey(dateKey)),
     );
@@ -537,7 +582,18 @@ class JournalController {
     var serverReadFailed = false;
     Object? serverError;
     try {
-      entry = await _repo.getByDateStrict(today);
+      entry = snapshot ?? await _repo.getByDateStrict(today);
+      if (snapshot != null) _repo.restoreBaseRevision(today, snapshot.revision);
+      if (localDirty) {
+        // A refreshed server version is not the base of an offline draft.
+        _repo.restoreBaseRevision(today, savedBaseRevision ?? 0);
+      } else {
+        _documentBaseRevision = _repo.revisionForDate(today);
+        await prefs.setInt(
+          '${_documentKey(dateKey)}:base_revision',
+          _documentBaseRevision,
+        );
+      }
     } catch (e) {
       serverReadFailed = true;
       serverError = e;
@@ -553,6 +609,7 @@ class JournalController {
       return;
     }
 
+    if (!serverReadFailed) _recoveryDrafts = _repo.recoveryForDate(today);
     if (serverReadFailed) {
       _setSyncStatus(JournalSyncStatus.saveFailed, serverError);
     }
@@ -582,6 +639,7 @@ class JournalController {
           localDirty: localDirty,
           localModifiedAt: localModifiedAt,
           serverEntry: entry,
+          baseRevision: savedBaseRevision,
         )) {
       await _applyDocument(localDocument);
       _hasUnsavedChanges = true;
@@ -595,6 +653,19 @@ class JournalController {
     }
 
     if (entry != null) {
+      // Old builds sometimes left a dirty flag on an undated cache. Preserve
+      // that text separately while retaining the deployed server-first rule.
+      if (localDirty &&
+          localDocJson != null &&
+          localModifiedAt == null &&
+          savedBaseRevision == null) {
+        await prefs.setString(
+          '${_documentKey(dateKey)}:recovered_legacy',
+          localDocJson,
+        );
+        _repo.restoreBaseRevision(today, entry.revision);
+        _documentBaseRevision = entry.revision;
+      }
       try {
         if (entry.body.startsWith('{') && entry.body.contains('"version"')) {
           final docMap = jsonDecode(entry.body) as Map<String, dynamic>;
@@ -628,7 +699,17 @@ class JournalController {
             '_loadDocumentForToday: loaded local document after server parse failure',
           );
         } else {
-          await _applyDocument(JournalDocument.fromPlainText(''));
+          await _applyDocument(
+            JournalDocument(
+              version: kJournalDocVersion,
+              blocks: [
+                ParagraphBlock(
+                  id: 'empty-$dateKey',
+                  ops: [TextOp(insert: localDate == null ? '\n' : '')],
+                ),
+              ],
+            ),
+          );
           _hasUnsavedChanges = false;
           _setSyncStatus(JournalSyncStatus.saveFailed, e);
         }
@@ -650,7 +731,17 @@ class JournalController {
         '_loadDocumentForToday: server empty/unavailable, loaded local document (${_currentDraft.length} chars)',
       );
     } else {
-      await _applyDocument(JournalDocument.fromPlainText(''));
+      await _applyDocument(
+        JournalDocument(
+          version: kJournalDocVersion,
+          blocks: [
+            ParagraphBlock(
+              id: 'empty-$dateKey',
+              ops: [TextOp(insert: localDate == null ? '\n' : '')],
+            ),
+          ],
+        ),
+      );
       _hasUnsavedChanges = false;
       if (!serverReadFailed) {
         _setSyncStatus(JournalSyncStatus.synced);
@@ -680,9 +771,12 @@ class JournalController {
     if (_currentDocument != null) {
       // Update existing document's first paragraph
       final blocks = List<JournalBlock>.from(_currentDocument!.blocks);
-      if (blocks.isNotEmpty && blocks.first is ParagraphBlock) {
-        final firstBlock = blocks.first as ParagraphBlock;
-        blocks[0] = ParagraphBlock(
+      final paragraphIndex = blocks.indexWhere(
+        (b) => b is ParagraphBlock && !b.id.startsWith('decan_reflection:'),
+      );
+      if (paragraphIndex != -1) {
+        final firstBlock = blocks[paragraphIndex] as ParagraphBlock;
+        blocks[paragraphIndex] = ParagraphBlock(
           id: firstBlock.id,
           ops: [TextOp(insert: cleanedText.isEmpty ? '\n' : cleanedText)],
         );
@@ -806,33 +900,57 @@ class JournalController {
     if (_currentDocument == null) return;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
       final dateKey = _activeDateKey;
+      final scope = _cacheScope;
       final docJson = jsonEncode(_currentDocument!.toJson());
-      await prefs.setString(_documentKey(dateKey), docJson);
-      await prefs.setString(_lastOpenDayKey, dateKey);
-      await _setLocalDirty(prefs: prefs, dateKey: dateKey, dirty: markDirty);
+      final base = _documentBaseRevision;
       final userId = _currentUserId();
-      if (userId != null && _currentDate != null) {
-        publishJournalOverview(
-          userId,
-          _currentDate!,
-          docJson,
-          saved: !markDirty,
+      final date = _currentDate;
+      final documentKey = _cacheKeyForScope(scope, 'document', dateKey);
+      await _queueLocalWrite(() async {
+        final prefs = await SharedPreferences.getInstance();
+        final persisted = await prefs.setString(documentKey, docJson);
+        if (!persisted) throw StateError('Could not keep Journal draft');
+        await prefs.setInt('$documentKey:base_revision', base);
+        await prefs.setString('journal:$scope:lastOpenDay', dateKey);
+        await prefs.setBool(
+          _cacheKeyForScope(scope, 'document_dirty', dateKey),
+          markDirty,
         );
-      }
-      _log('_saveLocalDocument: ✓ cached locally');
+        if (markDirty)
+          await prefs.setString(
+            _cacheKeyForScope(scope, 'document_modified_at', dateKey),
+            DateTime.now().toUtc().toIso8601String(),
+          );
+        if (userId != null && date != null && scope == _cacheScope) {
+          publishJournalOverview(userId, date, docJson, saved: !markDirty);
+        }
+        _log('_saveLocalDocument: ✓ cached locally');
+      });
     } catch (e) {
+      _setSyncStatus(JournalSyncStatus.saveFailed, e);
       _log('_saveLocalDocument error: $e');
     }
   }
 
   /// Autosave to server (debounced)
-  Future<bool> _autosave() async {
-    if (!_hasUnsavedChanges) return true;
+  Future<bool> _autosave() {
+    final pending = _autosaveFuture;
+    if (pending != null) return pending;
+    final work = _performAutosave();
+    _autosaveFuture = work;
+    return work.whenComplete(() => _autosaveFuture = null);
+  }
 
+  Future<bool> _performAutosave() async {
+    if (!_hasUnsavedChanges) return true;
+    if (_lastSyncError is JournalRevisionConflict) return false;
+
+    final fence = _client == null ? null : AccountOperationFence(_client!);
+    if (fence != null) _operations.add(fence);
     try {
       final saveRevision = _localEditRevision;
+      final saveScope = _cacheScope;
       _setSyncStatus(JournalSyncStatus.saving);
       _log('_autosave: saving to server (${_currentDraft.length} chars)');
 
@@ -847,12 +965,23 @@ class JournalController {
 
       final saveDate = _currentDate ?? _today;
       final dateKey = _formatDate(saveDate);
+      _repo.restoreBaseRevision(saveDate, _documentBaseRevision);
       await _repo.upsert(
         localDate: saveDate,
         body: bodyToSave,
         meta: metaToSave,
       );
 
+      if (_cacheScope != saveScope || (fence != null && !fence.isCurrent))
+        return false;
+      final prefs = await SharedPreferences.getInstance();
+      if (_cacheScope != saveScope || (fence != null && !fence.isCurrent))
+        return false;
+      await prefs.setInt(
+        '${_cacheKeyForScope(saveScope, 'document', dateKey)}:base_revision',
+        _repo.revisionForDate(saveDate),
+      );
+      _documentBaseRevision = _repo.revisionForDate(saveDate);
       if (_localEditRevision != saveRevision) {
         _setSyncStatus(JournalSyncStatus.unsavedLocal);
         _scheduleAutosave();
@@ -861,7 +990,15 @@ class JournalController {
       }
 
       _hasUnsavedChanges = false;
-      await _markLocalClean(dateKey: dateKey);
+      await _markLocalClean(
+        dateKey: dateKey,
+        scope: saveScope,
+        editRevision: saveRevision,
+      );
+      if (_cacheScope != saveScope ||
+          _localEditRevision != saveRevision ||
+          (fence != null && !fence.isCurrent))
+        return true;
       _setSyncStatus(JournalSyncStatus.synced);
       _log('_autosave: ✓ saved to server');
 
@@ -882,17 +1019,110 @@ class JournalController {
       return true;
     } catch (e) {
       _log('_autosave error: $e (will retry later)');
-      _setSyncStatus(JournalSyncStatus.saveFailed, e);
+      if (fence == null || fence.isCurrent)
+        _setSyncStatus(JournalSyncStatus.saveFailed, e);
       // Keep _hasUnsavedChanges = true so it retries
       return false;
+    } finally {
+      fence?.dispose();
+      _operations.remove(fence);
     }
+  }
+
+  JournalDocument documentFromBody(String body) {
+    try {
+      final value = jsonDecode(body);
+      if (value is Map && value['blocks'] is List)
+        return JournalDocument.fromJson(Map<String, dynamic>.from(value));
+    } catch (_) {}
+    return JournalDocument.fromPlainText(body);
+  }
+
+  Future<bool> resolveConflict(
+    JournalRevisionConflict shown, {
+    required bool keepDraft,
+  }) async {
+    if (!identical(_lastSyncError, shown) || _currentDocument == null)
+      return false;
+    _autosaveTimer?.cancel();
+    final scope = _cacheScope;
+    final dateKey = _activeDateKey;
+    final current = jsonEncode(_currentDocument!.toJson());
+    final prefs = await SharedPreferences.getInstance();
+    if (_cacheScope != scope || !identical(_lastSyncError, shown)) return false;
+    if (!await prefs.setString(
+      '${_cacheKeyForScope(scope, 'document', dateKey)}:before_resolution',
+      current,
+    ))
+      return false;
+    if (_cacheScope != scope || !identical(_lastSyncError, shown)) return false;
+    _documentBaseRevision = shown.revision;
+    if (!keepDraft) {
+      await _applyDocument(documentFromBody(shown.serverEntry?.body ?? ''));
+      _hasUnsavedChanges = false;
+      await _saveLocalDocument(markDirty: false);
+      _setSyncStatus(JournalSyncStatus.synced);
+      onDraftChanged?.call();
+      return true;
+    }
+    await _saveLocalDocument(markDirty: true);
+    _setSyncStatus(JournalSyncStatus.unsavedLocal);
+    return forceSave();
+  }
+
+  /// Recovered versions remain account records. Selecting one only stages a
+  /// draft; it cannot silently replace today's acknowledged Journal document.
+  Future<void> chooseRecoveredDraft(JournalRecoveryDraft draft) async {
+    if (!_recoveryDrafts.contains(draft)) return;
+    final scope = _cacheScope;
+    final date = _currentDate;
+    if (date == null) return;
+    final editRevision = _localEditRevision;
+    final latest = await _repo.getByDateStrict(date);
+    if (_cacheScope != scope ||
+        _currentDate != date ||
+        _localEditRevision != editRevision)
+      return;
+    final prefs = await SharedPreferences.getInstance();
+    if (_cacheScope != scope ||
+        _currentDate != date ||
+        _localEditRevision != editRevision)
+      return;
+    if (!await prefs.setString(
+      '${_documentKey(_activeDateKey)}:before_recovery',
+      jsonEncode(_currentDocument?.toJson()),
+    ))
+      throw StateError('Could not keep your current draft');
+    if (_cacheScope != scope ||
+        _currentDate != date ||
+        _localEditRevision != editRevision)
+      return;
+    final recovered = await _repo.readRecoveryDraft(draft);
+    if (_cacheScope != scope ||
+        _currentDate != date ||
+        _localEditRevision != editRevision)
+      return;
+    final candidate = documentFromBody(recovered);
+    _autosaveTimer?.cancel();
+    _markLocalEdit();
+    _currentDocument = candidate;
+    _currentDraft = candidate.toPlainText();
+    _hasUnsavedChanges = true;
+    await _saveLocalDocument(markDirty: true);
+    // Deliberately require comparison with the current copy before any write.
+    _setSyncStatus(
+      JournalSyncStatus.saveFailed,
+      JournalRevisionConflict(_repo.revisionForDate(date), latest),
+    );
+    onDraftChanged?.call();
   }
 
   /// Force save immediately (on overlay close)
   Future<bool> forceSave() async {
     _autosaveTimer?.cancel();
-    if (_hasUnsavedChanges) {
-      return _autosave();
+    while (_hasUnsavedChanges) {
+      if (!await _autosave()) return false;
+      _autosaveTimer?.cancel();
     }
     return true;
   }
@@ -917,9 +1147,12 @@ class JournalController {
 
   /// Finalize yesterday's entry if we detected a day rollover
   Future<void> finalizeYesterdayIfNeeded() async {
+    final scope = _cacheScope;
+    final fence = _client == null ? null : AccountOperationFence(_client!);
     try {
       final prefs = await SharedPreferences.getInstance();
       await _migrateV1DraftsIfNeeded(prefs);
+      if (_cacheScope != scope || (fence != null && !fence.isCurrent)) return;
       final lastOpenDay = prefs.getString(_lastOpenDayKey);
 
       if (lastOpenDay == null || lastOpenDay == _todayKey) {
@@ -941,6 +1174,10 @@ class JournalController {
           int.parse(parts[2]),
         );
 
+        _repo.restoreBaseRevision(
+          yesterdayDate,
+          prefs.getInt('${_documentKey(lastOpenDay)}:base_revision') ?? 0,
+        );
         await _repo.upsert(
           localDate: yesterdayDate,
           body: yesterdayContent,
@@ -951,6 +1188,10 @@ class JournalController {
           },
         );
 
+        if (_cacheScope != scope ||
+            (fence != null && !fence.isCurrent) ||
+            prefs.getString(_documentKey(lastOpenDay)) != yesterdayContent)
+          return;
         await prefs.remove(_documentKey(lastOpenDay));
         await prefs.remove(_documentDirtyKey(lastOpenDay));
         await prefs.remove(_documentModifiedKey(lastOpenDay));
@@ -959,9 +1200,12 @@ class JournalController {
       }
 
       // Update last open day
+      if (_cacheScope != scope || (fence != null && !fence.isCurrent)) return;
       await prefs.setString(_lastOpenDayKey, _todayKey);
     } catch (e) {
       _log('finalizeYesterdayIfNeeded error: $e');
+    } finally {
+      fence?.dispose();
     }
   }
 
@@ -1000,7 +1244,9 @@ class JournalController {
     final blocks = List<JournalBlock>.from(doc.blocks);
 
     // Find first paragraph block or create one
-    int paragraphIndex = blocks.indexWhere((b) => b is ParagraphBlock);
+    int paragraphIndex = blocks.indexWhere(
+      (b) => b is ParagraphBlock && !b.id.startsWith('decan_reflection:'),
+    );
     if (paragraphIndex == -1) {
       blocks.add(
         ParagraphBlock(
@@ -1031,76 +1277,29 @@ class JournalController {
     return appendStart;
   }
 
+  Future<void> loadEntry(JournalEntry entry) async {
+    await _loadDocumentForToday(localDate: entry.gregDate, snapshot: entry);
+    final scope = _cacheScope;
+    final date = _currentDate;
+    // Snapshot paints immediately; this read only discovers preserved drafts.
+    unawaited(() async {
+      try {
+        await _repo.getByDateStrict(entry.gregDate);
+        if (_cacheScope != scope || _currentDate != date) return;
+        _recoveryDrafts = _repo.recoveryForDate(entry.gregDate);
+        onDraftChanged?.call();
+      } catch (_) {
+        /* A failed recovery read does not discard visible writing. */
+      }
+    }());
+  }
+
   /// Load journal entry for a specific date
   /// Used when opening an entry from the archive
   Future<void> loadDate(DateTime date) async {
-    try {
-      _log('loadDate: loading entry for ${_formatDate(date)}');
-
-      _currentDate = date;
-      final dateKey = _formatDate(date);
-
-      final prefs = await SharedPreferences.getInstance();
-      await _migrateV1DraftsIfNeeded(prefs);
-
-      final entry = await _repo.getByDate(date);
-
-      if (entry != null) {
-        _log('loadDate: found entry with ${entry.body.length} chars');
-
-        if (entry.body.startsWith('{') && entry.body.contains('"version"')) {
-          try {
-            final docJson = jsonDecode(entry.body) as Map<String, dynamic>;
-            await _applyDocument(JournalDocument.fromJson(docJson));
-            _log('loadDate: loaded V2 document');
-          } catch (e) {
-            _log(
-              'loadDate: failed to parse document, migrating stripped body: $e',
-            );
-            await _applyDocument(
-              JournalDocument.fromPlainText(
-                JournalBadgeUtils.stripBadgesFromPlainText(entry.body),
-              ),
-            );
-          }
-        } else {
-          await _applyDocument(
-            JournalDocument.fromPlainText(
-              JournalBadgeUtils.stripBadgesFromPlainText(entry.body),
-            ),
-          );
-          _log('loadDate: migrated V1 plain text to document');
-        }
-      } else {
-        _log('loadDate: no entry found for $dateKey');
-        await _applyDocument(_emptyEditorDocument());
-      }
-
-      await prefs.setString(_lastOpenDayKey, dateKey);
-
-      _hasUnsavedChanges = false;
-      _setSyncStatus(JournalSyncStatus.synced);
-      onDraftChanged?.call();
-
-      _log('loadDate: ✓ loaded entry for $dateKey');
-    } catch (e) {
-      _log('loadDate error: $e');
-      await _applyDocument(_emptyEditorDocument());
-      _setSyncStatus(JournalSyncStatus.saveFailed, e);
-    }
-  }
-
-  /// Empty archive/editor face: no leftover newline, still a V2 document.
-  JournalDocument _emptyEditorDocument() {
-    return JournalDocument(
-      version: kJournalDocVersion,
-      blocks: [
-        ParagraphBlock(
-          id: 'p-${DateTime.now().millisecondsSinceEpoch}',
-          ops: const [TextOp(insert: '')],
-        ),
-      ],
-    );
+    _autosaveTimer?.cancel();
+    if (_hasUnsavedChanges) await _saveLocalDocument(markDirty: true);
+    await _loadDocumentForToday(localDate: date);
   }
 
   String _formatDate(DateTime date) {
@@ -1109,6 +1308,7 @@ class JournalController {
 
   /// Dispose controller
   void dispose() {
+    _accountSubscription?.cancel();
     if (_hasUnsavedChanges) {
       unawaited(forceSave());
     }

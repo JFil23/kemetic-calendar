@@ -23,6 +23,7 @@ import '../reflections/decan_reflection_skin.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_badge_utils.dart';
 import 'journal_controller.dart';
+import 'journal_document_view.dart';
 import 'journal_empty_badge_glyph.dart';
 import 'journal_event_badge.dart';
 import 'journal_v2_document_model.dart';
@@ -80,27 +81,55 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   bool _useKemetic = true; // default to Kemetic
   _JournalArchiveTab _activeArchiveTab = _JournalArchiveTab.journal;
   bool _reflectionsMounted = false;
+  JournalController? _sourceController;
+  StreamSubscription<String?>? _accountSub;
+  String? _accountId;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     _editController = TextEditingController();
     _badgeScrollController = ScrollController();
+    _accountId = widget.repo.accountId;
+    _accountSub = widget.repo.accountChanges.listen((id) {
+      if (!mounted || id == _accountId) return;
+      _accountId = id;
+      _sourceController?.dispose();
+      _sourceController = null;
+      setState(() {
+        _entries = [];
+        _selectedEntry = null;
+        _editingDocument = null;
+        _entryLinks = [];
+        _editController.clear();
+      });
+      unawaited(_loadEntries());
+    });
     _loadEntries();
   }
 
   @override
   void dispose() {
+    _loadGeneration++;
+    _accountSub?.cancel();
+    _sourceController?.dispose();
     _editController.dispose();
     _badgeScrollController.dispose();
     super.dispose();
   }
 
   Future<void> _loadEntries() async {
+    final generation = ++_loadGeneration;
+    final account = widget.repo.accountId;
+    bool current() =>
+        mounted &&
+        generation == _loadGeneration &&
+        widget.repo.accountId == account;
     if (_entries.isEmpty) {
       try {
         final local = await widget.repo.listRecent(days: 90, cachedOnly: true);
-        if (!mounted) return;
+        if (!current()) return;
         setState(() {
           _entries = local;
           _loading = false;
@@ -109,19 +138,33 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     }
     try {
       final entries = await widget.repo.listRecent(days: 90, strict: true);
-      if (!mounted) return;
+      if (!current()) return;
       setState(() {
         _entries = entries;
         _loading = false;
       });
     } catch (e) {
-      if (mounted) setState(() => _loading = false);
+      if (current()) setState(() => _loading = false);
     }
   }
 
   void _openEntry(JournalEntry entry) {
     final doc = _entryToDocument(entry);
     final plainText = doc.toPlainText();
+    _sourceController?.dispose();
+    _sourceController = null;
+    if (JournalDocumentView.containsDecan(doc)) {
+      final controller = JournalController(
+        Supabase.instance.client,
+        repository: widget.repo,
+      );
+      _sourceController = controller;
+      unawaited(
+        controller.loadEntry(entry).then((_) {
+          if (mounted && _sourceController == controller) setState(() {});
+        }),
+      );
+    }
 
     setState(() {
       _selectedEntry = entry;
@@ -135,6 +178,9 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   }
 
   void _closeEntry() {
+    _sourceController?.dispose();
+    _sourceController = null;
+    unawaited(_loadEntries());
     setState(() {
       _selectedEntry = null;
       _isEditing = false;
@@ -246,6 +292,10 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
       final body = jsonEncode(doc.toJson());
 
+      widget.repo.restoreBaseRevision(
+        selectedEntry.gregDate,
+        selectedEntry.revision,
+      );
       await widget.repo.upsert(localDate: selectedEntry.gregDate, body: body);
       await _saveEntryLinks(selectedEntry);
 
@@ -561,6 +611,16 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   @override
   Widget build(BuildContext context) {
     final showingEntry = _selectedEntry != null;
+    if (showingEntry && _sourceController != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0B0906),
+        resizeToAvoidBottomInset: false,
+        body: JournalDocumentView(
+          controller: _sourceController!,
+          onClose: _closeEntry,
+        ),
+      );
+    }
     return DecanReflectionSkinScaffold(
       key: journalArchiveReflectionSkinKey,
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,

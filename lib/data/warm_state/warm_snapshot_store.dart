@@ -70,7 +70,10 @@ class WarmSnapshotStore {
               key.startsWith('flow.detail.') ||
               key.startsWith('social.post.') ||
               key.startsWith('journal.entry.') ||
-              key.startsWith('reflection.') && key != 'reflection.list' ||
+              key.startsWith('reflection.') &&
+                  key != 'reflection.list' &&
+                  !key.startsWith('reflection.activity.') &&
+                  !key.startsWith('reflection.source.') ||
               key.startsWith('dm.messages.') ||
               key.startsWith('guidance.') && key != 'guidance.archive',
         )

@@ -1060,3 +1060,61 @@ editorial source; the v2 and earlier fixtures remain unchanged. Opening hooks,
 Ma'at clickthrough follows the revised curly-apostrophe spelling and retains
 its target. The reader, routes, retired entries, account-owned insights,
 bookmarks, cache keys, and persistence owners are unchanged.
+
+
+## October 7 — end-of-decan review, Journal and optional publication
+
+The approved uploaded decan HTML is the visual authority. Calendar keeps the
+existing floating badge and local day-ten 20:00 gate. The scheduler now sends an
+invitation rather than generating interpretations. Every entry reuses the
+reflection detail owner; legacy generated histories retain their reader.
+
+DecanReflectionRepo owns additive schema-1 review context and bounded activity
+pages (twelve items per source), with optional Journal/private-margin selection.
+Eight authored questions replace phrase-matrix generation for new reviews. Small
+catalog-based flow/Library continuations use existing permission-checked detail
+owners and bounded membership/progress reads. No full-history recommendation job
+or automatic joining is introduced.
+
+JournalRepo owns acknowledged CAS/idempotent writes for all callers. Journal row
+revisions and the account/date tombstone ledger prevent stale saves from reviving
+removed documents. A stable source paragraph is merged atomically into Journal;
+all unrelated blocks and metadata are retained. JournalController retains its
+existing document keys, adds a base-revision sidecar, serializes local writes,
+and does not clear newer typing when an earlier request is acknowledged. Archive
+writes bind to their displayed revision. The existing controller/editor and one
+document-kind renderer serve Calendar, direct entry and archive. Source removal
+requires an explicit add-back action before it can be restored.
+
+Durable intents use `journal:user:<account>:mutation:<date>`, the existing Journal
+document keys, `decan_review:user:<account>:<period-start>`, and the post-detail
+removal key `profile:decan_remove:<account>:<post>`. They are independent of warm
+cache eviction/logout. Exact retries preserve mutation identity even if an
+attempt timestamp changes. Acknowledgements are checked against current server
+revisions/visibility before publishing a warm row. Conflict receipts keep both
+versions under owner RLS; a fresh device can discover bounded recovery records.
+Routine Journal reads return descriptors only; full preserved bodies are fetched
+on explicit comparison. Selecting a recovery stages writing, never publishes it.
+
+ProfileRepo owns the new decan insight snapshot. DecanInsightPost renders it in
+profile, feed, Commons and detail. It has a real reflection identity and no dummy
+Library record. Posting, editing and removal are separate acknowledged actions;
+Journal updates cannot silently change the public copy. Existing member and
+bidirectional block rules apply. The original profile cache keys remain; a viewer
+sidecar prevents new member-only decan data from crossing viewer accounts.
+
+Existing warm resource families and old-release fixtures remain unchanged.
+Optional model fields are backward compatible, so existing schema-1 payloads need
+no destructive migration. New reflection activity/source resources are excluded
+from passive reflection-ID warming. Account-operation fences reject late A-B-A
+responses and clear private presentation on departure. Pending writes never enter
+disposable snapshots.
+
+Evidence is maintained in `docs/reflections/decan_review_refactor.md`. The old
+prompt source guard now requires an invitation and prohibits the retired engine;
+no-LLM and interaction-order protections remain. Journal and owned-flow mocks
+follow the shared acknowledged RPC while retaining content, account, badge and
+invalidation assertions. No guard threshold, historical fixture, approved golden
+or full-detail owner allowlist was relaxed. Backend migrations and functions must
+pass their release gate and be applied before the app is deployed; local tests
+alone are not a served-RC or physical-device release receipt.

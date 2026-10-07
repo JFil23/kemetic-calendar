@@ -1,3 +1,4 @@
+import 'decan_insight_post.dart';
 import 'package:mobile/core/theme/app_fonts.dart';
 import 'commons_practice_card.dart';
 import 'commons_rhythm_block.dart';
@@ -3281,6 +3282,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   Widget _buildCommonsFragment(InsightPost post) {
+    if (post.isDecanReflection)
+      return DecanInsightPost(post: post, onOpen: () => _openInsightPost(post));
     return buildCommonsCard(
       padding: const EdgeInsets.all(17),
       child: Column(
@@ -3760,6 +3763,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   Widget _buildFeedInsightTile(ProfileFeedItem item) {
     final post = item.insightPost!;
+    if (post.isDecanReflection)
+      return DecanInsightPost(post: post, onOpen: () => _openInsightPost(post));
     final relationship = _ownsInsightPost(post)
         ? 'Your Insight'
         : post.isFollowingAuthor

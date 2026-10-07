@@ -64,6 +64,8 @@ void main() {
   var sourceFailure = false;
   Completer<void>? sourceHold;
   Completer<void>? journalHold;
+  Map<String, dynamic>? journalRow;
+  var journalRevision = 0;
   late Uint8List image;
 
   http.Response reply(http.Request request, Object? data, [int status = 200]) =>
@@ -145,6 +147,33 @@ void main() {
             'state': shrine.toStateJson(),
           });
         }
+        if (table == 'read_journal_state_v1') {
+          await journalHold?.future;
+          return reply(request, {
+            'row': journalRow,
+            'revision': journalRevision,
+          });
+        }
+        if (table == 'apply_journal_mutation_v1') {
+          final input = jsonDecode(request.body) as Map;
+          expect(input['p_expected_revision'], journalRevision);
+          journalRevision++;
+          journalRow = {
+            'id': 'owned-flow-journal',
+            'user_id': input['p_account'],
+            'greg_date': input['p_date'],
+            'body': input['p_body'],
+            'meta': input['p_meta'],
+            'revision': journalRevision,
+            'created_at': '2026-10-07T12:00:00Z',
+            'updated_at': '2026-10-07T12:00:00Z',
+          };
+          return reply(request, {
+            'status': 'applied',
+            'row': journalRow,
+            'revision': journalRevision,
+          });
+        }
         if (table == 'journal_entries') {
           if (request.method == 'GET') {
             await journalHold?.future;
@@ -163,6 +192,8 @@ void main() {
   tearDownAll(() => Supabase.instance.dispose());
   setUp(() async {
     serial++;
+    journalRow = null;
+    journalRevision = 0;
     SharedPreferences.setMockInitialValues({});
     await Supabase.instance.client.auth.recoverSession(session(owner));
     WarmSnapshotStore.instance.invalidate(owner);
@@ -528,13 +559,17 @@ void main() {
     await choose(tester, 'journal');
     final writes = requests
         .where(
-          (r) => r.method == 'POST' && r.url.path.endsWith('/journal_entries'),
+          (r) =>
+              r.method == 'POST' &&
+              r.url.path.endsWith('/apply_journal_mutation_v1'),
         )
         .toList();
     expect(writes, isNotEmpty);
     final body = jsonDecode(writes.last.body) as Map<String, dynamic>;
-    expect(body['user_id'], owner);
-    expect(body['body'], contains('Live autumn practice'));
+    expect(body['p_account'], owner);
+    expect(body['p_mutation'], isNotEmpty);
+    expect(body['p_expected_revision'], 0);
+    expect(body['p_body'], contains('Live autumn practice'));
     expect(find.text('Added to journal'), findsWidgets);
     await tester.pumpWidget(const SizedBox());
     await settle(tester);
@@ -648,7 +683,9 @@ void main() {
       await settle(tester);
       expect(
         requests.where(
-          (r) => r.method == 'POST' && r.url.path.endsWith('/journal_entries'),
+          (r) =>
+              r.method == 'POST' &&
+              r.url.path.endsWith('/apply_journal_mutation_v1'),
         ),
         isEmpty,
       );

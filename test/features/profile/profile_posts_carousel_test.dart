@@ -19,6 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../support/maat_flow_visual_test_fonts.dart';
+import '../pages/pages_resource_test.dart' show session, uid;
 
 int fixtureSerial = 0;
 List<Map<String, dynamic>> flows = [];
@@ -67,6 +68,14 @@ Future<void> pumpProfile(
   double textScale = 1,
   bool isMyProfile = true,
 }) async {
+  final viewer = isMyProfile ? profileId : uid;
+  if (Supabase.instance.client.auth.currentUser?.id != viewer) {
+    await tester.runAsync(
+      () => Supabase.instance.client.auth.recoverSession(
+        session().replaceAll(uid, viewer),
+      ),
+    );
+  }
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -416,6 +425,7 @@ void main() {
       find.byKey(const ValueKey('profile-flow-post-remaining')).hitTestable(),
       findsOneWidget,
     );
+    expect(insights, isEmpty, reason: 'The owned post was actually removed');
     expect(tester.takeException(), isNull);
     await close(tester);
   });

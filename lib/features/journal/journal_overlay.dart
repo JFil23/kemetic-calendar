@@ -1,3 +1,5 @@
+import 'journal_recovery_action.dart';
+import 'journal_document_view.dart';
 import 'journal_badges_area.dart';
 // lib/features/journal/journal_overlay.dart
 // FIXES: 1) Toolbar overflow, 2) Layered coexistence, 3) Drawing undo
@@ -620,6 +622,13 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   @override
   Widget build(BuildContext context) {
+    if (JournalDocumentView.containsDecan(widget.controller.currentDocument)) {
+      return JournalDocumentView(
+        controller: widget.controller,
+        onClose: widget.onClose,
+      );
+    }
+
     _keyboardVisible = keyboardIsVisible(context);
     final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
     final isFullPage = widget.presentationMode == JournalPresentationMode.page;
@@ -1191,6 +1200,7 @@ class _JournalOverlayState extends State<JournalOverlay>
           padding: editorPadding,
           child: Column(
             children: [
+              JournalRecoveryAction(controller: widget.controller),
               Expanded(child: _buildTextLayer()),
               if (badgeHeight > 0) ...[
                 SizedBox(height: keyboardVisible ? 8 : 12),

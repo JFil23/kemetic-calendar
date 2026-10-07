@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+import 'decan_reflection_repo.dart';
 import 'flow_share_snapshot.dart';
 import 'warm_state/warm_mutation.dart';
 import 'warm_state/warm_json_reads.dart';
@@ -91,6 +93,9 @@ class ProfileRepo {
   static final Map<String, int> _flowPostsCacheVersions = {};
   static Future<void>? _flowPostsCacheWrites;
   static final Map<String, List<InsightPost>> _insightPostsMemoryCache = {};
+  static final Map<String, int> _insightPostsVersions = {};
+  static final Map<String, String> _insightPostsViewers = {};
+  static Future<void>? _insightPostsWrites;
   static Future<void>? _preloadLocalCachesFuture;
 
   static String _profileCacheKey(String userId) =>
@@ -183,7 +188,10 @@ class ProfileRepo {
               );
             }
           } else if (key.startsWith(insightPostsPrefix)) {
+            if (key.endsWith(':viewer')) continue;
             final userId = key.substring(insightPostsPrefix.length);
+            final viewer = prefs.getString('$key:viewer');
+            if (viewer != null) _insightPostsViewers[userId] = viewer;
             final decoded = jsonDecode(raw);
             if (decoded is List) {
               final posts = decoded
@@ -348,16 +356,28 @@ class ProfileRepo {
   List<InsightPost>? getCachedInsightPostsSync(String userId) {
     final posts = _insightPostsMemoryCache[userId];
     if (posts == null) return null;
-    return List<InsightPost>.unmodifiable(posts);
+    final viewer = _client.auth.currentUser?.id;
+    return List<InsightPost>.unmodifiable(
+      posts.where(
+        (p) =>
+            !p.isHidden &&
+            (!p.isDecanReflection ||
+                viewer != null && _insightPostsViewers[userId] == viewer),
+      ),
+    );
   }
 
   Future<List<InsightPost>?> restoreCachedInsightPosts(String userId) async {
     final memoryPosts = getCachedInsightPostsSync(userId);
     if (memoryPosts != null) return memoryPosts;
 
+    final fence = AccountOperationFence(_client);
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (!fence.isCurrent) return null;
       final raw = prefs.getString(_insightPostsCacheKey(userId));
+      final viewer = prefs.getString('${_insightPostsCacheKey(userId)}:viewer');
+      if (viewer != null) _insightPostsViewers[userId] = viewer;
       if (raw == null || raw.isEmpty) return null;
       final decoded = jsonDecode(raw);
       if (decoded is! List) return null;
@@ -366,10 +386,12 @@ class ProfileRepo {
           .map((row) => InsightPost.fromJson(Map<String, dynamic>.from(row)))
           .toList(growable: false);
       _insightPostsMemoryCache[userId] = List<InsightPost>.unmodifiable(posts);
-      return posts;
+      return getCachedInsightPostsSync(userId);
     } catch (e) {
       _log('[ProfileRepo] restore cached insight posts failed: $e');
       return null;
+    } finally {
+      fence.dispose();
     }
   }
 
@@ -377,15 +399,33 @@ class ProfileRepo {
     required String userId,
     required List<InsightPost> posts,
   }) async {
-    final frozen = List<InsightPost>.unmodifiable(posts);
+    final frozen = List<InsightPost>.unmodifiable(
+      posts.where((p) => !p.isHidden),
+    );
     _insightPostsMemoryCache[userId] = frozen;
+    final viewer = _client.auth.currentUser?.id;
+    if (viewer != null) _insightPostsViewers[userId] = viewer;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _insightPostsCacheKey(userId),
-        jsonEncode(frozen.map((post) => post.toJson()).toList()),
-      );
+      final previous = _insightPostsWrites;
+      final write = () async {
+        if (previous != null) await previous;
+        final prefs = await SharedPreferences.getInstance();
+        final latest =
+            _insightPostsMemoryCache[userId] ?? const <InsightPost>[];
+        await prefs.setString(
+          _insightPostsCacheKey(userId),
+          jsonEncode(latest.map((p) => p.toJson()).toList()),
+        );
+        final savedViewer = _insightPostsViewers[userId];
+        if (savedViewer != null)
+          await prefs.setString(
+            '${_insightPostsCacheKey(userId)}:viewer',
+            savedViewer,
+          );
+      }();
+      _insightPostsWrites = write;
+      await write;
     } catch (e) {
       _log('[ProfileRepo] persist cached insight posts failed: $e');
     }
@@ -1000,25 +1040,136 @@ class ProfileRepo {
 
   /// List posted insight snapshots for a given user (newest first).
   Future<List<InsightPost>> getInsightPosts(String userId) async {
+    final fence = AccountOperationFence(_client);
+    final version = _insightPostsVersions[userId] ?? 0;
     try {
       final rows = await _client
           .from('insight_posts')
-          .select(
-            'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
-          )
+          .select(_insightSnapshotSelect)
           .eq('user_id', userId)
+          .eq('is_hidden', false)
           .order('created_at', ascending: false);
-
-      final posts = (rows as List)
-          .cast<Map<String, dynamic>>()
-          .map(InsightPost.fromJson)
-          .toList();
-      final visiblePosts = await _filterBlockedInsightPosts(posts);
-      unawaited(_cacheInsightPosts(userId: userId, posts: visiblePosts));
-      return visiblePosts;
-    } catch (e) {
-      _log('[ProfileRepo] Error fetching insight posts: $e');
+      if (!fence.isCurrent) return const [];
+      if (version != (_insightPostsVersions[userId] ?? 0))
+        return getCachedInsightPostsSync(userId) ?? const [];
+      final posts = await _filterBlockedInsightPosts(
+        (rows as List)
+            .map(
+              (e) => InsightPost.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
+            .toList(),
+      );
+      if (!fence.isCurrent) return const [];
+      if (version != (_insightPostsVersions[userId] ?? 0))
+        return getCachedInsightPostsSync(userId) ?? const [];
+      await _cacheInsightPosts(userId: userId, posts: posts);
+      return posts;
+    } catch (_) {
+      if (!fence.isCurrent) return const [];
       return await restoreCachedInsightPosts(userId) ?? const [];
+    } finally {
+      fence.dispose();
+    }
+  }
+
+  static const _insightSnapshotSelect =
+      'id, user_id, insight_entry_id, node_id, source_kind, source_reflection_id, question_text, reading_link, revision, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)';
+
+  Future<InsightPost?> getInsightPostById(
+    String id, {
+    bool cachedOnly = false,
+  }) async {
+    final fence = AccountOperationFence(_client);
+    try {
+      if (fence.userId == null) return null;
+      final row =
+          await WarmJsonReads(
+            _client,
+            cachedOnly: cachedOnly,
+            mayFetch: () => fence.isCurrent,
+          ).value(
+            'social.insight.$id',
+            () => _client
+                .from('insight_posts')
+                .select(_insightSnapshotSelect)
+                .eq('id', id)
+                .eq('is_hidden', false)
+                .maybeSingle(),
+          );
+      if (!fence.isCurrent)
+        throw StateError('Account changed while opening post');
+      return row == null
+          ? null
+          : InsightPost.fromJson(Map<String, dynamic>.from(row as Map));
+    } finally {
+      fence.dispose();
+    }
+  }
+
+  Future<InsightPost?> getDecanPost(String reflectionId) async {
+    final fence = AccountOperationFence(_client);
+    try {
+      final account = fence.userId;
+      if (account == null) return null;
+      final row = await _client
+          .from('insight_posts')
+          .select(_insightSnapshotSelect)
+          .eq('user_id', account)
+          .eq('source_kind', 'decan')
+          .eq('source_reflection_id', reflectionId)
+          .maybeSingle();
+      if (!fence.isCurrent) throw StateError('Account changed');
+      return row == null
+          ? null
+          : InsightPost.fromJson(Map<String, dynamic>.from(row));
+    } finally {
+      fence.dispose();
+    }
+  }
+
+  Future<InsightPost?> saveDecanPostRequest(
+    Map<String, dynamic> request,
+  ) async {
+    final fence = AccountOperationFence(_client);
+    final account = fence.userId;
+    if (account == null || request['p_account'] != account) {
+      fence.dispose();
+      throw StateError('Account changed before publishing');
+    }
+    try {
+      final result = Map<String, dynamic>.from(
+        await _client.rpc('apply_decan_post_v1', params: request) as Map,
+      );
+      if (!fence.isCurrent)
+        throw StateError('Account changed during publication');
+      if (result['status'] != 'applied') throw DecanReviewConflict(result);
+      _insightPostsVersions[account] =
+          (_insightPostsVersions[account] ?? 0) + 1;
+      invalidateWarmDomains(account, [
+        'social.',
+        'commons.',
+        'pages.posts',
+        'pages.commons',
+      ]);
+      // A receipt acknowledges a past write. Re-read current visibility before
+      // painting it; a later removal must not be resurrected by a lost response.
+      final post = await getInsightPostById(request['p_post'] as String);
+      if (!fence.isCurrent)
+        throw StateError('Account changed after publication');
+      final current =
+          await restoreCachedInsightPosts(account) ?? <InsightPost>[];
+      if (!fence.isCurrent)
+        throw StateError('Account changed after publication');
+      await _cacheInsightPosts(
+        userId: account,
+        posts: [
+          if (post != null) post,
+          ...current.where((p) => p.id != request['p_post']),
+        ],
+      );
+      return post;
+    } finally {
+      fence.dispose();
     }
   }
 
@@ -1475,7 +1626,7 @@ class ProfileRepo {
               'entry_date': entry['entry_date'],
             }, onConflict: 'user_id,insight_entry_id')
             .select(
-              'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
+              'id, user_id, insight_entry_id, node_id, source_kind, source_reflection_id, question_text, reading_link, revision, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
             )
             .single();
 
@@ -1550,28 +1701,77 @@ class ProfileRepo {
   }
 
   Future<bool> deleteInsightPost(String postId) async {
-    final warmAccount = _client.auth.currentUser?.id;
-    invalidateWarmDomains(warmAccount, [
-      'social.',
-      'commons.',
-      'pages.posts',
-      'pages.commons',
-    ]);
+    final fence = AccountOperationFence(_client);
+    final account = fence.userId;
+    final domains = ['social.', 'commons.', 'pages.posts', 'pages.commons'];
+    if (account == null) {
+      fence.dispose();
+      return false;
+    }
+    final pendingKey = 'profile:decan_remove:$account:$postId';
     try {
-      try {
-        await _client.from('insight_posts').delete().eq('id', postId);
-        return true;
-      } catch (e) {
-        _log('[ProfileRepo] Error deleting insight post: $e');
-        return false;
+      final post = await getInsightPostById(postId);
+      if (!fence.isCurrent) return false;
+      if (post != null && post.userId != account) return false;
+      final prefs = await SharedPreferences.getInstance();
+      if (!fence.isCurrent) return false;
+      if (post?.isDecanReflection == true) {
+        final encoded = prefs.getString(pendingKey);
+        final request = encoded == null
+            ? <String, dynamic>{
+                'p_account': account,
+                'p_mutation': const Uuid().v4(),
+                'p_post': post!.id,
+                'p_reflection': post.sourceReflectionId,
+                'p_expected_revision': post.revision,
+                'p_body': '',
+                'p_include_question': false,
+                'p_reading_slug': null,
+                'p_date': _dateOnlyIso(post.entryDate),
+                'p_remove': true,
+              }
+            : Map<String, dynamic>.from(jsonDecode(encoded) as Map);
+        if (!await prefs.setString(pendingKey, jsonEncode(request)))
+          throw StateError('Could not keep the removal request');
+        if (!fence.isCurrent) return false;
+        try {
+          await saveDecanPostRequest(request);
+        } on DecanReviewConflict {
+          // A rejected request is acknowledged, not an uncertain delivery.
+          // Keep the post visible; a later deliberate removal reads its new
+          // revision instead of replaying this permanently rejected receipt.
+          if (fence.isCurrent &&
+              prefs.getString(pendingKey) == jsonEncode(request)) {
+            await prefs.remove(pendingKey);
+          }
+          rethrow;
+        }
+      } else if (post != null) {
+        await _client
+            .from('insight_posts')
+            .delete()
+            .eq('id', postId)
+            .eq('user_id', account);
       }
+      if (!fence.isCurrent) return false;
+      // A successful empty read also confirms a removal whose response was lost.
+      _insightPostsVersions[account] =
+          (_insightPostsVersions[account] ?? 0) + 1;
+      final cached =
+          getCachedInsightPostsSync(account) ?? const <InsightPost>[];
+      await _cacheInsightPosts(
+        userId: account,
+        posts: cached.where((p) => p.id != postId).toList(),
+      );
+      if (!fence.isCurrent) return false;
+      await prefs.remove(pendingKey);
+      return true;
+    } catch (e) {
+      _log('[ProfileRepo] Error deleting insight post: $e');
+      return false;
     } finally {
-      invalidateWarmDomains(warmAccount, [
-        'social.',
-        'commons.',
-        'pages.posts',
-        'pages.commons',
-      ]);
+      invalidateWarmDomains(account, domains);
+      fence.dispose();
     }
   }
 
@@ -2090,6 +2290,10 @@ class ProfileRepo {
           'blocker_user_id': userId,
           'blocked_user_id': blockedUserId,
         }, onConflict: 'blocker_user_id,blocked_user_id');
+        if (_client.auth.currentUser?.id != userId) return false;
+        _insightPostsVersions[blockedUserId] =
+            (_insightPostsVersions[blockedUserId] ?? 0) + 1;
+        await _cacheInsightPosts(userId: blockedUserId, posts: const []);
         return true;
       } catch (e) {
         if (_isMissingTable(e, 'user_blocks')) {
@@ -2495,7 +2699,7 @@ class ProfileRepo {
           _client
               .from('insight_posts')
               .select(
-                'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles!inner(handle, display_name, avatar_url, avatar_glyphs, is_discoverable)',
+                'id, user_id, insight_entry_id, node_id, source_kind, source_reflection_id, question_text, reading_link, revision, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles!inner(handle, display_name, avatar_url, avatar_glyphs, is_discoverable)',
               )
               .eq('is_hidden', false)
               .eq('profiles.is_discoverable', true)

@@ -1,3 +1,6 @@
+import 'data/account_operation_fence.dart';
+import 'data/warm_state/warm_snapshot_store.dart';
+import 'features/reflections/decan_review_controller.dart';
 import 'data/account_storage/planner_account_store.dart';
 import 'data/warm_state/app_warm_state.dart';
 // lib/main.dart
@@ -1228,6 +1231,8 @@ Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {
 
   return <String, dynamic>{
     'kind': kind,
+    for (final key in ['decan_start', 'decan_end', 'decan_name'])
+      if (params[key] != null) key: params[key],
     if (_trimmedPushValue(params['type']) != null) 'type': params['type'],
     if (_trimmedPushValue(
           params['notification_type'] ?? params['notificationType'],
@@ -1357,6 +1362,8 @@ String? _initialLocationFromPushData(
   if (kind == 'decan_reflection' && reflectionId != null) {
     return '/reflections/${Uri.encodeComponent(reflectionId)}';
   }
+  if (kind == 'decan_reflection')
+    return DecanReviewWindow.invitationRoute(data);
 
   final shareKind = _trimmedPushValue(data['share_kind'] ?? data['shareKind']);
   if (kind == 'dm_message_v2' ||
@@ -1993,7 +2000,13 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
         return SessionTrackedRoute(
           location: state.uri.toString(),
-          child: DecanReflectionDetailPage(reflectionId: reflectionId),
+          child: DecanReflectionDetailPage(
+            compose: state.uri.queryParameters['compose'] == '1',
+            reflectionId: reflectionId,
+            initialWindow: reflectionId == 'new'
+                ? DecanReviewWindow.fromQuery(state.uri.queryParameters)
+                : null,
+          ),
         );
       },
     ),
@@ -3105,6 +3118,11 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       final uid = supabase.auth.currentUser?.id;
       if (uid == null) return false;
       _router.go('/reflections/${Uri.encodeComponent(reflectionId)}');
+      return true;
+    }
+    if (kind == 'decan_reflection') {
+      if (supabase.auth.currentUser == null) return false;
+      _router.go(DecanReviewWindow.invitationRoute(data));
       return true;
     }
 
@@ -4226,74 +4244,113 @@ class InsightPostRoutePage extends StatefulWidget {
 }
 
 class _InsightPostRoutePageState extends State<InsightPostRoutePage> {
-  late Future<InsightPost?> _future;
-
+  InsightPost? _post;
+  bool _loading = true, _failed = false;
+  int _generation = 0;
+  late final AccountOperationFence _account = AccountOperationFence(supabase);
+  StreamSubscription<AuthState>? _auth;
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _auth = supabase.auth.onAuthStateChange.listen((_) {
+      if (mounted && !_account.isCurrent)
+        setState(() {
+          _post = null;
+          _loading = false;
+          _generation++;
+        });
+    });
+    unawaited(_load());
   }
 
   @override
   void didUpdateWidget(covariant InsightPostRoutePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.postId != widget.postId || oldWidget.extra != widget.extra) {
-      _future = _load();
+    if (oldWidget.postId != widget.postId) {
+      _post = null;
+      unawaited(_load());
     }
   }
 
-  Future<InsightPost?> _load() async {
-    final extra = widget.extra;
-    if (extra is InsightPost && extra.id == widget.postId) {
-      return extra;
-    }
-    if (extra is Map) {
-      final raw = extra['post'];
-      if (raw is InsightPost && raw.id == widget.postId) {
-        return raw;
-      }
+  @override
+  void dispose() {
+    _generation++;
+    _account.dispose();
+    _auth?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final generation = ++_generation;
+    bool current() =>
+        mounted && _account.isCurrent && generation == _generation;
+    final repo = ProfileRepo(supabase);
+    if (_post == null) {
+      try {
+        final local = await repo.getInsightPostById(
+          widget.postId,
+          cachedOnly: true,
+        );
+        if (!current()) return;
+        if (local != null)
+          setState(() {
+            _post = local;
+            _loading = false;
+          });
+      } catch (_) {}
     }
     try {
-      final row = await supabase
-          .from('insight_posts')
-          .select(
-            'id, user_id, insight_entry_id, node_id, body_text, entry_date, '
-            'is_hidden, created_at, updated_at, '
-            'nodes(slug, title, glyph), '
-            'profiles(handle, display_name, avatar_url, avatar_glyphs)',
-          )
-          .eq('id', widget.postId)
-          .maybeSingle();
-      if (row == null) {
-        return null;
-      }
-      return InsightPost.fromJson(Map<String, dynamic>.from(row as Map));
-    } catch (_) {
-      return null;
+      final latest = await repo.getInsightPostById(widget.postId);
+      if (!current()) return;
+      setState(() {
+        _post = latest;
+        _loading = false;
+        _failed = false;
+      });
+    } catch (error) {
+      if (!current()) return;
+      setState(() {
+        _loading = false;
+        _failed = true;
+        if (error is WarmAccessDenied) _post = null;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<InsightPost?>(
-      future: _future,
-      builder: (context, snapshot) {
-        final post = snapshot.data;
-        if (post != null) {
-          final currentUserId = supabase.auth.currentUser?.id;
-          return InsightPostDetailPage(
-            post: post,
-            isOwner: currentUserId != null && currentUserId == post.userId,
-          );
-        }
-        if (snapshot.connectionState == ConnectionState.done) {
-          return const _RouteMissingScaffold(
-            message: 'This insight is no longer available.',
-            fallbackLocation: '/profile/me',
-          );
-        }
-        return const _RouteLoadingScaffold();
-      },
+    final post = _post;
+    if (post != null && _account.isCurrent)
+      return InsightPostDetailPage(
+        post: post,
+        isOwner: post.userId == _account.userId,
+      );
+    if (_loading) return const _RouteLoadingScaffold();
+    if (_failed && _account.isCurrent)
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('This post could not load.'),
+                TextButton(
+                  onPressed: () => unawaited(_load()),
+                  child: const Text('Try again'),
+                ),
+                TextButton(
+                  onPressed: () => popOrGo(context, '/profile/me'),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    return const _RouteMissingScaffold(
+      message: 'This insight is no longer available.',
+      fallbackLocation: '/profile/me',
     );
   }
 }

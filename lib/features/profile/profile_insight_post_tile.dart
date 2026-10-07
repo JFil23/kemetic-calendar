@@ -4,6 +4,7 @@ import '../../core/theme/app_fonts.dart';
 import '../../data/insight_post_model.dart';
 import '../nodes/widgets.dart';
 import 'posted_artifact_frame.dart';
+import 'decan_insight_post.dart';
 import 'profile_post_frame.dart';
 
 const _insightAccent = Color(0xFFD4AE43);
@@ -44,6 +45,19 @@ class ProfileInsightPostTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (post.isDecanReflection) {
+      return SizedBox(
+        height: profilePostHeight(context),
+        child: SingleChildScrollView(
+          child: DecanInsightPost(
+            post: post,
+            onOpen: onReadMore,
+            onRemove: onRemove,
+            onOpenAuthor: onOpenAuthor,
+          ),
+        ),
+      );
+    }
     final glyph = nodeGlyph?.trim().isNotEmpty == true
         ? nodeGlyph!.trim()
         : post.nodeGlyph?.trim();

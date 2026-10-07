@@ -1,3 +1,6 @@
+import 'decan_insight_post.dart';
+import '../reflections/decan_review_widgets.dart';
+import '../../data/account_operation_fence.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -26,10 +29,12 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
   final _repo = ProfileRepo(Supabase.instance.client);
 
   bool _removing = false;
+  bool _safetyBusy = false;
 
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
+    if (post.isDecanReflection) return _decanDetail(post);
 
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
@@ -243,6 +248,138 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
         ],
       ),
     );
+  }
+
+  Widget _decanDetail(InsightPost post) => Scaffold(
+    backgroundColor: DecanReviewStyle.base,
+    body: DecanReviewCanvas(
+      privacy: 'Community',
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () => popOrGo(
+              context,
+              '/profile/${Uri.encodeComponent(post.userId)}',
+            ),
+            child: Text('‹ Back', style: DecanReviewStyle.ui(12.5)),
+          ),
+        ),
+        DecanReviewIntro(
+          eyebrow: widget.isOwner ? 'Your profile & feed' : 'Community',
+          title: 'A shared reflection',
+          subtitle: widget.isOwner
+              ? 'Published by you.'
+              : 'Published by ${post.authorLabel}.',
+          compact: true,
+        ),
+        DecanInsightPost(post: post),
+        if (widget.isOwner) ...[
+          DecanReviewButton(
+            'Edit post',
+            onPressed: post.sourceReflectionId == null
+                ? null
+                : () => openDetailRoute(
+                    context,
+                    '/reflections/${post.sourceReflectionId}?compose=1',
+                  ),
+          ),
+          DecanReviewButton(
+            'Open your reflection',
+            quiet: true,
+            onPressed: post.sourceReflectionId == null
+                ? null
+                : () => openDetailRoute(
+                    context,
+                    '/reflections/${post.sourceReflectionId}',
+                  ),
+          ),
+          DecanReviewButton(
+            _removing ? 'Removing…' : 'Remove post',
+            quiet: true,
+            onPressed: _removing ? null : _remove,
+          ),
+          const DecanReviewFooter(
+            'Your Journal and this post keep separate copies.',
+          ),
+        ] else ...[
+          DecanReviewButton(
+            'Report post',
+            quiet: true,
+            onPressed: _safetyBusy ? null : _report,
+          ),
+          DecanReviewButton(
+            'Block author',
+            quiet: true,
+            onPressed: _safetyBusy ? null : _block,
+          ),
+        ],
+      ],
+    ),
+  );
+
+  Future<void> _report() async {
+    setState(() => _safetyBusy = true);
+    final fence = AccountOperationFence(Supabase.instance.client);
+    try {
+      final ok = await _repo.reportContent(
+        contentType: 'insight_post',
+        contentId: widget.post.id,
+        reportedUserId: widget.post.userId,
+        reason: 'user_report',
+      );
+      if (mounted && fence.isCurrent)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ok ? 'Report sent.' : 'Could not send the report. Try again.',
+            ),
+          ),
+        );
+    } finally {
+      fence.dispose();
+      if (mounted) setState(() => _safetyBusy = false);
+    }
+  }
+
+  Future<void> _block() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Block author?'),
+        content: const Text(
+          'Their posts and comments will be hidden from your refreshed feeds.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Block author'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _safetyBusy = true);
+    final fence = AccountOperationFence(Supabase.instance.client);
+    try {
+      final ok = await _repo.blockUser(widget.post.userId);
+      if (!mounted || !fence.isCurrent) return;
+      if (ok)
+        popOrGo(context, '/profile/me');
+      else
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not block this author. Try again.'),
+          ),
+        );
+    } finally {
+      fence.dispose();
+      if (mounted) setState(() => _safetyBusy = false);
+    }
   }
 
   Widget _buildDoneButton() {

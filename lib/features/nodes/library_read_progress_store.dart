@@ -1,3 +1,4 @@
+import '../../data/account_operation_fence.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -27,6 +28,31 @@ class SupabaseLibraryReadProgressRemote implements LibraryReadProgressRemote {
       'updated_at';
 
   final SupabaseClient _client;
+
+  Future<List<LibraryNodeProgress>> fetchSelected({
+    required String userId,
+    required List<String> ids,
+  }) async {
+    if (ids.isEmpty) return const [];
+    if (ids.length > 3)
+      throw ArgumentError(
+        'A continuation has at most three candidate readings',
+      );
+    final fence = AccountOperationFence(_client);
+    try {
+      if (fence.userId != userId) throw StateError('Account changed');
+      final rows = await _client
+          .from(tableName)
+          .select(_select)
+          .eq('user_id', userId)
+          .inFilter('node_id', ids)
+          .limit(3);
+      if (!fence.isCurrent) throw StateError('Account changed');
+      return _progressListFromRows(rows);
+    } finally {
+      fence.dispose();
+    }
+  }
 
   @override
   Future<List<LibraryNodeProgress>> fetchAll({required String userId}) async {

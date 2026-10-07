@@ -1,3 +1,4 @@
+import '../reflections/decan_review_controller.dart';
 import 'flow_detail_calendar_scope.dart';
 import '../../data/flow_share_snapshot.dart' show parseFlowSnapshotTime;
 import 'note_draft_invitations.dart';
@@ -47,7 +48,6 @@ import 'landscape_month_view.dart';
 import 'dart:convert';
 import 'day_view.dart';
 import 'imported_calendar_detail.dart';
-import '../../core/feature_flags.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../journal/journal_controller.dart';
@@ -224,7 +224,6 @@ import '../rhythm/pages/todays_alignment_page.dart';
 import 'calendar_recurring_scope.dart';
 import 'day_sheet_scope.dart';
 import 'decan_reflection_composition/decan_reflection_composer.dart';
-import 'decan_reflection_composition/maat_flow_decan_fact_collector.dart';
 import 'staged_flow_lifecycle.dart';
 
 part 'calendar_flow_models.dart';
@@ -10218,10 +10217,6 @@ class CalendarPageState extends State<CalendarPage>
       DecanReflectionPromptState(Supabase.instance.client);
   late final CalendarOccurrenceExclusionsRepo _occurrenceExclusionsRepo =
       CalendarOccurrenceExclusionsRepo(Supabase.instance.client);
-  late final MaatFlowDecanFactCollector _maatFlowDecanFactCollector =
-      MaatFlowDecanFactCollector(Supabase.instance.client);
-  final DecanReflectionComposer _decanReflectionComposer =
-      const DecanReflectionComposer();
   final CompositionUsageStore _compositionUsageStore =
       const SharedPreferencesCompositionUsageStore();
   // Reminders (Flutter-only layer)
@@ -33867,6 +33862,25 @@ class CalendarPageState extends State<CalendarPage>
   void _showReflectionSheet() {
     final prompt = _reflectionPrompt;
     if (prompt == null) return;
+    final reviewWindow = prompt.reviewWindow;
+    if (reviewWindow != null) {
+      final location = prompt.id != null
+          ? '/reflections/${prompt.id}'
+          : Uri(
+              path: '/reflections/new',
+              queryParameters: {
+                'start': DecanReviewWindow.date(reviewWindow.start),
+                'end': DecanReviewWindow.date(reviewWindow.end),
+                'name': reviewWindow.name,
+              },
+            ).toString();
+      unawaited(
+        openDetailRoute(context, location).then((_) {
+          if (mounted) unawaited(_maybeLoadDecanReflectionPrompt(force: true));
+        }),
+      );
+      return;
+    }
     final dateRange =
         '${_formatDateOnlyLocal(prompt.decanStart)} → ${_formatDateOnlyLocal(prompt.decanEnd)}';
 
@@ -34164,17 +34178,19 @@ class CalendarPageState extends State<CalendarPage>
     final gateLocal = DateTime(
       decanStartLocal.year,
       decanStartLocal.month,
-      decanStartLocal.day,
-    ).add(const Duration(days: 9, hours: 20)); // day 10 at 8pm
+      decanStartLocal.day + 9,
+      20,
+    ); // Day 10 at 8pm local, including a daylight-saving change.
     if (DateTime.now().isBefore(gateLocal)) {
       if (_reflectionPrompt != null) setState(() => _reflectionPrompt = null);
       return;
     }
 
+    final account = AccountOperationFence(Supabase.instance.client);
     _reflectionInFlight = true;
     try {
       if (await _hasInteractedWithReflectionPrompt(window.start)) {
-        if (!mounted) return;
+        if (!mounted || !account.isCurrent) return;
         if (_reflectionPrompt != null) {
           setState(() => _reflectionPrompt = null);
         }
@@ -34184,11 +34200,15 @@ class CalendarPageState extends State<CalendarPage>
       final existing = await _decanReflectionRepo.findByWindow(
         window.start,
         window.end,
+        strict: true,
       );
       if (existing != null) {
-        final renderMetadata = await _decanReflectionRepo
-            .getRenderMetadataForReflection(existing);
-        if (!mounted) return;
+        final renderMetadata = existing.reviewContext == null
+            ? await _decanReflectionRepo.getRenderMetadataForReflection(
+                existing,
+              )
+            : null;
+        if (!mounted || !account.isCurrent) return;
         setState(() {
           _reflectionPrompt = CalendarDecanReflectionPrompt(
             id: existing.id,
@@ -34199,39 +34219,20 @@ class CalendarPageState extends State<CalendarPage>
             badgeCount: existing.badgeCount,
             reflectionText: existing.reflectionText,
             persisted: true,
+            reviewWindow: existing.reviewContext == null
+                ? null
+                : DecanReviewWindow(
+                    start: existing.decanStart,
+                    end: existing.decanEnd,
+                    name: existing.decanName,
+                  ),
             renderMetadata: renderMetadata,
           );
         });
         return;
       }
 
-      if (!FeatureFlags.enableCompositionalDecanReflections) {
-        if (_reflectionPrompt != null) {
-          setState(() => _reflectionPrompt = null);
-        }
-        return;
-      }
-
-      final facts = await _maatFlowDecanFactCollector.collect(
-        decanStart: window.start,
-        decanEnd: window.end,
-        surface: kDecanReflectionSurface,
-      );
-      final usageHistory = await _compositionUsageStore.load();
-      final composition = _decanReflectionComposer.compose(
-        facts: facts,
-        usageHistory: usageHistory,
-        generatedAt: DateTime.now(),
-      );
-
-      if (composition == null) {
-        if (_reflectionPrompt != null) {
-          setState(() => _reflectionPrompt = null);
-        }
-        return;
-      }
-
-      if (!mounted) return;
+      if (!mounted || !account.isCurrent) return;
       setState(() {
         _reflectionPrompt = CalendarDecanReflectionPrompt(
           id: null,
@@ -34240,24 +34241,21 @@ class CalendarPageState extends State<CalendarPage>
           decanStart: window.start,
           decanEnd: window.end,
           badgeCount: 0,
-          reflectionText: composition.output.text,
+          reflectionText: 'Your decan reflection',
           persisted: false,
-          renderMetadata: composition.renderMetadata,
+          reviewWindow: DecanReviewWindow(
+            start: window.start,
+            end: window.end,
+            name: window.decanName,
+          ),
         );
-      });
-      Events.trackIfAuthed('decan_reflection_generated', {
-        'renderer': kDecanReflectionCompositionalRenderer,
-        'used_llm': false,
-        'total_interactions':
-            composition.output.factSummary['total_interactions'],
-        'intent_id': composition.output.intentId,
-        'fact_fingerprint': composition.output.factFingerprint,
       });
     } catch (e) {
       if (kDebugMode) {
         _calendarDebugPrint('[DecanReflection] prompt load failed: $e');
       }
     } finally {
+      account.dispose();
       _reflectionInFlight = false;
     }
   }

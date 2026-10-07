@@ -1,3 +1,5 @@
+import '../features/reflections/decan_review_context.dart';
+
 const String kReflectionGenerationManifestV2 =
     'reflection_generation_manifest_v2';
 
@@ -11,6 +13,8 @@ class DecanReflection {
   final String reflectionText;
   final DateTime createdAt;
   final DecanReflectionRenderMetadata? renderMetadata;
+  final DecanReviewContext? reviewContext;
+  final int reviewRevision;
 
   DecanReflection({
     required this.id,
@@ -22,6 +26,8 @@ class DecanReflection {
     required this.reflectionText,
     required this.createdAt,
     this.renderMetadata,
+    this.reviewContext,
+    this.reviewRevision = 0,
   });
 
   factory DecanReflection.fromJson(Map<String, dynamic> json) {
@@ -34,6 +40,12 @@ class DecanReflection {
       badgeCount: json['badge_count'] as int? ?? 0,
       reflectionText: json['reflection_text'] as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
+      reviewContext: json['review_context'] is Map
+          ? DecanReviewContext.fromJson(
+              Map<String, dynamic>.from(json['review_context'] as Map),
+            )
+          : null,
+      reviewRevision: (json['review_revision'] as num?)?.toInt() ?? 0,
       renderMetadata: json['render_metadata'] is Map
           ? DecanReflectionRenderMetadata.fromGenerationJson(
               Map<String, dynamic>.from(json['render_metadata'] as Map),
@@ -53,6 +65,8 @@ class DecanReflection {
       reflectionText: reflectionText,
       createdAt: createdAt,
       renderMetadata: renderMetadata ?? this.renderMetadata,
+      reviewContext: reviewContext,
+      reviewRevision: reviewRevision,
     );
   }
 }

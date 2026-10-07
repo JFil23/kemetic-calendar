@@ -1,3 +1,6 @@
+import '../../data/account_operation_fence.dart';
+import 'decan_review_controller.dart';
+import 'decan_review_screen.dart';
 import '../../data/warm_state/warm_snapshot_store.dart';
 import 'dart:async';
 
@@ -60,7 +63,14 @@ class DecanReflectionInteractionTelemetry {
 
 class DecanReflectionDetailPage extends StatefulWidget {
   final String reflectionId;
-  const DecanReflectionDetailPage({super.key, required this.reflectionId});
+  final DecanReviewWindow? initialWindow;
+  final bool compose;
+  const DecanReflectionDetailPage({
+    super.key,
+    required this.reflectionId,
+    this.initialWindow,
+    this.compose = false,
+  });
 
   @override
   State<DecanReflectionDetailPage> createState() =>
@@ -89,15 +99,28 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     offset: -1,
   );
   bool _loading = true;
+  late final _account = AccountOperationFence(Supabase.instance.client);
+  StreamSubscription<AuthState>? _auth;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _auth = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      if (mounted && !_account.isCurrent)
+        setState(() {
+          _reflection = null;
+          _links = [];
+          _loading = false;
+          _rebuildReflectionSpans();
+        });
+    });
+    if (widget.initialWindow == null) _load();
   }
 
   @override
   void dispose() {
+    _auth?.cancel();
+    _account.dispose();
     _disposeLinkGestureRecognizers();
     super.dispose();
   }
@@ -105,7 +128,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   Future<void> _load() async {
     try {
       final cached = await _repo.getById(widget.reflectionId, cachedOnly: true);
-      if (!mounted) return;
+      if (!mounted || !_account.isCurrent) return;
       if (cached != null) {
         setState(() {
           _reflection = cached;
@@ -118,7 +141,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     try {
       data = await _repo.getById(widget.reflectionId, strict: true);
     } catch (error) {
-      if (mounted) {
+      if (mounted && _account.isCurrent) {
         setState(() {
           if (error is WarmAccessDenied) {
             _reflection = null;
@@ -128,12 +151,13 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
       }
       return;
     }
-    if (!mounted) return;
+    if (!mounted || !_account.isCurrent) return;
     setState(() {
       _reflection = data;
       _loading = false;
       _rebuildReflectionSpans();
     });
+    if (data?.reviewContext != null) return;
     final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
     final links = await _insightRepo.fetchLinks(userId);
     final graphHints = data == null
@@ -148,7 +172,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         interactionKind: 'archived',
       );
     }
-    if (!mounted) return;
+    if (!mounted || !_account.isCurrent) return;
     final reflectionLinks = links
         .where(
           (l) =>
@@ -434,6 +458,20 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final data = _reflection;
+    if (widget.initialWindow != null || data?.reviewContext != null) {
+      return DecanReviewScreen(
+        compose: widget.compose,
+        reflection: data,
+        window:
+            widget.initialWindow ??
+            DecanReviewWindow(
+              start: data!.decanStart,
+              end: data.decanEnd,
+              name: data.decanName,
+            ),
+      );
+    }
     return DecanReflectionSkinScaffold(
       navBar: DecanReflectionNavBar(
         title: 'Reflection',

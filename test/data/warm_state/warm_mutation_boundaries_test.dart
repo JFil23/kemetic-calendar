@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -14,18 +15,35 @@ void main() {
     'Journal reads preserve snapshots, while saves invalidate them',
     () async {
       SharedPreferences.setMockInitialValues({});
+      var revision = 0;
+      Map<String, dynamic>? row;
       final client = SupabaseClient(
         'https://example.supabase.co',
         'key',
         authOptions: const AuthClientOptions(autoRefreshToken: false),
-        httpClient: MockClient(
-          (request) async => http.Response(
-            '[]',
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/apply_journal_mutation_v1')) {
+            final input = jsonDecode(request.body) as Map;
+            expect(input['p_expected_revision'], revision);
+            revision++;
+            row = {
+              'id': 'acknowledged',
+              'user_id': uid,
+              'greg_date': '2026-09-29',
+              'body': input['p_body'],
+              'meta': {},
+              'revision': revision,
+              'created_at': '2026-09-29T12:00:00Z',
+              'updated_at': '2026-09-29T12:00:00Z',
+            };
+          }
+          return http.Response(
+            jsonEncode({'status': 'applied', 'row': row, 'revision': revision}),
             200,
             request: request,
             headers: {'content-type': 'application/json'},
-          ),
-        ),
+          );
+        }),
       );
       await client.auth.recoverSession(session());
       final store = WarmSnapshotStore.instance;
@@ -41,6 +59,10 @@ void main() {
         client,
       ).upsert(localDate: DateTime(2026, 9, 29), body: 'Edited');
       expect(store.peek(uid, 'journal.entry.test'), isNull);
+      expect(
+        (store.peek(uid, 'journal.entry.acknowledged')!.data as Map)['body'],
+        'Edited',
+      );
       await client.dispose();
     },
   );

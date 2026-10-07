@@ -7,6 +7,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'decan_reflection_model.dart';
 
+import 'account_operation_fence.dart';
+import '../features/reflections/decan_review_context.dart';
+import '../features/reflections/decan_review_models.dart';
+import '../features/nodes/kemetic_node_library.dart';
+import '../features/journal/journal_badge_utils.dart';
+part 'decan_review_repository.dart';
+
 class DecanReflectionListResult {
   const DecanReflectionListResult({
     required this.data,
@@ -92,25 +99,34 @@ class DecanReflectionRepo {
   }) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
+    final fence = AccountOperationFence(_client);
     try {
-      final res = await WarmJsonReads(_client, cachedOnly: cachedOnly).value(
-        'reflection.$id',
-        () => withSupabaseAuthRetry(
-          _client,
-          () => _client
-              .from('decan_reflections')
-              .select()
-              .eq('id', id)
-              .eq('user_id', uid)
-              .maybeSingle(),
-        ),
-      );
+      final res =
+          await WarmJsonReads(
+            _client,
+            cachedOnly: cachedOnly,
+            mayFetch: () => fence.isCurrent,
+          ).value(
+            'reflection.$id',
+            () => withSupabaseAuthRetry(
+              _client,
+              () => _client
+                  .from('decan_reflections')
+                  .select()
+                  .eq('id', id)
+                  .eq('user_id', uid)
+                  .maybeSingle(),
+            ),
+          );
+      if (!fence.isCurrent) throw StateError('Account changed while reading');
       if (res == null) return null;
       return DecanReflection.fromJson(Map<String, dynamic>.from(res as Map));
     } catch (e) {
       if (cachedOnly || strict) rethrow;
       debugPrint('[DecanReflectionRepo] getById error: $e');
       return null;
+    } finally {
+      fence.dispose();
     }
   }
 
@@ -255,8 +271,9 @@ class DecanReflectionRepo {
 
   Future<DecanReflection?> findByWindow(
     DateTime decanStart,
-    DateTime decanEnd,
-  ) async {
+    DateTime decanEnd, {
+    bool strict = false,
+  }) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
     try {
@@ -266,13 +283,14 @@ class DecanReflectionRepo {
             .from('decan_reflections')
             .select()
             .eq('user_id', uid)
-            .eq('decan_start', _fmtDate(decanStart))
-            .eq('decan_end', _fmtDate(decanEnd))
+            .eq('decan_start', _fmtStoredDate(decanStart))
+            .eq('decan_end', _fmtStoredDate(decanEnd))
             .maybeSingle(),
       );
       if (res == null) return null;
       return DecanReflection.fromJson(res);
     } catch (e) {
+      if (strict) rethrow;
       debugPrint('[DecanReflectionRepo] findByWindow error: $e');
       return null;
     }
@@ -288,7 +306,7 @@ class DecanReflectionRepo {
             .from('decan_reflection_prompt_interactions')
             .select('decan_start')
             .eq('user_id', uid)
-            .eq('decan_start', _fmtDate(decanStart))
+            .eq('decan_start', _fmtStoredDate(decanStart))
             .maybeSingle(),
       );
       return res != null;
@@ -308,8 +326,8 @@ class DecanReflectionRepo {
     try {
       final payload = <String, dynamic>{
         'user_id': uid,
-        'decan_start': _fmtDate(decanStart),
-        if (decanEnd != null) 'decan_end': _fmtDate(decanEnd),
+        'decan_start': _fmtStoredDate(decanStart),
+        if (decanEnd != null) 'decan_end': _fmtStoredDate(decanEnd),
         'interaction_kind': interactionKind,
         'interacted_at': DateTime.now().toUtc().toIso8601String(),
       };

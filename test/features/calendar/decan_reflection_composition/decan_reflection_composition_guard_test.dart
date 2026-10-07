@@ -39,22 +39,27 @@ void main() {
     ).readAsStringSync();
   });
 
-  test('end-of-decan prompt generation is compositional and non-LLM', () {
-    final loader = _sourceBetween(
-      calendarPage,
-      '  Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {',
-      '  Future<void> _archiveReflectionPrompt([BuildContext? ctx]) async {',
-    );
+  test(
+    'end-of-decan badge invites a factual review without generating interpretations',
+    () {
+      final loader = _sourceBetween(
+        calendarPage,
+        '  Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {',
+        '  Future<void> _archiveReflectionPrompt([BuildContext? ctx]) async {',
+      );
 
-    expect(loader, contains('_maatFlowDecanFactCollector.collect('));
-    expect(loader, contains('_decanReflectionComposer.compose('));
-    expect(loader, contains('kDecanReflectionCompositionalRenderer'));
-    expect(loader, contains("'used_llm': false"));
-    expect(loader, isNot(contains('AIReflectionService')));
-    expect(loader, isNot(contains('generateReflection(')));
-    expect(loader, isNot(contains('_collectDecanBadges(')));
-    expect(loader, isNot(contains('_buildReflectionFromBadges(')));
-  });
+      expect(loader, isNot(contains('_maatFlowDecanFactCollector.collect(')));
+      expect(loader, isNot(contains('_decanReflectionComposer.compose(')));
+      expect(loader, contains('reviewWindow: DecanReviewWindow('));
+      expect(loader, contains('persisted: false'));
+      expect(loader, isNot(contains('saveCompositionalGeneration(')));
+      expect(loader, isNot(contains('reviewActivity(')));
+      expect(loader, isNot(contains('AIReflectionService')));
+      expect(loader, isNot(contains('generateReflection(')));
+      expect(loader, isNot(contains('_collectDecanBadges(')));
+      expect(loader, isNot(contains('_buildReflectionFromBadges(')));
+    },
+  );
 
   test('interacted prompts are frozen before saved or fresh prompts load', () {
     final loader = _sourceBetween(
@@ -67,15 +72,13 @@ void main() {
       '_hasInteractedWithReflectionPrompt(window.start)',
     );
     final savedLookup = loader.indexOf('_decanReflectionRepo.findByWindow(');
-    final freshFactCollection = loader.indexOf(
-      '_maatFlowDecanFactCollector.collect(',
-    );
+    final freshInvitation = loader.indexOf('reviewWindow: DecanReviewWindow(');
 
     expect(interactionGate, isNonNegative);
     expect(savedLookup, isNonNegative);
-    expect(freshFactCollection, isNonNegative);
+    expect(freshInvitation, isNonNegative);
     expect(interactionGate, lessThan(savedLookup));
-    expect(interactionGate, lessThan(freshFactCollection));
+    expect(interactionGate, lessThan(freshInvitation));
   });
 
   test('CalendarPage no longer owns the AI reflection service', () {
