@@ -32,6 +32,8 @@ class InboxMessageActionHost extends StatelessWidget {
     required this.child,
     required this.onReply,
     required this.onRemoved,
+    this.onTap,
+    this.onDoubleTap,
   });
   final InboxReplyTarget target;
   final DateTime createdAt;
@@ -40,6 +42,8 @@ class InboxMessageActionHost extends StatelessWidget {
   final Widget child;
   final ValueChanged<InboxReplyTarget> onReply;
   final VoidCallback onRemoved;
+  final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
 
   Future<void> _run(
     BuildContext context,
@@ -186,6 +190,8 @@ class InboxMessageActionHost extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InboxMessageActions(
     createdAt: createdAt,
+    onTap: onTap,
+    onDoubleTap: onDoubleTap,
     onReply: () => onReply(target),
     onForward: isText || target.kind == 'flow' ? () => _forward(context) : null,
     onCopy: () => _run(

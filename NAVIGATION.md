@@ -208,6 +208,16 @@ swipe systems need tests for gesture zones, thresholds, and outcomes.
 
 Documented gesture systems:
 
+- Inbox's `inbox_message_actions.dart` is the single message-local gesture owner
+  for direct and group conversations: tap opens the existing shared-content
+  route, double tap retains the existing text-like behavior, and long press
+  lifts the same bubble into a transient action menu. Conversation pages supply
+  callbacks through InboxMessageActionHost; they do not install competing
+  recognizers. This popup is not durable navigation and claims no edge swipe.
+  The guard replaces the former conversation-page owner without increasing its
+  owner inventory; real-route, dismissal, action, keyboard and layout tests
+  verify the refactor.
+
 - Node reader may use a body-zone right swipe for internal node history, but it
   must exclude the navigation edge zone so system/app back can win there.
 - Journal archive and Inbox may use row-local `Dismissible` controls for

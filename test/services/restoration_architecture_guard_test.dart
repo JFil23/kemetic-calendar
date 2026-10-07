@@ -343,7 +343,7 @@ void main() {
         'lib/features/calendar/the_reading_house/presentation/reading_house_detail_page.dart',
         'lib/features/calendar/landscape_month_view.dart',
         'lib/features/calendars/shared_calendars_sheet.dart',
-        'lib/features/inbox/inbox_conversation_page.dart',
+        'lib/features/inbox/presentation/inbox_message_actions.dart',
         'lib/features/inbox/inbox_page.dart',
         'lib/features/journal/journal_archive_page.dart',
         'lib/features/journal/journal_event_badge.dart',
@@ -371,6 +371,17 @@ void main() {
 
       expect(matches, unorderedEquals(expectedMatches));
 
+      // Inbox gestures moved to one shared owner, not an extra route-specific
+      // recognizer. Keep the same owner count and reject future duplication.
+      for (final page in [
+        'inbox_conversation_page.dart',
+        'inbox_dm_conversation_page.dart',
+      ]) {
+        final source = await File('lib/features/inbox/$page').readAsString();
+        expect(source, contains('InboxMessageActionHost('));
+        expect(source, isNot(contains('GestureDetector(')));
+      }
+
       final calendar = await File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsString();
@@ -387,6 +398,7 @@ void main() {
       expect(docs, contains('Do not add custom page-to-page swipe navigation'));
       expect(docs, contains('route-backed sheet presentation'));
       expect(docs, contains('flow_post_detail_page.dart'));
+      expect(docs, contains('inbox_message_actions.dart'));
       expect(docs, contains('There is no active Journal page-level swipe'));
       expect(
         docs,

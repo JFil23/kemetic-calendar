@@ -9,6 +9,8 @@ class InboxMessageActions extends StatelessWidget {
     super.key,
     required this.child,
     required this.createdAt,
+    this.onTap,
+    this.onDoubleTap,
     this.onReply,
     this.onForward,
     this.onCopy,
@@ -19,6 +21,8 @@ class InboxMessageActions extends StatelessWidget {
 
   final Widget child;
   final DateTime createdAt;
+  final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
   final VoidCallback? onReply;
   final VoidCallback? onForward;
   final VoidCallback? onCopy;
@@ -28,8 +32,12 @@ class InboxMessageActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Builder(
-    builder: (anchorContext) =>
-        GestureDetector(onLongPress: () => _open(anchorContext), child: child),
+    builder: (anchorContext) => GestureDetector(
+      onTap: onTap,
+      onDoubleTap: onDoubleTap,
+      onLongPress: () => _open(anchorContext),
+      child: child,
+    ),
   );
 
   void _open(BuildContext context) {

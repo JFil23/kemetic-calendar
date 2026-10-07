@@ -700,61 +700,60 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                               onRemoved: () => setState(
                                 () => _locallyDeleted.add(share.shareId),
                               ),
-                              child: GestureDetector(
-                                onTap: isText
-                                    ? null
-                                    : () async {
-                                        if (kDebugMode) {
-                                          debugPrint(
-                                            '[InboxConversationPage] tapped share '
-                                            'shareId=${share.shareId} kind=${share.kind.asString} '
-                                            'title=${share.title}',
-                                          );
-                                        }
-                                        if (share.isEvent) {
-                                          unawaited(
-                                            openDetailRoute<void>(
-                                              context,
-                                              '/event-invite/${Uri.encodeComponent(share.shareId)}',
-                                              extra: share,
-                                            ),
-                                          );
-                                          return;
-                                        }
+                              onTap: isText
+                                  ? null
+                                  : () async {
+                                      if (kDebugMode) {
+                                        debugPrint(
+                                          '[InboxConversationPage] tapped share '
+                                          'shareId=${share.shareId} kind=${share.kind.asString} '
+                                          'title=${share.title}',
+                                        );
+                                      }
+                                      if (share.isEvent) {
                                         unawaited(
                                           openDetailRoute<void>(
                                             context,
-                                            '/shared-flow/${Uri.encodeComponent(share.shareId)}',
-                                            extra: <String, Object?>{
-                                              'share': share,
-                                              'fallbackLocation':
-                                                  _conversationLocation,
-                                            },
+                                            '/event-invite/${Uri.encodeComponent(share.shareId)}',
+                                            extra: share,
                                           ),
                                         );
-                                      },
-                                onDoubleTap: isText
-                                    ? () => _toggleMessageLike(share)
-                                    : null,
-                                child: isText
-                                    ? InboxMessageBubble(
-                                        text: share.messageText ?? share.title,
-                                        replyText:
-                                            (share.payloadJson?['reply_to']
-                                                    as Map?)?['text']
-                                                as String?,
-                                        createdAt: share.createdAt,
-                                        isMine: isMine,
-                                        likesCount:
-                                            _messageLikeCounts[share.shareId] ??
-                                            0,
-                                        likedByMe: _messageLikedByMeIds
-                                            .contains(share.shareId),
-                                        likeUpdating: _messageLikeUpdatingIds
-                                            .contains(share.shareId),
-                                      )
-                                    : _FlowBubble(share: share, isMine: isMine),
-                              ),
+                                        return;
+                                      }
+                                      unawaited(
+                                        openDetailRoute<void>(
+                                          context,
+                                          '/shared-flow/${Uri.encodeComponent(share.shareId)}',
+                                          extra: <String, Object?>{
+                                            'share': share,
+                                            'fallbackLocation':
+                                                _conversationLocation,
+                                          },
+                                        ),
+                                      );
+                                    },
+                              onDoubleTap: isText
+                                  ? () => _toggleMessageLike(share)
+                                  : null,
+                              child: isText
+                                  ? InboxMessageBubble(
+                                      text: share.messageText ?? share.title,
+                                      replyText:
+                                          (share.payloadJson?['reply_to']
+                                                  as Map?)?['text']
+                                              as String?,
+                                      createdAt: share.createdAt,
+                                      isMine: isMine,
+                                      likesCount:
+                                          _messageLikeCounts[share.shareId] ??
+                                          0,
+                                      likedByMe: _messageLikedByMeIds.contains(
+                                        share.shareId,
+                                      ),
+                                      likeUpdating: _messageLikeUpdatingIds
+                                          .contains(share.shareId),
+                                    )
+                                  : _FlowBubble(share: share, isMine: isMine),
                             ),
                           );
                         },
