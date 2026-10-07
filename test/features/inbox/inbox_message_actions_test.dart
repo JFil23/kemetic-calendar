@@ -87,4 +87,49 @@ void main() {
       expect(find.text('Unsend'), findsNothing);
     });
   }
+  testWidgets('large text menu scrolls within a short landscape viewport', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(844, 390);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var removed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: InboxMessageActions(
+                createdAt: DateTime(2026, 10, 7),
+                onReply: () {},
+                onForward: () {},
+                onCopy: () {},
+                onDeleteForMe: () => removed = true,
+                child: const Text('An incoming message'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.longPress(find.text('An incoming message'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unsend'), findsNothing);
+    await tester.ensureVisible(find.text('Delete for me'));
+    await tester.pumpAndSettle();
+    expect(tester.getBottomRight(find.text('Delete for me')).dy, lessThan(390));
+    await tester.tap(find.text('Delete for me'));
+    await tester.pumpAndSettle();
+    expect(removed, isTrue);
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -123,7 +123,10 @@ class InboxMessageActions extends StatelessWidget {
                   child: Material(
                     type: MaterialType.transparency,
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(maxHeight: height),
+                      constraints: BoxConstraints(
+                        maxHeight:
+                            media.size.height - media.padding.bottom - top - 16,
+                      ),
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment:
