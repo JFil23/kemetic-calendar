@@ -369,16 +369,20 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     if (mounted) setState(() {});
   }
 
-  double _resolvedPanelHeight() {
-    return max(
+  double _resolvedPanelHeight(MediaQueryData media) {
+    final preferred = max(
       260.0,
       min(_lastKeyboardHeight == 0 ? 320.0 : _lastKeyboardHeight, 420.0),
     );
+    // Preserve an editable viewport above the panel on short/landscape views.
+    // The existing glyph grid scrolls within the remaining panel height.
+    final available = media.size.height - media.padding.vertical - 12;
+    return min(preferred, max(0, available - 152));
   }
 
   double _customKeyboardInset(MediaQueryData media) {
     if (!_controller.shouldShowPanel) return 0;
-    return _resolvedPanelHeight() + 12 + media.padding.bottom;
+    return _resolvedPanelHeight(media) + 12 + media.padding.bottom;
   }
 
   void _handleControllerChanged() {
@@ -529,7 +533,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
           _KeyboardPanel(
             controller: _controller,
             regionKey: _panelRegionKey,
-            keyboardHeight: _lastKeyboardHeight,
+            keyboardHeight: _resolvedPanelHeight(media),
             onSystemKeyboard: _closeCustomAndRestoreSystem,
           ),
         ],
@@ -868,10 +872,7 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final targetHeight = max(
-      260.0,
-      min(widget.keyboardHeight == 0 ? 320.0 : widget.keyboardHeight, 420.0),
-    );
+    final targetHeight = widget.keyboardHeight;
 
     return AnimatedBuilder(
       animation: widget.controller,

@@ -152,6 +152,40 @@ void main() {
       },
     );
 
+    testWidgets('page handoff reserves the larger obstruction once', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(844, 390);
+      addTearDown(tester.view.reset);
+      for (final nativeInset in [209.0, 150.0, 60.0, 0.0]) {
+        tester.view.viewInsets = FakeViewPadding(bottom: nativeInset);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: KemeticKeyboardScope(
+              isCustomKeyboardVisible: true,
+              customKeyboardInset: 238,
+              systemKeyboardInset: nativeInset,
+              visibleTop: 0,
+              visibleBottom: 152,
+              isSystemKeyboardVisible: nativeInset > 0,
+              child: const KeyboardAwareEditableSurface(
+                child: Scaffold(
+                  body: SizedBox.expand(key: ValueKey('visible-page')),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(
+          tester.getSize(find.byKey(const ValueKey('visible-page'))).height,
+          152,
+        );
+        expect(tester.takeException(), isNull);
+      }
+    });
+
     testWidgets('instrument host receives already-constrained geometry', (
       tester,
     ) async {

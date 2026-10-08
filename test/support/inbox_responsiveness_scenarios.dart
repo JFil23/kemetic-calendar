@@ -291,10 +291,19 @@ void inboxResponsivenessScenarios() {
   testWidgets(
     'group Send paints before acknowledgement and retry retains later draft and id',
     (tester) async {
+      if (tester.binding is AutomatedTestWidgetsFlutterBinding) {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(844, 390);
+        tester.view.padding = const FakeViewPadding(bottom: 21);
+        addTearDown(tester.view.reset);
+      }
       reads = gate();
       marks = gate();
       sends = gate();
       await mount(tester);
+      if (tester.binding is AutomatedTestWidgetsFlutterBinding) {
+        tester.view.viewInsets = const FakeViewPadding(bottom: 209);
+      }
       await tester.enterText(find.byType(TextField), 'First reply');
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('kemetic-toggle-hit-target')));
@@ -303,6 +312,17 @@ void inboxResponsivenessScenarios() {
         find.byKey(const ValueKey('kemetic-keyboard-panel')),
         findsOneWidget,
       );
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'Native/custom keyboard handoff reserves occlusion once.',
+      );
+      if (tester.binding is AutomatedTestWidgetsFlutterBinding) {
+        tester.view.viewInsets = FakeViewPadding.zero;
+        await tester.pumpAndSettle();
+      }
+      await record(tester, 'group-keyboard-landscape');
+      expect(tester.takeException(), isNull);
       final rect = tester.getRect(find.byType(ElevatedButton));
       final touch = await tester.startGesture(rect.center);
       await tester.pump(const Duration(milliseconds: 80));
@@ -492,6 +512,16 @@ void inboxResponsivenessScenarios() {
       await tester.pump(const Duration(milliseconds: 310));
       await drain(tester);
       await drain(tester);
+      await tester.scrollUntilVisible(
+        find.text('Be Person'),
+        80,
+        scrollable: find
+            .descendant(
+              of: find.byType(CustomScrollView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       expect(find.text('Be Person'), findsOneWidget);
       searches['Alb']!.complete();
       await drain(tester);

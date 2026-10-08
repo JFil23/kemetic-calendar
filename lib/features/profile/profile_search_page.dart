@@ -274,29 +274,37 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
       body: KeyboardAwareEditableSurface(
         child: Padding(
           padding: bodyPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSearchField(),
-              if (_isMultiSelectionMode && _selectedUsersById.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _buildSelectedPeopleChips(),
-              ],
-              const SizedBox(height: 20),
-              if (_searching && _results.isNotEmpty)
-                const LinearProgressIndicator(minHeight: 2),
-              if (_searching && _results.isEmpty)
-                const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-                  ),
-                )
-              else if (_results.isEmpty && _query.length < 2)
-                _buildHint()
-              else if (_results.isEmpty)
-                _buildEmpty()
-              else
-                Expanded(child: _buildResultsList()),
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSearchField(),
+                    if (_isMultiSelectionMode &&
+                        _selectedUsersById.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildSelectedPeopleChips(),
+                    ],
+                    const SizedBox(height: 20),
+                    if (_searching && _results.isNotEmpty)
+                      const LinearProgressIndicator(minHeight: 2),
+                    if (_searching && _results.isEmpty)
+                      const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            KemeticGold.base,
+                          ),
+                        ),
+                      )
+                    else if (_results.isEmpty && _query.length < 2)
+                      _buildHint()
+                    else if (_results.isEmpty)
+                      _buildEmpty(),
+                  ],
+                ),
+              ),
+              if (_results.isNotEmpty) _buildResultsList(),
             ],
           ),
         ),
@@ -429,7 +437,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
   }
 
   Widget _buildResultsList() {
-    return ListView.separated(
+    return SliverList.separated(
       itemCount: _results.length,
       separatorBuilder: (context, index) =>
           Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),

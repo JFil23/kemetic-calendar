@@ -33,6 +33,15 @@ class KeyboardInsetConsumption extends InheritedWidget {
         .dependOnInheritedWidgetOfExactType<KeyboardInsetConsumption>();
   }
 
+  /// Custom clearance beyond the native space already reserved by Scaffold.
+  /// During a handoff both keyboard reports can be nonzero. Their overlapping
+  /// obstruction must be consumed once, just as in an editable modal boundary.
+  static double customPageClearanceOf(BuildContext context) => math.max(
+    0,
+    remainingCustomKeyboardInsetOf(context) -
+        remainingSystemKeyboardInsetOf(context),
+  );
+
   static Widget apply({
     required BuildContext context,
     required double additionalSystem,
@@ -253,7 +262,7 @@ class _KeyboardAwareEditableSurfaceState
       bottom: customInset > 0
           ? math.min(viewport.visibleBottom, customBottom)
           : viewport.visibleBottom,
-      inset: customInset,
+      inset: KeyboardInsetConsumption.customPageClearanceOf(context),
     );
   }
 

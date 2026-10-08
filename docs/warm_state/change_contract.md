@@ -1260,3 +1260,23 @@ server/Realtime deduplication, Back during held read acknowledgement, deletion
 rollback, account switching, search response ordering, and the complete preview
 hit target. The same delayed-network scenarios have widget and iOS simulator
 entry points; they use injected HTTP fixtures and never send live messages.
+
+Native landscape verification exposed two height constraints absent from the
+portrait screenshots. The existing keyboard host now computes one panel height
+for both its rendered panel and published custom inset, reserving 152 logical
+pixels for the editable viewport on short screens. Its existing glyph grid
+remains scrollable; no new occlusion or focus owner is introduced. Profile search
+keeps its existing padding, fields, chips and rows in one scrollable body so
+native-keyboard occlusion cannot make the results inaccessible. The original
+Scaffold-resize/padding assertions remain unchanged. The delayed-send scenario
+also runs at 844×390 with the phone's bottom safe area, alongside native portrait
+and landscape execution and the existing Calendar keyboard ownership suite.
+
+The native transition also reproduced overlapping native/custom reports. The
+shared KeyboardInsetConsumption boundary now resolves the additional custom
+page clearance after Scaffold's native reservation. The editable surface only
+consumes that clearance and retains scoped custom focus reveal; it does not
+acquire native resizing, raw MediaQuery mutation, or input ownership. Modal
+boundaries continue to consume the larger obstruction once. Existing structural
+assertions are retained, with real delayed-native-dismissal and boundary geometry
+tests proving that this ownership refactor removes double reservation.
