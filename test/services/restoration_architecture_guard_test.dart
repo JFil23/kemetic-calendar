@@ -416,15 +416,25 @@ void main() {
       expect(_countOccurrences(main, '_calmRoute('), greaterThan(20));
       expect(
         _countOccurrences(main, '_utilitySheetRoute('),
-        8,
+        9,
         reason:
-            'The helper, six existing utility routes, and the shared flow-detail adapter use sheet pages.',
+            'The helper, six existing utility routes, the reflection route, and the shared flow-detail adapter use sheet pages.',
       );
       expect(
         main,
         isNot(contains('routes: [\n    GoRoute(')),
         reason: 'App routes should use calm page wrappers, not defaults.',
       );
+      final reflectionRoute = _sourceBetween(
+        main,
+        "_utilitySheetRoute(\n      path: '/reflections/:reflectionId'",
+        "_calmRoute(\n      path: '/maat-guidance/:deliveryId'",
+      );
+      expect(reflectionRoute, contains('UtilitySheetRouteScaffold('));
+      expect(reflectionRoute, contains("semanticLabel: 'reflection'"));
+      expect(reflectionRoute, contains("closeOrReturn(context, '/')"));
+      expect(reflectionRoute, contains('SessionTrackedRoute('));
+      expect(reflectionRoute, contains('DecanReflectionDetailPage('));
       expect(_countOccurrences(main, '_flowDetailSheetRoute('), 4);
       for (final path in <String>[
         '/shared-flow/:shareId',

@@ -175,7 +175,6 @@ class DecanReviewTextField extends StatelessWidget
                       MediaQuery.sizeOf(context).height < 300
                   ? 1
                   : 5,
-              scrollPadding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
               maxLength: 12000,
               keyboardType: TextInputType.multiline,
               textCapitalization: TextCapitalization.sentences,

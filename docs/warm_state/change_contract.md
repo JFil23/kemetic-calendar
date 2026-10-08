@@ -1352,7 +1352,8 @@ its launching route and the account draft when dismissed by Close, backdrop,
 or drag. The shared sheet consumes remaining keyboard occlusion exactly once;
 its editable descendants do not add a second native/custom inset. The reflection
 canvas retains field elements and focus while it temporarily tucks surrounding
-copy away during editing. Done restores the normal review and explicit save/post
+copy away during editing. Material fields keep the shared Flutter scroll-padding
+defaults. Done restores the prior review scroll position and explicit save/post
 actions. The approved type, colors, moments and public/private composition remain.
 
 Owned-flow moments push the existing by-flow detail route; that route resolves
