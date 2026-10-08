@@ -51,7 +51,7 @@ void main() {
         {'id': 'yesterday', 'question': 'Old question'},
         {
           'id': seed.id,
-          'question': '',
+          'question': 'Earlier cached editorial question',
           'my_answer': {'id': answer.id, 'body_text': answer.bodyText},
         },
       ],
@@ -86,7 +86,8 @@ void main() {
                       state: PagesLoadState.ready,
                       question: CommonsQuestion(
                         id: 'today',
-                        question: 'Is my seeing coarsening?',
+                        question:
+                            'What do my daily habits teach others to expect?',
                         myAnswer: answered ? saved : null,
                       ),
                     ),
@@ -101,12 +102,15 @@ void main() {
         expect(find.text('II'), findsNothing);
         expect(find.text('QUESTION OF THE DAY'), findsNothing);
         expect(find.text("FROM TODAY'S DAILY REFLECTION"), findsOneWidget);
-        expect(find.text('Is my seeing coarsening?'), findsOneWidget);
+        expect(
+          find.text('What do my daily habits teach others to expect?'),
+          findsOneWidget,
+        );
         final paragraph = tester.renderObject<RenderParagraph>(
-          find.text('Is my seeing coarsening?'),
+          find.text('What do my daily habits teach others to expect?'),
         );
         final lines = paragraph.getBoxesForSelection(
-          const TextSelection(baseOffset: 0, extentOffset: 24),
+          const TextSelection(baseOffset: 0, extentOffset: 46),
         );
         for (final line in lines) {
           expect(line.bottom, lessThanOrEqualTo(paragraph.size.height + 1));

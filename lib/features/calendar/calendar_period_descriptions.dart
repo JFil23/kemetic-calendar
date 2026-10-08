@@ -53,7 +53,7 @@ The moral is practical: knowing is unfinished until it can guide reliable action
 Month 7 — Rekh-Nedjes / Rḫ-nḏs
 Peret · Discovering what holds under pressure
 
-Resistance arrives. Heat rises. The ground hardens. Repetition becomes tiring. Methods that once seemed sufficient begin to show their limits, and what was learned under easier conditions must now prove what it actually contains.
+The days shorten. Crops ripen at different times, and gathering reveals what the village must repair, share, and protect. Repetition becomes tiring. Methods that once seemed sufficient begin to show their limits, and what was learned under easier conditions must now prove what it actually contains.
 
 Rekh-Nedjes treats difficulty as information rather than insult. Pressure exposes structure. Maat does not require a method to remain unchanged; it requires the direction to remain true while the method adapts. Do not defend an approach merely because it once worked. Let strain reveal what is weak, keep what still serves, and change what no longer carries the work.
 ''',
@@ -256,7 +256,7 @@ Competence is practiced order: hand, eye, memory, and judgment have learned to a
 špsswt — “The Noble Ones”
 Trial
 
-The late fields of Peret meet stronger heat, harder ground, and accumulated fatigue. A cluster of several stars asks more of the eye than one brilliant point: the watcher must distinguish real relationship from noise.
+The autumn fields of Peret ask for careful timing, shared labor, and sound judgment before daylight fades. A cluster of several stars asks more of the eye than one brilliant point: the watcher must distinguish real relationship from noise.
 
 Trial does the same to character. Under easy conditions almost any pattern can look convincing. Pressure reveals which relations actually hold. Let difficulty tell the truth. What survives first strain deserves deeper trust; what immediately collapses needs more formation, not more defense.
 ''',

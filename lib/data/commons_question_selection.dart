@@ -35,9 +35,9 @@ CommonsQuestion activeCommonsQuestion(
       .firstOrNull;
   return CommonsQuestion(
     id: seed.id,
-    question: matching == null || matching.question.trim().isEmpty
-        ? seed.text
-        : matching.question,
+    // Authored prompt copy belongs to the current calendar. The snapshot owns
+    // the answers, not a competing version of the day's reflection question.
+    question: seed.text.isNotEmpty ? seed.text : (matching?.question ?? ''),
     answers: matching?.answers ?? const [],
     myAnswer: matching?.myAnswer,
     hasMoreAnswers: matching?.hasMoreAnswers ?? false,

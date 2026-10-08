@@ -13,15 +13,7 @@ DailyReflectionQuestion? dailyReflectionQuestionForDate(
   final kemeticConverter = converter ?? KemeticConverter();
   final kd = kemeticConverter.fromGregorian(DateUtils.dateOnly(localDate));
   final dayKey = kemeticDayKey(kd.epagomenal ? 13 : kd.month, kd.day);
-  final info = KemeticDayData.getInfoForDay(dayKey);
-  if (info == null) return null;
-
-  for (final flowDay in info.decanFlow) {
-    if (flowDay.day != kd.day) continue;
-    final question = flowDay.reflection.trim();
-    if (question.isEmpty) return null;
-    return (dayKey: dayKey, kYear: kd.year, question: question);
-  }
-
-  return null;
+  final question = KemeticDayData.getFlowForDay(dayKey)?.reflection.trim();
+  if (question == null || question.isEmpty) return null;
+  return (dayKey: dayKey, kYear: kd.year, question: question);
 }

@@ -87,6 +87,10 @@ void main() {
               };
             }
           case 'answer_commons_question':
+            expect(
+              jsonDecode(r.body)['p_question_text'],
+              commonsQuestionSeed(DateTime.now()).text,
+            );
             saved = true;
             data = answer(
               31,
@@ -133,6 +137,8 @@ void main() {
         ),
       );
       await drain(tester);
+      expect(find.text(commonsQuestionSeed(DateTime.now()).text), findsWidgets);
+      expect(find.text('What do I know now?'), findsNothing);
       expect(find.text('7'), findsWidgets);
       expect(find.text('Public reflection number 19'), findsOneWidget);
       await tester.ensureVisible(find.text('Show more answers'));
