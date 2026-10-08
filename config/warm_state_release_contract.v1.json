@@ -5,7 +5,7 @@
     {
       "path": "/",
       "owner": "lib/features/pages/pages_controller.dart",
-      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state. Explicit onboarding replay reads its acknowledged account-scoped presentation checkpoint; completion history and content remain with their existing owners. Recommended flow details reuse FlowsRepo and its flow.detail resource; account-keyed recovery reads the known enrollment before enabling its shared detail page, with no duplicate join on read failure. Acknowledged onboarding completion and its final seal dismiss the event sheet, then use the existing detail-navigation boundary to open /pages with account fencing."
+      "policy": "Retained account view; background reads. Auth root restores the account before exposing private state. Explicit onboarding replay reads its acknowledged account-scoped presentation checkpoint; completion history and content remain with their existing owners. Recommended flow details reuse FlowsRepo and its flow.detail resource; account-keyed recovery reads the known enrollment before enabling its shared detail page, with no duplicate join on read failure. Acknowledged onboarding completion and its final seal dismiss the event sheet, then use the existing detail-navigation boundary to open /pages with account fencing. Calendar uses Navigator visibility to remain painted under transparent sheets; fully opaque coverage retains hidden-grid suppression."
     },
     {
       "path": "/calendars",
@@ -35,7 +35,7 @@
     {
       "path": "/inbox",
       "owner": "lib/data/share_repo.dart",
-      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Mounted conversations retain one account/recipient stream and paint the existing inbox:shares:v1 snapshot before refresh. Coalesced account-fenced reads preserve older previews through bounded refreshes and retain confirmed data on transient failure; denial evicts it. Keyboard transitions do not restart reads or alter cache namespaces. Shared conversation scroll physics retain the latest anchor and older-history position. InboxMessageActions and InboxMessageActionHost own the repeated long-press menu. ShareRepo and DmConversationRepo own acknowledged reply/forward/hide/unsend writes; private hides are account-owned backend state. Existing snapshots carry optional server-resolved reply_to payloads and keep their deployed keys. Acknowledged deletion patches the private Inbox cache or invalidates the DM snapshot; failed writes retain confirmed messages. Menu/reply state is transient and is cleared on account departure. Pointer-up keyboard dismissal preserves taps. DM summaries/messages seed first paint from existing snapshots and refresh in the background; send invalidation preserves other conversations. Pending sends and removal feedback are transient UI only, with acknowledgement, rollback, stable retry identity and account fences. Navigation does not await read receipts."
+      "policy": "Passive share/inbox warming; entering a conversation owns read acknowledgements. No mutations during passive warming. Mounted conversations retain one account/recipient stream and paint the existing inbox:shares:v1 snapshot before refresh. Coalesced account-fenced reads preserve older previews through bounded refreshes and retain confirmed data on transient failure; denial evicts it. Keyboard transitions do not restart reads or alter cache namespaces. Shared conversation scroll physics retain the latest anchor and older-history position. InboxMessageActions and InboxMessageActionHost own the repeated long-press menu. ShareRepo and DmConversationRepo own acknowledged reply/forward/hide/unsend writes; private hides are account-owned backend state. Existing snapshots carry optional server-resolved reply_to payloads and keep their deployed keys. Acknowledged deletion patches the private Inbox cache or invalidates the DM snapshot; failed writes retain confirmed messages. Menu/reply state is transient and is cleared on account departure. Pointer-up keyboard dismissal preserves taps. DM summaries/messages seed first paint from existing snapshots and refresh in the background; send invalidation preserves other conversations. Pending sends and removal feedback are transient UI only, with acknowledgement, rollback, stable retry identity and account fences. Navigation does not await read receipts. Reading House summaries seed first paint from the existing readingHouse.summaries snapshot and refresh through their repository. SharedPracticeRepo owns the complete social.together.inbox.<limit> schema-1 read, separate from the smaller pages.together preview; confirmed empty content is warm. Transient failures retain confirmed rows; account departure and denial clear private presentation. Acknowledged Together actions invalidate only their complete Inbox snapshots and fence earlier reads. No pending writes enter warm storage."
     },
     {
       "path": "/inbox/conversation/:userId",
@@ -202,7 +202,8 @@
     "lib/data/flows_repo.dart": 1,
     "lib/features/rhythm/data/rhythm_repo.dart": 9,
     "lib/features/calendar/the_reading_house/reading_house_room_repository.dart": 2,
-    "lib/data/external_calendar_repository.dart": 2
+    "lib/data/external_calendar_repository.dart": 2,
+    "lib/data/shared_practice_repo.dart": 1
   },
   "required_lifecycle_contracts": {
     "lib/main.dart": [

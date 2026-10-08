@@ -1281,3 +1281,35 @@ acquire native resizing, raw MediaQuery mutation, or input ownership. Modal
 boundaries continue to consume the larger obstruction once. Existing structural
 assertions are retained, with real delayed-native-dismissal and boundary geometry
 tests proving that this ownership refactor removes double reservation.
+
+
+## October 8 Inbox backdrop and practice warm entry
+
+The user's 07:28 recording and the approved Reading House Inbox captures are the
+visual references. Main Calendar no longer treats every non-current route as
+fully hidden. It follows Navigator's TickerMode visibility beneath transparent
+sheets, retaining the existing opaque-route and hidden-landscape work suppression.
+The canonical Inbox sheet housing and all practice row renderers stay unchanged.
+
+SupabaseReadingHouseRoomRepository reconstructs summaries synchronously from
+readingHouse.summaries, then restores disk data and refreshes in the background.
+The existing summary stream also observes warm-store publication. Confirmed empty
+and populated snapshots are distinct from a cache miss. Slow or failed reads keep
+confirmed presentation; denial removes it. AccountOperationFence rejects departed
+results, including A-B-A, and account departure clears mounted private rows.
+
+SharedPracticeRepo owns a complete schema-1 social.together.inbox.<limit> snapshot
+of its existing Inbox/quote-approval/request-decision reads. It cannot reuse the
+smaller pages.together payload as complete Inbox evidence. A complete empty result
+suppresses the repeated Practice Together spinner visible above Reading House.
+Acknowledged Together mutations invalidate that resource and fence older reads;
+failed mutations retain the snapshot. No queued write, new backend contract,
+build-specific namespace, rewritten old fixture or lowered inventory is added.
+The page-wide cold-loading flag also yields to confirmed cached practice content.
+
+Regression evidence covers the actual Inbox route over Calendar, reopen,
+transparent-sheet rotation and opaque coverage, first-frame cached rows, cold
+arrival, passive background publication, failed refresh, denial, account departure,
+A-B-A reads, old-envelope restoration without network, and acknowledged/failed
+mutation invalidation. Existing Reading House visual references are compared
+unchanged. The complete App gate and served replay remain required for deployment.

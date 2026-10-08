@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'account_view_cache.dart';
+import 'account_operation_fence.dart';
+import 'warm_state/warm_json_reads.dart';
+import 'warm_state/warm_snapshot_store.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -67,7 +70,7 @@ class SharedPracticeRepo {
       );
     }
 
-    final response = await _client.rpc(
+    final response = await _mutateTogether(
       'create_shared_practice_from_flow',
       params: <String, dynamic>{
         'p_calendar_id': trimmedCalendarId,
@@ -118,7 +121,7 @@ class SharedPracticeRepo {
     if (flowId <= 0 || trimmedCalendarId == null || trimmedCalendarId.isEmpty) {
       return null;
     }
-    final response = await _client.rpc(
+    final response = await _mutateTogether(
       'ensure_shared_experience_for_flow',
       params: <String, dynamic>{
         'p_flow_id': flowId,
@@ -156,7 +159,7 @@ class SharedPracticeRepo {
       );
     }
 
-    final response = await _client.rpc(
+    final response = await _mutateTogether(
       'create_joint_flow_experience_from_commons',
       params: <String, dynamic>{
         'p_source_flow_id': sourceFlowId,
@@ -389,7 +392,7 @@ class SharedPracticeRepo {
     required SharedPracticeRoomVisibility visibility,
     SharedPracticeJoinPolicy? joinPolicy,
   }) async {
-    final response = await _client.rpc(
+    final response = await _mutateTogether(
       'set_shared_practice_visibility',
       params: <String, dynamic>{
         'p_room_id': roomId.trim(),
@@ -416,7 +419,7 @@ class SharedPracticeRepo {
     required String roomId,
     String? message,
   }) async {
-    final response = await _client.rpc(
+    final response = await _mutateTogether(
       'request_join_shared_practice',
       params: <String, dynamic>{
         'p_room_id': roomId.trim(),
@@ -441,7 +444,7 @@ class SharedPracticeRepo {
     required String requestId,
     required bool approve,
   }) async {
-    final response = await _client.rpc(
+    final response = await _mutateTogether(
       'respond_to_join_request',
       params: <String, dynamic>{
         'p_request_id': requestId.trim(),
@@ -462,43 +465,118 @@ class SharedPracticeRepo {
     );
   }
 
-  Future<TogetherInboxSnapshot> getTogetherInbox({int limit = 40}) async {
+  Future<dynamic> _mutateTogether(
+    String function, {
+    required Map<String, dynamic> params,
+  }) async {
+    final account = AccountOperationFence(_client);
+    try {
+      final response = await _client.rpc(function, params: params);
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      if (account.userId != null) {
+        WarmSnapshotStore.instance.invalidate(
+          account.userId!,
+          prefix: 'social.together.inbox.',
+        );
+      }
+      return response;
+    } finally {
+      account.dispose();
+    }
+  }
+
+  void _validateTogetherInbox(Object? value) {
+    if (value is! Map ||
+        value['quote_approvals'] is! List ||
+        value['request_decisions'] is! List) {
+      throw const FormatException('Incomplete Together inbox');
+    }
+    for (final key in [
+      'join_requests',
+      'invitations',
+      'policy_prompts',
+      'active_rooms',
+      'quote_approvals',
+      'request_decisions',
+    ]) {
+      final rows = value[key];
+      if (rows != null && (rows is! List || rows.any((row) => row is! Map))) {
+        throw const FormatException('Invalid Together inbox rows');
+      }
+    }
+  }
+
+  TogetherInboxSnapshot? cachedTogetherInbox({int limit = 40}) {
     final uid = _client.auth.currentUser?.id;
-    final responses = await Future.wait<dynamic>(<Future<dynamic>>[
-      _client.rpc(
-        'get_together_inbox',
-        params: <String, dynamic>{'p_limit': limit},
-      ),
-      _client.rpc(
-        'get_together_quote_approvals',
-        params: <String, dynamic>{'p_limit': limit},
-      ),
-      _client.rpc(
-        'get_together_request_decisions',
-        params: <String, dynamic>{'p_limit': limit},
-      ),
-    ]);
-    final inboxResponse = responses[0];
-    final approvalResponse = responses[1];
-    final decisionResponse = responses[2];
-    if (inboxResponse is! Map) {
-      throw StateError(
-        'Unexpected Together inbox response: ${inboxResponse.runtimeType}',
+    if (uid == null) return null;
+    final json = WarmSnapshotStore.instance
+        .peek(uid, 'social.together.inbox.$limit')
+        ?.data;
+    try {
+      _validateTogetherInbox(json);
+      return TogetherInboxSnapshot.fromJson(
+        Map<String, dynamic>.from(json as Map),
       );
+    } on FormatException {
+      return null;
     }
-    final snapshot = TogetherInboxSnapshot.fromJson(<String, dynamic>{
-      ...Map<String, dynamic>.from(inboxResponse),
-      'quote_approvals': approvalResponse is List
-          ? approvalResponse
-          : const <dynamic>[],
-      'request_decisions': decisionResponse is List
-          ? decisionResponse
-          : const <dynamic>[],
-    });
-    if (uid != null && uid == _client.auth.currentUser?.id) {
-      AccountViewCache.instance.publish(uid, 'social.together', snapshot);
+  }
+
+  Future<TogetherInboxSnapshot> getTogetherInbox({
+    int limit = 40,
+    bool cachedOnly = false,
+  }) async {
+    final account = AccountOperationFence(_client);
+    final uid = account.userId;
+    try {
+      final json =
+          await WarmJsonReads(
+            _client,
+            cachedOnly: cachedOnly,
+            mayFetch: () => account.isCurrent,
+          ).value('social.together.inbox.$limit', () async {
+            final responses = await Future.wait<dynamic>(<Future<dynamic>>[
+              _client.rpc(
+                'get_together_inbox',
+                params: <String, dynamic>{'p_limit': limit},
+              ),
+              _client.rpc(
+                'get_together_quote_approvals',
+                params: <String, dynamic>{'p_limit': limit},
+              ),
+              _client.rpc(
+                'get_together_request_decisions',
+                params: <String, dynamic>{'p_limit': limit},
+              ),
+            ]);
+            final inboxResponse = responses[0];
+            final approvalResponse = responses[1];
+            final decisionResponse = responses[2];
+            if (inboxResponse is! Map) {
+              throw StateError(
+                'Unexpected Together inbox response: ${inboxResponse.runtimeType}',
+              );
+            }
+            if (approvalResponse is! List || decisionResponse is! List) {
+              throw const FormatException('Incomplete Together inbox');
+            }
+            return <String, dynamic>{
+              ...Map<String, dynamic>.from(inboxResponse),
+              'quote_approvals': approvalResponse,
+              'request_decisions': decisionResponse,
+            };
+          }, validate: _validateTogetherInbox);
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      final snapshot = TogetherInboxSnapshot.fromJson(
+        Map<String, dynamic>.from(json as Map),
+      );
+      if (uid != null) {
+        AccountViewCache.instance.publish(uid, 'social.together', snapshot);
+      }
+      return snapshot;
+    } finally {
+      account.dispose();
     }
-    return snapshot;
   }
 
   Future<String?> getTogetherRoomForFlow(int flowId) async {
@@ -515,14 +593,14 @@ class SharedPracticeRepo {
     required String roomId,
     required bool accept,
   }) async {
-    await _client.rpc(
+    await _mutateTogether(
       'respond_to_together_invitation',
       params: <String, dynamic>{'p_room_id': roomId.trim(), 'p_accept': accept},
     );
   }
 
   Future<void> markTogetherRequestDecisionSeen(String requestId) async {
-    await _client.rpc(
+    await _mutateTogether(
       'mark_together_request_decision_seen',
       params: <String, dynamic>{'p_request_id': requestId.trim()},
     );
@@ -536,7 +614,7 @@ class SharedPracticeRepo {
     if (body.isEmpty) {
       throw ArgumentError.value(bodyText, 'bodyText', 'Must not be empty.');
     }
-    final response = await _client.rpc(
+    final response = await _mutateTogether(
       'send_shared_practice_message',
       params: <String, dynamic>{
         'p_room_id': roomId.trim(),
@@ -558,7 +636,7 @@ class SharedPracticeRepo {
   }
 
   Future<void> deleteSharedPracticeMessage(String messageId) async {
-    await _client.rpc(
+    await _mutateTogether(
       'delete_shared_practice_message',
       params: <String, dynamic>{'p_message_id': messageId.trim()},
     );
@@ -580,7 +658,7 @@ class SharedPracticeRepo {
   Future<SharedPracticeQuotePost> requestSharedPracticeQuotePost(
     String messageId,
   ) async {
-    final response = await _client.rpc(
+    final response = await _mutateTogether(
       'request_shared_practice_quote_post',
       params: <String, dynamic>{'p_message_id': messageId.trim()},
     );
@@ -596,7 +674,7 @@ class SharedPracticeRepo {
     required String quotePostId,
     required bool approve,
   }) async {
-    await _client.rpc(
+    await _mutateTogether(
       'respond_to_shared_practice_quote_post',
       params: <String, dynamic>{
         'p_quote_post_id': quotePostId.trim(),
@@ -672,7 +750,7 @@ class SharedPracticeRepo {
     required SharedPracticeRoomVisibility visibility,
     required SharedPracticeRequestAudience requestAudience,
   }) async {
-    await _client.rpc(
+    await _mutateTogether(
       'set_shared_practice_access',
       params: <String, dynamic>{
         'p_room_id': roomId.trim(),
@@ -689,7 +767,7 @@ class SharedPracticeRepo {
     if (flowId <= 0) {
       throw ArgumentError.value(flowId, 'flowId', 'Must be positive.');
     }
-    final response = await _client.rpc(
+    final response = await _mutateTogether(
       'create_together_overlay_for_flow',
       params: <String, dynamic>{
         'p_flow_id': flowId,

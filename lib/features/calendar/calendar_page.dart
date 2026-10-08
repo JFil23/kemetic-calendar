@@ -33528,8 +33528,11 @@ class CalendarPageState extends State<CalendarPage>
     final orientation = MediaQuery.orientationOf(context);
     final isLandscape = orientation == Orientation.landscape;
     final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+    // Navigator keeps tickers enabled for routes still visible beneath a
+    // transparent sheet. isCurrent alone also hides that visible backdrop.
     final routeShouldRemainRendered =
         routeIsCurrent ||
+        TickerMode.of(context) ||
         CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;
     // Landscape grid only on phone-sized screens; tablets/desktop stay on portrait layout.
     final useGrid = isLandscape && size.shortestSide < 600;

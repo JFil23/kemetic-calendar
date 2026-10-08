@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
 import '../../core/push_intent_bus.dart';
 import '../../data/share_models.dart';
+import '../../data/account_operation_fence.dart';
+import '../../data/warm_state/warm_snapshot_store.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/shared_calendars_repo.dart';
@@ -213,6 +215,9 @@ class _InboxPageState extends State<InboxPage> {
   bool _invitesSheetRestoreChecked = false;
   bool _invitesSheetOpenOrOpening = false;
   String? _openedInitialSharedCalendarId;
+  bool _hasReadingHouseSnapshot = false;
+  bool _hasTogetherSnapshot = false;
+  StreamSubscription<AuthState>? _practiceAccountSub;
   int _committedFlowRefreshSerial = 0;
   int _inboxItemsSubscriptionSerial = 0;
 
@@ -227,6 +232,38 @@ class _InboxPageState extends State<InboxPage> {
     _dmConversationRepo = DmConversationRepo(client);
     _readingHouseRoomRepo = SupabaseReadingHouseRoomRepository(client);
     _sharedPracticeRepo = SharedPracticeRepo(client);
+    final roomSource = _readingHouseRoomDataSource;
+    final cachedRooms = roomSource is CachedReadingHouseSummariesDataSource
+        ? (roomSource as CachedReadingHouseSummariesDataSource)
+              .cachedSummaries()
+        : null;
+    if (cachedRooms != null) {
+      _latestReadingHouseRooms = cachedRooms;
+      _hasReadingHouseSnapshot = true;
+    }
+    final cachedTogether = _sharedPracticeRepo.cachedTogetherInbox();
+    if (cachedTogether != null) {
+      _togetherInbox = cachedTogether;
+      _hasTogetherSnapshot = true;
+      _togetherInboxStatus = GroupFlowInboxSectionStatus.loaded;
+    }
+    if (_hasReadingHouseSnapshot || _hasTogetherSnapshot) _loading = false;
+    final initialAccount = client.auth.currentUser?.id;
+    _practiceAccountSub = client.auth.onAuthStateChange.listen((state) {
+      if (!mounted ||
+          (state.event != AuthChangeEvent.signedOut &&
+              state.session?.user.id == initialAccount)) {
+        return;
+      }
+      setState(() {
+        _latestReadingHouseRooms = const [];
+        _hasReadingHouseSnapshot = false;
+        _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
+        _togetherInbox = const TogetherInboxSnapshot();
+        _hasTogetherSnapshot = false;
+        _togetherInboxStatus = GroupFlowInboxSectionStatus.loaded;
+      });
+    });
     if (widget.disableAuxiliarySubscriptionsForTesting) {
       _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
       _latestDmConversations =
@@ -239,6 +276,7 @@ class _InboxPageState extends State<InboxPage> {
     _subscribeInboxItems();
     if (!widget.disableAuxiliarySubscriptionsForTesting) {
       unawaited(_restoreCachedUnified());
+      unawaited(_restoreCachedTogetherInbox());
       _dmConversationsSub = _dmConversationRepo
           .watchConversationSummaries()
           .listen((conversations) {
@@ -257,13 +295,15 @@ class _InboxPageState extends State<InboxPage> {
               if (!mounted) return;
               setState(() {
                 _latestReadingHouseRooms = rooms;
+                _hasReadingHouseSnapshot = true;
+                _loading = false;
                 _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
               });
             },
             onError: (Object error, StackTrace stackTrace) {
               if (!mounted) return;
               setState(() {
-                _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
+                _handleReadingHouseError(error);
               });
             },
           );
@@ -432,21 +472,10 @@ class _InboxPageState extends State<InboxPage> {
     } catch (e) {
       _logInboxImport('[InboxPage] Failed to refresh DM conversations: $e');
     }
-    try {
-      _latestReadingHouseRooms = await _readingHouseRoomDataSource
-          .listSummaries();
-      _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
-    } catch (e) {
-      _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
-      _logInboxImport('[InboxPage] Failed to refresh Reading Houses: $e');
-    }
-    try {
-      _togetherInbox = await _sharedPracticeRepo.getTogetherInbox();
-      _togetherInboxStatus = GroupFlowInboxSectionStatus.loaded;
-    } catch (e) {
-      _togetherInboxStatus = GroupFlowInboxSectionStatus.error;
-      _logInboxImport('[InboxPage] Failed to refresh Together inbox: $e');
-    }
+    await Future.wait<void>([
+      _refreshReadingHouseRooms(),
+      _refreshTogetherInbox(),
+    ]);
 
     if (!mounted) return;
     setState(() {
@@ -576,6 +605,7 @@ class _InboxPageState extends State<InboxPage> {
     _incomingCalendarInvitesSub?.cancel();
     _flowLifecycleSub?.cancel();
     _readingHouseRoomsSub?.cancel();
+    _practiceAccountSub?.cancel();
     _togetherInboxRefreshDebounce?.cancel();
     _togetherInboxChangesSub?.cancel();
     _incomingCalendarInvitesListenable.dispose();
@@ -914,24 +944,36 @@ class _InboxPageState extends State<InboxPage> {
   ReadingHouseRoomDataSource get _readingHouseRoomDataSource =>
       widget.readingHouseRoomDataSourceForTesting ?? _readingHouseRoomRepo;
 
+  void _handleReadingHouseError(Object error) {
+    if (error is WarmAccessDenied) {
+      _latestReadingHouseRooms = const [];
+      _hasReadingHouseSnapshot = false;
+    }
+    _readingHouseRoomStatus = _hasReadingHouseSnapshot
+        ? ReadingHouseInboxSectionStatus.loaded
+        : ReadingHouseInboxSectionStatus.error;
+  }
+
   Future<void> _refreshReadingHouseRooms({bool showLoading = false}) async {
-    if (showLoading && mounted) {
-      setState(() {
-        _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loading;
-      });
+    final account = AccountOperationFence(Supabase.instance.client);
+    if (showLoading && !_hasReadingHouseSnapshot && mounted) {
+      setState(
+        () => _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loading,
+      );
     }
     try {
       final rooms = await _readingHouseRoomDataSource.listSummaries();
-      if (!mounted) return;
+      if (!mounted || !account.isCurrent) return;
       setState(() {
         _latestReadingHouseRooms = rooms;
+        _hasReadingHouseSnapshot = true;
         _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.loaded;
       });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _readingHouseRoomStatus = ReadingHouseInboxSectionStatus.error;
-      });
+    } catch (error) {
+      if (!mounted || !account.isCurrent || error is WarmReadCancelled) return;
+      setState(() => _handleReadingHouseError(error));
+    } finally {
+      account.dispose();
     }
   }
 
@@ -948,26 +990,62 @@ class _InboxPageState extends State<InboxPage> {
     if (mounted) await _refreshReadingHouseRooms();
   }
 
-  Future<void> _refreshTogetherInbox({bool showLoading = false}) async {
-    if (showLoading && mounted) {
+  Future<void> _restoreCachedTogetherInbox() async {
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      final snapshot = await _sharedPracticeRepo.getTogetherInbox(
+        cachedOnly: true,
+      );
+      if (!mounted ||
+          !account.isCurrent ||
+          _hasTogetherSnapshot ||
+          _sharedPracticeRepo.cachedTogetherInbox() == null) {
+        return;
+      }
       setState(() {
-        _togetherInboxStatus = GroupFlowInboxSectionStatus.loading;
+        _togetherInbox = snapshot;
+        _hasTogetherSnapshot = true;
+        _loading = false;
+        _togetherInboxStatus = GroupFlowInboxSectionStatus.loaded;
       });
+    } catch (_) {
+      // A missing disposable snapshot leaves the ordinary cold read in charge.
+    } finally {
+      account.dispose();
+    }
+  }
+
+  Future<void> _refreshTogetherInbox({bool showLoading = false}) async {
+    final account = AccountOperationFence(Supabase.instance.client);
+    if (showLoading && !_hasTogetherSnapshot && mounted) {
+      setState(
+        () => _togetherInboxStatus = GroupFlowInboxSectionStatus.loading,
+      );
     }
     try {
       final snapshot =
           await (widget.togetherInboxLoaderForTesting ??
               _sharedPracticeRepo.getTogetherInbox)();
-      if (!mounted) return;
+      if (!mounted || !account.isCurrent) return;
       setState(() {
         _togetherInbox = snapshot;
+        _hasTogetherSnapshot = true;
+        _loading = false;
         _togetherInboxStatus = GroupFlowInboxSectionStatus.loaded;
       });
-    } catch (_) {
-      if (!mounted) return;
+    } catch (error) {
+      if (!mounted || !account.isCurrent || error is WarmReadCancelled) return;
       setState(() {
-        _togetherInboxStatus = GroupFlowInboxSectionStatus.error;
+        if (error is WarmAccessDenied) {
+          _togetherInbox = const TogetherInboxSnapshot();
+          _hasTogetherSnapshot = false;
+        }
+        _togetherInboxStatus = _hasTogetherSnapshot
+            ? GroupFlowInboxSectionStatus.loaded
+            : GroupFlowInboxSectionStatus.error;
       });
+    } finally {
+      account.dispose();
     }
   }
 

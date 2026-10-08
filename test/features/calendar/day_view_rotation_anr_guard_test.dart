@@ -130,6 +130,7 @@ void main() {
         contains(
           'final routeShouldRemainRendered =\n'
           '        routeIsCurrent ||\n'
+          '        TickerMode.of(context) ||\n'
           '        CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;',
         ),
       );
@@ -139,7 +140,7 @@ void main() {
           'final shouldBuildLandscapeGrid = useGrid && routeShouldRemainRendered;',
         ),
         reason:
-            'Calendar-owned sheets keep the route painted behind them; unrelated covered routes still shrink below.',
+            'Transparent sheets keep the route painted; opaque covered routes still suppress hidden grid work.',
       );
       expect(gridBranch, contains('LandscapeMonthView('));
       expect(gridBranch, isNot(contains('if (useGrid) {')));

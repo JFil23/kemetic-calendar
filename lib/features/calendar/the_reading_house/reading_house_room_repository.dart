@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../../data/account_operation_fence.dart';
 import '../../../../data/warm_state/warm_json_reads.dart';
 import '../../../../data/warm_state/warm_snapshot_store.dart';
 import '../../../../data/warm_state/warm_mutation.dart';
@@ -213,8 +214,15 @@ abstract interface class CachedReadingHouseRoomDataSource {
   );
 }
 
+abstract interface class CachedReadingHouseSummariesDataSource {
+  List<ReadingHouseRoomSummary>? cachedSummaries();
+}
+
 class SupabaseReadingHouseRoomRepository
-    implements ReadingHouseRoomDataSource, CachedReadingHouseRoomDataSource {
+    implements
+        ReadingHouseRoomDataSource,
+        CachedReadingHouseRoomDataSource,
+        CachedReadingHouseSummariesDataSource {
   SupabaseReadingHouseRoomRepository(this._client);
 
   final SupabaseClient _client;
@@ -279,25 +287,55 @@ class SupabaseReadingHouseRoomRepository
     return currentUserId == uid ? cachedRoom(identity) : null;
   }
 
+  List<ReadingHouseRoomSummary> _decodeSummaries(List rows) => rows
+      .whereType<Map>()
+      .map(
+        (row) =>
+            ReadingHouseRoomSummary.fromJson(Map<String, dynamic>.from(row)),
+      )
+      .where((summary) => summary.identity.isValid)
+      .toList(growable: false);
+
   @override
-  Future<List<ReadingHouseRoomSummary>> listSummaries() async {
+  List<ReadingHouseRoomSummary>? cachedSummaries() {
+    final uid = currentUserId;
+    if (uid == null) return null;
+    final rows = WarmSnapshotStore.instance
+        .peek(uid, 'readingHouse.summaries')
+        ?.data;
+    if (rows is! List || rows.any((row) => row is! Map)) return null;
+    return _decodeSummaries(rows);
+  }
+
+  @override
+  Future<List<ReadingHouseRoomSummary>> listSummaries({
+    bool cachedOnly = false,
+  }) async {
     if (currentUserId == null) return const <ReadingHouseRoomSummary>[];
-    final rows = await WarmJsonReads(_client).rows(
-      'readingHouse.summaries',
-      () => _client
-          .from('reading_house_room_summaries')
-          .select()
-          .order('ended', ascending: true)
-          .order('latest_message_at', ascending: false, nullsFirst: false),
-    );
-    return (rows as List)
-        .whereType<Map>()
-        .map(
-          (row) =>
-              ReadingHouseRoomSummary.fromJson(row.cast<String, dynamic>()),
-        )
-        .where((summary) => summary.identity.isValid)
-        .toList(growable: false);
+    final account = AccountOperationFence(_client);
+    try {
+      final rows =
+          await WarmJsonReads(
+            _client,
+            cachedOnly: cachedOnly,
+            mayFetch: () => account.isCurrent,
+          ).rows(
+            'readingHouse.summaries',
+            () => _client
+                .from('reading_house_room_summaries')
+                .select()
+                .order('ended', ascending: true)
+                .order(
+                  'latest_message_at',
+                  ascending: false,
+                  nullsFirst: false,
+                ),
+          );
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      return _decodeSummaries(rows);
+    } finally {
+      account.dispose();
+    }
   }
 
   @override
@@ -490,11 +528,45 @@ class SupabaseReadingHouseRoomRepository
     Timer? debounce;
     bool refreshing = false;
     bool queued = false;
-    List<ReadingHouseRoomSummary> last = const <ReadingHouseRoomSummary>[];
+    final account = AccountOperationFence(_client);
+    bool closed = false;
+    bool liveReceived = false;
+    List<ReadingHouseRoomSummary>? last = cachedSummaries();
+    bool getActive() => !closed && !controller.isClosed && account.isCurrent;
+    if (last != null) controller.add(last);
+    final authChanges = _client.auth.onAuthStateChange.listen((state) {
+      if (!getActive() ||
+          state.event == AuthChangeEvent.signedOut ||
+          state.session?.user.id != userId) {
+        if (!closed && !controller.isClosed) controller.add(const []);
+      }
+    });
+    final cacheChanges = WarmSnapshotStore.instance.changes.listen((change) {
+      if (!getActive() ||
+          change.userId != userId ||
+          change.key != 'readingHouse.summaries') {
+        return;
+      }
+      final cached = cachedSummaries();
+      if (cached != null) {
+        last = cached;
+        controller.add(cached);
+      }
+    });
+    unawaited(() async {
+      try {
+        final local = await listSummaries(cachedOnly: true);
+        if (getActive() && !liveReceived) {
+          last = local;
+          controller.add(local);
+        }
+      } catch (_) {}
+    }());
     final roomChannels = <ReadingHouseRoomIdentity, RealtimeChannel>{};
     late final Future<void> Function() refresh;
 
     void scheduleRefresh() {
+      if (!getActive()) return;
       debounce?.cancel();
       debounce = Timer(
         const Duration(milliseconds: 120),
@@ -513,7 +585,7 @@ class SupabaseReadingHouseRoomRepository
         await roomChannels.remove(identity)?.unsubscribe();
       }
       for (final identity in desired) {
-        if (roomChannels.containsKey(identity) || controller.isClosed) {
+        if (roomChannels.containsKey(identity) || !getActive()) {
           continue;
         }
         final channel = _subscribeToRoomActivity(
@@ -534,21 +606,35 @@ class SupabaseReadingHouseRoomRepository
     }
 
     refresh = () async {
+      if (!getActive()) return;
       if (refreshing) {
         queued = true;
         return;
       }
       refreshing = true;
       try {
-        last = await listSummaries();
-        await reconcileRoomChannels(last);
-        if (!controller.isClosed) controller.add(last);
+        final summaries = await listSummaries();
+        if (!getActive()) return;
+        liveReceived = true;
+        last = summaries;
+        await reconcileRoomChannels(summaries);
+        if (getActive()) controller.add(summaries);
       } catch (error, stackTrace) {
         if (kDebugMode) {
           debugPrint('[ReadingHouseRooms] summary refresh failed: $error');
           debugPrintStack(stackTrace: stackTrace);
         }
-        if (!controller.isClosed) controller.add(last);
+        if (getActive()) {
+          if (error is WarmAccessDenied) {
+            liveReceived = true;
+            last = null;
+            controller.addError(error, stackTrace);
+          } else if (last != null) {
+            controller.add(last!);
+          } else if (error is! WarmReadCancelled) {
+            controller.addError(error, stackTrace);
+          }
+        }
       } finally {
         refreshing = false;
         if (queued) {
@@ -587,7 +673,11 @@ class SupabaseReadingHouseRoomRepository
 
     unawaited(refresh());
     controller.onCancel = () async {
+      closed = true;
       debounce?.cancel();
+      account.dispose();
+      await authChanges.cancel();
+      await cacheChanges.cancel();
       await membershipChannel.unsubscribe();
       await Future.wait<void>(
         roomChannels.values.map((channel) => channel.unsubscribe()),
