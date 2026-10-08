@@ -1354,7 +1354,12 @@ its editable descendants do not add a second native/custom inset. The reflection
 canvas retains field elements and focus while it temporarily tucks surrounding
 copy away during editing. Material fields keep the shared Flutter scroll-padding
 defaults. Done restores the prior review scroll position and explicit save/post
-actions. The approved type, colors, moments and public/private composition remain.
+actions. Below 120 logical pixels of remaining keyboard space, the shared sheet
+compacts its dismiss header and uses the available height; the reflection field
+reduces internal padding without adding a scroll or inset owner. Native Safari
+landscape checks include its compact toolbar. Expanded browser chrome can leave
+less room than a single input line and remains a browser constraint.
+The approved type, colors, moments and public/private composition remain.
 
 Owned-flow moments push the existing by-flow detail route; that route resolves
 account data and dispatches the canonical My Flows or authored Ma’at full detail.

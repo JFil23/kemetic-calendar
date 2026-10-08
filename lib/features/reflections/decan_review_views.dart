@@ -184,7 +184,14 @@ class DecanReviewTextField extends StatelessWidget
                 labelText: null,
                 counterText: '',
                 isDense: true,
-                contentPadding: const EdgeInsets.only(top: 4, bottom: 16),
+                contentPadding: EdgeInsets.only(
+                  top: 4,
+                  bottom:
+                      keyboardIsVisible(context) &&
+                          MediaQuery.sizeOf(context).height < 120
+                      ? 4
+                      : 16,
+                ),
                 hintText: 'A thought, a sentence, or just a word…',
                 hintStyle: DecanReviewStyle.serif(
                   24,
