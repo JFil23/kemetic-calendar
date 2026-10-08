@@ -185,11 +185,15 @@ class DecanReviewTextField extends StatelessWidget
                 counterText: '',
                 isDense: true,
                 contentPadding: EdgeInsets.only(
-                  top: 4,
+                  top:
+                      keyboardIsVisible(context) &&
+                          MediaQuery.sizeOf(context).height < 120
+                      ? 0
+                      : 4,
                   bottom:
                       keyboardIsVisible(context) &&
                           MediaQuery.sizeOf(context).height < 120
-                      ? 4
+                      ? 0
                       : 16,
                 ),
                 hintText: 'A thought, a sentence, or just a word…',
@@ -213,6 +217,11 @@ class DecanReviewTextField extends StatelessWidget
       if (keyboardIsVisible(context))
         IconButton(
           tooltip: 'Done writing',
+          visualDensity:
+              keyboardIsVisible(context) &&
+                  MediaQuery.sizeOf(context).height < 120
+              ? VisualDensity.compact
+              : null,
           onPressed: () => FocusManager.instance.primaryFocus?.unfocus(),
           icon: const Icon(Icons.check, color: DecanReviewStyle.gold),
         ),

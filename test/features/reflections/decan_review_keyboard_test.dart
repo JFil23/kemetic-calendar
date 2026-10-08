@@ -135,6 +135,7 @@ void main() {
               landscape ? 240.0 : 320.0,
               landscape ? 270.0 : 360.0,
               if (landscape) 310.0, // Safari chrome + native keyboard: 83px.
+              if (landscape) 328.0, // A smaller iOS visual viewport: 65px.
             ]) {
               inset.value = height;
               tester.view.viewInsets = FakeViewPadding(

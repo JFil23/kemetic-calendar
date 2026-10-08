@@ -108,6 +108,8 @@ class _DecanReviewCanvasState extends State<DecanReviewCanvas> {
               keyboardIsVisible(context) &&
               widget.children.any((child) => child is DecanReviewEditable);
           _retainReviewPosition(editing);
+          final tightEditing =
+              editing && MediaQuery.sizeOf(context).height < 120;
           return DecoratedBox(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -130,9 +132,17 @@ class _DecanReviewCanvasState extends State<DecanReviewCanvas> {
                             ScrollViewKeyboardDismissBehavior.onDrag,
                         padding: EdgeInsets.fromLTRB(
                           inset,
-                          editing ? 4 : 24,
+                          tightEditing
+                              ? 0
+                              : editing
+                              ? 4
+                              : 24,
                           inset,
-                          editing ? 4 : 30,
+                          tightEditing
+                              ? 0
+                              : editing
+                              ? 4
+                              : 30,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
