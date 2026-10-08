@@ -16,6 +16,7 @@ import 'package:mobile/data/warm_state/warm_snapshot_store.dart';
 import 'package:mobile/features/reflections/decan_review_context.dart';
 import 'package:mobile/features/reflections/decan_review_models.dart';
 import 'package:mobile/features/reflections/decan_review_screen.dart';
+import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:mobile/features/reflections/decan_review_widgets.dart';
 import 'package:mobile/features/journal/journal_document_view.dart';
 import 'package:mobile/features/profile/decan_insight_post.dart';
@@ -155,6 +156,20 @@ void main() {
           status = 503;
         } else if (table == 'decan_reflections')
           data = review;
+        else if (table == 'flows')
+          data = {
+            'id': 42,
+            'user_id': uid,
+            'name': 'An evening walk',
+            'color': 0xCDAA42,
+            'active': true,
+            'is_saved': false,
+            'is_hidden': false,
+            'start_date': date,
+            'end_date': date,
+            'notes': 'mode=gregorian;ov=A%20quiet%20walk',
+            'rules': [],
+          };
         else if (table == 'read_decan_activity_v1')
           data = {'items': [], 'next_cursor': null};
         else if (table == 'decan_journal_sources')
@@ -265,14 +280,18 @@ void main() {
               '/reflections/:reflectionId',
               '/journal/entry/:entryId',
               '/insight-post/:postId',
+              '/shared-flow/by-flow/:flowId',
             ].contains(r.path),
           )
           .toList();
-      expect(routes, hasLength(3));
+      expect(routes, hasLength(4));
       const capture = ValueKey('review-route-capture');
       final router = GoRouter(
-        initialLocation: '/reflections/review',
-        routes: routes,
+        initialLocation: '/',
+        routes: [
+          GoRoute(path: '/', builder: (_, __) => const SizedBox.expand()),
+          ...routes,
+        ],
       );
       addTearDown(router.dispose);
       addTearDown(app.dispose);
@@ -305,6 +324,7 @@ void main() {
         }
       }
 
+      unawaited(router.push('/reflections/review'));
       await settle(tester);
       expect(tester.takeException(), isNull);
       expect(find.byType(DecanReviewScreen), findsOneWidget);
@@ -312,11 +332,51 @@ void main() {
       expect(find.byType(DecanMomentTile), findsNWidgets(3));
       await screenshot('review');
       expect(requests.any((r) => r.url.path.contains('ai_generate')), isFalse);
+      expect(
+        find.byKey(utilitySheetRouteCloseButtonKey).hitTestable(),
+        findsOneWidget,
+      );
+      final reflectionState = tester.state(find.byType(DecanReviewScreen));
+      final flowMoment = find.widgetWithText(
+        DecanMomentTile,
+        'An evening walk',
+      );
+      await tester.ensureVisible(flowMoment);
+      await tester.tap(flowMoment);
+      await settle(tester);
+      expect(router.state.uri.path, '/shared-flow/by-flow/42');
+      expect(
+        find.byKey(const ValueKey('user-flow-detail-surface-42')),
+        findsOneWidget,
+      );
+      expect(find.text('Edit Flow'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('user-flow-detail-scroll-42')),
+        findsOneWidget,
+      );
+      await screenshot('canonical-flow');
+      await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey).last);
+      await settle(tester);
+      expect(router.state.uri.path, '/reflections/review');
+      expect(
+        tester.state(find.byType(DecanReviewScreen)),
+        same(reflectionState),
+      );
+
       expect(find.text('Read your saved reflection  →'), findsOneWidget);
       await tester.tap(find.text('Edit your words'));
       await settle(tester);
       await tester.enterText(
         find.byType(TextField).first,
+        'A new sentence of my own.',
+      );
+      await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+      await settle(tester);
+      expect(router.state.uri.path, '/');
+      unawaited(router.push('/reflections/review'));
+      await settle(tester);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
         'A new sentence of my own.',
       );
       await tester.ensureVisible(find.text('Keep in Journal'));

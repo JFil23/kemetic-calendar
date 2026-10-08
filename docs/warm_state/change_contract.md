@@ -1343,3 +1343,27 @@ conversion retains the same pending mutation for retry. Older cache envelopes
 remain readable and are converted only after acknowledged save. The complete App
 and backend gates, unchanged approved visuals, live seeded older-row replay and
 served artifact verification are required before reporting this fix released.
+
+
+## October 8 reflection interaction repair
+
+The existing reflection identity now uses UtilitySheetRouteScaffold, retaining
+its launching route and the account draft when dismissed by Close, backdrop,
+or drag. The shared sheet consumes remaining keyboard occlusion exactly once;
+its editable descendants do not add a second native/custom inset. The reflection
+canvas retains field elements and focus while it temporarily tucks surrounding
+copy away during editing. Done restores the normal review and explicit save/post
+actions. The approved type, colors, moments and public/private composition remain.
+
+Owned-flow moments push the existing by-flow detail route; that route resolves
+account data and dispatches the canonical My Flows or authored Ma’at full detail.
+Ma’at suggestions use the existing template route, and books retain the existing
+Library route. A pending source navigation cannot open duplicate destinations.
+No detail renderer or persistence owner is added. Reflection writes reuse the
+existing auth retry with an account fence and the exact durable mutation request.
+
+Regression evidence includes complete canonical flow entry parity, reflection to
+flow and back, sheet close/reopen with an unsaved draft, the manual badge and old
+period upgrade, and full focused-field bounds in portrait/landscape for native,
+web layout-sized, web visual-sized and custom keyboards. Existing warm namespace,
+resource schemas, old-release fixtures and inventory minimums are preserved.

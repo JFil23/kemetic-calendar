@@ -1992,23 +1992,28 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         child: const DecanReflectionArchivePage(),
       ),
     ),
-    _calmRoute(
+    _utilitySheetRoute(
       path: '/reflections/:reflectionId',
       builder: (context, state) {
         final reflectionId = Uri.decodeComponent(
           state.pathParameters['reflectionId']!,
         );
-        return SessionTrackedRoute(
-          location: state.uri.toString(),
-          child: DecanReflectionDetailPage(
-            // Creation replaces /new with its saved identity on this same route.
-            // Mount that identity's reader instead of retaining creation state.
-            key: ValueKey('decan-reflection:$reflectionId'),
-            compose: state.uri.queryParameters['compose'] == '1',
-            reflectionId: reflectionId,
-            initialWindow: reflectionId == 'new'
-                ? DecanReviewWindow.fromQuery(state.uri.queryParameters)
-                : null,
+        return UtilitySheetRouteScaffold(
+          semanticLabel: 'reflection',
+          maxWidth: 640,
+          onClose: () => closeOrReturn(context, '/'),
+          child: SessionTrackedRoute(
+            location: state.uri.toString(),
+            child: DecanReflectionDetailPage(
+              // Creation replaces /new with its saved identity on this same route.
+              // Mount that identity's reader instead of retaining creation state.
+              key: ValueKey('decan-reflection:$reflectionId'),
+              compose: state.uri.queryParameters['compose'] == '1',
+              reflectionId: reflectionId,
+              initialWindow: reflectionId == 'new'
+                  ? DecanReviewWindow.fromQuery(state.uri.queryParameters)
+                  : null,
+            ),
           ),
         );
       },

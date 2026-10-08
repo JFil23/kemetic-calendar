@@ -5,8 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
 import '../../data/account_operation_fence.dart';
 import '../../data/decan_reflection_model.dart';
-import '../../data/flows_repo.dart';
-import '../calendar/calendar_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import 'decan_review_controller.dart';
 import 'decan_review_models.dart';
@@ -42,6 +40,7 @@ class _DecanReviewScreenState extends State<DecanReviewScreen> {
       own = TextEditingController(),
       post = TextEditingController();
   bool _redirected = false;
+  bool _openingSource = false;
   @override
   void initState() {
     super.initState();
@@ -100,9 +99,13 @@ class _DecanReviewScreenState extends State<DecanReviewScreen> {
     context,
   )?.showSnackBar(SnackBar(content: Text(text)));
   Future<void> _openMoment(DecanMoment moment) async {
+    if (_openingSource) return;
+    _openingSource = true;
+    FocusManager.instance.primaryFocus?.unfocus();
     final client = Supabase.instance.client;
     final fence = AccountOperationFence(client);
     try {
+      if (!fence.isCurrent || fence.userId == null) return;
       if (moment.libraryId != null) {
         final reading = KemeticNodeLibrary.resolve(moment.libraryId!);
         if (reading == null)
@@ -117,21 +120,21 @@ class _DecanReviewScreenState extends State<DecanReviewScreen> {
           '/journal/entry/${moment.journalEntryId}',
         );
       } else if (moment.flowId != null) {
-        final row = await FlowsRepo(client).getFlowById(moment.flowId!);
-        if (!mounted || !fence.isCurrent) return;
-        if (row == null || row.userId != fence.userId)
-          throw StateError('This flow is no longer available.');
-        await CalendarPage.openFlowStudioFromAnyContext(
+        await openDetailRoute(
           context,
-          restorationState: {'mode': 'myFlows', 'initialFlowId': row.id},
+          '/shared-flow/by-flow/${moment.flowId}',
+          extra: {'fallbackLocation': '/reflections/${c.reflection!.id}'},
         );
       } else if (moment.flowKey != null) {
-        await CalendarPage.openFlowStudioFromAnyContext(
+        await openDetailRoute(
           context,
-          restorationState: {
-            'mode': 'maatTemplate',
-            'templateKey': moment.flowKey,
-          },
+          Uri(
+            path: '/flows',
+            queryParameters: {
+              'mode': 'maatTemplate',
+              'templateKey': moment.flowKey!,
+            },
+          ).toString(),
         );
       }
     } catch (_) {
@@ -140,6 +143,7 @@ class _DecanReviewScreenState extends State<DecanReviewScreen> {
           'This source could not be opened. Your selected moment is kept.',
         );
     } finally {
+      _openingSource = false;
       fence.dispose();
     }
   }

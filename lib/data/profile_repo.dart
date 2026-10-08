@@ -1140,7 +1140,12 @@ class ProfileRepo {
     }
     try {
       final result = Map<String, dynamic>.from(
-        await _client.rpc('apply_decan_post_v1', params: request) as Map,
+        await withSupabaseAuthRetry(_client, () {
+              if (!fence.isCurrent)
+                throw StateError('Account changed before publication');
+              return _client.rpc('apply_decan_post_v1', params: request);
+            })
+            as Map,
       );
       if (!fence.isCurrent)
         throw StateError('Account changed during publication');

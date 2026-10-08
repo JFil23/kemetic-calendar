@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'decan_review_models.dart';
+import '../../widgets/keyboard_aware.dart';
 import 'decan_review_widgets.dart';
 
 class DecanReviewOpening extends StatelessWidget {
@@ -87,6 +88,7 @@ class DecanReviewOpening extends StatelessWidget {
         DecanReviewTextField(
           controller: answerController!,
           label: 'Your words',
+          autofocus: true,
           onChanged: onAnswerChanged,
         ),
         if (notice != null) DecanReviewNotice(notice!),
@@ -130,7 +132,8 @@ class DecanReviewOpening extends StatelessWidget {
   );
 }
 
-class DecanReviewTextField extends StatelessWidget {
+class DecanReviewTextField extends StatelessWidget
+    implements DecanReviewEditable {
   const DecanReviewTextField({
     super.key,
     required this.controller,
@@ -145,42 +148,68 @@ class DecanReviewTextField extends StatelessWidget {
   final int minLines;
   final bool autofocus;
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
     children: [
-      Text(label, style: DecanReviewStyle.ui(11)),
-      const SizedBox(height: 10),
-      TextField(
-        controller: controller,
-        onChanged: onChanged,
-        autofocus: autofocus,
-        minLines: minLines,
-        maxLines: null,
-        maxLength: 12000,
-        keyboardType: TextInputType.multiline,
-        textCapitalization: TextCapitalization.sentences,
-        style: DecanReviewStyle.serif(24, height: 1.38),
-        cursorColor: DecanReviewStyle.gold,
-        decoration: InputDecoration(
-          labelText: null,
-          counterText: '',
-          isDense: true,
-          contentPadding: const EdgeInsets.only(top: 4, bottom: 16),
-          hintText: 'A thought, a sentence, or just a word…',
-          hintStyle: DecanReviewStyle.serif(
-            24,
-            italic: true,
-            color: DecanReviewStyle.quiet,
-            height: 1.38,
-          ),
-          enabledBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: DecanReviewStyle.strongLine),
-          ),
-          focusedBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: DecanReviewStyle.gold),
-          ),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!keyboardIsVisible(context) ||
+                MediaQuery.sizeOf(context).height >= 300) ...[
+              Text(label, style: DecanReviewStyle.ui(11)),
+              const SizedBox(height: 10),
+            ],
+            TextField(
+              key: ValueKey('decan-field:$label'),
+              controller: controller,
+              onChanged: onChanged,
+              autofocus: autofocus,
+              minLines:
+                  keyboardIsVisible(context) &&
+                      MediaQuery.sizeOf(context).height < 300
+                  ? 1
+                  : minLines,
+              maxLines:
+                  keyboardIsVisible(context) &&
+                      MediaQuery.sizeOf(context).height < 300
+                  ? 1
+                  : 5,
+              scrollPadding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
+              maxLength: 12000,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              style: DecanReviewStyle.serif(24, height: 1.38),
+              cursorColor: DecanReviewStyle.gold,
+              decoration: InputDecoration(
+                labelText: null,
+                counterText: '',
+                isDense: true,
+                contentPadding: const EdgeInsets.only(top: 4, bottom: 16),
+                hintText: 'A thought, a sentence, or just a word…',
+                hintStyle: DecanReviewStyle.serif(
+                  24,
+                  italic: true,
+                  color: DecanReviewStyle.quiet,
+                  height: 1.38,
+                ),
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: DecanReviewStyle.strongLine),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: DecanReviewStyle.gold),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
+      if (keyboardIsVisible(context))
+        IconButton(
+          tooltip: 'Done writing',
+          onPressed: () => FocusManager.instance.primaryFocus?.unfocus(),
+          icon: const Icon(Icons.check, color: DecanReviewStyle.gold),
+        ),
     ],
   );
 }

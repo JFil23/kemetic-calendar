@@ -135,7 +135,11 @@ extension DecanReviewRepository on DecanReflectionRepo {
           ]
         : ['reflection.'];
     try {
-      final raw = await _client.rpc(rpc, params: request);
+      final raw = await withSupabaseAuthRetry(_client, () {
+        if (!fence.isCurrent)
+          throw StateError('Account changed before reflection save');
+        return _client.rpc(rpc, params: request);
+      });
       if (!fence.isCurrent)
         throw StateError('Account changed during reflection save');
       final result = Map<String, dynamic>.from(raw as Map);

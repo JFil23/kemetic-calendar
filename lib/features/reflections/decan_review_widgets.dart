@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:ui' as ui;
 
 import '../../core/theme/app_fonts.dart';
+import '../../widgets/keyboard_aware.dart';
 import 'decan_reflection_skin.dart';
 import 'decan_review_models.dart';
 
@@ -48,6 +49,10 @@ abstract final class DecanReviewStyle {
   );
 }
 
+/// Editable children retain their element/focus while surrounding review copy
+/// is tucked away for the keyboard, as in the canonical Day View composer.
+abstract interface class DecanReviewEditable {}
+
 class DecanReviewCanvas extends StatelessWidget {
   const DecanReviewCanvas({
     super.key,
@@ -60,78 +65,99 @@ class DecanReviewCanvas extends StatelessWidget {
   final ScrollController? scrollController;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final inset = constraints.maxWidth < 330 ? 22.0 : 30.0;
-      return DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [DecanReviewStyle.base, DecanReviewStyle.baseBottom],
-          ),
-        ),
-        child: CustomPaint(
-          painter: const _DecanCrownPainter(),
-          child: SafeArea(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: EdgeInsets.fromLTRB(
-                    inset,
-                    24,
-                    inset,
-                    30 + MediaQuery.viewInsetsOf(context).bottom,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Hꜣw',
-                            style: DecanReviewStyle.serif(
-                              25,
-                              color: DecanReviewStyle.gold,
-                              height: 1.2,
-                            ),
-                          ),
-                          if (privacy.isNotEmpty)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (privacy == 'Only you') ...[
-                                  const Icon(
-                                    Icons.lock_outline,
-                                    size: 11,
-                                    color: DecanReviewStyle.muted,
+  Widget build(BuildContext context) => KeyboardInsetBoundary(
+    child: KeyboardAwareEditableSurface(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final inset = constraints.maxWidth < 330 ? 22.0 : 30.0;
+          final editing =
+              keyboardIsVisible(context) &&
+              children.any((child) => child is DecanReviewEditable);
+          return DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [DecanReviewStyle.base, DecanReviewStyle.baseBottom],
+              ),
+            ),
+            child: ClipRect(
+              child: CustomPaint(
+                painter: const _DecanCrownPainter(),
+                child: SafeArea(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: EdgeInsets.fromLTRB(
+                          inset,
+                          editing ? 4 : 24,
+                          inset,
+                          editing ? 4 : 30,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Offstage(
+                              offstage: editing,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Hꜣw',
+                                    style: DecanReviewStyle.serif(
+                                      25,
+                                      color: DecanReviewStyle.gold,
+                                      height: 1.2,
+                                    ),
                                   ),
-                                  const SizedBox(width: 7),
+                                  if (privacy.isNotEmpty)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (privacy == 'Only you') ...[
+                                          const Icon(
+                                            Icons.lock_outline,
+                                            size: 11,
+                                            color: DecanReviewStyle.muted,
+                                          ),
+                                          const SizedBox(width: 7),
+                                        ],
+                                        Text(
+                                          privacy,
+                                          style: DecanReviewStyle.ui(
+                                            11,
+                                            spacing: .22,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                 ],
-                                Text(
-                                  privacy,
-                                  style: DecanReviewStyle.ui(11, spacing: .22),
-                                ),
-                              ],
+                              ),
                             ),
-                        ],
+                            for (final child in children)
+                              Offstage(
+                                offstage:
+                                    editing && child is! DecanReviewEditable,
+                                child: child,
+                              ),
+                          ],
+                        ),
                       ),
-                      ...children,
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ),
-      );
-    },
+          );
+        },
+      ),
+    ),
   );
 }
 

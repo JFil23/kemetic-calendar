@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/reflections/decan_review_models.dart';
 import 'package:mobile/features/reflections/decan_review_views.dart';
 import 'package:mobile/features/reflections/decan_review_widgets.dart';
+import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 
 void main() {
   final start = DateTime(2026, 10, 1);
@@ -97,7 +98,15 @@ void main() {
               child: Scaffold(
                 resizeToAvoidBottomInset: false,
                 backgroundColor: DecanReviewStyle.base,
-                body: RepaintBoundary(key: key, child: child),
+                body: RepaintBoundary(
+                  key: key,
+                  child: UtilitySheetRouteScaffold(
+                    semanticLabel: 'Reflection',
+                    onClose: noop,
+                    maxWidth: 640,
+                    child: child,
+                  ),
+                ),
               ),
             ),
           ),

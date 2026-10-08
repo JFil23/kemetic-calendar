@@ -90,6 +90,86 @@ void main() {
     await WarmSnapshotStore.instance.forgetAccount(uid);
   });
 
+  for (final publishing in [false, true]) {
+    for (final accountChanges in [false, true]) {
+      test(
+        'expired auth retries the same reflection intent: post=$publishing, account change=$accountChanges',
+        () async {
+          final attempts = <Map<String, dynamic>>[];
+          final post = {
+            'id': 'post-one',
+            'user_id': uid,
+            'source_kind': 'decan',
+            'source_reflection_id': 'review-one',
+            'body_text': 'My words',
+            'entry_date': '2026-10-07',
+            'revision': 1,
+          };
+          final rpc = publishing
+              ? 'apply_decan_post_v1'
+              : 'apply_decan_journal_v1';
+          handler = (r) async {
+            if (r.url.path.endsWith('token'))
+              return json(
+                jsonDecode(
+                  accountChanges
+                      ? session().replaceAll(
+                          uid,
+                          '11111111-1111-4111-8111-111111111111',
+                        )
+                      : session(),
+                ),
+              );
+            if (r.url.path.endsWith(rpc)) {
+              attempts.add(body(r));
+              if (attempts.length == 1)
+                return json({
+                  'code': 'PGRST303',
+                  'message': 'JWT expired',
+                }, 401);
+              return json({
+                'status': 'applied',
+                'revision': 1,
+                'row': publishing ? post : entry('My words', 1),
+              });
+            }
+            if (r.url.path.endsWith('read_journal_state_v1'))
+              return json({'revision': 1, 'row': entry('My words', 1)});
+            if (r.url.path.endsWith('insight_posts')) return json(post);
+            return json([]);
+          };
+          final request = {
+            'p_account': uid,
+            'p_mutation': 'same-intent',
+            'p_reflection': 'review-one',
+            'p_date': '2026-10-07',
+            if (publishing) 'p_post': 'post-one',
+          };
+          final result = publishing
+              ? ProfileRepo(client).saveDecanPostRequest(request)
+              : DecanReflectionRepo(client).saveReviewAnswerRequest(request);
+          if (accountChanges) {
+            await expectLater(result, throwsStateError);
+            expect(
+              attempts,
+              hasLength(1),
+              reason: 'Refresh cannot replay into a different account.',
+            );
+          } else {
+            await result;
+            expect(attempts, hasLength(2));
+            expect(
+              attempts[1],
+              attempts[0],
+              reason:
+                  'Auth recovery preserves the acknowledged mutation identity.',
+            );
+          }
+        },
+      );
+    }
+  }
+
   test(
     'a rejected removal requires a fresh deliberate request at the current revision',
     () async {

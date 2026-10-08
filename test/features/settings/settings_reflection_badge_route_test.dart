@@ -17,6 +17,8 @@ import 'package:mobile/main.dart' show createAppRouterForTesting;
 import 'package:mobile/features/calendar/decan_reflection_badge.dart';
 import 'package:mobile/features/calendar/decan_reflection_window.dart';
 import 'package:mobile/features/reflections/decan_review_controller.dart';
+import 'package:mobile/features/reflections/decan_reflection_detail_page.dart';
+import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:mobile/features/reflections/decan_review_context.dart';
 import 'package:mobile/data/decan_reflection_prompt_state.dart';
 import 'package:mobile/data/warm_state/warm_snapshot_store.dart';
@@ -182,12 +184,21 @@ void main() {
         await tester.tap(find.byKey(decanReflectionLowerThirdBadgeKey));
         await settle();
         expect(router.state.uri.path, '/reflections/saved-review');
-        expect(find.text('These ten days'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(DecanReflectionDetailPage),
+            matching: find.text('These ten days'),
+          ),
+          findsOneWidget,
+        );
         expect(
           find.text('What would you like to carry forward?'),
           findsOneWidget,
         );
       }
+      await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+      await settle();
+      expect(router.state.uri.path, '/');
       expect(
         requests.where((r) => r.url.path.endsWith('apply_decan_review_v1')),
         isEmpty,
@@ -208,12 +219,24 @@ void main() {
       failUpgrade = true;
       for (var i = 0; i < 2; i++) {
         await requestBadge();
-        expect(find.text('These ten days'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byKey(decanReflectionLowerThirdBadgeKey),
+            matching: find.text('These ten days'),
+          ),
+          findsOneWidget,
+        );
         expect(find.textContaining('body support'), findsNothing);
         await tester.tap(find.byKey(decanReflectionLowerThirdBadgeKey));
         await settle();
         expect(router.state.uri.path, '/reflections/saved-review');
-        expect(find.text('These ten days'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(DecanReflectionDetailPage),
+            matching: find.text('These ten days'),
+          ),
+          findsOneWidget,
+        );
         if (i == 0) {
           expect(review['review_context'], isNull);
           expect(find.text('Try again'), findsOneWidget);
