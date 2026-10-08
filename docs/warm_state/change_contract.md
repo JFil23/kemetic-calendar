@@ -1384,6 +1384,22 @@ network/denial errors distinct. Cache-only reads do not fetch; route closure and
 A-B-A account departure cannot restart or publish old work. Real-route tests
 reproduce a departed warm owner and verify recovery plus both departure fences.
 
+## October 8 authored daily reflection replacement
+
+Rekh-Nedjes has one authored source in `kemetic_day_data_rekhnedjes.dart`.
+Calendar, Journal, Commons, Pages, guidance payloads, and generated widget data
+resolve the same absolute month-day flow row through `KemeticDayData`. Current
+Commons question copy comes from that calendar source even when an existing
+snapshot has older editorial text for the same identity. Answers, answer paging,
+and acknowledged writes retain their existing account repository ownership.
+The iOS widget likewise prefers its bundled authored question over a stored
+snapshot's copy. Web widgets retain their existing network-first day table.
+
+No cache key, resource schema, account write, old-release fixture, or inventory
+threshold changes. The 30 approved card fingerprints, all 30 solar dates,
+stale-snapshot answer preservation, real Journal/Commons views, generated
+widget parity, and all three guidance decans are covered by app tests.
+
 
 ## October 8 — confine the reflection presentation to its approved scope
 

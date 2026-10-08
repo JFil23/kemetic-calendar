@@ -28,6 +28,17 @@ class KemeticDayData {
 
   static KemeticDayInfo? getInfoForDay(String dayKey) => _getInfoForDay(dayKey);
 
+  /// Flow rows use the absolute month day (1–30), including later decans.
+  static DecanDayInfo? getFlowForDay(String dayKey) {
+    final day = _parseDayKey(dayKey)?.day;
+    final info = getInfoForDay(dayKey);
+    if (day == null || info == null) return null;
+    for (final row in info.decanFlow) {
+      if (row.day == day) return row;
+    }
+    return null;
+  }
+
   static String calculateGregorianDate(String dayKey, {int? kYearParam}) =>
       _calculateGregorianDate(dayKey, kYearParam: kYearParam);
 }

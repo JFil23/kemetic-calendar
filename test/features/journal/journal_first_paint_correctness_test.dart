@@ -57,6 +57,29 @@ void main() {
       );
     },
   );
+  testWidgets('empty loaded Journal presents the current authored reflection', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final repo = _DelayedJournalRepo();
+    final controller = JournalController.withRepo(
+      repo,
+      currentUserId: () => 'user-a',
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(home: app.JournalRoutePage(controllerForTesting: controller)),
+    );
+    await tester.pump();
+    await repo.requested.future;
+    repo.completeWith(null);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(dailyReflectionQuestionForDate(DateTime.now())!.question),
+      findsOneWidget,
+    );
+    expect(controller.currentDraft.trim(), isEmpty);
+  });
 }
 
 JournalEntry _entry(String body) {

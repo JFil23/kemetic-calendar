@@ -9,16 +9,21 @@ class DecanReflectionScheduler {
   static const Duration _refreshThrottle = Duration(hours: 6);
 
   final SupabaseClient _client;
+  final DateTime Function() _now;
   final VoidCallback? onMaatGuidanceEnsured;
   DateTime? _lastSuccessfulEnsureAt;
   Future<void>? _ensureInFlight;
   String? _ensureAccountId;
   int _ensureGeneration = 0;
 
-  DecanReflectionScheduler(this._client, {this.onMaatGuidanceEnsured});
+  DecanReflectionScheduler(
+    this._client, {
+    this.onMaatGuidanceEnsured,
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
 
   String _detectTimeZone() {
-    final zoneName = DateTime.now().timeZoneName.toUpperCase();
+    final zoneName = _now().timeZoneName.toUpperCase();
     const zoneNameMap = {
       'HST': 'Pacific/Honolulu',
       'AKST': 'America/Anchorage',
@@ -49,7 +54,7 @@ class DecanReflectionScheduler {
     if (zoneName.contains('CENTRAL')) return 'America/Chicago';
     if (zoneName.contains('EASTERN')) return 'America/New_York';
 
-    final offsetHours = DateTime.now().timeZoneOffset.inHours;
+    final offsetHours = _now().timeZoneOffset.inHours;
     const timezoneMap = {
       -10: 'Pacific/Honolulu',
       -9: 'America/Anchorage',
@@ -74,16 +79,7 @@ class DecanReflectionScheduler {
     final info = KemeticDayData.getInfoForDay(dayKey);
     if (info == null) return null;
 
-    final dayInDecan = kemetic.kMonth == 13
-        ? kemetic.kDay
-        : ((kemetic.kDay - 1) % 10) + 1;
-    DecanDayInfo? decanDay;
-    for (final row in info.decanFlow) {
-      if (row.day == dayInDecan) {
-        decanDay = row;
-        break;
-      }
-    }
+    final decanDay = KemeticDayData.getFlowForDay(dayKey);
 
     final local = DateTime(date.year, date.month, date.day);
     final yyyy = local.year.toString().padLeft(4, '0');
@@ -119,10 +115,7 @@ class DecanReflectionScheduler {
     try {
       final response = await _client.functions.invoke(
         'ensure_user_guidance',
-        body: {
-          'timezone': timezone,
-          'day_card': _dayCardPayloadFor(DateTime.now()),
-        },
+        body: {'timezone': timezone, 'day_card': _dayCardPayloadFor(_now())},
       );
       _throwIfFunctionFailed('ensure_user_guidance', response);
       return true;
@@ -151,7 +144,7 @@ class DecanReflectionScheduler {
     final lastSuccessfulEnsureAt = _lastSuccessfulEnsureAt;
     if (!force &&
         lastSuccessfulEnsureAt != null &&
-        DateTime.now().difference(lastSuccessfulEnsureAt) < _refreshThrottle) {
+        _now().difference(lastSuccessfulEnsureAt) < _refreshThrottle) {
       return Future.value();
     }
 
@@ -170,7 +163,7 @@ class DecanReflectionScheduler {
     String accountId,
     int generation,
   ) async {
-    final now = DateTime.now();
+    final now = _now();
     final guidanceEnsured = await _ensureUserGuidance();
     if (_client.auth.currentUser?.id != accountId ||
         _ensureAccountId != accountId ||

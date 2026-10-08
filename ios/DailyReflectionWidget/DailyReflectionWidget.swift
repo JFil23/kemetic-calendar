@@ -419,7 +419,9 @@ struct ReflectionWidgetDataSource {
         let backdropBlend = widgetBackdropBlend(for: now)
         return DailyReflectionPayload(
             validForLocalDate: snapshot.validForLocalDate,
-            reflection: snapshot.reflection,
+            // The bundle owns authored questions; stored snapshots retain identity
+            // and navigation without restoring superseded editorial copy.
+            reflection: loadQuestion(dayKey: snapshot.kemeticDate.dayKey) ?? snapshot.reflection,
             kemeticDisplay: displayWithoutKemeticYear(snapshot.kemeticDate.display),
             dayKey: snapshot.kemeticDate.dayKey,
             kYear: snapshot.kemeticDate.kYear,

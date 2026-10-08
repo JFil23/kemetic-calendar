@@ -48,25 +48,10 @@ Map<String, Object?> _buildReflectionDays() {
     ..sort((a, b) => a.key.compareTo(b.key));
 
   for (final entry in entries) {
-    final day = _dayFromKey(entry.key);
-    if (day == null) continue;
-    final row = _flowRowForDay(entry.value.decanFlow, day);
+    final row = KemeticDayData.getFlowForDay(entry.key);
     if (row == null) continue;
     days[entry.key] = <String, Object?>{'question': row.reflection};
   }
 
   return days;
-}
-
-int? _dayFromKey(String dayKey) {
-  final parts = dayKey.split('_');
-  if (parts.length < 3) return null;
-  return int.tryParse(parts[1]);
-}
-
-DecanDayInfo? _flowRowForDay(List<DecanDayInfo> flowRows, int day) {
-  for (final row in flowRows) {
-    if (row.day == day) return row;
-  }
-  return null;
 }
