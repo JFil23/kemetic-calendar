@@ -1245,7 +1245,8 @@ message refreshes coalesce, transient errors retain confirmed content, and acces
 denial clears it. No cache keys, schemas, durable message owner, migration, or
 old-release fixtures change. Conversation Back never awaits read acknowledgement;
 the visible conversation remains the read-receipt owner. Direct Back suppresses
-restoration synchronously and clears its existing resume metadata asynchronously.
+restoration synchronously and retains acknowledged local resume cleanup before
+popping, preventing stale conversation restoration. It performs no network wait.
 
 Delete/Unsend temporarily hide only the mounted row after the existing user
 confirmation. Failure restores the row; existing repositories still update or

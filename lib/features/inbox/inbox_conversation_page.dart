@@ -247,7 +247,8 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
       reason: 'dm_conversation_back',
       surfaces: const <String>[_resumeKind],
     );
-    unawaited(SessionResumeService.clearResumeEntry(kind: _resumeKind));
+    await SessionResumeService.clearResumeEntry(kind: _resumeKind);
+    if (!mounted) return;
     popOrGo(context, '/inbox');
   }
 
