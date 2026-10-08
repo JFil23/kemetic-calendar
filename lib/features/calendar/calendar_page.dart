@@ -70,7 +70,6 @@ import '../ai_generation/itinerary_prompt_parser.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_flow_generation_service.dart';
 import '../../data/decan_reflection_repo.dart';
-import '../../data/decan_reflection_model.dart';
 import '../../data/decan_reflection_prompt_state.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../widgets/insight_link_text.dart';
@@ -95,9 +94,6 @@ import 'package:mobile/core/calendar_pending_intents.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/global_menu_routes.dart';
 import 'package:mobile/core/navigation_persistence_policy.dart';
-import 'package:mobile/core/composition/composition_engine.dart';
-import 'package:mobile/core/composition/composition_models.dart';
-import 'package:mobile/core/composition/composition_usage_store.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:flutter/gestures.dart';
 import 'package:mobile/core/completion_status.dart';
@@ -224,7 +220,6 @@ import '../rhythm/event_todo_builder.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
 import 'calendar_recurring_scope.dart';
 import 'day_sheet_scope.dart';
-import 'decan_reflection_composition/decan_reflection_composer.dart';
 import 'staged_flow_lifecycle.dart';
 
 part 'calendar_flow_models.dart';
@@ -10243,8 +10238,6 @@ class CalendarPageState extends State<CalendarPage>
       DecanReflectionPromptState(Supabase.instance.client);
   late final CalendarOccurrenceExclusionsRepo _occurrenceExclusionsRepo =
       CalendarOccurrenceExclusionsRepo(Supabase.instance.client);
-  final CompositionUsageStore _compositionUsageStore =
-      const SharedPreferencesCompositionUsageStore();
   // Reminders (Flutter-only layer)
   late final ReminderService _reminderService = ReminderService();
   StreamSubscription<List<Reminder>>? _reminderSub; // unused now (safety)
@@ -10280,7 +10273,6 @@ class CalendarPageState extends State<CalendarPage>
   CalendarDecanReflectionPrompt? _reflectionPrompt;
   Future<void>? _reflectionPromptLoad;
   String? _requestedReflectionOwner;
-  bool _archivingReflection = false;
   DateTime? _lastReflectionCheckDay;
 
   /* ───── ClientEventId utilities ───── */
@@ -33894,171 +33886,31 @@ class CalendarPageState extends State<CalendarPage>
       child: DecanReflectionLowerThirdBadge(
         prompt: prompt,
         maxWidth: maxWidth,
-        onTap: _showReflectionSheet,
+        onTap: _openDecanReflection,
       ),
     );
   }
 
-  void _showReflectionSheet() {
+  void _openDecanReflection() {
     final prompt = _reflectionPrompt;
     if (prompt == null) return;
     _requestedReflectionOwner = null;
     final reviewWindow = prompt.reviewWindow;
-    if (reviewWindow != null) {
-      final location = prompt.id != null
-          ? '/reflections/${prompt.id}'
-          : Uri(
-              path: '/reflections/new',
-              queryParameters: {
-                'start': DecanReviewWindow.date(reviewWindow.start),
-                'end': DecanReviewWindow.date(reviewWindow.end),
-                'name': reviewWindow.name,
-              },
-            ).toString();
-      unawaited(
-        openDetailRoute(context, location).then((_) {
-          if (mounted) unawaited(_maybeLoadDecanReflectionPrompt(force: true));
-        }),
-      );
-      return;
-    }
-    final dateRange =
-        '${_formatDateOnlyLocal(prompt.decanStart)} → ${_formatDateOnlyLocal(prompt.decanEnd)}';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (sheetCtx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: SizedBox(
-              height: MediaQuery.of(sheetCtx).size.height * 0.65,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 48,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white12,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    prompt.decanName,
-                    style: const TextStyle(
-                      color: _gold,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    dateRange,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12.5,
-                    ),
-                  ),
-                  if (prompt.isCompositionalV1 &&
-                      prompt.compositionalInteractionCount > 0) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      '${prompt.compositionalInteractionCount} Ma’at interaction${prompt.compositionalInteractionCount == 1 ? '' : 's'} reflected',
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ] else if (prompt.badgeCount > 0) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      '${prompt.badgeCount} badge${prompt.badgeCount == 1 ? '' : 's'} captured',
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Text(
-                        prompt.detailText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14.5,
-                          height: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: _archivingReflection
-                            ? null
-                            : () => _archiveReflectionPrompt(sheetCtx),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _gold,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                        icon: _archivingReflection
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.black,
-                                ),
-                              )
-                            : const Icon(Icons.archive_outlined, size: 18),
-                        label: const Text('Archive to profile'),
-                      ),
-                      const SizedBox(width: 12),
-                      TextButton(
-                        onPressed: () => Navigator.of(sheetCtx).pop(),
-                        child: const Text(
-                          'Close',
-                          style: TextStyle(color: _gold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    ).whenComplete(() {
-      if (!mounted) return;
-      final current = _reflectionPrompt;
-      if (current == null) return;
-      if (!DateUtils.isSameDay(current.decanStart, prompt.decanStart)) return;
-      unawaited(_dismissReflectionPrompt());
-    });
-  }
-
-  String _formatDateOnlyLocal(DateTime date) {
-    final d = date.toLocal();
-    final yyyy = d.year.toString().padLeft(4, '0');
-    final mm = d.month.toString().padLeft(2, '0');
-    final dd = d.day.toString().padLeft(2, '0');
-    return '$yyyy-$mm-$dd';
+    final location = prompt.id != null
+        ? '/reflections/${prompt.id}'
+        : Uri(
+            path: '/reflections/new',
+            queryParameters: {
+              'start': DecanReviewWindow.date(reviewWindow.start),
+              'end': DecanReviewWindow.date(reviewWindow.end),
+              'name': reviewWindow.name,
+            },
+          ).toString();
+    unawaited(
+      openDetailRoute(context, location).then((_) {
+        if (mounted) unawaited(_maybeLoadDecanReflectionPrompt(force: true));
+      }),
+    );
   }
 
   Future<void> _dismissReflectionPrompt() async {
@@ -34093,33 +33945,11 @@ class CalendarPageState extends State<CalendarPage>
     CalendarDecanReflectionPrompt prompt, {
     required String interactionKind,
   }) async {
-    await _recordCompositionalReflectionUsage(prompt);
     await _decanReflectionPromptState.markInteracted(prompt.decanStart);
     await _decanReflectionRepo.markPromptInteracted(
       decanStart: prompt.decanStart,
       decanEnd: prompt.decanEnd,
       interactionKind: interactionKind,
-    );
-  }
-
-  Future<void> _recordCompositionalReflectionUsage(
-    CalendarDecanReflectionPrompt prompt,
-  ) async {
-    final phraseIds = decanCompositionPhraseIdsFromMetadata(
-      prompt.renderMetadata,
-    );
-    if (phraseIds.isEmpty) return;
-    final now = DateTime.now();
-    await _compositionUsageStore.recordAll(
-      phraseIds
-          .map(
-            (phraseId) => CompositionUsageRecord(
-              phraseId: phraseId,
-              date: now,
-              surface: kDecanReflectionSurface,
-            ),
-          )
-          .toList(growable: false),
     );
   }
 
@@ -34200,7 +34030,8 @@ class CalendarPageState extends State<CalendarPage>
 
     final account = AccountOperationFence(Supabase.instance.client);
     try {
-      if (!requested && await _hasInteractedWithReflectionPrompt(window.start)) {
+      if (!requested &&
+          await _hasInteractedWithReflectionPrompt(window.start)) {
         if (!mounted || !account.isCurrent) return;
         if (_reflectionPrompt != null) {
           setState(() => _reflectionPrompt = null);
@@ -34213,53 +34044,15 @@ class CalendarPageState extends State<CalendarPage>
         window.end,
         strict: true,
       );
-      if (existing != null) {
-        final renderMetadata = existing.reviewContext == null
-            ? await _decanReflectionRepo.getRenderMetadataForReflection(
-                existing,
-              )
-            : null;
-        if (!mounted || !account.isCurrent) return;
-        setState(() {
-          _requestedReflectionOwner = requested ? user.id : null;
-          _reflectionPrompt = CalendarDecanReflectionPrompt(
-            id: existing.id,
-            decanName: existing.decanName,
-            decanTheme: existing.decanTheme,
-            decanStart: existing.decanStart,
-            decanEnd: existing.decanEnd,
-            badgeCount: existing.badgeCount,
-            reflectionText: existing.reflectionText,
-            persisted: true,
-            reviewWindow: existing.reviewContext == null
-                ? null
-                : DecanReviewWindow(
-                    start: existing.decanStart,
-                    end: existing.decanEnd,
-                    name: existing.decanName,
-                  ),
-            renderMetadata: renderMetadata,
-          );
-        });
-        return;
-      }
-
       if (!mounted || !account.isCurrent) return;
       setState(() {
         _requestedReflectionOwner = requested ? user.id : null;
         _reflectionPrompt = CalendarDecanReflectionPrompt(
-          id: null,
-          decanName: window.decanName,
-          decanTheme: window.decanTheme,
-          decanStart: window.start,
-          decanEnd: window.end,
-          badgeCount: 0,
-          reflectionText: 'Your decan reflection',
-          persisted: false,
+          id: existing?.id,
           reviewWindow: DecanReviewWindow(
-            start: window.start,
-            end: window.end,
-            name: window.decanName,
+            start: existing?.decanStart ?? window.start,
+            end: existing?.decanEnd ?? window.end,
+            name: existing?.decanName ?? window.decanName,
           ),
         );
       });
@@ -34270,71 +34063,6 @@ class CalendarPageState extends State<CalendarPage>
       }
     } finally {
       account.dispose();
-    }
-  }
-
-  Future<void> _archiveReflectionPrompt([BuildContext? ctx]) async {
-    final prompt = _reflectionPrompt;
-    if (prompt == null || _archivingReflection) return;
-
-    if (mounted) {
-      setState(() => _archivingReflection = true);
-    }
-
-    try {
-      DecanReflection? saved = prompt.persisted && prompt.id != null
-          ? await _decanReflectionRepo.getById(prompt.id!)
-          : null;
-
-      saved ??= await _decanReflectionRepo.saveReflection(
-        decanName: prompt.decanName,
-        decanTheme: prompt.decanTheme,
-        decanStart: prompt.decanStart,
-        decanEnd: prompt.decanEnd,
-        badgeCount: prompt.badgeCount,
-        reflectionText: prompt.detailText,
-      );
-      if (saved == null) {
-        throw Exception('Unable to save reflection');
-      }
-      final renderMetadata = prompt.renderMetadata;
-      if (renderMetadata?.renderer == kDecanReflectionCompositionalRenderer) {
-        await _decanReflectionRepo.saveCompositionalGeneration(
-          reflection: saved,
-          renderMetadata: renderMetadata!,
-          modelVersion:
-              renderMetadata.raw['engine_version']?.toString() ??
-              kCompositionEngineVersion,
-        );
-      }
-
-      await _markReflectionPromptInteracted(
-        prompt,
-        interactionKind: 'archived',
-      );
-
-      if (!mounted) return;
-      setState(() => _reflectionPrompt = null);
-      if (ctx != null && ctx.mounted && Navigator.of(ctx).canPop()) {
-        Navigator.of(ctx).pop();
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Reflection archived to your profile'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not archive reflection: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _archivingReflection = false);
-      } else {
-        _archivingReflection = false;
-      }
     }
   }
 

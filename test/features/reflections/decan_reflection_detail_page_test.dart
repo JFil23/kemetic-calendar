@@ -6,14 +6,14 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/data/choice_event_repo.dart';
 import 'package:mobile/data/decan_reflection_model.dart';
 import 'package:mobile/data/insight_link_model.dart';
-import 'package:mobile/features/reflections/decan_reflection_detail_page.dart';
+import '../../support/legacy_decan_reflection_reader.dart';
 
 void main() {
   test(
     'detail skin preserves route title and existing link/back handlers',
     () async {
       final source = await File(
-        'lib/features/reflections/decan_reflection_detail_page.dart',
+        'test/support/legacy_decan_reflection_reader.dart',
       ).readAsString();
 
       expect(source, contains("title: 'Reflection'"));
@@ -27,7 +27,7 @@ void main() {
     'reflection suggested Ma’at flows keep exact Flow Studio template routing',
     () async {
       final source = await File(
-        'lib/features/reflections/decan_reflection_detail_page.dart',
+        'test/support/legacy_decan_reflection_reader.dart',
       ).readAsString();
 
       expect(source, contains("case 'flow_template':"));
@@ -282,7 +282,7 @@ void main() {
         'lib/data/decan_reflection_repo.dart',
       ).readAsString();
       final detailSource = await File(
-        'lib/features/reflections/decan_reflection_detail_page.dart',
+        'test/support/legacy_decan_reflection_reader.dart',
       ).readAsString();
 
       expect(repoSource, isNot(contains("from('user_choice_events')")));

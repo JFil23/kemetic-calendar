@@ -1313,3 +1313,33 @@ arrival, passive background publication, failed refresh, denial, account departu
 A-B-A reads, old-envelope restoration without network, and acknowledged/failed
 mutation invalidation. Existing Reading House visual references are compared
 unchanged. The complete App gate and served replay remain required for deployment.
+
+
+## October 8 — one reflection experience for existing accounts
+
+The user's October 8 recording reproduced a saved pre-review period choosing
+the retired generated badge and modal. The approved uploaded HTML and existing
+DecanReview views remain the visual reference. Calendar now supplies only period
+identity to one badge and the canonical detail route; it never reads generation
+metadata or selects a legacy renderer. The detail owner opens DecanReviewScreen
+for both old and current rows, including archive, restored URLs and push entries.
+The old reader and badge exist only as historical test fixtures outside lib; no
+application entry imports them. Their fixture assertions remain, alongside new
+real-route and universal-entry regressions. Archive previews use the saved review
+question or a neutral invitation, never the old generated interpretation.
+
+DecanReflectionRepo still owns saved periods. On deliberate opening, the controller
+loads the same bounded activity and authored question used for new reviews, then
+converts a context-less row through apply_decan_review_v1 with its existing UUID
+and revision 0. The backend checks ownership, immutable period identity, revision
+and mutation receipts. Updates preserve reflection_text as compatibility history;
+review_context.question alone drives the current experience. Conversion creates
+no duplicate, Journal entry or public post. The normal Journal/post owners and
+explicit actions remain unchanged.
+
+Warm keys, schema envelopes, account fences and durable draft keys are unchanged.
+Late account reads cannot publish; denial clears private presentation; failed
+conversion retains the same pending mutation for retry. Older cache envelopes
+remain readable and are converted only after acknowledged save. The complete App
+and backend gates, unchanged approved visuals, live seeded older-row replay and
+served artifact verification are required before reporting this fix released.

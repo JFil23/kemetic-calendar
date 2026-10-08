@@ -111,3 +111,22 @@ Mixed-version coverage now includes the older app's actual `INSERT ... ON CONFLI
 The initial RC artifact `staging-27c6f06-3a8c23bf5ca8` passed hosted CI and exact served-file verification, but a live first-creation walkthrough exposed a route lifecycle gap: replacing `/reflections/new` with the persisted ID reused the creation page state and never loaded the saved review. The route now supplies a widget key derived from the reflection identity. A separate real-route creation test reproduces that transition and proves one creation request leads to the fully rendered saved review without a reload. The existing Journal/social/warm-state route test remains unchanged. All 16 focused route/repository tests passed with the correction.
 
 Live testing of the persisted review independently verified choosing an outside-app moment, keeping an answer, opening the canonical Journal entry, and reaching the explicit private post preview. No browser test post was published. The corrected app candidate must pass its own complete hosted App gate and served verification before release sign-off; the `rc-release` evidence directory records the final commit, artifact, live walkthrough and temporary-account cleanup.
+
+
+## October 8 correction — existing saved periods
+
+The earlier legacy-reader exception was incorrect for the approved replacement.
+An existing account could request its latest reflection and receive the retired
+badge and generated sheet. Fresh-account release checks missed that state.
+The correction removes both renderers from the application and uses the approved
+DecanReview owner for every saved/new period. The original renderer assertions
+are retained as explicit test-only historical fixtures; they no longer claim
+to verify the shipped UI. The new release must prove Settings → badge → review
+with a context-less saved row, same-UUID conversion, repeat opening, no duplicate,
+private/public ownership and old-cache compatibility.
+
+Backend migration 20261008155625_upgrade_legacy_decan_review permits this transition
+through the existing acknowledged RPC. It keeps stored text/provenance, adds only
+review context, and rejects direct/unowned/stale changes. No bulk account rewrite
+or cache namespace reset is used. The approved visuals were rendered and inspected
+before wiring; no golden was regenerated.

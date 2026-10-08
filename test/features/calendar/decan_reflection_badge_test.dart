@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/decan_reflection_model.dart';
-import 'package:mobile/features/calendar/decan_reflection_badge.dart';
+import '../../support/legacy_decan_reflection_badge.dart';
 
 void main() {
   test('deterministic spectrum prompt uses badge body and full detail body', () {

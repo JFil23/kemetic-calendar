@@ -45,13 +45,15 @@ void main() {
       final loader = _sourceBetween(
         calendarPage,
         '  Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {',
-        '  Future<void> _archiveReflectionPrompt([BuildContext? ctx]) async {',
+        '  Widget _buildCalendarScrollView() {',
       );
 
       expect(loader, isNot(contains('_maatFlowDecanFactCollector.collect(')));
       expect(loader, isNot(contains('_decanReflectionComposer.compose(')));
       expect(loader, contains('reviewWindow: DecanReviewWindow('));
-      expect(loader, contains('persisted: false'));
+      expect(loader, contains('id: existing?.id'));
+      expect(loader, isNot(contains('getRenderMetadataForReflection(')));
+      expect(loader, isNot(contains('reviewContext == null')));
       expect(loader, isNot(contains('saveCompositionalGeneration(')));
       expect(loader, isNot(contains('reviewActivity(')));
       expect(loader, isNot(contains('AIReflectionService')));
@@ -65,7 +67,7 @@ void main() {
     final loader = _sourceBetween(
       calendarPage,
       '  Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {',
-      '  Future<void> _archiveReflectionPrompt([BuildContext? ctx]) async {',
+      '  Widget _buildCalendarScrollView() {',
     );
 
     final interactionGate = loader.indexOf(

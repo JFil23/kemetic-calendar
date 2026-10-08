@@ -30,8 +30,9 @@ void main() {
     availableOnly: true,
   )!;
   var failLookup = false;
+  var failUpgrade = false;
   Completer<void>? delayedRead;
-  final review = {
+  final review = <String, dynamic>{
     'id': 'saved-review',
     'user_id': uid,
     'decan_name': w.decanName,
@@ -90,6 +91,23 @@ void main() {
             );
           }
           data = review;
+        } else if (table == 'apply_decan_review_v1') {
+          final body = jsonDecode(r.body) as Map<String, dynamic>;
+          if (failUpgrade)
+            return http.Response(
+              '{"message":"unavailable"}',
+              409,
+              headers: {'content-type': 'application/json'},
+            );
+          expect(body['p_id'], 'saved-review');
+          expect(body['p_expected_revision'], 0);
+          expect(review['review_context'], isNull);
+          review['review_context'] = body['p_context'];
+          review['review_revision'] = 1;
+          data = {
+            'status': 'applied',
+            'row': Map<String, dynamic>.from(review),
+          };
         } else if (table == 'read_decan_activity_v1') {
           data = {'items': [], 'next_cursor': null};
         } else if (['decan_journal_sources', 'insight_posts'].contains(table)) {
@@ -179,6 +197,58 @@ void main() {
           Supabase.instance.client,
         ).hasInteracted(w.start),
         isTrue,
+      );
+
+      // Reproduce the reported production account: the current period already
+      // exists as an older generated row, with no review context.
+      review['review_context'] = null;
+      review['review_revision'] = 0;
+      review['reflection_text'] =
+          'This decan held body support and truthful witness in view.';
+      failUpgrade = true;
+      for (var i = 0; i < 2; i++) {
+        await requestBadge();
+        expect(find.text('These ten days'), findsOneWidget);
+        expect(find.textContaining('body support'), findsNothing);
+        await tester.tap(find.byKey(decanReflectionLowerThirdBadgeKey));
+        await settle();
+        expect(router.state.uri.path, '/reflections/saved-review');
+        expect(find.text('These ten days'), findsOneWidget);
+        if (i == 0) {
+          expect(review['review_context'], isNull);
+          expect(find.text('Try again'), findsOneWidget);
+          failUpgrade = false;
+          await tester.ensureVisible(find.text('Try again'));
+          await tester.tap(find.text('Try again'));
+          await settle();
+        }
+        expect(review['review_context'], isNotNull);
+        expect(review['review_revision'], 1);
+        expect(
+          find.text('What mattered that went unrecorded?'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Leave a few words'), findsOneWidget);
+        expect(find.textContaining('body support'), findsNothing);
+        expect(find.text('Archive to profile'), findsNothing);
+      }
+      expect(
+        requests.where((r) => r.url.path.endsWith('apply_decan_review_v1')),
+        hasLength(2),
+      );
+      final upgradeRequests = requests
+          .where((r) => r.url.path.endsWith('apply_decan_review_v1'))
+          .toList();
+      expect(
+        jsonDecode(upgradeRequests.first.body),
+        jsonDecode(upgradeRequests.last.body),
+        reason: 'Retry preserves mutation identity and exact context',
+      );
+      expect(review['id'], 'saved-review');
+      expect(review['reflection_text'], contains('body support'));
+      expect(
+        requests.where((r) => r.url.path.endsWith('reflection_generations')),
+        isEmpty,
       );
 
       failLookup = true;

@@ -196,6 +196,25 @@ void main() {
           onReadingChanged: (_) {},
         ),
       );
+      await show(
+        'prepare-retry',
+        DecanReviewCanvas(
+          children: [
+            const DecanReviewIntro(
+              eyebrow: 'As the decan closes',
+              title: 'These ten days',
+              subtitle: 'A few moments to return to.',
+            ),
+            const DecanReviewNotice(
+              'Your reflection could not be prepared. Your draft is kept; retry to continue.',
+            ),
+            DecanReviewButton('Try again', onPressed: noop, primary: true),
+            DecanReviewButton('Close', onPressed: noop, quiet: true),
+          ],
+        ),
+        height: 874,
+      );
+      expect(find.text('Try again').hitTestable(), findsOneWidget);
       await show('empty', opening([]));
       expect(
         find.text('You can begin with whatever stayed with you.'),

@@ -340,7 +340,9 @@ class _ArchiveEntry {
       title: reflection.decanName,
       dateRange:
           '${_dateOnly(reflection.decanStart)} → ${_dateOnly(reflection.decanEnd)}',
-      preview: _clip(reflection.reflectionText),
+      preview: _clip(
+        reflection.reviewContext?.question ?? 'Return to these ten days.',
+      ),
       route: '/reflections/${Uri.encodeComponent(reflection.id)}',
       sortDate: reflection.decanStart,
     );

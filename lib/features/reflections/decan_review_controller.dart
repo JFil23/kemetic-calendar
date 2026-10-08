@@ -158,6 +158,7 @@ class DecanReviewController extends ChangeNotifier {
   Future<void> initialize() async {
     loading = true;
     error = null;
+    notice = null;
     _changed();
     try {
       if (!valid) throw StateError('Sign in to review these days');
@@ -177,10 +178,6 @@ class DecanReviewController extends ChangeNotifier {
         throw StateError('This reflection is no longer available.');
       }
       if (!valid) return;
-      if (reflection != null && reflection!.reviewContext == null)
-        throw StateError(
-          'This period has a preserved earlier reflection. Open it from your reflection archive.',
-        );
       review = reflection?.reviewContext;
       if (_draft['context_dirty'] != true)
         _draft['context_revision'] = reflection?.reviewRevision ?? 0;
@@ -193,7 +190,7 @@ class DecanReviewController extends ChangeNotifier {
         ].map((s) => _loadSource(s)),
       );
       if (!valid) return;
-      if (reflection == null) {
+      if (review == null) {
         final chosen = _initialMoments(items.values.toList());
         final q = DecanReviewQuestions.choose(
           hasMoments: chosen.isNotEmpty,
@@ -238,8 +235,9 @@ class DecanReviewController extends ChangeNotifier {
     } catch (e) {
       error = e.toString();
       if (review != null)
-        notice =
-            'The saved reflection is here. Could not refresh it; retry before keeping changes.';
+        notice = reflection?.reviewContext == null
+            ? 'Your reflection could not be prepared. Your draft is kept; retry to continue.'
+            : 'The saved reflection is here. Could not refresh it; retry before keeping changes.';
     } finally {
       loading = false;
       _changed();
@@ -532,7 +530,8 @@ class DecanReviewController extends ChangeNotifier {
     await _persist();
   });
   Future<void> _saveContext() async {
-    if (reflection != null && _draft['context_dirty'] != true) return;
+    if (reflection?.reviewContext != null && _draft['context_dirty'] != true)
+      return;
     _draft['reflection_id'] ??= reflection?.id ?? const Uuid().v4();
     final request = await _pendingRequest('context_request', {
       'p_account': account,

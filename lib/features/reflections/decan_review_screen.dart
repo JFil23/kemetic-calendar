@@ -170,7 +170,8 @@ class _DecanReviewScreenState extends State<DecanReviewScreen> {
           DecanReviewButton('Close', onPressed: _done),
         ],
       );
-    } else if (c.review == null) {
+    } else if (c.review == null ||
+        (c.error != null && c.reflection?.reviewContext == null)) {
       body = DecanReviewCanvas(
         children: [
           const DecanReviewIntro(
@@ -186,7 +187,9 @@ class _DecanReviewScreenState extends State<DecanReviewScreen> {
               ),
             )
           else ...[
-            DecanReviewNotice(c.error ?? 'Could not open this reflection.'),
+            DecanReviewNotice(
+              c.notice ?? c.error ?? 'Could not open this reflection.',
+            ),
             DecanReviewButton(
               'Try again',
               onPressed: () => unawaited(c.initialize()),

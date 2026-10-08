@@ -24,7 +24,8 @@ void main() {
     expect(rows.single.id, 'reflection-1');
     expect(rows.single.title, 'Peret - Measure');
     expect(rows.single.route, '/reflections/reflection-1');
-    expect(rows.single.preview, 'A generated end-of-decan reflection.');
+    expect(rows.single.preview, 'Return to these ten days.');
+    expect(rows.single.preview, isNot(contains('generated')));
   });
 
   test('partial archive errors do not hide valid reflection rows', () {
