@@ -120,6 +120,16 @@ void main() {
           shot.dispose();
         });
       }
+      // Non-action chrome is inside the menu, so tapping its date keeps the
+      // menu open; action rows still dispatch exactly once afterward.
+      final menu = find
+          .ancestor(of: find.text('Reply'), matching: find.byType(Container))
+          .first;
+      final menuRect = tester.getRect(menu);
+      await tester.tapAt(Offset(menuRect.center.dx, menuRect.top + 20));
+      await tester.pumpAndSettle();
+      expect(find.text('Copy'), findsOneWidget);
+      expect(copied, 0);
       await tester.tap(find.text('Copy'));
       await tester.pumpAndSettle();
       expect(copied, 1);

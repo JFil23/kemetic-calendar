@@ -117,104 +117,126 @@ class InboxMessageActions extends StatelessWidget {
             final time = MaterialLocalizations.of(
               context,
             ).formatTimeOfDay(TimeOfDay.fromDateTime(local));
-            return Stack(
-              children: [
-                Positioned.fill(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                    child: const SizedBox.expand(),
+            // The scrolling preview is wider than the visible action menu.
+            // Own outside taps here so its transparent areas cannot swallow
+            // them before they reach the route's modal barrier.
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              excludeFromSemantics: true,
+              onTap: () => Navigator.of(context).pop(),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                      child: const SizedBox.expand(),
+                    ),
                   ),
-                ),
-                Positioned(
-                  left: left,
-                  top: top,
-                  width: width,
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight:
-                            media.size.height - media.padding.bottom - top - 16,
-                      ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment:
-                              anchor.center.dx > media.size.width / 2
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxHeight: previewHeight,
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
-                                child: SingleChildScrollView(
-                                  child: IgnorePointer(child: child),
+                  Positioned(
+                    left: left,
+                    top: top,
+                    width: width,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              media.size.height -
+                              media.padding.bottom -
+                              top -
+                              16,
+                        ),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment:
+                                anchor.center.dx > media.size.width / 2
+                                ? CrossAxisAlignment.end
+                                : CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight: previewHeight,
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: SingleChildScrollView(
+                                    child: IgnorePointer(child: child),
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              width: 250,
-                              clipBehavior: Clip.antiAlias,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF242426),
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Text(
-                                      '$date · $time',
-                                      style: const TextStyle(
-                                        color: Colors.white54,
-                                        fontSize: 12,
-                                      ),
-                                    ),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                excludeFromSemantics: true,
+                                // Menu chrome is inside the menu; action rows
+                                // retain their own tap handlers below it.
+                                onTap: () {},
+                                child: Container(
+                                  width: 250,
+                                  clipBehavior: Clip.antiAlias,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF242426),
+                                    borderRadius: BorderRadius.circular(18),
                                   ),
-                                  if (onRetry != null)
-                                    action('Retry', Icons.refresh, onRetry!),
-                                  if (onReply != null)
-                                    action('Reply', Icons.reply, onReply!),
-                                  if (onForward != null)
-                                    action(
-                                      'Forward',
-                                      Icons.forward,
-                                      onForward!,
-                                    ),
-                                  if (onCopy != null)
-                                    action(
-                                      'Copy',
-                                      Icons.copy_outlined,
-                                      onCopy!,
-                                    ),
-                                  if (onDeleteForMe != null)
-                                    action(
-                                      'Delete for me',
-                                      Icons.delete_outline,
-                                      onDeleteForMe!,
-                                    ),
-                                  if (onUnsend != null)
-                                    action(
-                                      'Unsend',
-                                      Icons.undo,
-                                      onUnsend!,
-                                      destructive: true,
-                                    ),
-                                ],
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Text(
+                                          '$date · $time',
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                      if (onRetry != null)
+                                        action(
+                                          'Retry',
+                                          Icons.refresh,
+                                          onRetry!,
+                                        ),
+                                      if (onReply != null)
+                                        action('Reply', Icons.reply, onReply!),
+                                      if (onForward != null)
+                                        action(
+                                          'Forward',
+                                          Icons.forward,
+                                          onForward!,
+                                        ),
+                                      if (onCopy != null)
+                                        action(
+                                          'Copy',
+                                          Icons.copy_outlined,
+                                          onCopy!,
+                                        ),
+                                      if (onDeleteForMe != null)
+                                        action(
+                                          'Delete for me',
+                                          Icons.delete_outline,
+                                          onDeleteForMe!,
+                                        ),
+                                      if (onUnsend != null)
+                                        action(
+                                          'Unsend',
+                                          Icons.undo,
+                                          onUnsend!,
+                                          destructive: true,
+                                        ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             );
           },
         ),
