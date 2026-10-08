@@ -1214,3 +1214,49 @@ control row when they overlap; user-dragged positions retain their existing
 clamp behavior. It guards stale/unmounted editor geometry. This changes neither
 keyboard occlusion authority nor focus/DOM input ownership. The real route asserts
 that the controls do not overlap, taps Send, and verifies quoted source metadata.
+
+## October 7 Inbox response and background work
+
+The approved Inbox, lifted menu, flow previews, and direct/group message styles
+remain the visual references. The keyboard's shared pointer boundary now defers
+outside dismissal until pointer-up; collapsing on pointer-down moved Send by
+312 pixels during the reproduced held tap. The same fix applies to all routes
+using KemeticKeyboardHost. Cancelled pointers do not dismiss a later gesture.
+InboxMessageActions hit-tests its whole existing bounds. Group bubble rendering
+is moved unchanged into the existing inbox_message_bubble owner, with constrained
+incoming rows so the lifted preview also fits tablet and landscape widths.
+
+Group messages paint a transient Sending state immediately. The composer remains
+usable for the next draft. The existing send_dm_message_v2 owner must acknowledge
+an identity-matching message before it is shown as confirmed. Failed sends retain
+their bubble and reply identity; Retry uses the same client_message_id. Confirmed
+responses and Realtime rows deduplicate by server/client identity. Account or
+conversation changes fence late completions and clear their private presentation.
+Pending messages never enter WarmSnapshotStore or its logout/eviction cleanup.
+
+DmConversationRepo reads existing dm.messages.<conversation> and dm.summaries
+snapshots synchronously for first paint and refreshes through the existing warm
+reader in the background. Summary detail reuses the summaries read. Send
+and message-action invalidation happens after acknowledgement, scoped to the
+affected chat and summaries. Pending or failed writes preserve confirmed warm
+content, including other chats. Read receipts invalidate summaries only after
+a successful response. The existing warm-store change stream publishes completed reads; concurrent
+message refreshes coalesce, transient errors retain confirmed content, and access
+denial clears it. No cache keys, schemas, durable message owner, migration, or
+old-release fixtures change. Conversation Back never awaits read acknowledgement;
+the visible conversation remains the read-receipt owner. Direct Back suppresses
+restoration synchronously and clears its existing resume metadata asynchronously.
+
+Delete/Unsend temporarily hide only the mounted row after the existing user
+confirmation. Failure restores the row; existing repositories still update or
+invalidate persistent reads only at their acknowledged mutation boundary. Search
+retains selectable results during refresh, executes independent lookups together,
+and rejects superseded/account-departed responses. Shared-flow routing seeds its
+existing canonical detail with the already-present matching share snapshot.
+
+Behavioral evidence includes the original held-pointer regression, slow and
+failed refresh, immediate pending send, draft preservation, stable retry identity,
+server/Realtime deduplication, Back during held read acknowledgement, deletion
+rollback, account switching, search response ordering, and the complete preview
+hit target. The same delayed-network scenarios have widget and iOS simulator
+entry points; they use injected HTTP fixtures and never send live messages.

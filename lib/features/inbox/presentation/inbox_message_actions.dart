@@ -33,6 +33,7 @@ class InboxMessageActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Builder(
     builder: (anchorContext) => GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       onDoubleTap: onDoubleTap,
       onLongPress: () => _open(anchorContext),

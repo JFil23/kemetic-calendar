@@ -14,15 +14,17 @@ class InboxReplyTarget {
     required this.id,
     required this.kind,
     required this.text,
+    this.conversationId,
   });
   final String id;
   final String kind;
   final String text;
+  final String? conversationId;
 }
 
 /// Route adapters supply identity and state callbacks. All message actions use
 /// the existing account repositories, with one presentation/confirmation owner.
-class InboxMessageActionHost extends StatelessWidget {
+class InboxMessageActionHost extends StatefulWidget {
   const InboxMessageActionHost({
     super.key,
     required this.target,
@@ -44,6 +46,13 @@ class InboxMessageActionHost extends StatelessWidget {
   final VoidCallback onRemoved;
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
+
+  @override
+  State<InboxMessageActionHost> createState() => _InboxMessageActionHostState();
+}
+
+class _InboxMessageActionHostState extends State<InboxMessageActionHost> {
+  bool _removing = false;
 
   Future<void> _run(
     BuildContext context,
@@ -103,21 +112,31 @@ class InboxMessageActionHost extends StatelessWidget {
         account != Supabase.instance.client.auth.currentUser?.id) {
       return;
     }
-    await _run(context, () async {
-      final client = Supabase.instance.client;
-      if (target.kind == 'dm') {
-        await DmConversationRepo(
-          client,
-        ).actOnMessage(target.id, unsend: unsend);
-      } else {
-        await ShareRepo(
-          client,
-        ).actOnInboxMessage(target.kind, target.id, unsend: unsend);
-      }
-      if (context.mounted && account == client.auth.currentUser?.id) {
-        onRemoved();
-      }
-    });
+    if (_removing) return;
+    setState(() => _removing = true);
+    try {
+      await _run(context, () async {
+        final client = Supabase.instance.client;
+        if (widget.target.kind == 'dm') {
+          await DmConversationRepo(client).actOnMessage(
+            widget.target.id,
+            unsend: unsend,
+            conversationId: widget.target.conversationId,
+          );
+        } else {
+          await ShareRepo(client).actOnInboxMessage(
+            widget.target.kind,
+            widget.target.id,
+            unsend: unsend,
+          );
+        }
+        if (context.mounted && account == client.auth.currentUser?.id) {
+          widget.onRemoved();
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _removing = false);
+    }
   }
 
   Future<void> _forward(BuildContext context) async {
@@ -143,7 +162,7 @@ class InboxMessageActionHost extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Forward message?'),
         content: Text(
-          target.text,
+          widget.target.text,
           maxLines: 6,
           overflow: TextOverflow.ellipsis,
         ),
@@ -166,13 +185,14 @@ class InboxMessageActionHost extends StatelessWidget {
     }
     await _run(context, () async {
       final client = Supabase.instance.client;
-      if (isText) {
-        await InboxRepo(
-          client,
-        ).sendTextMessage(recipientId: recipient.userId, text: target.text);
+      if (widget.isText) {
+        await InboxRepo(client).sendTextMessage(
+          recipientId: recipient.userId,
+          text: widget.target.text,
+        );
       } else {
         final result = await ShareRepo(client).shareFlow(
-          sourceShareId: target.id,
+          sourceShareId: widget.target.id,
           recipients: [
             ShareRecipient(
               type: ShareRecipientType.user,
@@ -188,19 +208,23 @@ class InboxMessageActionHost extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => InboxMessageActions(
-    createdAt: createdAt,
-    onTap: onTap,
-    onDoubleTap: onDoubleTap,
-    onReply: () => onReply(target),
-    onForward: isText || target.kind == 'flow' ? () => _forward(context) : null,
-    onCopy: () => _run(
-      context,
-      () => Clipboard.setData(ClipboardData(text: target.text)),
-      success: 'Copied',
-    ),
-    onDeleteForMe: () => _remove(context, false),
-    onUnsend: isMine ? () => _remove(context, true) : null,
-    child: child,
-  );
+  Widget build(BuildContext context) => _removing
+      ? const SizedBox.shrink()
+      : InboxMessageActions(
+          createdAt: widget.createdAt,
+          onTap: widget.onTap,
+          onDoubleTap: widget.onDoubleTap,
+          onReply: () => widget.onReply(widget.target),
+          onForward: widget.isText || widget.target.kind == 'flow'
+              ? () => _forward(context)
+              : null,
+          onCopy: () => _run(
+            context,
+            () => Clipboard.setData(ClipboardData(text: widget.target.text)),
+            success: 'Copied',
+          ),
+          onDeleteForMe: () => _remove(context, false),
+          onUnsend: widget.isMine ? () => _remove(context, true) : null,
+          child: widget.child,
+        );
 }

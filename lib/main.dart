@@ -3979,6 +3979,7 @@ class _SharedFlowRoutePageState extends State<SharedFlowRoutePage> {
     }
     return FutureBuilder<InboxShareItem?>(
       future: _future,
+      initialData: _extraShare?.shareId == widget.shareId ? _extraShare : null,
       builder: (context, snapshot) {
         final share = snapshot.data;
         if (share != null && share.isFlow) {

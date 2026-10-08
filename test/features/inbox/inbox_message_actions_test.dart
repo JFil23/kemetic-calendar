@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:mobile/features/inbox/dm_conversation_models.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,44 @@ import '../../support/maat_flow_visual_test_fonts.dart';
 
 void main() {
   setUpAll(loadMaatFlowVisualTestFonts);
+  testWidgets('group pending and failed messages retain the existing bubble', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: Scaffold(
+          body: Column(
+            children: [
+              for (final status in ['Sending…', 'Not sent'])
+                InboxDmMessageRow(
+                  message: DmConversationMessage(
+                    id: status,
+                    conversationId: 'group',
+                    senderId: 'me',
+                    body: 'Here is my reply',
+                    kind: 'text',
+                    createdAt: DateTime(2026, 10, 7),
+                    payloadJson: const {
+                      'reply_to': {'text': 'Follow the sky'},
+                    },
+                  ),
+                  isMine: true,
+                  showSender: false,
+                  deliveryLabel: status,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Sending…'), findsOneWidget);
+    expect(find.text('Not sent'), findsOneWidget);
+    expect(find.text('Here is my reply'), findsNWidgets(2));
+    expect(find.text('Replying to'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
   for (final width in [320.0, 390.0, 844.0]) {
     testWidgets('lifted menu core actions at $width', (tester) async {
       tester.view.physicalSize = Size(width, 844);

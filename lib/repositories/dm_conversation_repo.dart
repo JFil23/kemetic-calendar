@@ -1,3 +1,5 @@
+import '../data/account_operation_fence.dart';
+import '../data/warm_state/warm_snapshot_store.dart';
 import '../data/warm_state/warm_mutation.dart';
 import 'dart:async';
 import '../data/warm_state/warm_json_reads.dart';
@@ -231,50 +233,76 @@ class DmConversationRepo {
     }
   }
 
-  Future<void> sendMessage({
+  Future<DmConversationMessage> sendMessage({
     required String conversationId,
     required String text,
     String? clientMessageId,
     String? replyToId,
   }) async {
-    final warmAccount = _client.auth.currentUser?.id;
-    invalidateWarmDomains(warmAccount, ['dm.']);
+    final account = AccountOperationFence(_client);
+    final uid = account.userId;
+    final domains = ['dm.summaries', 'dm.messages.$conversationId'];
     try {
-      final uid = currentUserId;
       if (uid == null) throw Exception('Not signed in');
       final trimmed = text.trim();
-      if (trimmed.isEmpty) return;
-
-      try {
-        await _client.functions.invoke(
-          'send_dm_message_v2',
-          body: {
-            'conversationId': conversationId,
-            'text': trimmed,
-            if (replyToId != null) 'replyToId': replyToId,
-            if (clientMessageId?.trim().isNotEmpty == true)
-              'clientMessageId': clientMessageId!.trim(),
-          },
-        );
-      } catch (e) {
-        final failure = _failureFor(
-          operation: DmConversationOperation.sendMessage,
-          data: e is FunctionException ? e.details : null,
-          error: e,
-        );
-        _logFailure(failure);
-        throw failure;
+      if (trimmed.isEmpty) throw ArgumentError('Message is empty');
+      final response = await _client.functions.invoke(
+        'send_dm_message_v2',
+        body: {
+          'conversationId': conversationId,
+          'text': trimmed,
+          if (replyToId != null) 'replyToId': replyToId,
+          if (clientMessageId?.trim().isNotEmpty == true)
+            'clientMessageId': clientMessageId!.trim(),
+        },
+      );
+      if (!account.isCurrent) throw const WarmReadCancelled();
+      final row = _map(_map(response.data)?['message']);
+      final message = row == null ? null : DmConversationMessage.fromJson(row);
+      if (response.status >= 400 ||
+          message == null ||
+          message.id.isEmpty ||
+          message.conversationId != conversationId ||
+          message.senderId != uid) {
+        throw StateError('Message was not acknowledged');
       }
+      invalidateWarmDomains(uid, domains);
+      // Refresh only confirmed account data; pending and failed writes never
+      // evict the last usable conversation snapshot.
+      unawaited(() async {
+        try {
+          await getMessages(conversationId);
+        } catch (_) {}
+      }());
+      return message;
+    } on WarmReadCancelled {
+      rethrow;
+    } catch (e) {
+      final failure = _failureFor(
+        operation: DmConversationOperation.sendMessage,
+        data: e is FunctionException ? e.details : null,
+        error: e,
+      );
+      _logFailure(failure);
+      throw failure;
     } finally {
-      invalidateWarmDomains(warmAccount, ['dm.']);
+      account.dispose();
     }
   }
 
-  Future<void> actOnMessage(String id, {required bool unsend}) async {
-    final uid = currentUserId;
-    if (uid == null) throw Exception('Not signed in');
-    invalidateWarmDomains(uid, ['dm.']);
+  Future<void> actOnMessage(
+    String id, {
+    required bool unsend,
+    String? conversationId,
+  }) async {
+    final account = AccountOperationFence(_client);
+    final uid = account.userId;
+    final domains = [
+      'dm.summaries',
+      conversationId == null ? 'dm.messages.' : 'dm.messages.$conversationId',
+    ];
     try {
+      if (uid == null) throw Exception('Not signed in');
       final result = await _client.rpc(
         'inbox_message_action',
         params: {
@@ -283,38 +311,38 @@ class DmConversationRepo {
           'p_action': unsend ? 'unsend' : 'hide',
         },
       );
+      if (!account.isCurrent) throw const WarmReadCancelled();
       if (result != true) {
         throw Exception('Message action was not acknowledged');
       }
+      invalidateWarmDomains(uid, domains);
     } finally {
-      invalidateWarmDomains(uid, ['dm.']);
+      account.dispose();
     }
   }
 
   Future<bool> markRead(String conversationId) async {
-    final warmAccount = _client.auth.currentUser?.id;
-    invalidateWarmDomains(warmAccount, ['dm.summaries', 'dm.summary.']);
+    final account = AccountOperationFence(_client);
     try {
-      final uid = currentUserId;
-      if (uid == null) return false;
-      try {
-        final response = await _client.functions.invoke(
-          'mark_dm_conversation_read',
-          body: {'conversationId': conversationId},
-        );
-        return response.status < 400;
-      } catch (e) {
-        _logFailure(
-          _failureFor(
-            operation: DmConversationOperation.markRead,
-            data: e is FunctionException ? e.details : null,
-            error: e,
-          ),
-        );
-        return false;
-      }
+      if (account.userId == null) return false;
+      final response = await _client.functions.invoke(
+        'mark_dm_conversation_read',
+        body: {'conversationId': conversationId},
+      );
+      if (!account.isCurrent || response.status >= 400) return false;
+      invalidateWarmDomains(account.userId, ['dm.summaries']);
+      return true;
+    } catch (e) {
+      _logFailure(
+        _failureFor(
+          operation: DmConversationOperation.markRead,
+          data: e is FunctionException ? e.details : null,
+          error: e,
+        ),
+      );
+      return false;
     } finally {
-      invalidateWarmDomains(warmAccount, ['dm.summaries', 'dm.summary.']);
+      account.dispose();
     }
   }
 
@@ -341,6 +369,11 @@ class DmConversationRepo {
           .where((summary) => summary.id.isNotEmpty)
           .toList(growable: false);
     } catch (e) {
+      if (e is WarmReadCancelled ||
+          e is WarmAccessDenied ||
+          e is WarmCacheMiss) {
+        rethrow;
+      }
       final failure = _failureFor(
         operation: DmConversationOperation.listConversations,
         data: e is PostgrestException ? e.toJson() : null,
@@ -351,32 +384,30 @@ class DmConversationRepo {
     }
   }
 
+  List<Map<String, dynamic>>? _cachedRows(String key) {
+    final uid = currentUserId;
+    if (uid == null) return null;
+    final data = WarmSnapshotStore.instance.peek(uid, key)?.data;
+    if (data is! List || data.any((row) => row is! Map)) return null;
+    return data.map((row) => Map<String, dynamic>.from(row as Map)).toList();
+  }
+
+  List<DmConversationMessage>? cachedMessages(String conversationId) =>
+      _cachedRows(
+        'dm.messages.$conversationId',
+      )?.map(DmConversationMessage.fromJson).toList(growable: false);
+
+  DmConversationSummary? cachedConversationSummary(String conversationId) =>
+      _cachedRows('dm.summaries')
+          ?.map(DmConversationSummary.fromJson)
+          .where((summary) => summary.id == conversationId)
+          .firstOrNull;
+
   Future<DmConversationSummary?> getConversationSummary(
     String conversationId,
-  ) async {
-    try {
-      final rows = await _client
-          .from('dm_conversation_summaries')
-          .select()
-          .eq('conversation_id', conversationId)
-          .limit(1);
-      final list = (rows as List<dynamic>? ?? const [])
-          .whereType<Map>()
-          .toList();
-      if (list.isEmpty) return null;
-      return DmConversationSummary.fromJson(
-        Map<String, dynamic>.from(list.first),
-      );
-    } catch (e) {
-      final failure = _failureFor(
-        operation: DmConversationOperation.listConversations,
-        data: e is PostgrestException ? e.toJson() : null,
-        error: e,
-      );
-      _logFailure(failure);
-      throw failure;
-    }
-  }
+  ) async => (await getConversationSummaries())
+      .where((summary) => summary.id == conversationId)
+      .firstOrNull;
 
   Future<List<DmConversationMessage>> getMessages(
     String conversationId, {
@@ -403,6 +434,11 @@ class DmConversationRepo {
           .where((message) => message.id.isNotEmpty)
           .toList(growable: false);
     } catch (e) {
+      if (e is WarmAccessDenied ||
+          e is WarmReadCancelled ||
+          e is WarmCacheMiss) {
+        rethrow;
+      }
       final failure = _failureFor(
         operation: DmConversationOperation.readMessages,
         data: e is PostgrestException ? e.toJson() : null,
@@ -446,8 +482,14 @@ class DmConversationRepo {
         liveReceived = true;
         lastSummaries = summaries;
         if (!controller.isClosed) controller.add(summaries);
-      } catch (_) {
-        if (!controller.isClosed) controller.add(lastSummaries);
+      } catch (error) {
+        if (error is WarmAccessDenied) {
+          liveReceived = true;
+          lastSummaries = const [];
+        }
+        if (!controller.isClosed && currentUserId == uid) {
+          controller.add(lastSummaries);
+        }
       } finally {
         refreshInFlight = false;
         if (refreshQueued) {
@@ -530,12 +572,28 @@ class DmConversationRepo {
     final controller = StreamController<List<DmConversationMessage>>();
     final channelName = _nextRealtimeChannelName('dm_messages');
     Timer? refreshDebounce;
-    List<DmConversationMessage>? lastMessages;
+    List<DmConversationMessage>? lastMessages = cachedMessages(conversationId);
+    final account = AccountOperationFence(_client);
+    bool refreshInFlight = false;
+    bool refreshQueued = false;
+    bool closed = false;
+    final cacheChanges = WarmSnapshotStore.instance.changes.listen((change) {
+      if (!account.isCurrent ||
+          controller.isClosed ||
+          change.userId != uid ||
+          change.key != 'dm.messages.$conversationId') {
+        return;
+      }
+      final rows = cachedMessages(conversationId);
+      if (rows == null) return;
+      lastMessages = rows;
+      controller.add(rows);
+    });
     bool liveReceived = false;
     unawaited(() async {
       try {
         final local = await getMessages(conversationId, cachedOnly: true);
-        if (!liveReceived && !controller.isClosed && currentUserId == uid) {
+        if (!liveReceived && !controller.isClosed && account.isCurrent) {
           lastMessages = local;
           controller.add(local);
         }
@@ -543,19 +601,35 @@ class DmConversationRepo {
     }());
 
     Future<void> emitLatest() async {
+      if (closed) return;
+      if (refreshInFlight) {
+        refreshQueued = true;
+        return;
+      }
+      refreshInFlight = true;
       try {
         final messages = await getMessages(conversationId);
-        if (currentUserId != uid) return;
+        if (!account.isCurrent) return;
         liveReceived = true;
         lastMessages = messages;
         if (!controller.isClosed) controller.add(messages);
-      } catch (_) {
-        if (!controller.isClosed && currentUserId == uid) {
-          if (lastMessages != null) {
+      } catch (error) {
+        if (!controller.isClosed && account.isCurrent) {
+          if (error is WarmAccessDenied) {
+            liveReceived = true;
+            lastMessages = null;
+            controller.addError(error);
+          } else if (lastMessages != null) {
             controller.add(lastMessages!);
-          } else {
-            controller.addError(StateError("Messages unavailable"));
+          } else if (error is! WarmReadCancelled) {
+            controller.addError(StateError('Messages unavailable'));
           }
+        }
+      } finally {
+        refreshInFlight = false;
+        if (refreshQueued && !closed) {
+          refreshQueued = false;
+          unawaited(emitLatest());
         }
       }
     }
@@ -611,6 +685,9 @@ class DmConversationRepo {
     unawaited(emitLatest());
 
     controller.onCancel = () async {
+      closed = true;
+      account.dispose();
+      await cacheChanges.cancel();
       refreshDebounce?.cancel();
       await channel.unsubscribe();
       await controller.close();

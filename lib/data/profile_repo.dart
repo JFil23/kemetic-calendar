@@ -930,25 +930,27 @@ class ProfileRepo {
 
       _log('[ProfileRepo] Searching for users matching: $clean');
 
-      // 1️⃣ Search by handle prefix
-      final handleRows = await _runProfilesQuery(
-        (selectClause) => _client
-            .from('profiles')
-            .select(selectClause)
-            .ilike('handle', '$clean%')
-            .eq('allow_incoming_shares', true)
-            .limit(10),
-      );
-
-      // 2️⃣ Search by display_name substring
-      final nameRows = await _runProfilesQuery(
-        (selectClause) => _client
-            .from('profiles')
-            .select(selectClause)
-            .ilike('display_name', '%$clean%')
-            .eq('allow_incoming_shares', true)
-            .limit(10),
-      );
+      // Independent searches resolve together without removing visible results.
+      final results = await Future.wait([
+        _runProfilesQuery(
+          (selectClause) => _client
+              .from('profiles')
+              .select(selectClause)
+              .ilike('handle', '$clean%')
+              .eq('allow_incoming_shares', true)
+              .limit(10),
+        ),
+        _runProfilesQuery(
+          (selectClause) => _client
+              .from('profiles')
+              .select(selectClause)
+              .ilike('display_name', '%$clean%')
+              .eq('allow_incoming_shares', true)
+              .limit(10),
+        ),
+      ]);
+      final handleRows = results[0];
+      final nameRows = results[1];
 
       // 3️⃣ Combine + dedupe by id
       final Map<String, Map<String, dynamic>> combined = {};

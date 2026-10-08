@@ -251,6 +251,56 @@ void main() {
     });
     await tester.pumpAndSettle();
   });
+  testWidgets('a held Send tap keeps its target until pointer up', (
+    tester,
+  ) async {
+    await mount(tester);
+    await tester.tap(find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'One deliberate tap');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('kemetic-toggle-hit-target')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('kemetic-keyboard-panel')),
+      findsOneWidget,
+    );
+    final before = sentBodies.length;
+    final send = find.byType(ElevatedButton);
+    final rect = tester.getRect(send);
+    final touch = await tester.startGesture(rect.center);
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(
+      tester.getRect(send),
+      rect,
+      reason: 'Dismissal must not move controls beneath an active finger.',
+    );
+    expect(
+      find.byKey(const ValueKey('kemetic-keyboard-panel')),
+      findsOneWidget,
+    );
+    await touch.up();
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      isEmpty,
+    );
+    expect(find.text('One deliberate tap'), findsOneWidget);
+    await tester.runAsync(
+      () async => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+    expect(sentBodies.length, before + 1);
+    expect(find.text('One deliberate tap'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    tester.view.reset();
+    await tester.runAsync(() async {
+      await Supabase.instance.client.removeAllChannels();
+      await Supabase.instance.client.realtime.disconnect();
+      Supabase.instance.client.realtime.reconnectTimer.reset();
+    });
+    await tester.pumpAndSettle();
+  });
+
   testWidgets(
     'real Inbox menu replies with source identity and retains keyboard input',
     (tester) async {

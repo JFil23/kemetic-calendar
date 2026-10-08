@@ -65,6 +65,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   Map<String, int> _messageLikeCounts = const {};
   Set<String> _messageLikedByMeIds = const <String>{};
   bool _messageLikesUnavailable = false;
+  bool _leaving = false;
   String _messageLikeSignature = '';
 
   String get _editorKey => 'inbox_conversation:${widget.otherUserId}';
@@ -240,12 +241,13 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   }
 
   Future<void> _leaveConversation() async {
+    if (_leaving) return;
+    _leaving = true;
     RestorationCoordinator.instance.suppressRestoreForUserNavigation(
       reason: 'dm_conversation_back',
       surfaces: const <String>[_resumeKind],
     );
-    await SessionResumeService.clearResumeEntry(kind: _resumeKind);
-    if (!mounted) return;
+    unawaited(SessionResumeService.clearResumeEntry(kind: _resumeKind));
     popOrGo(context, '/inbox');
   }
 

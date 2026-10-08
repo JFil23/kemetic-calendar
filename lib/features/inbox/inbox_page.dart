@@ -1571,7 +1571,6 @@ class _InboxPageState extends State<InboxPage> {
       subtitle: subtitle,
       trailing: _buildChevronTrail(summary.hasUnread),
       onTap: () {
-        unawaited(_dmConversationRepo.markRead(summary.id));
         unawaited(
           openDetailRoute<void>(
             context,

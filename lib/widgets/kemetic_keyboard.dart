@@ -423,12 +423,26 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     _controller.attachEditable(editable);
   }
 
+  int? _outsidePointer;
+
   void _handlePointerDown(PointerDownEvent event) {
     if (!_controller.isCustomMode || _opening) return;
     if (_containsGlobalPosition(_panelRegionKey, event.position)) return;
     if (_containsGlobalPosition(_toggleRegionKey, event.position)) return;
     if (_containsActiveEditable(event.position)) return;
+    // Keep the pressed control in place until its gesture has completed.
+    // Closing on down resizes the editor and cancels taps before pointer up.
+    _outsidePointer = event.pointer;
+  }
+
+  void _handlePointerUp(PointerUpEvent event) {
+    if (_outsidePointer != event.pointer) return;
+    _outsidePointer = null;
     _dismissCustomKeyboard();
+  }
+
+  void _handlePointerCancel(PointerCancelEvent event) {
+    if (_outsidePointer == event.pointer) _outsidePointer = null;
   }
 
   bool _containsActiveEditable(Offset globalPosition) {
@@ -493,6 +507,8 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: _handlePointerDown,
+      onPointerUp: _handlePointerUp,
+      onPointerCancel: _handlePointerCancel,
       child: Stack(
         children: [
           KemeticKeyboardScope(
@@ -606,8 +622,9 @@ class _KeyboardToggleState extends State<_KeyboardToggle> {
     final editable = widget.controller.editable;
     if (editable == null || !editable.mounted) return null;
     final render = editable.context.findRenderObject();
-    if (render is! RenderBox || !render.hasSize || !render.attached)
+    if (render is! RenderBox || !render.hasSize || !render.attached) {
       return null;
+    }
     return render.localToGlobal(Offset.zero) & render.size;
   }
 

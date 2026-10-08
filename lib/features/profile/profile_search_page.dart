@@ -43,6 +43,33 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
   bool _startingConversation = false;
   String _query = '';
   Timer? _debounce;
+  int _searchGeneration = 0;
+  StreamSubscription<AuthState>? _accountSub;
+
+  @override
+  void initState() {
+    super.initState();
+    var account = Supabase.instance.client.auth.currentUser?.id;
+    _accountSub = Supabase.instance.client.auth.onAuthStateChange.listen((
+      state,
+    ) {
+      final next = state.session?.user.id;
+      if (!mounted ||
+          (next == account && state.event != AuthChangeEvent.signedOut)) {
+        return;
+      }
+      account = next;
+      _searchGeneration++;
+      _debounce?.cancel();
+      setState(() {
+        _results = [];
+        _selectedUsersById.clear();
+        _query = '';
+        _searching = false;
+        _controller.clear();
+      });
+    });
+  }
 
   bool get _isConversationMode => widget.selectionMode == 'conversation';
   bool get _isMultiPickerMode => widget.selectionMode == 'multi_picker';
@@ -50,6 +77,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
 
   @override
   void dispose() {
+    _accountSub?.cancel();
     _controller.dispose();
     _debounce?.cancel();
     super.dispose();
@@ -57,6 +85,8 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
 
   void _onQueryChanged(String raw) {
     final value = raw.trim();
+    final generation = ++_searchGeneration;
+    final account = Supabase.instance.client.auth.currentUser?.id;
     setState(() {
       _query = value;
     });
@@ -71,13 +101,21 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
     }
 
     _debounce = Timer(const Duration(milliseconds: 300), () async {
+      if (!mounted || generation != _searchGeneration) return;
       setState(() => _searching = true);
-      final res = await _repo.searchUsers(value);
-      if (!mounted) return;
-      setState(() {
-        _results = res;
-        _searching = false;
-      });
+      try {
+        final res = await _repo.searchUsers(value);
+        if (!mounted ||
+            generation != _searchGeneration ||
+            Supabase.instance.client.auth.currentUser?.id != account) {
+          return;
+        }
+        setState(() => _results = res);
+      } finally {
+        if (mounted && generation == _searchGeneration) {
+          setState(() => _searching = false);
+        }
+      }
     });
   }
 
@@ -245,7 +283,9 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
                 _buildSelectedPeopleChips(),
               ],
               const SizedBox(height: 20),
-              if (_searching)
+              if (_searching && _results.isNotEmpty)
+                const LinearProgressIndicator(minHeight: 2),
+              if (_searching && _results.isEmpty)
                 const Center(
                   child: CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),

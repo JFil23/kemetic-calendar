@@ -76,7 +76,9 @@ void main() {
         authOptions: const AuthClientOptions(autoRefreshToken: false),
         httpClient: MockClient(
           (request) async => http.Response(
-            '{}',
+            request.url.path.endsWith('/send_dm_message_v2')
+                ? '{"message":{"id":"confirmed","conversation_id":"test","sender_id":"$uid","body":"A message"}}'
+                : '{}',
             200,
             request: request,
             headers: {'content-type': 'application/json'},
@@ -91,10 +93,21 @@ void main() {
         () async => [],
         isCurrent: () => true,
       );
+      await store.refresh(
+        uid,
+        'dm.messages.another',
+        () async => [],
+        isCurrent: () => true,
+      );
       final repo = DmConversationRepo(client);
       await repo.markRead('test');
       expect(store.peek(uid, 'dm.messages.test'), isNotNull);
-      await repo.sendMessage(conversationId: 'test', text: 'A message');
+      final sent = await repo.sendMessage(
+        conversationId: 'test',
+        text: 'A message',
+      );
+      expect(sent.id, 'confirmed');
+      expect(store.peek(uid, 'dm.messages.another'), isNotNull);
       expect(store.peek(uid, 'dm.messages.test'), isNull);
       await client.dispose();
     },

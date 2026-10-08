@@ -1,3 +1,6 @@
+import '../dm_conversation_models.dart';
+import '../conversation_user.dart';
+import '../../../widgets/profile_avatar.dart';
 import 'package:flutter/material.dart';
 import 'inbox_message_actions.dart';
 import '../../../shared/glossy_text.dart';
@@ -137,4 +140,154 @@ class InboxMessageBubble extends StatelessWidget {
       return '${localDate.month}/${localDate.day}/${localDate.year}';
     }
   }
+}
+
+class InboxDmMessageRow extends StatelessWidget {
+  const InboxDmMessageRow({
+    super.key,
+    required this.message,
+    required this.isMine,
+    required this.showSender,
+    this.deliveryLabel,
+  });
+
+  final DmConversationMessage message;
+  final bool isMine;
+  final bool showSender;
+  final String? deliveryLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final sender = message.sender;
+    final bubble = _DmMessageBubble(
+      text: message.body,
+      deliveryLabel: deliveryLabel,
+      replyText: (message.payloadJson?['reply_to'] as Map?)?['text'] as String?,
+      createdAt: message.createdAt,
+      isMine: isMine,
+      senderName: showSender ? _displayName(sender) : null,
+    );
+
+    if (isMine) {
+      return Align(alignment: Alignment.centerRight, child: bubble);
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ProfileAvatar(
+              radius: 15,
+              displayName: _displayName(sender),
+              avatarUrl: sender?.avatarUrl,
+              avatarGlyphIds: sender?.avatarGlyphIds ?? const [],
+              backgroundColor: KemeticGold.base.withValues(alpha: 0.2),
+              foregroundColor: KemeticGold.base,
+            ),
+            const SizedBox(width: 8),
+            Flexible(child: bubble),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DmMessageBubble extends StatelessWidget {
+  const _DmMessageBubble({
+    required this.text,
+    required this.createdAt,
+    required this.isMine,
+    this.senderName,
+    this.replyText,
+    this.deliveryLabel,
+  });
+
+  final String text;
+  final DateTime createdAt;
+  final bool isMine;
+  final String? senderName;
+  final String? replyText;
+  final String? deliveryLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.sizeOf(context).width * 0.74,
+      ),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isMine ? KemeticGold.base : const Color(0xFF171719),
+        borderRadius: BorderRadius.circular(12),
+        border: isMine
+            ? null
+            : Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (replyText != null) InboxReplyPreview(text: replyText!),
+          if (senderName != null) ...[
+            Text(
+              senderName!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.64),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+          Text(
+            text,
+            style: TextStyle(
+              color: isMine ? Colors.black : Colors.white,
+              fontSize: 15,
+              height: 1.32,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Text(
+              deliveryLabel ?? _timeLabel(createdAt),
+              style: TextStyle(
+                color: deliveryLabel == 'Not sent'
+                    ? const Color(0xFF6C0808)
+                    : isMine
+                    ? Colors.black.withValues(alpha: 0.55)
+                    : Colors.white.withValues(alpha: 0.45),
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _displayName(ConversationUser? user) {
+  final displayName = user?.displayName?.trim();
+  if (displayName != null && displayName.isNotEmpty) return displayName;
+  final handle = user?.handle?.trim();
+  if (handle != null && handle.isNotEmpty) return '@$handle';
+  return 'User';
+}
+
+String _timeLabel(DateTime value) {
+  final local = value.toLocal();
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final suffix = local.hour >= 12 ? 'PM' : 'AM';
+  return '$hour:$minute $suffix';
 }
