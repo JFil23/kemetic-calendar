@@ -1,4 +1,3 @@
-import 'decan_insight_post.dart';
 import 'package:mobile/core/theme/app_fonts.dart';
 import 'commons_practice_card.dart';
 import 'commons_rhythm_block.dart';
@@ -3282,8 +3281,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   Widget _buildCommonsFragment(InsightPost post) {
-    if (post.isDecanReflection)
-      return DecanInsightPost(post: post, onOpen: () => _openInsightPost(post));
     return buildCommonsCard(
       padding: const EdgeInsets.all(17),
       child: Column(
@@ -3309,7 +3306,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                     text: '${post.authorLabel} · ',
                     children: [
                       TextSpan(
-                        text: post.nodeTitle,
+                        text: post.isDecanReflection
+                            ? 'Decan reflection'
+                            : post.nodeTitle,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.62),
                           fontWeight: FontWeight.w700,
@@ -3763,8 +3762,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   Widget _buildFeedInsightTile(ProfileFeedItem item) {
     final post = item.insightPost!;
-    if (post.isDecanReflection)
-      return DecanInsightPost(post: post, onOpen: () => _openInsightPost(post));
     final relationship = _ownsInsightPost(post)
         ? 'Your Insight'
         : post.isFollowingAuthor
@@ -3818,7 +3815,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'INSIGHT · ${post.nodeTitle}'.toUpperCase(),
+                      (post.isDecanReflection
+                              ? 'DECAN REFLECTION'
+                              : 'INSIGHT · ${post.nodeTitle}')
+                          .toUpperCase(),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -3844,7 +3844,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'From a saved node insight · ${_formatPostDate(post.entryDate, compact: true)}',
+                      '${post.isDecanReflection ? 'From a decan reflection' : 'From a saved node insight'} · ${_formatPostDate(post.entryDate, compact: true)}',
                       style: TextStyle(
                         color: const Color(0xFFA69A83).withValues(alpha: 0.72),
                         fontSize: 11,

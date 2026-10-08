@@ -5,6 +5,32 @@ import 'package:mobile/features/journal/journal_v2_rich_text.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
 
 void main() {
+  testWidgets('closing an edited Journal before the next frame is safe', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RichTextEditor(
+            initialBlock: const ParagraphBlock(
+              id: 'closing',
+              ops: [TextOp(insert: 'Kept words.')],
+            ),
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+    final controller = tester
+        .widget<TextField>(find.byType(TextField))
+        .controller!;
+    controller.text = 'Latest words.';
+    // Navigation disposes the editor before its deferred formatting notification.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows placeholder when empty document stores only a newline', (
     tester,
   ) async {

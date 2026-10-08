@@ -1,3 +1,8 @@
+import 'dart:io';
+import 'package:mobile/core/theme/app_theme.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import '../../support/maat_flow_visual_test_fonts.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -290,6 +295,96 @@ void main() {
 
     await controller.forceSave();
   });
+
+  testWidgets(
+    'decan content retains the established Journal editor and controls',
+    (tester) async {
+      await loadMaatFlowVisualTestFonts();
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(tester.view.reset);
+      final controller = JournalController.withRepo(
+        _NoopJournalRepo(),
+        currentUserId: () => 'user-a',
+      );
+      addTearDown(controller.dispose);
+      const paragraph = ParagraphBlock(
+        id: 'user-body',
+        ops: [
+          TextOp(
+            insert: 'My own journal writing.',
+            attrs: TextAttrs(italic: true),
+          ),
+        ],
+      );
+      await controller.updateDocument(
+        JournalDocument(version: kJournalDocVersion, blocks: [paragraph]),
+      );
+      const captureKey = ValueKey('journal-host-capture');
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: captureKey,
+          child: _JournalHarness(controller: controller, bottomInset: 0),
+        ),
+      );
+      await tester.pumpAndSettle();
+      Future<void> capture(String name) async {
+        final folder = Platform.environment['HAW_JOURNAL_HOST_CAPTURE_DIR'];
+        if (folder == null) return;
+        await tester.runAsync(() async {
+          final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.byKey(captureKey),
+          );
+          final image = await boundary.toImage(pixelRatio: 1);
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await Directory(folder).create(recursive: true);
+          await File(
+            '$folder/$name.png',
+          ).writeAsBytes(bytes!.buffer.asUint8List());
+          image.dispose();
+        });
+      }
+
+      await capture('established-journal');
+      const source = ParagraphBlock(
+        id: 'decan_reflection:review',
+        ops: [TextOp(insert: 'Test 1 — my decan reflection.')],
+      );
+      await controller.updateDocument(
+        controller.currentDocument!.copyWith(
+          blocks: [paragraph, source],
+          meta: {
+            'decan_sources': {
+              'review': {'question': 'What would you like to carry forward?'},
+            },
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Badges'), findsOneWidget);
+      expect(find.byTooltip('View archive'), findsOneWidget);
+      expect(find.text('Your writing, kept together.'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      await capture('journal-with-reflection');
+      expect(find.text('Test 1 — my decan reflection.'), findsOneWidget);
+      await tester.enterText(
+        find.byType(TextField),
+        'My ordinary paragraph changed.',
+      );
+      await tester.pump();
+      expect(
+        controller.currentDocument!.blocks
+            .where((b) => b.id == source.id)
+            .single
+            .toJson(),
+        source.toJson(),
+      );
+      expect(controller.currentDocument!.meta['decan_sources'], isNotNull);
+      await controller.forceSave();
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
   testWidgets('Ma’at response body blocks render without replacing badges', (
     tester,
@@ -896,6 +991,7 @@ class _JournalHarness extends StatelessWidget {
         viewInsets: EdgeInsets.only(bottom: bottomInset),
       ),
       child: MaterialApp(
+        theme: AppTheme.dark,
         home: JournalOverlay(
           controller: controller,
           isPortrait: true,

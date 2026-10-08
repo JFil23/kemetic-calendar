@@ -1,5 +1,4 @@
-import 'decan_insight_post.dart';
-import '../reflections/decan_review_widgets.dart';
+import '../nodes/kemetic_node_library.dart';
 import '../../data/account_operation_fence.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -34,7 +33,6 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
-    if (post.isDecanReflection) return _decanDetail(post);
 
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
@@ -109,7 +107,11 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
                                 ),
                               ),
                               child: Text(
-                                widget.isOwner
+                                post.isDecanReflection
+                                    ? (widget.isOwner
+                                          ? 'Your Reflection'
+                                          : 'Posted Reflection')
+                                    : widget.isOwner
                                     ? 'Your Insight'
                                     : 'Posted Insight',
                                 style: const TextStyle(
@@ -192,7 +194,9 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
                                   ),
                                 Expanded(
                                   child: KemeticGold.text(
-                                    post.nodeTitle,
+                                    post.isDecanReflection
+                                        ? 'Decan reflection'
+                                        : post.nodeTitle,
                                     style: const TextStyle(
                                       fontSize: 26,
                                       fontWeight: FontWeight.w700,
@@ -221,6 +225,19 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
                               ),
                             ),
                             const SizedBox(height: 18),
+                            if (post.isDecanReflection &&
+                                (post.questionText?.isNotEmpty ?? false)) ...[
+                              Text(
+                                post.questionText!,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                  fontStyle: FontStyle.italic,
+                                  height: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
                             Text(
                               post.bodyText.trim(),
                               style: const TextStyle(
@@ -229,6 +246,8 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
                                 height: 1.6,
                               ),
                             ),
+                            if (post.isDecanReflection)
+                              _reflectionActions(post),
                           ],
                         ),
                       ),
@@ -250,73 +269,80 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
     );
   }
 
-  Widget _decanDetail(InsightPost post) => Scaffold(
-    backgroundColor: DecanReviewStyle.base,
-    body: DecanReviewCanvas(
-      privacy: 'Community',
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: () => popOrGo(
-              context,
-              '/profile/${Uri.encodeComponent(post.userId)}',
+  Widget _reflectionActions(InsightPost post) {
+    final slug = post.readingLink?['slug'] as String?;
+    final reading = slug == null ? null : KemeticNodeLibrary.resolve(slug);
+    return TextButtonTheme(
+      data: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: KemeticGold.base),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (reading != null)
+              TextButton(
+                onPressed: () => openDetailRoute<void>(
+                  context,
+                  '/nodes/${Uri.encodeComponent(reading.id)}',
+                ),
+                child: Text('Read ${reading.title}'),
+              ),
+            TextButton(
+              onPressed: () => openDetailRoute<void>(
+                context,
+                '/profile/${Uri.encodeComponent(post.userId)}',
+              ),
+              child: Text('View ${post.authorLabel}'),
             ),
-            child: Text('‹ Back', style: DecanReviewStyle.ui(12.5)),
-          ),
-        ),
-        DecanReviewIntro(
-          eyebrow: widget.isOwner ? 'Your profile & feed' : 'Community',
-          title: 'A shared reflection',
-          subtitle: widget.isOwner
-              ? 'Published by you.'
-              : 'Published by ${post.authorLabel}.',
-          compact: true,
-        ),
-        DecanInsightPost(post: post),
-        if (widget.isOwner) ...[
-          DecanReviewButton(
-            'Edit post',
-            onPressed: post.sourceReflectionId == null
-                ? null
-                : () => openDetailRoute(
-                    context,
-                    '/reflections/${post.sourceReflectionId}?compose=1',
+            if (widget.isOwner) ...[
+              Wrap(
+                spacing: 12,
+                children: [
+                  TextButton(
+                    onPressed: post.sourceReflectionId == null
+                        ? null
+                        : () => openDetailRoute<void>(
+                            context,
+                            '/reflections/${post.sourceReflectionId}?compose=1',
+                          ),
+                    child: const Text('Edit post'),
                   ),
-          ),
-          DecanReviewButton(
-            'Open your reflection',
-            quiet: true,
-            onPressed: post.sourceReflectionId == null
-                ? null
-                : () => openDetailRoute(
-                    context,
-                    '/reflections/${post.sourceReflectionId}',
+                  TextButton(
+                    onPressed: post.sourceReflectionId == null
+                        ? null
+                        : () => openDetailRoute<void>(
+                            context,
+                            '/reflections/${post.sourceReflectionId}',
+                          ),
+                    child: const Text('Open your reflection'),
                   ),
-          ),
-          DecanReviewButton(
-            _removing ? 'Removing…' : 'Remove post',
-            quiet: true,
-            onPressed: _removing ? null : _remove,
-          ),
-          const DecanReviewFooter(
-            'Your Journal and this post keep separate copies.',
-          ),
-        ] else ...[
-          DecanReviewButton(
-            'Report post',
-            quiet: true,
-            onPressed: _safetyBusy ? null : _report,
-          ),
-          DecanReviewButton(
-            'Block author',
-            quiet: true,
-            onPressed: _safetyBusy ? null : _block,
-          ),
-        ],
-      ],
-    ),
-  );
+                ],
+              ),
+              const Text(
+                'Your Journal and this post keep separate copies.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ] else
+              Wrap(
+                spacing: 12,
+                children: [
+                  TextButton(
+                    onPressed: _safetyBusy ? null : _report,
+                    child: const Text('Report post'),
+                  ),
+                  TextButton(
+                    onPressed: _safetyBusy ? null : _block,
+                    child: const Text('Block author'),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _report() async {
     setState(() => _safetyBusy = true);

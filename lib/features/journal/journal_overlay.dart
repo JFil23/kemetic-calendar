@@ -1,5 +1,4 @@
 import 'journal_recovery_action.dart';
-import 'journal_document_view.dart';
 import 'journal_badges_area.dart';
 // lib/features/journal/journal_overlay.dart
 // FIXES: 1) Toolbar overflow, 2) Layered coexistence, 3) Drawing undo
@@ -553,7 +552,10 @@ class _JournalOverlayState extends State<JournalOverlay>
     final blocks = List<JournalBlock>.from(doc.blocks);
 
     final paragraphIndex = blocks.indexWhere(
-      (b) => b is ParagraphBlock && !_isMaatResponseParagraph(b),
+      (b) =>
+          b is ParagraphBlock &&
+          !_isMaatResponseParagraph(b) &&
+          !b.id.startsWith('decan_reflection:'),
     );
     if (paragraphIndex >= 0) {
       blocks[paragraphIndex] = block;
@@ -622,13 +624,6 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   @override
   Widget build(BuildContext context) {
-    if (JournalDocumentView.containsDecan(widget.controller.currentDocument)) {
-      return JournalDocumentView(
-        controller: widget.controller,
-        onClose: widget.onClose,
-      );
-    }
-
     _keyboardVisible = keyboardIsVisible(context);
     final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
     final isFullPage = widget.presentationMode == JournalPresentationMode.page;
@@ -1359,13 +1354,20 @@ class _JournalOverlayState extends State<JournalOverlay>
   List<ParagraphBlock> _maatResponseBodyBlocks(JournalDocument doc) {
     return doc.blocks
         .whereType<ParagraphBlock>()
-        .where(_isMaatResponseParagraph)
+        .where(
+          (block) =>
+              _isMaatResponseParagraph(block) ||
+              block.id.startsWith('decan_reflection:'),
+        )
         .toList(growable: false);
   }
 
   ParagraphBlock? _editableParagraphBlock(JournalDocument doc) {
     for (final block in doc.blocks.whereType<ParagraphBlock>()) {
-      if (!_isMaatResponseParagraph(block)) return block;
+      if (!_isMaatResponseParagraph(block) &&
+          !block.id.startsWith('decan_reflection:')) {
+        return block;
+      }
     }
     return null;
   }
@@ -1403,6 +1405,18 @@ class _JournalOverlayState extends State<JournalOverlay>
             for (var i = 0; i < blocks.length; i++) ...[
               if (i > 0) const SizedBox(height: 8),
               Text(_paragraphText(blocks[i]).trim(), style: textStyle),
+              if (blocks[i].id.startsWith('decan_reflection:'))
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: JournalSkinTokens.goldSoft,
+                    textStyle: JournalSkinTokens.savedLineStyle,
+                  ),
+                  onPressed: () => openDetailRoute<void>(
+                    context,
+                    '/reflections/${Uri.encodeComponent(blocks[i].id.substring('decan_reflection:'.length))}',
+                  ),
+                  child: const Text('Open reflection'),
+                ),
             ],
           ],
         ),

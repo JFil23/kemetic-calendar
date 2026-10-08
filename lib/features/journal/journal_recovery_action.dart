@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../data/journal_repo.dart';
-import '../reflections/decan_review_widgets.dart';
+import 'journal_skin_tokens.dart';
 import 'journal_controller.dart';
 
 /// One recovery action for every Journal entry, including decan contributions.
@@ -25,7 +25,9 @@ class JournalRecoveryAction extends StatelessWidget {
         conflict is JournalRevisionConflict
             ? 'Review both Journal versions'
             : 'Other saved drafts',
-        style: DecanReviewStyle.ui(12.5, color: DecanReviewStyle.gold),
+        style: JournalSkinTokens.savedLineStyle.copyWith(
+          color: JournalSkinTokens.gold,
+        ),
       ),
     );
   }
@@ -78,14 +80,32 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
     });
   }
 
+  Widget _action(
+    String label, {
+    VoidCallback? onPressed,
+    bool primary = false,
+    bool busy = false,
+  }) {
+    final child = busy
+        ? const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Text(label);
+    return primary
+        ? OutlinedButton(onPressed: onPressed, child: child)
+        : TextButton(onPressed: onPressed, child: child);
+  }
+
   Widget _words(String label, String body) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      DecanReviewLabel(label),
+      Text(label, style: JournalSkinTokens.savedLineStyle),
       const SizedBox(height: 10),
       SelectableText(
         body.trim().isEmpty ? 'No writing in this version.' : body,
-        style: DecanReviewStyle.serif(21),
+        style: JournalSkinTokens.entryBodyStyle.copyWith(fontSize: 21),
       ),
       const SizedBox(height: 24),
     ],
@@ -95,7 +115,7 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
     final c = widget.controller;
     final conflict = c.lastSyncError;
     return Dialog(
-      backgroundColor: DecanReviewStyle.base,
+      backgroundColor: JournalSkinTokens.black,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 540, maxHeight: 620),
         child: SingleChildScrollView(
@@ -103,7 +123,10 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Your writing is kept', style: DecanReviewStyle.serif(30)),
+              Text(
+                'Your writing is kept',
+                style: JournalSkinTokens.entryBodyStyle.copyWith(fontSize: 30),
+              ),
               const SizedBox(height: 20),
               if (conflict is JournalRevisionConflict) ...[
                 _words(
@@ -115,9 +138,9 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
                 _words('Your draft', c.currentDocument?.toPlainText() ?? ''),
                 Text(
                   'Choose the whole version to keep. Formatting and drawings stay with that version.',
-                  style: DecanReviewStyle.ui(12),
+                  style: JournalSkinTokens.savedLineStyle,
                 ),
-                DecanReviewButton(
+                _action(
                   'Keep this draft in Journal',
                   onPressed: _busy
                       ? null
@@ -125,7 +148,7 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
                   primary: true,
                   busy: _busy,
                 ),
-                DecanReviewButton(
+                _action(
                   'Use the saved version',
                   onPressed: _busy
                       ? null
@@ -134,7 +157,7 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
               ] else ...[
                 Text(
                   'These drafts were preserved when another edit reached Journal first. Opening one lets you compare both versions before saving.',
-                  style: DecanReviewStyle.ui(13),
+                  style: JournalSkinTokens.savedLineStyle,
                 ),
                 for (final draft in c.recoveryDrafts) ...[
                   const SizedBox(height: 22),
@@ -142,7 +165,7 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
                     'Preserved draft',
                     '${draft.characterCount} characters${draft.createdAt == null ? '' : ' · ${draft.createdAt!.toLocal().toString().substring(0, 16)}'}',
                   ),
-                  DecanReviewButton(
+                  _action(
                     'Compare this draft',
                     onPressed: _busy
                         ? null
@@ -159,11 +182,11 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
                   ),
                 ],
               ],
-              if (_notice != null) DecanReviewNotice(_notice!),
-              DecanReviewButton(
+              if (_notice != null)
+                Text(_notice!, style: JournalSkinTokens.savedLineStyle),
+              _action(
                 'Close',
                 onPressed: _busy ? null : () => Navigator.of(context).pop(),
-                quiet: true,
               ),
             ],
           ),

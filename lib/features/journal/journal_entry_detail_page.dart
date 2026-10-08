@@ -1,6 +1,6 @@
 import '../../data/account_operation_fence.dart';
 import 'journal_controller.dart';
-import 'journal_document_view.dart';
+import 'journal_archive_page.dart';
 import '../../data/warm_state/warm_snapshot_store.dart';
 import 'dart:async';
 
@@ -116,14 +116,17 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
   @override
   Widget build(BuildContext context) {
     if (_account.isCurrent &&
-        JournalDocumentView.containsDecan(_controller.currentDocument)) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF0B0906),
-        resizeToAvoidBottomInset: false,
-        body: JournalDocumentView(
-          controller: _controller,
-          onClose: () => popOrGo(context, '/journal'),
-        ),
+        _entry != null &&
+        _controller.currentDocument?.blocks.any(
+              (b) => b.id.startsWith('decan_reflection:'),
+            ) ==
+            true) {
+      return JournalArchivePage(
+        repo: _repo,
+        controller: _controller,
+        isPortrait: MediaQuery.orientationOf(context) == Orientation.portrait,
+        onClose: () => popOrGo(context, '/journal'),
+        initialEntry: _entry,
       );
     }
     const bodyBottomPadding = 16.0;
