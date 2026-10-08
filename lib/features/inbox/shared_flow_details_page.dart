@@ -1,4 +1,5 @@
 import '../../data/warm_state/warm_snapshot_store.dart';
+import '../../data/warm_state/warm_work_queue.dart';
 // lib/features/inbox/shared_flow_details_page.dart
 // Dual-mode details page: supports both imported flows (flowId) and non-imported shares (share)
 
@@ -174,6 +175,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           _flowFuture = _warmData == null
               ? Future.error(const _FlowNoLongerAvailable())
               : Future.value(_warmData!);
+          // FutureBuilder attaches on the next frame; account departure must
+          // not emit an unhandled error before it can render the denied state.
+          _flowFuture.ignore();
         });
       }
     });
@@ -334,14 +338,42 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     int flowId, {
     bool cachedOnly = false,
   }) async {
-    final repo = FlowsRepo(Supabase.instance.client);
-    final results = await Future.wait<Object?>([
-      repo.getFlowById(flowId, cachedOnly: cachedOnly),
-      _userEventsRepo.getFlowDetailEvents(flowId, cachedOnly: cachedOnly),
-    ]);
-    final row = results[0] as FlowRow?;
-    if (row == null) throw const _FlowNoLongerAvailable();
-    return _fromRow(row, flowId, results[1] as List<FlowEventRow>);
+    final client = Supabase.instance.client;
+    final repo = FlowsRepo(client);
+    final account = AccountOperationFence(client);
+    final generation = _loadGeneration;
+    bool current() =>
+        mounted &&
+        generation == _loadGeneration &&
+        account.userId != null &&
+        account.isCurrent;
+    try {
+      while (true) {
+        try {
+          final results = await runZoned(
+            () => Future.wait<Object?>([
+              repo.getFlowById(flowId, cachedOnly: cachedOnly),
+              _userEventsRepo.getFlowDetailEvents(
+                flowId,
+                cachedOnly: cachedOnly,
+              ),
+            ]),
+            zoneValues: {warmReadGuard: current},
+          );
+          if (!current()) throw const WarmReadCancelled();
+          final row = results[0] as FlowRow?;
+          if (row == null) throw const _FlowNoLongerAvailable();
+          return _fromRow(row, flowId, results[1] as List<FlowEventRow>);
+        } on WarmReadCancelled {
+          // Like the canonical calendar scope, a live entry takes over a read
+          // coalesced with a departed warm owner. Account/route departure stays
+          // fenced; cached-only reconstruction never starts network work.
+          if (cachedOnly || !current()) rethrow;
+        }
+      }
+    } finally {
+      account.dispose();
+    }
   }
 
   _SharedFlowData _fromRow(FlowRow row, int flowId, List<FlowEventRow> events) {

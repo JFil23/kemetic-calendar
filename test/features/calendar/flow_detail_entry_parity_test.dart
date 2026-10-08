@@ -34,6 +34,7 @@ void main() {
   var offline = false;
   var denied = false;
   var calendarReads = 0;
+  var detailReads = 0;
   Completer<void>? readHold;
   const personalTitle = 'Dinner with family';
   final today = DateUtils.dateOnly(DateTime.now());
@@ -57,6 +58,7 @@ void main() {
         Object? data = [];
         var status = 200;
         if (table == 'flows') {
+          if (request.url.queryParameters.containsKey('id')) detailReads++;
           data = request.url.queryParameters.containsKey('origin_flow_id')
               ? []
               : flow;
@@ -99,10 +101,12 @@ void main() {
     );
   });
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     offline = false;
     denied = false;
     readHold = null;
     calendarReads = 0;
+    detailReads = 0;
     await Supabase.instance.client.auth.recoverSession(session(owner));
     await WarmSnapshotStore.instance.forgetAccount(owner);
     await WarmSnapshotStore.instance.forgetAccount(visitor);
@@ -209,6 +213,92 @@ void main() {
   testWidgets(
     'universal details: complete route visuals, calendar coverage, warm refresh and account boundaries',
     (tester) async {
+      // Keep the cancellation scenarios and visual parity in one widget clock.
+      for (final departure in ['none', 'route', 'account']) {
+        detailReads = 0;
+        expect(
+          WarmSnapshotStore.instance.peek(owner, 'flow.detail.42'),
+          isNull,
+        );
+        var warming = true;
+        final held = Completer<void>();
+        final priorRead = WarmSnapshotStore.instance
+            .refresh(owner, 'flow.detail.42', () async {
+              await held.future;
+              return flow;
+            }, isCurrent: () => warming)
+            .then<void>(
+              (_) => fail('The departed warm owner must be fenced'),
+              onError: (Object error) =>
+                  expect(error, isA<WarmReadCancelled>()),
+            );
+        final app = createAppRouterForTesting();
+        final route = app.configuration.routes.whereType<GoRoute>().singleWhere(
+          (r) => r.path == '/shared-flow/by-flow/:flowId',
+        );
+        final router = GoRouter(
+          initialLocation: '/launch',
+          routes: [
+            GoRoute(path: '/launch', builder: (_, _) => const Scaffold()),
+            route,
+          ],
+        );
+        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+        unawaited(router.push('/shared-flow/by-flow/42'));
+        await settle(tester);
+        expect(
+          detailReads,
+          0,
+          reason: 'The route coalesces the held warm read',
+        );
+        expect(
+          find.byKey(const ValueKey('user-flow-detail-surface-42')),
+          findsNothing,
+        );
+        if (departure == 'route') {
+          router.pop();
+          await settle(tester);
+        } else if (departure == 'account') {
+          await Supabase.instance.client.auth.recoverSession(session(visitor));
+          await tester.pump();
+          await Supabase.instance.client.auth.recoverSession(session(owner));
+          await tester.pump();
+        }
+        warming = false;
+        held.complete();
+        await settle(tester);
+        await priorRead;
+        if (departure == 'none') {
+          expect(
+            detailReads,
+            1,
+            reason: 'The still-current route owns one fresh read',
+          );
+          expect(
+            find.byKey(const ValueKey('user-flow-detail-surface-42')),
+            findsOneWidget,
+          );
+          expect(find.text('Manage flow'), findsOneWidget);
+          expect(find.textContaining('Error:'), findsNothing);
+        } else {
+          expect(
+            detailReads,
+            0,
+            reason: 'Departed routes/accounts never restart reads',
+          );
+          expect(
+            find.byKey(const ValueKey('user-flow-detail-surface-42')),
+            findsNothing,
+          );
+        }
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        router.dispose();
+        app.dispose();
+        await settle(tester);
+        await WarmSnapshotStore.instance.forgetAccount(owner);
+        await WarmSnapshotStore.instance.forgetAccount(visitor);
+      }
       for (final sky in [false, true]) {
         WarmSnapshotStore.instance.invalidate(owner);
 

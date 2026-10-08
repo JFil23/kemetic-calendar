@@ -1373,3 +1373,12 @@ flow and back, sheet close/reopen with an unsaved draft, the manual badge and ol
 period upgrade, and full focused-field bounds in portrait/landscape for native,
 web layout-sized, web visual-sized and custom keyboards. Existing warm namespace,
 resource schemas, old-release fixtures and inventory minimums are preserved.
+
+The served first-open replay also exposed a cancelled coalesced warm read in the
+existing canonical flow detail. SharedFlowDetailsPage now takes over that read
+under its own route generation and AccountOperationFence, matching the existing
+FlowDetailCalendarScope recovery. It retains the loading/full-detail visuals,
+retries only WarmReadCancelled for a still-current signed-in owner, and keeps
+network/denial errors distinct. Cache-only reads do not fetch; route closure and
+A-B-A account departure cannot restart or publish old work. Real-route tests
+reproduce a departed warm owner and verify recovery plus both departure fences.
