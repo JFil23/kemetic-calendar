@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/reflections/decan_review_models.dart';
 import 'package:mobile/features/reflections/decan_review_views.dart';
+import 'package:mobile/features/reflections/decan_review_widgets.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:mobile/widgets/keyboard_viewport_metrics.dart';
 import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
@@ -121,6 +122,15 @@ void main() {
               find.byType(EditableText),
             );
             expect(editable.widget.focusNode.hasFocus, isTrue);
+            final reviewScroll = tester
+                .widget<SingleChildScrollView>(
+                  find.descendant(
+                    of: find.byType(DecanReviewCanvas),
+                    matching: find.byType(SingleChildScrollView),
+                  ),
+                )
+                .controller!;
+            final reviewOffset = reviewScroll.offset;
             for (final height in [
               landscape ? 240.0 : 320.0,
               landscape ? 270.0 : 360.0,
@@ -181,6 +191,11 @@ void main() {
             tester.view.physicalSize = size;
             editable.widget.focusNode.unfocus();
             await tester.pumpAndSettle();
+            expect(
+              reviewScroll.offset,
+              closeTo(reviewOffset, 1),
+              reason: 'Done returns to the writing position, not the top.',
+            );
             await tester.ensureVisible(
               find.text(
                 form == 'answer'

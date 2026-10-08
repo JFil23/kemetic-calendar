@@ -53,7 +53,7 @@ abstract final class DecanReviewStyle {
 /// is tucked away for the keyboard, as in the canonical Day View composer.
 abstract interface class DecanReviewEditable {}
 
-class DecanReviewCanvas extends StatelessWidget {
+class DecanReviewCanvas extends StatefulWidget {
   const DecanReviewCanvas({
     super.key,
     required this.children,
@@ -65,6 +65,40 @@ class DecanReviewCanvas extends StatelessWidget {
   final ScrollController? scrollController;
 
   @override
+  State<DecanReviewCanvas> createState() => _DecanReviewCanvasState();
+}
+
+class _DecanReviewCanvasState extends State<DecanReviewCanvas> {
+  final _ownedScrollController = ScrollController();
+  ScrollController get _scroll =>
+      widget.scrollController ?? _ownedScrollController;
+  bool _editing = false;
+  double _reviewOffset = 0;
+
+  void _retainReviewPosition(bool editing) {
+    if (_editing == editing) return;
+    if (editing && _scroll.hasClients) _reviewOffset = _scroll.offset;
+    _editing = editing;
+    if (!editing) {
+      // Compact editing temporarily removes the surrounding copy's height.
+      // Restore that review position when the keyboard closes; keyboard reveal
+      // itself remains owned by the shared inset/editable surfaces.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _editing || !_scroll.hasClients) return;
+        _scroll.jumpTo(
+          _reviewOffset.clamp(0, _scroll.position.maxScrollExtent),
+        );
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _ownedScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => KeyboardInsetBoundary(
     child: KeyboardAwareEditableSurface(
       child: LayoutBuilder(
@@ -72,7 +106,8 @@ class DecanReviewCanvas extends StatelessWidget {
           final inset = constraints.maxWidth < 330 ? 22.0 : 30.0;
           final editing =
               keyboardIsVisible(context) &&
-              children.any((child) => child is DecanReviewEditable);
+              widget.children.any((child) => child is DecanReviewEditable);
+          _retainReviewPosition(editing);
           return DecoratedBox(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -90,7 +125,7 @@ class DecanReviewCanvas extends StatelessWidget {
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 600),
                       child: SingleChildScrollView(
-                        controller: scrollController,
+                        controller: _scroll,
                         keyboardDismissBehavior:
                             ScrollViewKeyboardDismissBehavior.onDrag,
                         padding: EdgeInsets.fromLTRB(
@@ -116,11 +151,11 @@ class DecanReviewCanvas extends StatelessWidget {
                                       height: 1.2,
                                     ),
                                   ),
-                                  if (privacy.isNotEmpty)
+                                  if (widget.privacy.isNotEmpty)
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        if (privacy == 'Only you') ...[
+                                        if (widget.privacy == 'Only you') ...[
                                           const Icon(
                                             Icons.lock_outline,
                                             size: 11,
@@ -129,7 +164,7 @@ class DecanReviewCanvas extends StatelessWidget {
                                           const SizedBox(width: 7),
                                         ],
                                         Text(
-                                          privacy,
+                                          widget.privacy,
                                           style: DecanReviewStyle.ui(
                                             11,
                                             spacing: .22,
@@ -140,7 +175,7 @@ class DecanReviewCanvas extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            for (final child in children)
+                            for (final child in widget.children)
                               Offstage(
                                 offstage:
                                     editing && child is! DecanReviewEditable,
