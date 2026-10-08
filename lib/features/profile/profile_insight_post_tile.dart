@@ -4,7 +4,6 @@ import '../../core/theme/app_fonts.dart';
 import '../../data/insight_post_model.dart';
 import '../nodes/widgets.dart';
 import 'posted_artifact_frame.dart';
-import 'decan_insight_post.dart';
 import 'profile_post_frame.dart';
 
 const _insightAccent = Color(0xFFD4AE43);
@@ -45,19 +44,6 @@ class ProfileInsightPostTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (post.isDecanReflection) {
-      return SizedBox(
-        height: profilePostHeight(context),
-        child: SingleChildScrollView(
-          child: DecanInsightPost(
-            post: post,
-            onOpen: onReadMore,
-            onRemove: onRemove,
-            onOpenAuthor: onOpenAuthor,
-          ),
-        ),
-      );
-    }
     final glyph = nodeGlyph?.trim().isNotEmpty == true
         ? nodeGlyph!.trim()
         : post.nodeGlyph?.trim();
@@ -76,7 +62,9 @@ class ProfileInsightPostTile extends StatelessWidget {
           authorAvatarGlyphIds: authorAvatarGlyphIds,
           onOpenAuthor: onOpenAuthor,
         ),
-        excerpt: nodeExcerpt,
+        excerpt: post.isDecanReflection
+            ? (post.questionText ?? '')
+            : nodeExcerpt,
         excerptKey: const ValueKey<String>('profile-insight-node-excerpt'),
         artifact: InkWell(
           key: ValueKey<String>('open-profile-insight-post-${post.id}'),
@@ -84,12 +72,13 @@ class ProfileInsightPostTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: PostedArtifactFrame(
             artifactKey: const ValueKey<String>('posted-insight-artifact'),
-            semanticLabel: '${post.nodeTitle}, insight',
+            semanticLabel:
+                '${post.isDecanReflection ? 'Decan reflection' : post.nodeTitle}, insight',
             accent: _insightAccent,
-            badgeLabel: 'Library',
+            badgeLabel: post.isDecanReflection ? 'Reflection' : 'Library',
             readoutLabel: 'DATED ${entryDateLabel.toUpperCase()}',
             typeLabel: 'INSIGHT',
-            title: post.nodeTitle,
+            title: post.isDecanReflection ? 'Decan reflection' : post.nodeTitle,
             overview: reflection.isEmpty ? 'Untitled insight' : reflection,
             hero: DecoratedBox(
               decoration: BoxDecoration(

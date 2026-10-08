@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/main.dart' show createAppRouterForTesting;
 import 'package:mobile/data/warm_state/warm_snapshot_store.dart';
 import 'package:mobile/features/reflections/decan_review_context.dart';
@@ -18,8 +19,9 @@ import 'package:mobile/features/reflections/decan_review_models.dart';
 import 'package:mobile/features/reflections/decan_review_screen.dart';
 import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:mobile/features/reflections/decan_review_widgets.dart';
-import 'package:mobile/features/journal/journal_document_view.dart';
-import 'package:mobile/features/profile/decan_insight_post.dart';
+import 'package:mobile/features/journal/journal_archive_page.dart';
+import 'package:mobile/features/journal/journal_v2_document_model.dart';
+import 'package:mobile/features/profile/insight_post_detail_page.dart';
 import '../../features/pages/pages_resource_test.dart' show session, uid;
 
 void main() {
@@ -92,6 +94,27 @@ void main() {
           },
         ],
       },
+      const DrawingBlock(
+        id: 'kept-drawing',
+        strokes: [
+          DrawingStroke(
+            points: [StrokePoint(x: 12, y: 18), StrokePoint(x: 36, y: 44)],
+            color: 0xFFD4AE43,
+            width: 2,
+            tool: 'pen',
+          ),
+        ],
+      ).toJson(),
+      const ChartBlock(
+        id: 'kept-chart',
+        data: ChartData(
+          labels: ['Morning'],
+          series: [
+            ChartSeries(name: 'Energy', values: [3], color: '#D4AE43'),
+          ],
+        ),
+        options: ChartOptions(type: 'bar', title: 'Energy'),
+      ).toJson(),
       {
         'type': 'paragraph',
         'id': 'decan_reflection:review',
@@ -101,6 +124,7 @@ void main() {
       },
     ],
     'meta': {
+      'personal_context': {'kept': true},
       'decan_sources': {
         'review': {
           'question': question,
@@ -267,7 +291,7 @@ void main() {
   }
 
   testWidgets(
-    'real reflection, Journal and social routes retain the approved composition and warm state',
+    'real reflection, Journal and social routes retain their established owners and warm state',
     (tester) async {
       tester.view.physicalSize = const Size(402, 1150);
       tester.view.devicePixelRatio = 1;
@@ -298,7 +322,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp.router(
           debugShowCheckedModeBanner: false,
-          theme: ThemeData.dark(useMaterial3: true),
+          theme: AppTheme.dark,
           routerConfig: router,
           builder: (context, child) =>
               RepaintBoundary(key: capture, child: child!),
@@ -383,7 +407,10 @@ void main() {
       await tester.tap(find.text('Keep in Journal'));
       await settle(tester);
       expect(find.text('Kept in Journal'), findsOneWidget);
-      expect(find.text('A new sentence of my own.'), findsOneWidget);
+      expect(
+        find.textContaining('A new sentence of my own.', findRichText: true),
+        findsOneWidget,
+      );
       expect(
         post['body_text'],
         words,
@@ -397,46 +424,93 @@ void main() {
       await screenshot('saved');
       router.go('/journal/entry/entry');
       await settle(tester);
-      expect(find.byType(JournalDocumentView), findsOneWidget);
-      expect(find.text('A new sentence of my own.'), findsOneWidget);
+      expect(find.byType(JournalArchivePage), findsOneWidget);
+      expect(find.byKey(journalArchiveReflectionSkinKey), findsOneWidget);
+      expect(find.text('Journal Entry'), findsOneWidget);
+      expect(find.byType(DecanReviewCanvas), findsNothing);
+      expect(
+        find.textContaining('A new sentence of my own.', findRichText: true),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
       await screenshot('journal');
-      await tester.ensureVisible(find.text('Edit these words'));
-      await tester.tap(find.text('Edit these words'));
-      await settle(tester);
       expect(
         find.textContaining(
           'removing them from Journal leaves your post in place',
         ),
         findsOneWidget,
       );
+      await tester.ensureVisible(find.text('Edit reflection'));
+      await tester.tap(find.text('Edit reflection'));
+      await settle(tester);
       await tester.enterText(
         find.byType(TextField).first,
         'Edited inside Journal.',
       );
-      await tester.ensureVisible(find.text('Save Journal changes'));
-      await tester.tap(find.text('Save Journal changes'));
+      await tester.ensureVisible(find.text('Save').last);
+      await tester.tap(find.text('Save').last);
       await settle(tester);
-      expect(find.text('Edited inside Journal.'), findsOneWidget);
+      expect(
+        find.textContaining('Edited inside Journal.', findRichText: true),
+        findsOneWidget,
+      );
       expect(find.byType(TextField), findsNothing);
       final journalEdited = jsonDecode(entry['body'] as String) as Map;
       expect(
         (journalEdited['blocks'] as List).first,
         (saved['blocks'] as List).first,
       );
+      expect(
+        (journalEdited['blocks'] as List).where(
+          (b) => b['id'] != 'decan_reflection:review',
+        ),
+        (saved['blocks'] as List).where(
+          (b) => b['id'] != 'decan_reflection:review',
+        ),
+      );
+      expect(journalEdited['meta'], saved['meta']);
       expect(post['body_text'], words);
       router.go('/reflections/review');
       await settle(tester);
       await tester.tap(find.text('Read your saved reflection  →'));
       await settle(tester);
-      expect(find.text('Edited inside Journal.'), findsOneWidget);
+      expect(
+        find.textContaining('Edited inside Journal.', findRichText: true),
+        findsOneWidget,
+      );
       router.go('/insight-post/post');
       await settle(tester);
-      expect(find.byType(DecanInsightPost), findsOneWidget);
+      expect(find.byType(InsightPostDetailPage), findsOneWidget);
+      expect(find.byType(DecanReviewCanvas), findsNothing);
       expect(find.text(words), findsOneWidget);
       expect(find.text('Amina'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await screenshot('post');
+      router.go('/journal/entry/entry');
+      await settle(tester);
+      await tester.ensureVisible(find.text('Remove reflection from Journal'));
+      await tester.tap(find.text('Remove reflection from Journal'));
+      await settle(tester);
+      final removed = jsonDecode(entry['body'] as String) as Map;
+      expect(
+        (removed['blocks'] as List).any(
+          (b) => b['id'] == 'decan_reflection:review',
+        ),
+        isFalse,
+      );
+      expect(
+        (removed['blocks'] as List),
+        (journalEdited['blocks'] as List).where(
+          (b) => b['id'] != 'decan_reflection:review',
+        ),
+      );
+      expect(
+        post['body_text'],
+        words,
+        reason:
+            'removing the private contribution never removes the public snapshot',
+      );
+      expect(tester.takeException(), isNull);
       offline = true;
       router.go('/reflections/review');
       await settle(tester);

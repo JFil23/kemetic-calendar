@@ -111,6 +111,20 @@ class JournalBadgeSpanBuilder {
 
 /// Custom controller that renders formatted text
 class _FormattedTextEditingController extends TextEditingController {
+  bool _disposed = false;
+
+  void _notifyAfterFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   ParagraphBlock block;
   List<TextRange> highlightedRanges;
   double? layoutWidth;
@@ -141,7 +155,7 @@ class _FormattedTextEditingController extends TextEditingController {
             : block.id,
         ops: [TextOp(insert: protected.text)],
       );
-      WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
+      _notifyAfterFrame();
     }
   }
 
@@ -209,7 +223,7 @@ class _FormattedTextEditingController extends TextEditingController {
     );
     final match = badgeRegex.firstMatch(textStr);
     if (match == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
+      _notifyAfterFrame();
       onExternalBadgeToggle?.call(badgeId, expanded);
       return;
     }
@@ -239,7 +253,7 @@ class _FormattedTextEditingController extends TextEditingController {
       composing: TextRange.empty,
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
+    _notifyAfterFrame();
     onExternalBadgeToggle?.call(badgeId, expanded);
   }
 

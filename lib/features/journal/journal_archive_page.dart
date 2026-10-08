@@ -12,6 +12,7 @@ import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../data/journal_repo.dart';
+import '../../data/account_operation_fence.dart';
 import '../../core/navigation_fallback.dart';
 import '../../widgets/insight_link_text.dart';
 import '../../widgets/keyboard_aware.dart';
@@ -23,7 +24,7 @@ import '../reflections/decan_reflection_skin.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_badge_utils.dart';
 import 'journal_controller.dart';
-import 'journal_document_view.dart';
+import 'journal_recovery_action.dart';
 import 'journal_empty_badge_glyph.dart';
 import 'journal_event_badge.dart';
 import 'journal_v2_document_model.dart';
@@ -52,6 +53,7 @@ class JournalArchivePage extends StatefulWidget {
   final VoidCallback onClose;
   final bool resizeToAvoidBottomInset;
   final WidgetBuilder? reflectionsBuilderForTesting;
+  final JournalEntry? initialEntry;
 
   const JournalArchivePage({
     super.key,
@@ -60,6 +62,7 @@ class JournalArchivePage extends StatefulWidget {
     required this.isPortrait,
     required this.onClose,
     this.resizeToAvoidBottomInset = true,
+    this.initialEntry,
     @visibleForTesting this.reflectionsBuilderForTesting,
   });
 
@@ -72,6 +75,8 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   bool _loading = true;
   JournalEntry? _selectedEntry;
   bool _isEditing = false;
+  String? _editingBlockId;
+  bool _saving = false;
   late TextEditingController _editController;
   late ScrollController _badgeScrollController;
   final InsightLinkRepo _insightRepo = InsightLinkRepo();
@@ -106,6 +111,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
       });
       unawaited(_loadEntries());
     });
+    if (widget.initialEntry != null) _openEntry(widget.initialEntry!);
     _loadEntries();
   }
 
@@ -153,21 +159,27 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final plainText = doc.toPlainText();
     _sourceController?.dispose();
     _sourceController = null;
-    if (JournalDocumentView.containsDecan(doc)) {
+    if (doc.blocks.any((b) => b.id.startsWith('decan_reflection:'))) {
       final controller = JournalController(
         Supabase.instance.client,
         repository: widget.repo,
       );
       _sourceController = controller;
+      controller.onDraftChanged = () {
+        if (mounted && _sourceController == controller) setState(() {});
+      };
       unawaited(
         controller.loadEntry(entry).then((_) {
-          if (mounted && _sourceController == controller) setState(() {});
+          if (mounted && _sourceController == controller && !_isEditing) {
+            setState(() => _editingDocument = controller.currentDocument);
+          }
         }),
       );
     }
 
     setState(() {
       _selectedEntry = entry;
+      _editingBlockId = null;
       _isEditing = false;
       _editingDocument = doc;
       _editController.text = plainText;
@@ -178,6 +190,10 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   }
 
   void _closeEntry() {
+    if (widget.initialEntry != null) {
+      widget.onClose();
+      return;
+    }
     _sourceController?.dispose();
     _sourceController = null;
     unawaited(_loadEntries());
@@ -191,8 +207,10 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     });
   }
 
-  void _startEditing() {
+  void _startEditing([String? blockId]) {
     setState(() {
+      _editingBlockId = blockId;
+      _editingDocument = _sourceController?.currentDocument ?? _editingDocument;
       _isEditing = true;
     });
   }
@@ -227,9 +245,13 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     });
   }
 
-  Future<void> _saveEntryLinks(JournalEntry entry) async {
+  Future<void> _saveEntryLinks(
+    JournalEntry entry, {
+    required bool Function() isCurrent,
+  }) async {
     final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
     final all = await _insightRepo.fetchLinks(userId);
+    if (!isCurrent()) return;
     final sourceId = _entrySourceId(entry);
     final filtered = all
         .where(
@@ -253,11 +275,14 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   }
 
   void _saveEntry() async {
-    if (_selectedEntry == null) return;
+    if (_selectedEntry == null || _saving) return;
+    setState(() => _saving = true);
     final messenger = ScaffoldMessenger.maybeOf(context);
-
+    final fence = AccountOperationFence(Supabase.instance.client);
+    final selectedEntry = _selectedEntry!;
+    bool current() =>
+        mounted && fence.isCurrent && _selectedEntry?.id == selectedEntry.id;
     try {
-      final selectedEntry = _selectedEntry!;
       // Save the edited document with badges + drawing
       JournalDocument doc =
           _editingDocument ??
@@ -274,9 +299,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             id: 'p-${_selectedEntry!.gregDate.millisecondsSinceEpoch}',
             ops: [
               TextOp(
-                insert: _editController.text.isEmpty
-                    ? '\n'
-                    : _editController.text,
+                insert: doc.toPlainText().isEmpty ? '\n' : doc.toPlainText(),
               ),
             ],
           ),
@@ -296,8 +319,19 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         selectedEntry.gregDate,
         selectedEntry.revision,
       );
-      await widget.repo.upsert(localDate: selectedEntry.gregDate, body: body);
-      await _saveEntryLinks(selectedEntry);
+      final sourceController = _sourceController;
+      if (sourceController != null) {
+        await sourceController.updateDocument(doc);
+        if (!await sourceController.forceSave()) {
+          throw sourceController.lastSyncError ??
+              StateError('Your draft is kept. Try saving again.');
+        }
+      } else {
+        await widget.repo.upsert(localDate: selectedEntry.gregDate, body: body);
+      }
+      if (!current()) return;
+      await _saveEntryLinks(selectedEntry, isCurrent: current);
+      if (!current()) return;
 
       final refreshedEntry =
           await widget.repo.getByDate(selectedEntry.gregDate) ??
@@ -312,7 +346,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             updatedAt: DateTime.now(),
           );
       final plainText = doc.toPlainText();
-      if (!mounted) return;
+      if (!current()) return;
 
       setState(() {
         _selectedEntry = refreshedEntry;
@@ -324,6 +358,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
       // Reload entries to reflect changes
       await _loadEntries();
+      if (!current()) return;
 
       messenger?.showSnackBar(
         const SnackBar(
@@ -332,12 +367,16 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         ),
       );
     } catch (e) {
+      if (!current()) return;
       messenger?.showSnackBar(
         SnackBar(
           content: Text('Error saving: $e'),
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      fence.dispose();
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -611,16 +650,6 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   @override
   Widget build(BuildContext context) {
     final showingEntry = _selectedEntry != null;
-    if (showingEntry && _sourceController != null) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF0B0906),
-        resizeToAvoidBottomInset: false,
-        body: JournalDocumentView(
-          controller: _sourceController!,
-          onClose: _closeEntry,
-        ),
-      );
-    }
     return DecanReflectionSkinScaffold(
       key: journalArchiveReflectionSkinKey,
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
@@ -632,7 +661,11 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         rightWidth: showingEntry ? 76 : 48,
         right: showingEntry
             ? _JournalArchiveNavAction(
-                label: _isEditing ? 'Save' : 'Edit',
+                label: _saving
+                    ? 'Saving…'
+                    : _isEditing
+                    ? 'Save'
+                    : 'Edit',
                 onPressed: _isEditing ? _saveEntry : _startEditing,
               )
             : null,
@@ -758,7 +791,8 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final entry = _selectedEntry!;
     final date = entry.gregDate;
     final header = _formatArchiveDate(date);
-    final entryDoc = _entryToDocument(entry);
+    final entryDoc =
+        _sourceController?.currentDocument ?? _entryToDocument(entry);
     final charCount = _getActualTextLength(entry);
     final keyboardVisible = keyboardIsVisible(context);
     const contentBottomPadding = 16.0;
@@ -835,6 +869,59 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
           ),
           const SizedBox(height: 16),
           _buildBadgeSection(badges),
+          for (final block in doc.blocks.whereType<ParagraphBlock>())
+            if (block.id.startsWith('decan_reflection:'))
+              TextButtonTheme(
+                data: TextButtonThemeData(
+                  style: TextButton.styleFrom(
+                    foregroundColor: KemeticGold.base,
+                  ),
+                ),
+                child: Wrap(
+                  spacing: 12,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        setState(
+                          () => _editingDocument = doc.copyWith(
+                            blocks: doc.blocks
+                                .where((b) => b.id != block.id)
+                                .toList(),
+                          ),
+                        );
+                        _saveEntry();
+                      },
+                      child: const Text('Remove reflection from Journal'),
+                    ),
+
+                    TextButton(
+                      onPressed: () => _startEditing(block.id),
+                      child: const Text('Edit reflection'),
+                    ),
+                    TextButton(
+                      onPressed: () => openDetailRoute<void>(
+                        context,
+                        '/reflections/${Uri.encodeComponent(block.id.substring('decan_reflection:'.length))}',
+                      ),
+                      child: const Text('Open reflection'),
+                    ),
+                    TextButton(
+                      onPressed: () => openDetailRoute<void>(
+                        context,
+                        '/reflections/${Uri.encodeComponent(block.id.substring('decan_reflection:'.length))}?compose=1',
+                      ),
+                      child: const Text('Post reflection'),
+                    ),
+                  ],
+                ),
+              ),
+          if (_sourceController != null)
+            const Text(
+              'If you shared these words, removing them from Journal leaves your post in place. Open your reflection to manage the post.',
+              style: DecanReflectionTokens.emptyBodyStyle,
+            ),
+          if (_sourceController != null)
+            JournalRecoveryAction(controller: _sourceController!),
         ],
       ),
     );
@@ -905,7 +992,12 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     if (_editingDocument != null) {
       final paragraphs = _editingDocument!.blocks.whereType<ParagraphBlock>();
       if (paragraphs.isNotEmpty) {
-        initialBlock = paragraphs.first;
+        initialBlock = _editingBlockId == null
+            ? paragraphs.first
+            : paragraphs.firstWhere(
+                (b) => b.id == _editingBlockId,
+                orElse: () => paragraphs.first,
+              );
       } else {
         initialBlock = ParagraphBlock(
           id: 'p-${DateTime.now().millisecondsSinceEpoch}',
@@ -954,6 +1046,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
                 child: Padding(
                   padding: const EdgeInsets.all(14),
                   child: RichTextEditor(
+                    key: ValueKey(initialBlock.id),
                     initialBlock: initialBlock,
                     highlightedRanges: _entryLinkRanges(),
                     insightLinks: _entryLinks,
@@ -971,9 +1064,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
                             _editingDocument ??
                             _entryToDocument(_selectedEntry!);
                         final blocks = List<JournalBlock>.from(doc.blocks);
-                        final pIdx = blocks.indexWhere(
-                          (b) => b is ParagraphBlock,
-                        );
+                        final pIdx = blocks.indexWhere((b) => b.id == block.id);
                         if (pIdx >= 0) {
                           blocks[pIdx] = block;
                         } else {

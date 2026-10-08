@@ -1082,8 +1082,9 @@ removed documents. A stable source paragraph is merged atomically into Journal;
 all unrelated blocks and metadata are retained. JournalController retains its
 existing document keys, adds a base-revision sidecar, serializes local writes,
 and does not clear newer typing when an earlier request is acknowledged. Archive
-writes bind to their displayed revision. The existing controller/editor and one
-document-kind renderer serve Calendar, direct entry and archive. Source removal
+writes bind to their displayed revision. JournalOverlay and JournalArchivePage retain their established layouts and
+editors; direct source entries reuse the archive entry view. JournalController
+owns source writes and recovery without replacing the host presentation. Source removal
 requires an explicit add-back action before it can be restored.
 
 Durable intents use `journal:user:<account>:mutation:<date>`, the existing Journal
@@ -1096,8 +1097,8 @@ versions under owner RLS; a fresh device can discover bounded recovery records.
 Routine Journal reads return descriptors only; full preserved bodies are fetched
 on explicit comparison. Selecting a recovery stages writing, never publishes it.
 
-ProfileRepo owns the new decan insight snapshot. DecanInsightPost renders it in
-profile, feed, Commons and detail. It has a real reflection identity and no dummy
+ProfileRepo owns the new decan insight snapshot. The established profile tile,
+feed/Commons cards and InsightPostDetailPage render it in their existing layouts. It has a real reflection identity and no dummy
 Library record. Posting, editing and removal are separate acknowledged actions;
 Journal updates cannot silently change the public copy. Existing member and
 bidirectional block rules apply. The original profile cache keys remain; a viewer
@@ -1382,3 +1383,26 @@ retries only WarmReadCancelled for a still-current signed-in owner, and keeps
 network/denial errors distinct. Cache-only reads do not fetch; route closure and
 A-B-A account departure cannot restart or publish old work. Real-route tests
 reproduce a departed warm owner and verify recovery plus both departure fences.
+
+
+## October 8 — confine the reflection presentation to its approved scope
+
+The October 7 document-kind switches incorrectly replaced the established
+Journal and social layouts when a reflection was present. Those switches and
+the duplicate JournalDocumentView/DecanInsightPost owners are removed. The
+existing Journal editor, archive entry view, profile artifact frame, feed/Commons
+cards and insight detail remain the visual authorities. Reflection contributes
+source paragraphs or a typed public snapshot, never a replacement host screen.
+
+Journal source editing/removal retains JournalController's durable pending
+writes, revision checks and conflict recovery. Paragraph identity selects the
+existing editor's target; other blocks and metadata are preserved. Archive saves
+fence account departure and A-B-A before publishing feedback or links. Closing
+the shared rich text editor cancels its deferred formatting notifications.
+
+No cache key, schema, repository owner, old-release fixture, approved golden or
+inventory threshold changes. Real-route tests retain private/public independence,
+acknowledged edits, warm reads and account-departure evidence. Host regression
+checks retain Journal controls and social geometry at phone/landscape sizes and
+enlarged text; a scope guard rejects reflection presentation imports in other
+features. Existing reflection visual fixtures remain intact.

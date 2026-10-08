@@ -8,8 +8,8 @@ import '../../widgets/keyboard_aware.dart';
 import 'decan_reflection_skin.dart';
 import 'decan_review_models.dart';
 
-/// Shared presentation for the approved uploaded HTML, including Journal source
-/// contributions and public reflections. Entry points provide data/actions.
+/// Presentation for the approved reflection experience and its post preview.
+/// Journal and social surfaces retain their own established presentation owners.
 abstract final class DecanReviewStyle {
   static const base = Color(0xFF0B0906);
   static const baseBottom = Color(0xFF0D0B07);
