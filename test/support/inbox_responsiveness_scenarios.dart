@@ -486,6 +486,8 @@ void inboxResponsivenessScenarios() {
       await tester.pump();
       expect(find.text('Start'), findsOneWidget);
       expect(find.widgetWithText(InputChip, 'Al Person'), findsOneWidget);
+      await tester.tap(find.byType(TextField));
+      await tester.pump(const Duration(milliseconds: 450));
       await tester.enterText(find.byType(TextField), 'Be');
       await tester.pump(const Duration(milliseconds: 310));
       await drain(tester);
