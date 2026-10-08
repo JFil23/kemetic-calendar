@@ -153,14 +153,7 @@ class _DecanReviewCanvasState extends State<DecanReviewCanvas> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'Hꜣw',
-                                    style: DecanReviewStyle.serif(
-                                      25,
-                                      color: DecanReviewStyle.gold,
-                                      height: 1.2,
-                                    ),
-                                  ),
+                                  const SizedBox(height: 30),
                                   if (widget.privacy.isNotEmpty)
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
