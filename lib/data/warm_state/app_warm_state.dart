@@ -1,3 +1,5 @@
+import '../../features/pages/pages_arrangement.dart';
+import '../../features/pages/pages_models.dart';
 import '../../features/calendar/the_reading_house/reading_house_room_repository.dart';
 import '../flow_post_model.dart';
 import 'dart:async';
@@ -35,6 +37,8 @@ class AppWarmState with WidgetsBindingObserver {
   bool _foreground = true, _disposed = false;
   DateTime? _lastSweep;
   String _day = '';
+  final _scheduledFlows = <int>{};
+  int? _priorityFlow;
   bool get _current =>
       !_disposed &&
       _foreground &&
@@ -53,6 +57,7 @@ class AppWarmState with WidgetsBindingObserver {
       _sweep(force: true);
     });
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => _sweep());
+    _cache.changes.addListener(_pagesChanged);
     _accountChanged();
   }
 
@@ -63,6 +68,8 @@ class AppWarmState with WidgetsBindingObserver {
     _queue.pause();
     _uid = uid;
     _lastSweep = null;
+    _scheduledFlows.clear();
+    _priorityFlow = null;
     if (previous != null) {
       FlowAppearanceStore.forgetAccount(previous);
       unawaited(WarmSnapshotStore.instance.forgetAccount(previous));
@@ -85,6 +92,59 @@ class AppWarmState with WidgetsBindingObserver {
     }
     _queue.resume();
     _sweep(force: true);
+  }
+
+  void _pagesChanged() {
+    if (_cache.changes.value == 'pages.flows' ||
+        _cache.changes.value == 'pages.events') {
+      _prioritizePagesFlow();
+    }
+  }
+
+  void _prioritizePagesFlow() {
+    if (!_current) return;
+    final uid = _uid!;
+    final selected = selectPagesStudio(
+      _cache.peek<List<PagesFlow>>(uid, 'pages.flows') ?? const [],
+      _cache.peek<PagesEventWindow>(uid, 'pages.events')?.events ?? const [],
+      DateTime.now(),
+    );
+    final id = int.tryParse(selected.flow?.id ?? '');
+    if (id == null || id == _priorityFlow) return;
+    _priorityFlow = id;
+    _enqueueFlow(id, priority: true);
+  }
+
+  void _enqueueFlow(int id, {bool priority = false}) {
+    if (!_current) return;
+    final uid = _uid!;
+    final key = '$uid:flow:$id';
+    if (!_scheduledFlows.add(id)) {
+      if (priority) _queue.prioritize(key);
+      return;
+    }
+    bool current() =>
+        _current &&
+        _uid == uid &&
+        ((Zone.current[warmReadGuard] as bool Function()?)?.call() ?? true);
+    _queue.enqueue(key, () async {
+      while (current()) {
+        try {
+          final row = await FlowsRepo(client).getFlowById(id);
+          if (!current() || row == null) return;
+          await UserEventsRepo(client).getFlowDetailEvents(id);
+          final path = row.appearance.imageObjectPath;
+          if (path != null && current()) {
+            await FlowAppearanceStore(client).imageBytes(path);
+          }
+          return;
+        } on WarmReadCancelled {
+          // An acknowledged edit can invalidate an otherwise current read.
+          // Continue with its fresh version; departed queue generations stop.
+          if (!current()) rethrow;
+        }
+      }
+    }, priority: priority);
   }
 
   void _sweep({bool force = false}) {
@@ -123,6 +183,9 @@ class AppWarmState with WidgetsBindingObserver {
     }
     _day = day;
     _lastSweep = now;
+    _scheduledFlows.clear();
+    _priorityFlow = null;
+    _prioritizePagesFlow();
     final uid = _uid!;
     bool current() => _current && _uid == uid;
     _cache.beginRefreshCycle();
@@ -213,16 +276,7 @@ class AppWarmState with WidgetsBindingObserver {
         for (final flow in rows.where(
           (f) => f.visibleInActiveList && !f.isHidden && !f.isReminder,
         )) {
-          _queue.enqueue('$uid:flow:${flow.id}', () async {
-            if (!current()) return;
-            await FlowsRepo(client).getFlowById(flow.id);
-            if (!current()) return;
-            await UserEventsRepo(client).getFlowDetailEvents(flow.id);
-            final path = flow.appearance.imageObjectPath;
-            if (path != null && current()) {
-              await FlowAppearanceStore(client).imageBytes(path);
-            }
-          });
+          if (current()) _enqueueFlow(flow.id);
         }
         return null;
       },
@@ -238,8 +292,7 @@ class AppWarmState with WidgetsBindingObserver {
         try {
           if (key.startsWith('flow.detail.')) {
             final id = int.parse(key.substring('flow.detail.'.length));
-            await FlowsRepo(client).getFlowById(id);
-            if (current()) await UserEventsRepo(client).getFlowDetailEvents(id);
+            _enqueueFlow(id);
           } else if (key.startsWith('social.post.')) {
             await profile.getFlowPostById(
               key.substring('social.post.'.length),
@@ -272,6 +325,7 @@ class AppWarmState with WidgetsBindingObserver {
   void dispose() {
     _disposed = true;
     _queue.pause();
+    _cache.changes.removeListener(_pagesChanged);
     _timer?.cancel();
     unawaited(_auth?.cancel());
     unawaited(_calendar?.cancel());

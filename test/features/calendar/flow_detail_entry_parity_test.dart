@@ -50,6 +50,7 @@ void main() {
   var calendarReads = 0;
   var detailReads = 0;
   Completer<void>? readHold;
+  Completer<void>? flowReadHold;
   const personalTitle = 'Dinner with family';
   final today = DateUtils.dateOnly(DateTime.now());
 
@@ -72,7 +73,10 @@ void main() {
         Object? data = [];
         var status = 200;
         if (table == 'flows') {
-          if (request.url.queryParameters.containsKey('id')) detailReads++;
+          if (request.url.queryParameters.containsKey('id')) {
+            detailReads++;
+            await flowReadHold?.future;
+          }
           data = request.url.queryParameters.containsKey('origin_flow_id')
               ? []
               : flow;
@@ -82,6 +86,7 @@ void main() {
           final detail = request.url.queryParameters.containsKey(
             'filed_flow_id',
           );
+          if (detail) await flowReadHold?.future;
           if (!detail) {
             calendarReads++;
             await readHold?.future;
@@ -125,6 +130,7 @@ void main() {
     offline = false;
     denied = false;
     readHold = null;
+    flowReadHold = null;
     calendarReads = 0;
     detailReads = 0;
     await Supabase.instance.client.auth.recoverSession(session(owner));
@@ -320,6 +326,40 @@ void main() {
     expect(router.state.uri.path, '/pages');
     expect(tester.state(find.byType(PagesPage)), same(pages));
     expect(tester.state(find.byType(PagesLayout)), same(layout));
+    expect(tester.getTopLeft(studio), position);
+
+    // A priority-warmed complete snapshot must paint and expand the exact
+    // occurrence while both canonical repository refreshes are still pending.
+    final refresh = flowReadHold = Completer<void>();
+    await tester.tap(studio);
+    var frames = 0;
+    final expanded = find
+        .text('Displayed occurrence detail', findRichText: true)
+        .hitTestable();
+    while (expanded.evaluate().isEmpty && frames < 40) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 1)),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+      frames++;
+    }
+    expect(refresh.isCompleted, isFalse);
+    expect(
+      find.byKey(const ValueKey('user-flow-detail-surface-42')),
+      findsOneWidget,
+    );
+    expect(expanded, findsOneWidget);
+    debugPrint(
+      'PAGES_FLOW_OPEN warm_expanded_frames=$frames server_refresh_pending=true',
+    );
+    await capture(tester, 'priority-warm-expanded');
+    refresh.complete();
+    flowReadHold = null;
+    await settle(tester);
+    expect(expanded, findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('user-flow-detail-back')));
+    await settle(tester);
+    expect(tester.state(find.byType(PagesPage)), same(pages));
     expect(tester.getTopLeft(studio), position);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
