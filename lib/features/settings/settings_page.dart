@@ -1451,7 +1451,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 _settingSwitch(
                   title: 'The Day’s Rhythm badge',
                   subtitle:
-                      'Automatically shows a Day’s Rhythm card once each day. Turn off to hide these cards.',
+                      'Automatically shows a Day’s Rhythm card once each day. Turn off to hide future cards.',
                   value: _dailyCosmicContextBadgeEnabled,
                   onChanged: _savingDailyCosmicContextBadge
                       ? null

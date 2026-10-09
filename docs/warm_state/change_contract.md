@@ -1428,10 +1428,13 @@ features. Existing reflection visual fixtures remain intact.
 
 The card-header toggle and Settings Calendar Content row share SettingsPrefs and
 its deployed `settings:dailyCosmicContextBadgeEnabled` device-local preference.
-Missing values remain enabled. Disabling hides the current card after the write
-is acknowledged and suppresses future automatic cards across restarts; enabling
-restores the existing once-per-local-day schedule. Closing the card remains a
-one-day dismissal. Account-specific last-shown dates retain their existing keys.
+Missing values remain enabled. Disabling suppresses future automatic cards
+across restarts; enabling restores the existing once-per-local-day schedule.
+The visible card stays open while the user toggles either way, including on
+preference reevaluation and resume. Only X dismisses the current card; outside
+taps and system Back do not. Account departure and existing authentication/setup
+suppression still clear private presentation. Closing remains a one-day dismissal.
+Account-specific last-shown dates retain their existing keys.
 No account content, warm key, resource schema or backend writer changes.
 
 Both entry points use the same serialized writer and publish acknowledged changes
@@ -1443,3 +1446,13 @@ phone, narrow and landscape layouts include enlarged text. Route-level regressio
 checks exercise the real Settings page and global overlay shell, persisted opt-out,
 re-enable, separate dismissal and rejected/throwing writes without changing
 approved visual references.
+
+The corrected compact switch paints a capsule track and silver capsule thumb at
+their actual dimensions instead of flattening a native control. The thumb is
+20x10px, twice its original width with the same height. Its polished silver
+finish uses a curved light gleam, shaded face and beveled rim based on the
+supplied metallic-button reference. The track stays 52px
+wide and 12px tall beside X, with a 60x40px tap area, green on and gray off.
+Static on/off captures cover both platforms, phone/landscape and enlarged text.
+Real-shell tests verify repeated toggles, outside taps, Back, X, restart,
+Settings restoration and failed saves; account changes retain their fence.

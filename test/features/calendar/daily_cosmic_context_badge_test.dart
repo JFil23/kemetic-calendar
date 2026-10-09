@@ -81,6 +81,42 @@ void main() {
     },
   );
 
+  test(
+    'visible card retains toggles and still clears on account departure',
+    () async {
+      final controller = DailyCosmicContextController(now: () => _firstDay);
+      addTearDown(controller.dispose);
+      Future<void> evaluate(String account) => controller.evaluate(
+        userId: account,
+        isAuthenticated: true,
+        onboardingComplete: true,
+        suppressed: false,
+      );
+      await evaluate(_userId);
+      final original = controller.current;
+      for (final enabled in [false, true, false]) {
+        await controller.setEnabled(enabled);
+        await evaluate(_userId);
+        expect(controller.current, same(original));
+        expect(controller.automaticDisplay, enabled);
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), enabled);
+      }
+      await evaluate('another-user');
+      expect(controller.current, isNull);
+      await evaluate(_userId);
+      expect(controller.current, isNull);
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.getString(
+          DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(
+            'another-user',
+          ),
+        ),
+        isNull,
+      );
+    },
+  );
+
   test('first open of day shows badge once and records today', () async {
     final controller = DailyCosmicContextController(now: () => _firstDay);
 
@@ -626,7 +662,7 @@ void main() {
   });
 
   test(
-    'global shell back button dismisses badge before route handling',
+    'global shell consumes Back without dismissing the rhythm card',
     () async {
       final source = await File('lib/main.dart').readAsString();
       final handleBackButton = _sourceBetween(
@@ -640,7 +676,11 @@ void main() {
         contains('_dailyCosmicContextController.hasVisibleBadge'),
       );
       expect(
-        handleBackButton.indexOf('_dailyCosmicContextController.dismiss()'),
+        handleBackButton,
+        isNot(contains('_dailyCosmicContextController.dismiss()')),
+      );
+      expect(
+        handleBackButton.indexOf('return true;'),
         lessThan(handleBackButton.indexOf('return false;')),
       );
       expect(

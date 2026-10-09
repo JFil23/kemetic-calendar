@@ -2810,7 +2810,7 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
 
   Future<bool> _handleBackButton() async {
     if (_dailyCosmicContextController.hasVisibleBadge) {
-      await _dailyCosmicContextController.dismiss();
+      // X is the card's only dismiss action; consume Back behind the modal.
       return true;
     }
     return false;
