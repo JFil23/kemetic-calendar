@@ -102,6 +102,15 @@ bool routeLocationContainsOneShotIntent(String? location) {
 }
 
 String _stableFlowStudioRoute(Uri uri) {
+  final flowId = int.tryParse(uri.queryParameters['flow'] ?? '');
+  if (flowId != null && flowId > 0) {
+    final identity = <String, String>{'flow': '$flowId'};
+    for (final key in ['occurrence', 'event']) {
+      final value = uri.queryParameters[key]?.trim();
+      if (value != null && value.isNotEmpty) identity[key] = value;
+    }
+    return Uri(path: '/flows', queryParameters: identity).toString();
+  }
   final mode = uri.queryParameters['mode']?.trim();
   if (mode == 'myFlows' || mode == 'maatFlows') {
     return Uri(

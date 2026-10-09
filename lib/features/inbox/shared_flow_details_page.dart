@@ -9,7 +9,8 @@ import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/navigation_fallback.dart';
+import '../calendar/presentation/maat_flow_detail_shell.dart'
+    show popMaatFlowDetailOrGo;
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/flows_repo.dart';
@@ -733,8 +734,12 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
             appBar: AppBar(
               backgroundColor: Colors.black,
               leading: IconButton(
+                tooltip: 'Back',
                 icon: KemeticGold.icon(Icons.arrow_back),
-                onPressed: () => popOrGo(context, widget.fallbackLocation),
+                onPressed: () => popMaatFlowDetailOrGo(
+                  context,
+                  fallbackLocation: widget.fallbackLocation,
+                ),
               ),
             ),
             body: Center(child: Text('Error: ${snapshot.error}')),
@@ -749,7 +754,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
               leading: IconButton(
                 tooltip: 'Back',
                 icon: KemeticGold.icon(Icons.arrow_back),
-                onPressed: () => popOrGo(context, widget.fallbackLocation),
+                onPressed: () => popMaatFlowDetailOrGo(
+                  context,
+                  fallbackLocation: widget.fallbackLocation,
+                ),
               ),
             ),
             body: const Center(child: CircularProgressIndicator()),

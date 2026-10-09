@@ -1,4 +1,7 @@
 import 'package:mobile/data/account_view_cache.dart';
+import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_preview_day_sheet.dart';
 import 'package:mobile/data/share_repo.dart';
 import 'package:mobile/data/shared_practice_models.dart';
 import 'package:mobile/features/pages/pages_page.dart';
@@ -206,7 +209,10 @@ void main() {
     }
   }
 
-  Future<GoRouter> mountPages(WidgetTester tester) async {
+  Future<GoRouter> mountPages(
+    WidgetTester tester, {
+    String initialLocation = '/pages',
+  }) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -215,13 +221,14 @@ void main() {
     final app = createAppRouterForTesting();
     addTearDown(app.dispose);
     final router = GoRouter(
-      initialLocation: '/pages',
+      initialLocation: initialLocation,
       observers: [routeObserver],
       routes: [
         GoRoute(path: '/', builder: (_, _) => const Scaffold()),
         ...app.configuration.routes.whereType<GoRoute>().where(
           (r) => [
             '/pages',
+            '/flows',
             '/shared-flow/by-flow/:flowId',
             '/inbox',
             '/nodes/:nodeId',
@@ -300,10 +307,22 @@ void main() {
     );
     final layout = tester.state(find.byType(PagesLayout));
     final position = tester.getTopLeft(studio);
+    // Establish the existing landing view as the return destination reference.
+    unawaited(router.push('/flows'));
+    await settle(tester);
+    expect(find.text('Flow Studio'), findsOneWidget);
+    expect(find.text("Ma'at Flows"), findsOneWidget);
+    expect(find.text('My Flows'), findsOneWidget);
+    expect(find.text('Add Flow'), findsOneWidget);
+    await capture(tester, 'flow-studio-landing-reference');
+    await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+    await settle(tester);
+    expect(tester.state(find.byType(PagesPage)), same(pages));
     await capture(tester, 'pages-before-tap');
     await tester.tap(studio);
     await settle(tester);
-    expect(router.state.uri.path, '/shared-flow/by-flow/42');
+    expect(router.state.uri.path, '/flows');
+    expect(router.state.uri.queryParameters['flow'], '42');
     expect(router.state.uri.queryParameters['occurrence'], 'target-client');
     expect(
       find.byKey(const ValueKey('user-flow-detail-surface-42')),
@@ -320,8 +339,22 @@ void main() {
       findsNothing,
     );
     expect(find.byType(FlowDetailCalendarScope), findsOneWidget);
+    final flowSheet = tester.state(find.byType(UtilitySheetRouteScaffold));
     await capture(tester, 'displayed-event-expanded');
     await tester.tap(find.byKey(const ValueKey('user-flow-detail-back')));
+    await settle(tester);
+    expect(router.state.uri.path, '/flows');
+    expect(find.text('Flow Studio'), findsOneWidget);
+    expect(find.text("Ma'at Flows"), findsOneWidget);
+    expect(find.text('My Flows'), findsOneWidget);
+    expect(find.text('Add Flow'), findsOneWidget);
+    expect(find.byType(UtilitySheetRouteScaffold), findsOneWidget);
+    expect(
+      tester.state(find.byType(UtilitySheetRouteScaffold)),
+      same(flowSheet),
+    );
+    await capture(tester, 'flow-studio-after-detail-back');
+    await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
     await settle(tester);
     expect(router.state.uri.path, '/pages');
     expect(tester.state(find.byType(PagesPage)), same(pages));
@@ -357,8 +390,16 @@ void main() {
     flowReadHold = null;
     await settle(tester);
     expect(expanded, findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('user-flow-detail-back')));
+    await tester.binding.handlePopRoute();
     await settle(tester);
+    expect(router.state.uri.toString(), '/flows');
+    expect(find.text('Flow Studio'), findsOneWidget);
+    expect(find.text("Ma'at Flows"), findsOneWidget);
+    expect(find.text('My Flows'), findsOneWidget);
+    expect(find.text('Add Flow'), findsOneWidget);
+    await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+    await settle(tester);
+    expect(router.state.uri.path, '/pages');
     expect(tester.state(find.byType(PagesPage)), same(pages));
     expect(tester.getTopLeft(studio), position);
     expect(tester.takeException(), isNull);
@@ -371,6 +412,163 @@ void main() {
     await settle(tester);
     await WarmSnapshotStore.instance.flushed;
     router.dispose();
+  }
+
+  void expectStudioLanding(GoRouter router) {
+    expect(router.state.uri.toString(), '/flows');
+    expect(find.byType(UtilitySheetRouteScaffold), findsOneWidget);
+    for (final label in [
+      'Flow Studio',
+      "Ma'at Flows",
+      'My Flows',
+      'Add Flow',
+    ]) {
+      expect(find.text(label).hitTestable(), findsOneWidget);
+    }
+  }
+
+  Future<void> disposePages(WidgetTester tester, GoRouter router) async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() async {
+      await Supabase.instance.client.removeAllChannels();
+      await Supabase.instance.client.realtime.disconnect();
+      Supabase.instance.client.realtime.reconnectTimer.reset();
+    });
+    await settle(tester);
+    await WarmSnapshotStore.instance.flushed;
+    router.dispose();
+  }
+
+  Future<void> checkOfferingTableBack(WidgetTester tester) async {
+    for (final systemBack in [false, true]) {
+      await resetFixtures();
+      flow['name'] = 'The Offering Table';
+      flow['notes'] = 'maat=offering-table';
+      flow['start_date'] = today
+          .subtract(const Duration(days: 23))
+          .toIso8601String();
+      final target = {
+        ...events.last,
+        'id': 'offering-day-24',
+        'client_event_id': 'offering-day-24-client',
+        'title': 'The Hoard Checked',
+        'starts_at': DateTime.now()
+            .add(const Duration(hours: 2))
+            .toUtc()
+            .toIso8601String(),
+        'behavior_payload': {'flow_key': 'offering-table', 'day': 24},
+      };
+      events = [...events.where((e) => e['filed_flow_id'] != 42), target];
+      AccountViewCache.instance.enterAccount(owner);
+      AccountViewCache.instance.evictPrefix(owner, '');
+      final router = await mountPages(tester);
+      final pages = tester.state(find.byType(PagesPage));
+      final studio = tile(PagesDestination.studio);
+      await tester.ensureVisible(studio);
+      await tester.pumpAndSettle();
+      final position = tester.getTopLeft(studio);
+      await tester.tap(studio);
+      await settle(tester);
+      final sheet = tester.state(find.byType(UtilitySheetRouteScaffold));
+      expect(
+        tester
+            .widget<OfferingTablePreviewDaySheet>(
+              find.byType(OfferingTablePreviewDaySheet),
+            )
+            .occurrence
+            .day
+            .dayNumber,
+        24,
+      );
+      await capture(tester, 'offering-selected-day');
+      // The recording closes the practice first, then backs out of the flow.
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expect(find.byType(OfferingTablePreviewDaySheet), findsNothing);
+      expect(find.byType(OfferingTableDetailSurface), findsOneWidget);
+      expect(
+        tester
+            .widget<OfferingTableDetailSurface>(
+              find.byType(OfferingTableDetailSurface),
+            )
+            .joinedFlowId,
+        42,
+      );
+      await capture(tester, 'offering-full-detail');
+      if (systemBack) {
+        await tester.binding.handlePopRoute();
+      } else {
+        await tester.tap(find.byKey(const ValueKey('offering-table-back')));
+      }
+      await settle(tester);
+      expectStudioLanding(router);
+      expect(tester.state(find.byType(UtilitySheetRouteScaffold)), same(sheet));
+      await capture(tester, 'offering-back-to-studio');
+      await tester.tap(find.text('My Flows'));
+      await settle(tester);
+      expect(router.state.uri.queryParameters['mode'], 'myFlows');
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expectStudioLanding(router);
+      await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+      await settle(tester);
+      expect(router.state.uri.path, '/pages');
+      expect(tester.state(find.byType(PagesPage)), same(pages));
+      expect(tester.getTopLeft(studio), position);
+      expect(tester.takeException(), isNull);
+      await disposePages(tester, router);
+    }
+  }
+
+  Future<void> checkStudioEntryStates(WidgetTester tester) async {
+    for (final state in ['loading', 'error', 'restored']) {
+      await resetFixtures();
+      AccountViewCache.instance.enterAccount(owner);
+      AccountViewCache.instance.evictPrefix(owner, '');
+      final held = state == 'loading' ? Completer<void>() : null;
+      flowReadHold = held;
+      offline = state == 'error';
+      final router = await mountPages(
+        tester,
+        initialLocation: state == 'restored' ? '/flows?flow=42' : '/pages',
+      );
+      if (state != 'restored') {
+        unawaited(router.push('/flows?flow=42'));
+        await settle(tester);
+      }
+      final sheet = tester.state(find.byType(UtilitySheetRouteScaffold));
+      if (state == 'loading') {
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      } else if (state == 'error') {
+        expect(find.textContaining('Error:'), findsOneWidget);
+      } else {
+        expect(
+          find.byKey(const ValueKey('user-flow-detail-surface-42')),
+          findsOneWidget,
+        );
+      }
+      await tester.tap(
+        state == 'restored'
+            ? find.byKey(const ValueKey('user-flow-detail-back'))
+            : find.byTooltip('Back'),
+      );
+      await settle(tester);
+      expectStudioLanding(router);
+      expect(tester.state(find.byType(UtilitySheetRouteScaffold)), same(sheet));
+      held?.complete();
+      flowReadHold = null;
+      await settle(tester);
+      expectStudioLanding(router);
+      expect(
+        find.byKey(const ValueKey('user-flow-detail-surface-42')),
+        findsNothing,
+      );
+      await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+      await settle(tester);
+      expect(router.state.uri.path, state == 'restored' ? '/' : '/pages');
+      expect(tester.takeException(), isNull);
+      await disposePages(tester, router);
+    }
   }
 
   Future<void> checkPagesInbox(WidgetTester tester) async {
@@ -522,6 +720,8 @@ void main() {
     (tester) async {
       // One widget clock owns the static cache write chain throughout.
       await checkPagesFlow(tester);
+      await checkOfferingTableBack(tester);
+      await checkStudioEntryStates(tester);
       await resetFixtures();
       await checkPagesInbox(tester);
       await resetFixtures();
@@ -529,90 +729,100 @@ void main() {
       await resetFixtures();
 
       // Keep the cancellation scenarios and visual parity in one widget clock.
-      for (final departure in ['none', 'route', 'account']) {
-        detailReads = 0;
-        expect(
-          WarmSnapshotStore.instance.peek(owner, 'flow.detail.42'),
-          isNull,
-        );
-        var warming = true;
-        final held = Completer<void>();
-        final priorRead = WarmSnapshotStore.instance
-            .refresh(owner, 'flow.detail.42', () async {
-              await held.future;
-              return flow;
-            }, isCurrent: () => warming)
-            .then<void>(
-              (_) => fail('The departed warm owner must be fenced'),
-              onError: (Object error) =>
-                  expect(error, isA<WarmReadCancelled>()),
-            );
-        final app = createAppRouterForTesting();
-        final route = app.configuration.routes.whereType<GoRoute>().singleWhere(
-          (r) => r.path == '/shared-flow/by-flow/:flowId',
-        );
-        final router = GoRouter(
-          initialLocation: '/launch',
-          routes: [
-            GoRoute(path: '/launch', builder: (_, _) => const Scaffold()),
-            route,
-          ],
-        );
-        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-        unawaited(router.push('/shared-flow/by-flow/42'));
-        await settle(tester);
-        expect(
-          detailReads,
-          0,
-          reason: 'The route coalesces the held warm read',
-        );
-        expect(
-          find.byKey(const ValueKey('user-flow-detail-surface-42')),
-          findsNothing,
-        );
-        if (departure == 'route') {
-          router.pop();
+      for (final location in ['/shared-flow/by-flow/42', '/flows?flow=42']) {
+        for (final departure in ['none', 'route', 'account']) {
+          detailReads = 0;
+          expect(
+            WarmSnapshotStore.instance.peek(owner, 'flow.detail.42'),
+            isNull,
+          );
+          var warming = true;
+          final held = Completer<void>();
+          final priorRead = WarmSnapshotStore.instance
+              .refresh(owner, 'flow.detail.42', () async {
+                await held.future;
+                return flow;
+              }, isCurrent: () => warming)
+              .then<void>(
+                (_) => fail('The departed warm owner must be fenced'),
+                onError: (Object error) =>
+                    expect(error, isA<WarmReadCancelled>()),
+              );
+          final app = createAppRouterForTesting();
+          final route = app.configuration.routes
+              .whereType<GoRoute>()
+              .singleWhere(
+                (r) =>
+                    r.path ==
+                    (location.startsWith('/flows')
+                        ? '/flows'
+                        : '/shared-flow/by-flow/:flowId'),
+              );
+          final router = GoRouter(
+            initialLocation: '/launch',
+            routes: [
+              GoRoute(path: '/launch', builder: (_, _) => const Scaffold()),
+              route,
+            ],
+          );
+          await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+          unawaited(router.push(location));
           await settle(tester);
-        } else if (departure == 'account') {
-          await Supabase.instance.client.auth.recoverSession(session(visitor));
-          await tester.pump();
-          await Supabase.instance.client.auth.recoverSession(session(owner));
-          await tester.pump();
-        }
-        warming = false;
-        held.complete();
-        await settle(tester);
-        await priorRead;
-        if (departure == 'none') {
-          expect(
-            detailReads,
-            1,
-            reason: 'The still-current route owns one fresh read',
-          );
-          expect(
-            find.byKey(const ValueKey('user-flow-detail-surface-42')),
-            findsOneWidget,
-          );
-          expect(find.text('Manage flow'), findsOneWidget);
-          expect(find.textContaining('Error:'), findsNothing);
-        } else {
           expect(
             detailReads,
             0,
-            reason: 'Departed routes/accounts never restart reads',
+            reason: 'The route coalesces the held warm read',
           );
           expect(
             find.byKey(const ValueKey('user-flow-detail-surface-42')),
             findsNothing,
           );
+          if (departure == 'route') {
+            router.pop();
+            await settle(tester);
+          } else if (departure == 'account') {
+            await Supabase.instance.client.auth.recoverSession(
+              session(visitor),
+            );
+            await tester.pump();
+            await Supabase.instance.client.auth.recoverSession(session(owner));
+            await tester.pump();
+          }
+          warming = false;
+          held.complete();
+          await settle(tester);
+          await priorRead;
+          if (departure == 'none') {
+            expect(
+              detailReads,
+              1,
+              reason: 'The still-current route owns one fresh read',
+            );
+            expect(
+              find.byKey(const ValueKey('user-flow-detail-surface-42')),
+              findsOneWidget,
+            );
+            expect(find.text('Manage flow'), findsOneWidget);
+            expect(find.textContaining('Error:'), findsNothing);
+          } else {
+            expect(
+              detailReads,
+              0,
+              reason: 'Departed routes/accounts never restart reads',
+            );
+            expect(
+              find.byKey(const ValueKey('user-flow-detail-surface-42')),
+              findsNothing,
+            );
+          }
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+          router.dispose();
+          app.dispose();
+          await settle(tester);
+          await WarmSnapshotStore.instance.forgetAccount(owner);
+          await WarmSnapshotStore.instance.forgetAccount(visitor);
         }
-        expect(tester.takeException(), isNull);
-        await tester.pumpWidget(const SizedBox());
-        router.dispose();
-        app.dispose();
-        await settle(tester);
-        await WarmSnapshotStore.instance.forgetAccount(owner);
-        await WarmSnapshotStore.instance.forgetAccount(visitor);
       }
       for (final sky in [false, true]) {
         WarmSnapshotStore.instance.invalidate(owner);
@@ -629,13 +839,14 @@ void main() {
             .whereType<GoRoute>()
             .where(
               (r) => [
+                '/flows',
                 '/shared-flow/:shareId',
                 '/shared-flow/by-flow/:flowId',
                 '/flow-post/:postId',
               ].contains(r.path),
             )
             .toList();
-        expect(routes, hasLength(3));
+        expect(routes, hasLength(4));
         final references = <String, ui.Image>{};
         for (final entry in [
           'pages',
@@ -661,7 +872,7 @@ void main() {
             ),
           );
           if (entry == 'pages') {
-            unawaited(router.push('/shared-flow/by-flow/42'));
+            unawaited(router.push('/flows?flow=42'));
           } else if (entry.startsWith('inbox')) {
             unawaited(
               router.push(

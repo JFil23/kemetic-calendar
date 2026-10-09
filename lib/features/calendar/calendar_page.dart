@@ -6151,8 +6151,14 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
-  static Widget buildFlowStudioRoutePage({Uri? routeUri}) {
-    return _FlowStudioRoutePage(routeUri: routeUri);
+  static Widget buildFlowStudioRoutePage({
+    Uri? routeUri,
+    WidgetBuilder? initialDetailBuilder,
+  }) {
+    return _FlowStudioRoutePage(
+      routeUri: routeUri,
+      initialDetailBuilder: initialDetailBuilder,
+    );
   }
 
   static Map<String, dynamic> _flowStudioRouteStateFromUri(Uri? routeUri) {
@@ -9174,9 +9180,10 @@ class CalendarPage extends StatefulWidget {
 }
 
 class _FlowStudioRoutePage extends StatefulWidget {
-  const _FlowStudioRoutePage({this.routeUri});
+  const _FlowStudioRoutePage({this.routeUri, this.initialDetailBuilder});
 
   final Uri? routeUri;
+  final WidgetBuilder? initialDetailBuilder;
 
   @override
   State<_FlowStudioRoutePage> createState() => _FlowStudioRoutePageState();
@@ -9215,11 +9222,32 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
     return false;
   }
 
+  List<Route<dynamic>> _initialRoutes(
+    NavigatorState navigator,
+    String initial,
+  ) {
+    final detailBuilder = widget.initialDetailBuilder;
+    final routes = CalendarPage._detachedFlowStudioInitialRoutes(
+      parentRoute: '/flows',
+      flowsRepo: _flowsRepo,
+      restorationState: detailBuilder == null
+          ? CalendarPage._flowStudioRouteStateFromUri(widget.routeUri)
+          : const <String, dynamic>{'mode': _kFlowStudioModeHub},
+      onClose: _closeRoute,
+      onReturnToHub: _returnToFlowStudioHubRoute,
+    );
+    if (detailBuilder != null) {
+      // The route supplies the canonical detail's identity; Studio retains its
+      // existing hub underneath it. Catalog detail navigation stays inline.
+      final detailRoute = MaterialPageRoute<void>(builder: detailBuilder);
+      unawaited(detailRoute.popped.then((_) => _returnToFlowStudioHubRoute()));
+      routes.add(detailRoute);
+    }
+    return routes;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final restorationState = CalendarPage._flowStudioRouteStateFromUri(
-      widget.routeUri,
-    );
     return UtilitySheetRouteScaffold(
       semanticLabel: 'Flow Studio',
       maxWidth: 640,
@@ -9227,14 +9255,10 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
       onBackPressed: _handleSystemBack,
       child: Navigator(
         key: _flowStudioNavigatorKey,
-        onGenerateInitialRoutes: (navigator, initial) =>
-            CalendarPage._detachedFlowStudioInitialRoutes(
-              parentRoute: '/flows',
-              flowsRepo: _flowsRepo,
-              restorationState: restorationState,
-              onClose: _closeRoute,
-              onReturnToHub: _returnToFlowStudioHubRoute,
-            ),
+        // The shared sheet owns clipping. A second hard clip here changes the
+        // canonical detail's first raster row at fractional sheet heights.
+        clipBehavior: Clip.none,
+        onGenerateInitialRoutes: _initialRoutes,
       ),
     );
   }
