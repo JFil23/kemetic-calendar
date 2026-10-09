@@ -139,8 +139,16 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
     watch.stop();
+    // A fast full-detail warm can finish before any archive request starts.
+    // Keep the measured ready time, then observe background progress so the
+    // original ordering assertion compares two actual request positions.
+    while (!calls.contains('journal_entries') &&
+        DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
     warm.didChangeAppLifecycleState(AppLifecycleState.paused);
     final flowIndex = calls.indexOf('flow');
+    expect(flowIndex, 0, reason: 'The displayed flow is the first warm read');
     debugPrint(
       'PAGES_FLOW_WARM ready_ms=${watch.elapsedMilliseconds} '
       'reads_before_flow=$flowIndex calls=${calls.join(',')}',
