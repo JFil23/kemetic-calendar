@@ -877,7 +877,13 @@ void main() {
         contains('CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)'),
       );
       expect(source, contains("path: '/calendars'"));
-      expect(source, contains('CalendarPage.buildSharedCalendarsRoutePage()'));
+      expect(
+        RegExp(
+          r"CalendarPage\.buildSharedCalendarsRoutePage\(\s*"
+          r"initialCalendarId: state\.uri\.queryParameters\['calendar'\],\s*\)",
+        ).hasMatch(source),
+        isTrue,
+      );
       expect(
         source,
         isNot(contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu')),
@@ -1048,10 +1054,26 @@ void main() {
       final pagesSource = await File(
         'lib/features/pages/pages_page.dart',
       ).readAsString();
-      expect(
+      final pagesInbox = _sourceBetween(
         pagesSource,
-        contains("openUtilityRoute<void>(context, '/inbox')"),
+        'case PagesDestination.inbox:',
+        'case PagesDestination.calendars:',
       );
+      // Both the activity target and the update/empty fallback keep the
+      // canonical Inbox sheet route while carrying the displayed identity.
+      expect(
+        RegExp(
+          r"openUtilityRoute<void>\(\s*context,\s*Uri\(\s*path: '/inbox',",
+        ).allMatches(pagesInbox).length,
+        2,
+      );
+      expect(
+        pagesInbox,
+        contains(
+          "queryParameters: {'activity': inboxActivityIdentity(activity)}",
+        ),
+      );
+      expect(pagesInbox, contains("{'update': share.shareId}"));
       expect(pagesSource, isNot(contains("context.go('/inbox')")));
       expect(
         await File('lib/widgets/inbox_icon_with_badge.dart').exists(),
