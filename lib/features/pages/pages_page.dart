@@ -220,17 +220,17 @@ class _PagesPageState extends State<PagesPage>
               flow != null &&
               event.flowId == flow.id &&
               (event.clientEventId.isNotEmpty || event.id.isNotEmpty)) {
-            await openDetailRoute<void>(
+            await openUtilityRoute<void>(
               context,
               Uri(
-                path: '/shared-flow/by-flow/${Uri.encodeComponent(flow.id)}',
+                path: '/flows',
                 queryParameters: {
+                  'flow': flow.id,
                   if (event.clientEventId.isNotEmpty)
                     'occurrence': event.clientEventId,
                   if (event.id.isNotEmpty) 'event': event.id,
                 },
               ).toString(),
-              extra: const {'fallbackLocation': '/pages'},
             );
           } else {
             await openUtilityRoute<void>(context, '/flows');

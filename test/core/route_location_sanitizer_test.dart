@@ -30,6 +30,39 @@ void main() {
       );
     });
 
+    test(
+      'keeps canonical Studio flow identity without unrelated launch state',
+      () {
+        expect(
+          stableRouteLocationForContinuity(
+            '/flows?flow=42&occurrence=client-24&event=row-24&_launch=old&mode=myFlows',
+          ),
+          '/flows?flow=42&occurrence=client-24&event=row-24',
+        );
+        expect(stableRouteLocationForContinuity('/flows'), '/flows');
+        for (final id in ['0', '-1', 'invalid']) {
+          expect(
+            stableRouteLocationForContinuity('/flows?flow=$id&event=row-24'),
+            '/flows',
+          );
+        }
+        expect(
+          stableRouteLocationForContinuity('/flows?mode=myFlows'),
+          '/flows?mode=myFlows',
+        );
+        expect(
+          stableRouteLocationForContinuity('/flows?mode=maatFlows'),
+          '/flows?mode=maatFlows',
+        );
+        expect(
+          stableRouteLocationForContinuity(
+            '/flows?mode=maatTemplate&templateKey=offering-table',
+          ),
+          '/flows?mode=maatTemplate&templateKey=offering-table',
+        );
+      },
+    );
+
     test('keeps edit flow routes as stable durable surfaces', () {
       expect(
         stableRouteLocationForContinuity(

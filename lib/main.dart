@@ -1754,10 +1754,22 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
     ),
     _utilitySheetRoute(
       path: '/flows',
-      builder: (context, state) => SessionTrackedRoute(
-        location: state.uri.toString(),
-        child: CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri),
-      ),
+      builder: (context, state) {
+        final flowId = int.tryParse(state.uri.queryParameters['flow'] ?? '');
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: CalendarPage.buildFlowStudioRoutePage(
+            routeUri: state.uri,
+            initialDetailBuilder: flowId != null && flowId > 0
+                ? (_) => SharedFlowDetailsPage(
+                    flowId: flowId,
+                    eventTarget: FlowDetailEventTarget.fromUri(state.uri),
+                    fallbackLocation: '/flows',
+                  )
+                : null,
+          ),
+        );
+      },
     ),
     _utilitySheetRoute(
       path: '/calendars',

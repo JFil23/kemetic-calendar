@@ -1515,3 +1515,32 @@ the actual Pages route rendering the exact expanded occurrence while both server
 refreshes are held. The original complete-view visual parity and account/action
 checks remain in place; before/after detail captures are compared without
 regenerating approved references.
+
+
+## October 9 Flow Studio detail return
+
+The user's 13:58 recording and the existing Flow Studio landing page are the
+reference. Pages opens its displayed flow and exact occurrence through the
+existing /flows route. That route supplies identity to SharedFlowDetailsPage,
+which retains canonical custom and authored Ma'at view, read and action ownership.
+Flow Studio's existing nested Navigator holds its hub beneath that full detail.
+Closing an event returns to the flow; detail Back or system Back reveals Ma'at
+Flows, My Flows and Add Flow in the same sheet. X still dismisses the sheet and
+retains the underlying Pages state and scroll. Loading and error states use the
+same nested-aware detail Back behavior.
+
+The existing route sanitizer retains a valid flow and its occurrence identity,
+while removing unrelated launch parameters. Catalog mode restoration remains
+unchanged. Direct-entry stack composition belongs to the existing route owner;
+the detached Ma’at catalog still owns its inline detail and its guard is unchanged. Returning to the hub replaces only the active sheet URL with /flows,
+so neither Back nor a late read reopens the consumed detail. The shared sheet
+owns clipping; its nested Navigator adds no second hard clip at a fractional
+pixel boundary. Complete detail captures match the prior pixels; the hub body
+also matches, with only the former clipped edge row gaining normal fractional
+coverage. Existing references remain intact; none are regenerated.
+
+No new route, repository, cache namespace, payload schema, pending-write owner or
+permission policy is introduced. Evidence covers the real Pages card, Offering
+Table day 24 from the recording, custom-flow cold/warm entry, both Back controls,
+loading/error and direct restoration, same-sheet hub navigation, retained Pages,
+complete cross-entry visual parity, and departed route/account read fencing.
