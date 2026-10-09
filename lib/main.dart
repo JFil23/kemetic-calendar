@@ -2577,6 +2577,9 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
     );
     _maatGuidanceController.addListener(_scheduleRebuild);
     _dailyCosmicContextController.addListener(_scheduleRebuild);
+    SettingsPrefs.dailyCosmicContextBadgeChanges.addListener(
+      _scheduleDailyCosmicContextEvaluation,
+    );
     _shellBackChannel.setMethodCallHandler(_handleShellBackMethodCall);
     GuidedOnboardingController.instance.addListener(
       _handleExternalOverlayGateChanged,
@@ -2628,6 +2631,9 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
     );
     _maatGuidanceController.removeListener(_scheduleRebuild);
     _dailyCosmicContextController.removeListener(_scheduleRebuild);
+    SettingsPrefs.dailyCosmicContextBadgeChanges.removeListener(
+      _scheduleDailyCosmicContextEvaluation,
+    );
     _shellBackChannel.setMethodCallHandler(null);
     GuidedOnboardingController.instance.removeListener(
       _handleExternalOverlayGateChanged,

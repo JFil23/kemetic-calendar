@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -18,6 +19,67 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues(const <String, Object>{});
   });
+
+  test('opting out fences a pending enabled read', () async {
+    final pending = _PendingEnabledPrefs();
+    final controller = DailyCosmicContextController(
+      prefs: pending,
+      now: () => _firstDay,
+    );
+    addTearDown(controller.dispose);
+    final evaluation = controller.evaluate(
+      userId: _userId,
+      isAuthenticated: true,
+      onboardingComplete: true,
+      suppressed: false,
+    );
+    await controller.setEnabled(false);
+    pending.enabled.complete(true);
+    await evaluation;
+    expect(controller.current, isNull);
+    expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
+  });
+
+  test(
+    'device opt-out survives account change without rewriting seen history',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      final seenKey = DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(
+        _userId,
+      );
+      await prefs.setString(seenKey, '2026-06-08');
+      await SettingsPrefs.setDailyCosmicContextBadgeEnabled(false);
+      final controller = DailyCosmicContextController(now: () => _firstDay);
+      addTearDown(controller.dispose);
+      for (final account in [_userId, null, 'another-user', _userId]) {
+        await controller.evaluate(
+          userId: account,
+          isAuthenticated: account != null,
+          onboardingComplete: true,
+          suppressed: false,
+        );
+        expect(controller.current, isNull);
+      }
+      expect(prefs.getString(seenKey), '2026-06-08');
+      expect(
+        prefs.getString(
+          DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(
+            'another-user',
+          ),
+        ),
+        isNull,
+      );
+      await SettingsPrefs.setDailyCosmicContextBadgeEnabled(true);
+      await controller.evaluate(
+        userId: 'another-user',
+        isAuthenticated: true,
+        onboardingComplete: true,
+        suppressed: false,
+      );
+      expect(controller.current, isNotNull);
+      expect(prefs.getString(seenKey), '2026-06-08');
+    },
+  );
 
   test('first open of day shows badge once and records today', () async {
     final controller = DailyCosmicContextController(now: () => _firstDay);
@@ -630,4 +692,10 @@ KemeticDayInfo _testDayInfo({required String cosmicContext}) {
       mantra: 'test',
     ),
   );
+}
+
+class _PendingEnabledPrefs extends DailyCosmicContextPrefs {
+  final enabled = Completer<bool>();
+  @override
+  Future<bool> isEnabled() => enabled.future;
 }
