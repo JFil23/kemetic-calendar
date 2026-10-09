@@ -1487,3 +1487,31 @@ retained Pages state, existing complete-view entry parity, and event focus in al
 five authored Ma’at details. Existing visual references remain the comparison
 baseline. Capture-only route evidence is written to /tmp; the complete App gate
 and served replay remain required before deployment.
+
+
+## October 9 displayed-flow warm priority
+
+AppWarmState uses the same selectPagesStudio selection as Pages to promote the
+currently displayed flow in the existing two-worker warm queue. It reacts to
+account-cache flow/event publication and each normal refresh cycle. The regular
+flow sweep, recent-flow sweep and priority entry share one warm operation per
+flow per cycle: FlowsRepo owns metadata, UserEventsRepo owns complete paginated
+events, and FlowAppearanceStore owns artwork. No preview window is presented as
+complete detail coverage. Canonical full-detail views, event expansion, action
+policies and acknowledged writes stay unchanged.
+
+Priority does not add workers or cancel reads shared with a visible route.
+Background/account departure clears pending jobs and fences in-flight reads; a
+new generation can queue its replacement without running the same key twice at
+once. A still-current warm operation retries an acknowledged invalidation, while
+an old lifecycle stops. Cache notifications do not trigger repeated downloads.
+All deployed namespaces, resource schemas, old-release fixtures, content owners,
+visual references and guard thresholds remain unchanged.
+
+Evidence includes a controlled delayed-read before/after measurement, 502-event
+complete coverage plus artwork, late Pages selection, background and account
+return, an acknowledged edit during the read, bounded-worker deduplication, and
+the actual Pages route rendering the exact expanded occurrence while both server
+refreshes are held. The original complete-view visual parity and account/action
+checks remain in place; before/after detail captures are compared without
+regenerating approved references.
