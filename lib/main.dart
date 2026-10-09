@@ -20,6 +20,7 @@ import 'root_boot.dart';
 import 'data/user_events_repo.dart';
 import 'features/calendar/notify.dart';
 import 'features/calendar/calendar_page.dart';
+import 'features/calendar/flow_detail_event_focus.dart';
 import 'features/calendar/calendar_hydration_diagnostics.dart';
 import 'features/calendar/maat_flow_temporal_controller.dart';
 import 'features/calendar/daily_cosmic_context_badge.dart';
@@ -1668,6 +1669,8 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
           location: state.uri.toString(),
           child: InboxSheetRoutePage(
             initialSharedCalendarId: initialSharedCalendarId,
+            initialActivityIdentity: state.uri.queryParameters['activity'],
+            initialUpdateId: state.uri.queryParameters['update'],
           ),
         );
       },
@@ -1728,6 +1731,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
           child: SharedFlowRoutePage(
             flowId: flowId,
             extra: state.extra ?? const {'fallbackLocation': '/pages'},
+            eventTarget: FlowDetailEventTarget.fromUri(state.uri),
           ),
         );
       },
@@ -1759,7 +1763,9 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
       path: '/calendars',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
-        child: CalendarPage.buildSharedCalendarsRoutePage(),
+        child: CalendarPage.buildSharedCalendarsRoutePage(
+          initialCalendarId: state.uri.queryParameters['calendar'],
+        ),
       ),
     ),
     _calmRoute(
@@ -3912,11 +3918,18 @@ class _EventInviteRoutePageState extends State<EventInviteRoutePage> {
 }
 
 class SharedFlowRoutePage extends StatefulWidget {
-  const SharedFlowRoutePage({super.key, this.shareId, this.flowId, this.extra});
+  const SharedFlowRoutePage({
+    super.key,
+    this.shareId,
+    this.flowId,
+    this.extra,
+    this.eventTarget,
+  });
 
   final String? shareId;
   final int? flowId;
   final Object? extra;
+  final FlowDetailEventTarget? eventTarget;
 
   @override
   State<SharedFlowRoutePage> createState() => _SharedFlowRoutePageState();
@@ -3985,6 +3998,7 @@ class _SharedFlowRoutePageState extends State<SharedFlowRoutePage> {
     if (flowId != null) {
       return SharedFlowDetailsPage(
         flowId: flowId,
+        eventTarget: widget.eventTarget,
         fallbackLocation: _fallbackLocation,
       );
     }

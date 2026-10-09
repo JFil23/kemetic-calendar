@@ -34,6 +34,7 @@ import '../calendar/the_reading_house_flow.dart' show kReadingHouseFlowKey;
 import '../calendar/the_reading_house/reading_house_room_repository.dart';
 import '../calendars/shared_calendars_sheet.dart';
 import 'inbox_threading.dart';
+import 'inbox_activity_target.dart';
 import 'presentation/group_flow_inbox_preview_section.dart';
 import 'presentation/reading_house_inbox_section.dart';
 import 'presentation/reading_house_room_sheet.dart';
@@ -50,10 +51,13 @@ class InboxSheetRoutePage extends StatelessWidget {
   const InboxSheetRoutePage({
     super.key,
     this.initialSharedCalendarId,
+    this.initialActivityIdentity,
+    this.initialUpdateId,
     this.childForTesting,
   });
 
   final String? initialSharedCalendarId;
+  final String? initialActivityIdentity, initialUpdateId;
   @visibleForTesting
   final Widget? childForTesting;
 
@@ -69,6 +73,8 @@ class InboxSheetRoutePage extends StatelessWidget {
           childForTesting ??
           InboxPage(
             initialSharedCalendarId: initialSharedCalendarId,
+            initialActivityIdentity: initialActivityIdentity,
+            initialUpdateId: initialUpdateId,
             sheet: true,
           ),
     );
@@ -79,6 +85,8 @@ class InboxPage extends StatefulWidget {
   const InboxPage({
     super.key,
     this.initialSharedCalendarId,
+    this.initialActivityIdentity,
+    this.initialUpdateId,
     this.inboxItemsStreamForTesting,
     this.committedFlowItemsLoaderForTesting,
     this.onInboxItemsAppliedForTesting,
@@ -96,6 +104,7 @@ class InboxPage extends StatefulWidget {
   });
 
   final String? initialSharedCalendarId;
+  final String? initialActivityIdentity, initialUpdateId;
   @visibleForTesting
   final Stream<List<InboxShareItem>>? inboxItemsStreamForTesting;
   @visibleForTesting
@@ -215,6 +224,9 @@ class _InboxPageState extends State<InboxPage> {
   bool _invitesSheetRestoreChecked = false;
   bool _invitesSheetOpenOrOpening = false;
   String? _openedInitialSharedCalendarId;
+  late final AccountOperationFence _entryAccount;
+  bool _entryConsumed = false, _entryScheduled = false;
+  List<InboxShareItem> _entryShares = const [];
   bool _hasReadingHouseSnapshot = false;
   bool _hasTogetherSnapshot = false;
   StreamSubscription<AuthState>? _practiceAccountSub;
@@ -225,6 +237,7 @@ class _InboxPageState extends State<InboxPage> {
   void initState() {
     super.initState();
     final client = Supabase.instance.client;
+    _entryAccount = AccountOperationFence(client);
     _shareRepo = ShareRepo(client);
     _sharedCalendarsRepo = SharedCalendarsRepo(client);
     _unreadState = _shareRepo.currentUnreadState;
@@ -272,6 +285,9 @@ class _InboxPageState extends State<InboxPage> {
       _applyActivity(widget.activityForTesting ?? const <InboxActivityItem>[]);
       _unified = _buildUnifiedItems();
       _loading = false;
+    }
+    if (!widget.disableAuxiliarySubscriptionsForTesting) {
+      _applyActivity(_shareRepo.cachedRecentActivitySync() ?? const []);
     }
     _subscribeInboxItems();
     if (!widget.disableAuxiliarySubscriptionsForTesting) {
@@ -424,6 +440,11 @@ class _InboxPageState extends State<InboxPage> {
   @override
   void didUpdateWidget(covariant InboxPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialActivityIdentity != widget.initialActivityIdentity ||
+        oldWidget.initialUpdateId != widget.initialUpdateId) {
+      _entryConsumed = false;
+      _scheduleInitialEntry();
+    }
     if (oldWidget.initialSharedCalendarId != widget.initialSharedCalendarId) {
       final calendarId = widget.initialSharedCalendarId?.trim();
       if (calendarId == null || calendarId.isEmpty) {
@@ -433,6 +454,52 @@ class _InboxPageState extends State<InboxPage> {
         unawaited(_openInitialSharedCalendarIfNeeded());
       });
     }
+  }
+
+  void _scheduleInitialEntry() {
+    if (_entryConsumed ||
+        _entryScheduled ||
+        !_entryAccount.isCurrent ||
+        (widget.initialActivityIdentity == null &&
+            widget.initialUpdateId == null)) {
+      return;
+    }
+    _entryScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _entryScheduled = false;
+      if (!mounted ||
+          _entryConsumed ||
+          !_entryAccount.isCurrent ||
+          ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
+      final identity = widget.initialActivityIdentity;
+      final activity = _activity
+          .where((a) => inboxActivityIdentity(a) == identity)
+          .firstOrNull;
+      if (activity != null) {
+        _entryConsumed = true;
+        if (activity.type == InboxActivityType.follow) {
+          _openFollowersSheet(focusIdentity: identity);
+        } else {
+          _openEngagementSheet(focusIdentity: identity);
+        }
+        return;
+      }
+      final update = _entryShares
+          .where(
+            (s) =>
+                s.shareId == widget.initialUpdateId &&
+                !s.isDeleted &&
+                (s.senderId == _entryAccount.userId ||
+                    s.recipientId == _entryAccount.userId),
+          )
+          .firstOrNull;
+      if (update != null) {
+        _entryConsumed = true;
+        unawaited(_openCalendarInboxSheet(focusedShareId: update.shareId));
+      }
+    });
   }
 
   Future<void> _handleRefresh() async {
@@ -554,7 +621,10 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   void _applyInboxItems(List<InboxShareItem> items) {
+    if (!_entryAccount.isCurrent) return;
     final currentUserId = _inboxRepo.currentUserId;
+    _entryShares = items;
+    _scheduleInitialEntry();
     _latestThreads = currentUserId == null
         ? const <String, List<InboxShareItem>>{}
         : directMessageConversationThreadsFromItems(items, currentUserId);
@@ -579,6 +649,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   void _applyActivity(List<InboxActivityItem> activity) {
+    if (!_entryAccount.isCurrent) return;
     InboxActivityItem? firstMatch(bool Function(InboxActivityItem) test) {
       for (final item in activity) {
         if (test(item)) return item;
@@ -587,6 +658,7 @@ class _InboxPageState extends State<InboxPage> {
     }
 
     _activity = activity;
+    _scheduleInitialEntry();
     _latestFollow = firstMatch((a) => a.type == InboxActivityType.follow);
     _latestEngagement = firstMatch(
       (a) =>
@@ -597,6 +669,7 @@ class _InboxPageState extends State<InboxPage> {
 
   @override
   void dispose() {
+    _entryAccount.dispose();
     _inboxItemsSubscriptionSerial += 1;
     _inboxItemsSub?.cancel();
     _dmConversationsSub?.cancel();
@@ -682,7 +755,9 @@ class _InboxPageState extends State<InboxPage> {
         ),
       ),
       body: _InboxMahoganySurface(
-        child: Stack(children: [Positioned.fill(child: _buildBody())]),
+        child: _entryAccount.isCurrent
+            ? Stack(children: [Positioned.fill(child: _buildBody())])
+            : const SizedBox.shrink(),
       ),
     );
   }
@@ -701,7 +776,9 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Future<void> _resumeConversationIfNeeded() async {
-    if (!mounted || _resumeConversationChecked) return;
+    if (!mounted || !_entryAccount.isCurrent || _resumeConversationChecked) {
+      return;
+    }
     _resumeConversationChecked = true;
     if (RestorationCoordinator.instance.restoreReason ==
         RestorationRestoreReason.userNavigation) {
@@ -2497,7 +2574,7 @@ class _InboxPageState extends State<InboxPage> {
     return '$title - ${_eventInviteStatusLabel(invite)}';
   }
 
-  void _openFollowersSheet() {
+  void _openFollowersSheet({String? focusIdentity}) {
     final followers =
         _activity.where((a) => a.type == InboxActivityType.follow).toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -2509,10 +2586,16 @@ class _InboxPageState extends State<InboxPage> {
         ),
       );
     }
-    unawaited(_showActivitySheet(title: 'Community', items: followers));
+    unawaited(
+      _showActivitySheet(
+        title: 'Community',
+        items: followers,
+        focusIdentity: focusIdentity,
+      ),
+    );
   }
 
-  void _openEngagementSheet() {
+  void _openEngagementSheet({String? focusIdentity}) {
     final engagement =
         _activity
             .where(
@@ -2530,13 +2613,24 @@ class _InboxPageState extends State<InboxPage> {
         ),
       );
     }
-    unawaited(_showActivitySheet(title: 'Movement', items: engagement));
+    unawaited(
+      _showActivitySheet(
+        title: 'Movement',
+        items: engagement,
+        focusIdentity: focusIdentity,
+      ),
+    );
   }
 
   Future<void> _showActivitySheet({
     required String title,
     required List<InboxActivityItem> items,
+    String? focusIdentity,
   }) {
+    final ordered = [
+      ...items.where((a) => inboxActivityIdentity(a) == focusIdentity),
+      ...items.where((a) => inboxActivityIdentity(a) != focusIdentity),
+    ];
     return showModalBottomSheet(
       context: context,
       backgroundColor: _bg,
@@ -2545,63 +2639,74 @@ class _InboxPageState extends State<InboxPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
+        return StreamBuilder<AuthState>(
+          stream: Supabase.instance.client.auth.onAuthStateChange,
+          builder: (context, _) => !_entryAccount.isCurrent
+              ? const SizedBox.shrink()
+              : SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 44,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (items.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              'Nothing here yet.',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          )
+                        else
+                          Flexible(
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: ordered.length,
+                              itemBuilder: (context, index) {
+                                final a = ordered[index];
+                                return _buildActivityRow(
+                                  a,
+                                  closeContext: context,
+                                );
+                              },
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (items.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      'Nothing here yet.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  )
-                else
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        final a = items[index];
-                        return _buildActivityRow(a, closeContext: context);
-                      },
-                    ),
-                  ),
-              ],
-            ),
-          ),
         );
       },
     );
   }
 
-  Future<void> _openCalendarInboxSheet({String? parentRouteOverride}) async {
+  Future<void> _openCalendarInboxSheet({
+    String? parentRouteOverride,
+    String? focusedShareId,
+  }) async {
     if (_invitesSheetOpenOrOpening) return;
     final parentRoute = parentRouteOverride ?? _currentRouteLocation();
     final unreadInviteItems = [
@@ -2747,8 +2852,24 @@ class _InboxPageState extends State<InboxPage> {
                               ),
                             );
                           }
+                          final focused = inviteResponseItems
+                              .where((s) => s.shareId == focusedShareId)
+                              .firstOrNull;
+                          if (focused != null) {
+                            inviteResponseItems.remove(focused);
+                          }
                           return ListView(
                             children: [
+                              if (focused != null)
+                                focused.isEvent
+                                    ? _buildEventInviteRow(
+                                        focused,
+                                        closeContext: sheetContext,
+                                      )
+                                    : _buildCalendarInviteNotificationRow(
+                                        focused,
+                                        closeContext: sheetContext,
+                                      ),
                               if (readingHouseInvites.isNotEmpty) ...[
                                 _calendarSheetSectionTitle('Pending'),
                                 const SizedBox(height: 8),

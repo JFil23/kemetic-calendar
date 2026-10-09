@@ -662,6 +662,7 @@ class PagesController {
     _set(
       PagesCard(
         PagesDestination.library,
+        libraryNodeId: current.firstOrNull?.normalizedNodeId,
         state: PagesLoadState.ready,
         meta: current.isEmpty
             ? 'Explore the canon'
@@ -914,6 +915,8 @@ class PagesController {
     _set(
       PagesCard(
         PagesDestination.inbox,
+        inboxActivity: useShare ? null : latest,
+        inboxShare: useShare ? update : null,
         state: PagesLoadState.ready,
         meta: useShare
             ? pagesShareUpdateLabel(update, uid)
@@ -973,6 +976,7 @@ class PagesController {
     _set(
       PagesCard(
         PagesDestination.calendars,
+        calendarId: primary?.id,
         state: PagesLoadState.ready,
         meta:
             '${rows.where((r) => !hidden.contains(r.id)).length} active calendars',

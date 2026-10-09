@@ -190,7 +190,7 @@ void main() {
       final layout = tester.state(find.byType(PagesLayout));
       tester
           .widget<PagesLayout>(find.byType(PagesLayout))
-          .onOpen(PagesDestination.planner);
+          .onOpen(const PagesCard(PagesDestination.planner));
       await tester.pumpAndSettle();
       final planner = tester.state(find.byType(TodaysAlignmentPage));
       final nutrition = tester.widget<PlannerNutritionSection>(

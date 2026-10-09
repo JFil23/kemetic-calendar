@@ -4,6 +4,7 @@ import '../../data/flow_share_snapshot.dart' show parseFlowSnapshotTime;
 import 'note_draft_invitations.dart';
 import '../onboarding/haw_calendar_connection.dart';
 import 'dart:async';
+import 'flow_detail_event_focus.dart';
 import '../pages/pages_models.dart';
 import '../pages/pages_arrangement.dart';
 import '../../data/account_view_cache.dart';
@@ -4122,6 +4123,7 @@ class CalendarPage extends StatefulWidget {
   static Widget buildCanonicalOwnedFlowDetail({
     required FlowRow row,
     required List<FlowEventRow> events,
+    FlowDetailEventTarget? eventTarget,
     List<FlowDetailMenuAction> additionalMenuActions = const [],
     String backFallbackLocation = kMaatFlowsListRoute,
   }) {
@@ -4138,89 +4140,100 @@ class CalendarPage extends StatefulWidget {
       backFallbackLocation: backFallbackLocation,
       menuActions: additionalMenuActions,
     );
-    if (maat != null) return maat;
-    return Builder(
-      builder: (context) => _FlowPreviewPage(
-        flow: flow,
-        mode: row.active ? _FlowPreviewMode.active : _FlowPreviewMode.saved,
-        metricsByFlow: {
-          row.id: _metricsForCanonicalFlowDetail(events, template: !row.active),
-        },
-        initialEventsByFlow: {row.id: events},
-        getDecanLabel: (km, di) =>
-            (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
-        fmt: _formatDetachedGregorian,
-        onEdit: (current) async {
-          final client = Supabase.instance.client;
-          final account = AccountOperationFence(client);
-          try {
-            if (account.userId != row.userId) return null;
-            final saved = await openDetailRoute<bool>(
-              context,
-              flowEditorRouteLocation(
-                flowId: current.id,
-                calendarId: current.calendarId,
-                fallbackLocation: backFallbackLocation,
-              ),
-            );
-            if (saved != true || !account.isCurrent) return null;
-            final updated = await FlowsRepo(client).getFlowById(current.id);
-            if (!account.isCurrent ||
-                updated == null ||
-                updated.userId != account.userId) {
-              return null;
+    if (maat != null) {
+      return FlowDetailEventFocus(
+        event: eventTarget?.resolve(events),
+        child: maat,
+      );
+    }
+    return FlowDetailEventFocus(
+      event: eventTarget?.resolve(events),
+      child: Builder(
+        builder: (context) => _FlowPreviewPage(
+          flow: flow,
+          mode: row.active ? _FlowPreviewMode.active : _FlowPreviewMode.saved,
+          metricsByFlow: {
+            row.id: _metricsForCanonicalFlowDetail(
+              events,
+              template: !row.active,
+            ),
+          },
+          initialEventsByFlow: {row.id: events},
+          getDecanLabel: (km, di) =>
+              (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
+          fmt: _formatDetachedGregorian,
+          onEdit: (current) async {
+            final client = Supabase.instance.client;
+            final account = AccountOperationFence(client);
+            try {
+              if (account.userId != row.userId) return null;
+              final saved = await openDetailRoute<bool>(
+                context,
+                flowEditorRouteLocation(
+                  flowId: current.id,
+                  calendarId: current.calendarId,
+                  fallbackLocation: backFallbackLocation,
+                ),
+              );
+              if (saved != true || !account.isCurrent) return null;
+              final updated = await FlowsRepo(client).getFlowById(current.id);
+              if (!account.isCurrent ||
+                  updated == null ||
+                  updated.userId != account.userId) {
+                return null;
+              }
+              final updatedEvents = await UserEventsRepo(
+                client,
+              ).getFlowDetailEvents(current.id);
+              if (!account.isCurrent) return null;
+              return _FlowPreviewRefresh(
+                flow: _flowFromFiledRowDetached(updated),
+                metrics: _metricsForCanonicalFlowDetail(
+                  updatedEvents,
+                  template: !updated.active,
+                ),
+              );
+            } finally {
+              account.dispose();
             }
-            final updatedEvents = await UserEventsRepo(
-              client,
-            ).getFlowDetailEvents(current.id);
-            if (!account.isCurrent) return null;
-            return _FlowPreviewRefresh(
-              flow: _flowFromFiledRowDetached(updated),
-              metrics: _metricsForCanonicalFlowDetail(
-                updatedEvents,
-                template: !updated.active,
-              ),
-            );
-          } finally {
-            account.dispose();
-          }
-        },
-        completeAdd: (flowId) => _completeDetachedStagedFlowWithDayView(
-          navigator: Navigator.of(context),
-          flowId: flowId,
-        ),
-        onAppendToJournal: (text) async {
-          if (Supabase.instance.client.auth.currentUser?.id != row.userId) {
-            throw StateError('The account changed. Reopen this flow.');
-          }
-          await _appendFlowToJournal(text);
-        },
-        onEndMaatFlow: (flow) async {
-          final messenger = ScaffoldMessenger.of(context);
-          final result = await _endFlowHeadless(flow.id);
-          if (result.result != EndFlowActionResult.success &&
-              messenger.mounted) {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text(endFlowFailureDisplayMessage(result)),
-                action: SnackBarAction(
-                  label: 'Copy diagnostics',
-                  onPressed: () => unawaited(
-                    EndFlowDiagnostics.instance.copyTerminalDiagnostics(
-                      result.operationId,
+          },
+          completeAdd: (flowId) => _completeDetachedStagedFlowWithDayView(
+            navigator: Navigator.of(context),
+            flowId: flowId,
+          ),
+          onAppendToJournal: (text) async {
+            if (Supabase.instance.client.auth.currentUser?.id != row.userId) {
+              throw StateError('The account changed. Reopen this flow.');
+            }
+            await _appendFlowToJournal(text);
+          },
+          onEndMaatFlow: (flow) async {
+            final messenger = ScaffoldMessenger.of(context);
+            final result = await _endFlowHeadless(flow.id);
+            if (result.result != EndFlowActionResult.success &&
+                messenger.mounted) {
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(endFlowFailureDisplayMessage(result)),
+                  action: SnackBarAction(
+                    label: 'Copy diagnostics',
+                    onPressed: () => unawaited(
+                      EndFlowDiagnostics.instance.copyTerminalDiagnostics(
+                        result.operationId,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }
-          return result;
-        },
-        showFlowOptions: true,
-        additionalMenuActions: additionalMenuActions,
-        backFallbackLocation: backFallbackLocation,
-        calendarPreviewForWindow:
-            _mountedState?._userFlowCalendarPreviewForWindow,
+              );
+            }
+            return result;
+          },
+          showFlowOptions: true,
+          additionalMenuActions: additionalMenuActions,
+          backFallbackLocation: backFallbackLocation,
+          calendarPreviewForWindow:
+              _mountedState?._userFlowCalendarPreviewForWindow,
+        ),
       ),
     );
   }
@@ -4272,6 +4285,7 @@ class CalendarPage extends StatefulWidget {
     String backFallbackLocation = kMaatFlowsListRoute,
     FlowAppearance appearance = FlowAppearance.empty,
     List<FlowEventRow>? initialFlowEvents,
+    FlowDetailEventTarget? eventTarget,
   }) {
     // Entry points provide data and permissions; this gateway owns the kind
     // dispatch. A snapshot never grants ownership of a matching personal flow.
@@ -4287,7 +4301,12 @@ class CalendarPage extends StatefulWidget {
       backFallbackLocation: backFallbackLocation,
       menuActions: additionalMenuActions,
     );
-    if (maat != null) return maat;
+    if (maat != null) {
+      return FlowDetailEventFocus(
+        event: eventTarget?.resolve(initialFlowEvents ?? const []),
+        child: maat,
+      );
+    }
     final syntheticId = flowId ?? _syntheticFlowIdForSnapshot(name, eventsJson);
     final flow = _Flow(
       id: syntheticId,
@@ -4326,24 +4345,27 @@ class CalendarPage extends StatefulWidget {
         ? _FlowPreviewMode.saved
         : _FlowPreviewMode.active;
 
-    return _FlowPreviewPage(
-      flow: flow,
-      mode: mode,
-      metricsByFlow: metrics,
-      initialEventsByFlow: initialEventsByFlow,
-      getDecanLabel: (km, di) =>
-          (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
-      fmt: _formatDetachedGregorian,
-      onEdit: (_) => null,
-      completeAdd: (_) {},
-      onAppendToJournal: null,
-      onEndMaatFlow: null,
-      actionPolicy: actionPolicy,
-      showFlowOptions: showFlowOptions,
-      additionalMenuActions: additionalMenuActions,
-      backFallbackLocation: backFallbackLocation,
-      calendarPreviewForWindow:
-          CalendarPage._mountedState?._userFlowCalendarPreviewForWindow,
+    return FlowDetailEventFocus(
+      event: eventTarget?.resolve(events),
+      child: _FlowPreviewPage(
+        flow: flow,
+        mode: mode,
+        metricsByFlow: metrics,
+        initialEventsByFlow: initialEventsByFlow,
+        getDecanLabel: (km, di) =>
+            (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
+        fmt: _formatDetachedGregorian,
+        onEdit: (_) => null,
+        completeAdd: (_) {},
+        onAppendToJournal: null,
+        onEndMaatFlow: null,
+        actionPolicy: actionPolicy,
+        showFlowOptions: showFlowOptions,
+        additionalMenuActions: additionalMenuActions,
+        backFallbackLocation: backFallbackLocation,
+        calendarPreviewForWindow:
+            CalendarPage._mountedState?._userFlowCalendarPreviewForWindow,
+      ),
     );
   }
 
@@ -6176,8 +6198,8 @@ class CalendarPage extends StatefulWidget {
     return null;
   }
 
-  static Widget buildSharedCalendarsRoutePage() {
-    return const _SharedCalendarsRoutePage();
+  static Widget buildSharedCalendarsRoutePage({String? initialCalendarId}) {
+    return _SharedCalendarsRoutePage(initialCalendarId: initialCalendarId);
   }
 
   static String? _validFlowEditorFallbackLocation(String? fallbackLocation) {
@@ -9219,7 +9241,8 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
 }
 
 class _SharedCalendarsRoutePage extends StatelessWidget {
-  const _SharedCalendarsRoutePage();
+  const _SharedCalendarsRoutePage({this.initialCalendarId});
+  final String? initialCalendarId;
 
   @override
   Widget build(BuildContext context) {
@@ -9228,6 +9251,9 @@ class _SharedCalendarsRoutePage extends StatelessWidget {
       onClose: () => closeOrReturn(context, '/'),
       child: SharedCalendarsSheet(
         repo: SharedCalendarsRepo(Supabase.instance.client),
+        initialExpandedCalendarIds: [
+          if (initialCalendarId != null) initialCalendarId!,
+        ],
         routeMode: true,
         routeModeSafeAreaTop: false,
         dismissOnEventTap: false,

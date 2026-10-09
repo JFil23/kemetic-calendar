@@ -509,62 +509,65 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
       () => GlobalKey(debugLabel: 'user-flow-schedule-block-${day.key}'),
     );
 
-    return KeyedSubtree(
-      key: ValueKey<String>('my_flow_day_row_${day.key}'),
-      child: MaatFlowPreviewDayCard(
-        key: ValueKey<String>('user-flow-schedule-day-${day.dayNumber}'),
-        date: date,
-        theme: previewTheme,
-        children: [
-          Builder(
-            key: blockKey,
-            builder: (rowContext) => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildUserFlowScheduleEventBlock(
-                  flow: flow,
-                  day: day,
-                  content: content,
-                  palette: palette,
-                  theme: theme,
-                  totalOccurrences: allDays.length,
-                  completed: completed,
-                  expanded: expanded,
-                  onTap: () => _handleDashboardDayTap(
-                    dayKey: day.key,
-                    rowContext: rowContext,
-                  ),
-                ),
-                _MaatExpandableEventDetail(
-                  key: detailKey,
-                  expanded: expanded,
-                  collapseInstantly: _instantCollapseDayKey == day.key,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 12, bottom: 8),
-                    child: _MyFlowDayContentCard(
-                      key: ValueKey<String>('my_flow_day_card_${day.key}'),
-                      content: content,
-                      palette: palette,
-                      eyebrow: 'DAY ${day.dayNumber}',
+    return FlowDetailEventAnchor(
+      matches: _focusedOccurrenceKey == day.key,
+      child: KeyedSubtree(
+        key: ValueKey<String>('my_flow_day_row_${day.key}'),
+        child: MaatFlowPreviewDayCard(
+          key: ValueKey<String>('user-flow-schedule-day-${day.dayNumber}'),
+          date: date,
+          theme: previewTheme,
+          children: [
+            Builder(
+              key: blockKey,
+              builder: (rowContext) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildUserFlowScheduleEventBlock(
+                    flow: flow,
+                    day: day,
+                    content: content,
+                    palette: palette,
+                    theme: theme,
+                    totalOccurrences: allDays.length,
+                    completed: completed,
+                    expanded: expanded,
+                    onTap: () => _handleDashboardDayTap(
+                      dayKey: day.key,
+                      rowContext: rowContext,
                     ),
                   ),
-                ),
-              ],
+                  _MaatExpandableEventDetail(
+                    key: detailKey,
+                    expanded: expanded,
+                    collapseInstantly: _instantCollapseDayKey == day.key,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12, bottom: 8),
+                      child: _MyFlowDayContentCard(
+                        key: ValueKey<String>('my_flow_day_card_${day.key}'),
+                        content: content,
+                        palette: palette,
+                        eyebrow: 'DAY ${day.dayNumber}',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          for (final row in rows)
-            MaatFlowPreviewEventRow(
-              timeLabel: row.allDay ? 'All day' : _formatBasicTime(row.start),
-              title: row.title,
-              accent: row.eventColor,
-              theme: previewTheme,
-              subtitle: row.flowName,
-            ),
-          if (rows.isEmpty &&
-              state != MaatFlowDateCalendarState.loadedEmpty &&
-              state != MaatFlowDateCalendarState.loaded)
-            _userFlowCalendarAvailabilityRow(state, theme),
-        ],
+            for (final row in rows)
+              MaatFlowPreviewEventRow(
+                timeLabel: row.allDay ? 'All day' : _formatBasicTime(row.start),
+                title: row.title,
+                accent: row.eventColor,
+                theme: previewTheme,
+                subtitle: row.flowName,
+              ),
+            if (rows.isEmpty &&
+                state != MaatFlowDateCalendarState.loadedEmpty &&
+                state != MaatFlowDateCalendarState.loaded)
+              _userFlowCalendarAvailabilityRow(state, theme),
+          ],
+        ),
       ),
     );
   }
@@ -590,84 +593,90 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
       day.key,
       () => GlobalKey(debugLabel: 'user-flow-remaining-block-${day.key}'),
     );
-    return Builder(
-      key: blockKey,
-      builder: (rowContext) => Column(
-        key: ValueKey<String>('my_flow_day_row_${day.key}'),
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          InkWell(
-            key: ValueKey<String>('my_flow_day_tap_${day.key}'),
-            onTap: () =>
-                _handleDashboardDayTap(dayKey: day.key, rowContext: rowContext),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 42,
-                    child: Text(
-                      day.dayNumber.toString().padLeft(2, '0'),
-                      style: TextStyle(
-                        color: theme.accent,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.2,
+    return FlowDetailEventAnchor(
+      matches: _focusedOccurrenceKey == day.key,
+      child: Builder(
+        key: blockKey,
+        builder: (rowContext) => Column(
+          key: ValueKey<String>('my_flow_day_row_${day.key}'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              key: ValueKey<String>('my_flow_day_tap_${day.key}'),
+              onTap: () => _handleDashboardDayTap(
+                dayKey: day.key,
+                rowContext: rowContext,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 42,
+                      child: Text(
+                        day.dayNumber.toString().padLeft(2, '0'),
+                        style: TextStyle(
+                          color: theme.accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.2,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          content.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: theme.primaryText,
-                            fontFamily: MaatFlowListTokens.fontFamily,
-                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                            fontSize: 17,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            content.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: theme.primaryText,
+                              fontFamily: MaatFlowListTokens.fontFamily,
+                              fontFamilyFallback:
+                                  MaatFlowListTokens.fontFallback,
+                              fontSize: 17,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '${gregorianDateLabel(date)} · ${_userFlowEventTimeLabel(day)}',
-                          style: TextStyle(
-                            color: theme.secondaryText,
-                            fontSize: 10.5,
+                          Text(
+                            '${gregorianDateLabel(date)} · ${_userFlowEventTimeLabel(day)}',
+                            style: TextStyle(
+                              color: theme.secondaryText,
+                              fontSize: 10.5,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  if (completed)
-                    Icon(Icons.check, size: 16, color: theme.accent),
-                  const SizedBox(width: 8),
-                  Icon(
-                    expanded ? Icons.expand_less : Icons.chevron_right,
-                    size: 17,
-                    color: theme.accent,
-                  ),
-                ],
+                    if (completed)
+                      Icon(Icons.check, size: 16, color: theme.accent),
+                    const SizedBox(width: 8),
+                    Icon(
+                      expanded ? Icons.expand_less : Icons.chevron_right,
+                      size: 17,
+                      color: theme.accent,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          _MaatExpandableEventDetail(
-            key: detailKey,
-            expanded: expanded,
-            collapseInstantly: _instantCollapseDayKey == day.key,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: _MyFlowDayContentCard(
-                key: ValueKey<String>('my_flow_day_card_${day.key}'),
-                content: content,
-                palette: palette,
-                eyebrow: 'DAY ${day.dayNumber}',
+            _MaatExpandableEventDetail(
+              key: detailKey,
+              expanded: expanded,
+              collapseInstantly: _instantCollapseDayKey == day.key,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _MyFlowDayContentCard(
+                  key: ValueKey<String>('my_flow_day_card_${day.key}'),
+                  content: content,
+                  palette: palette,
+                  eyebrow: 'DAY ${day.dayNumber}',
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

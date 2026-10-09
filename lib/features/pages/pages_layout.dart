@@ -25,7 +25,7 @@ class PagesLayout extends StatefulWidget {
     this.profileGlyphIds = const [],
   });
   final List<ValueListenable<PagesCard>> cards;
-  final ValueChanged<PagesDestination> onOpen;
+  final ValueChanged<PagesCard> onOpen;
   final VoidCallback onProfile, onNewNote;
   final ValueChanged<PagesSearchRecord> onSearchResult;
   final List<PagesSearchRecord> Function() searchRecords;
@@ -301,8 +301,7 @@ class _PagesLayoutState extends State<PagesLayout> {
                                       valueListenable: widget.cards[i],
                                       builder: (context, card, _) => PagesTile(
                                         card: card,
-                                        onTap: () =>
-                                            widget.onOpen(card.destination),
+                                        onTap: () => widget.onOpen(card),
                                       ),
                                     ),
                               childCount: widget.cards.length,
@@ -458,7 +457,7 @@ class _PagesLayoutState extends State<PagesLayout> {
 class _SteadyFeedTile extends StatefulWidget {
   const _SteadyFeedTile({required this.card, required this.onOpen});
   final ValueListenable<PagesCard> card;
-  final ValueChanged<PagesDestination> onOpen;
+  final ValueChanged<PagesCard> onOpen;
   @override
   State<_SteadyFeedTile> createState() => _SteadyFeedTileState();
 }
@@ -505,9 +504,6 @@ class _SteadyFeedTileState extends State<_SteadyFeedTile> {
     onPointerDown: (event) => _pointers.add(event.pointer),
     onPointerUp: _release,
     onPointerCancel: _release,
-    child: PagesTile(
-      card: _shown,
-      onTap: () => widget.onOpen(_shown.destination),
-    ),
+    child: PagesTile(card: _shown, onTap: () => widget.onOpen(_shown)),
   );
 }

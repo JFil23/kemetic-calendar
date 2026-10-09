@@ -1,3 +1,16 @@
+import 'package:mobile/data/account_view_cache.dart';
+import 'package:mobile/data/share_repo.dart';
+import 'package:mobile/data/shared_practice_models.dart';
+import 'package:mobile/features/pages/pages_page.dart';
+import 'package:mobile/features/pages/pages_board.dart';
+import 'package:mobile/features/pages/pages_layout.dart';
+import 'package:mobile/features/pages/pages_models.dart';
+import 'package:mobile/features/inbox/inbox_page.dart';
+import 'package:mobile/features/inbox/inbox_activity_target.dart';
+import 'package:mobile/features/nodes/library_read_state.dart';
+import 'package:mobile/features/nodes/kemetic_node_reader_page.dart';
+import 'package:mobile/services/app_restoration_service.dart';
+import 'package:mobile/main.dart' show routeObserver;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -32,6 +45,7 @@ void main() {
   late Map<String, dynamic> flow;
   late List<Map<String, dynamic>> events;
   var offline = false;
+  List<Map<String, dynamic>> follows = [];
   var denied = false;
   var calendarReads = 0;
   var detailReads = 0;
@@ -90,6 +104,11 @@ void main() {
             data = all.skip(offset).take(limit).toList();
           }
         }
+        if (table == 'follows') data = follows;
+        if (table == 'get_together_inbox' ||
+            table == 'get_commons_together_home_cards') {
+          data = {};
+        }
         if (table == 'logout') data = {};
         return http.Response(
           jsonEncode(data),
@@ -100,8 +119,9 @@ void main() {
       }),
     );
   });
-  setUp(() async {
+  Future<void> resetFixtures() async {
     SharedPreferences.setMockInitialValues({});
+    follows = [];
     offline = false;
     denied = false;
     readHold = null;
@@ -117,6 +137,7 @@ void main() {
       'name': 'Evening practice',
       'color': 0x8fa88a,
       'active': true,
+      'visible_in_active_list': true,
       'is_saved': false,
       'is_hidden': false,
       'start_date': today.toIso8601String(),
@@ -165,7 +186,9 @@ void main() {
         'live_on_calendar': true,
       },
     ];
-  });
+  }
+
+  setUp(resetFixtures);
   tearDownAll(() async => Supabase.instance.dispose());
 
   Future<void> settle(WidgetTester tester) async {
@@ -175,6 +198,250 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 80));
     }
+  }
+
+  Future<GoRouter> mountPages(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    AppRestorationService.debugUserIdResolver = () => null;
+    addTearDown(() => AppRestorationService.debugUserIdResolver = null);
+    final app = createAppRouterForTesting();
+    addTearDown(app.dispose);
+    final router = GoRouter(
+      initialLocation: '/pages',
+      observers: [routeObserver],
+      routes: [
+        GoRoute(path: '/', builder: (_, _) => const Scaffold()),
+        ...app.configuration.routes.whereType<GoRoute>().where(
+          (r) => [
+            '/pages',
+            '/shared-flow/by-flow/:flowId',
+            '/inbox',
+            '/nodes/:nodeId',
+          ].contains(r.path),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(fontFamily: 'GentiumPlus'),
+        routerConfig: router,
+        builder: (_, child) => RepaintBoundary(key: captureKey, child: child!),
+      ),
+    );
+    await settle(tester);
+    return router;
+  }
+
+  Finder tile(PagesDestination destination) => find.byWidgetPredicate(
+    (w) => w is PagesTile && w.card.destination == destination,
+  );
+
+  Future<void> capture(WidgetTester tester, String name) async {
+    if (!const bool.fromEnvironment('CAPTURE_PAGES_ENTRY')) return;
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(captureKey),
+    );
+    await tester.runAsync(() async {
+      final bitmap = await boundary.toImage(pixelRatio: 1);
+      final bytes = await bitmap.toByteData(format: ui.ImageByteFormat.png);
+      await Directory('/tmp/haw-pages-entry').create(recursive: true);
+      await File(
+        '/tmp/haw-pages-entry/$name.png',
+      ).writeAsBytes(bytes!.buffer.asUint8List());
+      bitmap.dispose();
+    });
+  }
+
+  Future<void> checkPagesFlow(WidgetTester tester) async {
+    final now = DateTime.now();
+    final targetTime = now.add(const Duration(hours: 2));
+    final base = Map<String, dynamic>.from(events.last);
+    events = [
+      ...events.where((e) => e['filed_flow_id'] != 42),
+      {
+        ...base,
+        'id': 'earlier',
+        'client_event_id': 'earlier-client',
+        'title': 'Daily Math',
+        'detail': 'Earlier occurrence detail',
+        'starts_at': now
+            .subtract(const Duration(hours: 2))
+            .toUtc()
+            .toIso8601String(),
+      },
+      {
+        ...base,
+        'id': 'target',
+        'client_event_id': 'target-client',
+        'title': 'Daily Math',
+        'detail': 'Displayed occurrence detail',
+        'starts_at': targetTime.toUtc().toIso8601String(),
+      },
+    ];
+    AccountViewCache.instance.enterAccount(owner);
+    AccountViewCache.instance.evictPrefix(owner, '');
+    final router = await mountPages(tester);
+    final pages = tester.state(find.byType(PagesPage));
+    final studio = tile(PagesDestination.studio);
+    await tester.ensureVisible(studio);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<PagesTile>(studio).card.event?.clientEventId,
+      'target-client',
+    );
+    final layout = tester.state(find.byType(PagesLayout));
+    final position = tester.getTopLeft(studio);
+    await capture(tester, 'pages-before-tap');
+    await tester.tap(studio);
+    await settle(tester);
+    expect(router.state.uri.path, '/shared-flow/by-flow/42');
+    expect(router.state.uri.queryParameters['occurrence'], 'target-client');
+    expect(
+      find.byKey(const ValueKey('user-flow-detail-surface-42')),
+      findsOneWidget,
+    );
+    expect(
+      find
+          .text('Displayed occurrence detail', findRichText: true)
+          .hitTestable(),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Earlier occurrence detail', findRichText: true).hitTestable(),
+      findsNothing,
+    );
+    expect(find.byType(FlowDetailCalendarScope), findsOneWidget);
+    await capture(tester, 'displayed-event-expanded');
+    await tester.tap(find.byKey(const ValueKey('user-flow-detail-back')));
+    await settle(tester);
+    expect(router.state.uri.path, '/pages');
+    expect(tester.state(find.byType(PagesPage)), same(pages));
+    expect(tester.state(find.byType(PagesLayout)), same(layout));
+    expect(tester.getTopLeft(studio), position);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() async {
+      await Supabase.instance.client.removeAllChannels();
+      await Supabase.instance.client.realtime.disconnect();
+      Supabase.instance.client.realtime.reconnectTimer.reset();
+    });
+    await settle(tester);
+    await WarmSnapshotStore.instance.flushed;
+    router.dispose();
+  }
+
+  Future<void> checkPagesInbox(WidgetTester tester) async {
+    final time = DateTime.now().toUtc();
+    follows = [
+      {
+        'created_at': time.toIso8601String(),
+        'follower_id': visitor,
+        'profiles': {'display_name': 'Alton Chisholm', 'handle': 'alton'},
+      },
+    ];
+    AccountViewCache.instance.enterAccount(owner);
+    AccountViewCache.instance.evictPrefix(owner, '');
+    final activity = (await tester.runAsync(
+      () => ShareRepo(Supabase.instance.client).getRecentActivity(),
+    ))!;
+    AccountViewCache.instance.publish(
+      owner,
+      'social.together',
+      const TogetherInboxSnapshot(),
+    );
+    AccountViewCache.instance.publish(
+      owner,
+      'social.inbox',
+      <InboxShareItem>[],
+    );
+    final router = await mountPages(tester);
+    final pages = tester.state(find.byType(PagesPage));
+    final inbox = tile(PagesDestination.inbox);
+    await tester.ensureVisible(inbox);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<PagesTile>(inbox).card.inboxActivity?.actorId,
+      visitor,
+    );
+    await tester.tap(inbox);
+    await settle(tester);
+    expect(
+      router.state.uri.queryParameters['activity'],
+      inboxActivityIdentity(activity.single),
+    );
+    expect(find.byType(InboxPage), findsOneWidget);
+    expect(find.text('Community'), findsOneWidget);
+    expect(
+      find.text('Alton Chisholm started following you').hitTestable(),
+      findsOneWidget,
+    );
+    await capture(tester, 'inbox-displayed-alert');
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    expect(find.text('Community'), findsNothing);
+    await tester.tap(find.byTooltip('Close Inbox'));
+    await settle(tester);
+    expect(tester.state(find.byType(PagesPage)), same(pages));
+    // Warm re-entry still shows the same alert, then account departure clears it.
+    await tester.tap(inbox);
+    await settle(tester);
+    expect(find.text('Community'), findsOneWidget);
+    await Supabase.instance.client.auth.recoverSession(session(visitor));
+    await settle(tester);
+    expect(find.text('Alton Chisholm started following you'), findsNothing);
+    await Supabase.instance.client.auth.recoverSession(session(owner));
+    await settle(tester);
+    expect(find.text('Alton Chisholm started following you'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() async {
+      await Supabase.instance.client.removeAllChannels();
+      await Supabase.instance.client.realtime.disconnect();
+      Supabase.instance.client.realtime.reconnectTimer.reset();
+    });
+    await settle(tester);
+    await WarmSnapshotStore.instance.flushed;
+    router.dispose();
+  }
+
+  Future<void> checkPagesLibrary(WidgetTester tester) async {
+    AccountViewCache.instance.enterAccount(owner);
+    AccountViewCache.instance.evictPrefix(owner, '');
+    AccountViewCache.instance.publish(
+      owner,
+      'library.progress',
+      LibraryReadSnapshot(
+        progressByNodeId: {
+          'ptah': LibraryNodeProgress(
+            nodeId: 'ptah',
+            progressPercent: 8,
+            lastReadAt: DateTime.now(),
+          ),
+        },
+      ),
+    );
+    final router = await mountPages(tester);
+    final library = tile(PagesDestination.library);
+    await tester.ensureVisible(library);
+    await tester.pumpAndSettle();
+    expect(tester.widget<PagesTile>(library).card.libraryNodeId, 'ptah');
+    await tester.tap(library);
+    await settle(tester);
+    expect(router.state.uri.path, '/nodes/ptah');
+    expect(find.byType(KemeticNodeReaderPage), findsOneWidget);
+    await capture(tester, 'library-continued-reading');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() async {
+      await Supabase.instance.client.removeAllChannels();
+      await Supabase.instance.client.realtime.disconnect();
+      Supabase.instance.client.realtime.reconnectTimer.reset();
+    });
+    await settle(tester);
+    await WarmSnapshotStore.instance.flushed;
+    router.dispose();
   }
 
   InboxShareItem share({bool sent = true, bool imported = false}) =>
@@ -213,6 +480,14 @@ void main() {
   testWidgets(
     'universal details: complete route visuals, calendar coverage, warm refresh and account boundaries',
     (tester) async {
+      // One widget clock owns the static cache write chain throughout.
+      await checkPagesFlow(tester);
+      await resetFixtures();
+      await checkPagesInbox(tester);
+      await resetFixtures();
+      await checkPagesLibrary(tester);
+      await resetFixtures();
+
       // Keep the cancellation scenarios and visual parity in one widget clock.
       for (final departure in ['none', 'route', 'account']) {
         detailReads = 0;

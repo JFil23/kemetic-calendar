@@ -1,3 +1,4 @@
+import '../../flow_detail_event_focus.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/maat_flow_date_picker.dart';
@@ -364,29 +365,42 @@ class _OfferingTableDetailSurfaceState
       sheet: _buildSheet(),
     );
 
-    return Material(
-      key: const ValueKey<String>('offering-table-detail-surface'),
-      color: OfferingTableDetailTokens.pageBackground,
-      child: KeyboardAwareEditableSurface(
-        child: Stack(
-          children: [
-            body,
-            if (widget.onBack != null)
-              Positioned(
-                top: MediaQuery.paddingOf(context).top + 6,
-                left: 16,
-                child: MaatFlowDetailBackButton(
-                  key: const ValueKey<String>('offering-table-back'),
-                  color: OfferingTableDetailTokens.warmGold,
-                  backgroundColor: Colors.transparent,
-                  borderColor: Colors.transparent,
-                  size: 40,
-                  iconSize: 27,
-                  icon: Icons.chevron_left,
-                  onPressed: widget.onBack!,
+    final focused = FlowDetailEventFocus.eventOf(context);
+    final focusedDay = int.tryParse('${focused?.behaviorPayload?['day']}');
+    final occurrence = focusedDay == null
+        ? null
+        : _previewOccurrences()
+              .where((o) => o.day.dayNumber == focusedDay)
+              .firstOrNull;
+    return FlowDetailEventAnchor(
+      matches: occurrence != null,
+      onOpen: occurrence == null
+          ? null
+          : () => _openOfferingDaySheet(occurrence),
+      child: Material(
+        key: const ValueKey<String>('offering-table-detail-surface'),
+        color: OfferingTableDetailTokens.pageBackground,
+        child: KeyboardAwareEditableSurface(
+          child: Stack(
+            children: [
+              body,
+              if (widget.onBack != null)
+                Positioned(
+                  top: MediaQuery.paddingOf(context).top + 6,
+                  left: 16,
+                  child: MaatFlowDetailBackButton(
+                    key: const ValueKey<String>('offering-table-back'),
+                    color: OfferingTableDetailTokens.warmGold,
+                    backgroundColor: Colors.transparent,
+                    borderColor: Colors.transparent,
+                    size: 40,
+                    iconSize: 27,
+                    icon: Icons.chevron_left,
+                    onPressed: widget.onBack!,
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

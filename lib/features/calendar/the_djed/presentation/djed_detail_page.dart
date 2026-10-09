@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' hide KemeticMath;
+import 'package:mobile/features/calendar/flow_detail_event_focus.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
@@ -372,66 +373,76 @@ class _DjedDetailSurfaceState extends State<DjedDetailSurface> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      key: const ValueKey<String>('djed-detail-surface'),
-      color: DjedDetailTokens.page,
-      child: Stack(
-        children: <Widget>[
-          MaatFlowDetailShell(
-            scaleHeroWithText: true,
-            theme: DjedDetailTokens.theme,
-            referenceHeroHeight: 258,
-            referenceSheetOverlap: 26,
-            scrollKey: const ValueKey<String>('djed-detail-scroll'),
-            heroLayerKey: const ValueKey<String>('djed-hero-layer'),
-            sheetKey: const ValueKey<String>('djed-sheet'),
-            hero: const _DjedHero(),
-            sheet: _DjedSheet(
-              flowId: widget.flowId,
-              startDate: widget._windowStart,
-              supports: _supports,
-              sittings: widget.sittings,
-              activeSupport: _activeSupport,
-              calendarPreview: widget.calendarPreview,
-              supportFocusNodes: _supportFocusNodes,
-              onSupportSelected: _selectSupport,
-              onNameChanged: _updateName,
-              onConditionChanged: _updateCondition,
-              onSittingPressed: _openSitting,
-            ),
-            bottomDock: MaatFlowDetailDock(
-              primaryAction: widget.primaryAction,
+    final focused = FlowDetailEventFocus.eventOf(context);
+    final number = int.tryParse('${focused?.behaviorPayload?['event_number']}');
+    final sitting = number == null
+        ? null
+        : widget.sittings.where((s) => s.number == number).firstOrNull;
+    return FlowDetailEventAnchor(
+      matches: sitting != null,
+      onOpen: sitting == null ? null : () => _openSitting(sitting),
+      child: Material(
+        key: const ValueKey<String>('djed-detail-surface'),
+        color: DjedDetailTokens.page,
+        child: Stack(
+          children: <Widget>[
+            MaatFlowDetailShell(
+              scaleHeroWithText: true,
               theme: DjedDetailTokens.theme,
-              joined: widget.joined,
-              busy: widget.busy,
-              onPressed: widget.busy
-                  ? null
-                  : (widget.onCarryConfiguration != null ||
-                        widget.onCarry != null)
-                  ? _carry
-                  : null,
-              onJoinedPressed: widget.onJoinedPressed,
-              actionLabel: 'Carry this djed',
-              actionNote: 'Nothing is scheduled until you carry it.',
-              joinedLabel: 'Carried in My Flows',
-              joinedNote: 'Your four supports and nine sittings stay together.',
-              actionKey: const ValueKey<String>('djed-carry'),
-              joinedKey: const ValueKey<String>('djed-carried'),
-              showNote: false,
-            ),
-          ),
-          if (widget.onBack != null)
-            Positioned(
-              left: 18,
-              top: MediaQuery.paddingOf(context).top + 6,
-              child: MaatFlowDetailBackButton(
-                key: const ValueKey<String>('djed-back'),
-                color: DjedDetailTokens.gold,
-                backgroundColor: const Color(0xA60D0905),
-                onPressed: widget.onBack!,
+              referenceHeroHeight: 258,
+              referenceSheetOverlap: 26,
+              scrollKey: const ValueKey<String>('djed-detail-scroll'),
+              heroLayerKey: const ValueKey<String>('djed-hero-layer'),
+              sheetKey: const ValueKey<String>('djed-sheet'),
+              hero: const _DjedHero(),
+              sheet: _DjedSheet(
+                flowId: widget.flowId,
+                startDate: widget._windowStart,
+                supports: _supports,
+                sittings: widget.sittings,
+                activeSupport: _activeSupport,
+                calendarPreview: widget.calendarPreview,
+                supportFocusNodes: _supportFocusNodes,
+                onSupportSelected: _selectSupport,
+                onNameChanged: _updateName,
+                onConditionChanged: _updateCondition,
+                onSittingPressed: _openSitting,
+              ),
+              bottomDock: MaatFlowDetailDock(
+                primaryAction: widget.primaryAction,
+                theme: DjedDetailTokens.theme,
+                joined: widget.joined,
+                busy: widget.busy,
+                onPressed: widget.busy
+                    ? null
+                    : (widget.onCarryConfiguration != null ||
+                          widget.onCarry != null)
+                    ? _carry
+                    : null,
+                onJoinedPressed: widget.onJoinedPressed,
+                actionLabel: 'Carry this djed',
+                actionNote: 'Nothing is scheduled until you carry it.',
+                joinedLabel: 'Carried in My Flows',
+                joinedNote:
+                    'Your four supports and nine sittings stay together.',
+                actionKey: const ValueKey<String>('djed-carry'),
+                joinedKey: const ValueKey<String>('djed-carried'),
+                showNote: false,
               ),
             ),
-        ],
+            if (widget.onBack != null)
+              Positioned(
+                left: 18,
+                top: MediaQuery.paddingOf(context).top + 6,
+                child: MaatFlowDetailBackButton(
+                  key: const ValueKey<String>('djed-back'),
+                  color: DjedDetailTokens.gold,
+                  backgroundColor: const Color(0xA60D0905),
+                  onPressed: widget.onBack!,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

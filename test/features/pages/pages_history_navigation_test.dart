@@ -97,7 +97,7 @@ void main() {
       final before = router.routerDelegate.currentConfiguration;
       final originalState = tester.state(find.byType(PagesPage));
       final layout = tester.widget<PagesLayout>(find.byType(PagesLayout));
-      layout.onOpen(PagesDestination.feed);
+      layout.onOpen(const PagesCard(PagesDestination.feed));
       await tester.pumpAndSettle();
       expect(router.state.uri.path, '/profile/me');
       final socialMatch =
@@ -124,11 +124,11 @@ void main() {
         final currentLayout = tester.widget<PagesLayout>(
           find.byType(PagesLayout),
         );
-        currentLayout.onOpen(PagesDestination.planner);
+        currentLayout.onOpen(const PagesCard(PagesDestination.planner));
         socialMatch.completer.complete(null);
         await tester.pumpAndSettle();
         // A late completion from the removed route cannot unlock a new open.
-        currentLayout.onOpen(PagesDestination.journal);
+        currentLayout.onOpen(const PagesCard(PagesDestination.journal));
         await tester.pumpAndSettle();
         expect(router.state.uri.path, '/rhythm/today');
         router.pop();
@@ -146,8 +146,10 @@ void main() {
         final currentLayout = tester.widget<PagesLayout>(
           find.byType(PagesLayout),
         );
-        currentLayout.onOpen(destination);
-        currentLayout.onOpen(destination); // Repeated taps must open once.
+        currentLayout.onOpen(PagesCard(destination));
+        currentLayout.onOpen(
+          PagesCard(destination),
+        ); // Repeated taps must open once.
         await tester.pumpAndSettle();
         final uri = router.state.uri.path;
         expect(
@@ -170,7 +172,7 @@ void main() {
       }
       tester
           .widget<PagesLayout>(find.byType(PagesLayout))
-          .onOpen(PagesDestination.calendar);
+          .onOpen(const PagesCard(PagesDestination.calendar));
       await tester.pumpAndSettle();
       expect(router.state.uri.path, '/');
       expect(tester.takeException(), isNull);
