@@ -1,3 +1,5 @@
+import '../../data/share_repo.dart' show InboxActivityItem;
+import '../../data/share_models.dart' show InboxShareItem;
 import 'pages_feed_rotation.dart';
 import 'pages_arrangement.dart' show PagesUpcomingEvent;
 import 'pages_studio_graphic.dart' show PagesStudioSnapshot;
@@ -94,6 +96,10 @@ class PagesCard {
     this.primary = const PagesSignal(''),
     this.upper = const PagesSignal(''),
     this.lower = const PagesSignal(''),
+    this.libraryNodeId,
+    this.calendarId,
+    this.inboxActivity,
+    this.inboxShare,
     this.flow,
     this.event,
     this.studioSnapshot,
@@ -122,6 +128,9 @@ class PagesCard {
   final PagesLoadState state;
   final String meta;
   final PagesSignal primary, upper, lower;
+  final String? libraryNodeId, calendarId;
+  final InboxActivityItem? inboxActivity;
+  final InboxShareItem? inboxShare;
   final PagesFlow? flow;
   final PagesUpcomingEvent? event;
   final PagesStudioSnapshot? studioSnapshot;

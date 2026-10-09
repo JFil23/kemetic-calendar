@@ -87,7 +87,7 @@ void main() {
           }
           tester
               .widget<PagesLayout>(find.byType(PagesLayout))
-              .onOpen(PagesDestination.calendar);
+              .onOpen(const PagesCard(PagesDestination.calendar));
           await tester.pumpAndSettle();
         }
         final lastError = tester.takeException();

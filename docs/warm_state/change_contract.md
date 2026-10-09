@@ -1456,3 +1456,34 @@ wide and 12px tall beside X, with a 60x40px tap area, green on and gray off.
 Static on/off captures cover both platforms, phone/landscape and enlarged text.
 Real-shell tests verify repeated toggles, outside taps, Back, X, restart,
 Settings restoration and failed saves; account changes retain their fence.
+
+
+## October 9 Pages content entry
+
+The user's 10:36 recording and the existing canonical views are the visual
+reference. Tapping a populated Pages tile carries its displayed content identity
+into the existing destination. Flow Studio opens the entire My Flows or authored
+Ma’at detail with the selected occurrence expanded/opened through that owner's
+normal behavior. Identity uses the client event ID or server row ID, never a title
+or date guess. The complete authorized event read remains owned by UserEventsRepo;
+FlowsRepo and the shared adapter retain account and permission checks. The focus
+scope only coordinates transient expansion and scrolling; it renders no alternate
+flow detail and adds no route-specific presentation flag.
+
+Inbox activity resolves in ShareRepo's current-account snapshot and opens the
+existing Community or Movement alert sheet with the selected row first. Its
+existing seen acknowledgement still belongs to entering that sheet. Calendar and
+event updates use the existing invitation surface; flow shares use the canonical
+flow detail. Account departure fences pending entry and clears the private activity
+sheet, including A -> B -> A. Library continues the displayed reading through its
+existing reader and progress owner. Calendars expands the displayed calendar;
+shared practices open their existing room. Calendar, Planner and Journal keep
+their existing canonical destinations. Pages selection and scroll survive return.
+
+No persistence schema, deployed key, content owner, pending-write mechanism,
+approved reference, or inventory threshold changes. Evidence includes the actual
+registered Pages/Inbox/Library/flow routes, duplicate-title occurrence selection,
+retained Pages state, existing complete-view entry parity, and event focus in all
+five authored Ma’at details. Existing visual references remain the comparison
+baseline. Capture-only route evidence is written to /tmp; the complete App gate
+and served replay remain required before deployment.

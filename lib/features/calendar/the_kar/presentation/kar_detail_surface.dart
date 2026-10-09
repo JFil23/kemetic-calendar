@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart' show OverflowBoxFit;
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../flow_detail_event_focus.dart';
 import '../../../../widgets/kemetic_date_picker.dart';
 import '../../../../widgets/maat_flow_date_picker.dart';
 import '../../follow_the_sky/presentation/follow_sky_calendar_preview.dart';
@@ -365,28 +366,44 @@ class _KarDetailSurfaceState extends State<KarDetailSurface> {
         joinedKey: const ValueKey<String>('kar-cycle-joined'),
       ),
     );
-    return Material(
-      key: const ValueKey<String>('kar-detail-surface'),
-      color: KarDetailTokens.page,
-      child: Stack(
-        children: <Widget>[
-          body,
-          if (widget.onBack != null)
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + 6,
-              left: 16,
-              child: MaatFlowDetailBackButton(
-                key: const ValueKey<String>('kar-back'),
-                color: KarDetailTokens.gold,
-                backgroundColor: Colors.transparent,
-                borderColor: Colors.transparent,
-                size: 40,
-                iconSize: 27,
-                icon: Icons.chevron_left,
-                onPressed: widget.onBack!,
+    final focused = FlowDetailEventFocus.eventOf(context);
+    final payload = focused?.behaviorPayload;
+    final cycleId = payload?['kar_cycle_id'];
+    final stageIndex = int.tryParse('${payload?['kar_stage_index']}');
+    final targetCycle = cycleId == null
+        ? null
+        : _shrine?.cycles.where((cycle) => cycle.id == cycleId).firstOrNull;
+    final canFocus =
+        targetCycle != null &&
+        stageIndex != null &&
+        stageIndex >= 0 &&
+        stageIndex <= 5;
+    return FlowDetailEventAnchor(
+      matches: canFocus,
+      onOpen: !canFocus ? null : () => _openStageSheet(targetCycle, stageIndex),
+      child: Material(
+        key: const ValueKey<String>('kar-detail-surface'),
+        color: KarDetailTokens.page,
+        child: Stack(
+          children: <Widget>[
+            body,
+            if (widget.onBack != null)
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 6,
+                left: 16,
+                child: MaatFlowDetailBackButton(
+                  key: const ValueKey<String>('kar-back'),
+                  color: KarDetailTokens.gold,
+                  backgroundColor: Colors.transparent,
+                  borderColor: Colors.transparent,
+                  size: 40,
+                  iconSize: 27,
+                  icon: Icons.chevron_left,
+                  onPressed: widget.onBack!,
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

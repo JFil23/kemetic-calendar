@@ -18,6 +18,7 @@ import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
+import '../../flow_detail_event_focus.dart';
 import '../reading_house_authority.dart';
 import 'reading_house_event_block_visual.dart';
 import 'reading_house_sitting_editor.dart';
@@ -1239,10 +1240,19 @@ class _ReadingHouseDetailSurfaceState extends State<ReadingHouseDetailSurface> {
             ),
           ),
           for (final sitting in _sittings)
-            _SittingRow(
-              sitting: sitting,
-              status: _sittingStatus(context, sitting),
-              onTap: _canEdit ? () => _openSitting(sitting) : null,
+            FlowDetailEventAnchor(
+              matches:
+                  !_loadingHouse &&
+                  sitting.eventNumber ==
+                      int.tryParse(
+                        '${FlowDetailEventFocus.eventOf(context)?.behaviorPayload?['event_number']}',
+                      ),
+              onOpen: _canEdit ? () => _openSitting(sitting) : null,
+              child: _SittingRow(
+                sitting: sitting,
+                status: _sittingStatus(context, sitting),
+                onTap: _canEdit ? () => _openSitting(sitting) : null,
+              ),
             ),
           if (_canEdit)
             Padding(

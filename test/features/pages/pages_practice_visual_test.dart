@@ -156,7 +156,7 @@ void main() {
           theme: AppTheme.dark,
           home: PagesLayout(
             cards: cards,
-            onOpen: (d) => opened = d,
+            onOpen: (d) => opened = d.destination,
             onProfile: () {},
             onNewNote: () {},
             onSearchResult: (_) {},

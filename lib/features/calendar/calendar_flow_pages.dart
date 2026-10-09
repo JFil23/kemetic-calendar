@@ -654,6 +654,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   final Map<String, GlobalKey> _dashboardDayDetailKeys = <String, GlobalKey>{};
   final Set<int> _showPastScheduleFlowIds = <int>{};
   final Set<int> _showLaterScheduleFlowIds = <int>{};
+  String? _focusedOccurrenceKey;
   Timer? _userFlowDayBoundaryTimer;
   DateTime? _selectedStartForSaved;
   bool _isImportingSaved = false;
@@ -704,6 +705,38 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _focusRequestedOccurrence();
+  }
+
+  void _focusRequestedOccurrence() {
+    final event = FlowDetailEventFocus.eventOf(context);
+    if (event == null) return;
+    final flow = _flowSequence[_currentIndex];
+    final days = _dashboardDaysFor(flow, _eventsByFlow[flow.id] ?? const []);
+    final day = days
+        .where(
+          (d) =>
+              d.event.id == event.id &&
+              d.event.clientEventId == event.clientEventId,
+        )
+        .firstOrNull;
+    if (day == null || _focusedOccurrenceKey == day.key) return;
+    _focusedOccurrenceKey = day.key;
+    _expandedDayKeys
+      ..clear()
+      ..add(day.key);
+    final buckets = _userFlowScheduleBuckets(flow, days);
+    if (buckets.past.any((d) => d.key == day.key)) {
+      _showPastScheduleFlowIds.add(flow.id);
+    }
+    if (buckets.later.any((d) => d.key == day.key)) {
+      _showLaterScheduleFlowIds.add(flow.id);
+    }
+  }
+
+  @override
   void dispose() {
     _userFlowDayBoundaryTimer?.cancel();
     _pageController.dispose();
@@ -729,6 +762,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         _eventsByFlow[flow.id] ?? const <FlowEventRow>[],
       );
     }
+    _focusRequestedOccurrence();
     if (oldWidget.flow.id != widget.flow.id ||
         oldWidget.nowForTesting != widget.nowForTesting) {
       _scheduleUserFlowDayBoundaryRefresh();

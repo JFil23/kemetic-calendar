@@ -4,6 +4,7 @@ import '../../data/warm_state/warm_work_queue.dart';
 // Dual-mode details page: supports both imported flows (flowId) and non-imported shares (share)
 
 import 'dart:async';
+import '../calendar/flow_detail_event_focus.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -43,6 +44,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
   final FlowDetailActionPolicy? actionPolicy;
   final String fallbackLocation;
   final int? ownedSourceFlowId;
+  final FlowDetailEventTarget? eventTarget;
   final List<FlowDetailMenuAction> menuActions;
   final FlowDetailMenuAction? snapshotShareAction;
 
@@ -58,6 +60,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
     this.actionPolicy,
     this.fallbackLocation = '/inbox',
     this.ownedSourceFlowId,
+    this.eventTarget,
     this.menuActions = const [],
     this.snapshotShareAction,
   }) : assert(
@@ -759,6 +762,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
             owned.userId == Supabase.instance.client.auth.currentUser?.id) {
           return CalendarPage.buildCanonicalOwnedFlowDetail(
             row: owned,
+            eventTarget: widget.eventTarget,
             events: data.loadedEvents!,
             additionalMenuActions: widget.menuActions,
             backFallbackLocation: widget.fallbackLocation,
@@ -790,6 +794,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           backFallbackLocation: widget.fallbackLocation,
           appearance: data.appearance,
           initialFlowEvents: data.loadedEvents,
+          eventTarget: widget.eventTarget,
         );
       },
     );

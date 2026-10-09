@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../flow_detail_event_focus.dart';
 import '../domain/follow_sky_timezone.dart';
 import '../domain/sky_catalog.dart';
 import '../domain/sky_observing_night.dart';
@@ -423,23 +424,38 @@ class FollowSkyDetailSurfaceState extends State<FollowSkyDetailSurface> {
           )
         : _buildV11Body();
 
-    return Material(
-      key: const ValueKey<String>('follow-sky-detail-surface'),
-      color: FollowSkyV11Tokens.pageBg,
-      child: Stack(
-        children: [
-          body,
-          if (widget.onBack != null)
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + 4,
-              left: 4,
-              child: BackButton(
-                key: const ValueKey<String>('follow-sky-back'),
-                color: FollowSkyV11Tokens.gold,
-                onPressed: widget.onBack,
+    final focused = FlowDetailEventFocus.eventOf(context);
+    final focusedSkyId = TrackSkyEventOwnership.skyEventIdFromPayload(
+      focused?.behaviorPayload,
+    );
+    final focusedNight = focusedSkyId == null
+        ? null
+        : _upcomingNights
+              .where((night) => night.skyEventId == focusedSkyId)
+              .firstOrNull;
+    return FlowDetailEventAnchor(
+      matches: focusedNight != null,
+      onOpen: focusedNight == null
+          ? null
+          : () => _openTurningSheet(focusedNight),
+      child: Material(
+        key: const ValueKey<String>('follow-sky-detail-surface'),
+        color: FollowSkyV11Tokens.pageBg,
+        child: Stack(
+          children: [
+            body,
+            if (widget.onBack != null)
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 4,
+                left: 4,
+                child: BackButton(
+                  key: const ValueKey<String>('follow-sky-back'),
+                  color: FollowSkyV11Tokens.gold,
+                  onPressed: widget.onBack,
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

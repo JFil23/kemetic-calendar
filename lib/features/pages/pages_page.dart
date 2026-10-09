@@ -6,6 +6,9 @@ import '../../main.dart' show routeObserver;
 import '../../core/navigation_fallback.dart';
 import '../../data/profile_repo.dart';
 import '../calendar/calendar_page.dart';
+import '../inbox/inbox_activity_target.dart';
+import '../../data/share_models.dart';
+import 'pages_feed_rotation.dart';
 import 'pages_controller.dart';
 import 'pages_collections.dart';
 import 'pages_collections_controller.dart';
@@ -135,7 +138,13 @@ class _PagesPageState extends State<PagesPage>
     }
   }
 
-  Future<void> _open(PagesDestination destination) async {
+  Future<void> _open(PagesCard card) async {
+    final controller = _controller;
+    if (controller == null ||
+        Supabase.instance.client.auth.currentUser?.id != controller.uid) {
+      return;
+    }
+    final destination = card.destination;
     if (destination == PagesDestination.calendar) {
       closeOrReturn(context, '/');
       return;
@@ -146,19 +155,86 @@ class _PagesPageState extends State<PagesPage>
           break;
         case PagesDestination.feed:
           _controller?.didOpenFeed();
-          await openDetailRoute<void>(context, '/profile/me?feed=1&commons=1');
+          final room = card.feedDisplay == PagesFeedDisplay.practice
+              ? card.practice
+              : null;
+          await openDetailRoute<void>(
+            context,
+            room == null
+                ? '/profile/me?feed=1&commons=1'
+                : '/shared-practice/${Uri.encodeComponent(room.id)}',
+          );
         case PagesDestination.library:
-          await openDetailRoute<void>(context, '/nodes');
+          await openDetailRoute<void>(
+            context,
+            card.libraryNodeId == null
+                ? '/nodes'
+                : '/nodes/${Uri.encodeComponent(card.libraryNodeId!)}',
+          );
         case PagesDestination.planner:
           await openUtilityRoute<void>(context, '/rhythm/today');
         case PagesDestination.journal:
           await openUtilityRoute<void>(context, '/journal');
         case PagesDestination.inbox:
-          await openUtilityRoute<void>(context, '/inbox');
+          final activity = card.inboxActivity;
+          final share = card.inboxShare;
+          if (activity != null) {
+            await openUtilityRoute<void>(
+              context,
+              Uri(
+                path: '/inbox',
+                queryParameters: {'activity': inboxActivityIdentity(activity)},
+              ).toString(),
+            );
+          } else if (share != null && share.kind == InboxShareKind.flow) {
+            await openDetailRoute<void>(
+              context,
+              '/shared-flow/${Uri.encodeComponent(share.shareId)}',
+              extra: {'share': share, 'fallbackLocation': '/pages'},
+            );
+          } else {
+            await openUtilityRoute<void>(
+              context,
+              Uri(
+                path: '/inbox',
+                queryParameters: share == null
+                    ? null
+                    : {'update': share.shareId},
+              ).toString(),
+            );
+          }
         case PagesDestination.calendars:
-          await openUtilityRoute<void>(context, '/calendars');
+          await openUtilityRoute<void>(
+            context,
+            Uri(
+              path: '/calendars',
+              queryParameters: card.calendarId == null
+                  ? null
+                  : {'calendar': card.calendarId!},
+            ).toString(),
+          );
         case PagesDestination.studio:
-          await openUtilityRoute<void>(context, '/flows');
+          final event = card.event;
+          final flow = card.flow;
+          if (event != null &&
+              flow != null &&
+              event.flowId == flow.id &&
+              (event.clientEventId.isNotEmpty || event.id.isNotEmpty)) {
+            await openDetailRoute<void>(
+              context,
+              Uri(
+                path: '/shared-flow/by-flow/${Uri.encodeComponent(flow.id)}',
+                queryParameters: {
+                  if (event.clientEventId.isNotEmpty)
+                    'occurrence': event.clientEventId,
+                  if (event.id.isNotEmpty) 'event': event.id,
+                },
+              ).toString(),
+              extra: const {'fallbackLocation': '/pages'},
+            );
+          } else {
+            await openUtilityRoute<void>(context, '/flows');
+          }
       }
     });
   }
