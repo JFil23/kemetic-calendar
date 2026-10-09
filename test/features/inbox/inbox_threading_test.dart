@@ -349,7 +349,7 @@ void main() {
         );
         final invitesSheet = _sourceBetween(
           source,
-          'Future<void> _openCalendarInboxSheet({String? parentRouteOverride}) async {',
+          'Future<void> _openCalendarInboxSheet({',
           'Widget _calendarSheetSectionTitle',
         );
 
@@ -419,7 +419,7 @@ void main() {
           );
           final sheet = _sourceBetween(
             source,
-            'Future<void> _openCalendarInboxSheet({String? parentRouteOverride}) async {',
+            'Future<void> _openCalendarInboxSheet({',
             'Widget _calendarSheetSectionTitle',
           );
 
@@ -456,7 +456,7 @@ void main() {
         );
         final sheet = _sourceBetween(
           source,
-          'Future<void> _openCalendarInboxSheet({String? parentRouteOverride}) async {',
+          'Future<void> _openCalendarInboxSheet({',
           'Widget _calendarSheetSectionTitle',
         );
 
