@@ -12,6 +12,9 @@ import 'calendar_page.dart' show KemeticMath;
 const dailyCosmicContextOverlayKey = ValueKey<String>(
   'daily-cosmic-context-overlay',
 );
+const dailyCosmicContextAutomaticToggleKey = ValueKey<String>(
+  'daily-cosmic-context-automatic-toggle',
+);
 const dailyCosmicContextDismissButtonKey = ValueKey<String>(
   'daily-cosmic-context-dismiss',
 );
@@ -55,6 +58,13 @@ class DailyCosmicContextPrefs {
   Future<bool> isEnabled() async {
     final prefs = await _store();
     return SettingsPrefs.dailyCosmicContextBadgeEnabledFrom(prefs);
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    await SettingsPrefs.setDailyCosmicContextBadgeEnabled(
+      enabled,
+      prefs: await _store(),
+    );
   }
 
   Future<String?> lastShownGregorianDate(String userId) async {
@@ -146,6 +156,16 @@ class DailyCosmicContextController extends ChangeNotifier {
     _activeUserId = normalizedUserId;
     _setCurrent(badge);
     await _prefs.markShown(normalizedUserId, badge.gregorianDateKey);
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    // Fence reads begun before the user's choice so they cannot reopen a card.
+    _evaluationSerial += 1;
+    await _prefs.setEnabled(enabled);
+    if (!enabled) {
+      _evaluationSerial += 1;
+      _clearCurrent();
+    }
   }
 
   Future<void> dismiss() async {
@@ -242,6 +262,8 @@ class _DailyCosmicContextOverlayHostState
     extends State<DailyCosmicContextOverlayHost> {
   DailyCosmicContextBadge? _badge;
   bool _visible = false;
+  bool _savingPreference = false;
+  String? _preferenceError;
 
   @override
   void initState() {
@@ -265,6 +287,25 @@ class _DailyCosmicContextOverlayHostState
     super.dispose();
   }
 
+  Future<void> _setAutomaticDisplay(bool enabled) async {
+    if (_savingPreference) return;
+    setState(() {
+      _savingPreference = true;
+      _preferenceError = null;
+    });
+    try {
+      await widget.controller.setEnabled(enabled);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _preferenceError = 'Could not save your choice. Please try again.';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _savingPreference = false);
+    }
+  }
+
   void _syncFromController() {
     final next = widget.controller.current;
     if (next == null) {
@@ -280,6 +321,7 @@ class _DailyCosmicContextOverlayHostState
     setState(() {
       _badge = next;
       _visible = false;
+      _preferenceError = null;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || widget.controller.current != next) return;
@@ -299,8 +341,12 @@ class _DailyCosmicContextOverlayHostState
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
         child: _DailyCosmicContextScrim(
-          child: _DailyCosmicContextCard(
+          child: DailyCosmicContextCard(
             badge: badge,
+            onAutomaticDisplayChanged: _savingPreference
+                ? null
+                : _setAutomaticDisplay,
+            error: _preferenceError,
             onDismiss: () => unawaited(widget.controller.dismiss()),
           ),
         ),
@@ -331,11 +377,21 @@ class _DailyCosmicContextScrim extends StatelessWidget {
   }
 }
 
-class _DailyCosmicContextCard extends StatelessWidget {
-  const _DailyCosmicContextCard({required this.badge, required this.onDismiss});
+class DailyCosmicContextCard extends StatelessWidget {
+  const DailyCosmicContextCard({
+    super.key,
+    required this.badge,
+    required this.onDismiss,
+    required this.onAutomaticDisplayChanged,
+    this.automaticDisplay = true,
+    this.error,
+  });
 
   final DailyCosmicContextBadge badge;
   final VoidCallback onDismiss;
+  final ValueChanged<bool>? onAutomaticDisplayChanged;
+  final bool automaticDisplay;
+  final String? error;
 
   @override
   Widget build(BuildContext context) {
@@ -345,6 +401,11 @@ class _DailyCosmicContextCard extends StatelessWidget {
     final availableHeight = size.height - mediaQuery.padding.vertical - 48;
     final maxHeight = availableHeight > 0 ? availableHeight : size.height;
     final decanName = _floatingBadgeDecanName(badge.decanName);
+    final platform = Theme.of(context).platform;
+    final switchTrackHeight =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS
+        ? 31.0
+        : 32.0;
 
     return Semantics(
       namesRoute: false,
@@ -396,6 +457,28 @@ class _DailyCosmicContextCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                          Semantics(
+                            label: 'Show The Day’s Rhythm automatically',
+                            hint:
+                                'Turn off to hide these cards. Turn back on in Settings.',
+                            child: SizedBox(
+                              height: 40,
+                              // Match the painted 12px close glyph while keeping
+                              // the switch's width and full-height tap target.
+                              child: Transform.scale(
+                                scaleX: 1,
+                                scaleY: 12 / switchTrackHeight,
+                                transformHitTests: false,
+                                child: Switch.adaptive(
+                                  key: dailyCosmicContextAutomaticToggleKey,
+                                  value: automaticDisplay,
+                                  activeTrackColor: const Color(0xFF34C759),
+                                  activeThumbColor: Colors.black,
+                                  onChanged: onAutomaticDisplayChanged,
+                                ),
+                              ),
+                            ),
+                          ),
                           SizedBox.square(
                             dimension: 40,
                             child: Semantics(
@@ -412,6 +495,13 @@ class _DailyCosmicContextCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      if (error != null) ...[
+                        Text(
+                          error!,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 6),
+                      ],
                       const SizedBox(height: 6),
                       Text(
                         '${badge.kemeticDate} | ${badge.gregorianDateLabel}',

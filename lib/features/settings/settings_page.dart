@@ -84,6 +84,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _realTimeAlerts = false;
   bool _usHolidaysEnabled = false;
   bool _dailyCosmicContextBadgeEnabled = true;
+  bool _savingDailyCosmicContextBadge = false;
   bool _seedingHolidays = false;
   bool _loading = true;
   bool _requestingPush = false;
@@ -178,6 +179,9 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    SettingsPrefs.dailyCosmicContextBadgeChanges.addListener(
+      _reloadDailyCosmicContextPreference,
+    );
     _hydrationDiagnosticsReady = _prepareHydrationDiagnostics();
     _load();
     unawaited(_loadSpeechSettings());
@@ -209,6 +213,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    SettingsPrefs.dailyCosmicContextBadgeChanges.removeListener(
+      _reloadDailyCosmicContextPreference,
+    );
     _buildMarkerTapResetTimer?.cancel();
     unawaited(
       SpeechService.instance.stop(utteranceId: _speechPreviewUtteranceId),
@@ -289,10 +296,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(SettingsPrefs.realTimeAlertsKey, _realTimeAlerts);
     await prefs.setBool(SettingsPrefs.usHolidaysEnabledKey, _usHolidaysEnabled);
-    await prefs.setBool(
-      SettingsPrefs.dailyCosmicContextBadgeEnabledKey,
-      _dailyCosmicContextBadgeEnabled,
-    );
   }
 
   Future<void> _loadSpeechSettings() async {
@@ -778,11 +781,28 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _reloadDailyCosmicContextPreference() async {
+    final enabled = await SettingsPrefs.dailyCosmicContextBadgeEnabled();
+    if (mounted) setState(() => _dailyCosmicContextBadgeEnabled = enabled);
+  }
+
   Future<void> _setDailyCosmicContextBadgeEnabled(bool enabled) async {
-    setState(() {
-      _dailyCosmicContextBadgeEnabled = enabled;
-    });
-    await _save();
+    if (_savingDailyCosmicContextBadge) return;
+    setState(() => _savingDailyCosmicContextBadge = true);
+    try {
+      await SettingsPrefs.setDailyCosmicContextBadgeEnabled(enabled);
+      if (mounted) setState(() => _dailyCosmicContextBadgeEnabled = enabled);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save your choice. Please try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingDailyCosmicContextBadge = false);
+    }
   }
 
   String _formatTimestamp(DateTime dt) {
@@ -1431,9 +1451,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 _settingSwitch(
                   title: 'The Day’s Rhythm badge',
                   subtitle:
-                      'Shows today\'s Day Card rhythm once per local Gregorian day.',
+                      'Automatically shows a Day’s Rhythm card once each day. Turn off to hide these cards.',
                   value: _dailyCosmicContextBadgeEnabled,
-                  onChanged: _setDailyCosmicContextBadgeEnabled,
+                  onChanged: _savingDailyCosmicContextBadge
+                      ? null
+                      : _setDailyCosmicContextBadgeEnabled,
                 ),
               ],
             ),

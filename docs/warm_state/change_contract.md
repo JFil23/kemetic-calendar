@@ -1422,3 +1422,24 @@ acknowledged edits, warm reads and account-departure evidence. Host regression
 checks retain Journal controls and social geometry at phone/landscape sizes and
 enlarged text; a scope guard rejects reflection presentation imports in other
 features. Existing reflection visual fixtures remain intact.
+
+
+## October 9 Day’s Rhythm automatic-display preference
+
+The card-header toggle and Settings Calendar Content row share SettingsPrefs and
+its deployed `settings:dailyCosmicContextBadgeEnabled` device-local preference.
+Missing values remain enabled. Disabling hides the current card after the write
+is acknowledged and suppresses future automatic cards across restarts; enabling
+restores the existing once-per-local-day schedule. Closing the card remains a
+one-day dismissal. Account-specific last-shown dates retain their existing keys.
+No account content, warm key, resource schema or backend writer changes.
+
+Both entry points use the same serialized writer and publish acknowledged changes
+to the mounted Settings page and global card host. Unrelated Settings bulk saves
+no longer rewrite this preference. Rejected writes reload the preference cache,
+keep the prior switch value and offer retry. Visual captures preserve the supplied
+card’s housing, text and close action with the new switch immediately to its left;
+phone, narrow and landscape layouts include enlarged text. Route-level regression
+checks exercise the real Settings page and global overlay shell, persisted opt-out,
+re-enable, separate dismissal and rejected/throwing writes without changing
+approved visual references.
