@@ -73,10 +73,19 @@ void _focusElement(web.Element element) {
   }
 }
 
-void _blurElement(web.Element element) {
-  try {
-    js_util.callMethod<void>(element, 'blur', const <Object?>[]);
-  } catch (_) {}
+void _reenterEditingElement(web.Element element) {
+  // Match Flutter's safe focus transfer: a bare blur has no relatedTarget,
+  // so the web engine closes the input connection and unfocuses EditableText.
+  // Keep focus inside the owning view while Safari re-applies inputmode.
+  final view = element.closest('flutter-view');
+  if (view != null) {
+    _focusElement(view);
+  } else {
+    try {
+      js_util.callMethod<void>(element, 'blur', const <Object?>[]);
+    } catch (_) {}
+  }
+  _focusElement(element);
 }
 
 void _hideBrowserVirtualKeyboard() {
@@ -188,8 +197,11 @@ void syncWebCustomKeyboardInputTarget() {
     // the attribute on the already focused Flutter editor leaves its native
     // keyboard covering the custom panel. Re-focus once per target, with
     // preventScroll; subsequent focus notifications must not repeat the handoff.
-    if (changedTarget) _blurElement(editingElement);
-    _focusElement(editingElement);
+    if (changedTarget) {
+      _reenterEditingElement(editingElement);
+    } else {
+      _focusElement(editingElement);
+    }
   } finally {
     _syncingTarget = false;
   }
@@ -203,8 +215,7 @@ void deactivateWebCustomKeyboardInput({bool requestSystemKeyboard = false}) {
   if (editingElement != null) {
     _restoreKeyboardBehavior(editingElement);
     if (requestSystemKeyboard) {
-      _blurElement(editingElement);
-      _focusElement(editingElement);
+      _reenterEditingElement(editingElement);
     }
   }
 
