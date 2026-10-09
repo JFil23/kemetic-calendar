@@ -438,6 +438,10 @@ class PagesController {
       return a.length == b.length &&
           List.generate(a.length, (i) => i).every((i) => _same(a[i], b[i]));
     }
+    if (a is Map && b is Map) {
+      return a.length == b.length &&
+          a.keys.every((key) => b.containsKey(key) && _same(a[key], b[key]));
+    }
     return a == b;
   }
 
@@ -476,7 +480,31 @@ class PagesController {
       for (final d in c.days) [d.day, d.today, d.past, d.colors],
       c.calendarDate,
       c.showGregorian,
-      c.calendarNotes,
+      {
+        for (final entry in c.calendarNotes.entries)
+          entry.key: [
+            for (final n in entry.value)
+              [
+                n.id,
+                n.clientEventId,
+                n.calendarId,
+                n.calendarName,
+                n.title,
+                n.detail,
+                n.location,
+                n.allDay,
+                n.start,
+                n.end,
+                n.canonicalEnd,
+                n.flowId,
+                n.manualColor,
+                n.category,
+                n.isReminder,
+                n.reminderId,
+                n.behaviorPayload,
+              ],
+          ],
+      },
       c.calendarFlowNames,
       c.weekdays,
       c.week,

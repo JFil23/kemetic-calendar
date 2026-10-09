@@ -21,7 +21,7 @@ import '../features/journal/journal_badge_utils.dart';
 import '../features/journal/journal_v2_document_model.dart';
 import '../features/pages/pages_models.dart';
 import '../features/calendar/calendar_page.dart'
-    show notesDecode, calendarPreviewEventColor;
+    show CalendarPage, notesDecode, calendarPreviewEventColor;
 import 'account_view_cache.dart';
 import '../features/pages/pages_arrangement.dart';
 import 'nutrition_repo.dart';
@@ -414,6 +414,26 @@ class PagesReadRepository {
   /// Cold restoration only: a bounded current-month read from the same filed
   /// event view used by Calendar. A mounted Calendar publishes its exact snapshot.
   Future<PagesCard> calendar(
+    DateTime now,
+    List<PagesFlow> flows,
+    Set<String> hidden,
+  ) async {
+    checkActive();
+    final account = AccountOperationFence(client);
+    try {
+      final current = CalendarPage.readPagesCalendarSnapshot(client, now);
+      if (current != null) return current;
+      final fallback = await _readCalendarFallback(now, flows, hidden);
+      checkActive();
+      if (!account.isCurrent) throw const ViewReadCancelled();
+      // Calendar may have finished hydrating while the cold read was in flight.
+      return CalendarPage.readPagesCalendarSnapshot(client, now) ?? fallback;
+    } finally {
+      account.dispose();
+    }
+  }
+
+  Future<PagesCard> _readCalendarFallback(
     DateTime now,
     List<PagesFlow> flows,
     Set<String> hidden,

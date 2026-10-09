@@ -1551,3 +1551,21 @@ hub return. The fallback guard checks both loading/error calls to the shared
 nested-aware Back helper and that helper's explicit root fallback. The existing
 drawer-removal, editor, catalog and sheet-close assertions remain in place;
 real-route behavior and complete visual evidence cover the changed ownership.
+
+
+## October 9 Pages Calendar refresh stability
+
+The 14:59 recording shows a complete five-event Calendar preview repeatedly
+replaced by a one-event filed-items restore. Foreground and passive Pages reads
+now reuse the mounted Calendar's existing complete, account-fenced month
+projection. Its last ready same-day snapshot remains visible during incomplete
+hydration. The bounded filed-items reader remains a cold fallback when no
+complete Calendar projection exists; after its read, it checks again for a
+newly hydrated Calendar and fences account departure including A-B-A.
+
+The existing Pages renderer and geometry are unchanged. Structurally equal
+calendar notes and flow-name maps do not notify the tile; real content changes,
+including removals, still publish. No new cache, key, schema, persistent owner,
+backend call, or pending-write path is introduced. Regression evidence covers
+repeated passive refresh with unchanged pixels/counts, a pending cold read
+yielding to hydration, actual event replacement, cold entry and account departure.
