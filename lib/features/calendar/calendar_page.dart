@@ -5201,6 +5201,32 @@ class CalendarPage extends StatefulWidget {
 
   static void publishPagesSnapshot() => _mountedState?._publishPagesCalendar();
 
+  /// Reuse the complete Calendar projection for foreground and passive Pages
+  /// reads. A filed-items-only restore must never replace this live snapshot.
+  static PagesCard? readPagesCalendarSnapshot(
+    SupabaseClient client,
+    DateTime now,
+  ) {
+    final host = _mountedState;
+    if (host == null ||
+        !host.mounted ||
+        !identical(client, Supabase.instance.client)) {
+      return null;
+    }
+    final uid = client.auth.currentUser?.id;
+    if (uid == null || host._hydrationController.userId != uid) return null;
+    final complete = host._buildPagesCalendar(now);
+    if (complete != null) return complete;
+    final previous = AccountViewCache.instance.peek<PagesCard>(
+      uid,
+      'pages.calendar',
+    );
+    return previous?.state == PagesLoadState.ready &&
+            DateUtils.isSameDay(previous?.calendarDate, now)
+        ? previous
+        : null;
+  }
+
   static Future<void> openQuickAddFromAnyContext(BuildContext context) async {
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
@@ -26165,12 +26191,7 @@ class CalendarPageState extends State<CalendarPage>
     _scrollToToday();
   }
 
-  void _publishPagesCalendar() {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid == null) return;
-    final cache = AccountViewCache.instance;
-    cache.enterAccount(uid);
-    final now = DateTime.now();
+  PagesCard? _buildPagesCalendar(DateTime now) {
     final k = KemeticMath.fromGregorian(now);
     final month = getMonthById(k.kMonth);
     final first = KemeticMath.toGregorian(k.kYear, k.kMonth, 1);
@@ -26184,6 +26205,7 @@ class CalendarPageState extends State<CalendarPage>
         ),
       ),
     );
+    if (!monthCovered) return null;
     final days = <PagesCalendarDay>[];
     final previewNotes = <int, List<NoteData>>{};
     final events = <PagesUpcomingEvent>[];
@@ -26241,29 +26263,33 @@ class CalendarPageState extends State<CalendarPage>
           .where((n) => _isCalendarVisible(n.calendarId))
           .toList(),
     );
-    cache.publish(
-      uid,
-      'pages.calendar',
-      PagesCard(
-        PagesDestination.calendar,
-        state: monthCovered ? PagesLoadState.ready : PagesLoadState.failed,
-        primary: PagesSignal(
-          month.displayShort,
-          detail: '${month.season.label} ${now.year}',
-        ),
-        meta:
-            '${todayNotes.length} today${events.where((e) => e.at.isAfter(now)).firstOrNull == null ? '' : ' · ${events.where((e) => e.at.isAfter(now)).first.at.hour.toString().padLeft(2, '0')}:${events.where((e) => e.at.isAfter(now)).first.at.minute.toString().padLeft(2, '0')}'}',
-        calendarDate: now,
-        showGregorian: _showGregorian,
-        calendarNotes: previewNotes,
-        calendarFlowNames: {for (final f in _flows) f.id: f.name},
-        days: days,
-        weekdays: List.generate(
-          10,
-          (i) => weekdays[(first.weekday - 1 + i) % 7],
-        ),
+    return PagesCard(
+      PagesDestination.calendar,
+      state: PagesLoadState.ready,
+      primary: PagesSignal(
+        month.displayShort,
+        detail: '${month.season.label} ${now.year}',
       ),
+      meta:
+          '${todayNotes.length} today${events.where((e) => e.at.isAfter(now)).firstOrNull == null ? '' : ' · ${events.where((e) => e.at.isAfter(now)).first.at.hour.toString().padLeft(2, '0')}:${events.where((e) => e.at.isAfter(now)).first.at.minute.toString().padLeft(2, '0')}'}',
+      calendarDate: now,
+      showGregorian: _showGregorian,
+      calendarNotes: previewNotes,
+      calendarFlowNames: {for (final f in _flows) f.id: f.name},
+      days: days,
+      weekdays: List.generate(10, (i) => weekdays[(first.weekday - 1 + i) % 7]),
     );
+  }
+
+  void _publishPagesCalendar() {
+    final client = Supabase.instance.client;
+    final uid = client.auth.currentUser?.id;
+    if (uid == null) return;
+    final card = CalendarPage.readPagesCalendarSnapshot(client, DateTime.now());
+    if (card == null) return;
+    final cache = AccountViewCache.instance;
+    cache.enterAccount(uid);
+    cache.publish(uid, 'pages.calendar', card);
     if (cache.peek<Set<String>>(uid, 'pages.hiddenCalendars') == null) {
       cache.publish(
         uid,
