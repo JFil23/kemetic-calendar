@@ -125,8 +125,18 @@ void main() {
 
     expect(flowsRoute, contains('location: state.uri.toString()'));
     expect(
-      flowsRoute,
-      contains('CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)'),
+      RegExp(
+        r'CalendarPage\.buildFlowStudioRoutePage\(\s*routeUri:\s*state\.uri,',
+      ).hasMatch(flowsRoute),
+      isTrue,
+    );
+    expect(flowsRoute, contains('initialDetailBuilder:'));
+    expect(flowsRoute, contains('SharedFlowDetailsPage('));
+    expect(flowsRoute, contains('FlowDetailEventTarget.fromUri(state.uri)'));
+    expect(routePage, contains('routes.add(detailRoute)'));
+    expect(
+      routePage,
+      contains('detailRoute.popped.then((_) => _returnToFlowStudioHubRoute())'),
     );
     expect(routePage, contains('final Uri? routeUri'));
     expect(routePage, contains('CalendarPage._flowStudioRouteStateFromUri'));

@@ -1544,3 +1544,10 @@ permission policy is introduced. Evidence covers the real Pages card, Offering
 Table day 24 from the recording, custom-flow cold/warm entry, both Back controls,
 loading/error and direct restoration, same-sheet hub navigation, retained Pages,
 complete cross-entry visual parity, and departed route/account read fencing.
+
+The former route-signature source guards now check the URI argument across
+formatting and also require the canonical detail adapter, occurrence target and
+hub return. The fallback guard checks both loading/error calls to the shared
+nested-aware Back helper and that helper's explicit root fallback. The existing
+drawer-removal, editor, catalog and sheet-close assertions remain in place;
+real-route behavior and complete visual evidence cover the changed ownership.

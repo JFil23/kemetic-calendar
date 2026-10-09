@@ -873,8 +873,10 @@ void main() {
 
       expect(source, contains("path: '/flows'"));
       expect(
-        source,
-        contains('CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)'),
+        RegExp(
+          r'CalendarPage\.buildFlowStudioRoutePage\(\s*routeUri:\s*state\.uri,',
+        ).hasMatch(source),
+        isTrue,
       );
       expect(source, contains("path: '/calendars'"));
       expect(
@@ -1715,7 +1717,8 @@ void main() {
             "popOrGo(context, '/rhythm/today')",
           ],
           'lib/features/inbox/shared_flow_details_page.dart': [
-            'popOrGo(context, widget.fallbackLocation)',
+            'popMaatFlowDetailOrGo(',
+            'fallbackLocation: widget.fallbackLocation,',
           ],
           'lib/features/sharing/share_preview_page.dart': ["context.go('/')"],
         };
@@ -1726,6 +1729,30 @@ void main() {
             expect(source, contains(expected), reason: entry.key);
           }
         }
+
+        // Both loading and error Back controls keep their explicit fallback,
+        // while the shared detail helper first pops the nearest nested route.
+        final sharedFlow = await File(
+          'lib/features/inbox/shared_flow_details_page.dart',
+        ).readAsString();
+        expect(
+          RegExp(
+            r'popMaatFlowDetailOrGo\(\s*context,\s*'
+            r'fallbackLocation:\s*widget\.fallbackLocation,\s*\)',
+          ).allMatches(sharedFlow),
+          hasLength(2),
+        );
+        final detailShell = await File(
+          'lib/features/calendar/presentation/maat_flow_detail_shell.dart',
+        ).readAsString();
+        final back = _sourceBetween(
+          detailShell,
+          'void popMaatFlowDetailOrGo(',
+          '/// The authored',
+        );
+        expect(back, contains('navigator.canPop()'));
+        expect(back, contains('navigator.pop()'));
+        expect(back, contains('popOrGo(context, fallbackLocation)'));
       },
     );
 
