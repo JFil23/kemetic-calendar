@@ -138,52 +138,159 @@ void main() {
   testWidgets(
     'card off persists across restart and Settings can restore automatic cards',
     (tester) async {
-      now = DateTime(2026, 10, 9);
-      await mount(tester);
-      expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
-      await capture(tester, 'card-over-settings');
-      await tester.tap(find.byKey(dailyCosmicContextAutomaticToggleKey));
-      await settle(tester);
-      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
-      expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
-      expect(tester.widget<SwitchListTile>(row).value, isFalse);
-      await unmount(tester);
-      // Reconstruct both the preference cache and shell from persisted values.
-      final saved = await SharedPreferences.getInstance();
-      SharedPreferences.setMockInitialValues({
-        for (final key in saved.getKeys()) key: saved.get(key)!,
-      });
-      now = DateTime(2026, 10, 10);
-      await mount(tester);
-      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
-      expect(tester.widget<SwitchListTile>(row).value, isFalse);
-      await Scrollable.ensureVisible(
-        tester.element(find.text('Calendar Content')),
-        alignment: 0.1,
-      );
-      await tester.pump();
-      await capture(tester, 'settings-off');
-      await tester.ensureVisible(row);
-      await tester.tap(row);
-      await settle(tester);
-      expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isTrue);
-      expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
-      await tester.tap(find.byKey(dailyCosmicContextDismissButtonKey));
-      await settle(tester);
-      expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isTrue);
-      expect(tester.widget<SwitchListTile>(row).value, isTrue);
-      await capture(tester, 'settings-on');
-      await tester.ensureVisible(row);
-      await tester.tap(row);
-      await settle(tester);
-      expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
-      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
-      await unmount(tester);
-      expect(tester.takeException(), isNull);
+      final semantics = tester.ensureSemantics();
+      try {
+        now = DateTime(2026, 10, 9);
+        await mount(tester);
+        final toggle = find.byKey(dailyCosmicContextAutomaticToggleKey);
+        expect(
+          tester.getSemantics(toggle).hasFlag(ui.SemanticsFlag.hasToggledState),
+          isTrue,
+        );
+        expect(
+          tester.getSemantics(toggle).hasFlag(ui.SemanticsFlag.isToggled),
+          isTrue,
+        );
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+        await capture(tester, 'card-over-settings');
+        await tester.tap(find.byKey(dailyCosmicContextAutomaticToggleKey));
+        await settle(tester);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
+        expect(tester.widget<SwitchListTile>(row).value, isFalse);
+        expect(
+          tester
+              .widget<DailyCosmicContextCard>(
+                find.byType(DailyCosmicContextCard),
+              )
+              .automaticDisplay,
+          isFalse,
+        );
+        expect(
+          tester.getSemantics(toggle).hasFlag(ui.SemanticsFlag.isToggled),
+          isFalse,
+        );
+        await capture(tester, 'card-off-still-open');
+        await tester.tap(find.byKey(dailyCosmicContextAutomaticToggleKey));
+        await settle(tester);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isTrue);
+        expect(tester.widget<SwitchListTile>(row).value, isTrue);
+        expect(
+          tester
+              .widget<DailyCosmicContextCard>(
+                find.byType(DailyCosmicContextCard),
+              )
+              .automaticDisplay,
+          isTrue,
+        );
+        await tester.tap(find.byKey(dailyCosmicContextAutomaticToggleKey));
+        await settle(tester);
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
+        await tester.tapAt(const Offset(5, 5));
+        await tester.binding.handlePopRoute();
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await settle(tester);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+        expect(router.state.uri.path, '/settings');
+        await tester.tap(find.byKey(dailyCosmicContextDismissButtonKey));
+        await settle(tester);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
+        await unmount(tester);
+        // Reconstruct both the preference cache and shell from persisted values.
+        final saved = await SharedPreferences.getInstance();
+        SharedPreferences.setMockInitialValues({
+          for (final key in saved.getKeys()) key: saved.get(key)!,
+        });
+        now = DateTime(2026, 10, 10);
+        await mount(tester);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+        expect(tester.widget<SwitchListTile>(row).value, isFalse);
+        await Scrollable.ensureVisible(
+          tester.element(find.text('Calendar Content')),
+          alignment: 0.1,
+        );
+        await tester.pump();
+        await capture(tester, 'settings-off');
+        await tester.ensureVisible(row);
+        await tester.tap(row);
+        await settle(tester);
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isTrue);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+        await tester.tap(find.byKey(dailyCosmicContextDismissButtonKey));
+        await settle(tester);
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isTrue);
+        expect(tester.widget<SwitchListTile>(row).value, isTrue);
+        await capture(tester, 'settings-on');
+        await tester.ensureVisible(row);
+        await tester.tap(row);
+        await settle(tester);
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+        await unmount(tester);
+        expect(tester.takeException(), isNull);
+      } finally {
+        semantics.dispose();
+      }
     },
   );
 
   for (final throws in [false, true]) {
+    testWidgets(
+      'failed re-enable ($throws) keeps the open card off and retries',
+      (tester) async {
+        final store = _Preferences();
+        SharedPreferencesStorePlatform.instance = store;
+        now = DateTime(2026, 10, 9);
+        await mount(tester);
+        final toggle = find.byKey(dailyCosmicContextAutomaticToggleKey);
+        await tester.tap(toggle);
+        await settle(tester);
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
+        store.reject = true;
+        store.throwFailure = throws;
+        await tester.tap(toggle);
+        await settle(tester);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+        expect(
+          find.text('Could not save your choice. Please try again.'),
+          findsOneWidget,
+        );
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
+        expect(
+          tester
+              .widget<DailyCosmicContextCard>(
+                find.byType(DailyCosmicContextCard),
+              )
+              .automaticDisplay,
+          isFalse,
+        );
+        expect(tester.widget<SwitchListTile>(row).value, isFalse);
+        store.reject = false;
+        await tester.tap(toggle);
+        await settle(tester);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+        expect(
+          find.text('Could not save your choice. Please try again.'),
+          findsNothing,
+        );
+        expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isTrue);
+        expect(
+          tester
+              .widget<DailyCosmicContextCard>(
+                find.byType(DailyCosmicContextCard),
+              )
+              .automaticDisplay,
+          isTrue,
+        );
+        expect(tester.widget<SwitchListTile>(row).value, isTrue);
+        await unmount(tester);
+        expect(tester.takeException(), isNull);
+      },
+    );
     testWidgets(
       'failed save ($throws) keeps card and Settings enabled and permits retry',
       (tester) async {

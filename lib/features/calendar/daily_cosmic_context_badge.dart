@@ -105,8 +105,10 @@ class DailyCosmicContextController extends ChangeNotifier {
   String? _activeUserId;
   int _evaluationSerial = 0;
   bool _disposed = false;
+  bool _automaticDisplay = true;
 
   DailyCosmicContextBadge? get current => _current;
+  bool get automaticDisplay => _automaticDisplay;
   bool get hasVisibleBadge => _current != null;
 
   Future<void> evaluate({
@@ -126,10 +128,19 @@ class DailyCosmicContextController extends ChangeNotifier {
       return;
     }
 
+    // An account departure must never retain the previous account's card.
+    if (_activeUserId != null && _activeUserId != normalizedUserId) {
+      _clearCurrent();
+    }
+
     final now = DateUtils.dateOnly(_now());
     final gregorianDateKey = dailyCosmicContextGregorianDateKey(now);
     final enabled = await _prefs.isEnabled();
     if (!_isCurrentEvaluation(serial)) return;
+    _setAutomaticDisplay(enabled);
+    // Automatic display controls future openings, not dismissal. Keep the
+    // presented card available for another toggle until the user presses X.
+    if (_current != null && _activeUserId == normalizedUserId) return;
     if (!enabled) {
       _clearCurrent();
       return;
@@ -138,10 +149,6 @@ class DailyCosmicContextController extends ChangeNotifier {
     final lastShown = await _prefs.lastShownGregorianDate(normalizedUserId);
     if (!_isCurrentEvaluation(serial)) return;
     if (lastShown == gregorianDateKey) {
-      if (_activeUserId == normalizedUserId &&
-          _current?.gregorianDateKey == gregorianDateKey) {
-        return;
-      }
       _clearCurrent();
       return;
     }
@@ -162,10 +169,13 @@ class DailyCosmicContextController extends ChangeNotifier {
     // Fence reads begun before the user's choice so they cannot reopen a card.
     _evaluationSerial += 1;
     await _prefs.setEnabled(enabled);
-    if (!enabled) {
-      _evaluationSerial += 1;
-      _clearCurrent();
-    }
+    if (!_disposed) _setAutomaticDisplay(enabled);
+  }
+
+  void _setAutomaticDisplay(bool enabled) {
+    if (_automaticDisplay == enabled) return;
+    _automaticDisplay = enabled;
+    _notifySafely();
   }
 
   Future<void> dismiss() async {
@@ -317,7 +327,11 @@ class _DailyCosmicContextOverlayHostState
       return;
     }
 
-    if (identical(next, _badge) && _visible) return;
+    if (identical(next, _badge) && _visible) {
+      // Refresh the acknowledged switch value without reopening the card.
+      setState(() {});
+      return;
+    }
     setState(() {
       _badge = next;
       _visible = false;
@@ -343,6 +357,7 @@ class _DailyCosmicContextOverlayHostState
         child: _DailyCosmicContextScrim(
           child: DailyCosmicContextCard(
             badge: badge,
+            automaticDisplay: widget.controller.automaticDisplay,
             onAutomaticDisplayChanged: _savingPreference
                 ? null
                 : _setAutomaticDisplay,
@@ -377,6 +392,147 @@ class _DailyCosmicContextScrim extends StatelessWidget {
   }
 }
 
+// Paint at the requested size: scaling a native switch only vertically
+// flattens its circular thumb and turns its rounded ends into pointed ovals.
+class _AutomaticDisplaySwitch extends StatelessWidget {
+  const _AutomaticDisplaySwitch({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final onTap = onChanged == null ? null : () => onChanged!(!value);
+    return Semantics(
+      key: dailyCosmicContextAutomaticToggleKey,
+      label: 'Show The Day’s Rhythm automatically',
+      hint:
+          'Changes future automatic cards. Close this card with the X button.',
+      toggled: value,
+      enabled: onChanged != null,
+      onTap: onTap,
+      child: ExcludeSemantics(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            width: 60,
+            height: 40,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                width: 52,
+                height: 12,
+                padding: const EdgeInsets.all(1),
+                decoration: BoxDecoration(
+                  color: value
+                      ? const Color(0xFF34C759)
+                      : const Color(0xFF636366),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: AnimatedAlign(
+                  duration: const Duration(milliseconds: 160),
+                  curve: Curves.easeInOut,
+                  alignment: value
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: const _SilverSwitchThumb(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SilverSwitchThumb extends StatelessWidget {
+  const _SilverSwitchThumb();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 20,
+      height: 10,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.all(Radius.circular(5)),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              silverLight,
+              silverDeep,
+              Color(0xFF42474C),
+              silverLight,
+              silverDeep,
+            ],
+            stops: [0, 0.24, 0.52, 0.84, 1],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x80000000),
+              blurRadius: 1,
+              offset: Offset(0, 0.5),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(0.7),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4.3),
+              border: Border.all(color: const Color(0xFF53595F), width: 0.4),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  silverLight,
+                  Color(0xFFDEE2E6),
+                  silver,
+                  Color(0xFF929AA2),
+                  silver,
+                  Color(0xFFE7EAED),
+                ],
+                stops: [0, 0.28, 0.44, 0.54, 0.82, 1],
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 1,
+                  right: 1,
+                  top: 0.7,
+                  height: 3.1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(4),
+                        bottom: Radius.elliptical(8, 2),
+                      ),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xF2FFFFFF),
+                          Color(0xB3FFFFFF),
+                          Color(0x26FFFFFF),
+                        ],
+                        stops: [0, 0.45, 1],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class DailyCosmicContextCard extends StatelessWidget {
   const DailyCosmicContextCard({
     super.key,
@@ -401,11 +557,6 @@ class DailyCosmicContextCard extends StatelessWidget {
     final availableHeight = size.height - mediaQuery.padding.vertical - 48;
     final maxHeight = availableHeight > 0 ? availableHeight : size.height;
     final decanName = _floatingBadgeDecanName(badge.decanName);
-    final platform = Theme.of(context).platform;
-    final switchTrackHeight =
-        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS
-        ? 31.0
-        : 32.0;
 
     return Semantics(
       namesRoute: false,
@@ -457,27 +608,9 @@ class DailyCosmicContextCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          Semantics(
-                            label: 'Show The Day’s Rhythm automatically',
-                            hint:
-                                'Turn off to hide these cards. Turn back on in Settings.',
-                            child: SizedBox(
-                              height: 40,
-                              // Match the painted 12px close glyph while keeping
-                              // the switch's width and full-height tap target.
-                              child: Transform.scale(
-                                scaleX: 1,
-                                scaleY: 12 / switchTrackHeight,
-                                transformHitTests: false,
-                                child: Switch.adaptive(
-                                  key: dailyCosmicContextAutomaticToggleKey,
-                                  value: automaticDisplay,
-                                  activeTrackColor: const Color(0xFF34C759),
-                                  activeThumbColor: Colors.black,
-                                  onChanged: onAutomaticDisplayChanged,
-                                ),
-                              ),
-                            ),
+                          _AutomaticDisplaySwitch(
+                            value: automaticDisplay,
+                            onChanged: onAutomaticDisplayChanged,
                           ),
                           SizedBox.square(
                             dimension: 40,
