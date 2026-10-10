@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Focused implementation checks and the complete release suite, with saved logs.
 
-Selection is an aid to implementation, never a deployment qualification. Unknown
-inputs or a changed Dart owner without a reachable test fall back to all tests.
+Selection chooses coverage; release qualification verifies hosted full-run
+proof separately. Unknown inputs or a changed Dart owner without a reachable
+test fall back to the complete suite.
 """
 from __future__ import annotations
 

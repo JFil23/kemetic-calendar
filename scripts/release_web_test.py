@@ -4,54 +4,101 @@ from unittest.mock import Mock, patch
 from pathlib import Path
 import tempfile
 import release_web as coordinator
+from web_release_pipeline_test import app_gate_jobs_fixture
 
 
 class QualificationTest(unittest.TestCase):
     commit = 'a' * 40
 
-    def fixture(self, **kwargs):
-        return dict(id=1, name='App', head_sha=self.commit, head_branch='rc',
-                    event='workflow_dispatch', run_number=1, run_attempt=1,
-                    html_url='https://github.com/JFil23/kemetic-calendar/actions/runs/1', **kwargs)
+    def setUp(self):
+        self.current = self.fixture()
+        self.full = True
+        self.calls = []
+        self.sleep = Mock()
 
-    def test_successful_gate_is_reused_without_dispatch_or_watch(self):
-        fetch = Mock(return_value={'workflow_runs': [self.fixture(status='completed', conclusion='success')]})
-        run = Mock()
-        coordinator.qualify(self.commit, 'staging', fetch=fetch, run=run)
-        run.assert_not_called()
+    def fixture(self, *, status='completed', conclusion='success', event='push', run_id=1):
+        return dict(id=run_id, name='App', head_sha=self.commit, head_branch='rc',
+                    event=event, run_number=run_id, run_attempt=1,
+                    html_url=f'https://github.com/JFil23/kemetic-calendar/actions/runs/{run_id}',
+                    status=status, conclusion=conclusion)
 
-    def test_missing_gate_is_dispatched_for_exact_lane_and_sha_then_awaited(self):
-        queued = self.fixture(status='queued', conclusion=None)
-        done = self.fixture(status='completed', conclusion='success')
-        fetch = Mock(side_effect=[{'workflow_runs': []}, {'workflow_runs': [queued]}, {'workflow_runs': [done]}])
-        run = Mock()
-        result = coordinator.qualify(self.commit, 'staging', fetch=fetch, run=run, sleep=Mock())
-        self.assertEqual(result['commit'], self.commit)
-        self.assertIn('expected_sha=' + self.commit, run.call_args_list[0].args[0])
-        self.assertEqual(run.call_args_list[0].args[0][-4:-2], ['--ref', 'rc'])
-        self.assertEqual(run.call_args_list[1].args[0][1:3], ['run', 'watch'])
+    def fetch(self, url, *, environ):
+        if '/attempts/' in url:
+            self.assertIn(f"/{self.current['id']}/attempts/1/jobs", url)
+            return app_gate_jobs_fixture(self.commit, full=self.full)
+        return {'workflow_runs': [self.current] if self.current else []}
 
-    def test_existing_active_gate_is_watched_without_dispatch(self):
-        fetch = Mock(side_effect=[{'workflow_runs': [self.fixture(status='in_progress', conclusion=None)]},
-                                  {'workflow_runs': [self.fixture(status='completed', conclusion='success')]}])
-        run = Mock()
-        coordinator.qualify(self.commit, 'staging', fetch=fetch, run=run)
-        self.assertEqual(run.call_count, 1)
-        self.assertEqual(run.call_args.args[0][1:3], ['run', 'watch'])
+    def run_command(self, command, **kwargs):
+        self.calls.append(command)
+        if command[1:3] == ['workflow', 'run']:
+            self.assertEqual(self.current['status'], 'completed')
+            self.assertFalse(self.full)
+            self.assertIn('expected_sha=' + self.commit, command)
+            self.current = self.fixture(status='queued', conclusion=None, event='workflow_dispatch', run_id=2)
+            self.full = True
+        elif command[1:3] == ['run', 'watch']:
+            self.current.update(status='completed', conclusion='success')
 
-    def test_failed_gate_is_not_automatically_retried(self):
-        fetch = Mock(return_value={'workflow_runs': [self.fixture(status='completed', conclusion='failure')]})
-        run = Mock()
-        with self.assertRaises(coordinator.release.ReleaseInputError):
-            coordinator.qualify(self.commit, 'staging', fetch=fetch, run=run)
-        run.assert_not_called()
+    def qualify(self):
+        return coordinator.qualify(self.commit, 'staging', fetch=self.fetch, run=self.run_command, sleep=self.sleep)
 
-    def test_dispatch_visibility_timeout_cannot_qualify(self):
-        fetch = Mock(return_value={'workflow_runs': []})
-        run = Mock()
+    def test_successful_full_push_is_reused_without_dispatch_or_watch(self):
+        self.assertEqual(self.qualify()['run_id'], 1)
+        self.assertEqual(self.calls, [])
+
+    def test_active_full_push_is_awaited_without_dispatching_duplicate(self):
+        self.current.update(status='in_progress', conclusion=None)
+        self.assertEqual(self.qualify()['run_id'], 1)
+        self.assertEqual([c[1:3] for c in self.calls], [['run', 'watch']])
+
+    def test_focused_push_dispatches_one_full_gate_for_exact_candidate(self):
+        self.full = False
+        self.assertEqual(self.qualify()['run_id'], 2)
+        self.assertEqual([c[1:3] for c in self.calls], [['workflow', 'run'], ['run', 'watch']])
+        self.assertEqual(self.calls[0][-4:-2], ['--ref', 'rc'])
+
+    def test_active_focused_push_finishes_before_full_dispatch(self):
+        self.full = False
+        self.current.update(status='in_progress', conclusion=None)
+        self.qualify()
+        self.assertEqual([c[1:3] for c in self.calls], [['run', 'watch'], ['workflow', 'run'], ['run', 'watch']])
+
+    def test_missing_push_run_never_races_it_with_another_suite(self):
+        self.current = None
         with self.assertRaisesRegex(coordinator.release.ReleaseInputError, 'not visible'):
-            coordinator.qualify(self.commit, 'staging', fetch=fetch, run=run, sleep=Mock())
-        self.assertEqual(run.call_count, 1)
+            self.qualify()
+        self.assertEqual(self.calls, [])
+
+    def test_failed_or_cancelled_gate_is_not_automatically_retried(self):
+        for conclusion in ('failure', 'cancelled'):
+            self.current = self.fixture(conclusion=conclusion)
+            with self.subTest(conclusion=conclusion), self.assertRaises(coordinator.release.ReleaseInputError):
+                self.qualify()
+        self.assertEqual(self.calls, [])
+
+    def test_existing_dispatch_is_reused_without_another_dispatch(self):
+        self.current = self.fixture(event='workflow_dispatch')
+        self.qualify()
+        self.assertEqual(self.calls, [])
+
+    def test_dispatched_full_gate_must_not_return_focused_evidence(self):
+        self.full = False
+        original = self.run_command
+        def run(command, **kwargs):
+            original(command, **kwargs)
+            if command[1:3] == ['workflow', 'run']:
+                self.full = False
+        with self.assertRaisesRegex(coordinator.release.ReleaseInputError, 'only focused evidence'):
+            coordinator.qualify(self.commit, 'staging', fetch=self.fetch, run=run, sleep=self.sleep)
+        self.assertEqual(sum(c[1:3] == ['workflow', 'run'] for c in self.calls), 1)
+
+    def test_dispatched_gate_visibility_timeout_does_not_repeat_dispatch(self):
+        self.full = False
+        def run(command, **kwargs):
+            self.calls.append(command)  # Simulate Actions not showing the new run.
+        with self.assertRaisesRegex(coordinator.release.ReleaseInputError, 'not visible'):
+            coordinator.qualify(self.commit, 'staging', fetch=self.fetch, run=run, sleep=self.sleep)
+        self.assertEqual(len(self.calls), 1)
 
     def test_reusing_artifact_never_rebuilds_and_checks_source_lane(self):
         with tempfile.TemporaryDirectory() as temporary:

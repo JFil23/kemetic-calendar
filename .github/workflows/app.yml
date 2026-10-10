@@ -4,6 +4,7 @@ permissions:
   contents: read
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -14,6 +15,10 @@ on:
     branches:
       - rc
       - production
+
+concurrency:
+  group: app-verification-${{ github.event.pull_request.number || github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   maat-visual-reference-capture:
@@ -107,36 +112,39 @@ jobs:
           path: test/features/profile/goldens/linux-x64/social_flow_artifacts.png
 
   app-gate:
-    name: LOCK-GATE app authority and complete suite
-    if: github.event_name == 'workflow_dispatch'
+    name: App verification
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       PYTHONDONTWRITEBYTECODE: "1"
-      EXPECTED_SHA: ${{ inputs.expected_sha }}
-      # Calendar fixtures and approved visual baselines author civil dates in
-      # the product's Pacific reference zone. Never inherit the runner locale.
+      EXPECTED_SHA: ${{ inputs.expected_sha || github.event.pull_request.head.sha || github.sha }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      CHECK_MODE: ${{ github.event_name == 'workflow_dispatch' && 'full' || 'changed' }}
       TZ: America/Los_Angeles
     steps:
       - name: Checkout the app repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # A gate attached to commit A must never race forward and test a
-          # newer branch head B. Deployment trusts this exact-SHA result.
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Reject competing app authorities
+        id: selection
         run: |
           set -euo pipefail
-          case "$GITHUB_REF_NAME" in rc|production) ;; *) exit 1 ;; esac
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            case "$GITHUB_REF_NAME" in rc|production) ;; *) exit 1 ;; esac
+          fi
           test ! -e .gitmodules
           test -z "$(git ls-files --stage | awk '$1 == "160000" {print}')"
           test "$(git worktree list --porcelain | grep -c '^worktree ')" -eq 1
           test "$(git for-each-ref --format='%(refname:short)' refs/heads | wc -l | tr -d ' ')" -le 1
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python3 scripts/app_gate.py "$CHECK_MODE" --base "$BASE_SHA" --head HEAD --plan > "$RUNNER_TEMP/selection.json"
+          python3 -c 'import json, os; p=json.load(open(os.environ["RUNNER_TEMP"]+"/selection.json")); print("full="+str(p["full"]).lower()); print("flutter="+str(bool(p["contracts"] or p["analyze"] or p["tests"] or p["browser"])).lower())' >> "$GITHUB_OUTPUT"
 
       - name: Set up pinned Flutter and Dart
+        if: steps.selection.outputs.flutter == 'true'
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.35.3"
@@ -144,7 +152,12 @@ jobs:
           cache: true
 
       - name: Run the complete release gate once
+        if: steps.selection.outputs.full == 'true'
         run: python3 scripts/app_gate.py full --log-dir "$RUNNER_TEMP/app-gate"
+
+      - name: Run affected checks
+        if: steps.selection.outputs.full != 'true'
+        run: python3 scripts/app_gate.py changed --base "$BASE_SHA" --head HEAD --log-dir "$RUNNER_TEMP/app-gate"
 
       - name: Preserve gate results and logs
         if: always()

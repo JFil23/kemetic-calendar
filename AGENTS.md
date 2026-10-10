@@ -9,8 +9,11 @@ locally before its mandatory hosted release gate. Re-run for changed inputs or
 failures. Preserve all existing assertions, fixtures and approved visual references.
 
 The complete exact-commit, exact-lane App gate remains mandatory before deployment.
-Request it once when a candidate is ready; reuse its unchanged successful result.
-An App changes result never qualifies a release. The full-detail checks below
+The single App workflow runs affected checks on push/PR and the complete suite
+when selection requires it. The release coordinator waits for the candidate's
+existing run and requests the full suite only after a successful focused run.
+Reuse unchanged successful full evidence from a push or manual App run; focused,
+PR, skipped or failed results never qualify. The full-detail checks below
 apply to changes to that owner or its entry boundaries, not unrelated edits.
 Backend and additional cutover checks apply to changed compatibility boundaries.
 Historical cutover plans are evidence and impose no additional release gates.

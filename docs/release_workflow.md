@@ -11,9 +11,12 @@ Imports cannot prove visual fidelity or runtime-only relationships: add focused
 behavior/visual evidence for affected shared owners and inspect changed UI.
 No assertion, fixture or approved golden is removed or rewritten by this policy.
 
-Ordinary pushes/PRs run App changes. They do not qualify a deployment. Run only
-checks affected by later edits; do not rerun a complete local suite just before
-identical hosted validation. All detailed output is saved with a short result.
+The single App workflow owns push, PR and manually requested verification.
+Ordinary pushes/PRs select affected checks, with a complete-suite fallback for
+unknown inputs. A successful full push run can qualify its exact commit and lane;
+focused and PR runs cannot. Run only checks affected by later edits; do not rerun
+a complete local suite just before identical hosted validation. All detailed
+output is saved with a short result.
 
 ## Routine release
 
@@ -27,9 +30,14 @@ a failed gate, rolls back, or promotes source between checkouts.
 
 Use only the canonical lane checkout and branch. Commit and push the candidate
 before qualification. The existing clean-source and remote-head checks still
-apply. Request the complete App workflow with `expected_sha` set to the exact
-candidate and `--ref rc` or `--ref production`. A successful focused check, PR
-check, skipped job, different lane or different commit cannot qualify release.
+apply. The coordinator first waits for the candidate's existing App run. It
+reuses successful full coverage or requests one complete App run after successful
+focused coverage, using `expected_sha` and the canonical lane ref. It never
+starts another suite while the existing run is active or not yet visible.
+Qualification reads the exact run attempt's job and step evidence, including
+source authority, the full-suite step, pinned toolchain and checkout integrity.
+A successful focused check, PR check, skipped job, different lane or different
+commit cannot qualify release.
 The complete gate retains the full Flutter suite, browser tests, analyzer and
 release/ownership contracts. Reuse its successful result while its inputs remain
 unchanged. A failed/newer attempt or changed candidate requires resolution.

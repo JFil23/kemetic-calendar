@@ -689,6 +689,19 @@ class CanonicalReleaseSourceTest(unittest.TestCase):
                 )
 
 
+def app_gate_jobs_fixture(commit: str, *, full: bool = True, attempt: int = 1) -> dict:
+    steps = [dict(name=name, status="completed", conclusion="success") for name in (
+        "Reject competing app authorities", "Set up pinned Flutter and Dart",
+        "Prove generated metadata is the only checkout mutation",
+    )]
+    steps.extend([
+        dict(name=pipeline.APP_FULL_GATE_STEP, status="completed", conclusion="success" if full else "skipped"),
+        dict(name=pipeline.APP_FOCUSED_GATE_STEP, status="completed", conclusion="skipped" if full else "success"),
+    ])
+    return dict(total_count=1, jobs=[dict(name=pipeline.APP_GATE_JOB_NAME, head_sha=commit,
+                run_attempt=attempt, status="completed", conclusion="success", steps=steps)])
+
+
 class ExactShaAppGateTest(unittest.TestCase):
     commit = "a" * 40
 
@@ -719,9 +732,12 @@ class ExactShaAppGateTest(unittest.TestCase):
 
     def require(self, runs: list[dict]) -> dict:
         def fetch(url: str, *, environ: dict[str, str]) -> dict:
+            if "/attempts/" in url:
+                self.assertIn("/runs/123/attempts/1/jobs?per_page=100", url)
+                return app_gate_jobs_fixture(self.commit)
             self.assertIn(f"head_sha={self.commit}", url)
             self.assertIn("branch=rc", url)
-            self.assertIn("event=workflow_dispatch", url)
+            self.assertNotIn("event=", url)
             self.assertEqual(environ, {})
             return {"workflow_runs": runs}
 
@@ -763,7 +779,7 @@ class ExactShaAppGateTest(unittest.TestCase):
                 [
                     self.run_fixture(head_branch="production"),
                     self.run_fixture(name="Other"),
-                    self.run_fixture(event="push"),
+                    self.run_fixture(event="pull_request"),
                 ]
             )
 
@@ -789,6 +805,34 @@ class ExactShaAppGateTest(unittest.TestCase):
             self.require([self.run_fixture(head_sha="b" * 40)])
         with self.assertRaisesRegex(pipeline.ReleaseInputError, "not green"):
             self.require([self.run_fixture(conclusion="skipped")])
+
+
+    def test_full_push_gate_is_accepted(self) -> None:
+        result = self.require([self.run_fixture(event="push")])
+        self.assertEqual(result["coverage"], "full")
+        self.assertEqual(result["workflow_event"], "push")
+
+    def test_focused_or_missing_job_evidence_never_qualifies(self) -> None:
+        for jobs in (app_gate_jobs_fixture(self.commit, full=False),
+                     {"total_count": 0, "jobs": []}):
+            def fetch(url, *, environ):
+                return jobs if "/attempts/" in url else {"workflow_runs": [self.run_fixture(event="push")]}
+            with self.subTest(jobs=jobs), self.assertRaises(pipeline.ReleaseInputError):
+                pipeline.require_green_app_gate(self.commit, environment="staging", environ={}, fetch_json=fetch)
+
+    def test_job_evidence_must_match_sha_attempt_and_authority(self) -> None:
+        for field, value in (("head_sha", "b" * 40), ("run_attempt", 2),
+                             ("conclusion", "skipped"), ("steps", [])):
+            jobs = app_gate_jobs_fixture(self.commit)
+            jobs["jobs"][0][field] = value
+            with self.subTest(field=field), self.assertRaises(pipeline.ReleaseInputError):
+                pipeline.app_gate_run_scope(self.run_fixture(), environ={}, fetch_json=lambda *args, **kw: jobs)
+
+    def test_skipped_full_step_cannot_be_hidden_by_an_overall_green_dispatch(self) -> None:
+        jobs = app_gate_jobs_fixture(self.commit)
+        jobs["jobs"][0]["steps"][-2]["conclusion"] = "skipped"
+        with self.assertRaises(pipeline.ReleaseInputError):
+            pipeline.app_gate_run_scope(self.run_fixture(), environ={}, fetch_json=lambda *args, **kw: jobs)
 
 
 class PreCompilationMaterializationTest(unittest.TestCase):

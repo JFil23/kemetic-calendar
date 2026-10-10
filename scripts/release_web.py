@@ -23,23 +23,41 @@ def gh_json(url: str, *, environ) -> dict:
 
 def qualify(commit: str, environment: str, *, fetch=gh_json, run=subprocess.run, sleep=time.sleep) -> dict:
     kwargs = dict(environment=environment, environ=os.environ, fetch_json=fetch)
-    current = release.latest_app_gate_run(commit, **kwargs)
-    if current is None:
+
+    def visible_run(after_id=None):
+        # A newly pushed commit may not be visible in Actions immediately. Do
+        # not race its automatic run by dispatching another complete suite.
+        for _ in range(30):
+            current = release.latest_app_gate_run(commit, **kwargs)
+            if current is not None and current["id"] != after_id:
+                return current
+            sleep(2)
+        raise release.ReleaseInputError(
+            "Candidate App run is not visible yet. Inspect Actions before restarting; no duplicate gate was dispatched."
+        )
+
+    current = visible_run()
+    for stage in range(2):
+        if current.get('status') != 'completed':
+            print(f"Waiting for existing App run {current['id']}; no duplicate suite.", flush=True)
+            run(['gh', 'run', 'watch', str(int(current['id'])), '--repo', release.GITHUB_REPOSITORY,
+                 '--exit-status', '--interval', '15'], cwd=ROOT, check=True,
+                stdout=subprocess.DEVNULL)
+        current = release.latest_app_gate_run(commit, **kwargs)
+        if current is None:
+            raise release.ReleaseInputError('Candidate App run disappeared; qualification stopped.')
+        scope = release.app_gate_run_scope(current, environ=os.environ, fetch_json=fetch)
+        if scope == 'full':
+            print(f"Reusing complete App run {current['id']} for this exact candidate.", flush=True)
+            return release.require_green_app_gate(commit, **kwargs)
+        if stage:
+            raise release.ReleaseInputError('Requested complete App gate returned only focused evidence.')
+        previous_id = current['id']
         run(['gh', 'workflow', 'run', release.APP_GATE_WORKFLOW_FILE,
              '--repo', release.GITHUB_REPOSITORY, '--ref', release.authorized_git_source_branch(environment),
              '-f', f'expected_sha={commit}'], cwd=ROOT, check=True)
-        for _ in range(30):
-            current = release.latest_app_gate_run(commit, **kwargs)
-            if current is not None:
-                break
-            sleep(2)
-        if current is None:
-            raise release.ReleaseInputError('Dispatched gate is not visible yet. Inspect Actions before another dispatch; no artifact was built.')
-    if current.get('status') != 'completed':
-        run(['gh', 'run', 'watch', str(int(current['id'])), '--repo', release.GITHUB_REPOSITORY,
-             '--exit-status', '--interval', '15'], cwd=ROOT, check=True,
-            stdout=subprocess.DEVNULL)
-    return release.require_green_app_gate(commit, **kwargs)
+        current = visible_run(after_id=previous_id)
+    raise AssertionError('Unreachable qualification state')
 
 
 def prepare(environment: str, log_dir: Path, existing: Path | None = None) -> tuple[Path, dict]:

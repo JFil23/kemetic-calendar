@@ -93,6 +93,9 @@ AUTHORIZED_GIT_SOURCE_BRANCHES = {
 GITHUB_REPOSITORY = "JFil23/kemetic-calendar"
 APP_GATE_WORKFLOW_FILE = "app.yml"
 APP_GATE_WORKFLOW_NAME = "App"
+APP_GATE_JOB_NAME = "App verification"
+APP_FULL_GATE_STEP = "Run the complete release gate once"
+APP_FOCUSED_GATE_STEP = "Run affected checks"
 PINNED_FLUTTER_TOOLCHAIN = {
     "frameworkVersion": "3.35.3",
     "channel": "stable",
@@ -545,7 +548,6 @@ def latest_app_gate_run(
     query = urlencode(
         {
             "branch": branch,
-            "event": "workflow_dispatch",
             "head_sha": commit,
             "per_page": "20",
         }
@@ -567,7 +569,7 @@ def latest_app_gate_run(
         and run.get("name") == APP_GATE_WORKFLOW_NAME
         and run.get("head_sha") == commit
         and run.get("head_branch") == branch
-        and run.get("event") == "workflow_dispatch"
+        and run.get("event") in {"push", "workflow_dispatch"}
     ]
     if not exact_runs:
         return None
@@ -579,6 +581,54 @@ def latest_app_gate_run(
             int(item.get("run_attempt") or 0),
         ),
     )
+
+
+
+def app_gate_run_scope(
+    run: Mapping[str, Any], *, environ: Mapping[str, str], fetch_json=github_json,
+) -> str:
+    """Read attempt-specific job evidence; overall green never implies full coverage."""
+    if run.get("status") != "completed" or run.get("conclusion") != "success":
+        raise ReleaseInputError("Exact-SHA app gate is not green.")
+    run_id = int(run.get("id") or 0)
+    attempt = int(run.get("run_attempt") or 0)
+    if run_id <= 0 or attempt <= 0:
+        raise ReleaseInputError("App gate is missing its run/attempt identity.")
+    response = fetch_json(
+        f"https://api.github.com/repos/{GITHUB_REPOSITORY}/actions/runs/"
+        f"{run_id}/attempts/{attempt}/jobs?per_page=100", environ=environ,
+    )
+    jobs = response.get("jobs") if isinstance(response, Mapping) else None
+    if not isinstance(jobs, list) or response.get("total_count") != len(jobs):
+        raise ReleaseInputError("App gate job evidence is incomplete.")
+    owners = [job for job in jobs if isinstance(job, Mapping)
+              and job.get("name") == APP_GATE_JOB_NAME]
+    if len(owners) != 1:
+        raise ReleaseInputError("App gate has no unique verification owner.")
+    job = owners[0]
+    if (job.get("head_sha") != run.get("head_sha")
+            or job.get("run_attempt") != attempt
+            or job.get("status") != "completed" or job.get("conclusion") != "success"):
+        raise ReleaseInputError("App gate job identity/status does not match the run.")
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        raise ReleaseInputError("App gate step evidence is missing.")
+
+    def completed(name: str, conclusion: str = "success") -> bool:
+        matches = [step for step in steps if isinstance(step, Mapping) and step.get("name") == name]
+        return (len(matches) == 1 and matches[0].get("status") == "completed"
+                and matches[0].get("conclusion") == conclusion)
+
+    if not all(completed(name) for name in (
+        "Reject competing app authorities",
+        "Prove generated metadata is the only checkout mutation",
+    )):
+        raise ReleaseInputError("App gate authority/checkout evidence is missing.")
+    if completed(APP_FULL_GATE_STEP) and completed("Set up pinned Flutter and Dart"):
+        return "full"
+    if completed(APP_FULL_GATE_STEP, "skipped") and completed(APP_FOCUSED_GATE_STEP):
+        return "focused"
+    raise ReleaseInputError("App gate has no completed full or focused evidence.")
 
 
 def require_green_app_gate(
@@ -599,6 +649,8 @@ def require_green_app_gate(
             "Exact-SHA app gate is not green: "
             f"commit={commit} status={status!r} conclusion={conclusion!r}."
         )
+    if app_gate_run_scope(run, environ=environ, fetch_json=fetch_json) != "full":
+        raise ReleaseInputError("Focused checks do not qualify a release; the complete suite is required.")
     html_url = run.get("html_url")
     if not isinstance(html_url, str) or not html_url.startswith(
         f"https://github.com/{GITHUB_REPOSITORY}/actions/runs/"
@@ -610,6 +662,8 @@ def require_green_app_gate(
         "run_id": int(run.get("id") or 0),
         "run_attempt": int(run.get("run_attempt") or 0),
         "run_url": html_url,
+        "workflow_event": run["event"],
+        "coverage": "full",
         "status": status,
         "conclusion": conclusion,
     }
