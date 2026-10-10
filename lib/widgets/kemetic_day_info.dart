@@ -34,6 +34,7 @@ part 'kemetic_day_data_entries_1.dart';
 part 'kemetic_day_data_entries_2.dart';
 part 'kemetic_day_data_compressed.dart';
 part 'kemetic_day_data_rekhnedjes.dart';
+part 'kemetic_day_data_renwet.dart';
 part 'kemetic_day_data_map_1.dart';
 part 'kemetic_day_data_map_2.dart';
 part 'kemetic_day_data_map_3.dart';

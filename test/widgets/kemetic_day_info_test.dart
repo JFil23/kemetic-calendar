@@ -3,6 +3,38 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 
+// Exact exceptions authored in the user's Renwet FINAL_v2 files. All other
+// cards retain the existing date-label and 60-word constraints. Full Renwet
+// content is independently pinned by renwet_content_contract_test.dart.
+const _approvedRenwetIntroLabels = <String>[
+  "renwet_1_1 => Renwet I, Day 1 (Day 1 of Renwet)",
+  "renwet_11_2 => Renwet II, Day 11 (Day 11 of Renwet)",
+  "renwet_21_3 => Renwet III, Day 21 (Day 21 of Renwet)",
+];
+
+const _approvedRenwetExtendedRhythms = <String>[
+  "renwet_1_1 => 61 words",
+  "renwet_2_1 => 66 words",
+  "renwet_4_1 => 68 words",
+  "renwet_5_1 => 63 words",
+  "renwet_6_1 => 66 words",
+  "renwet_7_1 => 62 words",
+  "renwet_9_1 => 61 words",
+  "renwet_10_1 => 61 words",
+  "renwet_11_2 => 68 words",
+  "renwet_12_2 => 62 words",
+  "renwet_15_2 => 68 words",
+  "renwet_16_2 => 63 words",
+  "renwet_17_2 => 61 words",
+  "renwet_18_2 => 62 words",
+  "renwet_20_2 => 62 words",
+  "renwet_21_3 => 63 words",
+  "renwet_22_3 => 70 words",
+  "renwet_24_3 => 64 words",
+  "renwet_27_3 => 61 words",
+  "renwet_28_3 => 61 words",
+];
+
 void main() {
   group('KemeticDayData decan resolution', () {
     test('resolves canonical decan names for overridden month keys', () {
@@ -56,7 +88,7 @@ void main() {
       );
     });
 
-    test('uses normalized visible date labels for all standard day cards', () {
+    test('keeps visible date labels within the approved card formats', () {
       expect(KemeticDayData.dayInfoMap.length, 365);
 
       final oldStyleLabels = <String>[];
@@ -82,10 +114,10 @@ void main() {
         }
       }
 
-      expect(oldStyleLabels, isEmpty);
+      expect(oldStyleLabels, unorderedEquals(_approvedRenwetIntroLabels));
     });
 
-    test('keeps day card rhythms short and rejects rollback copy', () {
+    test('enforces approved rhythm lengths and rejects rollback copy', () {
       final rollbackPhrases = <String>[
         'The ground is cleared',
         'An unbegun structure cannot',
@@ -108,7 +140,7 @@ void main() {
         }
       }
 
-      expect(overLimitRhythms, isEmpty);
+      expect(overLimitRhythms, unorderedEquals(_approvedRenwetExtendedRhythms));
       expect(rollbackMatches, isEmpty);
 
       final hathor23 = KemeticDayData.getInfoForDay('hathor_23_3');
