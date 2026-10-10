@@ -10,6 +10,7 @@ void main() {
     late String webIndexSource;
     late String buildScriptSource;
     late String deployScriptSource;
+    late String deployOwnerSource;
     late String pipelineSource;
     late String stagingConfigSource;
     late String productionConfigSource;
@@ -28,6 +29,9 @@ void main() {
       ).readAsString();
       deployScriptSource = await File(
         'scripts/deploy_cloudflare_pages.sh',
+      ).readAsString();
+      deployOwnerSource = await File(
+        'scripts/deploy_web_release.py',
       ).readAsString();
       pipelineSource = await File(
         'scripts/web_release_pipeline.py',
@@ -232,18 +236,37 @@ void main() {
     });
 
     test('Cloudflare Pages deploy uploads one authorized artifact', () {
-      expect(deployScriptSource, contains('<authorized-archive-sha256>'));
+      // The shell delegates to the shared owner. Its behavioral tests exercise
+      // archive authorization, lane/gate rejection and both served origins.
       expect(
         deployScriptSource,
-        contains('scripts/web_release_pipeline.py verify'),
+        contains('exec python3 scripts/deploy_web_release.py "\$@"'),
       );
-      expect(deployScriptSource, contains('wrangler@\$WRANGLER_VERSION'));
-      expect(deployScriptSource, contains('WRANGLER_VERSION="4.114.0"'));
-      expect(deployScriptSource, isNot(contains('wrangler@latest')));
       expect(
-        deployScriptSource,
-        isNot(contains('scripts/build_web_release.sh')),
+        deployOwnerSource,
+        contains("parser.add_argument('authorized_archive_sha256')"),
       );
+      expect(
+        deployOwnerSource,
+        contains('served.preflight_deployment_target('),
+      );
+      expect(
+        deployOwnerSource,
+        contains('expected_archive_sha256=archive_hash'),
+      );
+      expect(deployOwnerSource, contains('release.require_green_app_gate('));
+      expect(
+        deployOwnerSource,
+        contains('release.require_canonical_release_source('),
+      );
+      expect(deployOwnerSource, contains('served.verify_deployment('));
+      expect(deployOwnerSource, contains('wrangler@{WRANGLER_VERSION}'));
+      expect(deployOwnerSource, contains("WRANGLER_VERSION = '4.114.0'"));
+      for (final source in [deployScriptSource, deployOwnerSource]) {
+        expect(source, isNot(contains('wrangler@latest')));
+        expect(source, isNot(contains('scripts/build_web_release.sh')));
+        expect(source, isNot(contains('flutter')));
+      }
     });
 
     test('web bootstrap versions every Flutter asset by release identity', () {
