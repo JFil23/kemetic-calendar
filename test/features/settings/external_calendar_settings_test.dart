@@ -24,6 +24,62 @@ const _reconnectNotice =
 void main() {
   setUpAll(loadMaatFlowVisualTestFonts);
 
+  testWidgets(
+    'projection failure retries reading without another import or consent',
+    (tester) async {
+      final controller = _FakeController()
+        ..status = _status(connected: true)
+        ..readFailure = _failure('offline');
+      await tester.pumpWidget(
+        _harness(ExternalCalendarSettings(controller: controller)),
+      );
+      await tester.pump();
+      final retry = find.text('Retry loading events');
+      await tester.ensureVisible(retry);
+      await tester.tap(retry);
+      await tester.pump();
+      expect(controller.readRetries, 1);
+      expect(controller.refreshes, 0);
+      expect(controller.connects, 0);
+      expect(
+        find.text(
+          'Imported events could not be loaded. Any saved copies remain visible.',
+        ),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'no selected sources remains setup even with a legacy success timestamp',
+    (tester) async {
+      final controller = _FakeController()
+        ..status = ExternalCalendarStatus(
+          connectionId: 'connection',
+          connectionState: 'connected',
+          automatic: true,
+          lastSyncedAt: DateTime(2026, 10, 2),
+          importedEventCount: 0,
+        );
+      await tester.pumpWidget(
+        _harness(ExternalCalendarSettings(controller: controller)),
+      );
+      await tester.pump();
+      expect(
+        find.text(
+          'Google is connected. Choose at least one calendar to start importing.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Import now'), findsNothing);
+      expect(find.textContaining('Last updated'), findsNothing);
+      await tester.tap(find.text('Choose calendars'));
+      await tester.pump();
+      expect(controller.calendarReads, 1);
+      expect(controller.connects, 0);
+    },
+  );
+
   testWidgets('denial is delivered only after the calendar child mounts', (
     tester,
   ) async {
@@ -711,6 +767,18 @@ class _FakeController extends ChangeNotifier
   int disconnects = 0;
   int calendarReads = 0;
   int refreshes = 0;
+  int readRetries = 0;
+  @override
+  ExternalCalendarFailure? readFailure;
+  @override
+  Future<void> retryReads() async {
+    readRetries++;
+    readFailure = null;
+    notifyListeners();
+  }
+
+  @override
+  Future<void> finishConnection() async => loadStatus();
   int saves = 0;
   bool? requestedAutomatic;
   bool wasDisposed = false;

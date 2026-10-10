@@ -49,6 +49,12 @@ void main() {
                     ? null
                     : 'river@example.com',
                 lastUpdatedLabel: 'today at 9:41 AM',
+                importedEventCount:
+                    state == ExternalCalendarPanelState.needsSelection
+                    ? 0
+                    : 213,
+                readFailed: state == ExternalCalendarPanelState.offline,
+                onRetryRead: () {},
                 calendars: _choices,
                 automaticImport: state != ExternalCalendarPanelState.paused,
                 onConnect: () {},
@@ -84,12 +90,16 @@ void main() {
           final captureName = '${state.name}-${viewport.key}-${scale.toInt()}x';
           await _capture(tester, captureName);
           await tester.ensureVisible(
-            find.text('Apple Calendar import is not available in this build.'),
+            find.text(
+              'Device calendars require the Hꜣw mobile app. This web app imports calendars from your connected Google account.',
+            ),
           );
           await tester.pump(const Duration(milliseconds: 250));
           expect(tester.takeException(), isNull);
           final appleRect = tester.getRect(
-            find.text('Apple Calendar import is not available in this build.'),
+            find.text(
+              'Device calendars require the Hꜣw mobile app. This web app imports calendars from your connected Google account.',
+            ),
           );
           expect(appleRect.bottom, lessThanOrEqualTo(viewport.value.height));
           expect(appleRect.left, greaterThanOrEqualTo(34));

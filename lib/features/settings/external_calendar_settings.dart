@@ -40,6 +40,7 @@ class _ExternalCalendarSettingsState extends State<ExternalCalendarSettings>
   String? _actionMessage;
   String? _callbackMessage;
   String? _presentationAccountId;
+  bool _finishConnection = false;
 
   @override
   void initState() {
@@ -51,7 +52,7 @@ class _ExternalCalendarSettingsState extends State<ExternalCalendarSettings>
     _controller.addListener(_onChanged);
     WidgetsBinding.instance.addObserver(this);
     _receiveCallback();
-    unawaited(_perform(_controller.loadStatus, userAction: false));
+    unawaited(_perform(_loadStatus, userAction: false));
   }
 
   @override
@@ -71,7 +72,7 @@ class _ExternalCalendarSettingsState extends State<ExternalCalendarSettings>
     final callbackReceived =
         oldWidget.callbackResult != widget.callbackResult && _receiveCallback();
     if (controllerChanged || callbackReceived) {
-      unawaited(_perform(_controller.loadStatus, userAction: false));
+      unawaited(_perform(_loadStatus, userAction: false));
     }
   }
 
@@ -86,6 +87,7 @@ class _ExternalCalendarSettingsState extends State<ExternalCalendarSettings>
       // Removing a consumed query must not remove its displayed notice.
       return false;
     }
+    _finishConnection = result == 'connected';
     _actionMessage = null;
     _callbackMessage = switch (result) {
       'denied' =>
@@ -107,10 +109,19 @@ class _ExternalCalendarSettingsState extends State<ExternalCalendarSettings>
     return true;
   }
 
+  Future<void> _loadStatus() async {
+    if (_finishConnection) {
+      _finishConnection = false;
+      await _controller.finishConnection();
+    } else {
+      await _controller.loadStatus();
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(_perform(_controller.loadStatus, userAction: false));
+      unawaited(_perform(_loadStatus, userAction: false));
     }
   }
 
@@ -128,6 +139,7 @@ class _ExternalCalendarSettingsState extends State<ExternalCalendarSettings>
         _presentationAccountId = _controller.accountId;
         _actionMessage = null;
         _callbackMessage = null;
+        _finishConnection = false;
       }
     });
   }
@@ -137,6 +149,7 @@ class _ExternalCalendarSettingsState extends State<ExternalCalendarSettings>
       setState(() {
         _actionMessage = null;
         _callbackMessage = null;
+        _finishConnection = false;
       });
     }
   }
@@ -255,12 +268,16 @@ class _ExternalCalendarSettingsState extends State<ExternalCalendarSettings>
     if (error != null && _controller.choosingCalendars) {
       return ExternalCalendarPanelState.selectionChanged;
     }
+    if (error?.code == 'no_calendars_selected') {
+      return ExternalCalendarPanelState.needsSelection;
+    }
     if (error != null) return ExternalCalendarPanelState.offline;
     if (_controller.choosingCalendars) {
       return ExternalCalendarPanelState.choosing;
     }
     if (status == null) return ExternalCalendarPanelState.loading;
     if (!status.connected) return ExternalCalendarPanelState.disconnected;
+    if (!status.hasSelection) return ExternalCalendarPanelState.needsSelection;
     return status.automatic
         ? ExternalCalendarPanelState.connected
         : ExternalCalendarPanelState.paused;
@@ -283,6 +300,9 @@ class _ExternalCalendarSettingsState extends State<ExternalCalendarSettings>
           lastUpdatedLabel: updated == null
               ? null
               : _timestamp(context, updated),
+          importedEventCount: status?.importedEventCount,
+          readFailed: _controller.readFailure != null,
+          onRetryRead: () => unawaited(_perform(_controller.retryReads)),
           automaticImport: status?.automatic ?? false,
           hasConnection: status?.connected ?? false,
           calendars: [
@@ -290,6 +310,12 @@ class _ExternalCalendarSettingsState extends State<ExternalCalendarSettings>
               ExternalCalendarChoice(
                 id: source.id,
                 name: source.label,
+                detail:
+                    source.selected &&
+                        source.lastSyncedAt != null &&
+                        source.importedEventCount != null
+                    ? '${source.importedEventCount} imported ${source.importedEventCount == 1 ? 'event' : 'events'}'
+                    : null,
                 selected: _controller.choosingCalendars
                     ? _controller.selectedSourceIds.contains(source.id)
                     : source.selected,

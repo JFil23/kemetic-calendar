@@ -1600,3 +1600,28 @@ overlapping cache reads, deployed-envelope restoration while offline, real
 calendar publication, confirmed removals, lane/account fences and permission
 revocation. The complete release App gate and served-device replay remain
 required before deployment.
+
+
+## October 10 calendar import setup and read recovery
+
+ExternalCalendarRepository still owns the single account/lane projection reader,
+its existing `externalCalendar.` schema-1 keys and CalendarInvalidationBus
+publication. Transient failures are tracked per observed range (the existing
+64-range bound). Settings observes that repository through its existing
+ExternalCalendarController. Retry reuses the same projection RPC; it does not
+write authored events, request OAuth, or create a second sync owner. A successful
+range cannot clear a different range's failure. Account departure clears transient
+read status and fences late results; existing confirmed-cache retention and access
+denial eviction remain unchanged. No persisted payload or key changed.
+
+OAuth return is still navigation feedback only. Server-confirmed connections with
+no selected calendar open the existing source chooser, including when a status
+request was already running. Empty selections have a setup state and cannot start
+automatic imports. Optional backend counts describe confirmed projection rows;
+older backend responses remain readable without fabricated counts. Reconnection
+preserves source choices and automatic-import preference.
+
+DayViewGrid separates all-day notes from timed layout before using the existing
+CalendarDayEventBlock and shared detail/action owner. The bounded all-day section
+and timeline have distinct paint boundaries. This adds no event writer or detail
+renderer and leaves the five authored Ma’at card housings unchanged.

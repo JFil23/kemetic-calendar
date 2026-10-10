@@ -56,6 +56,75 @@ void main() {
       );
 
   test(
+    'callback completes setup after an already-running status request',
+    () async {
+      final pending = Completer<Map<String, dynamic>>();
+      final actions = <String>[];
+      controller = make((body) async {
+        actions.add(body['action'] as String);
+        return body['action'] == 'status'
+            ? pending.future
+            : snapshot(automatic: true, state: 'connected');
+      });
+      final initial = controller.loadStatus();
+      await controller.finishConnection();
+      pending.complete(snapshot(automatic: true, state: 'connected'));
+      await initial;
+      expect(actions, ['status', 'sources']);
+      expect(controller.choosingCalendars, true);
+      expect(controller.selectedSourceIds, isEmpty);
+    },
+  );
+
+  test(
+    'retrying projection loading preserves an existing import failure',
+    () async {
+      final actions = <String>[];
+      controller = make((body) async {
+        actions.add(body['action'] as String);
+        return snapshot();
+      });
+      const failure = ExternalCalendarFailure(
+        code: 'rate_limited',
+        retryable: true,
+      );
+      controller.error = failure;
+      // Bind the account before the operation so this is an active-account error.
+      await controller.loadStatus();
+      controller.error = failure;
+      actions.clear();
+      await controller.retryReads();
+      expect(controller.error, same(failure));
+      expect(actions, isEmpty);
+    },
+  );
+
+  test(
+    'retry after account departure cannot carry the old import error',
+    () async {
+      controller = make((_) async => snapshot());
+      await controller.loadStatus();
+      controller.error = const ExternalCalendarFailure(code: 'rate_limited');
+      owner = 'b';
+      await controller.retryReads();
+      expect(controller.error, isNull);
+      expect(controller.status, isNull);
+    },
+  );
+
+  test('automatic owner does not import before calendar selection', () async {
+    final actions = <String>[];
+    controller = make((body) async {
+      actions.add(body['action'] as String);
+      return snapshot(automatic: true, state: 'connected');
+    });
+    controller.start();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(actions, ['status']);
+    expect(controller.status!.lastSyncedAt, isNull);
+  });
+
+  test(
     'observing a newer server completion invalidates copies without issuing a provider refresh',
     () async {
       final actions = <String>[];
