@@ -532,20 +532,20 @@ def github_json(
         ) from error
 
 
-def require_green_app_gate(
+def latest_app_gate_run(
     commit: str,
     *,
     environment: str,
     environ: Mapping[str, str],
     fetch_json=github_json,
-) -> dict[str, Any]:
+) -> Mapping[str, Any] | None:
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise ReleaseInputError("App-gate commit must be a full lowercase SHA.")
     branch = authorized_git_source_branch(environment)
     query = urlencode(
         {
             "branch": branch,
-            "event": "push",
+            "event": "workflow_dispatch",
             "head_sha": commit,
             "per_page": "20",
         }
@@ -567,20 +567,31 @@ def require_green_app_gate(
         and run.get("name") == APP_GATE_WORKFLOW_NAME
         and run.get("head_sha") == commit
         and run.get("head_branch") == branch
-        and run.get("event") == "push"
+        and run.get("event") == "workflow_dispatch"
     ]
     if not exact_runs:
-        raise ReleaseInputError(
-            f"No exact-SHA {APP_GATE_WORKFLOW_NAME} gate exists for {commit}."
-        )
-    run = max(
+        return None
+    return max(
         exact_runs,
         key=lambda item: (
-            int(item.get("run_attempt") or 0),
             int(item.get("run_number") or 0),
             int(item.get("id") or 0),
+            int(item.get("run_attempt") or 0),
         ),
     )
+
+
+def require_green_app_gate(
+    commit: str,
+    *,
+    environment: str,
+    environ: Mapping[str, str],
+    fetch_json=github_json,
+) -> dict[str, Any]:
+    branch = authorized_git_source_branch(environment)
+    run = latest_app_gate_run(commit, environment=environment, environ=environ, fetch_json=fetch_json)
+    if run is None:
+        raise ReleaseInputError(f"No exact-SHA {APP_GATE_WORKFLOW_NAME} gate exists for {commit}.")
     status = run.get("status")
     conclusion = run.get("conclusion")
     if status != "completed" or conclusion != "success":

@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -156,6 +157,28 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             fetcher=fetcher,
         )
         return result, fetcher
+
+    def test_body_fetches_overlap_without_skipping_or_retrying_assets(self) -> None:
+        responses = self.responses_for(self.origin)
+        barrier = threading.Barrier(2)
+        lock = threading.Lock()
+        calls = []
+
+        def fetch(url):
+            with lock:
+                calls.append(url)
+                first_pair = len(calls) <= 2
+            if first_pair:
+                barrier.wait(timeout=3)
+            return responses[url]
+
+        result = verifier.verify_served_origin(
+            origin=self.origin, manifest=self.manifest, contract=self.contract,
+            receipt=self.receipt, fetcher=fetch,
+        )
+        self.assertEqual(result["verified_direct_bodies"], 71)
+        self.assertEqual(len(calls), len(set(calls)))
+        self.assertTrue(result["verdicts"]["PAYLOAD_VERIFIED"])
 
     def test_payload_routes_aasa_identity_and_public_redirects_are_all_verified(self) -> None:
         immutable, _ = self.verify(self.origin)
@@ -707,89 +730,22 @@ class ServedArtifactVerifierTest(unittest.TestCase):
                         alias_origin=self.alias,
                     )
 
-    def test_actual_helper_passes_rc_project_and_main_to_wrangler(self) -> None:
+    def test_shell_entry_forwards_exact_artifact_and_lane_to_shared_owner(self) -> None:
+        # The actual npx command and closed RC/production targets are tested in
+        # deploy_web_release_test with real sealed archive fixtures.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            fake_bin = root / "bin"
-            fake_bin.mkdir()
-            release_dir = root / "release"
-            release_dir.mkdir()
-            capture = root / "npx-arguments.txt"
-            fake_python = fake_bin / "python3"
-            fake_python.write_text(
-                """#!/bin/sh
-case "$*" in
-  *"web_release_pipeline.py verify"*)
-    while [ "$#" -gt 0 ]; do
-      if [ "$1" = "--extract-to" ]; then mkdir -p "$2/web"; fi
-      shift
-    done
-    ;;
-  *"served_artifact_verifier.py extract-immutable-url"*)
-    echo "https://0123abcd.kemet-rc.pages.dev"
-    ;;
-  *"served_artifact_verifier.py record-upload-attempt"*|*"served_artifact_verifier.py verify"*)
-    while [ "$#" -gt 0 ]; do
-      if [ "$1" = "--receipt" ]; then printf '{}\n' > "$2"; fi
-      shift
-    done
-    ;;
-esac
-exit 0
-""",
-                encoding="utf-8",
-            )
-            fake_npx = fake_bin / "npx"
-            fake_npx.write_text(
-                """#!/bin/sh
-printf '%s\n' "$*" >> "$CAPTURE_PATH"
-case "$*" in
-  *"pages deploy"*)
-    echo "Deployment complete: https://0123abcd.kemet-rc.pages.dev"
-    ;;
-  *"pages deployment list"*)
-    printf '%s\n' '[{"Id":"12345678-1234-1234-1234-123456789abc","Environment":"Production","Branch":"main","Deployment":"https://0123abcd.kemet-rc.pages.dev"}]'
-    ;;
-esac
-exit 0
-""",
-                encoding="utf-8",
-            )
-            fake_python.chmod(0o755)
-            fake_npx.chmod(0o755)
-            environment = dict(os.environ)
-            environment["PATH"] = f"{fake_bin}:{environment['PATH']}"
-            environment["CAPTURE_PATH"] = str(capture)
-            subprocess.run(
-                [
-                    str(ROOT / "scripts/deploy_cloudflare_pages.sh"),
-                    str(release_dir),
-                    "e" * 64,
-                    "staging",
-                ],
-                cwd=ROOT,
-                env=environment,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            calls = capture.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(len(calls), 2)
-            command, deploy_arguments = calls[0].split(" pages deploy ", 1)
-            payload_root, target_arguments = deploy_arguments.rsplit(
-                " --project-name ", 1
-            )
-            self.assertEqual(
-                command,
-                "--yes wrangler@4.114.0",
-            )
-            self.assertTrue(payload_root.endswith("/web"))
-            self.assertEqual(target_arguments, "kemet-rc --branch main")
-            self.assertEqual(
-                calls[1],
-                "--yes wrangler@4.114.0 pages deployment list --project-name kemet-rc --environment production --json",
-            )
-            self.assertNotIn("codex", "\n".join(calls).lower())
+            binary = root / "python3"
+            capture = root / "arguments.txt"
+            binary.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CAPTURE_PATH\"\n")
+            binary.chmod(0o755)
+            environment = dict(os.environ, PATH=f"{root}:{os.environ['PATH']}", CAPTURE_PATH=str(capture))
+            for lane in ("staging", "production"):
+                subprocess.run([str(ROOT / "scripts/deploy_cloudflare_pages.sh"),
+                                str(root / "release"), "e" * 64, lane],
+                               check=True, env=environment, capture_output=True)
+                self.assertEqual(capture.read_text().splitlines(),
+                                 ["scripts/deploy_web_release.py", str(root / "release"), "e" * 64, lane])
 
 
 if __name__ == "__main__":
