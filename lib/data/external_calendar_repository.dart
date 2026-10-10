@@ -178,7 +178,7 @@ class ExternalCalendarRepository {
   final Duration requestTimeout, refreshTimeout;
   final Map<String, DateTime> _readAttempts = {};
   final Set<String> _readFlights = {};
-  final Map<String, List<Map<String, dynamic>>> _confirmedRanges = {};
+  final Map<String, WarmSnapshot> _confirmedRanges = {};
   String? _visibleOwner;
   final Map<String, ExternalCalendarRange> _observedRanges = {};
   final Map<String, Set<String>> _removedSourcesByOwner = {};
@@ -358,25 +358,26 @@ class ExternalCalendarRepository {
     for (final listener in List.of(_rangeListeners)) {
       listener(from, until);
     }
+    final generation = _projectionGeneration;
     List<ExternalCalendarEvent> cached = const [];
     try {
-      final rows =
-          _confirmedRanges[key] ??
-          await WarmJsonReads(
-            client,
-            cachedOnly: true,
-          ).rows(key, () async => throw StateError('cache only'));
-      cached = rows
-          .map(ExternalCalendarEvent.fromJson)
-          .where(
-            (event) =>
-                !isSourceRemoved('external:${event.sourceId}', owner: owner),
-          )
-          .toList(growable: false);
+      final snapshots = await WarmJsonReads(
+        client,
+        cachedOnly: true,
+        mayFetch: () => generation == _projectionGeneration,
+      ).cachedFamily('externalCalendar.$lane.');
+      cached = _visibleSnapshotEvents(
+        _rangeSnapshots(snapshots),
+        from,
+        until,
+        owner,
+      );
     } catch (_) {
       /* A cache miss is not a confirmed empty provider calendar. */
     }
-    if (accountId != owner) return const [];
+    if (accountId != owner || generation != _projectionGeneration) {
+      return const [];
+    }
     final attemptKey = '$owner:$key';
     final last = _readAttempts[attemptKey];
     if (!_readFlights.contains(attemptKey) &&
@@ -396,6 +397,104 @@ class ExternalCalendarRepository {
     return cached;
   }
 
+  Map<String, WarmSnapshot> _rangeSnapshots(Map<String, WarmSnapshot> cached) {
+    final combined = {...cached};
+    for (final entry in _confirmedRanges.entries) {
+      final existing = combined[entry.key];
+      if (existing == null ||
+          entry.value.updatedAt.isAfter(existing.updatedAt)) {
+        combined[entry.key] = entry.value;
+      }
+    }
+    return combined;
+  }
+
+  String _visibleFingerprint(String owner, DateTime from, DateTime until) =>
+      jsonEncode([
+        for (final event in _visibleSnapshotEvents(
+          _rangeSnapshots(
+            WarmSnapshotStore.instance.peekFamily(
+              owner,
+              'externalCalendar.$lane.',
+            ),
+          ),
+          from,
+          until,
+          owner,
+        ))
+          [
+            event.id,
+            event.clientEventId,
+            event.sourceId,
+            event.title,
+            event.detail,
+            event.location,
+            event.calendarName,
+            event.color,
+            event.allDay,
+            event.startsAtUtc.toIso8601String(),
+            event.endsAtUtc.toIso8601String(),
+          ],
+      ]);
+
+  List<ExternalCalendarEvent> _visibleSnapshotEvents(
+    Map<String, WarmSnapshot> snapshots,
+    DateTime from,
+    DateTime until,
+    String owner,
+  ) {
+    final prefix = 'externalCalendar.$lane.';
+    final ranges = <({DateTime from, DateTime until, WarmSnapshot snapshot})>[];
+    for (final entry in snapshots.entries) {
+      if (!entry.key.startsWith(prefix)) continue;
+      final parts = entry.key.substring(prefix.length).split('Z.');
+      if (parts.length != 2) continue;
+      final start = DateTime.tryParse('${parts[0]}Z');
+      final end = DateTime.tryParse(parts[1]);
+      if (start == null ||
+          end == null ||
+          !start.isBefore(end) ||
+          !start.isBefore(until) ||
+          !end.isAfter(from)) {
+        continue;
+      }
+      ranges.add((from: start, until: end, snapshot: entry.value));
+    }
+    ranges.sort((a, b) => a.snapshot.updatedAt.compareTo(b.snapshot.updatedAt));
+    final events = <String, ExternalCalendarEvent>{};
+    bool overlaps(ExternalCalendarEvent event, DateTime start, DateTime end) =>
+        event.startsAtUtc.isBefore(end) && event.endsAtUtc.isAfter(start);
+    for (final range in ranges) {
+      try {
+        // Decode the complete snapshot before it can supersede confirmed rows.
+        final rows = (range.snapshot.data as List)
+            .map(
+              (row) => ExternalCalendarEvent.fromJson(
+                Map<String, dynamic>.from(row as Map),
+              ),
+            )
+            .toList(growable: false);
+        // A newer confirmed empty window is authoritative too. Replaying by
+        // confirmation time prevents an older broad range resurrecting removals.
+        events.removeWhere(
+          (_, event) => overlaps(event, range.from, range.until),
+        );
+        for (final event in rows) {
+          if (overlaps(event, from, until) &&
+              !isSourceRemoved('external:${event.sourceId}', owner: owner)) {
+            events[event.clientEventId] = event;
+          }
+        }
+      } on Object {
+        // Unsupported or incomplete cache payloads provide no coverage.
+      }
+    }
+    return events.values.toList(growable: false)..sort((a, b) {
+      final order = a.startsAtUtc.compareTo(b.startsAtUtc);
+      return order != 0 ? order : a.clientEventId.compareTo(b.clientEventId);
+    });
+  }
+
   Future<void> _refreshRange(
     String owner,
     String key,
@@ -403,9 +502,11 @@ class ExternalCalendarRepository {
     DateTime until,
   ) async {
     final generation = _projectionGeneration;
-    final before =
-        _confirmedRanges[key] ??
-        WarmSnapshotStore.instance.peek(owner, key)?.data;
+    final before = _visibleFingerprint(owner, from, until);
+    final beforeRaw = _rangeSnapshots(
+      WarmSnapshotStore.instance.peekFamily(owner, 'externalCalendar.$lane.'),
+    )[key]?.data;
+    var accessRevoked = false;
     try {
       final result =
           await WarmJsonReads(
@@ -438,25 +539,32 @@ class ExternalCalendarRepository {
       // A confirmed result remains usable even when it exceeds the disk cache's
       // per-entry budget. Persistence is optional acceleration, not publication.
       _confirmedRanges.remove(key);
-      _confirmedRanges[key] = (result as List)
-          .map((row) => Map<String, dynamic>.from(row as Map))
-          .toList(growable: false);
+      _confirmedRanges[key] = WarmSnapshot(result, DateTime.now().toUtc());
       while (_confirmedRanges.length > 4) {
         _confirmedRanges.remove(_confirmedRanges.keys.first);
       }
       // Only a successful current-generation server read can lift an earlier
       // removal fence when the same source has been explicitly selected again.
       _removedSourcesByOwner[owner]?.removeAll(
-        _confirmedRanges[key]!.map((row) => row['source_id'] as String),
+        (result as List).map((row) => (row as Map)['source_id'] as String),
       );
-      if (jsonEncode(before) != jsonEncode(result)) {
+      if (jsonEncode(beforeRaw) != jsonEncode(result) ||
+          before != _visibleFingerprint(owner, from, until)) {
         _publish(ranges: [ExternalCalendarRange(from.toUtc(), until.toUtc())]);
       }
       readFailure = null;
     } catch (failure) {
       if (accountId != owner || generation != _projectionGeneration) return;
       if (failure is WarmAccessDenied) {
-        _confirmedRanges.remove(key);
+        accessRevoked = true;
+        // All windows use the same private projection permission. A denied
+        // subrange must not fall back to a broader private snapshot.
+        _projectionGeneration++;
+        _confirmedRanges.clear();
+        WarmSnapshotStore.instance.invalidate(
+          owner,
+          prefix: 'externalCalendar.$lane.',
+        );
         _publish();
       }
       readFailure = ExternalCalendarFailure(
@@ -465,7 +573,9 @@ class ExternalCalendarRepository {
       );
       // Keep the last complete snapshot; never publish failure as [].
     } finally {
-      if (accountId == owner && generation != _projectionGeneration) {
+      if (!accessRevoked &&
+          accountId == owner &&
+          generation != _projectionGeneration) {
         _readFlights.remove('$owner:$key');
         _readAttempts.remove('$owner:$key');
         _publish();

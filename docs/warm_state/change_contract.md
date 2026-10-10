@@ -1569,3 +1569,34 @@ including removals, still publish. No new cache, key, schema, persistent owner,
 backend call, or pending-write path is introduced. Regression evidence covers
 repeated passive refresh with unchanged pixels/counts, a pending cold read
 yielding to hydration, actual event replacement, cold entry and account departure.
+
+
+## October 10 Kꜣr foreground and imported-event continuity
+
+The October 10 recordings show the Day 30 shrine using the narrow return
+renderer without entry markers, and foreground content disappearing behind the
+stationary artwork during partial scrolling. Day 30 now reuses the existing
+full shrine stage and its five previous-entry controls in both Day View and
+the canonical full-detail sitting. Recall, capture and acknowledged writes
+retain their existing owners. The shared instrument frame clips translated
+input/artwork to its sliver bounds so the foreground can rise over it without
+changing the approved lowered-sheet shadow. The five-flow .58/.71 extents and
+all approved visual references remain unchanged.
+
+ExternalCalendarRepository still owns imported projections. Its existing
+account/lane/range snapshots now supply overlapping windows during hydration,
+including after restoration from the deployed schema-1 namespace. Confirmed
+windows are reconciled by their confirmation time; a newer empty window removes
+older overlapping rows, while failed or malformed reads provide no empty
+coverage. Publication compares the effective visible projection, so a newly
+confirmed broad window can supersede a narrower removal even if its own raw
+payload repeats. Permission denial clears and fences all private windows for
+that account/lane; departure generations reject late responses. No cache key,
+payload schema, durable-write owner or pending-write cleanup path changes.
+
+Focused regression evidence covers full Day 30 entry access, foreground pixel
+occlusion and hit testing, canonical routes and existing housing goldens,
+overlapping cache reads, deployed-envelope restoration while offline, real
+calendar publication, confirmed removals, lane/account fences and permission
+revocation. The complete release App gate and served-device replay remain
+required before deployment.

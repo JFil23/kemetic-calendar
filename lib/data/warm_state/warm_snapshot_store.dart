@@ -105,6 +105,20 @@ class WarmSnapshotStore {
 
   WarmSnapshot? peek(String userId, String key) => _values[_id(userId, key)];
 
+  /// A bounded, account-scoped view of already restored resource snapshots.
+  /// The domain repository, not this store, interprets range coverage.
+  Map<String, WarmSnapshot> peekFamily(String userId, String prefix) {
+    final scope = _scope(userId);
+    return Map.unmodifiable({
+      for (final entry in _values.entries)
+        if (entry.key.startsWith(scope))
+          if (Uri.decodeComponent(
+            entry.key.substring(scope.length),
+          ).startsWith(prefix))
+            Uri.decodeComponent(entry.key.substring(scope.length)): entry.value,
+    });
+  }
+
   /// Loads one bounded account working set. Never waits on the network.
   Future<void> restore(String userId) => _restores[userId] ??= _restore(userId);
 

@@ -288,7 +288,7 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
         padding: const EdgeInsets.all(8),
         child: FittedBox(
           fit: BoxFit.contain,
-          child: widget.stageIndex == 5 || (cycle != null && _isReturn(cycle))
+          child: cycle != null && _isReturn(cycle)
               ? KarDayShrineVisual(
                   color: Color(widget.netjer.accentValue),
                   placedStages: _placedStages(cycle),
@@ -300,7 +300,9 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
                   color: Color(widget.netjer.accentValue),
                   currentColor: Color(widget.netjer.accent2Value),
                   placed: cycle?.placedCount ?? 0,
-                  currentStage: widget.stageIndex,
+                  currentStage: widget.stageIndex == 5
+                      ? null
+                      : widget.stageIndex,
                   pastStages: {for (var i = 0; i < widget.stageIndex; i++) i},
                 ),
         ),
@@ -884,37 +886,18 @@ class _KarSittingBehaviorCoreState extends State<_KarSittingBehaviorCore> {
     );
   }
 
-  Widget _buildWalkHero(KarCycle? cycle) {
-    final stage = _walking ? kKarStages[_walkIndex] : kKarStages[5];
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 22),
-      decoration: _heroDecoration(),
-      foregroundDecoration: _heroGlow(),
-      child: Column(
-        children: <Widget>[
-          _KarDayMeta(
-            netjer: widget.netjer,
-            side: _walking
-                ? '${(_walkIndex + 1).toString().padLeft(2, '0')} OF 5\n${stage.place.toUpperCase()}'
-                : 'DAY 30\nINNER CHAMBER',
-          ),
-          Expanded(
-            child: Align(
-              alignment: Alignment.center,
-              child: SizedBox(
-                width: 126,
-                height: 190,
-                child: KarDayShrineVisual(
-                  color: const Color(0xFFD4AE43),
-                  placedStages: _placedStages(cycle),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildWalkHero(KarCycle? cycle) => Container(
+    padding: const EdgeInsets.fromLTRB(16, 18, 16, 22),
+    decoration: _heroDecoration(),
+    foregroundDecoration: _heroGlow(),
+    child: _KarDayShrineStage(
+      netjer: widget.netjer,
+      cycle: cycle,
+      stageIndex: 5,
+      walkStageIndex: _walking ? _walkIndex : null,
+      onPastStageTap: _showPastStage,
+    ),
+  );
 
   Widget _buildWalkPractice(KarCycle? cycle) {
     if (!_walking) {
@@ -1262,11 +1245,13 @@ class _KarDayShrineStage extends StatelessWidget {
     required this.cycle,
     required this.stageIndex,
     required this.onPastStageTap,
+    this.walkStageIndex,
   });
 
   final KarNetjer netjer;
   final KarCycle? cycle;
   final int stageIndex;
+  final int? walkStageIndex;
   final ValueChanged<int> onPastStageTap;
 
   @override
@@ -1277,8 +1262,11 @@ class _KarDayShrineStage extends StatelessWidget {
       for (final placement in cycle?.placements ?? const <KarPlacement>[])
         if (placement.activeVersion != null) placement.stageIndex,
     };
-    final stage = kKarStages[stageIndex];
-    final placeNumber = (stageIndex + 1).toString().padLeft(2, '0');
+    final stage = kKarStages[walkStageIndex ?? stageIndex];
+    final placeNumber = ((walkStageIndex ?? stageIndex) + 1).toString().padLeft(
+      2,
+      '0',
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 2, 0, 4),
       child: Container(
@@ -1326,7 +1314,7 @@ class _KarDayShrineStage extends StatelessWidget {
                     color: accent,
                     currentColor: accent2,
                     placed: cycle?.placedCount ?? 0,
-                    currentStage: stageIndex,
+                    currentStage: stageIndex == 5 ? walkStageIndex : stageIndex,
                     pastStages: <int>{
                       for (var index = 0; index < stageIndex; index++) index,
                     },
@@ -1367,7 +1355,9 @@ class _KarDayShrineStage extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '$placeNumber · ${stage.place}',
+                    stageIndex == 5 && walkStageIndex == null
+                        ? 'Day 30 · ${stage.place}'
+                        : '$placeNumber · ${stage.place}',
                     textAlign: TextAlign.right,
                     style: _style(
                       Color.alphaBlend(

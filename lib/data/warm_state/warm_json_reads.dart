@@ -12,6 +12,20 @@ class WarmJsonReads {
   final bool cachedOnly;
   final bool Function()? mayFetch;
 
+  /// Restores the existing bounded cache without fetching. Repositories may
+  /// reconcile overlapping snapshots while retaining each confirmation time.
+  Future<Map<String, WarmSnapshot>> cachedFamily(String prefix) async {
+    WarmResourceContract.requireRegistered(prefix);
+    final uid = client.auth.currentUser?.id;
+    if (uid == null) throw const WarmReadCancelled();
+    final store = WarmSnapshotStore.instance;
+    await store.restore(uid);
+    if (client.auth.currentUser?.id != uid || !(mayFetch?.call() ?? true)) {
+      throw const WarmReadCancelled();
+    }
+    return store.peekFamily(uid, prefix);
+  }
+
   Future<Object?> value(
     String key,
     Future<Object?> Function() fetch, {

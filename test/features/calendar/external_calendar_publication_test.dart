@@ -295,6 +295,38 @@ void main() {
       await tester.pumpAndSettle();
 
       final repository = externalCalendarRepository(Supabase.instance.client);
+      // A new hydration window must retain its imported event on every frame
+      // while the exact-window background read is still waiting.
+      externalReady = false;
+      final heldReadStart = externalReads.length;
+      final narrowFrom = day.subtract(const Duration(hours: 1));
+      final narrowUntil = day.add(const Duration(hours: 2));
+      await tester.runAsync(
+        () => repository.visibleEvents(narrowFrom, narrowUntil),
+      );
+      CalendarInvalidationBus.instance.publish(
+        CalendarInvalidated(
+          reason: CalendarInvalidationReason.calendarImportSynced,
+          externalCalendar: ExternalCalendarInvalidation(
+            accountId: Supabase.instance.client.auth.currentUser!.id,
+            lane: 'staging',
+            ranges: [ExternalCalendarRange(narrowFrom, narrowUntil)],
+          ),
+        ),
+      );
+      for (var frame = 0; frame < 15; frame++) {
+        await drain(tester, 1);
+        expect(
+          titles().where((title) => title == 'Imported appointment'),
+          hasLength(1),
+        );
+        expect(titles(), contains('Existing authored note'));
+      }
+      externalReady = true;
+      for (final read in externalReads.skip(heldReadStart)) {
+        if (!read.isCompleted) read.complete();
+      }
+      await drain(tester);
       failExternal = true;
       repository.projectionChanged();
       await drain(tester);

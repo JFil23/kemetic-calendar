@@ -720,8 +720,18 @@ class _StationaryInstrumentInput extends StatelessWidget {
     return AnimatedBuilder(
       animation: position,
       child: child,
-      builder: (context, child) =>
-          Transform.translate(offset: Offset(0, position.pixels), child: child),
+      // Translation keeps the artwork stationary, but it must not paint past
+      // this sliver into the rising foreground. Keep the approved foreground
+      // shadow/paint order and clip only the stationary input's overflow.
+      builder: (context, child) => ClipRect(
+        // At rest there is no translated overflow; preserve fractional edge
+        // coverage from the authored decoration at the sheet boundary.
+        clipBehavior: position.pixels > 0 ? Clip.hardEdge : Clip.none,
+        child: Transform.translate(
+          offset: Offset(0, position.pixels),
+          child: child,
+        ),
+      ),
     );
   }
 }
