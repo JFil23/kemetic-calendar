@@ -854,6 +854,63 @@ void main() {
   );
 
   testWidgets(
+    'Day 30 uses the complete shrine and opens all five previous entries',
+    (tester) async {
+      _setPhoneViewport(tester);
+      final repository = MemoryKarRepository(
+        initial: {
+          KarNetjer.djehuty: _place(
+            _activeShrine(),
+            stageIndex: 0,
+            content: 'The saved threshold scene.',
+          ),
+        },
+      );
+      await _pumpDay(tester, repository: repository, flowId: 91, stageIndex: 5);
+      expect(find.byType(KarShrineVisual), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(KarShrineVisual)),
+        const Size(248, 225),
+      );
+      for (var stage = 0; stage < 5; stage++) {
+        expect(find.byKey(ValueKey('kar-entry-dot-$stage')), findsOneWidget);
+      }
+      await tester.tap(find.byKey(const ValueKey('kar-entry-dot-0')));
+      await tester.pumpAndSettle();
+      expect(find.text('The saved threshold scene.'), findsOneWidget);
+      await tester.tap(find.byTooltip('Close saved scene'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('kar-entry-dot-4')));
+      await tester.pumpAndSettle();
+      expect(find.text('No drawing or description was saved.'), findsOneWidget);
+    },
+  );
+
+  testWidgets('rising foreground covers the shrine in paint and hit testing', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+    final repository = MemoryKarRepository(
+      initial: {KarNetjer.djehuty: _activeShrine()},
+    );
+    await _pumpDay(tester, repository: repository, flowId: 91, stageIndex: 2);
+    final dot = find.byKey(const ValueKey('kar-entry-dot-1'));
+    final dotPosition = tester.getCenter(dot);
+    await tester.drag(
+      find.byKey(const ValueKey('kar-day-sheet-scroll')),
+      const Offset(0, -280),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('kar-practice-sheet'))).dy,
+      lessThan(dotPosition.dy),
+    );
+    await tester.tapAt(dotPosition);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('kar-past-entry-1')), findsNothing);
+  });
+
+  testWidgets(
     'Day 30 walk stays in the same sheet and ignores older-cycle scenes',
     (tester) async {
       _setPhoneViewport(tester);

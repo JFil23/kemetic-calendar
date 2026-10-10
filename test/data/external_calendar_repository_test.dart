@@ -141,6 +141,72 @@ void main() {
     },
   );
   test(
+    'overlapping warm ranges retain events until a confirmed replacement',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      await WarmSnapshotStore.instance.forgetAccount(uid);
+      final requests = <http.Request>[];
+      final pending = <Completer<http.Response>>[];
+      final client = SupabaseClient(
+        'https://example.supabase.co',
+        'key',
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+        httpClient: MockClient((request) {
+          requests.add(request);
+          final response = Completer<http.Response>();
+          pending.add(response);
+          return response.future;
+        }),
+      );
+      await client.auth.recoverSession(session());
+      final repository = ExternalCalendarRepository(client, lane: 'staging');
+      await WarmSnapshotStore.instance.refresh(
+        uid,
+        repository.rangeKey(from, until),
+        () async => [event()],
+        isCurrent: () => true,
+      );
+      final dayFrom = DateTime.utc(2026, 10, 2);
+      final dayUntil = DateTime.utc(2026, 10, 3);
+      final visible = await repository.visibleEvents(dayFrom, dayUntil);
+      expect(visible.map((row) => row.title), ['Work']);
+      await Future<void>.delayed(Duration.zero);
+      expect(pending, hasLength(1));
+      pending.single.complete(
+        http.Response(
+          '[]',
+          200,
+          headers: {'content-type': 'application/json'},
+          request: requests.single,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(await repository.visibleEvents(dayFrom, dayUntil), isEmpty);
+      // The newer confirmed empty subrange must also remove the old event when
+      // navigating back to the month whose older snapshot still contains it.
+      expect(await repository.visibleEvents(from, until), isEmpty);
+      await Future<void>.delayed(Duration.zero);
+      final republished = CalendarInvalidationBus.instance.stream.first;
+      pending.last.complete(
+        http.Response(
+          jsonEncode([event()]),
+          200,
+          headers: {'content-type': 'application/json'},
+          request: requests.last,
+        ),
+      );
+      await republished.timeout(const Duration(seconds: 2));
+      expect(
+        (await repository.visibleEvents(from, until)).single.title,
+        'Work',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      await client.dispose();
+      await WarmSnapshotStore.instance.forgetAccount(uid);
+    },
+  );
+
+  test(
     'multi-day all-day import fills each visible civil day and excludes its end',
     () {
       final source = ExternalCalendarEvent.fromJson({
@@ -273,6 +339,151 @@ void main() {
       await WarmSnapshotStore.instance.forgetAccount(uid);
     },
   );
+  test('range fallback fences lane, account, denial and late reads', () async {
+    SharedPreferences.setMockInitialValues({});
+    await WarmSnapshotStore.instance.forgetAccount(uid);
+    final pending = <Completer<http.Response>>[];
+    final requests = <http.Request>[];
+    final client = SupabaseClient(
+      'https://example.supabase.co',
+      'key',
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+      httpClient: MockClient((request) {
+        requests.add(request);
+        final result = Completer<http.Response>();
+        pending.add(result);
+        return result.future;
+      }),
+    );
+    addTearDown(client.dispose);
+    await client.auth.recoverSession(session());
+    final repository = ExternalCalendarRepository(client, lane: 'staging');
+    Future<void> seed(String account, String lane, String title) async {
+      await WarmSnapshotStore.instance.refresh(
+        account,
+        'externalCalendar.$lane.${from.toIso8601String()}.${until.toIso8601String()}',
+        () async => [event(title: title)],
+        isCurrent: () => true,
+      );
+    }
+
+    await seed(uid, 'staging', 'This account');
+    await seed(uid, 'production', 'Other lane');
+    await seed('other-account', 'staging', 'Other account');
+    final start = DateTime.utc(2026, 10, 2), end = DateTime.utc(2026, 10, 3);
+    expect(
+      (await repository.visibleEvents(start, end)).single.title,
+      'This account',
+    );
+    await Future<void>.delayed(Duration.zero);
+    pending.single.complete(
+      http.Response(
+        '{"message":"denied","code":"42501"}',
+        403,
+        headers: {'content-type': 'application/json'},
+        request: requests.single,
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(await repository.visibleEvents(start, end), isEmpty);
+    expect(
+      WarmSnapshotStore.instance.peekFamily(uid, 'externalCalendar.staging.'),
+      isEmpty,
+    );
+    expect(
+      WarmSnapshotStore.instance.peekFamily(
+        uid,
+        'externalCalendar.production.',
+      ),
+      isNotEmpty,
+    );
+    expect(
+      WarmSnapshotStore.instance.peekFamily(
+        'other-account',
+        'externalCalendar.staging.',
+      ),
+      isNotEmpty,
+    );
+
+    await seed(uid, 'staging', 'Restored permission');
+    final start2 = DateTime.utc(2026, 10, 1), end2 = DateTime.utc(2026, 10, 4);
+    expect(
+      (await repository.visibleEvents(start2, end2)).single.title,
+      'Restored permission',
+    );
+    await Future<void>.delayed(Duration.zero);
+    // Match the app-owned departure fence, including an A-B-A return before
+    // the original HTTP response completes.
+    repository.forgetPresentation();
+    pending.last.complete(
+      http.Response(
+        jsonEncode([event(title: 'Stale result')]),
+        200,
+        headers: {'content-type': 'application/json'},
+        request: requests.last,
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(
+      WarmSnapshotStore.instance.peek(uid, repository.rangeKey(start2, end2)),
+      isNull,
+    );
+    await WarmSnapshotStore.instance.forgetAccount(uid);
+    await WarmSnapshotStore.instance.forgetAccount('other-account');
+  });
+
+  test(
+    'deployed v1 range restores into a new window while refresh is offline',
+    () async {
+      const restartOwner = 'restart-fixture-owner';
+      final fromKey =
+          'externalCalendar.staging.${from.toIso8601String()}.${until.toIso8601String()}';
+      SharedPreferences.setMockInitialValues({
+        'warm_snapshot:v1:${Uri.encodeComponent(restartOwner)}:${Uri.encodeComponent(fromKey)}':
+            jsonEncode({
+              'schema': 1,
+              'userId': restartOwner,
+              'updatedAt': '2026-10-01T00:00:00Z',
+              'data': [event(title: 'Survived restart')],
+            }),
+      });
+      final response = Completer<http.Response>();
+      final client = SupabaseClient(
+        'https://example.supabase.co',
+        'key',
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+        httpClient: MockClient((_) => response.future),
+      );
+      addTearDown(client.dispose);
+      await client.auth.recoverSession(session().replaceAll(uid, restartOwner));
+      final repository = ExternalCalendarRepository(client, lane: 'staging');
+      final start = DateTime.utc(2026, 10, 2), end = DateTime.utc(2026, 10, 3);
+      expect(
+        (await repository.visibleEvents(start, end)).single.title,
+        'Survived restart',
+      );
+      response.complete(
+        http.Response(
+          '{"message":"offline","code":"503"}',
+          503,
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(
+        (await repository.visibleEvents(start, end)).single.title,
+        'Survived restart',
+      );
+      await client.auth.recoverSession(
+        session().replaceAll(uid, 'other-account'),
+      );
+      expect(await repository.visibleEvents(start, end), isEmpty);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      await WarmSnapshotStore.instance.forgetAccount(restartOwner);
+      await WarmSnapshotStore.instance.forgetAccount('other-account');
+    },
+  );
+
   test('unknown build lane sends no external requests', () async {
     final client = SupabaseClient('https://example.supabase.co', 'key');
     var calls = 0;

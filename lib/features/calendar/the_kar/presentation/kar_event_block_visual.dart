@@ -42,7 +42,7 @@ class KarShrineVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final interactive = currentStage != null;
+    final interactive = currentStage != null || pastStages.isNotEmpty;
     return SizedBox(
       width: 248,
       height: 225,

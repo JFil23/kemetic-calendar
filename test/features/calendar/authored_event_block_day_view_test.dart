@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -800,6 +803,20 @@ void main() {
       ),
       findsOneWidget,
     );
+    if (const bool.fromEnvironment('CAPTURE_KAR_REPAIR')) {
+      await _captureKarRepair(tester, 'walk-lowered');
+      await tester.drag(
+        find.byKey(const ValueKey('kar-day-sheet-scroll')),
+        const Offset(0, -180),
+      );
+      await tester.pumpAndSettle();
+      await _captureKarRepair(tester, 'walk-mid-scroll');
+      await tester.drag(
+        find.byKey(const ValueKey('kar-day-sheet-scroll')),
+        const Offset(0, 1000),
+      );
+      await tester.pumpAndSettle();
+    }
     if (_captureKarVisuals) {
       await expectLater(
         find.byKey(_visualCaptureKey),
@@ -1349,4 +1366,19 @@ KarShrine _placeKar(
         versionId: 'entry-${cycle.id}-$stageIndex',
         now: DateTime.utc(2026, 9, 10, 12),
       );
+}
+
+Future<void> _captureKarRepair(WidgetTester tester, String state) async {
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find.byKey(_visualCaptureKey),
+  );
+  await tester.runAsync(() async {
+    final image = await boundary.toImage();
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    await Directory('/private/tmp/haw-kar-investigation').create(recursive: true);
+    await File(
+      '/private/tmp/haw-kar-investigation/$state.png',
+    ).writeAsBytes(data!.buffer.asUint8List());
+    image.dispose();
+  });
 }
