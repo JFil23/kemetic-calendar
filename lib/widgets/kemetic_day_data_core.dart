@@ -22,8 +22,6 @@ String? _resolveDecanNameFromKey(String dayKey, {bool expanded = false}) {
   );
 }
 
-// Shared flow list for Renwet I (Days 1–10)
-
 MapEntry<String, KemeticDayInfo> _dayInfoEntry({
   required String key,
   required String kemeticDate,

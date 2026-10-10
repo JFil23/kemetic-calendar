@@ -15,9 +15,6 @@ final Map<String, KemeticDayInfo> _dayInfoMap = <String, KemeticDayInfo>{}
   ..addAll(_buildRekhWerIEntries())
   ..addAll(_buildRekhWerIIEntries())
   ..addAll(_buildRekhWerIIIEntries())
-  ..addAll(_buildRenwetIEntries())
-  ..addAll(_buildRenwetIIEntries())
-  ..addAll(_buildRenwetIIIEntries())
   ..addAll(_buildHnswIEntries())
   ..addAll(_buildHnswIIEntries())
   ..addAll(_buildHnswIIIEntries())
@@ -28,4 +25,5 @@ final Map<String, KemeticDayInfo> _dayInfoMap = <String, KemeticDayInfo>{}
   ..addAll(_buildPaIpiIIEntries())
   ..addAll(_buildPaIpiIIIEntries())
   ..addAll(_compressedDayInfoMap)
-  ..addAll(_rekhNedjesDayInfoMap);
+  ..addAll(_rekhNedjesDayInfoMap)
+  ..addAll(_renwetDayInfoMap);
