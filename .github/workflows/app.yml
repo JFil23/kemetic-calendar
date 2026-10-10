@@ -115,6 +115,8 @@ jobs:
     name: App verification
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    outputs:
+      full: ${{ steps.selection.outputs.full }}
     env:
       PYTHONDONTWRITEBYTECODE: "1"
       EXPECTED_SHA: ${{ inputs.expected_sha || github.event.pull_request.head.sha || github.sha }}
@@ -151,9 +153,9 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Run the complete release gate once
+      - name: Run release contracts analysis and browser checks
         if: steps.selection.outputs.full == 'true'
-        run: python3 scripts/app_gate.py full --log-dir "$RUNNER_TEMP/app-gate"
+        run: python3 scripts/app_gate.py full --phase preflight --log-dir "$RUNNER_TEMP/app-gate"
 
       - name: Run affected checks
         if: steps.selection.outputs.full != 'true'
@@ -165,6 +167,62 @@ jobs:
         with:
           name: app-gate-${{ github.sha }}
           path: ${{ runner.temp }}/app-gate
+          retention-days: 7
+
+      - name: Prove generated metadata is the only checkout mutation
+        if: always()
+        run: |
+          set -euo pipefail
+          git restore --worktree -- .flutter-plugins-dependencies
+          git diff --check
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+  app-test-shard:
+    name: App test shard (${{ matrix.shard }}/4)
+    needs: app-gate
+    if: needs.app-gate.outputs.full == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      TZ: America/Los_Angeles
+      EXPECTED_SHA: ${{ inputs.expected_sha || github.event.pull_request.head.sha || github.sha }}
+      SHARD_INDEX: ${{ matrix.shard }}
+    steps:
+      - name: Checkout the exact app commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify exact shard source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test ! -e .gitmodules
+          test -z "$(git ls-files --stage | awk '$1 == "160000" {print}')"
+          test "$(git worktree list --porcelain | grep -c '^worktree ')" -eq 1
+
+      - name: Set up pinned Flutter and Dart
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.3"
+          channel: stable
+          cache: true
+
+      - name: Run app test shard
+        run: python3 scripts/app_gate.py full --phase tests --shard-index "$SHARD_INDEX" --log-dir "$RUNNER_TEMP/app-shard"
+
+      - name: Preserve shard results and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-shard-${{ matrix.shard }}-${{ github.sha }}
+          path: ${{ runner.temp }}/app-shard
           retention-days: 7
 
       - name: Prove generated metadata is the only checkout mutation

@@ -702,6 +702,20 @@ def app_gate_jobs_fixture(commit: str, *, full: bool = True, attempt: int = 1) -
                 run_attempt=attempt, status="completed", conclusion="success", steps=steps)])
 
 
+def parallel_app_gate_jobs_fixture(commit: str) -> dict:
+    evidence = app_gate_jobs_fixture(commit)
+    owner = evidence['jobs'][0]
+    owner['steps'][-2]['name'] = pipeline.APP_PREFLIGHT_STEP
+    for name in pipeline.APP_TEST_SHARD_NAMES:
+        evidence['jobs'].append(dict(name=name, head_sha=commit, run_attempt=1,
+            status='completed', conclusion='success', steps=[
+                dict(name=step, status='completed', conclusion='success') for step in (
+                    'Verify exact shard source', 'Set up pinned Flutter and Dart',
+                    'Run app test shard', 'Prove generated metadata is the only checkout mutation')]))
+    evidence['total_count'] = len(evidence['jobs'])
+    return evidence
+
+
 class ExactShaAppGateTest(unittest.TestCase):
     commit = "a" * 40
 
@@ -827,6 +841,30 @@ class ExactShaAppGateTest(unittest.TestCase):
             jobs["jobs"][0][field] = value
             with self.subTest(field=field), self.assertRaises(pipeline.ReleaseInputError):
                 pipeline.app_gate_run_scope(self.run_fixture(), environ={}, fetch_json=lambda *args, **kw: jobs)
+
+    def test_four_complete_exact_shards_qualify_full_coverage(self):
+        jobs = parallel_app_gate_jobs_fixture(self.commit)
+        self.assertEqual(pipeline.app_gate_run_scope(self.run_fixture(), environ={}, fetch_json=lambda *a, **kw: jobs), 'full')
+
+    def test_partial_duplicate_stale_or_skipped_shards_cannot_qualify(self):
+        import copy
+        good = parallel_app_gate_jobs_fixture(self.commit)
+        variants = []
+        missing = copy.deepcopy(good)
+        missing['jobs'].pop()
+        missing['total_count'] -= 1
+        variants.append(missing)
+        for field, value in [('name', pipeline.APP_TEST_SHARD_NAMES[0]), ('head_sha', 'b'*40),
+                             ('run_attempt', 2), ('conclusion', 'skipped'), ('steps', [])]:
+            bad = copy.deepcopy(good)
+            bad['jobs'][-1][field] = value
+            variants.append(bad)
+        bad = copy.deepcopy(good)
+        bad['jobs'][-1]['steps'][2]['conclusion'] = 'skipped'
+        variants.append(bad)
+        for jobs in variants:
+            with self.subTest(jobs=jobs), self.assertRaises(pipeline.ReleaseInputError):
+                pipeline.app_gate_run_scope(self.run_fixture(), environ={}, fetch_json=lambda *a, **kw: jobs)
 
     def test_skipped_full_step_cannot_be_hidden_by_an_overall_green_dispatch(self) -> None:
         jobs = app_gate_jobs_fixture(self.commit)

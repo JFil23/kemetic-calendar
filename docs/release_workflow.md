@@ -4,8 +4,9 @@
 
 Run `python3 scripts/app_gate.py changed --base HEAD` while editing. The planner
 includes staged, unstaged and untracked files; CI compares the event's base and
-exact head. Dart imports, exports, parts, conditional imports and test helpers
-select affected tests. Unknown runtime inputs, missing history or an owner with
+exact head. Dart imports, exports, parts, conditional imports, test helpers and
+literal file reads select affected tests. Release tooling also selects the shared
+Dart deployment guard. Unknown runtime inputs, missing history or an owner with
 no reachable test select the complete suite. Inspect selection with `--plan`.
 Imports cannot prove visual fidelity or runtime-only relationships: add focused
 behavior/visual evidence for affected shared owners and inspect changed UI.
@@ -20,13 +21,24 @@ output is saved with a short result.
 
 ## Routine release
 
-The coordinating command is `python3 scripts/release_web.py staging` in RC or
-`python3 scripts/release_web.py production` in production. It reuses or requests
+The coordinating command is `python3 scripts/release_web.py staging --background`
+in RC or `python3 scripts/release_web.py production --background` in production. It reuses or requests
 the exact complete gate, waits for qualification, builds once, validates the sealed
 artifact and saves the report. Add `--deploy` only when upload is authorized;
 otherwise it stops with a prepared artifact. To resume without rebuilding, pass
 `--release-dir <sealed-directory>`. The coordinator never commits, pushes, retries
 a failed gate, rolls back, or promotes source between checkouts.
+
+Background mode starts one independent coordinator and immediately returns its
+PID and log directory. It continues after the chat turn ends. `process.json`
+identifies the process and source; `coordinator.log` captures progress;
+`release.json` or `failure.json` records the outcome. Preserve these paths and
+end the active agent turn. When monitoring was requested, use a heartbeat and
+notify only on meaningful transitions, failure or verified completion. Do not
+keep an agent looping over unchanged logs. To stop a background release when
+the user requests cancellation, verify the saved PID still belongs to this
+coordinator before stopping its process group; stopping a chat alone does not
+stop an independent release process. Omit `--background` for a foreground CLI.
 
 Use only the canonical lane checkout and branch. Commit and push the candidate
 before qualification. The existing clean-source and remote-head checks still
@@ -39,7 +51,12 @@ source authority, the full-suite step, pinned toolchain and checkout integrity.
 A successful focused check, PR check, skipped job, different lane or different
 commit cannot qualify release.
 The complete gate retains the full Flutter suite, browser tests, analyzer and
-release/ownership contracts. Reuse its successful result while its inputs remain
+release/ownership contracts. Contracts, analysis and browser tests run once.
+Flutter partitions the complete `test` tree across four parallel GitHub jobs
+using `--total-shards 4` and the unique indices 0–3. Qualification checks each
+shard's exact source, run attempt, pinned toolchain, successful tests and clean
+checkout. Missing, duplicate, skipped or failed shards cannot qualify release.
+The monolithic full-run command remains available for local diagnosis. Reuse its successful result while its inputs remain
 unchanged. A failed/newer attempt or changed candidate requires resolution.
 
 Build once for that lane through `scripts/build_web_release.sh`, then upload the
