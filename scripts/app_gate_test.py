@@ -79,16 +79,33 @@ class SelectionTest(unittest.TestCase):
         workflow = (gate.ROOT / '.github/workflows/app.yml').read_text()
         indices = ast.literal_eval(re.search(r'shard: (\[[^\]]+\])', workflow).group(1))
         self.assertEqual(indices, list(range(gate.FULL_SUITE_SHARDS)))
+        executed = []
         for index in indices:
-            commands = gate.commands(selection, phase='tests', shard_index=index)
-            self.assertEqual(commands, [
-                ['flutter', 'pub', 'get', '--enforce-lockfile'],
-                ['flutter', 'test', '--no-pub', '--total-shards', '4', '--shard-index', str(index), 'test']])
+            commands = gate.commands(selection, phase='tests', shard_index=index, root=self.root)
+            self.assertEqual(commands[0], ['flutter', 'pub', 'get', '--enforce-lockfile'])
+            self.assertEqual(commands[1][:3], ['flutter', 'test', '--no-pub'])
+            files = commands[1][3:]
+            self.assertTrue(files)
+            self.assertTrue(all(p.startswith('test/') and p.endswith('_test.dart') for p in files))
+            executed.extend(files)
+        expected = sorted(p.relative_to(self.root).as_posix() for p in (self.root / 'test').rglob('*_test.dart'))
+        self.assertCountEqual(executed, expected)  # Every file exactly once.
+        self.assertEqual(len(executed), len(set(executed)))
+        # Check the real release inventory as well as the small fixture.
+        actual = [p for index in indices for p in gate.shard_files(gate.ROOT, index)]
+        self.assertCountEqual(actual, [p.relative_to(gate.ROOT).as_posix() for p in (gate.ROOT / 'test').rglob('*_test.dart')])
+        self.assertEqual(len(actual), len(set(actual)))
         for index in (None, -1, 4):
             with self.subTest(index=index), self.assertRaises(ValueError):
-                gate.commands(selection, phase='tests', shard_index=index)
+                gate.commands(selection, phase='tests', shard_index=index, root=self.root)
         with self.assertRaises(ValueError):
             gate.commands(gate.plan(self.root, ['lib/owner.dart']), phase='preflight')
+
+    def test_an_empty_shard_cannot_fall_back_to_running_all_tests(self):
+        empty = self.root / 'empty'
+        empty.mkdir()
+        with self.assertRaisesRegex(ValueError, 'empty shard'):
+            gate.shard_files(empty, 0)
 
     def test_conditional_imports_and_parts_are_traversed(self):
         deps = gate.dart_dependencies('lib/a.dart', "import 'a_stub.dart' if (dart.library.html) 'a_web.dart'; part 'a.g.dart';", 'mobile')

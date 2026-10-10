@@ -104,17 +104,34 @@ def plan(root: Path, paths: list[str] | None) -> dict:
                 browser=sorted(browser if full else selected & browser))
 
 
-def commands(selection: dict, *, phase: str = 'all', shard_index: int | None = None) -> list[list[str]]:
+def test_files(root: Path) -> list[str]:
+    # Match Flutter's discovery: recurse under test/, do not follow directory
+    # links, and include every file ending in _test.dart. Partition files before
+    # invoking Flutter; its native shard flags load every suite on every worker.
+    return sorted((Path(directory) / name).relative_to(root).as_posix()
+                  for directory, _, names in os.walk(root / 'test', followlinks=False)
+                  for name in names if name.endswith('_test.dart')
+                  and (Path(directory) / name).is_file())
+
+
+def shard_files(root: Path, index: int) -> list[str]:
+    if index not in range(FULL_SUITE_SHARDS):
+        raise ValueError('A valid index is required for every full-suite shard.')
+    files = test_files(root)[index::FULL_SUITE_SHARDS]
+    if not files:
+        raise ValueError('An empty shard must not silently run the default full suite.')
+    return files
+
+
+def commands(selection: dict, *, phase: str = 'all', shard_index: int | None = None,
+             root: Path = ROOT) -> list[list[str]]:
     if phase not in ('all', 'preflight', 'tests'):
         raise ValueError('Unknown gate phase.')
     if phase != 'all' and not selection['full']:
         raise ValueError('Only the complete suite can be split into phases.')
     if phase == 'tests':
-        if shard_index not in range(FULL_SUITE_SHARDS):
-            raise ValueError('A valid index is required for every full-suite shard.')
         return [['flutter', 'pub', 'get', '--enforce-lockfile'],
-                ['flutter', 'test', '--no-pub', '--total-shards', str(FULL_SUITE_SHARDS),
-                 '--shard-index', str(shard_index), 'test']]
+                ['flutter', 'test', '--no-pub', *shard_files(root, shard_index)]]
     if shard_index is not None:
         raise ValueError('A shard index is only valid for the tests phase.')
     result = []
@@ -171,7 +188,9 @@ def main() -> int:
     logs.mkdir(parents=True, exist_ok=True)
     summary = dict(mode=args.mode, phase=args.phase, shard_index=args.shard_index,
                    total_shards=FULL_SUITE_SHARDS if args.phase == 'tests' else None,
-                   selection=selection, changed_paths=paths, steps=[], success=False)
+                   selection=selection, changed_paths=paths, steps=[], success=False,
+                   test_inventory=test_files(ROOT) if args.phase == 'preflight' else None,
+                   shard_files=shard_files(ROOT, args.shard_index) if args.phase == 'tests' else None)
     print(selection['reason'], flush=True)
     print(f'Logs: {logs}', flush=True)
     try:
