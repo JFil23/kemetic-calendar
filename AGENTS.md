@@ -18,6 +18,16 @@ apply to changes to that owner or its entry boundaries, not unrelated edits.
 Backend and additional cutover checks apply to changed compatibility boundaries.
 Historical cutover plans are evidence and impose no additional release gates.
 
+The hosted full gate runs contracts, analysis and browser checks once, followed
+by four parallel Flutter test shards. Every shard must pass for the exact commit
+and attempt; a partial matrix is never full evidence. Tooling checks include
+Dart guards that read the changed files, not only tests reached through imports.
+For an authorized deployment, use the release coordinator's `--background` mode,
+keep its returned PID/log directory, and let the process perform the wait/build/
+upload/verification. End the active agent turn while it runs. Use a requested
+heartbeat monitor for meaningful transitions and completion; do not repeatedly
+read unchanged logs or narrate minute-by-minute waiting.
+
 # RC persistence and warm-state contract
 
 These requirements supplement the Hꜣw authority card and four global coding laws.

@@ -96,6 +96,8 @@ APP_GATE_WORKFLOW_NAME = "App"
 APP_GATE_JOB_NAME = "App verification"
 APP_FULL_GATE_STEP = "Run the complete release gate once"
 APP_FOCUSED_GATE_STEP = "Run affected checks"
+APP_PREFLIGHT_STEP = "Run release contracts analysis and browser checks"
+APP_TEST_SHARD_NAMES = tuple(f"App test shard ({index}/4)" for index in range(4))
 PINNED_FLUTTER_TOOLCHAIN = {
     "frameworkVersion": "3.35.3",
     "channel": "stable",
@@ -626,7 +628,28 @@ def app_gate_run_scope(
         raise ReleaseInputError("App gate authority/checkout evidence is missing.")
     if completed(APP_FULL_GATE_STEP) and completed("Set up pinned Flutter and Dart"):
         return "full"
-    if completed(APP_FULL_GATE_STEP, "skipped") and completed(APP_FOCUSED_GATE_STEP):
+    if completed(APP_PREFLIGHT_STEP) and completed("Set up pinned Flutter and Dart"):
+        shards = [item for item in jobs if isinstance(item, Mapping)
+                  and str(item.get("name", "")).startswith("App test shard (")]
+        if (len(shards) != len(APP_TEST_SHARD_NAMES)
+                or {item.get("name") for item in shards} != set(APP_TEST_SHARD_NAMES)):
+            raise ReleaseInputError("Complete coverage requires every unique app test shard.")
+        for shard in shards:
+            if (shard.get("head_sha") != run.get("head_sha")
+                    or shard.get("run_attempt") != attempt
+                    or shard.get("status") != "completed" or shard.get("conclusion") != "success"):
+                raise ReleaseInputError("App test shard identity/status does not match the run.")
+            shard_steps = shard.get("steps")
+            if not isinstance(shard_steps, list):
+                raise ReleaseInputError("App test shard evidence is missing.")
+            for name in ("Verify exact shard source", "Set up pinned Flutter and Dart",
+                         "Run app test shard", "Prove generated metadata is the only checkout mutation"):
+                evidence = [step for step in shard_steps if isinstance(step, Mapping) and step.get("name") == name]
+                if (len(evidence) != 1 or evidence[0].get("status") != "completed"
+                        or evidence[0].get("conclusion") != "success"):
+                    raise ReleaseInputError("App test shard coverage/authority evidence is missing.")
+        return "full"
+    if (completed(APP_FULL_GATE_STEP, "skipped") or completed(APP_PREFLIGHT_STEP, "skipped")) and completed(APP_FOCUSED_GATE_STEP):
         return "focused"
     raise ReleaseInputError("App gate has no completed full or focused evidence.")
 

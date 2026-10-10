@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+FULL_SUITE_SHARDS = 4
 CONTRACT_TESTS = (
     'web_release_pipeline_test.py', 'maat_visual_contract_test.py',
     'netjeru_art_contract_test.py', 'warm_state_contract_test.py',
@@ -74,13 +75,14 @@ def plan(root: Path, paths: list[str] | None) -> dict:
                     (p.endswith('.dart') and p.startswith(('lib/', 'test/'))))]
         if unknown:
             full, reason = True, 'Non-import inputs changed: ' + ', '.join(unknown[:5])
-        elif changed_dart:
+        else:
             package = re.search(r'^name:\s*(\S+)', (root / 'pubspec.yaml').read_text(), re.M).group(1)
             reverse: dict[str, set[str]] = {}
             for path, source in sources.items():
-                for dependency in dart_dependencies(path, source, package):
+                reads = set(re.findall(r"File\s*\(\s*['\"]([^'\"$]+)['\"]", source))
+                for dependency in dart_dependencies(path, source, package) | reads:
                     reverse.setdefault(dependency, set()).add(path)
-            for changed in changed_dart:
+            for changed in paths:
                 seen, queue = set(), [changed]
                 while queue:
                     current = queue.pop()
@@ -89,17 +91,32 @@ def plan(root: Path, paths: list[str] | None) -> dict:
                     seen.add(current)
                     queue.extend(reverse.get(current, ()))
                 affected = tests & seen
-                if not affected:
+                if not affected and changed in changed_dart:
                     full, reason = True, f'No reachable test for {changed}; use the full suite.'
                     break
                 selected.update(affected)
+            guard = 'test/core/web_runtime_config_guard_test.dart'
+            if any(p.startswith(('scripts/', '.github/')) for p in paths) and guard in tests:
+                selected.add(guard)
     return dict(full=full, reason=reason, contracts=True,
                 analyze=full or bool(changed_dart),
                 tests=['test'] if full else sorted(selected - browser),
                 browser=sorted(browser if full else selected & browser))
 
 
-def commands(selection: dict) -> list[list[str]]:
+def commands(selection: dict, *, phase: str = 'all', shard_index: int | None = None) -> list[list[str]]:
+    if phase not in ('all', 'preflight', 'tests'):
+        raise ValueError('Unknown gate phase.')
+    if phase != 'all' and not selection['full']:
+        raise ValueError('Only the complete suite can be split into phases.')
+    if phase == 'tests':
+        if shard_index not in range(FULL_SUITE_SHARDS):
+            raise ValueError('A valid index is required for every full-suite shard.')
+        return [['flutter', 'pub', 'get', '--enforce-lockfile'],
+                ['flutter', 'test', '--no-pub', '--total-shards', str(FULL_SUITE_SHARDS),
+                 '--shard-index', str(shard_index), 'test']]
+    if shard_index is not None:
+        raise ValueError('A shard index is only valid for the tests phase.')
     result = []
     if selection['contracts']:
         result.append(['node', '--test', 'scripts/web_bootstrap_test.mjs'])
@@ -115,7 +132,7 @@ def commands(selection: dict) -> list[list[str]]:
         result.append(['flutter', 'analyze', '--no-fatal-infos'])
     if selection['browser']:
         result.append(['flutter', 'test', '--no-pub', '--platform', 'chrome', *selection['browser']])
-    if selection['tests']:
+    if selection['tests'] and phase != 'preflight':
         result.append(['flutter', 'test', '--no-pub', *selection['tests']])
     return result
 
@@ -139,6 +156,8 @@ def main() -> int:
     parser.add_argument('--head', help='Omit to include staged, unstaged and untracked changes.')
     parser.add_argument('--plan', action='store_true', help='Inspect selection without running checks.')
     parser.add_argument('--log-dir', type=Path)
+    parser.add_argument('--phase', choices=('all', 'preflight', 'tests'), default='all')
+    parser.add_argument('--shard-index', type=int)
     args = parser.parse_args()
     try:
         paths = None if args.mode == 'full' else changed_paths(ROOT, args.base, args.head)
@@ -150,11 +169,13 @@ def main() -> int:
         return 0
     logs = args.log_dir or Path(tempfile.mkdtemp(prefix='kemet-app-gate-'))
     logs.mkdir(parents=True, exist_ok=True)
-    summary = dict(mode=args.mode, selection=selection, changed_paths=paths, steps=[], success=False)
+    summary = dict(mode=args.mode, phase=args.phase, shard_index=args.shard_index,
+                   total_shards=FULL_SUITE_SHARDS if args.phase == 'tests' else None,
+                   selection=selection, changed_paths=paths, steps=[], success=False)
     print(selection['reason'], flush=True)
     print(f'Logs: {logs}', flush=True)
     try:
-        for index, command in enumerate(commands(selection)):
+        for index, command in enumerate(commands(selection, phase=args.phase, shard_index=args.shard_index)):
             step = run_step(command, root=ROOT, log=logs / f'{index:02d}.log')
             summary['steps'].append(step)
             print(f"{'PASS' if step['exit_code'] == 0 else 'FAIL'} {command[0]} {command[1]} ({step['seconds']}s)", flush=True)

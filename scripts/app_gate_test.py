@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Behavioral checks for conservative change selection and release separation."""
+import ast
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -59,6 +61,34 @@ class SelectionTest(unittest.TestCase):
         self.assertIn(['flutter', 'test', '--no-pub', 'test'], commands)
         self.assertIn(['flutter', 'analyze', '--no-fatal-infos'], commands)
         self.assertIn(['flutter', 'test', '--no-pub', '--platform', 'chrome', 'test/browser_test.dart'], commands)
+
+    def test_file_reading_guard_is_selected_for_tooling_changes(self):
+        (self.root / 'test/guard_test.dart').write_text("File('scripts/deploy.py').readAsStringSync();")
+        plan = gate.plan(self.root, ['scripts/deploy.py'])
+        self.assertFalse(plan['full'])
+        self.assertEqual(plan['tests'], ['test/guard_test.dart'])
+
+    def test_preflight_retains_every_non_vm_check_once(self):
+        selection = gate.plan(self.root, None)
+        all_commands = gate.commands(selection)
+        preflight = gate.commands(selection, phase='preflight')
+        self.assertEqual(preflight, [c for c in all_commands if c != ['flutter', 'test', '--no-pub', 'test']])
+
+    def test_all_four_shards_run_the_entire_test_tree_partition(self):
+        selection = gate.plan(self.root, None)
+        workflow = (gate.ROOT / '.github/workflows/app.yml').read_text()
+        indices = ast.literal_eval(re.search(r'shard: (\[[^\]]+\])', workflow).group(1))
+        self.assertEqual(indices, list(range(gate.FULL_SUITE_SHARDS)))
+        for index in indices:
+            commands = gate.commands(selection, phase='tests', shard_index=index)
+            self.assertEqual(commands, [
+                ['flutter', 'pub', 'get', '--enforce-lockfile'],
+                ['flutter', 'test', '--no-pub', '--total-shards', '4', '--shard-index', str(index), 'test']])
+        for index in (None, -1, 4):
+            with self.subTest(index=index), self.assertRaises(ValueError):
+                gate.commands(selection, phase='tests', shard_index=index)
+        with self.assertRaises(ValueError):
+            gate.commands(gate.plan(self.root, ['lib/owner.dart']), phase='preflight')
 
     def test_conditional_imports_and_parts_are_traversed(self):
         deps = gate.dart_dependencies('lib/a.dart', "import 'a_stub.dart' if (dart.library.html) 'a_web.dart'; part 'a.g.dart';", 'mobile')

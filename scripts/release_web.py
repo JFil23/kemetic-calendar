@@ -60,9 +60,15 @@ def qualify(commit: str, environment: str, *, fetch=gh_json, run=subprocess.run,
     raise AssertionError('Unreachable qualification state')
 
 
-def prepare(environment: str, log_dir: Path, existing: Path | None = None) -> tuple[Path, dict]:
+def prepare(environment: str, log_dir: Path, existing: Path | None = None, expected_commit: str | None = None) -> tuple[Path, dict]:
     source = release.require_canonical_release_source(ROOT, environment=environment)
-    gate = qualify(source['app_source_commit'], environment)
+    commit = source['app_source_commit']
+    if expected_commit is not None and commit != expected_commit:
+        raise release.ReleaseInputError('Background release candidate changed before qualification.')
+    gate = qualify(commit, environment)
+    current = release.require_canonical_release_source(ROOT, environment=environment)
+    if current['app_source_commit'] != commit:
+        raise release.ReleaseInputError('Release candidate changed while waiting for qualification.')
     release.write_json(log_dir / 'app-gate.json', gate)
     if existing is not None:
         directory = existing.resolve()
@@ -77,10 +83,33 @@ def prepare(environment: str, log_dir: Path, existing: Path | None = None) -> tu
             raise release.ReleaseInputError('Builder did not report exactly one sealed release directory.')
         directory = Path(paths[0])
     receipt = release.verify_release(directory)
+    if receipt['source']['app_commit'] != commit:
+        raise release.ReleaseInputError('Artifact belongs to another candidate.')
     if receipt['environment'] != environment:
         raise release.ReleaseInputError('Artifact belongs to another lane.')
     release.require_canonical_release_source(ROOT, environment=environment, expected_source=receipt['source'])
     return directory, receipt
+
+
+
+def launch_background(environment: str, logs: Path, existing: Path | None, deploy: bool) -> dict:
+    source = release.require_canonical_release_source(ROOT, environment=environment)
+    if (logs / 'process.json').exists():
+        raise release.ReleaseInputError('This release attempt already has a background coordinator; inspect its PID and logs.')
+    command = [sys.executable, '-u', str(Path(__file__).resolve()), environment,
+               '--log-dir', str(logs), '--expected-sha', source['app_source_commit']]
+    if existing is not None:
+        command.extend(['--release-dir', str(existing.resolve())])
+    if deploy:
+        command.append('--deploy')
+    output = logs / 'coordinator.log'
+    with output.open('w') as stream:
+        process = subprocess.Popen(command, cwd=ROOT, stdin=subprocess.DEVNULL,
+                                   stdout=stream, stderr=subprocess.STDOUT, start_new_session=True)
+    result = dict(pid=process.pid, commit=source['app_source_commit'], environment=environment,
+                  log_dir=str(logs), log=str(output), deployed=False, background=True)
+    release.write_json(logs / 'process.json', result)
+    return result
 
 
 def main() -> int:
@@ -88,11 +117,18 @@ def main() -> int:
     parser.add_argument('environment', choices=tuple(release.ENVIRONMENT_CONFIGS))
     parser.add_argument('--deploy', action='store_true', help='Also upload and verify the sealed artifact.')
     parser.add_argument('--release-dir', type=Path, help='Resume with this sealed artifact without rebuilding.')
+    parser.add_argument('--background', action='store_true', help='Start once, save PID/logs, and return without agent polling.')
+    parser.add_argument('--log-dir', type=Path, help='Directory for this release attempt and its receipts.')
+    parser.add_argument('--expected-sha', help=argparse.SUPPRESS)
     args = parser.parse_args()
-    logs = Path(tempfile.mkdtemp(prefix='kemet-release-'))
+    logs = args.log_dir.resolve() if args.log_dir else Path(tempfile.mkdtemp(prefix='kemet-release-'))
+    logs.mkdir(parents=True, exist_ok=True)
     print(f'Release logs: {logs}', flush=True)
     try:
-        directory, receipt = prepare(args.environment, logs, args.release_dir)
+        if args.background:
+            print(json.dumps(launch_background(args.environment, logs, args.release_dir, args.deploy), indent=2))
+            return 0
+        directory, receipt = prepare(args.environment, logs, args.release_dir, args.expected_sha)
         result = dict(source=receipt['source'], environment=args.environment,
                       release_dir=str(directory), archive_sha256=receipt['payload']['archive_sha256'],
                       gate=release.load_json(logs / 'app-gate.json'), deployed=False)

@@ -100,6 +100,42 @@ class QualificationTest(unittest.TestCase):
             coordinator.qualify(self.commit, 'staging', fetch=self.fetch, run=run, sleep=self.sleep)
         self.assertEqual(len(self.calls), 1)
 
+    def test_background_candidate_cannot_advance_before_or_during_the_wait(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with patch.object(coordinator.release, 'require_canonical_release_source', return_value={'app_source_commit': self.commit}), patch.object(coordinator, 'qualify') as qualify:
+                with self.assertRaisesRegex(coordinator.release.ReleaseInputError, 'changed before'):
+                    coordinator.prepare('staging', root, expected_commit='b'*40)
+                qualify.assert_not_called()
+            with patch.object(coordinator.release, 'require_canonical_release_source', side_effect=[{'app_source_commit': self.commit}, {'app_source_commit': 'b'*40}]), patch.object(coordinator, 'qualify', return_value={'run_id':1}), patch.object(coordinator.app_gate, 'run_step') as build:
+                with self.assertRaisesRegex(coordinator.release.ReleaseInputError, 'changed while'):
+                    coordinator.prepare('staging', root)
+                build.assert_not_called()
+
+    def test_background_returns_one_process_and_keeps_upload_explicit(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            logs = Path(temporary)
+            with patch.object(coordinator.release, 'require_canonical_release_source', return_value={'app_source_commit': self.commit}), patch.object(coordinator.subprocess, 'Popen', return_value=Mock(pid=321)) as spawn, patch.object(coordinator, 'prepare') as prepare:
+                result = coordinator.launch_background('staging', logs, None, False)
+                prepare.assert_not_called()
+                command = spawn.call_args.args[0]
+                self.assertNotIn('--background', command)
+                self.assertIn('--expected-sha', command)
+                self.assertIn(self.commit, command)
+                self.assertNotIn('--deploy', command)
+                self.assertTrue(spawn.call_args.kwargs['start_new_session'])
+                self.assertEqual(result['pid'], 321)
+                self.assertEqual(result['commit'], self.commit)
+                self.assertTrue((logs / 'process.json').exists())
+                with self.assertRaisesRegex(coordinator.release.ReleaseInputError, 'already has'):
+                    coordinator.launch_background('staging', logs, None, False)
+                next_logs = logs / 'next'
+                next_logs.mkdir()
+                coordinator.launch_background('staging', next_logs, logs / 'artifact', True)
+                command = spawn.call_args.args[0]
+                self.assertIn('--deploy', command)
+                self.assertIn('--release-dir', command)
+
     def test_reusing_artifact_never_rebuilds_and_checks_source_lane(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -107,7 +143,7 @@ class QualificationTest(unittest.TestCase):
             with patch.object(coordinator.release, 'require_canonical_release_source', return_value={'app_source_commit': self.commit}) as source, patch.object(coordinator, 'qualify', return_value={'run_id': 1}), patch.object(coordinator.release, 'verify_release', return_value=receipt), patch.object(coordinator.app_gate, 'run_step') as build:
                 coordinator.prepare('staging', root, root / 'artifact')
                 build.assert_not_called()
-                self.assertEqual(source.call_count, 2)
+                self.assertEqual(source.call_count, 3)
                 receipt['environment'] = 'production'
                 with self.assertRaisesRegex(coordinator.release.ReleaseInputError, 'another lane'):
                     coordinator.prepare('staging', root, root / 'artifact')
