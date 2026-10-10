@@ -5417,6 +5417,8 @@ double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
     return fixedMaatHeight;
   }
 
+  if (event.allDay) return 64 * textScale.clamp(1.0, 2.0);
+
   if (event.isReminder) {
     final effectiveTextScale = textScale.clamp(1.0, 1.25).toDouble();
     final compactPreviewHeight = 54.0 * effectiveTextScale;
@@ -7752,7 +7754,12 @@ class _DayViewGridState extends State<DayViewGrid> {
         final dedupedNotes = _dedupeNotesForUI(widget.notes);
 
         // 🔧 OPTIMIZATION: Only recalculate layout if inputs or constraints changed
-        final notesHash = _computeNotesHash(dedupedNotes);
+        final allDayEvents = _sortedEventsForDay(
+          notes: dedupedNotes.where((note) => note.allDay).toList(),
+          flowIndex: widget.flowIndex,
+        );
+        final timedNotes = dedupedNotes.where((note) => !note.allDay).toList();
+        final notesHash = _computeNotesHash(timedNotes);
         final flowHash = _computeFlowIndexHash(widget.flowIndex);
         if (_cachedBlocks == null ||
             _cachedNotesHash != notesHash ||
@@ -7771,7 +7778,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           }
 
           _cachedBlocks = EventLayoutEngine.layoutEventsForDay(
-            notes: dedupedNotes, // ✅ Use deduped notes
+            notes: timedNotes,
             flowIndex: widget.flowIndex,
             availableWidth: availableWidth,
             columnGap: _kEventColumnGap,
@@ -7794,6 +7801,45 @@ class _DayViewGridState extends State<DayViewGrid> {
 
         return Column(
           children: [
+            if (allDayEvents.isNotEmpty)
+              ConstrainedBox(
+                key: const ValueKey('day-view-all-day-events'),
+                constraints: BoxConstraints(
+                  maxHeight: constraints.maxHeight * .5,
+                ),
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(
+                    _kTimelineLabelWidth,
+                    8,
+                    12,
+                    8,
+                  ),
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        'All-day',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ),
+                    for (final event in allDayEvents)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: _buildInteractiveEvent(
+                          PositionedEventBlock(
+                            event: event,
+                            leftOffset: 0,
+                            overlapGroupIndex: 0,
+                            columnIndex: 0,
+                            totalColumns: 1,
+                            width: availableWidth - 4,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             // Timeline grid
             Expanded(
               child: DragTarget<_DragPayload>(
@@ -7804,7 +7850,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                     onNotification: _trackManualTimelineScroll,
                     child: ListView(
                       key: const PageStorageKey('day_timeline_list'),
-                      clipBehavior: Clip.none,
+                      clipBehavior: Clip.hardEdge,
                       controller: _scrollController,
                       padding: EdgeInsets.only(
                         bottom: bottomPaddingAboveGlobalChrome(context, 24),

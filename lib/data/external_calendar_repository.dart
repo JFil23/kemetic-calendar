@@ -33,16 +33,24 @@ class ExternalCalendarSource {
     required this.label,
     this.selected = false,
     this.color,
+    this.importedEventCount,
+    this.lastSyncedAt,
   });
   final String id, label;
   final bool selected;
   final String? color;
+  final int? importedEventCount;
+  final DateTime? lastSyncedAt;
   factory ExternalCalendarSource.fromJson(Map<String, dynamic> json) =>
       ExternalCalendarSource(
         id: json['id'] as String,
         label: json['label'] as String,
         selected: json['selected'] == true,
         color: json['color'] as String?,
+        importedEventCount: (json['imported_event_count'] as num?)?.toInt(),
+        lastSyncedAt: DateTime.tryParse(
+          json['last_synced_at'] as String? ?? '',
+        ),
       );
 }
 
@@ -59,6 +67,7 @@ class ExternalCalendarStatus {
     this.errorCode,
     this.retryAt,
     this.syncing = false,
+    this.importedEventCount,
   });
   final bool available, automatic;
   final String? connectionId, accountLabel;
@@ -69,6 +78,8 @@ class ExternalCalendarStatus {
   final String? errorCode;
   final DateTime? retryAt;
   final bool syncing;
+  final int? importedEventCount;
+  bool get hasSelection => sources.any((source) => source.selected);
   bool get connected =>
       connectionId != null && connectionState != 'disconnected';
   bool get requiresReconnect => connectionState == 'reconnect_required';
@@ -91,6 +102,7 @@ class ExternalCalendarStatus {
       errorCode: connection?['error_code'] as String?,
       retryAt: DateTime.tryParse(json['retry_at'] as String? ?? ''),
       syncing: json['syncing'] == true,
+      importedEventCount: (json['imported_event_count'] as num?)?.toInt(),
       sources: List.unmodifiable(
         rows.map(
           (row) => ExternalCalendarSource.fromJson(
@@ -240,6 +252,8 @@ class ExternalCalendarRepository {
     _readAttempts.clear();
     _observedRanges.clear();
     _visibleOwner = null;
+    _readFailures.clear();
+    _notifyReadState();
   }
 
   final Set<void Function(DateTime, DateTime)> _rangeListeners = {};
@@ -248,7 +262,45 @@ class ExternalCalendarRepository {
   void removeVisibleRangeListener(void Function(DateTime, DateTime) listener) =>
       _rangeListeners.remove(listener);
   int _projectionGeneration = 0;
-  ExternalCalendarFailure? readFailure;
+  final Map<String, ExternalCalendarFailure> _readFailures = {};
+  final Set<void Function()> _readStateListeners = {};
+  ExternalCalendarFailure? get readFailure =>
+      _visibleOwner != accountId || _readFailures.isEmpty
+      ? null
+      : _readFailures.values.first;
+  void addReadStateListener(void Function() listener) =>
+      _readStateListeners.add(listener);
+  void removeReadStateListener(void Function() listener) =>
+      _readStateListeners.remove(listener);
+  void _notifyReadState() {
+    // A cache owner may be reset during a Calendar build. Publish presentation
+    // changes after that frame's synchronous work, just like range invalidation.
+    scheduleMicrotask(() {
+      for (final listener in List.of(_readStateListeners)) {
+        listener();
+      }
+    });
+  }
+
+  /// Retry failed projection reads without reconnecting or reimporting Google.
+  Future<void> retryReads() async {
+    final owner = accountId;
+    final generation = _projectionGeneration;
+    if (owner == null) return;
+    for (final key in List.of(_readFailures.keys)) {
+      if (owner != accountId || generation != _projectionGeneration) return;
+      final range = _observedRanges[key];
+      final attemptKey = '$owner:$key';
+      if (range == null || !_readFlights.add(attemptKey)) continue;
+      _readAttempts[attemptKey] = DateTime.now();
+      try {
+        await _refreshRange(owner, key, range.from, range.until);
+      } finally {
+        _readFlights.remove(attemptKey);
+      }
+    }
+  }
+
   String? get accountId =>
       _currentAccount != null ? _currentAccount() : client.auth.currentUser?.id;
 
@@ -353,7 +405,9 @@ class ExternalCalendarRepository {
     _observedRanges.remove(key);
     _observedRanges[key] = ExternalCalendarRange(from.toUtc(), until.toUtc());
     while (_observedRanges.length > 64) {
-      _observedRanges.remove(_observedRanges.keys.first);
+      final oldest = _observedRanges.keys.first;
+      _observedRanges.remove(oldest);
+      if (_readFailures.remove(oldest) != null) _notifyReadState();
     }
     for (final listener in List.of(_rangeListeners)) {
       listener(from, until);
@@ -552,7 +606,7 @@ class ExternalCalendarRepository {
           before != _visibleFingerprint(owner, from, until)) {
         _publish(ranges: [ExternalCalendarRange(from.toUtc(), until.toUtc())]);
       }
-      readFailure = null;
+      if (_readFailures.remove(key) != null) _notifyReadState();
     } catch (failure) {
       if (accountId != owner || generation != _projectionGeneration) return;
       if (failure is WarmAccessDenied) {
@@ -567,10 +621,13 @@ class ExternalCalendarRepository {
         );
         _publish();
       }
-      readFailure = ExternalCalendarFailure(
-        code: failure.runtimeType.toString(),
-        retryable: true,
-      );
+      if (_observedRanges.containsKey(key)) {
+        _readFailures[key] = ExternalCalendarFailure(
+          code: failure.runtimeType.toString(),
+          retryable: true,
+        );
+        _notifyReadState();
+      }
       // Keep the last complete snapshot; never publish failure as [].
     } finally {
       if (!accessRevoked &&

@@ -12,13 +12,16 @@ class ExternalCalendarController extends ChangeNotifier
     this.repository, {
     this.retryInterval = const Duration(minutes: 1),
     DateTime Function()? now,
-  }) : _now = now ?? DateTime.now;
+  }) : _now = now ?? DateTime.now {
+    repository.addReadStateListener(_readStateChanged);
+  }
   final ExternalCalendarRepository repository;
   final Duration retryInterval;
   final DateTime Function() _now;
   ExternalCalendarStatus? status;
   ExternalCalendarFailure? error;
   bool busy = false, choosingCalendars = false;
+  bool _chooseAfterConnection = false;
   Set<String> selectedSourceIds = {};
   Timer? _timer;
   Timer? _rangeTimer;
@@ -40,10 +43,26 @@ class ExternalCalendarController extends ChangeNotifier
     busy = false;
     choosingCalendars = false;
     selectedSourceIds = {};
+    _chooseAfterConnection = false;
     _lastAttempt = null;
     _rangeRetryAt.clear();
     _rangeTimer?.cancel();
     _pendingRange = null;
+  }
+
+  ExternalCalendarFailure? get readFailure => repository.readFailure;
+
+  void _readStateChanged() {
+    _checkAccount();
+    _notify();
+  }
+
+  Future<void> retryReads() async {
+    _checkAccount();
+    final importFailure = error;
+    await _run(repository.retryReads, (_) {
+      error = importFailure;
+    });
   }
 
   void _notify() {
@@ -125,7 +144,26 @@ class ExternalCalendarController extends ChangeNotifier
   Future<void> loadStatus() async {
     _checkAccount();
     if (choosingCalendars) return;
+    final owner = accountId;
+    final generation = _generation;
     await _run(() => repository.statusCommand('status'), _acceptServerStatus);
+    if (_current(generation, owner) &&
+        !busy &&
+        _chooseAfterConnection &&
+        error == null &&
+        status?.connected == true &&
+        status?.requiresReconnect != true &&
+        status?.hasSelection == false) {
+      _chooseAfterConnection = false;
+      await chooseCalendars();
+    }
+    if (status?.hasSelection == true) _chooseAfterConnection = false;
+  }
+
+  Future<void> finishConnection() async {
+    _checkAccount();
+    _chooseAfterConnection = true;
+    await loadStatus();
   }
 
   Future<Uri?> connect() async => _run(() async {
@@ -180,6 +218,7 @@ class ExternalCalendarController extends ChangeNotifier
     if (busy) return;
     choosingCalendars = false;
     selectedSourceIds = {};
+    _chooseAfterConnection = false;
     _notify();
   }
 
@@ -311,6 +350,7 @@ class ExternalCalendarController extends ChangeNotifier
         pending == null ||
         status?.available != true ||
         status?.syncing == true ||
+        status?.hasSelection != true ||
         status?.automatic != true ||
         status?.requiresReconnect == true ||
         (status?.retryAt?.isAfter(_now()) ?? false)) {
@@ -366,6 +406,7 @@ class ExternalCalendarController extends ChangeNotifier
         (error != null && status?.errorCode == null) ||
         status?.available != true ||
         status?.syncing == true ||
+        status?.hasSelection != true ||
         status?.automatic != true ||
         status?.requiresReconnect == true ||
         (status?.retryAt?.isAfter(_now()) ?? false)) {
@@ -402,11 +443,13 @@ class ExternalCalendarController extends ChangeNotifier
     busy = false;
     choosingCalendars = false;
     selectedSourceIds = {};
+    _chooseAfterConnection = false;
     _notify();
   }
 
   @override
   void dispose() {
+    repository.removeReadStateListener(_readStateChanged);
     stop();
     _disposed = true;
     super.dispose();

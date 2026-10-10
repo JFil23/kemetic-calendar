@@ -151,7 +151,9 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text('Apple Calendar import is not available in this build.'),
+        find.text(
+          'Device calendars require the Hꜣw mobile app. This web app imports calendars from your connected Google account.',
+        ),
         findsOneWidget,
       );
       expect(find.byType(ElevatedButton), findsNothing);

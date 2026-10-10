@@ -8,6 +8,7 @@ enum ExternalCalendarPanelState {
   loading,
   choosing,
   selectionChanged,
+  needsSelection,
   connected,
   refreshing,
   paused,
@@ -39,6 +40,9 @@ class ExternalCalendarPanel extends StatelessWidget {
     required this.state,
     this.accountLabel,
     this.lastUpdatedLabel,
+    this.importedEventCount,
+    this.readFailed = false,
+    this.onRetryRead,
     this.selectionRecoveryMessage,
     this.calendars = const [],
     this.automaticImport = true,
@@ -60,6 +64,9 @@ class ExternalCalendarPanel extends StatelessWidget {
   final ExternalCalendarPanelState state;
   final String? accountLabel;
   final String? lastUpdatedLabel;
+  final int? importedEventCount;
+  final bool readFailed;
+  final VoidCallback? onRetryRead;
   final String? selectionRecoveryMessage;
   final List<ExternalCalendarChoice> calendars;
   final bool automaticImport, hasConnection;
@@ -85,6 +92,7 @@ class ExternalCalendarPanel extends StatelessWidget {
   bool get _hasConnection =>
       hasConnection &&
       switch (state) {
+        ExternalCalendarPanelState.needsSelection ||
         ExternalCalendarPanelState.connected ||
         ExternalCalendarPanelState.refreshing ||
         ExternalCalendarPanelState.paused ||
@@ -139,7 +147,7 @@ class ExternalCalendarPanel extends StatelessWidget {
             Text(
               appleImportAvailable
                   ? 'Import from calendars on this iPhone.'
-                  : 'Apple Calendar import is not available in this build.',
+                  : 'Device calendars require the Hꜣw mobile app. This web app imports calendars from your connected Google account.',
               style: const TextStyle(color: Colors.white60, height: 1.4),
             ),
             if (appleImportAvailable) ...[
@@ -207,6 +215,8 @@ class ExternalCalendarPanel extends StatelessWidget {
         'Connect Google, then choose which calendars to import.',
       ExternalCalendarPanelState.loading =>
         'Checking your calendar connection…',
+      ExternalCalendarPanelState.needsSelection =>
+        'Google is connected. Choose at least one calendar to start importing.',
       ExternalCalendarPanelState.connected =>
         lastUpdatedLabel == null
             ? 'Connected. Ready for your first import.'
@@ -236,6 +246,29 @@ class ExternalCalendarPanel extends StatelessWidget {
           style: const TextStyle(color: Colors.white70, height: 1.4),
         ),
       ),
+      if (importedEventCount != null &&
+          _hasConnection &&
+          state != ExternalCalendarPanelState.needsSelection) ...[
+        const SizedBox(height: 6),
+        Text(
+          '$importedEventCount imported ${importedEventCount == 1 ? 'event' : 'events'} in Hꜣw · ${calendars.where((c) => c.selected).length} selected calendars',
+          style: const TextStyle(color: Colors.white60, height: 1.4),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Import checks the past 30 days and next 6 months. With automatic import on, other dates update when you view them.',
+          style: TextStyle(color: Colors.white60, height: 1.4),
+        ),
+      ],
+      if (readFailed) ...[
+        const SizedBox(height: 12),
+        const Text(
+          'Imported events could not be loaded. Any saved copies remain visible.',
+          style: TextStyle(color: Colors.white70, height: 1.4),
+        ),
+        const SizedBox(height: 8),
+        _secondaryAction('Retry loading events', _busy ? null : onRetryRead),
+      ],
       if (_busy) ...[
         const SizedBox(height: 12),
         const LinearProgressIndicator(
@@ -245,9 +278,11 @@ class ExternalCalendarPanel extends StatelessWidget {
           semanticsLabel: 'Calendar import in progress',
         ),
       ],
-      if (_hasConnection) ...[
+      if (_hasConnection &&
+          state != ExternalCalendarPanelState.needsSelection) ...[
         if (lastUpdatedLabel != null &&
-            state != ExternalCalendarPanelState.connected) ...[
+            state != ExternalCalendarPanelState.connected &&
+            state != ExternalCalendarPanelState.needsSelection) ...[
           const SizedBox(height: 6),
           Text(
             'Last updated $lastUpdatedLabel',
@@ -274,6 +309,8 @@ class ExternalCalendarPanel extends StatelessWidget {
       ] else if (!_busy) ...[
         const SizedBox(height: 16),
       ],
+      if (state == ExternalCalendarPanelState.needsSelection)
+        _primaryAction('Choose calendars', onChooseCalendars),
       if (state == ExternalCalendarPanelState.selectionChanged)
         _primaryAction('Choose calendars again', onChooseCalendars),
       if (state == ExternalCalendarPanelState.disconnected)
@@ -283,6 +320,7 @@ class ExternalCalendarPanel extends StatelessWidget {
       if (state == ExternalCalendarPanelState.offline)
         _primaryAction('Retry', onRetry),
       if (_hasConnection &&
+          state != ExternalCalendarPanelState.needsSelection &&
           state != ExternalCalendarPanelState.offline &&
           state != ExternalCalendarPanelState.reconnectRequired)
         _primaryAction(
@@ -291,7 +329,11 @@ class ExternalCalendarPanel extends StatelessWidget {
         ),
       if (_hasConnection) ...[
         const SizedBox(height: 8),
-        _secondaryAction('Choose calendars', _busy ? null : onChooseCalendars),
+        if (state != ExternalCalendarPanelState.needsSelection)
+          _secondaryAction(
+            'Choose calendars',
+            _busy ? null : onChooseCalendars,
+          ),
         const SizedBox(height: 8),
         _secondaryAction('Disconnect Google', _busy ? null : onDisconnect),
       ],

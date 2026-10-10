@@ -153,6 +153,61 @@ void main() {
     }
   }
 
+  for (final landscape in [false, true]) {
+    for (final scale in [1.0, 2.0]) {
+      testWidgets(
+        'all-day lane ${landscape ? 'landscape' : 'portrait'} ${scale}x',
+        (tester) async {
+          _viewport(tester, landscape: landscape);
+          await tester.pumpWidget(
+            _CalendarHarness(
+              scale: scale,
+              note: _note(
+                clientEventId: 'external:holiday',
+                title: 'Lottery Winner',
+                category: 'external_calendar',
+                calendarName: 'Personal',
+                allDay: true,
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final lane = find.byKey(const ValueKey('day-view-all-day-events'));
+          expect(lane, findsOneWidget);
+          expect(
+            find.descendant(
+              of: lane,
+              matching: find.byType(CalendarDayEventBlock),
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(
+              of: find.byKey(dayViewTimelineEventLayerKey),
+              matching: find.byType(CalendarDayEventBlock),
+            ),
+            findsNothing,
+          );
+          expect(find.text('Lottery Winner').hitTestable(), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          if (_captureImportedDetail) {
+            await expectLater(
+              find.byType(Overlay).first,
+              matchesGoldenFile(
+                '/tmp/haw-all-day-lane-${landscape ? 'landscape' : 'portrait'}-${scale}x.png',
+              ),
+            );
+          }
+          await tester.tap(find.text('Lottery Winner'));
+          await tester.pumpAndSettle();
+          expect(find.byType(BottomSheet), findsOneWidget);
+          expect(find.byTooltip('Event options'), findsNothing);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
   for (final event in [
     (cid: 'native:all-day', category: 'native_sync', allDay: true),
     (cid: 'manual:all-day', category: 'Personal', allDay: true),

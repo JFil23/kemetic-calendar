@@ -27,6 +27,53 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final from = DateTime.utc(2026, 10), until = DateTime.utc(2026, 11);
   test(
+    'read failures survive successful sibling ranges and retry the existing reader',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      await WarmSnapshotStore.instance.forgetAccount(uid);
+      var failOctober = true;
+      final requests = <String>[];
+      final client = SupabaseClient(
+        'https://example.supabase.co',
+        'key',
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+        httpClient: MockClient((request) async {
+          final start = jsonDecode(request.body)['p_from'] as String;
+          requests.add(start);
+          return http.Response(
+            failOctober && start.startsWith('2026-10')
+                ? '{"message":"offline"}'
+                : '[]',
+            failOctober && start.startsWith('2026-10') ? 503 : 200,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          );
+        }),
+      );
+      await client.auth.recoverSession(session());
+      final repository = ExternalCalendarRepository(client, lane: 'staging');
+      var notifications = 0;
+      repository.addReadStateListener(() => notifications++);
+      await repository.visibleEvents(from, until);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(repository.readFailure, isNotNull);
+      await repository.visibleEvents(until, DateTime.utc(2026, 12));
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(repository.readFailure, isNotNull);
+      failOctober = false;
+      await repository.retryReads();
+      expect(repository.readFailure, isNull);
+      expect(requests.where((s) => s.startsWith('2026-10')), hasLength(2));
+      expect(requests.where((s) => s.startsWith('2026-11')), hasLength(1));
+      expect(notifications, greaterThanOrEqualTo(2));
+      repository.forgetPresentation();
+      expect(repository.readFailure, isNull);
+      await client.dispose();
+      await WarmSnapshotStore.instance.forgetAccount(uid);
+    },
+  );
+
+  test(
     'civil dates preserve the local date and exclusive end; invalid dates fail',
     () {
       final row = {
