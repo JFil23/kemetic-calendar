@@ -1,0 +1,65 @@
+<!-- Hꜣw app icon: exact vector definitions from haw_app_icon_mockup_v6.html.
+     Reference SHA-256: 3c5f9a262ce2c31a3af44250bd3122eec797c80a301ce5873dcace0a4958bc02
+     Canonical source for scripts/generate_app_icons.cjs. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+    <defs>
+      <linearGradient id="woodless-mahogany" x1="0%" y1="0%" x2="10%" y2="100%">
+        <stop offset="0" stop-color="#583525" />
+        <stop offset="0.36" stop-color="#4b2c20" />
+        <stop offset="0.72" stop-color="#392017" />
+        <stop offset="1" stop-color="#271510" />
+      </linearGradient>
+      <radialGradient id="candle-splash" cx="52%" cy="42%" r="61%" fx="48%" fy="39%">
+        <stop offset="0" stop-color="#ffc780" stop-opacity=".25" />
+        <stop offset=".23" stop-color="#e6a36e" stop-opacity=".16" />
+        <stop offset=".52" stop-color="#b5683b" stop-opacity=".06" />
+        <stop offset="1" stop-color="#9e472d" stop-opacity="0" />
+      </radialGradient>
+      <radialGradient id="soft-burgundy" cx="11%" cy="93%" r="69%">
+        <stop offset="0" stop-color="#752b34" stop-opacity=".17" />
+        <stop offset=".38" stop-color="#64272a" stop-opacity=".05" />
+        <stop offset="1" stop-color="#531d20" stop-opacity="0" />
+      </radialGradient>
+      <radialGradient id="edge-vignette" cx="50%" cy="46%" r="72%">
+        <stop offset=".40" stop-color="#0b0403" stop-opacity="0" />
+        <stop offset="1" stop-color="#080303" stop-opacity=".18" />
+      </radialGradient>
+      <radialGradient id="wordmark-halo" cx="49%" cy="46%" r="46%">
+        <stop offset="0" stop-color="#ffcf8b" stop-opacity=".12" />
+        <stop offset=".45" stop-color="#e4aa71" stop-opacity=".065" />
+        <stop offset="1" stop-color="#e4aa71" stop-opacity="0" />
+      </radialGradient>
+      <!-- Static metallic illumination; deliberately no animated shimmer. -->
+      <linearGradient id="warm-gold" gradientUnits="userSpaceOnUse" x1="22" y1="0" x2="214" y2="0">
+        <stop offset="0" stop-color="#d09c2f" />
+        <stop offset=".10" stop-color="#e1b63c" />
+        <stop offset=".27" stop-color="#dfba51" />
+        <stop offset=".385" stop-color="#fff0c2" />
+        <stop offset=".52" stop-color="#fff3ca" />
+        <stop offset=".69" stop-color="#fff0bd" />
+        <stop offset=".87" stop-color="#f0dc9a" />
+        <stop offset="1" stop-color="#deb95b" />
+      </linearGradient>
+      <filter id="ambient-glow" x="-40%" y="-50%" width="180%" height="200%" color-interpolation-filters="sRGB">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="2.6" />
+      </filter>
+      <g id="wordmark-paths">
+           <path d="M61.771 119V115.765Q70.133 113.568 70.133 112.042V81.585Q70.133 74.139 68.333 71.759Q66.532 69.378 62.626 69.378Q58.659 69.378 53.684 73.01Q48.71 76.642 43.583 83.661V112.042Q43.583 112.958 45.811 113.934Q48.039 114.911 52.006 115.765V119H24.235V115.765Q28.263 114.728 30.43 113.873Q32.597 113.019 32.597 112.042V40.387Q32.597 36.969 32.139 35.443Q31.681 33.917 29.911 33.337Q28.141 32.757 24.235 32.33V29.278Q29.972 28.302 33.665 27.234Q37.357 26.166 41.203 24.396L43.583 26.593V75.238Q49.442 68.158 56.156 64.282Q62.87 60.406 67.631 60.406Q72.88 60.406 77 63.763Q81.12 67.12 81.12 74.505V112.042Q81.12 112.835 82.92 113.69Q84.721 114.544 89.542 115.765V119ZM63.664 135.907Q63.664 139.691 61.375 142.376Q59.086 145.062 55.79 145.062Q49.931 145.062 49.931 138.653Q49.931 134.869 52.281 132.214Q54.63 129.559 57.804 129.559Q63.664 129.559 63.664 135.907Z" />
+           <path d="M109.379 60.406Q114.445 60.956 116.703 63.55Q118.961 66.144 118.961 69.623Q118.961 74.078 114.414 79.358Q109.867 84.637 99.796 89.154L97.721 87.384Q103.947 84.271 106.022 80.792Q108.097 77.313 108.097 74.261Q108.097 71.026 105.412 68.554Q102.726 66.083 96.562 66.327L95.951 64.312Q96.684 63.885 99.461 62.97Q102.238 62.054 105.198 61.23Q108.158 60.406 109.379 60.406ZM109.379 92.022Q114.445 92.572 116.703 95.196Q118.961 97.821 118.961 101.3Q118.961 105.755 114.414 111.004Q109.867 116.253 99.796 120.831L97.721 119.061Q103.947 115.887 106.022 112.408Q108.097 108.929 108.097 105.938Q108.097 102.704 105.412 100.201Q102.726 97.699 96.562 98.004L95.951 95.929Q96.684 95.501 99.461 94.586Q102.238 93.67 105.198 92.877Q108.158 92.083 109.379 92.022Z" />
+           <path d="M211.125 65.472Q207.462 66.327 206.425 67.09Q205.387 67.853 205.021 69.256L191.532 115.399Q191.044 117.169 189.365 118.298Q187.687 119.427 185.886 120.007Q184.086 120.587 183.048 120.831L166.935 78.045L168.156 62.237Q168.156 62.237 169.804 62.237Q171.452 62.237 172.184 62.237L187.87 104.718L197.819 69.256Q198.185 67.853 196.842 66.998Q195.5 66.144 191.288 65.472V62.237H211.125ZM155.705 115.399Q154.789 118.207 151.89 119.336Q148.991 120.465 147.404 120.831L131.291 69.256Q130.619 66.815 124.638 65.472V62.237H149.54V65.472Q143.803 66.083 142.796 67.09Q141.789 68.097 142.216 69.256L152.897 104.718L167.79 62.237Q168.644 62.237 170.048 62.237Q171.452 62.237 171.452 62.237L172.428 69.867Z" />
+      </g>
+      <symbol id="full-icon" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" fill="url(#woodless-mahogany)" />
+        <rect width="1024" height="1024" fill="url(#candle-splash)" />
+        <rect width="1024" height="1024" fill="url(#soft-burgundy)" />
+        <rect width="1024" height="1024" fill="url(#edge-vignette)" />
+        <rect width="1024" height="1024" fill="url(#wordmark-halo)" />
+        <g transform="translate(4 146) scale(4.33)">
+          <use href="#wordmark-paths" fill="#ffe5a6" opacity=".25" filter="url(#ambient-glow)" />
+          <use href="#wordmark-paths" fill="url(#warm-gold)" />
+        </g>
+      </symbol>
+    </defs>
+  <use href="#full-icon"/>
+</svg>
+
