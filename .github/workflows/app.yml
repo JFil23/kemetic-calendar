@@ -4,7 +4,12 @@ permissions:
   contents: read
 
 on:
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact canonical candidate commit to qualify
+        required: true
+        type: string
   push:
     branches:
       - rc
@@ -103,11 +108,12 @@ jobs:
 
   app-gate:
     name: LOCK-GATE app authority and complete suite
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       PYTHONDONTWRITEBYTECODE: "1"
-      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
       # Calendar fixtures and approved visual baselines author civil dates in
       # the product's Pacific reference zone. Never inherit the runner locale.
       TZ: America/Los_Angeles
@@ -118,11 +124,12 @@ jobs:
           fetch-depth: 0
           # A gate attached to commit A must never race forward and test a
           # newer branch head B. Deployment trusts this exact-SHA result.
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Reject competing app authorities
         run: |
           set -euo pipefail
+          case "$GITHUB_REF_NAME" in rc|production) ;; *) exit 1 ;; esac
           test ! -e .gitmodules
           test -z "$(git ls-files --stage | awk '$1 == "160000" {print}')"
           test "$(git worktree list --porcelain | grep -c '^worktree ')" -eq 1
@@ -136,41 +143,16 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install exact locked dependencies
-        run: flutter pub get --enforce-lockfile
+      - name: Run the complete release gate once
+        run: python3 scripts/app_gate.py full --log-dir "$RUNNER_TEMP/app-gate"
 
-      - name: Run deterministic release and served-artifact contracts
-        run: |
-          set -euo pipefail
-          node --test scripts/web_bootstrap_test.mjs
-          python3 scripts/web_release_pipeline_test.py
-          python3 scripts/maat_visual_contract_test.py
-          python3 scripts/netjeru_art_contract_test.py
-          python3 scripts/warm_state_contract_test.py
-          python3 scripts/flow_detail_authority_contract_test.py
-          python3 scripts/validate_deep_links_test.py
-          python3 scripts/served_artifact_verifier_test.py
-          python3 scripts/public_site_test.py
-          python3 -m py_compile \
-            scripts/maat_visual_contract_test.py \
-            scripts/web_release_pipeline.py \
-            scripts/web_release_pipeline_test.py \
-            scripts/served_artifact_verifier.py \
-            scripts/served_artifact_verifier_test.py
-          bash -n scripts/build_web_release.sh scripts/deploy_cloudflare_pages.sh
-          python3 -m json.tool config/web/staging.public.json >/dev/null
-          python3 -m json.tool config/web/production.public.json >/dev/null
-          python3 -m json.tool config/web/cloudflare-served-contract.v1.json >/dev/null
-          python3 -m json.tool config/web/environment-delta-contract.v1.json >/dev/null
-
-      - name: Analyze the app
-        run: flutter analyze --no-fatal-infos
-
-      - name: Verify real browser session diagnostics and quota recovery
-        run: flutter test --platform chrome test/widgets/boot_storage_browser_test.dart test/services/restoration_quota_browser_test.dart test/widgets/kemetic_web_keyboard_browser_test.dart
-
-      - name: Run the complete app test suite
-        run: flutter test
+      - name: Preserve gate results and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-gate-${{ github.sha }}
+          path: ${{ runner.temp }}/app-gate
+          retention-days: 7
 
       - name: Prove generated metadata is the only checkout mutation
         if: always()

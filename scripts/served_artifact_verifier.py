@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+from concurrent.futures import ThreadPoolExecutor
 import fnmatch
 import hashlib
 import http.server
@@ -30,6 +31,7 @@ CONTRACT_PATH = "config/web/cloudflare-served-contract.v1.json"
 VERIFICATION_AUTHORITY_PATHS = (
     "config/web/cloudflare-served-contract.v1.json",
     "scripts/deploy_cloudflare_pages.sh",
+    "scripts/deploy_web_release.py",
     "scripts/served_artifact_verifier.py",
 )
 CANONICAL_LANES = {
@@ -535,7 +537,9 @@ def _require_body(
     cache: dict[str, HttpResult],
 ) -> dict[str, Any]:
     url = origin + request_path
-    response = cache.setdefault(url, fetcher(url))
+    if url not in cache:
+        cache[url] = fetcher(url)
+    response = cache[url]
     if response.status != 200:
         raise ServedVerificationError(
             f"Expected body status 200 for {url}; received {response.status}."
@@ -574,7 +578,9 @@ def _require_redirect(
     request_url = origin + request_path
     if request_path == destination:
         raise ServedVerificationError(f"Self-redirect is forbidden: {request_url}")
-    response = cache.setdefault(request_url, fetcher(request_url))
+    if request_url not in cache:
+        cache[request_url] = fetcher(request_url)
+    response = cache[request_url]
     if response.url != request_url:
         raise ServedVerificationError(f"Redirect changed request URL: {request_url}")
     if response.status != status:
@@ -622,7 +628,9 @@ def _require_public_redirect(
     ):
         raise ServedVerificationError("Public redirect escapes its declared website authority.")
     request_url = origin + request_path
-    response = cache.setdefault(request_url, fetcher(request_url))
+    if request_url not in cache:
+        cache[request_url] = fetcher(request_url)
+    response = cache[request_url]
     if response.url != request_url:
         raise ServedVerificationError(f"Public redirect followed a different URL: {request_url}")
     if response.status != status:
@@ -676,7 +684,13 @@ def verify_served_origin(
         "pages_controls": len(classification["pages_controls"]),
         "total": len(manifest),
     }
-    cache: dict[str, HttpResult] = {}
+    # Each declared body is still fetched and checked exactly once. Bounded
+    # concurrency removes one network round trip per asset from the critical path.
+    urls = [origin + request_path_for_manifest_path(path)
+            for path in classification["body_paths"]]
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        responses = list(executor.map(fetcher, urls))
+    cache: dict[str, HttpResult] = dict(zip(urls, responses))
     body_results = []
     for manifest_path in classification["body_paths"]:
         result = _require_body(
@@ -1001,10 +1015,12 @@ def preflight_deployment_target(
     project: str,
     branch: str,
     contract_path: Path,
+    extract_to: Path | None = None,
 ) -> dict[str, Any]:
     receipt = release.verify_release(
         release_dir,
         expected_archive_sha256=expected_archive_sha256,
+        extract_to=extract_to,
     )
     manifest = release.parse_manifest(
         release_dir / receipt["payload"]["manifest_file"]
@@ -1048,12 +1064,6 @@ def record_upload_attempt(
     upload_status: int,
     contract_path: Path,
 ) -> dict[str, Any]:
-    if not re.fullmatch(r"\d+\.\d+\.\d+", wrangler_version):
-        raise ServedVerificationError("Wrangler version must be exact.")
-    if upload_status < 0 or upload_status > 255:
-        raise ServedVerificationError("Wrangler exit status is invalid.")
-    if not upload_result_path.is_file():
-        raise ServedVerificationError("Wrangler upload result is missing.")
     preflight = preflight_deployment_target(
         release_dir=release_dir,
         expected_archive_sha256=expected_archive_sha256,
@@ -1061,6 +1071,23 @@ def record_upload_attempt(
         branch=branch,
         contract_path=contract_path,
     )
+    return _record_verified_upload_attempt(
+        preflight=preflight, wrangler_version=wrangler_version,
+        upload_result_path=upload_result_path, upload_status=upload_status,
+    )
+
+
+def _record_verified_upload_attempt(
+    *, preflight: Mapping[str, Any], wrangler_version: str,
+    upload_result_path: Path, upload_status: int,
+) -> dict[str, Any]:
+    """Reuse an in-process preflight; never accept an unchecked receipt via CLI."""
+    if not re.fullmatch(r"\d+\.\d+\.\d+", wrangler_version):
+        raise ServedVerificationError("Wrangler version must be exact.")
+    if upload_status < 0 or upload_status > 255:
+        raise ServedVerificationError("Wrangler exit status is invalid.")
+    if not upload_result_path.is_file():
+        raise ServedVerificationError("Wrangler upload result is missing.")
     return {
         "schema_version": 1,
         "preflight": preflight,

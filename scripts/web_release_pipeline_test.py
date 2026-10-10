@@ -416,42 +416,20 @@ class BuildOrchestrationTest(unittest.TestCase):
         self.assertNotIn("shutil.copyfile(source, raw_root", finalize_source)
         self.assertIn("require_compiled_web_matches_materialization", finalize_source)
 
-    def test_deployment_flow_requires_both_served_verifications(self) -> None:
-        deploy = (
-            REPO_ROOT / "scripts/deploy_cloudflare_pages.sh"
-        ).read_text(encoding="utf-8")
-        self.assertIn("served_artifact_verifier.py verify", deploy)
-        self.assertIn("served_artifact_verifier.py preflight-target", deploy)
-        self.assertIn("assert-canonical-source", deploy)
-        self.assertIn("assert-green-app-gate", deploy)
-        self.assertLess(
-            deploy.index("assert-green-app-gate"),
-            deploy.index('"${CMD[@]}"'),
-        )
-        self.assertLess(
-            deploy.index("served_artifact_verifier.py preflight-target"),
-            deploy.index('"${CMD[@]}"'),
-        )
-        self.assertIn("--immutable-url", deploy)
-        self.assertIn("--alias-url", deploy)
-        self.assertIn('PROJECT="kemet-rc"', deploy)
-        self.assertIn('PROJECT="kemet"', deploy)
-        self.assertEqual(deploy.count('CLOUDFLARE_BRANCH="main"'), 2)
-        self.assertIn("--project-name\n  \"$PROJECT\"\n  --branch\n  \"$CLOUDFLARE_BRANCH\"", deploy)
-        self.assertIn("pages deployment list", deploy)
-        self.assertIn("--environment production", deploy)
-        self.assertIn("--deployment-metadata", deploy)
-        self.assertIn("record-upload-attempt", deploy)
-        self.assertLess(
-            deploy.index("record-upload-attempt"),
-            deploy.index('if [[ "$WRANGLER_STATUS" -ne 0 ]]'),
-        )
-        self.assertIn("web-deployment-receipts", deploy)
-        self.assertNotIn('SERVED_RECEIPT="$RELEASE_DIR/', deploy)
-        self.assertNotIn("git branch", deploy.lower())
-        self.assertNotIn("symbolic-ref", deploy.lower())
-        self.assertNotIn("TARGET_BRANCH", deploy)
-        self.assertNotIn("retry", deploy.lower())
+    def test_deployment_flow_has_one_owner_and_no_rebuild_path(self) -> None:
+        # Target mapping, gate-before-upload, snapshot mutation, both origins,
+        # failed-upload receipts and no recovery are exercised behaviorally by
+        # deploy_web_release_test; keep the shell boundary bound to that owner.
+        deploy = (REPO_ROOT / "scripts/deploy_cloudflare_pages.sh").read_text()
+        self.assertIn('exec python3 scripts/deploy_web_release.py "$@"', deploy)
+        self.assertNotIn('flutter', deploy)
+        owner = (REPO_ROOT / "scripts/deploy_web_release.py").read_text()
+        self.assertIn('served.CANONICAL_LANES[environment]', owner)
+        self.assertIn('served.verify_deployment(', owner)
+        self.assertIn('release.require_green_app_gate(', owner)
+        self.assertIn('release.require_canonical_release_source(', owner)
+        self.assertIn('served.preflight_deployment_target(', owner)
+        self.assertNotIn('flutter', owner)
 
     def test_pinned_flutter_copies_materialized_version_after_generation(self) -> None:
         pipeline.verify_flutter_web_version_override_contract()
@@ -722,7 +700,7 @@ class ExactShaAppGateTest(unittest.TestCase):
         head_sha: str | None = None,
         head_branch: str = "rc",
         name: str = "App",
-        event: str = "push",
+        event: str = "workflow_dispatch",
     ) -> dict:
         return {
             "id": 123,
@@ -743,7 +721,7 @@ class ExactShaAppGateTest(unittest.TestCase):
         def fetch(url: str, *, environ: dict[str, str]) -> dict:
             self.assertIn(f"head_sha={self.commit}", url)
             self.assertIn("branch=rc", url)
-            self.assertIn("event=push", url)
+            self.assertIn("event=workflow_dispatch", url)
             self.assertEqual(environ, {})
             return {"workflow_runs": runs}
 
@@ -785,7 +763,7 @@ class ExactShaAppGateTest(unittest.TestCase):
                 [
                     self.run_fixture(head_branch="production"),
                     self.run_fixture(name="Other"),
-                    self.run_fixture(event="workflow_dispatch"),
+                    self.run_fixture(event="push"),
                 ]
             )
 
@@ -796,6 +774,21 @@ class ExactShaAppGateTest(unittest.TestCase):
         running["run_attempt"] = 2
         with self.assertRaisesRegex(pipeline.ReleaseInputError, "not green"):
             self.require([successful, running])
+
+
+    def test_newer_failed_run_supersedes_an_older_successful_rerun(self) -> None:
+        older = self.run_fixture()
+        older["run_attempt"] = 8
+        newer = self.run_fixture(conclusion="failure")
+        newer.update(id=124, run_number=43)
+        with self.assertRaisesRegex(pipeline.ReleaseInputError, "not green"):
+            self.require([older, newer])
+
+    def test_wrong_sha_and_skipped_runs_cannot_qualify(self) -> None:
+        with self.assertRaisesRegex(pipeline.ReleaseInputError, "No exact-SHA"):
+            self.require([self.run_fixture(head_sha="b" * 40)])
+        with self.assertRaisesRegex(pipeline.ReleaseInputError, "not green"):
+            self.require([self.run_fixture(conclusion="skipped")])
 
 
 class PreCompilationMaterializationTest(unittest.TestCase):

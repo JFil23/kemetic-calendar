@@ -1,3 +1,20 @@
+# Implementation and release verification
+
+Use `docs/release_workflow.md` for current verification and cutover procedure.
+During implementation, run `python3 scripts/app_gate.py changed --base HEAD` plus
+visual inspection of changed UI. The selection includes staged, unstaged and
+untracked files. Inspect it and add relevant behavior/visual tests for boundaries
+that imports cannot express. Do not automatically repeat the entire Flutter suite
+locally before its mandatory hosted release gate. Re-run for changed inputs or
+failures. Preserve all existing assertions, fixtures and approved visual references.
+
+The complete exact-commit, exact-lane App gate remains mandatory before deployment.
+Request it once when a candidate is ready; reuse its unchanged successful result.
+An App changes result never qualifies a release. The full-detail checks below
+apply to changes to that owner or its entry boundaries, not unrelated edits.
+Backend and additional cutover checks apply to changed compatibility boundaries.
+Historical cutover plans are evidence and impose no additional release gates.
+
 # RC persistence and warm-state contract
 
 These requirements supplement the Hꜣw authority card and four global coding laws.
