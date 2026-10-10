@@ -52,8 +52,12 @@ A successful focused check, PR check, skipped job, different lane or different
 commit cannot qualify release.
 The complete gate retains the full Flutter suite, browser tests, analyzer and
 release/ownership contracts. Contracts, analysis and browser tests run once.
-Flutter partitions the complete `test` tree across four parallel GitHub jobs
-using `--total-shards 4` and the unique indices 0–3. Qualification checks each
+The gate discovers every `*_test.dart` file under `test/` and distributes the
+sorted inventory across four parallel GitHub jobs using the unique indices 0–3.
+Each file runs once, and each worker compiles only its assigned files. The native
+Flutter case-sharding flags are deliberately not used because they load every
+file on every worker. The saved preflight inventory and per-shard file lists
+allow the completed run to be checked for exact coverage with no gaps or overlap. Qualification checks each
 shard's exact source, run attempt, pinned toolchain, successful tests and clean
 checkout. Missing, duplicate, skipped or failed shards cannot qualify release.
 The monolithic full-run command remains available for local diagnosis. Reuse its successful result while its inputs remain
