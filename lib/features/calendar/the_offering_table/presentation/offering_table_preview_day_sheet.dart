@@ -4,6 +4,9 @@ import '../../maat_flow_visual_tokens.dart';
 import '../../the_offering_table_flow.dart';
 import '../../../../widgets/keyboard_aware.dart';
 import 'offering_table_day_components.dart';
+import 'offering_table_day_contract.dart';
+import 'offering_table_day_instrument.dart';
+import 'offering_table_day_state.dart';
 import 'offering_table_presentation_copy.dart';
 
 Future<void> showOfferingTablePreviewDaySheet({
@@ -430,8 +433,10 @@ class _PracticeStage extends StatelessWidget {
                       word.trim().isNotEmpty &&
                       moveDone.skip(1).every((done) => done),
                 )
-              : _OfferingTableGenericInstrument(
-                  label: word.trim().isEmpty ? day.title : word.trim(),
+              : OfferingTableDayInstrument(
+                  contract: offeringTableDayViewContract(day.dayNumber),
+                  state: OfferingTableDayViewState(),
+                  now: DateTime.now(),
                 ),
         ),
         const SizedBox(width: 16),
@@ -645,92 +650,6 @@ class _ProvisionReturned extends StatelessWidget {
       ),
     );
   }
-}
-
-class _OfferingTableGenericInstrument extends StatelessWidget {
-  const _OfferingTableGenericInstrument({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _GenericOfferingInstrumentPainter(label),
-      child: const SizedBox.expand(),
-    );
-  }
-}
-
-class _GenericOfferingInstrumentPainter extends CustomPainter {
-  const _GenericOfferingInstrumentPainter(this.label);
-
-  final String label;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final glow = Rect.fromCenter(
-      center: Offset(size.width / 2, size.height * .52),
-      width: size.width * .95,
-      height: size.height * .58,
-    );
-    canvas.drawOval(
-      glow,
-      Paint()
-        ..shader = const RadialGradient(
-          colors: <Color>[Color(0x20F0C96A), Color(0x00F0C96A)],
-        ).createShader(glow),
-    );
-    final line = Paint()
-      ..color = OfferingTablePreviewDaySheet.gold
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.55;
-    final vessel = Path()
-      ..moveTo(size.width * .23, size.height * .38)
-      ..quadraticBezierTo(
-        size.width * .28,
-        size.height * .78,
-        size.width * .5,
-        size.height * .79,
-      )
-      ..quadraticBezierTo(
-        size.width * .72,
-        size.height * .78,
-        size.width * .77,
-        size.height * .38,
-      );
-    canvas.drawPath(vessel, line);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(size.width * .5, size.height * .38),
-        width: size.width * .54,
-        height: 14,
-      ),
-      line,
-    );
-    final text = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: const TextStyle(
-          color: Color(0x99E8B27C),
-          fontFamily: MaatFlowListTokens.fontFamily,
-          fontSize: 9,
-          fontStyle: FontStyle.italic,
-        ),
-      ),
-      textAlign: TextAlign.center,
-      textDirection: TextDirection.ltr,
-      maxLines: 2,
-      ellipsis: '…',
-    )..layout(maxWidth: size.width * .62);
-    text.paint(
-      canvas,
-      Offset((size.width - text.width) / 2, size.height * .51),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _GenericOfferingInstrumentPainter oldDelegate) =>
-      oldDelegate.label != label;
 }
 
 String _sheetDate(DateTime date) {
