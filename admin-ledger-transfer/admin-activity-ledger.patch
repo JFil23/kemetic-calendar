@@ -1,0 +1,4402 @@
+From 9cdd3fd3d5786709993d93f85abfdaba1f30f22d Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 11 Oct 2026 02:19:32 +0000
+Subject: [PATCH] Replace admin console with owner activity ledger
+
+Surface every profile in a day-grouped ledger that matches the
+approved mockup, reuse the staff-gated activity RPCs, raise the
+timeline ceiling, and ship a shell-only PWA install path.
+---
+ admin/index.html                              |   12 +-
+ admin/package.json                            |    3 +-
+ admin/public/icons/icon-192.png               |  Bin 0 -> 1681 bytes
+ admin/public/icons/icon-512.png               |  Bin 0 -> 4921 bytes
+ admin/public/icons/icon-maskable-192.png      |  Bin 0 -> 1500 bytes
+ admin/public/icons/icon-maskable-512.png      |  Bin 0 -> 4299 bytes
+ admin/public/manifest.webmanifest             |   39 +
+ admin/public/sw.js                            |   78 +
+ admin/src/app/App.tsx                         |   69 +-
+ .../features/ledger/ActivityLedgerPage.tsx    |  697 ++++++++
+ admin/src/features/ledger/LedgerIcons.tsx     |   45 +
+ admin/src/features/ledger/ledger-api.ts       |   90 +
+ .../src/features/ledger/ledger-model.test.ts  |  149 ++
+ admin/src/features/ledger/ledger-model.ts     |  323 ++++
+ admin/src/features/ledger/sample-people.ts    |  142 ++
+ admin/src/main.tsx                            |   13 +-
+ admin/src/styles/global.css                   | 1530 +++--------------
+ admin/tsconfig.json                           |    3 +-
+ ...61011120000_admin_activity_ledger_page.sql |  712 ++++++++
+ 19 files changed, 2588 insertions(+), 1317 deletions(-)
+ create mode 100644 admin/public/icons/icon-192.png
+ create mode 100644 admin/public/icons/icon-512.png
+ create mode 100644 admin/public/icons/icon-maskable-192.png
+ create mode 100644 admin/public/icons/icon-maskable-512.png
+ create mode 100644 admin/public/manifest.webmanifest
+ create mode 100644 admin/public/sw.js
+ create mode 100644 admin/src/features/ledger/ActivityLedgerPage.tsx
+ create mode 100644 admin/src/features/ledger/LedgerIcons.tsx
+ create mode 100644 admin/src/features/ledger/ledger-api.ts
+ create mode 100644 admin/src/features/ledger/ledger-model.test.ts
+ create mode 100644 admin/src/features/ledger/ledger-model.ts
+ create mode 100644 admin/src/features/ledger/sample-people.ts
+ create mode 100644 supabase/migrations/20261011120000_admin_activity_ledger_page.sql
+
+diff --git a/admin/index.html b/admin/index.html
+index d346ebf..8276b69 100644
+--- a/admin/index.html
++++ b/admin/index.html
+@@ -2,8 +2,16 @@
+ <html lang="en">
+   <head>
+     <meta charset="UTF-8" />
+-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-    <title>ḥꜣw Admin</title>
++    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
++    <meta name="theme-color" content="#171010" />
++    <meta name="description" content="ḥꜣw Admin — a quiet, chronological view of every user's activity." />
++    <meta name="apple-mobile-web-app-capable" content="yes" />
++    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
++    <meta name="apple-mobile-web-app-title" content="ḥꜣw Admin" />
++    <link rel="manifest" href="/manifest.webmanifest" />
++    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
++    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
++    <title>ḥꜣw / Admin — Activity</title>
+   </head>
+   <body>
+     <div id="root"></div>
+diff --git a/admin/package.json b/admin/package.json
+index 66b511a..debeee1 100644
+--- a/admin/package.json
++++ b/admin/package.json
+@@ -7,8 +7,9 @@
+     "dev": "vite --host 0.0.0.0",
+     "build": "tsc --noEmit && vite build",
+     "typecheck": "tsc --noEmit",
++    "test": "node --experimental-strip-types --test src/features/ledger/ledger-model.test.ts",
+     "guard:service-role": "bash scripts/guard-no-service-role.sh",
+-    "lint": "npm run typecheck && npm run guard:service-role"
++    "lint": "npm run typecheck && npm run guard:service-role && npm test"
+   },
+   "dependencies": {
+     "@supabase/supabase-js": "^2.45.1",
+diff --git a/admin/public/icons/icon-192.png b/admin/public/icons/icon-192.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..f5d9f51fd43feb17ca323abe052c456a1734f345
+GIT binary patch
+literal 1681
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/admin/public/icons/icon-512.png b/admin/public/icons/icon-512.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..c97cab9fab675c80bee2217a46498f2a0d96d016
+GIT binary patch
+literal 4921
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/admin/public/icons/icon-maskable-192.png b/admin/public/icons/icon-maskable-192.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..756a664d11f0673bc2e22dc6fd54bd03cc9a7378
+GIT binary patch
+literal 1500
+zcmcIkjW?887{Bje=1mzx$|SRcN!cWkq{NJ(K~_>6S=Fd@v>mJI1EVtY`iQZWiAwFJ
+zjP*5R*H^WPsZ5wvn#1(rBZ<Lc*Tj$=X_%RPIcGcj4|LA&-g}<s`JLz7^Zb7IW(Eb)
+zjSMXe0RTpRzTUy;DV|?27Ttq;VsHQ$6#994?PKMQz4OSj3^7aZ-}toF;kdqasjt<p
+zD`8x-%*)k8ckdKr83A#zM+ljl0{llG1u%Afx4Ozd!aStCy<K(c@zkT;T$g~oA0NgY
+z-!wkm{;GL*FOD&KrSK47uEHRjz9fF9)9V3_qf-qI<ZI?`_Jy9a{Yx}Z=^Nf=o626_
+z5Qc*y7;VYa^H#am$VP`1YBF1UYEmhh9eR70lTI9_AS;IP8kAa58%bz%!Q5aToA_us
+zvp3Md3vPrN;@9$M3$@c;CqhFr%rEeqNlIf{Kut4pd%WgGHL+($l`-S!jJ*-NF9>cm
+z>B7ogQN~2_P`<%QvX<Mg>kZHyIqn$h4pOPo#LZQ2Afom}t0-B5mmLbgaw0gJ1&^0r
+z#UmoEb0GbfJ9Mjb&X!Wjo@XS4(srhdoY^u4mgwr#ot52zL2E%eXXQ1D-BQq4UtVT%
+z6-N5|=n~jpUv_w=CS*+Af|K>0FLMYC9g7R?Gbqvvs-Fq5t4xgnd9%Ebp+uT1vb>RV
+z(XjJ?GicQ$3aG|U4fw3=TY_?41aKJFZb7;GfMwE$U=PD*`ux*-3ho|shVDI>9VvRS
+z-V|c~^P(W$EC&W%{%Y`GR<Wns;3W>kd>sdRG;zZB7@;1xpX-W96O8g46=zC}_>xKb
+zm4-S$eGp?C1-8v~WNRYbqJa1y3_4yWZ9ZBu*rrn5WhG7>zQ*Ys`&GnZvFs;BH8OVd
+z(GsP36mH%$^U@;Hab;hVMsriAnHp)MUU;jlx0w4$8Oy$upwzy3pTPMfDV<cSI&W%Y
+z*9ha0fDz7b_KLR!LJXMR393FLcQxpR${YvXy}rkQEZYAnpDBNgK%vvkN-9ZX%EZQl
+zFbW78gzw!cr{=n;vVHS-B+xN`cYPUqfAFlWzko7${Ydd5;D&+37XKl<46xP+DlRI4
+z&#J|sYvn>dybiGNf;EayRGUa3zKu2s#)_Q;S<>cwZV?2|X2Zw<8ak_DBdfvq%%M9K
+z(cJ*?D8eHdkq6$8+3x4;o6;1D=*bVmlKs?;(~_{7%JG5z{_-Yee9jphmth`Mbn+vQ
+zfJ*an;pLGvHp6nq7q9rI(d;|O&2R`+&>6Dp`DTKAO_j6ADg`$neVye=5&|{X3O5vY
+zc`@zp@d4i-lK#YS<#tyyM_-guR?x^MmW2&**Nym`8etXDU)}lb<T%;dl9o2^Q@Jyd
+zRHVn1C(7Z`5pC`{kmOxeeyp>`8*DRvU)WMxA7X>RHeKP8ex98fP2VJ@cyxkpw%95K
+z?g&ksp`>{lGb^U2^hloc4Sljph23be2im&hf+ThW?>QRuLgAWs$Sp>Min2T32bfr9
+z2A-%>)U<q+tadZKbc&>f3rT!Q>_qaEJRv3?SuTPa`>K1O@K_O)s&kqJHt7_uU|B;K
+zeq`I6iT*@(HNnQ^$c?QXwZ`lWfE8qj<!yAZv}8N?>9R&)1`Ep}LQ>}1wAR~R(xlEG
+zpXBcZ(Lb-;p~%^g`_SXL4CR`KnKp(J)lo3R=PdS#xH1*QGyRB5)b~*_*Xh;~WY!CQ
+eK`rwoFl(;dwWyfs8pK0?ZQ$n<=v}d$k@7DDYK!Us
+
+literal 0
+HcmV?d00001
+
+diff --git a/admin/public/icons/icon-maskable-512.png b/admin/public/icons/icon-maskable-512.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..7efb359100fb067f7ed7619b2135218f65d506b4
+GIT binary patch
+literal 4299
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/admin/public/manifest.webmanifest b/admin/public/manifest.webmanifest
+new file mode 100644
+index 0000000..b0fc5ae
+--- /dev/null
++++ b/admin/public/manifest.webmanifest
+@@ -0,0 +1,39 @@
++{
++  "name": "ḥꜣw Admin",
++  "short_name": "ḥꜣw Admin",
++  "description": "A private view of activity inside ḥꜣw.",
++  "id": "/",
++  "start_url": "/",
++  "scope": "/",
++  "display": "standalone",
++  "display_override": ["standalone", "minimal-ui", "browser"],
++  "orientation": "any",
++  "theme_color": "#171010",
++  "background_color": "#120f10",
++  "icons": [
++    {
++      "src": "/icons/icon-192.png",
++      "sizes": "192x192",
++      "type": "image/png",
++      "purpose": "any"
++    },
++    {
++      "src": "/icons/icon-512.png",
++      "sizes": "512x512",
++      "type": "image/png",
++      "purpose": "any"
++    },
++    {
++      "src": "/icons/icon-maskable-192.png",
++      "sizes": "192x192",
++      "type": "image/png",
++      "purpose": "maskable"
++    },
++    {
++      "src": "/icons/icon-maskable-512.png",
++      "sizes": "512x512",
++      "type": "image/png",
++      "purpose": "maskable"
++    }
++  ]
++}
+diff --git a/admin/public/sw.js b/admin/public/sw.js
+new file mode 100644
+index 0000000..a6dead4
+--- /dev/null
++++ b/admin/public/sw.js
+@@ -0,0 +1,78 @@
++/* ḥꜣw Admin shell worker. Caches interface assets only. */
++const CACHE = "haw-admin-shell-v1";
++const PRECACHE = ["/", "/index.html", "/manifest.webmanifest"];
++
++self.addEventListener("install", (event) => {
++  event.waitUntil(
++    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()),
++  );
++});
++
++self.addEventListener("activate", (event) => {
++  event.waitUntil(
++    caches.keys().then((keys) =>
++      Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
++    ).then(() => self.clients.claim()),
++  );
++});
++
++self.addEventListener("fetch", (event) => {
++  const request = event.request;
++  if (request.method !== "GET") return;
++
++  const url = new URL(request.url);
++  if (url.origin !== self.location.origin) return;
++
++  // Never cache private activity or auth responses.
++  if (
++    url.pathname.includes("/rest/v1/") ||
++    url.pathname.includes("/auth/v1/") ||
++    url.pathname.includes("/functions/v1/") ||
++    url.pathname.includes("admin_activity")
++  ) {
++    return;
++  }
++
++  const isNavigation = request.mode === "navigate";
++  const isShellAsset =
++    isNavigation ||
++    url.pathname.startsWith("/assets/") ||
++    url.pathname.startsWith("/icons/") ||
++    url.pathname === "/manifest.webmanifest" ||
++    url.pathname === "/sw.js" ||
++    url.pathname.endsWith(".js") ||
++    url.pathname.endsWith(".css") ||
++    url.pathname.endsWith(".png") ||
++    url.pathname.endsWith(".svg") ||
++    url.pathname.endsWith(".woff2");
++
++  if (!isShellAsset) return;
++
++  event.respondWith(
++    (async () => {
++      try {
++        const network = await fetch(request);
++        if (network.ok && !isNavigation) {
++          const cache = await caches.open(CACHE);
++          void cache.put(request, network.clone());
++        }
++        if (isNavigation && network.ok) {
++          const cache = await caches.open(CACHE);
++          void cache.put("/", network.clone());
++          void cache.put("/index.html", network.clone());
++        }
++        return network;
++      } catch {
++        const cached = await caches.match(isNavigation ? "/index.html" : request);
++        if (cached) return cached;
++        if (isNavigation) {
++          return new Response(
++            "<!doctype html><title>ḥꜣw Admin</title><body style='background:#120f10;color:#ac9f95;font-family:system-ui;padding:2rem'><p>Activity data is unavailable offline.</p></body>",
++            { headers: { "content-type": "text/html; charset=utf-8" } },
++          );
++        }
++        return Response.error();
++      }
++    })(),
++  );
++});
+diff --git a/admin/src/app/App.tsx b/admin/src/app/App.tsx
+index 1de21d6..fcabf2a 100644
+--- a/admin/src/app/App.tsx
++++ b/admin/src/app/App.tsx
+@@ -1,70 +1,17 @@
+-import { Navigate, Route, Routes } from "react-router-dom";
+-
+ import { AdminAuthGate } from "./auth/AdminAuthGate";
+-import { AdminLayout } from "./layout/AdminLayout";
+-import { allAdminRoutes } from "./routes";
+-import { ApprovalsPage } from "../features/approvals/ApprovalsPage";
+-import { ArchivePage } from "../features/archive/ArchivePage";
+-import { ArmoryPage } from "../features/armory/ArmoryPage";
+-import { OpsAgentPage } from "../features/ops/OpsAgentPage";
+-import { PlaceholderPage } from "../features/placeholders/PlaceholderPage";
+-import { ContentLabPage } from "../features/product/ContentLabPage";
+-import { MaatOpsPage } from "../features/product/MaatOpsPage";
+-import { NodeDraftsPage } from "../features/product/NodeDraftsPage";
+-import { TreasuryPage } from "../features/treasury/TreasuryPage";
+-import { WarRoomDashboardPage } from "../features/war-room/WarRoomDashboardPage";
+-
+-const agentRouteMap = {
+-  "/ops/research": "research",
+-  "/ops/social": "social",
+-  "/ops/copy": "copy",
+-  "/ops/suggest-updates": "suggest_updates",
+-  "/ops/product-qa": "product_qa",
+-  "/ops/chief-operator": "chief_operator",
+-} as const;
+-
+-function routeElement(routePath: string) {
+-  if (routePath === "/war-room/dashboard" || routePath === "/war-room/metrics") {
+-    return <WarRoomDashboardPage />;
+-  }
+-  if (routePath === "/war-room/reports") {
+-    return <OpsAgentPage agentSlug="chief_operator" />;
+-  }
+-  if (routePath === "/product/content-lab") return <ContentLabPage />;
+-  if (routePath === "/product/maat") return <MaatOpsPage />;
+-  if (routePath === "/product/nodes") return <NodeDraftsPage />;
+-  if (routePath === "/infrastructure/archive") return <ArchivePage />;
+-  if (routePath === "/infrastructure/armory") return <ArmoryPage />;
+-  if (routePath === "/infrastructure/approvals") return <ApprovalsPage />;
+-  if (routePath === "/infrastructure/treasury") return <TreasuryPage />;
+-
+-  const agentSlug = agentRouteMap[routePath as keyof typeof agentRouteMap];
+-  if (agentSlug) return <OpsAgentPage agentSlug={agentSlug} />;
+-
+-  const route = allAdminRoutes.find((item) => item.path === routePath);
+-  return route ? <PlaceholderPage route={route} /> : null;
+-}
++import { ActivityLedgerPage } from "../features/ledger/ActivityLedgerPage";
++import { isLocalDevAuthenticated } from "../lib/supabase";
+ 
+ export function App() {
+   return (
+     <AdminAuthGate>
+       {(admin) => (
+-        <AdminLayout admin={admin}>
+-          <Routes>
+-            <Route path="/" element={<Navigate to="/product/overview" replace />} />
+-            {allAdminRoutes.map((route) => (
+-              <Route
+-                key={route.path}
+-                path={route.path}
+-                element={routeElement(route.path)}
+-              />
+-            ))}
+-            <Route
+-              path="*"
+-              element={<Navigate to="/product/overview" replace />}
+-            />
+-          </Routes>
+-        </AdminLayout>
++        <ActivityLedgerPage
++          admin={admin}
++          useSampleData={
++            isLocalDevAuthenticated() || admin.user.id === "local-dev-admin"
++          }
++        />
+       )}
+     </AdminAuthGate>
+   );
+diff --git a/admin/src/features/ledger/ActivityLedgerPage.tsx b/admin/src/features/ledger/ActivityLedgerPage.tsx
+new file mode 100644
+index 0000000..a48bb2a
+--- /dev/null
++++ b/admin/src/features/ledger/ActivityLedgerPage.tsx
+@@ -0,0 +1,697 @@
++import { useCallback, useEffect, useMemo, useRef, useState } from "react";
++
++import type { AdminMe } from "../../lib/api";
++import { setLocalDevAuthenticated, supabase } from "../../lib/supabase";
++import {
++  applyWindow,
++  categoryLabel,
++  dayGroups,
++  dayHeading,
++  DETAIL_CONCURRENCY,
++  formatShortDate,
++  formatTime,
++  initials,
++  ownerInitials,
++  padCount,
++  personSubtitle,
++  relativeActivity,
++  runWithConcurrency,
++  timeZoneCaption,
++  timeZoneOf,
++  visiblePeople,
++  type LedgerEvent,
++  type LedgerFilter,
++  type LedgerPerson,
++  type LedgerSort,
++} from "./ledger-model";
++import { Icon, LedgerIconDefs } from "./LedgerIcons";
++import {
++  fetchActivityUserDetail,
++  fetchActivityUsers,
++  type ActivityUserSummary,
++} from "./ledger-api";
++import { SAMPLE_REFERENCE_DATE, samplePeople } from "./sample-people";
++
++type Props = {
++  admin: AdminMe;
++  useSampleData?: boolean;
++};
++
++type DetailState = {
++  events: LedgerEvent[] | null;
++  loading: boolean;
++  error: string | null;
++};
++
++function defaultOpenId(people: LedgerPerson[]): string | null {
++  return people[0]?.id ?? null;
++}
++
++export function ActivityLedgerPage({
++  admin,
++  useSampleData = false,
++}: Props) {
++  const [query, setQuery] = useState("");
++  const [days, setDays] = useState<7 | 30 | 90>(30);
++  const [filter, setFilter] = useState<LedgerFilter>("all");
++  const [sort, setSort] = useState<LedgerSort>("recent");
++  const [open, setOpen] = useState<Set<string>>(() => new Set());
++  const [olderOpen, setOlderOpen] = useState<Set<string>>(() => new Set());
++  const [people, setPeople] = useState<LedgerPerson[]>([]);
++  const [totalMatching, setTotalMatching] = useState(0);
++  const [listLoading, setListLoading] = useState(true);
++  const [listError, setListError] = useState<string | null>(null);
++  const [details, setDetails] = useState<Record<string, DetailState>>({});
++  const [now, setNow] = useState(() =>
++    useSampleData ? SAMPLE_REFERENCE_DATE : new Date(),
++  );
++  const openRef = useRef(open);
++  openRef.current = open;
++  const seededOpen = useRef(false);
++  const detailInFlight = useRef(new Set<string>());
++  const detailCacheKey = useRef<number>(days);
++
++  const loadSample = useCallback(() => {
++    const reference = SAMPLE_REFERENCE_DATE;
++    setNow(reference);
++    const mapped = samplePeople().map((person) =>
++      applyWindow(person, days, reference),
++    );
++    setPeople(mapped);
++    setTotalMatching(mapped.length);
++    setListLoading(false);
++    setListError(null);
++    if (!seededOpen.current) {
++      const first = defaultOpenId(mapped);
++      setOpen(first ? new Set([first]) : new Set());
++      seededOpen.current = true;
++    }
++    const nextDetails: Record<string, DetailState> = {};
++    for (const person of samplePeople()) {
++      nextDetails[person.id] = {
++        events: applyWindow(person, days, reference).events,
++        loading: false,
++        error: null,
++      };
++    }
++    setDetails(nextDetails);
++  }, [days]);
++
++  const loadUsers = useCallback(async () => {
++    if (useSampleData) {
++      loadSample();
++      return;
++    }
++    setListLoading(true);
++    setListError(null);
++    setNow(new Date());
++    try {
++      const payload = await fetchActivityUsers(days, 250);
++      const mapped = payload.users.map(mapSummary);
++      setPeople(mapped);
++      setTotalMatching(payload.total_matching_users);
++      if (!seededOpen.current) {
++        const first = defaultOpenId(
++          visiblePeople(mapped, { query: "", filter: "all", sort: "recent" }),
++        );
++        setOpen(first ? new Set([first]) : new Set());
++        seededOpen.current = true;
++      }
++    } catch (error) {
++      setListError(
++        error instanceof Error ? error.message : "Failed to load users.",
++      );
++      setPeople([]);
++      setTotalMatching(0);
++    } finally {
++      setListLoading(false);
++    }
++  }, [days, loadSample, useSampleData]);
++
++  useEffect(() => {
++    void loadUsers();
++  }, [loadUsers]);
++
++  const ensureDetail = useCallback(
++    async (userId: string) => {
++      if (useSampleData) return;
++      if (detailCacheKey.current !== days) {
++        detailCacheKey.current = days;
++        detailInFlight.current.clear();
++      }
++      if (detailInFlight.current.has(userId)) return;
++      detailInFlight.current.add(userId);
++      setDetails((current) => ({
++        ...current,
++        [userId]: { events: null, loading: true, error: null },
++      }));
++      try {
++        const payload = await fetchActivityUserDetail(userId, days);
++        const events = (payload.timeline ?? []).map((row) => ({
++          id: row.id,
++          occurredAt: row.occurred_at,
++          label: row.label,
++          detail: detailFromFields(row.safe_fields),
++          category: categoryLabel(row.category),
++        }));
++        setDetails((current) => ({
++          ...current,
++          [userId]: { events, loading: false, error: null },
++        }));
++      } catch (error) {
++        setDetails((current) => ({
++          ...current,
++          [userId]: {
++            events: null,
++            loading: false,
++            error:
++              error instanceof Error
++                ? error.message
++                : "Failed to load activity.",
++          },
++        }));
++      } finally {
++        detailInFlight.current.delete(userId);
++      }
++    },
++    [days, useSampleData],
++  );
++
++  useEffect(() => {
++    if (useSampleData) return;
++    for (const id of open) {
++      void ensureDetail(id);
++    }
++  }, [ensureDetail, open, useSampleData]);
++
++  useEffect(() => {
++    if (useSampleData) return;
++    detailInFlight.current.clear();
++    detailCacheKey.current = days;
++    setDetails({});
++    setOlderOpen(new Set());
++  }, [days, useSampleData]);
++
++  const shown = useMemo(
++    () => visiblePeople(people, { query, filter, sort }),
++    [people, query, filter, sort],
++  );
++  const activeCount = people.filter((person) => person.eventCount > 0).length;
++  const quietCount = people.length - activeCount;
++  const allExpanded =
++    shown.length > 0 && shown.every((person) => open.has(person.id));
++
++  const toggleOpen = (id: string) => {
++    setOpen((current) => {
++      const next = new Set(current);
++      if (next.has(id)) next.delete(id);
++      else next.add(id);
++      return next;
++    });
++  };
++
++  const toggleOlder = (id: string) => {
++    setOlderOpen((current) => {
++      const next = new Set(current);
++      if (next.has(id)) next.delete(id);
++      else next.add(id);
++      return next;
++    });
++  };
++
++  const expandAll = async () => {
++    if (allExpanded) {
++      setOpen(new Set());
++      return;
++    }
++    const ids = shown.map((person) => person.id);
++    setOpen(new Set(ids));
++    if (useSampleData) return;
++    await runWithConcurrency(
++      ids,
++      DETAIL_CONCURRENCY,
++      async (id) => {
++        await ensureDetail(id);
++      },
++      (id) => openRef.current.has(id),
++    );
++  };
++
++  const resetFilters = () => {
++    setQuery("");
++    setDays(30);
++    setFilter("all");
++    setSort("recent");
++  };
++
++  return (
++    <>
++      <LedgerIconDefs />
++      <div className="topbar-wrap">
++        <header className="topbar">
++          <div className="brand" aria-label="ḥꜣw Admin">
++            <span className="brand-word">ḥꜣw</span>
++            <span className="brand-divider" />
++            <div className="brand-context">
++              <strong>Admin</strong>
++              <span>A private view of your community</span>
++            </div>
++          </div>
++          <div className="topbar-right">
++            {useSampleData ? (
++              <div className="preview-tag">Interactive prototype</div>
++            ) : null}
++            <div className="owner" title={admin.user.email ?? admin.user.id}>
++              <div className="owner-copy">
++                <strong>Founder view</strong>
++                <span>{admin.user.email ?? admin.user.id}</span>
++              </div>
++              <button
++                type="button"
++                className="owner-avatar"
++                aria-label="Sign out"
++                title="Sign out"
++                onClick={() => {
++                  setLocalDevAuthenticated(false);
++                  void supabase?.auth.signOut();
++                  window.location.href = "/";
++                }}
++              >
++                {ownerInitials(admin.user.email)}
++              </button>
++            </div>
++          </div>
++        </header>
++      </div>
++
++      <main className="page">
++        <section className="intro">
++          <div>
++            <div className="eyebrow">The people inside ḥꜣw</div>
++            <h1>
++              Activity <em>ledger.</em>
++            </h1>
++            <p>
++              One place for every person. Open a name to see what they've been
++              doing, organized by day and time.
++            </p>
++          </div>
++          <div className="intro-aside" aria-label="Account count">
++            <span className="small-rule" />
++            <span className="mini-metric">{padCount(totalMatching)}</span>
++            <span className="mini-caption">
++              {useSampleData ? "sample accounts" : "accounts"}
++            </span>
++          </div>
++        </section>
++
++        <section className="toolbar" aria-label="Activity controls">
++          <label className="search" htmlFor="search-input">
++            <Icon name="search-icon" className="ico ico-lg" />
++            <input
++              type="search"
++              id="search-input"
++              placeholder="Search people, emails or handles"
++              autoComplete="off"
++              value={query}
++              onChange={(event) => setQuery(event.target.value.trimStart())}
++            />
++            <button
++              type="button"
++              id="clear-search"
++              title="Clear search"
++              aria-label="Clear search"
++              className={query ? "is-visible" : undefined}
++              onClick={() => setQuery("")}
++            >
++              <Icon name="close-icon" className="ico ico-sm" />
++            </button>
++          </label>
++          <div
++            className="select-shell"
++            aria-hidden="true"
++            title="This selector is available from the sort control below on smaller screens"
++          >
++            <select
++              id="large-sort"
++              aria-label="Sort accounts"
++              value={sort}
++              onChange={(event) => setSort(event.target.value as LedgerSort)}
++            >
++              <option value="recent">Most recent</option>
++              <option value="name">Name A–Z</option>
++              <option value="joined">Recently joined</option>
++            </select>
++            <Icon name="chevron-icon" className="ico ico-sm select-chevron" />
++          </div>
++          <div
++            className="segmented"
++            id="range-control"
++            role="group"
++            aria-label="Activity date range"
++          >
++            {[7, 30, 90].map((value) => (
++              <button
++                key={value}
++                type="button"
++                data-days={value}
++                className={days === value ? "active" : undefined}
++                aria-pressed={days === value}
++                onClick={() => setDays(value as 7 | 30 | 90)}
++              >
++                {value} days
++              </button>
++            ))}
++          </div>
++        </section>
++
++        <div className="subtoolbar">
++          <div
++            className="filter-list"
++            role="group"
++            aria-label="Filter account activity"
++          >
++            {(
++              [
++                ["all", "All people", people.length],
++                ["active", "Active", activeCount],
++                ["quiet", "No activity", quietCount],
++              ] as const
++            ).map(([key, label, count]) => (
++              <button
++                key={key}
++                type="button"
++                className={`filter-btn${filter === key ? " active" : ""}`}
++                data-filter={key}
++                aria-pressed={filter === key}
++                onClick={() => setFilter(key)}
++              >
++                {label}{" "}
++                <span className="filter-count">{padCount(count)}</span>
++              </button>
++            ))}
++          </div>
++          <div className="right-controls">
++            <label className="sort-select" htmlFor="mobile-sort">
++              Sort{" "}
++              <select
++                id="mobile-sort"
++                aria-label="Sort users"
++                value={sort}
++                onChange={(event) => setSort(event.target.value as LedgerSort)}
++              >
++                <option value="recent">Last active</option>
++                <option value="name">Name A–Z</option>
++                <option value="joined">Recently joined</option>
++              </select>
++            </label>
++            <button
++              type="button"
++              className="expand-all"
++              id="expand-all"
++              onClick={() => void expandAll()}
++            >
++              {allExpanded ? "Collapse all" : "Expand all"}
++            </button>
++          </div>
++        </div>
++
++        <div className="section-meta">
++          <span id="showing-label" aria-live="polite">
++            {padCount(shown.length)}{" "}
++            {shown.length === 1 ? "person" : "people"} shown
++          </span>
++          <span>
++            {useSampleData
++              ? "Illustrative data · not live"
++              : `${days}-day window`}
++          </span>
++        </div>
++
++        {listLoading ? (
++          <p className="ledger-status">Loading people…</p>
++        ) : null}
++        {listError ? (
++          <p className="ledger-status error">{listError}</p>
++        ) : null}
++
++        <section id="nodes" className="nodes" aria-label="User activity nodes">
++          {shown.length ? (
++            shown.map((person) => (
++              <PersonNode
++                key={person.id}
++                person={person}
++                days={days}
++                now={now}
++                opened={open.has(person.id)}
++                olderOpen={olderOpen.has(person.id)}
++                detail={details[person.id]}
++                onToggle={() => toggleOpen(person.id)}
++                onToggleOlder={() => toggleOlder(person.id)}
++              />
++            ))
++          ) : !listLoading ? (
++            <div className="no-results">
++              <Icon
++                name="search-icon"
++                className="ico ico-lg"
++              />
++              <h3>No people found.</h3>
++              <p>
++                Try a different search, activity filter, or date range.
++              </p>
++              <button type="button" id="reset-filters" onClick={resetFilters}>
++                Reset filters
++              </button>
++            </div>
++          ) : null}
++        </section>
++
++        <footer className="end-note">
++          <div className="privacy">
++            <Icon name="lock-icon" />
++            <span>
++              The live ledger is intended to show actions and times, not the
++              contents of private journals, messages, or personal calendar
++              entries.
++              {useSampleData
++                ? " This mockup uses fictitious people and sample events."
++                : ""}
++            </span>
++          </div>
++          <span className="copyright">ḥꜣw / Owner workspace</span>
++        </footer>
++      </main>
++    </>
++  );
++}
++
++function mapSummary(user: ActivityUserSummary): LedgerPerson {
++  return {
++    id: user.id,
++    name: user.display_name,
++    handle: user.handle ?? "",
++    email: user.email ?? "",
++    joined: user.created_at,
++    timezone: user.timezone,
++    lastEventAt: user.last_seen_at ?? user.last_event_at ?? null,
++    lastEventLabel: user.last_event_label ?? null,
++    eventCount: user.event_count,
++    events: [],
++  };
++}
++
++function detailFromFields(
++  fields: Record<string, unknown> | null | undefined,
++): string {
++  if (!fields) return "";
++  const parts: string[] = [];
++  for (const key of [
++    "node_title",
++    "node_slug",
++    "route",
++    "surface",
++    "source_surface",
++    "entry_point",
++    "presentation",
++    "level",
++    "orientation",
++  ]) {
++    const value = fields[key];
++    if (typeof value === "string" && value.trim()) parts.push(value.trim());
++  }
++  return parts.join(" · ");
++}
++
++function PersonNode({
++  person,
++  days,
++  now,
++  opened,
++  olderOpen,
++  detail,
++  onToggle,
++  onToggleOlder,
++}: {
++  person: LedgerPerson;
++  days: number;
++  now: Date;
++  opened: boolean;
++  olderOpen: boolean;
++  detail?: DetailState;
++  onToggle: () => void;
++  onToggleOlder: () => void;
++}) {
++  const zone = timeZoneOf(person.timezone);
++  const events = detail?.events ?? person.events;
++  const groups = dayGroups(events, zone);
++  const visibleGroups = olderOpen ? groups : groups.slice(0, 2);
++  const hasOlder = groups.length > 2;
++  const subtitle = personSubtitle(person);
++
++  return (
++    <article className={`node${opened ? " open" : ""}`} data-user={person.id}>
++      <button
++        type="button"
++        className="node-toggle"
++        data-toggle={person.id}
++        aria-expanded={opened}
++        aria-controls={opened ? `node-body-${person.id}` : undefined}
++        onClick={onToggle}
++      >
++        <span className="user-avatar" aria-hidden="true">
++          {initials(person.name)}
++        </span>
++        <span className="identity">
++          <span className="identity-title">{person.name}</span>
++          <span className="identity-sub">{subtitle}</span>
++        </span>
++        <span className="last-activity">
++          <span className="activity-time">
++            {relativeActivity(person.lastEventAt, now, zone)}
++          </span>
++          <span className="activity-caption">Last recorded activity</span>
++        </span>
++        <span className="event-count">
++          <strong>{padCount(person.eventCount)}</strong>
++          <span>{person.eventCount === 1 ? "action" : "actions"}</span>
++        </span>
++        <span className="chevron" aria-hidden="true">
++          <Icon name="chevron-icon" className="ico ico-lg" />
++        </span>
++      </button>
++      {opened ? (
++        <div className="node-body" id={`node-body-${person.id}`}>
++          <div className="node-details">
++            <span>
++              <strong>Email</strong> {person.email || "—"}
++            </span>
++            <span className="dot-divider" aria-hidden="true" />
++            <span>
++              <strong>Joined</strong>{" "}
++              {formatShortDate(new Date(person.joined), zone)}
++            </span>
++            <span className="dot-divider" aria-hidden="true" />
++            <span>
++              <strong>Timezone</strong> {timeZoneCaption(person.timezone)}
++            </span>
++          </div>
++          <div className="timeline-heading">
++            <h3>Daily activity</h3>
++            <p>Newest first · Action metadata only</p>
++          </div>
++          {detail?.loading ? (
++            <div className="empty-user">
++              <Icon name="empty-icon" />
++              <p>Loading activity…</p>
++            </div>
++          ) : null}
++          {detail?.error ? (
++            <div className="empty-user">
++              <Icon name="empty-icon" />
++              <p>{detail.error}</p>
++            </div>
++          ) : null}
++          {!detail?.loading && !detail?.error ? (
++            groups.length ? (
++              <>
++                {visibleGroups.map((group) => {
++                  const sample = new Date(group.events[0].occurredAt);
++                  const heading = dayHeading(group.key, sample, now, zone);
++                  return (
++                    <section
++                      className="day"
++                      aria-label={heading.secondary ?? heading.primary}
++                      key={group.key}
++                    >
++                      <div className="day-head">
++                        <div className="day-name">
++                          <strong>{heading.primary}</strong>
++                          {heading.secondary ? (
++                            <span>{heading.secondary}</span>
++                          ) : null}
++                        </div>
++                        <span className="day-count">
++                          {group.events.length}{" "}
++                          {group.events.length === 1 ? "action" : "actions"}
++                        </span>
++                      </div>
++                      <div className="timeline">
++                        {group.events.map((event) => (
++                          <div
++                            className="event"
++                            key={event.id}
++                            aria-label={`${event.label} at ${formatTime(new Date(event.occurredAt), zone)}`}
++                          >
++                            <div className="event-time">
++                              {formatTime(new Date(event.occurredAt), zone)}
++                            </div>
++                            <span className="event-mark" aria-hidden="true" />
++                            <div className="event-main">
++                              <div className="event-title">{event.label}</div>
++                              {event.detail ? (
++                                <div className="event-sub">{event.detail}</div>
++                              ) : null}
++                            </div>
++                            <span className="event-category">
++                              {event.category}
++                            </span>
++                          </div>
++                        ))}
++                      </div>
++                    </section>
++                  );
++                })}
++                {hasOlder ? (
++                  <button
++                    className="older"
++                    type="button"
++                    data-older={person.id}
++                    data-open={olderOpen}
++                    aria-expanded={olderOpen}
++                    onClick={onToggleOlder}
++                  >
++                    {olderOpen
++                      ? "Hide earlier days"
++                      : `Show ${groups.length - 2} earlier ${
++                          groups.length - 2 === 1 ? "day" : "days"
++                        }`}
++                    <Icon name="chevron-icon" className="ico ico-sm" />
++                  </button>
++                ) : null}
++              </>
++            ) : (
++              <div className="empty-user">
++                <Icon name="empty-icon" />
++                <p>
++                  No recorded actions within the selected {days}-day window.
++                  This doesn't necessarily mean the person hasn't used hꜣw.
++                </p>
++              </div>
++            )
++          ) : null}
++        </div>
++      ) : null}
++    </article>
++  );
++}
+diff --git a/admin/src/features/ledger/LedgerIcons.tsx b/admin/src/features/ledger/LedgerIcons.tsx
+new file mode 100644
+index 0000000..bef004b
+--- /dev/null
++++ b/admin/src/features/ledger/LedgerIcons.tsx
+@@ -0,0 +1,45 @@
++export function LedgerIconDefs() {
++  return (
++    <svg
++      aria-hidden="true"
++      width="0"
++      height="0"
++      style={{ position: "absolute", overflow: "hidden" }}
++    >
++      <defs>
++        <symbol id="search-icon" viewBox="0 0 24 24">
++          <circle cx="10.8" cy="10.8" r="6.8" />
++          <path d="m16 16 5 5" />
++        </symbol>
++        <symbol id="chevron-icon" viewBox="0 0 24 24">
++          <path d="m6 9 6 6 6-6" />
++        </symbol>
++        <symbol id="close-icon" viewBox="0 0 24 24">
++          <path d="M6 6 18 18 M18 6 6 18" />
++        </symbol>
++        <symbol id="lock-icon" viewBox="0 0 24 24">
++          <rect x="5" y="10.5" width="14" height="10" rx="2" />
++          <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
++        </symbol>
++        <symbol id="empty-icon" viewBox="0 0 24 24">
++          <circle cx="12" cy="12" r="9" />
++          <path d="M12 7v5 M12 16h.01" />
++        </symbol>
++      </defs>
++    </svg>
++  );
++}
++
++export function Icon({
++  name,
++  className = "ico",
++}: {
++  name: string;
++  className?: string;
++}) {
++  return (
++    <svg className={className} aria-hidden="true">
++      <use href={`#${name}`} />
++    </svg>
++  );
++}
+diff --git a/admin/src/features/ledger/ledger-api.ts b/admin/src/features/ledger/ledger-api.ts
+new file mode 100644
+index 0000000..35d8247
+--- /dev/null
++++ b/admin/src/features/ledger/ledger-api.ts
+@@ -0,0 +1,90 @@
++import { AdminApiError } from "../../lib/api";
++import { supabase } from "../../lib/supabase";
++
++export type ActivityUserSummary = {
++  id: string;
++  display_name: string;
++  handle: string | null;
++  email: string | null;
++  timezone: string | null;
++  created_at: string;
++  telemetry_enabled?: boolean | null;
++  first_seen_at?: string | null;
++  last_seen_at?: string | null;
++  last_event_at?: string | null;
++  last_event_label?: string | null;
++  event_count: number;
++};
++
++export type ActivityUsersPayload = {
++  period_days: number;
++  total_matching_users: number;
++  users: ActivityUserSummary[];
++};
++
++export type ActivityTimelineRow = {
++  id: string;
++  occurred_at: string;
++  source_table: string;
++  event_name: string;
++  canonical_event: string;
++  category: string;
++  label: string;
++  basis: string;
++  safe_fields?: Record<string, unknown> | null;
++};
++
++export type ActivityUserDetailPayload = {
++  period_days: number;
++  profile: {
++    id: string;
++    display_name: string;
++    handle: string | null;
++    email: string | null;
++    timezone: string | null;
++    created_at: string;
++  };
++  timeline: ActivityTimelineRow[];
++};
++
++async function callRpc<T>(
++  name: string,
++  args: Record<string, unknown>,
++): Promise<T> {
++  if (!supabase) {
++    throw new AdminApiError("Supabase admin configuration is missing.", 500);
++  }
++  const { data, error } = await supabase.rpc(name, args);
++  if (error) {
++    const status =
++      error.code === "42501"
++        ? 403
++        : error.message.toLowerCase().includes("jwt")
++          ? 401
++          : 400;
++    throw new AdminApiError(error.message, status, error.code);
++  }
++  return data as T;
++}
++
++export async function fetchActivityUsers(
++  days: number,
++  limit = 250,
++  query?: string | null,
++): Promise<ActivityUsersPayload> {
++  return callRpc<ActivityUsersPayload>("admin_activity_users", {
++    p_days: days,
++    p_limit: limit,
++    p_query: query ?? null,
++  });
++}
++
++export async function fetchActivityUserDetail(
++  userId: string,
++  days: number,
++): Promise<ActivityUserDetailPayload> {
++  return callRpc<ActivityUserDetailPayload>("admin_activity_user_detail", {
++    p_target_user_id: userId,
++    p_days: days,
++  });
++}
+diff --git a/admin/src/features/ledger/ledger-model.test.ts b/admin/src/features/ledger/ledger-model.test.ts
+new file mode 100644
+index 0000000..5585ad0
+--- /dev/null
++++ b/admin/src/features/ledger/ledger-model.test.ts
+@@ -0,0 +1,149 @@
++import assert from "node:assert/strict";
++import { describe, it } from "node:test";
++
++import {
++  applyWindow,
++  dayGroups,
++  DETAIL_CONCURRENCY,
++  runWithConcurrency,
++  visiblePeople,
++  type LedgerHistory,
++} from "./ledger-model.ts";
++
++const now = new Date("2026-10-10T18:00:00-07:00");
++
++function person(
++  id: string,
++  name: string,
++  joined: string,
++  history: Array<[string, string]>,
++): LedgerHistory {
++  return {
++    id,
++    name,
++    handle: name.toLowerCase().replace(/\s+/g, "."),
++    email: `${id}@example.com`,
++    joined,
++    timezone: "America/Los_Angeles",
++    history: history.map(([occurredAt, label], index) => ({
++      id: `${id}-${index}`,
++      occurredAt,
++      label,
++      detail: "",
++      category: "App",
++    })),
++  };
++}
++
++describe("visiblePeople", () => {
++  const people = [
++    applyWindow(
++      person("a", "Amara", "2026-09-01", [
++        ["2026-10-10T10:00:00-07:00", "Opened ḥꜣw"],
++      ]),
++      30,
++      now,
++    ),
++    applyWindow(person("b", "Ayo", "2026-10-07", []), 30, now),
++    applyWindow(
++      person("c", "Malik", "2026-09-28", [
++        ["2026-10-01T10:00:00-07:00", "Opened ḥꜣw"],
++      ]),
++      30,
++      now,
++    ),
++  ];
++
++  it("filters active and quiet people", () => {
++    assert.equal(
++      visiblePeople(people, { query: "", filter: "active", sort: "recent" })
++        .length,
++      2,
++    );
++    assert.equal(
++      visiblePeople(people, { query: "", filter: "quiet", sort: "recent" })[0]
++        ?.id,
++      "b",
++    );
++  });
++
++  it("searches name email handle and id", () => {
++    assert.equal(
++      visiblePeople(people, {
++        query: "malik",
++        filter: "all",
++        sort: "recent",
++      })[0]?.id,
++      "c",
++    );
++    assert.equal(
++      visiblePeople(people, { query: "a@", filter: "all", sort: "recent" })[0]
++        ?.id,
++      "a",
++    );
++  });
++
++  it("sorts inactive people last for recent", () => {
++    const ids = visiblePeople(people, {
++      query: "",
++      filter: "all",
++      sort: "recent",
++    }).map((row) => row.id);
++    assert.deepEqual(ids, ["a", "c", "b"]);
++  });
++});
++
++describe("dayGroups", () => {
++  it("groups newest day first", () => {
++    const groups = dayGroups(
++      [
++        {
++          id: "1",
++          occurredAt: "2026-10-09T12:00:00-07:00",
++          label: "Older",
++          detail: "",
++          category: "App",
++        },
++        {
++          id: "2",
++          occurredAt: "2026-10-10T12:00:00-07:00",
++          label: "Newer",
++          detail: "",
++          category: "App",
++        },
++        {
++          id: "3",
++          occurredAt: "2026-10-10T08:00:00-07:00",
++          label: "Morning",
++          detail: "",
++          category: "App",
++        },
++      ],
++      "America/Los_Angeles",
++    );
++    assert.equal(groups[0]?.key, "2026-10-10");
++    assert.equal(groups[0]?.events[0]?.label, "Newer");
++    assert.equal(groups[1]?.key, "2026-10-09");
++  });
++});
++
++describe("runWithConcurrency", () => {
++  it("keeps at most four workers active", async () => {
++    let active = 0;
++    let peak = 0;
++    const items = Array.from({ length: 12 }, (_, index) => index);
++    await runWithConcurrency(
++      items,
++      DETAIL_CONCURRENCY,
++      async () => {
++        active += 1;
++        peak = Math.max(peak, active);
++        await new Promise((resolve) => setTimeout(resolve, 20));
++        active -= 1;
++      },
++      () => true,
++    );
++    assert.ok(peak <= DETAIL_CONCURRENCY);
++    assert.ok(peak >= 1);
++  });
++});
+diff --git a/admin/src/features/ledger/ledger-model.ts b/admin/src/features/ledger/ledger-model.ts
+new file mode 100644
+index 0000000..9e47c68
+--- /dev/null
++++ b/admin/src/features/ledger/ledger-model.ts
+@@ -0,0 +1,323 @@
++export const DETAIL_CONCURRENCY = 4;
++
++export type LedgerSort = "recent" | "name" | "joined";
++export type LedgerFilter = "all" | "active" | "quiet";
++
++export type LedgerEvent = {
++  id: string;
++  occurredAt: string;
++  label: string;
++  detail: string;
++  category: string;
++};
++
++export type LedgerPerson = {
++  id: string;
++  name: string;
++  handle: string;
++  email: string;
++  joined: string;
++  timezone: string | null;
++  lastEventAt: string | null;
++  lastEventLabel: string | null;
++  eventCount: number;
++  events: LedgerEvent[];
++};
++
++export type LedgerHistory = Omit<
++  LedgerPerson,
++  "lastEventAt" | "lastEventLabel" | "eventCount" | "events"
++> & {
++  history: LedgerEvent[];
++};
++
++const DETAIL_KEYS = [
++  "route",
++  "surface",
++  "source_surface",
++  "entry_point",
++  "presentation",
++  "level",
++  "orientation",
++] as const;
++
++export function padCount(value: number): string {
++  return String(value).padStart(2, "0");
++}
++
++export function initials(name: string): string {
++  return name
++    .trim()
++    .split(/\s+/)
++    .slice(0, 2)
++    .map((part) => part[0]?.toUpperCase() ?? "")
++    .join("");
++}
++
++export function ownerInitials(email: string | null): string {
++  if (!email) return "ḥ";
++  const local = email.split("@")[0] ?? "";
++  const parts = local.split(/[._-]+/).filter(Boolean);
++  if (parts.length >= 2) {
++    return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
++  }
++  return (local.slice(0, 2) || "ḥ").toUpperCase();
++}
++
++export function timeZoneOf(value: string | null | undefined): string {
++  if (!value) return "UTC";
++  try {
++    new Intl.DateTimeFormat("en-US", { timeZone: value }).format(0);
++    return value;
++  } catch {
++    return "UTC";
++  }
++}
++
++export function timeZoneCaption(value: string | null | undefined): string {
++  const zone = timeZoneOf(value);
++  const segments = zone.split("/");
++  const place = (segments[segments.length - 1] ?? zone).replace(/_/g, " ");
++  try {
++    const abbrev = new Intl.DateTimeFormat("en-US", {
++      timeZone: zone,
++      timeZoneName: "short",
++    })
++      .formatToParts(new Date())
++      .find((part) => part.type === "timeZoneName")?.value;
++    return abbrev && abbrev !== place ? `${place} (${abbrev})` : place;
++  } catch {
++    return place;
++  }
++}
++
++export function categoryLabel(category: string): string {
++  return category.replace(/_/g, " ");
++}
++
++export function eventDetail(
++  fields: Record<string, unknown> | null | undefined,
++): string {
++  if (!fields) return "";
++  const parts: string[] = [];
++  const title = fields.node_title;
++  const slug = fields.node_slug;
++  if (typeof title === "string" && title.trim()) parts.push(title.trim());
++  else if (typeof slug === "string" && slug.trim()) parts.push(slug.trim());
++  for (const key of DETAIL_KEYS) {
++    const value = fields[key];
++    if (typeof value === "string" && value.trim()) parts.push(value.trim());
++  }
++  return parts.join(" · ");
++}
++
++export function dayKey(date: Date, timeZone: string): string {
++  const parts = new Intl.DateTimeFormat("en-CA", {
++    year: "numeric",
++    month: "2-digit",
++    day: "2-digit",
++    timeZone,
++  }).formatToParts(date);
++  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
++  const month = parts.find((part) => part.type === "month")?.value ?? "01";
++  const day = parts.find((part) => part.type === "day")?.value ?? "01";
++  return `${year}-${month}-${day}`;
++}
++
++export function formatTime(date: Date, timeZone: string): string {
++  return new Intl.DateTimeFormat("en-US", {
++    hour: "numeric",
++    minute: "2-digit",
++    hour12: true,
++    timeZone,
++  }).format(date);
++}
++
++export function formatFullDate(date: Date, timeZone: string): string {
++  return new Intl.DateTimeFormat("en-US", {
++    weekday: "long",
++    month: "long",
++    day: "numeric",
++    timeZone,
++  }).format(date);
++}
++
++export function formatShortDate(date: Date, timeZone: string): string {
++  return new Intl.DateTimeFormat("en-US", {
++    month: "short",
++    day: "numeric",
++    year: "numeric",
++    timeZone,
++  }).format(date);
++}
++
++function daysAgo(date: Date, now: Date, timeZone: string): number {
++  const asUtcDay = (key: string) => Date.parse(`${key}T00:00:00Z`);
++  return Math.max(
++    0,
++    Math.round(
++      (asUtcDay(dayKey(now, timeZone)) - asUtcDay(dayKey(date, timeZone))) /
++        86400000,
++    ),
++  );
++}
++
++export function inWindow(occurredAt: string, days: number, now: Date): boolean {
++  const elapsed = now.getTime() - new Date(occurredAt).getTime();
++  return elapsed >= 0 && elapsed <= days * 86400000;
++}
++
++export function relativeActivity(
++  value: string | null,
++  now: Date,
++  timeZone: string,
++): string {
++  if (!value) return "Never";
++  const date = new Date(value);
++  const key = dayKey(date, timeZone);
++  const today = dayKey(now, timeZone);
++  const yesterday = dayKey(new Date(now.getTime() - 86400000), timeZone);
++  if (key === today) return `Today, ${formatTime(date, timeZone)}`;
++  if (key === yesterday) return "Yesterday";
++  const ago = daysAgo(date, now, timeZone);
++  return ago <= 7 ? `${ago} days ago` : formatShortDate(date, timeZone);
++}
++
++export function personSubtitle(person: LedgerPerson): string {
++  const identity = person.handle || person.email || person.name;
++  if (person.lastEventLabel) return `${identity} · ${person.lastEventLabel}`;
++  const joined = formatShortDate(
++    new Date(person.joined),
++    timeZoneOf(person.timezone),
++  );
++  return `${identity} · Joined ${joined}`;
++}
++
++export function applyWindow(
++  person: LedgerHistory,
++  days: number,
++  now: Date,
++): LedgerPerson {
++  const history = [...person.history].sort(
++    (a, b) =>
++      new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
++  );
++  const latest = history[0];
++  return {
++    id: person.id,
++    name: person.name,
++    handle: person.handle,
++    email: person.email,
++    joined: person.joined,
++    timezone: person.timezone,
++    lastEventAt: latest?.occurredAt ?? null,
++    lastEventLabel: latest?.label ?? null,
++    eventCount: history.filter((event) =>
++      inWindow(event.occurredAt, days, now),
++    ).length,
++    events: history.filter((event) => inWindow(event.occurredAt, days, now)),
++  };
++}
++
++export function visiblePeople(
++  people: readonly LedgerPerson[],
++  state: { query: string; filter: LedgerFilter; sort: LedgerSort },
++): LedgerPerson[] {
++  const query = state.query.trim().toLowerCase();
++  const result = people.filter((person) => {
++    if (state.filter === "active" && person.eventCount <= 0) return false;
++    if (state.filter === "quiet" && person.eventCount > 0) return false;
++    if (!query) return true;
++    return [person.name, person.email, person.handle, person.id].some((value) =>
++      value.toLowerCase().includes(query),
++    );
++  });
++  result.sort((a, b) => {
++    if (state.sort === "name") return a.name.localeCompare(b.name);
++    if (state.sort === "joined") return b.joined.localeCompare(a.joined);
++    const at = a.lastEventAt ? new Date(a.lastEventAt).getTime() : 0;
++    const bt = b.lastEventAt ? new Date(b.lastEventAt).getTime() : 0;
++    return bt - at;
++  });
++  return result;
++}
++
++export function dayGroups(
++  events: readonly LedgerEvent[],
++  timeZone: string,
++): Array<{ key: string; events: LedgerEvent[] }> {
++  const ordered = [...events].sort(
++    (a, b) =>
++      new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
++  );
++  const groups: Array<{ key: string; events: LedgerEvent[] }> = [];
++  for (const event of ordered) {
++    const key = dayKey(new Date(event.occurredAt), timeZone);
++    const current = groups[groups.length - 1];
++    if (!current || current.key !== key) groups.push({ key, events: [event] });
++    else current.events.push(event);
++  }
++  return groups;
++}
++
++export function dayHeading(
++  key: string,
++  sample: Date,
++  now: Date,
++  timeZone: string,
++): { primary: string; secondary: string | null } {
++  const today = dayKey(now, timeZone);
++  const yesterday = dayKey(new Date(now.getTime() - 86400000), timeZone);
++  const full = formatFullDate(sample, timeZone);
++  if (key === today || key === yesterday) {
++    return { primary: key === today ? "Today" : "Yesterday", secondary: full };
++  }
++  return { primary: full, secondary: null };
++}
++
++export function createConcurrencyGate(limit: number) {
++  let active = 0;
++  const waiters: Array<() => void> = [];
++  return {
++    async acquire(stillWanted: () => boolean): Promise<boolean> {
++      while (true) {
++        if (!stillWanted()) {
++          waiters.shift()?.();
++          return false;
++        }
++        if (active < limit) {
++          active += 1;
++          return true;
++        }
++        await new Promise<void>((resolve) => {
++          waiters.push(resolve);
++        });
++      }
++    },
++    release() {
++      active = Math.max(0, active - 1);
++      waiters.shift()?.();
++    },
++    active: () => active,
++  };
++}
++
++export async function runWithConcurrency<T>(
++  items: readonly T[],
++  limit: number,
++  worker: (item: T) => Promise<void>,
++  stillWanted: (item: T) => boolean,
++): Promise<void> {
++  const gate = createConcurrencyGate(limit);
++  await Promise.all(
++    items.map(async (item) => {
++      const allowed = await gate.acquire(() => stillWanted(item));
++      if (!allowed) return;
++      try {
++        await worker(item);
++      } finally {
++        gate.release();
++      }
++    }),
++  );
++}
+diff --git a/admin/src/features/ledger/sample-people.ts b/admin/src/features/ledger/sample-people.ts
+new file mode 100644
+index 0000000..27e0ddc
+--- /dev/null
++++ b/admin/src/features/ledger/sample-people.ts
+@@ -0,0 +1,142 @@
++import type { LedgerEvent, LedgerHistory } from "./ledger-model";
++
++function history(
++  id: string,
++  rows: Array<[string, string, string, string]>,
++): LedgerEvent[] {
++  return rows.map((row, index) => ({
++    id: `${id}-${index}`,
++    occurredAt: row[0],
++    label: row[1],
++    detail: row[2],
++    category: row[3],
++  }));
++}
++
++const zone = "America/Los_Angeles";
++
++export const SAMPLE_REFERENCE_DATE = new Date("2026-10-10T18:00:00-07:00");
++
++export function samplePeople(): LedgerHistory[] {
++  return [
++    {
++      id: "e1",
++      name: "Amara Ellis",
++      handle: "amara.ellis",
++      email: "amara@example.com",
++      joined: "2026-09-14T12:00:00-07:00",
++      timezone: zone,
++      history: history("e1", [
++        ["2026-10-10T17:31:00-07:00", "Completed a flow event", "The Reading House · Day 4", "Flows"],
++        ["2026-10-10T17:22:00-07:00", "Saved a journal entry", "Entry saved · private text hidden", "Journal"],
++        ["2026-10-10T17:18:00-07:00", "Joined a group flow", "The Reading House", "Together"],
++        ["2026-10-10T17:15:00-07:00", "Opened a flow", "The Reading House", "Flows"],
++        ["2026-10-10T17:12:00-07:00", "Opened ḥꜣw", "App resumed", "App"],
++        ["2026-10-09T19:06:00-07:00", "Liked a flow post", "Feed · public post", "Community"],
++        ["2026-10-09T18:44:00-07:00", "Opened the Calendar", "Month view", "Calendar"],
++        ["2026-10-09T18:40:00-07:00", "Opened ḥꜣw", "App launched", "App"],
++        ["2026-10-07T08:35:00-07:00", "Saved a flow", "Follow the Sky", "Flows"],
++        ["2026-10-07T08:21:00-07:00", "Visited the Library", "Learning nodes", "Library"],
++        ["2026-10-07T08:14:00-07:00", "Opened ḥꜣw", "App launched", "App"],
++        ["2026-09-28T21:23:00-07:00", "Completed a flow event", "The Offering Table", "Flows"],
++      ]),
++    },
++    {
++      id: "e2",
++      name: "Malik Jordan",
++      handle: "malik.j",
++      email: "malik@example.com",
++      joined: "2026-09-28T12:00:00-07:00",
++      timezone: zone,
++      history: history("e2", [
++        ["2026-10-10T14:42:00-07:00", "Created a flow", "Morning Groundwork", "Flows"],
++        ["2026-10-10T14:28:00-07:00", "Opened Flow Studio", "Started creating a flow", "Flows"],
++        ["2026-10-10T14:26:00-07:00", "Opened ḥꜣw", "App launched", "App"],
++        ["2026-10-08T10:38:00-07:00", "Followed another user", "New mutual connection", "Community"],
++        ["2026-10-08T10:34:00-07:00", "Visited the Feed", "Discovery surface", "Community"],
++        ["2026-10-08T10:31:00-07:00", "Opened ḥꜣw", "App launched", "App"],
++        ["2026-10-03T13:24:00-07:00", "Completed onboarding", "Account setup", "Onboarding"],
++      ]),
++    },
++    {
++      id: "e3",
++      name: "Nia Robinson",
++      handle: "nia.reads",
++      email: "nia@example.com",
++      joined: "2026-09-01T12:00:00-07:00",
++      timezone: zone,
++      history: history("e3", [
++        ["2026-10-09T21:16:00-07:00", "Commented on a flow post", "The Reading House · post comment", "Community"],
++        ["2026-10-09T21:10:00-07:00", "Viewed a group flow", "The Reading House", "Together"],
++        ["2026-10-09T21:07:00-07:00", "Opened ḥꜣw", "App launched", "App"],
++        ["2026-10-05T12:29:00-07:00", "Saved a journal entry", "Entry saved · private text hidden", "Journal"],
++        ["2026-10-05T12:21:00-07:00", "Visited the Library", "The Djed", "Library"],
++        ["2026-09-25T18:56:00-07:00", "Joined a group flow", "The Reading House", "Together"],
++      ]),
++    },
++    {
++      id: "e4",
++      name: "Leila Hassan",
++      handle: "leila.h",
++      email: "leila@example.com",
++      joined: "2026-10-01T12:00:00-07:00",
++      timezone: zone,
++      history: history("e4", [
++        ["2026-10-08T07:56:00-07:00", "Added a calendar event", "Event details hidden", "Calendar"],
++        ["2026-10-08T07:51:00-07:00", "Opened the Planner", "Today view", "Planner"],
++        ["2026-10-08T07:47:00-07:00", "Opened ḥꜣw", "App launched", "App"],
++        ["2026-10-04T20:37:00-07:00", "Started a flow", "Follow the Sky", "Flows"],
++        ["2026-10-04T20:31:00-07:00", "Opened ḥꜣw", "App launched", "App"],
++        ["2026-10-01T11:33:00-07:00", "Created account", "Joined ḥꜣw", "Onboarding"],
++      ]),
++    },
++    {
++      id: "e5",
++      name: "David Okoye",
++      handle: "david.o",
++      email: "david@example.com",
++      joined: "2026-08-19T12:00:00-07:00",
++      timezone: zone,
++      history: history("e5", [
++        ["2026-10-06T18:22:00-07:00", "Marked a planner task complete", "One task completed", "Planner"],
++        ["2026-10-06T18:14:00-07:00", "Opened ḥꜣw", "App launched", "App"],
++        ["2026-09-27T16:52:00-07:00", "Saved a flow", "The Offering Table", "Flows"],
++        ["2026-09-17T09:11:00-07:00", "Viewed a Library node", "Ma’at", "Library"],
++      ]),
++    },
++    {
++      id: "e6",
++      name: "Jaden Torres",
++      handle: "jaden.torres",
++      email: "jaden@example.com",
++      joined: "2026-09-20T12:00:00-07:00",
++      timezone: zone,
++      history: history("e6", [
++        ["2026-10-04T16:09:00-07:00", "Opened the Feed", "Community feed", "Community"],
++        ["2026-10-04T16:02:00-07:00", "Opened ḥꜣw", "App launched", "App"],
++        ["2026-09-25T08:12:00-07:00", "Completed onboarding", "Account setup", "Onboarding"],
++      ]),
++    },
++    {
++      id: "e7",
++      name: "Kayla Brooks",
++      handle: "kayla.b",
++      email: "kayla@example.com",
++      joined: "2026-09-24T12:00:00-07:00",
++      timezone: zone,
++      history: history("e7", [
++        ["2026-09-30T09:14:00-07:00", "Completed onboarding", "Account setup", "Onboarding"],
++        ["2026-09-30T09:10:00-07:00", "Opened ḥꜣw", "App launched", "App"],
++      ]),
++    },
++    {
++      id: "e8",
++      name: "Ayo Bennett",
++      handle: "ayo.b",
++      email: "ayo@example.com",
++      joined: "2026-10-07T12:00:00-07:00",
++      timezone: zone,
++      history: history("e8", []),
++    },
++  ];
++}
+diff --git a/admin/src/main.tsx b/admin/src/main.tsx
+index b3bea20..ea53c34 100644
+--- a/admin/src/main.tsx
++++ b/admin/src/main.tsx
+@@ -1,14 +1,19 @@
+ import React from "react";
+ import ReactDOM from "react-dom/client";
+-import { BrowserRouter } from "react-router-dom";
+ 
+ import { App } from "./app/App";
+ import "./styles/global.css";
+ 
+ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+   <React.StrictMode>
+-    <BrowserRouter>
+-      <App />
+-    </BrowserRouter>
++    <App />
+   </React.StrictMode>,
+ );
++
++if ("serviceWorker" in navigator) {
++  window.addEventListener("load", () => {
++    void navigator.serviceWorker.register("/sw.js").catch(() => {
++      // Shell caching is optional; auth and data still work without it.
++    });
++  });
++}
+diff --git a/admin/src/styles/global.css b/admin/src/styles/global.css
+index 1f78b82..83c2321 100644
+--- a/admin/src/styles/global.css
++++ b/admin/src/styles/global.css
+@@ -1,98 +1,253 @@
+ :root {
+   color-scheme: dark;
+-  font-family:
+-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+-    sans-serif;
+-  background: #111315;
+-  color: #eef1ed;
+-  font-synthesis: none;
+-  text-rendering: optimizeLegibility;
+-  letter-spacing: 0;
+-}
+-
+-* {
+-  box-sizing: border-box;
+-}
+-
++  --bg: #120f10;
++  --panel: #1b1718;
++  --panel-raised: #201a1a;
++  --panel-deep: #171313;
++  --line: rgba(222, 194, 142, .11);
++  --line-strong: rgba(228, 200, 153, .23);
++  --gold: #d6b884;
++  --gold-bright: #f0d9a7;
++  --gold-muted: #937653;
++  --text: #f1eae0;
++  --muted: #ac9f95;
++  --quiet: #776e68;
++  --green: #a2c3a2;
++  --red: #d4a99c;
++  --serif: 'Gentium Plus', 'Iowan Old Style', 'Baskerville', 'Noto Serif', Georgia, serif;
++  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
++  --ease: cubic-bezier(.2,.75,.25,1);
++}
++* { box-sizing: border-box; }
++html { scroll-behavior: smooth; }
+ body {
+   margin: 0;
+-  min-width: 320px;
+   min-height: 100vh;
+-  background: #111315;
+-}
+-
+-button,
+-input,
+-select,
+-textarea {
+-  font: inherit;
+-}
+-
+-table {
+-  width: 100%;
+-  border-collapse: collapse;
+-}
+-
+-th,
+-td {
+-  border-bottom: 1px solid #2b3233;
+-  padding: 12px 14px;
+-  text-align: left;
+-  vertical-align: top;
+-}
+-
+-th {
+-  color: #8fd7c3;
+-  font-size: 12px;
+-  font-weight: 800;
+-  text-transform: uppercase;
+-}
+-
+-td {
+-  color: #dfe6e3;
++  background:
++    radial-gradient(ellipse 750px 380px at 78% -11%, rgba(116, 51, 44, .22), transparent 74%),
++    radial-gradient(ellipse 530px 410px at -8% 10%, rgba(93, 60, 37, .10), transparent 75%),
++    var(--bg);
++  font-family: var(--sans);
++  color: var(--text);
++  -webkit-font-smoothing: antialiased;
+   font-size: 14px;
++  line-height: 1.5;
+ }
+-
+-td strong,
+-td span {
+-  display: block;
+-}
+-
+-td span {
+-  margin-top: 3px;
+-  color: #8f9c99;
+-  font-size: 12px;
+-}
+-
+-button {
+-  min-height: 40px;
+-  border: 0;
+-  border-radius: 6px;
+-  background: #d4a84f;
+-  color: #15110a;
+-  font-weight: 700;
+-  cursor: pointer;
+-}
+-
+-button:disabled {
+-  cursor: not-allowed;
+-  opacity: 0.55;
+-}
+-
+-.secondary-button {
+-  border: 1px solid #3a4243;
+-  background: #1d2223;
+-  color: #eef1ed;
+-}
+-
+-.full-width {
+-  width: 100%;
+-}
+-
+-.stacked-button {
+-  margin-top: 10px;
+-}
+-
++::selection { background: rgba(205,168,106,.31); color: #fff8ee; }
++button, input, select { font: inherit; }
++button { cursor: pointer; }
++button:focus-visible, input:focus-visible, select:focus-visible {
++  outline: 2px solid var(--gold);
++  outline-offset: 3px;
++}
++a { color: inherit; }
++svg { display: block; }
++.ico { width: 17px; height: 17px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
++.ico-sm { width: 15px; height: 15px; }
++.ico-lg { width: 20px; height: 20px; }
++.visually-hidden { clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
++
++.topbar-wrap { border-bottom: 1px solid var(--line); background: rgba(18,15,16,.68); }
++.topbar {
++  height: 87px; max-width: 1210px; margin: auto; padding: 0 45px;
++  display: flex; align-items: center; justify-content: space-between; gap: 20px;
++}
++.brand { display: flex; align-items: center; gap: 21px; min-width: 0; }
++.brand-word {
++  font-family: var(--serif); font-size: 41px; letter-spacing: -.075em;
++  font-weight: 400; line-height: 1; color: var(--gold-bright);
++  text-shadow: 0 0 25px rgba(219,160,75,.1); padding-right: 4px;
++}
++.brand-divider { width: 1px; height: 24px; background: var(--line-strong); }
++.brand-context { display: flex; flex-direction: column; gap: 3px; }
++.brand-context strong { font-size: 11px; color: #d5c7b4; text-transform: uppercase; letter-spacing: .195em; font-weight: 500; }
++.brand-context span { font-size: 11px; color: var(--quiet); letter-spacing: .03em; }
++.topbar-right { display: flex; align-items: center; gap: 18px; }
++.preview-tag { display: inline-flex; gap: 7px; align-items: center; white-space: nowrap; color: var(--gold-muted); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
++.preview-tag:before { content: ''; width: 5px; height: 5px; border: 1px solid currentColor; border-radius: 50%; }
++.owner { border-left: 1px solid var(--line); padding-left: 18px; display: flex; align-items: center; gap: 11px; }
++.owner-copy { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
++.owner-copy strong { font-weight: 500; font-size: 12px; color: var(--text); }
++.owner-copy span { color: var(--quiet); font-size: 10px; }
++.owner-avatar { width: 35px; height: 35px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(145deg,#47312a,#271e1b); border: 1px solid rgba(226,179,112,.24); font-family: var(--serif); font-size: 14px; letter-spacing: .015em; color: #dfc299; }
++
++.page { max-width: 1120px; padding: 65px 40px 75px; margin: 0 auto; }
++.intro { display: flex; justify-content: space-between; align-items: end; gap: 40px; margin-bottom: 45px; }
++.eyebrow { font-size: 10px; color: var(--gold-muted); letter-spacing: .215em; text-transform: uppercase; font-weight: 500; display: flex; align-items: center; gap: 12px; }
++.eyebrow:before { content: ''; height: 1px; width: 24px; background: var(--gold-muted); opacity: .85; }
++h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(43px,6vw,69px); margin: 11px 0 6px; letter-spacing: -.045em; line-height: 1.08; color: #f1e6d5; }
++h1 em { font-style: normal; color: var(--gold); }
++.intro p { max-width: 620px; font-size: 13px; letter-spacing: .012em; color: var(--muted); line-height: 1.75; margin: 15px 0 0; font-weight: 350; }
++.intro-aside { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; padding-bottom: 6px; flex: none; }
++.intro-aside .small-rule { width: 44px; height: 1px; background: var(--gold-muted); margin-bottom: 4px; opacity: .7; }
++.intro-aside .mini-metric { font-family: var(--serif); font-size: 38px; color: var(--gold-bright); line-height: 1; font-weight: 400; font-variant-numeric: tabular-nums; }
++.intro-aside .mini-caption { font-size: 10px; letter-spacing: .145em; text-transform: uppercase; color: var(--quiet); }
++
++.toolbar { padding: 17px 19px; border: 1px solid var(--line); background: rgba(35,27,27,.6); border-radius: 11px; display: grid; grid-template-columns: minmax(220px,1fr) auto auto; gap: 12px; align-items: center; box-shadow: 0 8px 36px rgba(0,0,0,.09); }
++.search { height: 47px; background: #1a1616; border: 1px solid rgba(231,204,171,.14); display: flex; align-items: center; gap: 13px; padding: 0 15px; color: var(--gold-muted); border-radius: 7px; transition: border-color .2s; }
++.search:focus-within { border-color: rgba(227,191,130,.65); }
++.search input { width: 100%; min-width: 0; border: none; outline: none; color: var(--text); background: transparent; font-size: 13px; font-weight: 300; letter-spacing: .01em; }
++.search input::placeholder { color: #82756d; opacity: 1; }
++.search button { border: none; padding: 3px; background: none; color: var(--muted); display: none; }
++.search button.is-visible { display: block; }
++.control-label { display: block; color: var(--quiet); font-size: 9px; text-transform: uppercase; letter-spacing: .12em; margin-bottom: 4px; }
++.select-shell { position: relative; }
++.select-shell select { height: 47px; border: 1px solid rgba(231,204,171,.14); border-radius: 7px; background: #1a1616; color: #dccfbd; font-size: 12px; padding: 0 36px 0 14px; appearance: none; min-width: 146px; cursor: pointer; outline: none; }
++.select-shell select:focus-visible { outline: 2px solid var(--gold); }
++.select-chevron { position: absolute; top: 15px; right: 12px; pointer-events: none; color: var(--gold-muted); }
++.segmented { border: 1px solid rgba(231,204,171,.14); border-radius: 7px; background: #1a1616; padding: 4px; display: flex; height: 47px; align-items: center; gap: 1px; }
++.segmented button { min-width: 55px; height: 37px; padding: 0 12px; background: transparent; color: #9a8c82; border: none; border-radius: 5px; font-size: 12px; font-weight: 350; transition: all .18s; }
++.segmented button.active { background: #49372c; color: #f0d7a7; box-shadow: inset 0 0 0 1px rgba(233,185,116,.13); }
++.segmented button:hover:not(.active) { color: #e1d1ba; }
++
++.subtoolbar { margin: 22px 1px 21px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
++.filter-list { display: flex; align-items: center; gap: 7px; overflow-x: auto; scrollbar-width: none; }
++.filter-list::-webkit-scrollbar { display: none; }
++.filter-btn { white-space: nowrap; background: transparent; border: 1px solid transparent; border-radius: 50px; color: var(--muted); padding: 8px 13px; font-size: 12px; font-weight: 400; display: inline-flex; gap: 8px; align-items: center; transition: color .2s, border-color .2s, background .2s; }
++.filter-btn.active { background: rgba(190,147,95,.09); border-color: rgba(224,180,121,.26); color: var(--gold-bright); }
++.filter-btn:hover { color: var(--gold-bright); }
++.filter-count { color: var(--quiet); font-size: 10px; font-variant-numeric: tabular-nums; }
++.filter-btn.active .filter-count { color: #b6996c; }
++.right-controls { display: flex; align-items: center; gap: 15px; }
++.sort-select { display: inline-flex; color: var(--muted); font-size: 11px; align-items: center; gap: 6px; white-space: nowrap; }
++.sort-select select { background: transparent; appearance: none; outline: none; border: none; color: #d5c5b0; cursor: pointer; font-size: 11px; padding-right: 0; }
++.sort-select option { background: #221b1a; }
++.expand-all { color: var(--gold-muted); background: transparent; border: none; padding: 9px 0; font-size: 11px; white-space: nowrap; }
++.expand-all:hover { color: var(--gold-bright); }
++.section-meta { color: #776d65; font-size: 10px; text-transform: uppercase; letter-spacing: .13em; display: flex; justify-content: space-between; align-items: center; margin: 14px 4px 13px; }
++.section-meta span:last-child { color: #837166; }
++.nodes { display: flex; flex-direction: column; gap: 12px; }
++
++.node { border: 1px solid rgba(223,190,145,.12); border-radius: 10px; background: rgba(29,24,24,.74); overflow: hidden; transition: background .22s, border-color .22s, box-shadow .22s; }
++.node:hover { border-color: rgba(223,190,145,.22); }
++.node.open { background: linear-gradient(155deg,rgba(39,30,29,.91),rgba(24,20,20,.94) 42%); border-color: rgba(217,177,118,.32); box-shadow: 0 15px 50px rgba(0,0,0,.1), 0 0 35px rgba(128,75,46,.028); }
++.node-toggle { width: 100%; min-height: 95px; padding: 19px 25px 19px 23px; background: transparent; border: 0; color: inherit; text-align: left; display: grid; align-items: center; grid-template-columns: 45px minmax(0,1fr) minmax(110px, auto) 92px 25px; gap: 18px; }
++.user-avatar { height: 45px; width: 45px; flex: none; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 24% 12%, rgba(206,168,113,.12), transparent 71%), var(--avatar-bg, #3c2d2c); border: 1px solid var(--avatar-edge,rgba(221,174,127,.2)); color: var(--avatar-color,#e2c6a9); font-family: var(--serif); font-size: 17px; letter-spacing: -.025em; line-height: 1; }
++.identity { min-width: 0; }
++.identity-title { font-size: 15px; letter-spacing: .005em; color: #ede4db; font-weight: 450; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
++.identity-sub { color: #93867c; font-size: 11px; font-weight: 350; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
++.last-activity { text-align: right; min-width: 0; }
++.activity-time { display: block; color: #d6c8b9; font-size: 12px; font-weight: 400; white-space: nowrap; }
++.activity-caption { display: block; color: #85796f; margin-top: 4px; font-size: 10px; white-space: nowrap; }
++.event-count { padding-left: 20px; text-align: right; border-left: 1px solid var(--line); }
++.event-count strong { color: #dbbd8e; display: block; font-family: var(--serif); font-size: 23px; line-height: 1.05; font-weight: 400; font-variant-numeric: tabular-nums; }
++.event-count span { display: block; color: #85796f; font-size: 10px; white-space: nowrap; margin-top: 4px; }
++.chevron { display: grid; place-items: center; color: var(--gold-muted); opacity: .8; transition: transform .2s var(--ease), opacity .2s; }
++.open .chevron { transform: rotate(180deg); opacity: 1; }
++.node-body { border-top: 1px solid var(--line); padding: 0 27px 24px 86px; animation: reveal .25s var(--ease) both; }
++@keyframes reveal { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
++.node-details { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 19px; min-height: 63px; border-bottom: 1px solid var(--line); color: #8f8278; font-size: 11px; font-weight: 350; }
++.node-details strong { color: #c6b5a4; font-weight: 450; }
++.node-details .dot-divider { height: 3px; width: 3px; background: #715f4b; border-radius: 50%; }
++.timeline-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 24px 0 2px; }
++.timeline-heading h3 { font-family: var(--serif); font-size: 23px; font-weight: 400; line-height: 1.1; color: #e9d7bd; margin: 0; }
++.timeline-heading p { font-size: 10px; color: #87786f; margin: 2px 0; }
++.day { padding-top: 23px; }
++.day-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 0 0 10px; border-bottom: 1px solid rgba(225,195,153,.105); }
++.day-name { display: flex; align-items: baseline; gap: 11px; }
++.day-name strong { color: #e0c9a9; font-weight: 450; font-size: 12px; letter-spacing: .01em; }
++.day-name span { font-size: 11px; color: #81756c; }
++.day-count { font-size: 10px; color: #8b7965; white-space: nowrap; font-variant-numeric: tabular-nums; }
++.timeline { position: relative; margin-top: 8px; }
++.timeline:before { position: absolute; content: ''; top: 19px; bottom: 18px; width: 1px; left: 83px; background: linear-gradient(rgba(223,185,126,.25), rgba(223,185,126,.075)); }
++.event { display: grid; grid-template-columns: 64px 21px minmax(0,1fr) auto; gap: 10px; min-height: 56px; align-items: start; padding: 10px 0; position: relative; }
++.event-time { padding-top: 3px; color: #9a8a7b; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
++.event-mark { height: 21px; width: 21px; display: grid; place-items: center; color: #b89b70; z-index: 1; }
++.event-mark:before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #65503c; border: 1px solid #b09369; box-shadow: 0 0 0 4px #201919; }
++.event-main { min-width: 0; }
++.event-title { color: #e2d7cb; font-size: 12px; font-weight: 380; letter-spacing: .01em; }
++.event-sub { margin-top: 2px; color: #8f8278; font-size: 11px; font-weight: 330; line-height: 1.5; }
++.event-category { color: #89796d; font-size: 10px; white-space: nowrap; padding-top: 3px; }
++.event:is(:hover,:focus-within) .event-title { color: #f2dcc0; }
++.empty-user { padding: 26px 0 7px; display: flex; gap: 12px; align-items: flex-start; color: #8f8075; }
++.empty-user p { margin: 0; font-size: 12px; line-height: 1.7; }
++.empty-user svg { margin-top: 1px; color: var(--gold-muted); }
++.older { display: flex; align-items: center; margin-top: 19px; gap: 10px; padding: 11px 14px; background: rgba(210,173,116,.045); border: 1px solid rgba(212,175,118,.17); border-radius: 6px; color: #cbb28d; font-size: 11px; transition: border-color .2s, background .2s; }
++.older:hover { border-color: rgba(222,183,122,.37); background: rgba(210,173,116,.085); }
++.older .ico { transition: transform .2s; }
++.older[data-open="true"] .ico { transform: rotate(180deg); }
++.older:disabled { opacity: .6; cursor: default; }
++.no-results { text-align: center; border: 1px dashed rgba(226,191,147,.2); border-radius: 12px; color: var(--muted); padding: 62px 25px; background: rgba(27,21,21,.58); }
++.no-results > .ico { margin: auto; color: var(--gold-muted); }
++.no-results h3 { color: #e7d3b5; font-weight: 400; font-size: 26px; font-family: var(--serif); margin: 10px 0 4px; }
++.no-results p { margin: 0 auto; max-width: 380px; font-size: 12px; line-height: 1.7; }
++.no-results button { margin-top: 20px; padding: 9px 15px; background: rgba(205,161,102,.10); border-radius: 6px; color: #ddba87; border: 1px solid rgba(222,177,108,.3); font-size: 12px; }
++.end-note { margin: 38px auto 0; padding: 26px 4px 0; border-top: 1px solid var(--line); color: #83766d; font-size: 11px; display: flex; gap: 15px; align-items: start; justify-content: space-between; line-height: 1.7; }
++.end-note .privacy { display: flex; align-items: flex-start; gap: 10px; max-width: 575px; }
++.end-note .privacy svg { color: var(--gold-muted); margin-top: 2px; }
++.end-note span.copyright { color: #645b56; white-space: nowrap; }
++.ledger-status { margin: 0 0 18px; color: var(--muted); font-size: 12px; }
++.ledger-status.error { color: var(--red); }
++
++@media (max-width: 920px) {
++  .topbar { padding: 0 30px; }
++  .page { padding: 53px 29px 65px; }
++  .toolbar { grid-template-columns: minmax(0,1fr) auto; }
++  .toolbar > .select-shell { display: none; }
++  .intro-aside { display: none; }
++  .node-toggle { grid-template-columns: 45px minmax(0,1fr) 110px 72px 19px; gap: 12px; }
++  .node-body { padding-left: 76px; }
++}
++@media (max-width: 640px) {
++  .topbar { padding: 0 19px; height: 70px; }
++  .brand { gap: 12px; }
++  .brand-word { font-size: 34px; }
++  .brand-divider { height: 22px; }
++  .brand-context strong { font-size: 10px; }
++  .brand-context span { display: none; }
++  .preview-tag { display: none; }
++  .owner { border-left: none; padding-left: 0; }
++  .owner-copy { display: none; }
++  .owner-avatar { width: 32px; height: 32px; font-size: 13px; }
++  .page { padding: 43px 15px 50px; }
++  .intro { margin-bottom: 27px; }
++  h1 { font-size: 47px; margin-top: 11px; letter-spacing: -.052em; }
++  .intro p { margin-top: 12px; line-height: 1.7; font-size: 12px; max-width: 350px; }
++  .eyebrow { font-size: 9px; letter-spacing: .19em; }
++  .eyebrow:before { width: 19px; }
++  .toolbar { padding: 10px; grid-template-columns: minmax(0,1fr); gap: 9px; border-radius: 9px; }
++  .search { height: 46px; }
++  .segmented { height: 43px; width: 100%; justify-content: space-between; }
++  .segmented button { flex: 1; height: 35px; font-size: 12px; }
++  .subtoolbar { margin: 17px 0 19px; flex-direction: column; align-items: stretch; gap: 8px; }
++  .filter-list { width: 100%; }
++  .filter-btn { padding: 8px 12px; }
++  .right-controls { justify-content: space-between; padding: 0 4px; }
++  .section-meta { font-size: 9px; letter-spacing: .105em; margin-bottom: 11px; }
++  .node-toggle { padding: 16px 13px; grid-template-columns: 38px minmax(0,1fr) auto 16px; gap: 10px; min-height: 83px; }
++  .user-avatar { width: 38px; height: 38px; font-size: 15px; }
++  .identity-title { font-size: 13px; }
++  .identity-sub { font-size: 10px; }
++  .last-activity { display: none; }
++  .event-count { padding-left: 11px; }
++  .event-count strong { font-size: 20px; }
++  .event-count span { font-size: 9px; }
++  .node-body { padding: 0 14px 19px; }
++  .node-details { min-height: 60px; font-size: 10px; gap: 6px 10px; }
++  .timeline-heading { padding: 21px 0 0; }
++  .timeline-heading h3 { font-size: 21px; }
++  .timeline-heading p { font-size: 9px; }
++  .day { padding-top: 20px; }
++  .day-name { gap: 7px; }
++  .day-name strong { font-size: 11px; }
++  .day-name span { font-size: 10px; }
++  .day-count { font-size: 9px; }
++  .timeline:before { left: 67px; }
++  .event { grid-template-columns: 51px 17px minmax(0,1fr); gap: 9px; min-height: 61px; padding: 9px 0; }
++  .event-time { font-size: 10px; }
++  .event-mark { width: 17px; }
++  .event-main { min-width: 0; }
++  .event-title { font-size: 12px; }
++  .event-sub { font-size: 10px; }
++  .event-category { display: none; }
++  .end-note { flex-direction: column; gap: 13px; font-size: 10px; }
++}
++@media (prefers-reduced-motion: reduce) {
++  *,*:before,*:after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
++}
++
++/* Existing authentication screens. Preserved so sign-in, recovery,
++   denial, and the session check keep their appearance. */
+ .auth-screen {
+   display: grid;
+   min-height: 100vh;
+@@ -101,8 +256,10 @@ button:disabled {
+   background:
+     linear-gradient(180deg, rgba(17, 19, 21, 0.92), rgba(17, 19, 21, 1)),
+     #111315;
++  color: #eef1ed;
++  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
++  letter-spacing: 0;
+ }
+-
+ .auth-panel {
+   width: min(420px, 100%);
+   border: 1px solid #303739;
+@@ -111,57 +268,45 @@ button:disabled {
+   padding: 28px;
+   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.35);
+ }
+-
+-.auth-panel h1,
+-.page-heading h1 {
++.auth-panel h1 {
+   margin: 10px 0 8px;
++  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+   font-size: 28px;
++  font-weight: 700;
+   line-height: 1.15;
++  letter-spacing: 0;
++  color: #eef1ed;
+ }
+-
+-.auth-panel p,
+-.page-heading p,
+-.status-row p,
+-.check-grid span {
++.auth-panel p {
+   margin: 0;
+   color: #aeb9b6;
+   line-height: 1.5;
++  font-size: 14px;
++  font-weight: 400;
+ }
+-
+ .auth-panel .auth-hint {
+   margin-top: 10px;
+   color: #d8c17a;
+   font-size: 14px;
+ }
+-
+ .brand-mark {
+   color: #d4a84f;
+   font-size: 18px;
+   font-weight: 800;
++  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
++  letter-spacing: 0;
++  text-shadow: none;
+ }
+-
+-.brand-mark.compact {
+-  display: grid;
+-  width: 34px;
+-  height: 34px;
+-  place-items: center;
+-  border: 1px solid #4c3f20;
+-  border-radius: 6px;
+-  background: #201b12;
+-}
+-
+ .auth-form {
+   display: grid;
+   gap: 10px;
+   margin: 24px 0 12px;
+ }
+-
+ .auth-form label {
+   color: #d8dfdc;
+   font-size: 13px;
+   font-weight: 700;
+ }
+-
+ .auth-form input {
+   width: 100%;
+   min-height: 44px;
+@@ -170,41 +315,39 @@ button:disabled {
+   background: #101315;
+   color: #eef1ed;
+   padding: 0 12px;
++  font-size: 14px;
++  font-weight: 400;
++  letter-spacing: 0;
+ }
+-
+-select,
+-textarea,
+-.toolbar-row input,
+-.form-grid input {
+-  width: 100%;
+-  border: 1px solid #3a4243;
++.auth-screen button {
++  min-height: 40px;
++  border: 0;
+   border-radius: 6px;
+-  background: #101315;
+-  color: #eef1ed;
+-}
+-
+-select,
+-.toolbar-row input,
+-.form-grid input {
+-  min-height: 42px;
+-  padding: 0 12px;
++  background: #d4a84f;
++  color: #15110a;
++  font-weight: 700;
++  font-size: 14px;
++  letter-spacing: 0;
++  cursor: pointer;
+ }
+-
+-textarea {
+-  min-height: 120px;
+-  padding: 12px;
+-  resize: vertical;
++.auth-screen button:disabled {
++  cursor: not-allowed;
++  opacity: 0.55;
+ }
+-
+ .auth-form button,
+-.topbar button,
+-.secondary-button {
++.auth-screen .secondary-button {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   gap: 8px;
+ }
+-
++.auth-screen .secondary-button {
++  border: 1px solid #3a4243;
++  background: #1d2223;
++  color: #eef1ed;
++}
++.full-width { width: 100%; }
++.stacked-button { margin-top: 10px; }
+ .notice {
+   margin-top: 14px;
+   border: 1px solid #344346;
+@@ -212,167 +355,20 @@ textarea {
+   background: #182023;
+   color: #c7d1ce;
+   padding: 12px;
++  font-size: 14px;
+ }
+-
+ .notice.danger {
+   border-color: #6c393b;
+   background: #25191a;
+   color: #f0c0c0;
+ }
+-
+ .center-panel {
+   display: grid;
+   min-height: 100vh;
+   place-items: center;
+   color: #aeb9b6;
++  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+ }
+-
+-.admin-shell {
+-  display: grid;
+-  min-height: 100vh;
+-  grid-template-columns: 280px minmax(0, 1fr);
+-}
+-
+-.sidebar {
+-  border-right: 1px solid #2b3233;
+-  background: #141819;
+-  padding: 18px 14px;
+-}
+-
+-.sidebar-brand {
+-  display: flex;
+-  align-items: center;
+-  gap: 10px;
+-  padding: 4px 6px 20px;
+-  color: #f2f0e7;
+-  font-weight: 800;
+-}
+-
+-.sidebar-nav {
+-  display: grid;
+-  gap: 20px;
+-}
+-
+-.nav-group h2,
+-.eyebrow {
+-  margin: 0 0 8px;
+-  color: #7ec7b1;
+-  font-size: 11px;
+-  font-weight: 800;
+-  letter-spacing: 0;
+-  text-transform: uppercase;
+-}
+-
+-.nav-link {
+-  display: flex;
+-  align-items: center;
+-  gap: 10px;
+-  min-height: 34px;
+-  border-radius: 6px;
+-  color: #aeb9b6;
+-  padding: 0 10px;
+-  text-decoration: none;
+-}
+-
+-.nav-link:hover,
+-.nav-link.active {
+-  background: #202628;
+-  color: #f4f6f2;
+-}
+-
+-.workspace {
+-  min-width: 0;
+-  background: #111315;
+-}
+-
+-.topbar {
+-  display: flex;
+-  align-items: center;
+-  justify-content: space-between;
+-  min-height: 66px;
+-  border-bottom: 1px solid #2b3233;
+-  padding: 0 28px;
+-}
+-
+-.topbar-user {
+-  display: flex;
+-  align-items: center;
+-  gap: 14px;
+-  color: #aeb9b6;
+-  font-size: 13px;
+-}
+-
+-.topbar button {
+-  min-height: 36px;
+-  border: 1px solid #3a4243;
+-  background: #1d2223;
+-  color: #eef1ed;
+-  padding: 0 12px;
+-}
+-
+-.topbar-mode {
+-  display: inline-block;
+-  margin-left: 10px;
+-  border: 1px solid #5a4926;
+-  border-radius: 999px;
+-  background: #211c13;
+-  color: #e8c06b;
+-  padding: 5px 8px;
+-  font-size: 12px;
+-  font-weight: 800;
+-}
+-
+-.content {
+-  padding: 28px;
+-}
+-
+-.page-surface {
+-  display: grid;
+-  gap: 22px;
+-  max-width: 1120px;
+-}
+-
+-.page-heading {
+-  display: flex;
+-  align-items: flex-start;
+-  justify-content: space-between;
+-  gap: 24px;
+-  border-bottom: 1px solid #2b3233;
+-  padding-bottom: 22px;
+-}
+-
+-.phase-pill {
+-  flex: 0 0 auto;
+-  border: 1px solid #3a4243;
+-  border-radius: 999px;
+-  background: #1b2022;
+-  color: #aeb9b6;
+-  padding: 8px 12px;
+-  font-size: 12px;
+-  font-weight: 800;
+-}
+-
+-.phase-pill.ready {
+-  border-color: #5a4926;
+-  background: #211c13;
+-  color: #e8c06b;
+-}
+-
+-.status-row {
+-  display: flex;
+-  gap: 16px;
+-  align-items: flex-start;
+-  border: 1px solid #2b3233;
+-  border-radius: 8px;
+-  background: #171b1d;
+-  padding: 18px;
+-}
+-
+-.status-row h2 {
+-  margin: 0 0 6px;
+-  font-size: 18px;
+-}
+-
+ .icon-disc {
+   display: grid;
+   width: 44px;
+@@ -383,969 +379,7 @@ textarea {
+   background: #252221;
+   color: #d4a84f;
+ }
+-
+-.icon-disc.success {
+-  background: #142522;
+-  color: #7ec7b1;
+-}
+-
+ .icon-disc.danger {
+   background: #2a1b1d;
+   color: #f0a6a6;
+ }
+-
+-.check-grid {
+-  display: grid;
+-  grid-template-columns: repeat(3, minmax(0, 1fr));
+-  gap: 12px;
+-}
+-
+-.check-grid div {
+-  display: grid;
+-  gap: 6px;
+-  border: 1px solid #2b3233;
+-  border-radius: 8px;
+-  background: #15191b;
+-  padding: 16px;
+-}
+-
+-.check-grid strong {
+-  color: #f4f6f2;
+-}
+-
+-.war-room-page {
+-  max-width: 1320px;
+-}
+-
+-.range-control {
+-  display: inline-grid;
+-  grid-template-columns: repeat(3, minmax(58px, 1fr));
+-  gap: 4px;
+-  min-width: 210px;
+-  border: 1px solid #303739;
+-  border-radius: 8px;
+-  background: #171b1d;
+-  padding: 4px;
+-}
+-
+-.range-control button {
+-  min-height: 34px;
+-  border: 1px solid transparent;
+-  border-radius: 6px;
+-  background: transparent;
+-  color: #aeb9b6;
+-  font-size: 13px;
+-  font-weight: 800;
+-}
+-
+-.range-control button.active,
+-.range-control button:hover {
+-  border-color: #5a4926;
+-  background: #211c13;
+-  color: #e8c06b;
+-}
+-
+-.summary-meta {
+-  display: flex;
+-  flex-wrap: wrap;
+-  gap: 10px;
+-  color: #8f9c99;
+-  font-size: 12px;
+-}
+-
+-.summary-meta span {
+-  border: 1px solid #303739;
+-  border-radius: 999px;
+-  background: #171b1d;
+-  padding: 7px 10px;
+-}
+-
+-.kpi-grid {
+-  display: grid;
+-  grid-template-columns: repeat(3, minmax(0, 1fr));
+-  gap: 12px;
+-}
+-
+-.kpi-card {
+-  display: grid;
+-  grid-template-columns: minmax(0, 1fr) auto;
+-  gap: 10px 14px;
+-  min-height: 132px;
+-  border: 1px solid #2b3233;
+-  border-radius: 8px;
+-  background: #171b1d;
+-  padding: 16px;
+-}
+-
+-.kpi-card span {
+-  display: block;
+-  color: #8f9c99;
+-  font-size: 12px;
+-  font-weight: 800;
+-  text-transform: uppercase;
+-}
+-
+-.kpi-card strong {
+-  display: block;
+-  margin-top: 8px;
+-  color: #f4f6f2;
+-  font-size: 30px;
+-  line-height: 1;
+-}
+-
+-.kpi-card svg {
+-  color: #d4a84f;
+-}
+-
+-.kpi-card p {
+-  grid-column: 1 / -1;
+-  margin: 0;
+-  color: #aeb9b6;
+-  font-size: 13px;
+-  line-height: 1.35;
+-}
+-
+-.data-panel {
+-  min-width: 0;
+-  border: 1px solid #2b3233;
+-  border-radius: 8px;
+-  background: #171b1d;
+-  overflow: hidden;
+-}
+-
+-.panel-heading {
+-  display: flex;
+-  align-items: center;
+-  justify-content: space-between;
+-  gap: 16px;
+-  min-height: 58px;
+-  border-bottom: 1px solid #2b3233;
+-  padding: 0 16px;
+-}
+-
+-.panel-heading h2 {
+-  margin: 0;
+-  font-size: 16px;
+-}
+-
+-.panel-heading span {
+-  color: #8f9c99;
+-  font-size: 12px;
+-}
+-
+-.table-wrap {
+-  overflow-x: auto;
+-}
+-
+-.table-wrap table {
+-  min-width: 640px;
+-}
+-
+-.empty-state {
+-  color: #aeb9b6;
+-  padding: 18px 16px;
+-  line-height: 1.5;
+-}
+-
+-.split-grid {
+-  display: grid;
+-  grid-template-columns: repeat(2, minmax(0, 1fr));
+-  gap: 12px;
+-}
+-
+-.metric-strip {
+-  display: grid;
+-  grid-template-columns: repeat(5, minmax(0, 1fr));
+-}
+-
+-.metric-strip div {
+-  min-height: 92px;
+-  border-right: 1px solid #2b3233;
+-  padding: 16px;
+-}
+-
+-.metric-strip div:last-child {
+-  border-right: 0;
+-}
+-
+-.metric-strip span {
+-  display: block;
+-  color: #8f9c99;
+-  font-size: 12px;
+-  font-weight: 800;
+-  text-transform: uppercase;
+-}
+-
+-.metric-strip strong {
+-  display: block;
+-  margin-top: 10px;
+-  color: #f4f6f2;
+-  font-size: 26px;
+-}
+-
+-.toolbar-row {
+-  display: grid;
+-  grid-template-columns: minmax(240px, 1fr) minmax(180px, 260px);
+-  gap: 12px;
+-}
+-
+-.toolbar-row label {
+-  position: relative;
+-}
+-
+-.toolbar-row label svg {
+-  position: absolute;
+-  top: 13px;
+-  left: 12px;
+-  color: #8f9c99;
+-}
+-
+-.toolbar-row label input {
+-  padding-left: 38px;
+-}
+-
+-.archive-layout {
+-  align-items: start;
+-}
+-
+-.list-stack {
+-  display: grid;
+-}
+-
+-.list-row {
+-  display: grid;
+-  gap: 4px;
+-  width: 100%;
+-  min-height: 64px;
+-  border: 0;
+-  border-bottom: 1px solid #2b3233;
+-  border-radius: 0;
+-  background: transparent;
+-  color: #eef1ed;
+-  padding: 12px 16px;
+-  text-align: left;
+-}
+-
+-.list-row:hover,
+-.list-row.active {
+-  background: #202628;
+-}
+-
+-.list-row span {
+-  color: #8f9c99;
+-  font-size: 12px;
+-  font-weight: 600;
+-}
+-
+-.markdown-view {
+-  display: grid;
+-  gap: 14px;
+-  padding: 16px;
+-}
+-
+-.markdown-view h3 {
+-  margin: 0;
+-}
+-
+-.content-lab-output h3 {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 8px;
+-  color: #8fd7c3;
+-  font-size: 13px;
+-  text-transform: uppercase;
+-}
+-
+-.static-row {
+-  color: #dfe6e3;
+-}
+-
+-.markdown-view p {
+-  margin: 0;
+-  color: #aeb9b6;
+-}
+-
+-.markdown-view pre {
+-  max-height: 420px;
+-  overflow: auto;
+-  margin: 0;
+-  border: 1px solid #2b3233;
+-  border-radius: 6px;
+-  background: #101315;
+-  color: #dce4e1;
+-  padding: 14px;
+-  white-space: pre-wrap;
+-}
+-
+-.inline-meta {
+-  display: flex;
+-  flex-wrap: wrap;
+-  gap: 8px;
+-}
+-
+-.inline-meta span {
+-  border: 1px solid #344346;
+-  border-radius: 999px;
+-  background: #182023;
+-  color: #c7d1ce;
+-  padding: 6px 10px;
+-  font-size: 12px;
+-  font-weight: 800;
+-}
+-
+-.operator-toggle {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 8px;
+-  border: 1px solid #344346;
+-  border-radius: 6px;
+-  background: #141a1c;
+-  color: #d8dfdc;
+-  padding: 8px 10px;
+-  font-size: 12px;
+-  font-weight: 800;
+-}
+-
+-.operator-select {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 8px;
+-  border: 1px solid #344346;
+-  border-radius: 6px;
+-  background: #141a1c;
+-  color: #d8dfdc;
+-  padding: 8px 10px;
+-  font-size: 12px;
+-  font-weight: 800;
+-}
+-
+-.operator-select select {
+-  max-width: 220px;
+-}
+-
+-.operator-toggle input {
+-  accent-color: #d6a93f;
+-}
+-
+-.renderer-diagnostics {
+-  display: grid;
+-  gap: 10px;
+-  border: 1px solid #344346;
+-  border-radius: 8px;
+-  background: #111719;
+-  padding: 12px;
+-}
+-
+-.preview-error-panel {
+-  display: grid;
+-  gap: 10px;
+-  border: 1px solid #7a3b35;
+-  border-radius: 8px;
+-  background: #201313;
+-  padding: 12px;
+-}
+-
+-.preview-error-panel p {
+-  color: #f0c4be;
+-}
+-
+-.renderer-diagnostics-llm {
+-  border-color: #2f6f5f;
+-  background: #101b18;
+-}
+-
+-.renderer-diagnostics-fallback {
+-  border-color: #755626;
+-  background: #1c1810;
+-}
+-
+-.renderer-diagnostics-heading {
+-  display: flex;
+-  align-items: center;
+-  justify-content: space-between;
+-  gap: 12px;
+-}
+-
+-.renderer-diagnostics-heading strong {
+-  color: #f4f6f2;
+-}
+-
+-.renderer-diagnostics-heading span {
+-  border: 1px solid #344346;
+-  border-radius: 999px;
+-  color: #f1d17a;
+-  padding: 4px 8px;
+-  font-size: 11px;
+-  font-weight: 850;
+-  text-transform: uppercase;
+-}
+-
+-.renderer-diagnostics-grid {
+-  display: grid;
+-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+-  gap: 8px;
+-}
+-
+-.renderer-diagnostics-grid span {
+-  display: grid;
+-  gap: 2px;
+-  color: #c8d1ce;
+-  font-size: 12px;
+-}
+-
+-.renderer-diagnostics-grid strong,
+-.renderer-diagnostics p strong {
+-  color: #8fd7c3;
+-}
+-
+-.renderer-diagnostics p {
+-  color: #c8d1ce;
+-  font-size: 13px;
+-  line-height: 1.45;
+-}
+-
+-.renderer-error {
+-  color: #f0a59a !important;
+-}
+-
+-.form-panel {
+-  padding-bottom: 16px;
+-}
+-
+-.form-grid {
+-  display: grid;
+-  grid-template-columns: repeat(2, minmax(0, 1fr));
+-  gap: 14px;
+-  padding: 16px;
+-}
+-
+-.form-grid label {
+-  display: grid;
+-  gap: 8px;
+-  color: #d8dfdc;
+-  font-size: 13px;
+-  font-weight: 800;
+-}
+-
+-.form-grid .check-label {
+-  display: flex;
+-  align-items: center;
+-  align-self: end;
+-  min-height: 42px;
+-}
+-
+-.form-grid .check-label input {
+-  width: 18px;
+-  min-height: 18px;
+-}
+-
+-.notice a,
+-td a {
+-  color: #8fd7c3;
+-  font-weight: 800;
+-}
+-
+-.full-span {
+-  grid-column: 1 / -1;
+-}
+-
+-.form-actions {
+-  display: flex;
+-  flex-wrap: wrap;
+-  gap: 10px;
+-  padding: 0 16px;
+-}
+-
+-.form-actions.padded-actions {
+-  padding-top: 16px;
+-}
+-
+-.form-actions button,
+-.button-pair button {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 8px;
+-  padding: 0 12px;
+-}
+-
+-.button-pair {
+-  display: flex;
+-  flex-wrap: wrap;
+-  gap: 8px;
+-}
+-
+-.content-lab-page {
+-  gap: 18px;
+-}
+-
+-.content-lab-toolbar {
+-  display: grid;
+-  grid-template-columns: minmax(260px, 1fr) 190px 190px auto;
+-  gap: 12px;
+-  padding: 14px;
+-}
+-
+-.content-lab-toolbar label {
+-  position: relative;
+-}
+-
+-.content-lab-toolbar label svg {
+-  position: absolute;
+-  top: 13px;
+-  left: 12px;
+-  color: #8f9c99;
+-}
+-
+-.content-lab-toolbar input {
+-  width: 100%;
+-  min-height: 42px;
+-  border: 1px solid #3a4243;
+-  border-radius: 6px;
+-  background: #101315;
+-  color: #eef1ed;
+-  padding: 0 12px 0 38px;
+-}
+-
+-.content-lab-toolbar button,
+-.operator-actions button,
+-.nudge-delivery-panel button {
+-  display: inline-flex;
+-  align-items: center;
+-  justify-content: center;
+-  gap: 8px;
+-  padding: 0 12px;
+-}
+-
+-.content-lab-shell {
+-  display: grid;
+-  grid-template-columns: minmax(320px, 0.42fr) minmax(0, 1fr);
+-  gap: 12px;
+-  align-items: start;
+-}
+-
+-.content-lab-detail {
+-  display: grid;
+-  gap: 12px;
+-  min-width: 0;
+-}
+-
+-.user-card-grid {
+-  display: grid;
+-  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+-  gap: 10px;
+-  padding: 12px;
+-}
+-
+-.user-graph-card {
+-  display: grid;
+-  align-content: start;
+-  gap: 8px;
+-  width: 100%;
+-  aspect-ratio: 1 / 1;
+-  min-height: 178px;
+-  border: 1px solid #2f3839;
+-  border-radius: 8px;
+-  background: #121719;
+-  color: #eef1ed;
+-  padding: 12px;
+-  text-align: left;
+-}
+-
+-.user-graph-card:hover,
+-.user-graph-card.active {
+-  border-color: #d4a84f;
+-  background: #1b211f;
+-}
+-
+-.user-graph-card-title {
+-  display: block;
+-  overflow: hidden;
+-  color: #f4f6f2;
+-  font-size: 15px;
+-  font-weight: 850;
+-  text-overflow: ellipsis;
+-  white-space: nowrap;
+-}
+-
+-.user-graph-card-subtitle {
+-  display: block;
+-  overflow: hidden;
+-  color: #9ba7a4;
+-  font-size: 11px;
+-  font-weight: 700;
+-  text-overflow: ellipsis;
+-  white-space: nowrap;
+-}
+-
+-.maat-band-pill {
+-  justify-self: start;
+-  border: 1px solid #344346;
+-  border-radius: 999px;
+-  background: #182023;
+-  color: #8fd7c3;
+-  padding: 5px 8px;
+-  font-size: 11px;
+-  font-weight: 850;
+-}
+-
+-.maat-band-pill.leaning_isfet,
+-.maat-band-pill.isfet_patterned {
+-  border-color: #70404a;
+-  background: #27191d;
+-  color: #f0a9b7;
+-}
+-
+-.maat-band-pill.mixed {
+-  border-color: #66552f;
+-  background: #211d13;
+-  color: #e0c66c;
+-}
+-
+-.user-card-stat-row {
+-  display: grid;
+-  grid-template-columns: auto 1fr;
+-  gap: 3px 8px;
+-  color: #9ba7a4;
+-  font-size: 11px;
+-}
+-
+-.user-card-stat-row strong {
+-  grid-row: span 2;
+-  align-self: center;
+-  color: #f4f6f2;
+-  font-size: 24px;
+-}
+-
+-.node-chip-row {
+-  display: flex;
+-  flex-wrap: wrap;
+-  gap: 5px;
+-}
+-
+-.node-chip-row span {
+-  max-width: 100%;
+-  overflow: hidden;
+-  border: 1px solid #344346;
+-  border-radius: 999px;
+-  background: #171f22;
+-  color: #cbd5d2;
+-  padding: 4px 7px;
+-  font-size: 11px;
+-  font-weight: 750;
+-  text-overflow: ellipsis;
+-  white-space: nowrap;
+-}
+-
+-.node-chip-row.expanded span {
+-  font-size: 12px;
+-}
+-
+-.user-card-footer {
+-  display: flex;
+-  align-items: center;
+-  justify-content: space-between;
+-  align-self: end;
+-  color: #d4a84f;
+-  font-size: 11px;
+-  font-weight: 850;
+-  text-transform: uppercase;
+-}
+-
+-.maat-readout {
+-  display: grid;
+-  grid-template-columns: minmax(220px, 0.8fr) minmax(180px, 1fr) minmax(180px, 0.9fr);
+-  gap: 14px;
+-  align-items: center;
+-  border-bottom: 1px solid #2b3233;
+-  padding: 16px;
+-}
+-
+-.maat-readout span,
+-.maat-readout small {
+-  display: block;
+-  color: #8f9c99;
+-  font-size: 12px;
+-  font-weight: 800;
+-}
+-
+-.maat-readout strong {
+-  display: block;
+-  margin: 4px 0;
+-  color: #f4f6f2;
+-  font-size: 24px;
+-}
+-
+-.balance-meter {
+-  height: 14px;
+-  overflow: hidden;
+-  border: 1px solid #344346;
+-  border-radius: 999px;
+-  background: linear-gradient(90deg, #4b2028, #242a2a 50%, #20463c);
+-}
+-
+-.balance-meter span {
+-  display: block;
+-  height: 100%;
+-  background: linear-gradient(90deg, #d16b7d, #d4a84f, #8fd7c3);
+-}
+-
+-.maat-readout-tags {
+-  display: flex;
+-  flex-wrap: wrap;
+-  gap: 6px;
+-}
+-
+-.maat-readout-tags span {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 5px;
+-  border: 1px solid #344346;
+-  border-radius: 999px;
+-  background: #171f22;
+-  color: #cbd5d2;
+-  padding: 5px 8px;
+-}
+-
+-.operator-actions {
+-  display: flex;
+-  flex-wrap: wrap;
+-  gap: 10px;
+-  border-bottom: 1px solid #2b3233;
+-  padding: 14px 16px;
+-}
+-
+-.detail-grid {
+-  display: grid;
+-  grid-template-columns: repeat(2, minmax(0, 1fr));
+-  gap: 14px;
+-  padding: 16px;
+-}
+-
+-.detail-grid h3 {
+-  margin: 0 0 8px;
+-  color: #8fd7c3;
+-  font-size: 12px;
+-  text-transform: uppercase;
+-}
+-
+-.compact-evidence {
+-  display: grid;
+-  max-height: 230px;
+-  overflow: auto;
+-  gap: 6px;
+-}
+-
+-.compact-evidence span {
+-  border: 1px solid #2b3233;
+-  border-radius: 6px;
+-  background: #111517;
+-  color: #c9d3d0;
+-  padding: 8px;
+-  font-size: 12px;
+-  line-height: 1.35;
+-}
+-
+-.evidence-used-list {
+-  display: grid;
+-  gap: 10px;
+-  margin-top: 10px;
+-}
+-
+-.evidence-used-meta {
+-  display: flex;
+-  flex-wrap: wrap;
+-  gap: 6px;
+-}
+-
+-.evidence-used-meta span {
+-  border: 1px solid #344346;
+-  border-radius: 999px;
+-  background: #182023;
+-  color: #c7d1ce;
+-  padding: 4px 8px;
+-  font-size: 11px;
+-  font-weight: 800;
+-}
+-
+-.evidence-action-list {
+-  display: grid;
+-  max-height: 360px;
+-  overflow: auto;
+-  gap: 8px;
+-  margin: 0;
+-  padding: 0;
+-  list-style: none;
+-}
+-
+-.evidence-action-item {
+-  display: grid;
+-  gap: 4px;
+-  border: 1px solid #2b3233;
+-  border-radius: 6px;
+-  background: #101315;
+-  padding: 10px;
+-}
+-
+-.evidence-action-item strong {
+-  color: #f4f6f2;
+-  font-size: 13px;
+-  line-height: 1.35;
+-}
+-
+-.evidence-action-meta {
+-  color: #8fd7c3;
+-  font-size: 11px;
+-  font-weight: 800;
+-}
+-
+-.evidence-action-item p {
+-  margin: 0;
+-  color: #aeb9b6;
+-  font-size: 12px;
+-  line-height: 1.4;
+-}
+-
+-.evidence-empty-note {
+-  border: 1px solid #2b3233;
+-  border-radius: 6px;
+-  background: #101315;
+-  color: #aeb9b6;
+-  padding: 12px;
+-  font-size: 13px;
+-  line-height: 1.45;
+-}
+-
+-.nudge-delivery-panel {
+-  display: grid;
+-  gap: 8px;
+-  border: 1px solid #4c3f20;
+-  border-radius: 8px;
+-  background: #1e1a12;
+-  padding: 12px;
+-}
+-
+-.nudge-delivery-panel strong {
+-  color: #f4f6f2;
+-}
+-
+-.nudge-delivery-panel span {
+-  color: #c8ba8a;
+-  font-size: 13px;
+-  line-height: 1.45;
+-}
+-
+-details {
+-  border: 1px solid #2b3233;
+-  border-radius: 6px;
+-  background: #111517;
+-  padding: 10px;
+-}
+-
+-summary {
+-  color: #8fd7c3;
+-  cursor: pointer;
+-  font-size: 12px;
+-  font-weight: 850;
+-  text-transform: uppercase;
+-}
+-
+-.kanban-grid {
+-  display: grid;
+-  grid-template-columns: repeat(5, minmax(160px, 1fr));
+-  gap: 12px;
+-  padding: 16px;
+-  overflow-x: auto;
+-}
+-
+-.kanban-column {
+-  display: grid;
+-  align-content: start;
+-  gap: 10px;
+-  min-height: 180px;
+-  border: 1px solid #2b3233;
+-  border-radius: 8px;
+-  background: #111517;
+-  padding: 12px;
+-}
+-
+-.kanban-column h3,
+-.kanban-column p {
+-  margin: 0;
+-}
+-
+-.kanban-column h3 {
+-  color: #8fd7c3;
+-  font-size: 12px;
+-  text-transform: uppercase;
+-}
+-
+-.kanban-column p {
+-  color: #8f9c99;
+-  font-size: 13px;
+-}
+-
+-.kanban-card {
+-  display: grid;
+-  gap: 5px;
+-  border: 1px solid #303739;
+-  border-radius: 6px;
+-  background: #171b1d;
+-  padding: 10px;
+-}
+-
+-.kanban-card span {
+-  color: #8f9c99;
+-  font-size: 12px;
+-}
+-
+-@media (max-width: 860px) {
+-  .admin-shell {
+-    grid-template-columns: 1fr;
+-  }
+-
+-  .sidebar {
+-    border-right: 0;
+-    border-bottom: 1px solid #2b3233;
+-  }
+-
+-  .sidebar-nav,
+-  .check-grid {
+-    grid-template-columns: 1fr;
+-  }
+-
+-  .topbar,
+-  .page-heading,
+-  .topbar-user {
+-    align-items: flex-start;
+-    flex-direction: column;
+-  }
+-
+-  .kpi-grid,
+-  .split-grid,
+-  .metric-strip,
+-  .toolbar-row,
+-  .form-grid,
+-  .content-lab-toolbar,
+-  .content-lab-shell,
+-  .maat-readout,
+-  .detail-grid {
+-    grid-template-columns: 1fr;
+-  }
+-
+-  .metric-strip div {
+-    border-right: 0;
+-    border-bottom: 1px solid #2b3233;
+-  }
+-
+-  .metric-strip div:last-child {
+-    border-bottom: 0;
+-  }
+-
+-  .range-control {
+-    width: 100%;
+-  }
+-
+-  .kanban-grid {
+-    grid-template-columns: repeat(5, 220px);
+-  }
+-}
+diff --git a/admin/tsconfig.json b/admin/tsconfig.json
+index a216c8b..5b7ecf3 100644
+--- a/admin/tsconfig.json
++++ b/admin/tsconfig.json
+@@ -16,5 +16,6 @@
+     "noEmit": true,
+     "jsx": "react-jsx"
+   },
+-  "include": ["src", "vite.config.ts"]
++  "include": ["src", "vite.config.ts"],
++  "exclude": ["src/**/*.test.ts"]
+ }
+diff --git a/supabase/migrations/20261011120000_admin_activity_ledger_page.sql b/supabase/migrations/20261011120000_admin_activity_ledger_page.sql
+new file mode 100644
+index 0000000..7d59001
+--- /dev/null
++++ b/supabase/migrations/20261011120000_admin_activity_ledger_page.sql
+@@ -0,0 +1,712 @@
++-- Activity ledger page.
++-- Adds the latest observed action to each user row, and raises the
++-- single-user timeline ceiling so a day ledger is not cut at 200 events.
++-- Signatures and staff checks are unchanged.
++
++create or replace function public.admin_activity_users(
++  p_days integer default 7,
++  p_limit integer default 100,
++  p_query text default null
++)
++returns jsonb
++language plpgsql
++security definer
++set search_path = public, pg_temp
++as $$
++declare
++  v_days integer := case
++    when p_days in (7, 30, 90) then p_days
++    when p_days is null then 7
++    else least(greatest(p_days, 1), 90)
++  end;
++  v_limit integer := least(greatest(coalesce(p_limit, 100), 1), 250);
++  v_generated_at timestamptz := now();
++  v_since timestamptz := now() - make_interval(days => case
++    when p_days in (7, 30, 90) then p_days
++    when p_days is null then 7
++    else least(greatest(p_days, 1), 90)
++  end);
++  v_query text := nullif(lower(btrim(coalesce(p_query, ''))), '');
++  v_users jsonb := '[]'::jsonb;
++  v_total integer := 0;
++begin
++  if not public.staff_has_scope(auth.uid(), 'product.users.read') then
++    raise exception 'product.users.read required' using errcode = '42501';
++  end if;
++
++  with filtered_profiles as (
++    select p.*
++    from public.profiles p
++    where v_query is null
++      or lower(p.id::text) like '%' || v_query || '%'
++      or lower(coalesce(p.email, '')) like '%' || v_query || '%'
++      or lower(coalesce(p.display_name, '')) like '%' || v_query || '%'
++      or lower(coalesce(p.handle, '')) like '%' || v_query || '%'
++  )
++  select count(*)::integer into v_total from filtered_profiles;
++
++  with filtered_profiles as (
++    select p.*
++    from public.profiles p
++    where v_query is null
++      or lower(p.id::text) like '%' || v_query || '%'
++      or lower(coalesce(p.email, '')) like '%' || v_query || '%'
++      or lower(coalesce(p.display_name, '')) like '%' || v_query || '%'
++      or lower(coalesce(p.handle, '')) like '%' || v_query || '%'
++  ),
++  app_recent as (
++    select
++      ae.user_id,
++      ae.event,
++      public.admin_activity_app_event_category(ae.event) as category,
++      ae.created_at
++    from public.app_events ae
++    join filtered_profiles p on p.id = ae.user_id
++    where ae.created_at >= v_since
++      and ae.user_id is not null
++      and coalesce(p.telemetry_enabled, true) = true
++  ),
++  choice_recent as (
++    select
++      uce.user_id,
++      uce.event_type as event,
++      public.admin_activity_choice_event_category(uce.event_type) as category,
++      uce.created_at
++    from public.user_choice_events uce
++    join filtered_profiles p on p.id = uce.user_id
++    where uce.created_at >= v_since
++      and coalesce(p.telemetry_enabled, true) = true
++  ),
++  activity_recent as (
++    select * from app_recent
++    union all
++    select * from choice_recent
++  ),
++  ordered_activity as (
++    select
++      user_id,
++      created_at,
++      lag(created_at) over (partition by user_id order by created_at) as prev_at
++    from activity_recent
++  ),
++  sessions as (
++    select
++      user_id,
++      count(*) filter (
++        where prev_at is null or created_at - prev_at > interval '30 minutes'
++      )::integer as session_count,
++      coalesce(sum(case
++        when prev_at is not null and created_at - prev_at <= interval '30 minutes'
++          then least(extract(epoch from created_at - prev_at), 300)
++        else 0
++      end), 0)::integer as active_seconds
++    from ordered_activity
++    group by user_id
++  ),
++  last_activity as (
++    select
++      user_id,
++      count(*)::integer as event_count,
++      min(created_at) as first_seen_at,
++      max(created_at) as last_seen_at
++    from activity_recent
++    group by user_id
++  ),
++  pages as (
++    select
++      ae.user_id,
++      count(*)::integer as page_view_count,
++      count(distinct nullif(ae.properties ->> 'route', ''))::integer as pages_visited
++    from public.app_events ae
++    join filtered_profiles p on p.id = ae.user_id
++    where ae.created_at >= v_since
++      and ae.event = 'screen_view'
++      and coalesce(p.telemetry_enabled, true) = true
++    group by ae.user_id
++  ),
++  taps as (
++    select
++      ae.user_id,
++      count(*)::integer as tap_count,
++      count(distinct nullif(ae.properties ->> 'target_id', ''))::integer as tracked_targets
++    from public.app_events ae
++    join filtered_profiles p on p.id = ae.user_id
++    where ae.created_at >= v_since
++      and ae.event = 'ui_tap'
++      and coalesce(p.telemetry_enabled, true) = true
++    group by ae.user_id
++  ),
++  journals as (
++    select
++      user_id,
++      count(*) filter (where event like 'journal_%')::integer as journal_event_count,
++      count(*) filter (where event = 'journal_opened')::integer as journal_open_count,
++      count(*) filter (where event in ('journal_autosave', 'journal_saved'))::integer as journal_save_count
++    from app_recent
++    group by user_id
++  ),
++  features as (
++    select
++      user_id,
++      jsonb_agg(
++        jsonb_build_object('category', category, 'count', event_count)
++        order by event_count desc, category
++      ) as top_features
++    from (
++      select user_id, category, count(*)::integer as event_count
++      from activity_recent
++      group by user_id, category
++    ) grouped
++    group by user_id
++  ),
++  unknowns as (
++    select user_id, count(*)::integer as unknown_event_count
++    from app_recent
++    where category = 'unknown'
++    group by user_id
++  ),
++  latest_event as (
++    select distinct on (src.user_id)
++      src.user_id,
++      src.created_at as last_event_at,
++      src.label as last_event_label
++    from (
++      select
++        ae.user_id,
++        ae.created_at,
++        public.admin_activity_app_event_label(ae.event, coalesce(ae.properties, '{}'::jsonb)) as label
++      from public.app_events ae
++      join filtered_profiles p on p.id = ae.user_id
++      where ae.user_id is not null
++        and coalesce(p.telemetry_enabled, true) = true
++      union all
++      select
++        uce.user_id,
++        uce.created_at,
++        replace(uce.event_type, '_', ' ') as label
++      from public.user_choice_events uce
++      join filtered_profiles p on p.id = uce.user_id
++      where coalesce(p.telemetry_enabled, true) = true
++    ) src
++    order by src.user_id, src.created_at desc
++  ),
++  ranked_profiles as (
++    select p.*
++    from filtered_profiles p
++    left join last_activity la on la.user_id = p.id
++    order by la.last_seen_at desc nulls last, p.created_at desc
++    limit v_limit
++  )
++  select coalesce(jsonb_agg(jsonb_build_object(
++    'id', p.id,
++    'node_id', p.id::text,
++    'display_name', coalesce(nullif(p.display_name, ''), nullif(p.handle, ''), nullif(p.email, ''), left(p.id::text, 8)),
++    'handle', p.handle,
++    'email', p.email,
++    'timezone', p.timezone,
++    'created_at', p.created_at,
++    'telemetry_enabled', p.telemetry_enabled,
++    'first_seen_at', la.first_seen_at,
++    'last_seen_at', la.last_seen_at,
++    'last_event_at', le.last_event_at,
++    'last_event_label', le.last_event_label,
++    'event_count', coalesce(la.event_count, 0),
++    'session_count', coalesce(s.session_count, 0),
++    'active_seconds', coalesce(s.active_seconds, 0),
++    'pages_visited', coalesce(pg.pages_visited, 0),
++    'page_view_count', coalesce(pg.page_view_count, 0),
++    'tap_count', coalesce(t.tap_count, 0),
++    'tracked_targets', coalesce(t.tracked_targets, 0),
++    'journal_used', coalesce(j.journal_event_count, 0) > 0,
++    'journal_open_count', coalesce(j.journal_open_count, 0),
++    'journal_save_count', coalesce(j.journal_save_count, 0),
++    'unknown_event_count', coalesce(u.unknown_event_count, 0),
++    'coverage_alert', coalesce(u.unknown_event_count, 0) > 0
++      and coalesce(la.event_count, 0) > 0
++      and (coalesce(u.unknown_event_count, 0)::numeric / greatest(la.event_count, 1)) > 0.10,
++    'top_features', coalesce(f.top_features, '[]'::jsonb)
++  ) order by la.last_seen_at desc nulls last, p.created_at desc), '[]'::jsonb)
++  into v_users
++  from ranked_profiles p
++  left join last_activity la on la.user_id = p.id
++  left join sessions s on s.user_id = p.id
++  left join pages pg on pg.user_id = p.id
++  left join taps t on t.user_id = p.id
++  left join journals j on j.user_id = p.id
++  left join features f on f.user_id = p.id
++  left join unknowns u on u.user_id = p.id
++  left join latest_event le on le.user_id = p.id;
++
++  return jsonb_build_object(
++    'period_days', v_days,
++    'generated_at', v_generated_at,
++    'period_start', v_since,
++    'limit', v_limit,
++    'query', v_query,
++    'total_matching_users', v_total,
++    'users', v_users,
++    'privacy', jsonb_build_object(
++      'raw_properties_returned', false,
++      'journal_content_returned', false,
++      'free_text_returned', false
++    )
++  );
++end;
++$$;
++create or replace function public.admin_activity_user_detail(
++  p_target_user_id uuid,
++  p_days integer default 7
++)
++returns jsonb
++language plpgsql
++security definer
++set search_path = public, pg_temp
++as $$
++declare
++  v_days integer := case
++    when p_days in (7, 30, 90) then p_days
++    when p_days is null then 7
++    else least(greatest(p_days, 1), 90)
++  end;
++  v_generated_at timestamptz := now();
++  v_since timestamptz := now() - make_interval(days => case
++    when p_days in (7, 30, 90) then p_days
++    when p_days is null then 7
++    else least(greatest(p_days, 1), 90)
++  end);
++  v_profile jsonb := '{}'::jsonb;
++  v_summary jsonb := '{}'::jsonb;
++  v_sessions jsonb := '{}'::jsonb;
++  v_pages jsonb := '[]'::jsonb;
++  v_taps jsonb := '[]'::jsonb;
++  v_features jsonb := '[]'::jsonb;
++  v_event_counts jsonb := '[]'::jsonb;
++  v_timeline jsonb := '[]'::jsonb;
++  v_coverage jsonb := '{}'::jsonb;
++begin
++  if not public.staff_has_scope(auth.uid(), 'product.users.read') then
++    raise exception 'product.users.read required' using errcode = '42501';
++  end if;
++
++  select jsonb_build_object(
++    'id', p.id,
++    'display_name', coalesce(nullif(p.display_name, ''), nullif(p.handle, ''), nullif(p.email, ''), left(p.id::text, 8)),
++    'handle', p.handle,
++    'email', p.email,
++    'timezone', p.timezone,
++    'created_at', p.created_at,
++    'telemetry_enabled', p.telemetry_enabled,
++    'onboarding_completed_at', p.onboarding_completed_at
++  )
++  into v_profile
++  from public.profiles p
++  where p.id = p_target_user_id;
++
++  if v_profile is null then
++    return jsonb_build_object(
++      'error', 'user_not_found',
++      'target_user_id', p_target_user_id
++    );
++  end if;
++
++  with app_recent as (
++    select
++      ae.id,
++      ae.user_id,
++      ae.event,
++      ae.properties,
++      public.admin_activity_app_event_category(ae.event) as category,
++      ae.created_at
++    from public.app_events ae
++    join public.profiles p on p.id = ae.user_id
++    where ae.user_id = p_target_user_id
++      and ae.created_at >= v_since
++      and coalesce(p.telemetry_enabled, true) = true
++  ),
++  choice_recent as (
++    select
++      uce.id,
++      uce.user_id,
++      uce.event_type,
++      uce.node_id,
++      uce.metadata,
++      public.admin_activity_choice_event_category(uce.event_type) as category,
++      uce.created_at
++    from public.user_choice_events uce
++    join public.profiles p on p.id = uce.user_id
++    where uce.user_id = p_target_user_id
++      and uce.created_at >= v_since
++      and coalesce(p.telemetry_enabled, true) = true
++  ),
++  activity_recent as (
++    select user_id, event, category, created_at from app_recent
++    union all
++    select user_id, event_type as event, category, created_at from choice_recent
++  ),
++  ordered_activity as (
++    select
++      user_id,
++      created_at,
++      lag(created_at) over (partition by user_id order by created_at) as prev_at
++    from activity_recent
++  ),
++  session_stats as (
++    select
++      count(*) filter (
++        where prev_at is null or created_at - prev_at > interval '30 minutes'
++      )::integer as session_count,
++      coalesce(sum(case
++        when prev_at is not null and created_at - prev_at <= interval '30 minutes'
++          then least(extract(epoch from created_at - prev_at), 300)
++        else 0
++      end), 0)::integer as active_seconds
++    from ordered_activity
++  ),
++  journals as (
++    select
++      count(*) filter (where event like 'journal_%')::integer as journal_event_count,
++      count(*) filter (where event = 'journal_opened')::integer as journal_open_count,
++      count(*) filter (where event in ('journal_autosave', 'journal_saved'))::integer as journal_save_count
++    from app_recent
++  ),
++  totals as (
++    select
++      count(*)::integer as event_count,
++      min(created_at) as first_seen_at,
++      max(created_at) as last_seen_at
++    from activity_recent
++  ),
++  tap_totals as (
++    select count(*)::integer as tap_count
++    from app_recent
++    where event = 'ui_tap'
++  ),
++  page_totals as (
++    select
++      count(*)::integer as page_view_count,
++      count(distinct nullif(properties ->> 'route', ''))::integer as pages_visited
++    from app_recent
++    where event = 'screen_view'
++  )
++  select
++    jsonb_build_object(
++      'event_count', coalesce(t.event_count, 0),
++      'first_seen_at', t.first_seen_at,
++      'last_seen_at', t.last_seen_at,
++      'page_view_count', coalesce(pg.page_view_count, 0),
++      'pages_visited', coalesce(pg.pages_visited, 0),
++      'tap_count', coalesce(tt.tap_count, 0),
++      'journal_used', coalesce(j.journal_event_count, 0) > 0,
++      'journal_open_count', coalesce(j.journal_open_count, 0),
++      'journal_save_count', coalesce(j.journal_save_count, 0)
++    ),
++    jsonb_build_object(
++      'basis', 'inferred',
++      'session_gap_minutes', 30,
++      'active_gap_cap_seconds', 300,
++      'session_count', coalesce(ss.session_count, 0),
++      'active_seconds', coalesce(ss.active_seconds, 0)
++    )
++  into v_summary, v_sessions
++  from totals t, journals j, session_stats ss, tap_totals tt, page_totals pg;
++
++  with app_recent as (
++    select ae.*
++    from public.app_events ae
++    join public.profiles p on p.id = ae.user_id
++    where ae.user_id = p_target_user_id
++      and ae.created_at >= v_since
++      and coalesce(p.telemetry_enabled, true) = true
++  ),
++  screen_events as (
++    select
++      nullif(ae.properties ->> 'route', '') as route,
++      ae.created_at,
++      lead(ae.created_at) over (order by ae.created_at) as next_at
++    from app_recent ae
++    where ae.event = 'screen_view'
++  )
++  select coalesce(jsonb_agg(jsonb_build_object(
++    'route', route,
++    'view_count', view_count,
++    'first_seen_at', first_seen_at,
++    'last_seen_at', last_seen_at,
++    'estimated_seconds', estimated_seconds,
++    'basis', 'inferred'
++  ) order by view_count desc, last_seen_at desc), '[]'::jsonb)
++  into v_pages
++  from (
++    select
++      coalesce(route, '<unknown_route>') as route,
++      count(*)::integer as view_count,
++      min(created_at) as first_seen_at,
++      max(created_at) as last_seen_at,
++      coalesce(sum(case
++        when next_at is not null and next_at - created_at <= interval '30 minutes'
++          then least(extract(epoch from next_at - created_at), 600)
++        else 0
++      end), 0)::integer as estimated_seconds
++    from screen_events
++    group by route
++    order by view_count desc, last_seen_at desc
++    limit 50
++  ) rows;
++
++  with app_recent as (
++    select ae.*
++    from public.app_events ae
++    join public.profiles p on p.id = ae.user_id
++    where ae.user_id = p_target_user_id
++      and ae.created_at >= v_since
++      and coalesce(p.telemetry_enabled, true) = true
++      and ae.event = 'ui_tap'
++  )
++  select coalesce(jsonb_agg(jsonb_build_object(
++    'surface', surface,
++    'target_id', target_id,
++    'target_type', target_type,
++    'tap_count', tap_count,
++    'first_seen_at', first_seen_at,
++    'last_seen_at', last_seen_at,
++    'basis', 'observed'
++  ) order by tap_count desc, last_seen_at desc), '[]'::jsonb)
++  into v_taps
++  from (
++    select
++      coalesce(nullif(properties ->> 'surface', ''), '<unknown_surface>') as surface,
++      coalesce(nullif(properties ->> 'target_id', ''), '<unknown_target>') as target_id,
++      coalesce(nullif(properties ->> 'target_type', ''), '<unknown_type>') as target_type,
++      count(*)::integer as tap_count,
++      min(created_at) as first_seen_at,
++      max(created_at) as last_seen_at
++    from app_recent
++    group by surface, target_id, target_type
++    order by tap_count desc, last_seen_at desc
++    limit 50
++  ) rows;
++
++  with app_recent as (
++    select
++      ae.event,
++      public.admin_activity_app_event_category(ae.event) as category,
++      ae.created_at
++    from public.app_events ae
++    join public.profiles p on p.id = ae.user_id
++    where ae.user_id = p_target_user_id
++      and ae.created_at >= v_since
++      and coalesce(p.telemetry_enabled, true) = true
++  ),
++  choice_recent as (
++    select
++      uce.event_type as event,
++      public.admin_activity_choice_event_category(uce.event_type) as category,
++      uce.created_at
++    from public.user_choice_events uce
++    join public.profiles p on p.id = uce.user_id
++    where uce.user_id = p_target_user_id
++      and uce.created_at >= v_since
++      and coalesce(p.telemetry_enabled, true) = true
++  ),
++  events as (
++    select * from app_recent
++    union all
++    select * from choice_recent
++  )
++  select
++    coalesce((
++      select jsonb_agg(jsonb_build_object(
++        'category', category,
++        'event_count', event_count,
++        'first_seen_at', first_seen_at,
++        'last_seen_at', last_seen_at
++      ) order by event_count desc, category)
++      from (
++        select
++          category,
++          count(*)::integer as event_count,
++          min(created_at) as first_seen_at,
++          max(created_at) as last_seen_at
++        from events
++        group by category
++      ) categories
++    ), '[]'::jsonb),
++    coalesce((
++      select jsonb_agg(jsonb_build_object(
++        'event_name', event,
++        'category', category,
++        'event_count', event_count,
++        'first_seen_at', first_seen_at,
++        'last_seen_at', last_seen_at
++      ) order by event_count desc, last_seen_at desc)
++      from (
++        select
++          event,
++          category,
++          count(*)::integer as event_count,
++          min(created_at) as first_seen_at,
++          max(created_at) as last_seen_at
++        from events
++        group by event, category
++        order by event_count desc, last_seen_at desc
++        limit 80
++      ) event_rows
++    ), '[]'::jsonb)
++  into v_features, v_event_counts;
++
++  with app_recent as (
++    select
++      ae.id::text as id,
++      ae.event,
++      ae.properties,
++      public.admin_activity_app_event_category(ae.event) as category,
++      ae.created_at
++    from public.app_events ae
++    join public.profiles p on p.id = ae.user_id
++    where ae.user_id = p_target_user_id
++      and ae.created_at >= v_since
++      and coalesce(p.telemetry_enabled, true) = true
++  ),
++  choice_recent as (
++    select
++      uce.id::text as id,
++      uce.event_type,
++      uce.metadata,
++      uce.node_id,
++      public.admin_activity_choice_event_category(uce.event_type) as category,
++      uce.created_at
++    from public.user_choice_events uce
++    join public.profiles p on p.id = uce.user_id
++    where uce.user_id = p_target_user_id
++      and uce.created_at >= v_since
++      and coalesce(p.telemetry_enabled, true) = true
++  ),
++  timeline_rows as (
++    select
++      id,
++      created_at,
++      'app_events'::text as source_table,
++      event as event_name,
++      case when category = 'unknown' then 'unknown_event' else event end as canonical_event,
++      category,
++      public.admin_activity_app_event_label(event, properties) as label,
++      'observed'::text as basis,
++      public.admin_activity_safe_app_event_fields(event, properties) as safe_fields
++    from app_recent
++    union all
++    select
++      cr.id,
++      cr.created_at,
++      'user_choice_events'::text as source_table,
++      cr.event_type as event_name,
++      cr.event_type as canonical_event,
++      cr.category,
++      replace(cr.event_type, '_', ' ') as label,
++      'observed'::text as basis,
++      jsonb_strip_nulls(jsonb_build_object(
++        'node_slug', n.slug,
++        'node_title', n.title,
++        'source_surface', nullif(left(coalesce(cr.metadata ->> 'source_surface', ''), 80), ''),
++        'delivery_id', nullif(left(coalesce(cr.metadata ->> 'delivery_id', ''), 80), '')
++      )) as safe_fields
++    from choice_recent cr
++    left join public.nodes n on n.id = cr.node_id
++  )
++  select coalesce(jsonb_agg(jsonb_build_object(
++    'id', id,
++    'occurred_at', created_at,
++    'source_table', source_table,
++    'event_name', event_name,
++    'canonical_event', canonical_event,
++    'category', category,
++    'label', label,
++    'basis', basis,
++    'safe_fields', safe_fields
++  ) order by created_at desc), '[]'::jsonb)
++  into v_timeline
++  from (
++    select *
++    from timeline_rows
++    order by created_at desc
++    limit 5000
++  ) rows;
++
++  with app_recent as (
++    select
++      ae.event,
++      public.admin_activity_app_event_category(ae.event) as category,
++      ae.created_at
++    from public.app_events ae
++    join public.profiles p on p.id = ae.user_id
++    where ae.user_id = p_target_user_id
++      and ae.created_at >= v_since
++      and coalesce(p.telemetry_enabled, true) = true
++  ),
++  totals as (
++    select count(*)::integer as total_app_events from app_recent
++  ),
++  unknowns as (
++    select
++      count(*)::integer as unknown_event_count,
++      coalesce(jsonb_agg(jsonb_build_object(
++        'event_name', event,
++        'event_count', event_count,
++        'last_seen_at', last_seen_at
++      ) order by event_count desc, last_seen_at desc), '[]'::jsonb) as unmapped_events
++    from (
++      select
++        event,
++        count(*)::integer as event_count,
++        max(created_at) as last_seen_at
++      from app_recent
++      where category = 'unknown'
++      group by event
++      order by event_count desc, last_seen_at desc
++      limit 20
++    ) rows
++  )
++  select jsonb_build_object(
++    'threshold_rate', 0.10,
++    'total_app_events', coalesce(t.total_app_events, 0),
++    'unknown_event_count', coalesce(u.unknown_event_count, 0),
++    'unknown_event_rate', case
++      when coalesce(t.total_app_events, 0) = 0 then 0
++      else coalesce(u.unknown_event_count, 0)::numeric / greatest(t.total_app_events, 1)
++    end,
++    'alert', coalesce(t.total_app_events, 0) > 0
++      and (coalesce(u.unknown_event_count, 0)::numeric / greatest(t.total_app_events, 1)) > 0.10,
++    'unmapped_events', coalesce(u.unmapped_events, '[]'::jsonb)
++  )
++  into v_coverage
++  from totals t, unknowns u;
++
++  return jsonb_build_object(
++    'period_days', v_days,
++    'generated_at', v_generated_at,
++    'period_start', v_since,
++    'profile', v_profile,
++    'summary', v_summary,
++    'sessions', v_sessions,
++    'pages', v_pages,
++    'tap_targets', v_taps,
++    'features', v_features,
++    'event_counts', v_event_counts,
++    'timeline', v_timeline,
++    'coverage', v_coverage,
++    'availability', jsonb_build_object(
++      'click_level_data', case
++        when coalesce((v_summary ->> 'tap_count')::integer, 0) > 0 then 'observed'
++        else 'unavailable_before_ui_tap_instrumentation'
++      end,
++      'session_time', 'inferred_from_event_gaps',
++      'page_time', 'inferred_from_screen_view_sequence',
++      'journal_content', 'not_returned'
++    ),
++    'privacy', jsonb_build_object(
++      'raw_properties_returned', false,
++      'journal_content_returned', false,
++      'reflection_text_returned', false,
++      'free_text_returned', false
++    )
++  );
++end;
++$$;
+-- 
+2.43.0
+
