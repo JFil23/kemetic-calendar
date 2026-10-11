@@ -102,10 +102,18 @@ class DeviceCalendarController extends ChangeNotifier
   final DateTime Function() _clock;
   static DeviceCalendarController? _instance;
   static DeviceCalendarController get instance =>
-      _instance ??= DeviceCalendarController(
-        repository: externalCalendarRepository(Supabase.instance.client),
-        bridge: MethodChannelDeviceCalendarBridge(),
-      );
+      forClient(Supabase.instance.client);
+  static DeviceCalendarController forClient(SupabaseClient client) {
+    final current = _instance;
+    if (current != null && identical(current.repository.client, client))
+      return current;
+    current?.dispose();
+    return _instance = DeviceCalendarController(
+      repository: externalCalendarRepository(client),
+      bridge: MethodChannelDeviceCalendarBridge(),
+    );
+  }
+
   static void disposeShared() {
     _instance?.dispose();
     _instance = null;
@@ -115,6 +123,8 @@ class DeviceCalendarController extends ChangeNotifier
       MethodChannelDeviceCalendarBridge.supportedPlatform;
   bool get supported => bridge.supported;
   String? get accountId => repository.accountId;
+  DeviceCalendarStatus? get accountStatus =>
+      _account == accountId ? status : null;
   int get generation => _generation;
   bool busy = false, choosing = false;
   String? errorCode;
@@ -210,8 +220,9 @@ class DeviceCalendarController extends ChangeNotifier
   Future<void> _run(
     Future<void> Function(int, String) work, {
     bool permission = false,
+    bool requiresDevice = true,
   }) async {
-    if (_disposed || !supported || busy) return;
+    if (_disposed || (requiresDevice && !supported)) return;
     final account = repository.accountId;
     if (account == null) {
       stop();
@@ -221,6 +232,7 @@ class DeviceCalendarController extends ChangeNotifier
       stop();
       _account = account;
     }
+    if (busy) return;
     final generation = ++_generation;
     busy = true;
     errorCode = null;
@@ -362,6 +374,51 @@ class DeviceCalendarController extends ChangeNotifier
     if (value != 'granted') {
       throw const DeviceCalendarFailure('permission_denied');
     }
+  }
+
+  /// Account management works on web and other phones without native access.
+  Future<void> loadAccountStatus() async {
+    if (choosing && _account == accountId) return;
+    await _run((generation, account) async {
+      final response = await _step(
+        generation,
+        account,
+        () => repository.command('device_status'),
+      );
+      await _acceptServerStatus(response, generation, account);
+    }, requiresDevice: false);
+  }
+
+  Future<bool> removeSource(String id) async {
+    var removed = false;
+    await _run((generation, account) async {
+      if (!status.sources.any(
+        (source) =>
+            source.id == id && source.selected && source.ownedBy == 'device',
+      ))
+        return;
+      final draft = {...selectedSources}..remove(id);
+      final bindings = {...googleBindings}..remove(id);
+      final unresolved = {...unresolvedCloudSources}..remove(id);
+      final response = await _step(
+        generation,
+        account,
+        () => repository.command(
+          'device_remove_source',
+          arguments: {'source_id': id, 'expected_revision': status.revision},
+        ),
+      );
+      await _acceptServerStatus(response, generation, account);
+      if (choosing) {
+        selectedSources = draft;
+        googleBindings = bindings;
+        unresolvedCloudSources = unresolved;
+      }
+      removed = !status.sources.any(
+        (source) => source.id == id && source.selected,
+      );
+    }, requiresDevice: false);
+    return removed;
   }
 
   Future<void> refreshStatus() => _run(_load);

@@ -10,6 +10,8 @@ import '../../data/birthday_calendar.dart';
 import '../../data/event_filing_engine.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
+import '../../services/external_calendar_controller.dart';
+import '../../services/device_calendar_controller.dart';
 import '../../shared/date_picker/stone_register_date_picker.dart';
 import '../../shared/glossy_text.dart';
 import '../../widgets/gregorian_date_picker.dart';
@@ -60,6 +62,8 @@ class SharedCalendarsSheet extends StatefulWidget {
   const SharedCalendarsSheet({
     super.key,
     required this.repo,
+    this.googleController,
+    this.deviceController,
     this.onAddEventRequested,
     this.onEventTapRequested,
     this.initialExpandedCalendarIds = const <String>[],
@@ -72,6 +76,8 @@ class SharedCalendarsSheet extends StatefulWidget {
   });
 
   final SharedCalendarsRepo repo;
+  final ExternalCalendarController? googleController;
+  final DeviceCalendarController? deviceController;
   final SharedCalendarAddEventCallback? onAddEventRequested;
   final SharedCalendarEventTapCallback? onEventTapRequested;
   final List<String> initialExpandedCalendarIds;
@@ -132,10 +138,85 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   bool _loading = true;
   bool _saving = false;
   bool _changed = false;
+  late ExternalCalendarController _google;
+  late DeviceCalendarController _device;
+  StreamSubscription<dynamic>? _authSubscription;
+  String? _presentationAccount;
+  String? _importMessage;
+  bool _importsLoading = false;
+
+  void _bindImports() {
+    _google =
+        widget.googleController ??
+        externalCalendarController(widget.repo.client);
+    _device =
+        widget.deviceController ??
+        DeviceCalendarController.forClient(widget.repo.client);
+    _presentationAccount = widget.repo.currentUserId;
+    _google.addListener(_importsChanged);
+    _device.addListener(_importsChanged);
+    _authSubscription = widget.repo.client.auth.onAuthStateChange.listen((_) {
+      if (!mounted || _presentationAccount == widget.repo.currentUserId) return;
+      setState(() {
+        _presentationAccount = widget.repo.currentUserId;
+        _snapshot = null;
+        _calendarEventsById.clear();
+        _calendarEventErrorsById.clear();
+        _expandedCalendarIds.clear();
+        _importMessage = null;
+        _saving = false;
+      });
+      unawaited(_reloadAll());
+    });
+    unawaited(_reloadImports());
+  }
+
+  void _importsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _reloadImports() async {
+    final account = widget.repo.currentUserId;
+    setState(() => _importsLoading = true);
+    await Future.wait([_google.loadStatus(), _device.loadAccountStatus()]);
+    if (mounted && widget.repo.currentUserId == account) {
+      setState(() => _importsLoading = false);
+    }
+  }
+
+  Future<void> _reloadAll() async {
+    setState(() => _importMessage = null);
+    await Future.wait([_reload(), _reloadImports()]);
+  }
+
+  @override
+  void dispose() {
+    _google.removeListener(_importsChanged);
+    _device.removeListener(_importsChanged);
+    unawaited(_authSubscription?.cancel());
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant SharedCalendarsSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.repo.client, widget.repo.client) ||
+        oldWidget.googleController != widget.googleController ||
+        oldWidget.deviceController != widget.deviceController) {
+      _google.removeListener(_importsChanged);
+      _device.removeListener(_importsChanged);
+      unawaited(_authSubscription?.cancel());
+      _snapshot = null;
+      _importMessage = null;
+      _bindImports();
+      unawaited(_reload());
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _bindImports();
     _expandedCalendarIds.addAll(
       widget.initialExpandedCalendarIds
           .map((id) => id.trim())
@@ -152,7 +233,9 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   }
 
   Future<void> _restoreCachedSnapshot() async {
+    final account = widget.repo.currentUserId;
     final snapshot = await widget.repo.restoreCachedSnapshot();
+    if (account != widget.repo.currentUserId) return;
     if (!mounted || snapshot == null || _snapshot != null) return;
     setState(() {
       _snapshot = snapshot;
@@ -165,7 +248,9 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     if (_snapshot == null) {
       setState(() => _loading = true);
     }
+    final account = widget.repo.currentUserId;
     final snapshot = await widget.repo.loadSnapshot();
+    if (account != widget.repo.currentUserId) return;
     if (!mounted) return;
     setState(() {
       _snapshot = snapshot;
@@ -366,12 +451,28 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     final detail = isOwner
         ? 'This removes the shared calendar and its events for everyone.'
         : 'You will stop seeing events from this calendar.';
-    final shouldContinue = await showDialog<bool>(
+    final shouldContinue = await _confirmRemoval(
+      title: label,
+      detail: detail,
+      actionLabel: isOwner ? 'Delete' : 'Leave',
+    );
+    if (shouldContinue != true) return;
+
+    await _runAction(() => widget.repo.leaveCalendar(calendar.id));
+  }
+
+  Future<bool?> _confirmRemoval({
+    required String title,
+    required String detail,
+    String actionLabel = 'Delete',
+  }) {
+    return showDialog<bool>(
       context: context,
       useRootNavigator: true,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         backgroundColor: const Color(0xFF111214),
-        title: Text(label, style: const TextStyle(color: Colors.white)),
+        title: Text(title, style: const TextStyle(color: Colors.white)),
         content: Text(
           detail,
           style: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
@@ -383,14 +484,47 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(isOwner ? 'Delete' : 'Leave'),
+            child: Text(actionLabel),
           ),
         ],
       ),
     );
-    if (shouldContinue != true) return;
+  }
 
-    await _runAction(() => widget.repo.leaveCalendar(calendar.id));
+  Future<void> _deleteImport(
+    String id,
+    String label, {
+    required bool device,
+  }) async {
+    final account = widget.repo.currentUserId;
+    if (_saving || account == null || account != _presentationAccount) return;
+    final confirmed = await _confirmRemoval(
+      title: 'Delete imported calendar?',
+      detail:
+          '“$label” and its imported events will be removed from Hꜣw. '
+          'Future imports will stop. The original calendar stays in ${device ? 'your calendar app' : 'Google Calendar'}.',
+    );
+    if (!mounted || confirmed != true || account != widget.repo.currentUserId)
+      return;
+    setState(() {
+      _saving = true;
+      _importMessage = null;
+    });
+    final removed = await (device
+        ? _device.removeSource(id)
+        : _google.removeSource(id));
+    if (!mounted || account != widget.repo.currentUserId) return;
+    setState(() {
+      _saving = false;
+      if (removed) {
+        _changed = true;
+      } else {
+        final choosing = device ? _device.choosing : _google.choosingCalendars;
+        _importMessage = choosing
+            ? 'Could not delete “$label”. Finish choosing calendars in Settings, then try again.'
+            : 'Could not delete “$label”. Refresh and try again.';
+      }
+    });
   }
 
   Future<void> _setCalendarVisible(
@@ -594,6 +728,33 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   @override
   Widget build(BuildContext context) {
     final snapshot = _snapshot;
+    final sameAccount = _presentationAccount == widget.repo.currentUserId;
+    final google = sameAccount ? _google.accountStatus : null;
+    final device = sameAccount ? _device.accountStatus : null;
+    final imported = <Widget>[
+      for (final source in google?.sources ?? [])
+        if (source.selected)
+          _importedCalendarTile(
+            id: source.id,
+            label: source.label,
+            detail: 'Google Calendar',
+            color: source.color,
+            onDelete: _saving || _google.busy
+                ? null
+                : () => _deleteImport(source.id, source.label, device: false),
+          ),
+      for (final source in device?.sources ?? [])
+        if (source.selected && source.ownedBy == 'device')
+          _importedCalendarTile(
+            id: source.id,
+            label: source.label,
+            detail: 'Phone calendar · ${source.accountLabel}',
+            color: source.color,
+            onDelete: _saving || _device.busy
+                ? null
+                : () => _deleteImport(source.id, source.label, device: true),
+          ),
+    ];
     final content = Stack(
       children: [
         Column(
@@ -604,7 +765,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                 child: _H3wSheetGrabber(),
               ),
             Expanded(
-              child: _loading
+              child: _loading && imported.isEmpty
                   ? const Center(
                       child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(
@@ -613,7 +774,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                       ),
                     )
                   : RefreshIndicator(
-                      onRefresh: _reload,
+                      onRefresh: _reloadAll,
                       color: H3wCalendarSheetTokens.gold,
                       backgroundColor: H3wCalendarSheetTokens.cardBase,
                       child: ListView(
@@ -628,11 +789,51 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                               _inviteCard(invite),
                           ],
                           _sectionTitle('Your calendars'),
-                          if (snapshot == null || snapshot.calendars.isEmpty)
+                          if (_loading)
+                            const Text(
+                              'Updating your calendars…',
+                              style: TextStyle(
+                                color: H3wCalendarSheetTokens.silverMid,
+                              ),
+                            ),
+                          if ((snapshot == null ||
+                                  snapshot.calendars.isEmpty) &&
+                              imported.isEmpty)
                             _emptyState()
                           else
-                            for (final calendar in snapshot.calendars)
-                              _calendarTile(calendar, snapshot),
+                            for (final calendar
+                                in snapshot?.calendars ??
+                                    const <SharedCalendarSummary>[])
+                              _calendarTile(calendar, snapshot!),
+                          ...imported,
+                          if (sameAccount &&
+                              _presentationAccount != null &&
+                              (_importsLoading ||
+                                  _importMessage != null ||
+                                  _google.error != null ||
+                                  _device.errorCode != null))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _importMessage ??
+                                        (_importsLoading
+                                            ? 'Updating imported calendars…'
+                                            : 'Could not update imported calendars.'),
+                                    style: const TextStyle(
+                                      color: H3wCalendarSheetTokens.silverMid,
+                                    ),
+                                  ),
+                                  if (!_importsLoading)
+                                    TextButton(
+                                      onPressed: _reloadAll,
+                                      child: const Text('Retry'),
+                                    ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -717,7 +918,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                 ),
                 SizedBox(height: 3),
                 Text(
-                  'Manage shared calendars and in-app invites',
+                  'Manage your calendars, imports and invites',
                   style: TextStyle(
                     color: H3wCalendarSheetTokens.silverMid,
                     fontSize: 15,
@@ -884,6 +1085,79 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _importedCalendarTile({
+    required String id,
+    required String label,
+    required String detail,
+    String? color,
+    required VoidCallback? onDelete,
+  }) {
+    final hex = color?.replaceFirst('#', '');
+    final value = hex?.length == 6 ? int.tryParse(hex!, radix: 16) : null;
+    final accent = value == null
+        ? H3wCalendarSheetTokens.eventBlue
+        : Color(0xFF000000 | value);
+    final stackAction =
+        MediaQuery.textScalerOf(context).scale(22) > 30 &&
+        MediaQuery.sizeOf(context).width < 500;
+    final deleteButton = IconButton(
+      key: ValueKey('delete-imported-calendar-$id'),
+      tooltip: 'Delete $label from Hꜣw',
+      onPressed: onDelete,
+      color: H3wCalendarSheetTokens.silverHi,
+      icon: const Icon(Icons.delete_outline_rounded, size: 22),
+    );
+    final content = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _calendarDot(accent),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: H3wCalendarSheetTokens.gold,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  height: 1.1,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Imported · $detail',
+                style: const TextStyle(
+                  color: H3wCalendarSheetTokens.silverMid,
+                  fontSize: 14,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!stackAction) ...[const SizedBox(width: 8), deleteButton],
+      ],
+    );
+    return H3wCalendarCardSurface(
+      key: ValueKey('imported-calendar-$id'),
+      accent: accent,
+      isPersonal: false,
+      child: stackAction
+          ? Column(
+              children: [
+                content,
+                Align(alignment: Alignment.centerRight, child: deleteButton),
+              ],
+            )
+          : content,
     );
   }
 

@@ -1625,3 +1625,26 @@ DayViewGrid separates all-day notes from timed layout before using the existing
 CalendarDayEventBlock and shared detail/action owner. The bounded all-day section
 and timeline have distinct paint boundaries. This adds no event writer or detail
 renderer and leaves the five authored Ma’at card housings unchanged.
+
+## October 10 imported calendars in the Calendars sheet
+
+The canonical SharedCalendarsSheet lists confirmed selected Google and
+phone-owned sources from the existing account controllers, including empty or
+paused calendars. Native sources explicitly owned by Google do not produce a
+second row. Source lists are controller presentation state, refreshed on opening
+or retry; they add no cache keys, payload schemas or pending-write store.
+
+Deleting an import reuses the confirmed source-removal path in
+ExternalCalendarRepository. Google uses its existing selection mutation;
+phone imports use the additive backend-owned device_remove_source action so
+removal works without native access. Only acknowledgement removes the row and
+prunes that source's imported copies in the existing account/lane caches. Other
+imports, authored content, pending overlays, native ownership and unrelated
+Settings draft selections remain intact. Failed or stale requests retain the
+confirmed row; retry reloads the authoritative selection. Account checks fence
+confirmation and delayed responses. No provider calendar is deleted.
+
+The backend migration and updated Edge Function must deploy before this app
+candidate. Older backends reject phone removal, which remains visibly failed;
+there is no local-only deletion fallback. Existing cache fixtures, namespace,
+route owners, account stores and permissions remain unchanged.

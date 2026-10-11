@@ -20,6 +20,7 @@ class SharedCalendarsRepo {
   SharedCalendarsRepo(this._client);
 
   final SupabaseClient _client;
+  SupabaseClient get client => _client;
 
   static const String _hiddenCalendarsPrefKey = 'shared_calendars:hidden:v1';
   static const String _calendarFilingView =

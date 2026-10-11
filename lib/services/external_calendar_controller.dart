@@ -33,6 +33,8 @@ class ExternalCalendarController extends ChangeNotifier
   DateTime? _lastAttempt;
   int get generation => _generation;
   String? get accountId => repository.accountId;
+  ExternalCalendarStatus? get accountStatus =>
+      _owner == accountId ? status : null;
 
   void _checkAccount() {
     if (_owner == accountId) return;
@@ -248,6 +250,29 @@ class ExternalCalendarController extends ChangeNotifier
     if (changed != null && selected.isNotEmpty && _current(generation, owner)) {
       await refresh();
     }
+  }
+
+  /// Removes a selected import, never the provider's calendar. Keep a Settings
+  /// selection draft intact except for the explicitly removed source.
+  Future<bool> removeSource(String id) async {
+    _checkAccount();
+    if (!_selectedIds(status).contains(id)) return false;
+    final owner = accountId;
+    final generation = _generation;
+    final selected = _selectedIds(status)..remove(id);
+    final result = await _run(
+      () => repository.statusCommand(
+        'select_sources',
+        arguments: {..._revision, 'source_ids': selected.toList()..sort()},
+      ),
+      (value) async {
+        await _acceptServerStatus(value);
+        if (_current(generation, owner)) {
+          selectedSourceIds = {...selectedSourceIds}..remove(id);
+        }
+      },
+    );
+    return result != null && !_selectedIds(result).contains(id);
   }
 
   Future<void> refresh() async {
