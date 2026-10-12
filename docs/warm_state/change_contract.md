@@ -1648,3 +1648,23 @@ The backend migration and updated Edge Function must deploy before this app
 candidate. Older backends reject phone removal, which remains visibly failed;
 there is no local-only deletion fallback. Existing cache fixtures, namespace,
 route owners, account stores and permissions remain unchanged.
+
+
+## October 12 focused recruitment corrections
+
+Settings derives the holiday toggle from the existing account-owned holiday notes
+through UserEventsRepo. The legacy settings:usHolidaysEnabled device key remains
+unchanged for compatibility, but is no longer read as account truth or rewritten
+by unrelated device-setting saves. The existing holiday seeder and semantic
+delete owner retain their stable event identities. A pending holiday read leaves
+other Settings controls usable; failed reads do not masquerade as an empty
+account. Account changes fence late reads and displayed results; seeding stops
+on account departure. No warm namespace, persisted payload, pending-write store
+or route is introduced.
+
+DecanReflectionScheduler reuses MaatFlowDeviceTimeZone, the existing initialized
+IANA timezone authority, instead of guessing from abbreviations or offsets.
+Onboarding reuses its existing reserved navigation frame for enlarged opening
+text. Normal-size captures remain byte-identical; enlarged headline/wordmark
+content scrolls clear of the existing navigation cue. Approved references remain
+unchanged.

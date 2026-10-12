@@ -9,6 +9,7 @@ import 'package:mobile/core/daily_reflection_question.dart';
 import 'package:mobile/data/commons_models.dart';
 import 'package:mobile/data/commons_question_selection.dart';
 import 'package:mobile/services/decan_reflection_scheduler.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_controller.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 import '../features/pages/pages_resource_test.dart' show session;
 
@@ -152,6 +153,7 @@ void main() {
   test(
     'guidance sends the exact current card and absolute-day flow for all three decans',
     () async {
+      MaatFlowDeviceTimeZone.setForTesting('UTC');
       var now = DateTime(2026, 9, 16, 12);
       final payloads = <Map<String, dynamic>>[];
       final client = SupabaseClient(

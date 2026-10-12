@@ -977,6 +977,7 @@ class _ExhaleSlide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _HawCenteredFrame(
+      reserveNavigationSpace: MediaQuery.textScalerOf(context).scale(16) > 24,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,

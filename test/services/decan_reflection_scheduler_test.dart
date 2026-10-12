@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:mobile/features/calendar/maat_flow_temporal_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -7,13 +9,17 @@ import 'package:mobile/services/decan_reflection_scheduler.dart';
 import '../features/pages/pages_resource_test.dart' show session, uid;
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late SupabaseClient client;
   late DecanReflectionScheduler scheduler;
   late List<Completer<http.Response>> requests;
+  late List<http.Request> recordedRequests;
   late int refreshed;
   late StreamController<int> arrivals;
   setUp(() async {
     requests = [];
+    recordedRequests = [];
+    MaatFlowDeviceTimeZone.setForTesting('UTC');
     arrivals = StreamController<int>.broadcast();
     refreshed = 0;
     client = SupabaseClient(
@@ -21,6 +27,7 @@ void main() {
       'test-key',
       authOptions: const AuthClientOptions(autoRefreshToken: false),
       httpClient: MockClient((request) {
+        recordedRequests.add(request);
         final result = Completer<http.Response>();
         requests.add(result);
         arrivals.add(requests.length);
@@ -109,6 +116,25 @@ void main() {
       expect(refreshed, 1);
     },
   );
+  for (final zone in [
+    'Asia/Kolkata',
+    'Asia/Kathmandu',
+    'Australia/Sydney',
+    'America/New_York',
+  ]) {
+    test(
+      'guidance uses the existing device timezone authority for $zone',
+      () async {
+        MaatFlowDeviceTimeZone.setForTesting(zone);
+        final flight = scheduler.ensureCurrentAndNextScheduled(force: true);
+        await dispatched();
+        expect(jsonDecode(recordedRequests.single.body)['timezone'], zone);
+        reply(0);
+        await flight;
+      },
+    );
+  }
+
   test('signed-out scheduler sends no request', () async {
     final anonymous = SupabaseClient(
       'https://example.supabase.co',

@@ -105,6 +105,22 @@ void main() {
           );
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
+          if (slide == HawOnboardingSlide.exhale && scale == 2) {
+            final viewport = find.byType(SingleChildScrollView).first;
+            final cue = find.text('tap to begin');
+            expect(
+              tester.getRect(viewport).bottom,
+              lessThan(tester.getRect(cue).top),
+            );
+            await tester.drag(viewport, const Offset(0, -10000));
+            await tester.pumpAndSettle();
+            expect(
+              tester.getRect(find.text('this is ḥꜣw')).bottom,
+              lessThan(tester.getRect(cue).top),
+            );
+            await tester.drag(viewport, const Offset(0, 10000));
+            await tester.pumpAndSettle();
+          }
           if (slide == HawOnboardingSlide.calendarConnection) {
             final connect = find.text('Connect calendar');
             final later = find.text('not now');
