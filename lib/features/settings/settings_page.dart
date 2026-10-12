@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 import '../../core/navigation_fallback.dart';
+import '../../data/account_operation_fence.dart';
 import '../../core/navigation_persistence_policy.dart';
 import '../../main.dart' show Events, appEnvironmentEnv;
 import '../../services/navigation_trace.dart';
@@ -86,6 +87,11 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _dailyCosmicContextBadgeEnabled = true;
   bool _savingDailyCosmicContextBadge = false;
   bool _seedingHolidays = false;
+  bool _holidayReadFailed = false;
+  bool _loadingHolidays = false;
+  String? _holidayAccountId;
+  int _holidayGeneration = 0;
+  StreamSubscription<AuthState>? _holidayAccountSubscription;
   bool _loading = true;
   bool _requestingPush = false;
   bool _loadingPushDiagnostics = false;
@@ -184,6 +190,14 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     _hydrationDiagnosticsReady = _prepareHydrationDiagnostics();
     _load();
+    _holidayAccountSubscription = Supabase
+        .instance
+        .client
+        .auth
+        .onAuthStateChange
+        .listen((event) {
+          if (event.session?.user.id != _holidayAccountId) unawaited(_load());
+        });
     unawaited(_loadSpeechSettings());
     unawaited(_loadBuildInfo());
   }
@@ -213,6 +227,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    unawaited(_holidayAccountSubscription?.cancel());
     SettingsPrefs.dailyCosmicContextBadgeChanges.removeListener(
       _reloadDailyCosmicContextPreference,
     );
@@ -224,28 +239,47 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    await SettingsPrefs.clearLegacyReminderPrefs(prefs);
-
-    if (!mounted) return;
-    setState(() {
-      _realTimeAlerts = SettingsPrefs.realTimeAlertsEnabledFrom(prefs);
-      _usHolidaysEnabled = SettingsPrefs.usHolidaysEnabledFrom(prefs);
-      _dailyCosmicContextBadgeEnabled =
-          SettingsPrefs.dailyCosmicContextBadgeEnabledFrom(prefs);
-      _pushTestDeliveryKey = prefs
-          .getString(_lastPushTestDeliveryKeyPref)
-          ?.trim();
-      if (_pushTestDeliveryKey?.isEmpty == true) {
-        _pushTestDeliveryKey = null;
+    final generation = ++_holidayGeneration;
+    final account = AccountOperationFence(Supabase.instance.client);
+    _holidayAccountId = account.userId;
+    bool current() =>
+        mounted && account.isCurrent && generation == _holidayGeneration;
+    if (mounted)
+      setState(() {
+        _loadingHolidays = true;
+        _seedingHolidays = false;
+      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await SettingsPrefs.clearLegacyReminderPrefs(prefs);
+      if (!current()) return;
+      setState(() {
+        _realTimeAlerts = SettingsPrefs.realTimeAlertsEnabledFrom(prefs);
+        _usHolidaysEnabled = false;
+        _holidayReadFailed = false;
+        _dailyCosmicContextBadgeEnabled =
+            SettingsPrefs.dailyCosmicContextBadgeEnabledFrom(prefs);
+        _pushTestDeliveryKey = prefs
+            .getString(_lastPushTestDeliveryKeyPref)
+            ?.trim();
+        if (_pushTestDeliveryKey?.isEmpty == true) _pushTestDeliveryKey = null;
+        _loading = false;
+      });
+      unawaited(_refreshPushDiagnostics());
+      if (_pushTestDeliveryKey != null)
+        unawaited(_refreshPushTestReceiptStatus());
+      unawaited(_maybeShowSettingsHelper());
+      try {
+        final enabled =
+            account.userId != null && await UsHolidaySeeder.isEnabled();
+        if (current()) setState(() => _usHolidaysEnabled = enabled);
+      } catch (_) {
+        if (current()) setState(() => _holidayReadFailed = true);
       }
-      _loading = false;
-    });
-    unawaited(_refreshPushDiagnostics());
-    if (_pushTestDeliveryKey != null) {
-      unawaited(_refreshPushTestReceiptStatus());
+    } finally {
+      if (current()) setState(() => _loadingHolidays = false);
+      account.dispose();
     }
-    unawaited(_maybeShowSettingsHelper());
   }
 
   Future<void> _maybeShowSettingsHelper() async {
@@ -295,7 +329,6 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(SettingsPrefs.realTimeAlertsKey, _realTimeAlerts);
-    await prefs.setBool(SettingsPrefs.usHolidaysEnabledKey, _usHolidaysEnabled);
   }
 
   Future<void> _loadSpeechSettings() async {
@@ -720,64 +753,50 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _toggleUsHolidays(bool enabled) async {
+    if (_seedingHolidays || _loadingHolidays || _holidayReadFailed) return;
+    final account = AccountOperationFence(Supabase.instance.client);
+    final generation = _holidayGeneration;
     final previous = _usHolidaysEnabled;
     final messenger = ScaffoldMessenger.of(context);
-
-    setState(() {
-      _usHolidaysEnabled = enabled;
-      _seedingHolidays = true;
-    });
-    await _save();
-
+    bool current() =>
+        mounted && account.isCurrent && generation == _holidayGeneration;
+    var acknowledged = false;
+    setState(() => _seedingHolidays = true);
     try {
+      final added = enabled ? await UsHolidaySeeder.seed(years: 2) : 0;
+      if (!enabled) await UsHolidaySeeder.clear();
+      if (!current()) return;
+      acknowledged = true;
+      setState(() => _usHolidaysEnabled = enabled);
       final calendarState = CalendarPage.globalKey.currentState;
-      if (enabled) {
-        final added = await UsHolidaySeeder.seed(years: 2);
-        if (calendarState != null) {
-          await calendarState.reloadFromOutside();
-        }
-        if (mounted) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('Loaded $added U.S. holiday notes.'),
-              backgroundColor: Colors.green.shade700,
-            ),
-          );
-        }
-      } else {
-        await UsHolidaySeeder.clear();
-        if (calendarState != null) {
-          await calendarState.reloadFromOutside();
-        }
-        if (mounted) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: const Text('Removed U.S. holiday notes.'),
-              backgroundColor: Colors.green.shade700,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _usHolidaysEnabled = previous;
-      });
-      await _save();
+      if (calendarState != null) await calendarState.reloadFromOutside();
+      if (!current()) return;
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            e is StateError ? e.message : 'Could not update holiday notes: $e',
+            enabled
+                ? 'Loaded $added U.S. holiday notes.'
+                : 'Removed U.S. holiday notes.',
+          ),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    } catch (error) {
+      if (!current()) return;
+      if (!acknowledged) setState(() => _usHolidaysEnabled = previous);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            error is StateError
+                ? error.message
+                : 'Could not update holiday notes: $error',
           ),
           backgroundColor: Colors.red.shade700,
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _seedingHolidays = false;
-        });
-      }
+      if (current()) setState(() => _seedingHolidays = false);
+      account.dispose();
     }
   }
 
@@ -1431,11 +1450,18 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 _settingSwitch(
                   title: 'Add U.S. holidays as notes',
-                  subtitle: _seedingHolidays
+                  subtitle: _loadingHolidays
+                      ? 'Loading holiday notes...'
+                      : _seedingHolidays
                       ? 'Applying holiday notes...'
+                      : _holidayReadFailed
+                      ? 'Could not load holiday notes. Reopen Settings to retry.'
                       : 'Adds standard U.S. holidays as editable app notes.',
                   value: _usHolidaysEnabled,
-                  onChanged: _seedingHolidays ? null : _toggleUsHolidays,
+                  onChanged:
+                      _seedingHolidays || _loadingHolidays || _holidayReadFailed
+                      ? null
+                      : _toggleUsHolidays,
                   trailing: _seedingHolidays
                       ? const SizedBox(
                           width: 20,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/user_events_repo.dart';
+import '../../data/account_operation_fence.dart';
 
 class _Holiday {
   final String name;
@@ -90,6 +91,13 @@ class UsHolidaySeeder {
     ];
   }
 
+  /// The account's notes are authoritative; the old device toggle is not.
+  static Future<bool> isEnabled({UserEventsRepo? repo}) async {
+    final r = repo ?? UserEventsRepo(Supabase.instance.client);
+    final rows = await r.getEventsByPrefix(clientIdPrefix);
+    return rows.any((row) => row.category != 'tombstone');
+  }
+
   /// Seed holiday events for the given number of years starting at [startYear].
   /// Returns how many events were upserted (including overwrites).
   static Future<int> seed({
@@ -100,31 +108,40 @@ class UsHolidaySeeder {
     final r = repo ?? UserEventsRepo(Supabase.instance.client);
     final baseYear = startYear ?? DateTime.now().year;
     int inserted = 0;
-
-    for (int i = 0; i < years; i++) {
-      final year = baseYear + i;
-      for (final h in _holidaysForYear(year)) {
-        final clientEventId = _clientEventId(h);
-        final startLocal = DateTime(
-          h.date.year,
-          h.date.month,
-          h.date.day,
-          _defaultStartHour,
-          _defaultStartMinute,
-        );
-        await r.upsertByClientId(
-          clientEventId: clientEventId,
-          title: h.name,
-          startsAtUtc: startLocal.toUtc(),
-          detail: 'US holiday (auto-added from Settings)',
-          allDay: true,
-          caller: 'holiday_seed',
-        );
-        inserted++;
+    final account = AccountOperationFence(Supabase.instance.client);
+    try {
+      for (int i = 0; i < years; i++) {
+        final year = baseYear + i;
+        for (final h in _holidaysForYear(year)) {
+          if (!account.isCurrent) {
+            throw StateError(
+              'Your account changed. Reopen Settings to continue.',
+            );
+          }
+          final clientEventId = _clientEventId(h);
+          final startLocal = DateTime(
+            h.date.year,
+            h.date.month,
+            h.date.day,
+            _defaultStartHour,
+            _defaultStartMinute,
+          );
+          await r.upsertByClientId(
+            clientEventId: clientEventId,
+            title: h.name,
+            startsAtUtc: startLocal.toUtc(),
+            detail: 'US holiday (auto-added from Settings)',
+            allDay: true,
+            caller: 'holiday_seed',
+          );
+          inserted++;
+        }
       }
-    }
 
-    return inserted;
+      return inserted;
+    } finally {
+      account.dispose();
+    }
   }
 
   /// Remove all auto-seeded holiday events for the current user.

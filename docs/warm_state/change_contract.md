@@ -1625,3 +1625,23 @@ DayViewGrid separates all-day notes from timed layout before using the existing
 CalendarDayEventBlock and shared detail/action owner. The bounded all-day section
 and timeline have distinct paint boundaries. This adds no event writer or detail
 renderer and leaves the five authored Ma’at card housings unchanged.
+
+
+## October 12 focused recruitment corrections
+
+Settings derives the holiday toggle from the existing account-owned holiday notes
+through UserEventsRepo. The legacy settings:usHolidaysEnabled device key remains
+unchanged for compatibility, but is no longer read as account truth or rewritten
+by unrelated device-setting saves. The existing holiday seeder and semantic
+delete owner retain their stable event identities. A pending holiday read leaves
+other Settings controls usable; failed reads do not masquerade as an empty
+account. Account changes fence late reads and displayed results; seeding stops
+on account departure. No warm namespace, persisted payload, pending-write store
+or route is introduced.
+
+DecanReflectionScheduler reuses MaatFlowDeviceTimeZone, the existing initialized
+IANA timezone authority, instead of guessing from abbreviations or offsets.
+Onboarding reuses its existing reserved navigation frame for enlarged opening
+text. Normal-size captures remain byte-identical; enlarged headline/wordmark
+content scrolls clear of the existing navigation cue. Approved references remain
+unchanged.
