@@ -14,6 +14,8 @@ import 'package:mobile/features/pages/pages_board.dart';
 import 'package:mobile/features/pages/pages_layout.dart';
 import 'package:mobile/features/pages/pages_models.dart';
 import 'package:mobile/main.dart' show MyApp;
+import 'package:mobile/features/auth/account_access.dart';
+import 'package:mobile/features/auth/visitor_preferences.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -238,6 +240,33 @@ void main() {
       final actual = MediaQuery.textScalerOf(
         tester.element(find.byKey(_probeKey)),
       );
+      await _closeApp(tester, router);
+      expect(tester.takeException(), isNull);
+      for (final fontSize in <double>[11, 16, 24, 36]) {
+        expect(actual.scale(fontSize), scaler.scale(fontSize));
+      }
+    });
+  }
+  for (final scaler in const <TextScaler>[
+    TextScaler.linear(1.3),
+    TextScaler.linear(2),
+    _NonlinearTextScaler(),
+  ]) {
+    testWidgets('real guest root preserves accessibility scaler $scaler', (
+      tester,
+    ) async {
+      await tester.runAsync(
+        () => Supabase.instance.client.auth.signOut(scope: SignOutScope.local),
+      );
+      SharedPreferences.setMockInitialValues({
+        VisitorPreferences.introSeenKey: true,
+        VisitorPreferences.invitationSeenKey: true,
+      });
+      final router = _router(const Scaffold(body: Text('Guest accessibility')));
+      await _pumpApp(tester, router, const Size(820, 1180), scaler: scaler);
+      final probe = tester.element(find.byKey(_probeKey));
+      expect(AccountAccess.isGuest(probe), isTrue);
+      final actual = MediaQuery.textScalerOf(probe);
       await _closeApp(tester, router);
       expect(tester.takeException(), isNull);
       for (final fontSize in <double>[11, 16, 24, 36]) {

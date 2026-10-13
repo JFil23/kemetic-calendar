@@ -26,6 +26,7 @@ CONTRACT_TESTS = (
     'flow_detail_authority_contract_test.py', 'validate_deep_links_test.py',
     'served_artifact_verifier_test.py', 'public_site_test.py',
     'app_gate_test.py', 'deploy_web_release_test.py', 'release_web_test.py',
+    'verify_calendar_extent_inventory.py',
 )
 
 

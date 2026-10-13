@@ -55,6 +55,14 @@ class SelectionTest(unittest.TestCase):
         self.assertTrue(any('scripts/web_release_pipeline_test.py' in c for c in commands))
         self.assertFalse(any(c[0] == 'flutter' for c in commands))
 
+    def test_source_inventory_is_checked_before_flutter_for_changed_owners(self):
+        commands = gate.commands(gate.plan(self.root, ['lib/owner.dart']))
+        inventory = [gate.sys.executable, 'scripts/verify_calendar_extent_inventory.py']
+        self.assertIn(inventory, commands)
+        first_flutter = next(i for i, command in enumerate(commands) if command[0] == 'flutter')
+        self.assertLess(commands.index(inventory), first_flutter)
+        self.assertIn(inventory, gate.commands(gate.plan(self.root, None), phase='preflight'))
+
     def test_complete_gate_retains_all_tests_analysis_and_browser(self):
         plan = gate.plan(self.root, None)
         commands = gate.commands(plan)

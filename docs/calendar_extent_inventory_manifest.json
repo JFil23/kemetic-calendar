@@ -75,9 +75,9 @@
     {
       "name": "responsive_text_scaler",
       "file": "lib/main.dart",
-      "start": "  Widget _buildLoginApp() {",
-      "end": "  @override\n  Widget build(BuildContext context) {\n    if (_debugDaySheetSmokeBootRequested) {",
-      "sha256": "28993ea75fc6fa5a21b050a0efcf33be2ebf2d1cf1c6d278fba1ad8bbb8c78ce"
+      "start": "  // Inherit the platform TextScaler on every display.",
+      "end": "\nclass _AppChrome extends StatefulWidget {",
+      "sha256": "f018ada4b8d2faec49e8197b21d8aaf6948725d5c1f368b6db2649085cecab51"
     },
     {
       "name": "scrolling_banner_fixed_extent",

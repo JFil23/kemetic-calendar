@@ -586,3 +586,27 @@ The section equations, sliver topology, scroll/restoration ownership, closed
 contributor list and all other fragment digests are unchanged. No approved
 visual reference was regenerated. Speech playback no longer schedules unused
 per-frame position polling; it still ends through the audio completion stream.
+
+
+## 2026-10-13 guest and member root ownership re-audit
+
+The guest-entry refactor in candidate `6339bcf5bcd8334271655d13dfc55616612d48c5`
+removed the separate login-only MaterialApp. Guests and members now share the
+existing MaterialApp.router and its GuestExperienceHost; password recovery keeps
+its dedicated MaterialApp. Both constructors inherit MediaQuery and the platform
+TextScaler without converting its curve, multiplying tablet fonts or capping
+accessibility settings. The invitation and intro inherit the same scaler.
+
+The responsive_text_scaler fragment now starts at the existing scaling-policy
+comment and ends before AppChrome, covering both constructors and root selection.
+The closed contributor list, fragment count and every other fragment remain
+unchanged. Calendar heading measurements, fixed day-number scaling, header and
+chip heights, event caps, pill allocations, section topology, geometry markers
+and both month-body extent equations retain their audited owners and inputs.
+Pages and intro spacing are presentation outside those calendar extent equations.
+
+The existing inventory verifier now runs during App preflight as well as the
+unchanged Dart inventory guard in the full suite. Runtime root tests retain all
+member and tablet assertions and add guest checks for linear 1.3, linear 2.0 and
+nonlinear accessibility scaling. No assertion, threshold, old-release fixture or
+approved visual reference is removed, relaxed or regenerated.
