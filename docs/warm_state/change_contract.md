@@ -1,5 +1,67 @@
 # Persistence change contract
 
+## October 13 visitor entry and account invitation
+
+The existing authored opening and Pages layout are the presentation references.
+The opening is shared with account onboarding; a first visitor sees its existing
+line timings, then a 600ms dissolve into Pages. Reduced-motion entry displays the
+complete copy without animation. Returning visitors go directly to Pages.
+The account-onboarding host owns clearance for its navigation controls; the
+shared intro centers enlarged text in the available guest viewport. Compact
+spacing and narrow-phone padding retain the selected text size while showing
+all three lines before the automatic dissolve. Normal-size geometry is retained.
+
+VisitorPreferences owns device presentation markers under
+`visitor_experience_v1:intro_seen` and `visitor_experience_v1:invitation_seen`.
+These are independent of account completion, warm-cache eviction, app builds and
+logout. A first displayed intro marks the browser as seen. A displayed account
+invitation marks the timed invitation as seen, including dismissal. Browser
+storage denial permits browsing with an in-process fallback; clearing storage or
+using a different browser can show the introduction again. No IP identity or
+anonymous backend account is created.
+
+GuestPagesContent projects bundled calendar dates, the canonical daily question
+and Library material into PagesLayout. The five authored catalog identities come
+from Calendar's existing catalog and open the same complete Ma'at details.
+Guest projection never enters account caches, fabricates account records, reads
+private repositories or writes account content. Calendar, Library and catalog
+routes can be browsed; private route reads are gated before mounting. Pages
+retains its state when the account becomes available and recreates its existing
+account controllers for that identity. Account departure closes account-owned
+modals and returns to guest Pages; it never clears pending account writes.
+
+GuestActivity earns up to one second after each real scroll, tap, pointer drag or
+keyboard input, accumulating five seconds across active bursts. Idle time and
+background time do not accrue; the intro and invitation suspend the accumulator.
+The timed invitation appears once per browser marker. Account actions continue
+to request the existing auth form regardless of that marker, and cancellation
+does not open an editor or begin a mutation. The shared Ma'at action dock,
+Calendar authoring entries and Library account actions use AccountAccess.
+
+`visitor_experience_v1:pending_location` owns only a sanitized, local navigation
+intent for authentication return. It contains no login credentials, pending mutation
+or authored content. Private direct links, canonical catalog detail identity and
+event/flow creation destinations return through existing route owners after
+authentication. Account repositories still own acknowledgement and permissions.
+Same-page authentication retains the initiating action; OAuth return restores
+its destination. Automatic account onboarding waits while the visitor finishes
+the current browsing session; explicit replay and saved account checkpoints are
+preserved, and a later app visit to Calendar can continue the remaining guide.
+Existing share-entry invitation capabilities stay with their original share
+identity and remain verified by ShareRepo. Authenticated account replacement
+retains the current route and its existing fences. Logout moves to guest Pages;
+the route-lifetime test now expects that public destination while retaining all
+checks that old account panels, receipts and late callbacks stay fenced.
+
+The root, Pages, Flow Studio and Library entries in the release inventory retain
+their existing account read/write owners. No existing key, resource schema,
+immutable fixture, approved visual reference or inventory threshold changes.
+Guest behavior, activity and device-marker tests supplement the existing login,
+real-route, warm-state and full-detail parity evidence. Static captures inspect
+phone, landscape, tablet and enlarged text; the shared Pages caption extent grows
+with text scaling while retaining its normal-size geometry. Exact-lane hosted
+release qualification and served replay remain required before deployment.
+
 The existing populated app and the user's September 29 screen recordings are
 visual/navigation references. Planner cards, nutrition scheduling, and the
 five-flow Day View housing remain unchanged.

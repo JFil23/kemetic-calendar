@@ -114,6 +114,7 @@ class PagesCard {
     this.rhythm,
     this.practice,
     this.feedDisplay = PagesFeedDisplay.question,
+    this.feedAnswerSummary,
     this.badges = const [],
     this.calendarDate,
     this.showGregorian = false,
@@ -145,6 +146,7 @@ class PagesCard {
   final CommonsRhythmSummary? rhythm;
   final CommonsPracticeRoom? practice;
   final PagesFeedDisplay feedDisplay;
+  final String? feedAnswerSummary;
   final List<EventBadgeToken> badges;
   String get title => switch (destination) {
     PagesDestination.calendar => 'Calendar',

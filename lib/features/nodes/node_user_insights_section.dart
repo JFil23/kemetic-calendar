@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../auth/account_access.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/insight_entry_model.dart';
@@ -99,6 +100,7 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
   }
 
   Future<void> _openEditor({InsightEntry? entry}) async {
+    if (!await AccountAccess.require(context) || !mounted) return;
     final changed = await showEditableModalBottomSheet<bool>(
       context: context,
       backgroundColor: const Color(0xFF050505),

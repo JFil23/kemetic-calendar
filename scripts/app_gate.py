@@ -124,14 +124,17 @@ def shard_files(root: Path, index: int) -> list[str]:
 
 
 def commands(selection: dict, *, phase: str = 'all', shard_index: int | None = None,
-             root: Path = ROOT) -> list[list[str]]:
+             root: Path = ROOT, test_concurrency: int | None = None) -> list[list[str]]:
+    if test_concurrency is not None and test_concurrency < 1:
+        raise ValueError('Test concurrency must be positive.')
+    worker_args = [] if test_concurrency is None else ['--concurrency', str(test_concurrency)]
     if phase not in ('all', 'preflight', 'tests'):
         raise ValueError('Unknown gate phase.')
     if phase != 'all' and not selection['full']:
         raise ValueError('Only the complete suite can be split into phases.')
     if phase == 'tests':
         return [['flutter', 'pub', 'get', '--enforce-lockfile'],
-                ['flutter', 'test', '--no-pub', *shard_files(root, shard_index)]]
+                ['flutter', 'test', '--no-pub', *worker_args, *shard_files(root, shard_index)]]
     if shard_index is not None:
         raise ValueError('A shard index is only valid for the tests phase.')
     result = []
@@ -148,9 +151,9 @@ def commands(selection: dict, *, phase: str = 'all', shard_index: int | None = N
     if selection['analyze']:
         result.append(['flutter', 'analyze', '--no-fatal-infos'])
     if selection['browser']:
-        result.append(['flutter', 'test', '--no-pub', '--platform', 'chrome', *selection['browser']])
+        result.append(['flutter', 'test', '--no-pub', *worker_args, '--platform', 'chrome', *selection['browser']])
     if selection['tests'] and phase != 'preflight':
-        result.append(['flutter', 'test', '--no-pub', *selection['tests']])
+        result.append(['flutter', 'test', '--no-pub', *worker_args, *selection['tests']])
     return result
 
 
@@ -175,6 +178,7 @@ def main() -> int:
     parser.add_argument('--log-dir', type=Path)
     parser.add_argument('--phase', choices=('all', 'preflight', 'tests'), default='all')
     parser.add_argument('--shard-index', type=int)
+    parser.add_argument('--test-concurrency', type=int, help='Flutter worker count; selection and timeouts stay unchanged.')
     args = parser.parse_args()
     try:
         paths = None if args.mode == 'full' else changed_paths(ROOT, args.base, args.head)
@@ -187,6 +191,7 @@ def main() -> int:
     logs = args.log_dir or Path(tempfile.mkdtemp(prefix='kemet-app-gate-'))
     logs.mkdir(parents=True, exist_ok=True)
     summary = dict(mode=args.mode, phase=args.phase, shard_index=args.shard_index,
+                   test_concurrency=args.test_concurrency,
                    total_shards=FULL_SUITE_SHARDS if args.phase == 'tests' else None,
                    selection=selection, changed_paths=paths, steps=[], success=False,
                    test_inventory=test_files(ROOT) if args.phase == 'preflight' else None,
@@ -194,7 +199,7 @@ def main() -> int:
     print(selection['reason'], flush=True)
     print(f'Logs: {logs}', flush=True)
     try:
-        for index, command in enumerate(commands(selection, phase=args.phase, shard_index=args.shard_index)):
+        for index, command in enumerate(commands(selection, phase=args.phase, shard_index=args.shard_index, test_concurrency=args.test_concurrency)):
             step = run_step(command, root=ROOT, log=logs / f'{index:02d}.log')
             summary['steps'].append(step)
             print(f"{'PASS' if step['exit_code'] == 0 else 'FAIL'} {command[0]} {command[1]} ({step['seconds']}s)", flush=True)

@@ -883,7 +883,8 @@ void main() {
       await drain(tester);
       expect(find.byType(ExternalCalendarSettings), findsNothing);
       expect(find.byType(DeviceCalendarSettings), findsNothing);
-      expect(router.routeInformationProvider.value.uri.toString(), '/settings');
+      expect(router.routeInformationProvider.value.uri.toString(), '/pages');
+      expect(find.byType(PagesPage), findsOneWidget);
       for (final pending in pendingReads.values) {
         pending.complete();
       }

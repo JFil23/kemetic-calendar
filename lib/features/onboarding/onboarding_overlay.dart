@@ -457,11 +457,20 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
   Widget _buildSlide(BuildContext context) {
     switch (_slide) {
       case HawOnboardingSlide.exhale:
-        return _ExhaleSlide(
-          line1Visible: _s1Line1,
-          line2Visible: _s1Line2,
-          wordmarkVisible: _s1Wordmark,
-          reduceMotion: _reduceMotion,
+        final largeText = MediaQuery.textScalerOf(context).scale(16) > 24;
+        return Padding(
+          padding: largeText
+              ? EdgeInsets.only(
+                  top: 64 + MediaQuery.paddingOf(context).top,
+                  bottom: 96 + MediaQuery.paddingOf(context).bottom,
+                )
+              : EdgeInsets.zero,
+          child: HawIntroSlide(
+            line1Visible: _s1Line1,
+            line2Visible: _s1Line2,
+            wordmarkVisible: _s1Wordmark,
+            reduceMotion: _reduceMotion,
+          ),
         );
       case HawOnboardingSlide.calendarConnection:
         return widget.calendarConnectionBuilder?.call(context) ??
@@ -924,9 +933,13 @@ class _HawCenteredFrame extends StatelessWidget {
   const _HawCenteredFrame({
     required this.child,
     this.reserveNavigationSpace = false,
+    this.horizontalPadding = 44,
+    this.centerWhenCompact = false,
   });
   final Widget child;
   final bool reserveNavigationSpace;
+  final double horizontalPadding;
+  final bool centerWhenCompact;
   @override
   Widget build(BuildContext context) => Padding(
     padding: reserveNavigationSpace
@@ -942,14 +955,15 @@ class _HawCenteredFrame extends StatelessWidget {
             MediaQuery.textScalerOf(context).scale(16) > 24;
         return SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
-            44,
-            !reserveNavigationSpace && compact ? 80 : 0,
-            44,
-            !reserveNavigationSpace && compact ? 100 : 0,
+            horizontalPadding,
+            !reserveNavigationSpace && compact && !centerWhenCompact ? 80 : 0,
+            horizontalPadding,
+            !reserveNavigationSpace && compact && !centerWhenCompact ? 100 : 0,
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: compact && !reserveNavigationSpace
+              minHeight:
+                  compact && !reserveNavigationSpace && !centerWhenCompact
                   ? 0
                   : constraints.maxHeight,
             ),
@@ -961,8 +975,11 @@ class _HawCenteredFrame extends StatelessWidget {
   );
 }
 
-class _ExhaleSlide extends StatelessWidget {
-  const _ExhaleSlide({
+/// The authored opening, shared by visitor entry and account onboarding.
+class HawIntroSlide extends StatelessWidget {
+  static const backgroundColor = _HawColors.ground;
+  const HawIntroSlide({
+    super.key,
     required this.line1Visible,
     required this.line2Visible,
     required this.wordmarkVisible,
@@ -976,8 +993,12 @@ class _ExhaleSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final largeText = MediaQuery.textScalerOf(context).scale(16) > 24;
+    final size = MediaQuery.sizeOf(context);
+    final compact = largeText && size.height < 640;
     return _HawCenteredFrame(
-      reserveNavigationSpace: MediaQuery.textScalerOf(context).scale(16) > 24,
+      centerWhenCompact: largeText,
+      horizontalPadding: largeText && size.width < 360 ? 24 : 44,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -988,24 +1009,26 @@ class _ExhaleSlide extends StatelessWidget {
                 : const Duration(milliseconds: 80),
             curve: Curves.linear,
             opacity: line1Visible ? 1 : 0,
-            child: const _DisplayLine(
+            child: _DisplayLine(
               'Reject the grind.',
               color: _HawColors.goldPrimary,
+              lineHeight: compact ? 1.1 : 1.22,
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: compact ? 12 : 20),
           AnimatedOpacity(
             duration: reduceMotion
                 ? Duration.zero
                 : const Duration(milliseconds: 1100),
             curve: Curves.easeOut,
             opacity: line2Visible ? 1 : 0,
-            child: const _DisplayLine(
+            child: _DisplayLine(
               'Embrace your rhythm.',
               color: _HawColors.goldWarm,
+              lineHeight: compact ? 1.1 : 1.22,
             ),
           ),
-          const SizedBox(height: 60),
+          SizedBox(height: compact ? 24 : 60),
           AnimatedOpacity(
             duration: reduceMotion
                 ? Duration.zero
@@ -1032,10 +1055,11 @@ class _ExhaleSlide extends StatelessWidget {
 }
 
 class _DisplayLine extends StatelessWidget {
-  const _DisplayLine(this.text, {required this.color});
+  const _DisplayLine(this.text, {required this.color, this.lineHeight = 1.22});
 
   final String text;
   final Color color;
+  final double lineHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -1047,7 +1071,7 @@ class _DisplayLine extends StatelessWidget {
         fontFamilyFallback: _HawType.displayFallback,
         fontSize: 30,
         fontWeight: FontWeight.w400,
-        height: 1.22,
+        height: lineHeight,
         letterSpacing: 1.8,
       ),
     );

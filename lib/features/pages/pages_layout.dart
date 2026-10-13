@@ -23,6 +23,9 @@ class PagesLayout extends StatefulWidget {
     this.profileName = '',
     this.profileHandle = '',
     this.profileGlyphIds = const [],
+    this.profileActionLabel = 'Open profile',
+    this.collectionEmptyMessage,
+    this.onEmptyCollectionAction,
   });
   final List<ValueListenable<PagesCard>> cards;
   final ValueChanged<PagesCard> onOpen;
@@ -30,6 +33,9 @@ class PagesLayout extends StatefulWidget {
   final ValueChanged<PagesSearchRecord> onSearchResult;
   final List<PagesSearchRecord> Function() searchRecords;
   final String profileName, profileHandle;
+  final String profileActionLabel;
+  final String? collectionEmptyMessage;
+  final VoidCallback? onEmptyCollectionAction;
   final List<String> profileGlyphIds;
   final PagesCollectionState collectionState;
   final ValueChanged<PagesCollection?>? onCollectionChanged;
@@ -97,7 +103,7 @@ class _PagesLayoutState extends State<PagesLayout> {
               alignment: Alignment.centerLeft,
               child: Semantics(
                 button: true,
-                label: 'Open profile',
+                label: widget.profileActionLabel,
                 child: InkWell(
                   onTap: widget.onProfile,
                   child: SizedBox(
@@ -202,6 +208,8 @@ class _PagesLayoutState extends State<PagesLayout> {
                             ),
                             child: Text(
                               tab.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontFamily: AppFonts.ui,
                                 fontSize: 13,
@@ -311,7 +319,17 @@ class _PagesLayoutState extends State<PagesLayout> {
                               crossAxisSpacing: 8,
                               // Caption space is already reserved in the tile extent.
                               mainAxisSpacing: 3,
-                              mainAxisExtent: width / 1.49 + 43,
+                              mainAxisExtent:
+                                  width / 1.49 +
+                                  43 +
+                                  (MediaQuery.textScalerOf(context).scale(7.7) -
+                                          7.7) *
+                                      1.3 +
+                                  (MediaQuery.textScalerOf(
+                                            context,
+                                          ).scale(11.2) -
+                                          11.2) *
+                                      1.2,
                             ),
                           );
                         },
@@ -437,10 +455,18 @@ class _PagesLayoutState extends State<PagesLayout> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Text(
                 query.isEmpty
-                    ? 'No ${_selected!.label.toLowerCase()} yet'
+                    ? widget.collectionEmptyMessage ??
+                          'No ${_selected!.label.toLowerCase()} yet'
                     : 'No matches in loaded ${_selected!.label.toLowerCase()}',
                 style: pagesSerif(16, color: const Color(0xffa39d92)),
               ),
+            ),
+          if (items.isEmpty &&
+              query.isEmpty &&
+              widget.onEmptyCollectionAction != null)
+            TextButton(
+              onPressed: widget.onEmptyCollectionAction,
+              child: const Text('Create account or sign in'),
             ),
           if (!state.loading && state.hasMore)
             TextButton(

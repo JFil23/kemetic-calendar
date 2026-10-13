@@ -78,6 +78,8 @@ import 'features/nodes/kemetic_node_reader_page.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import 'features/onboarding/onboarding_progress.dart';
 import 'features/onboarding/onboarding_storage.dart';
+import 'features/auth/guest_experience_host.dart';
+import 'features/auth/visitor_preferences.dart';
 import 'features/profile/edit_profile_page.dart';
 import 'features/profile/flow_post_detail_page.dart';
 import 'features/profile/flow_post_picker_page.dart';
@@ -938,7 +940,9 @@ String _resolveInitialLocation() {
   final defaultRoute = PlatformDispatcher.instance.defaultRouteName.trim();
   final location =
       defaultRoute.isEmpty || defaultRoute == Navigator.defaultRouteName
-      ? _bootExplicitIntentLocation ?? _bootRestoredLocation ?? '/'
+      ? _bootExplicitIntentLocation ??
+            _bootRestoredLocation ??
+            (supabase.auth.currentSession == null ? '/pages' : '/')
       : defaultRoute.startsWith('/')
       ? defaultRoute
       : '/$defaultRoute';
@@ -1626,7 +1630,11 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
   redirect: (context, state) => _traceRouterRedirect(
     state.uri,
     _redirectRetiredRhythmRoute(state.uri) ??
-        _redirectExternalAppLink(state.uri),
+        _redirectExternalAppLink(state.uri) ??
+        guestAccountRedirect(
+          state.uri,
+          signedIn: supabase.auth.currentSession != null,
+        ),
   ),
   routes: [
     _calmRoute(path: '/', builder: (context, state) => const AuthGate()),
@@ -2205,6 +2213,7 @@ class _MyAppState extends State<MyApp> {
     _calendarSync = externalCalendarController(supabase);
     _authSub = supabase.auth.onAuthStateChange.listen(
       (data) {
+        if (!mounted) return;
         if (data.event == AuthChangeEvent.passwordRecovery) {
           _passwordRecoverySession = true;
         } else if (data.event == AuthChangeEvent.signedOut) {
@@ -2212,6 +2221,7 @@ class _MyAppState extends State<MyApp> {
         }
         _scheduleCalendarRecovery();
         _scheduleRebuild();
+        _appRouter.refresh();
       },
       onError: (Object error, StackTrace stackTrace) {
         if (!kDebugMode) return;
@@ -2382,20 +2392,6 @@ class _MyAppState extends State<MyApp> {
   // Inherit the platform TextScaler on every display. Enlarging all tablet
   // text independently of layout also activates accessibility-only flow
   // geometry and clips fixed-height controls at the 600px breakpoint.
-  Widget _buildLoginApp() {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      builder: (context, child) {
-        return NavigationTraceOverlay(child: child ?? const SizedBox.shrink());
-      },
-      home: Builder(
-        builder: (context) =>
-            LoginScreen(onGoogleSignIn: () => _startGoogleSignIn(context)),
-      ),
-    );
-  }
-
   Widget _buildPasswordRecoveryApp() {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -2428,11 +2424,15 @@ class _MyAppState extends State<MyApp> {
       routerConfig: _appRouter,
       builder: (context, child) {
         return NavigationTraceOverlay(
-          child: SessionLifecycleBridge(
-            child: PushIntentBridge(
-              child: _AppChrome(
-                router: _appRouter,
-                child: child ?? const SizedBox.shrink(),
+          child: GuestExperienceHost(
+            router: _appRouter,
+            onGoogleSignIn: _startGoogleSignIn,
+            child: SessionLifecycleBridge(
+              child: PushIntentBridge(
+                child: _AppChrome(
+                  router: _appRouter,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
           ),
@@ -2451,7 +2451,7 @@ class _MyAppState extends State<MyApp> {
     if (signedIn && _passwordRecoverySession) {
       return _buildPasswordRecoveryApp();
     }
-    return signedIn ? _buildAuthedApp() : _buildLoginApp();
+    return _buildAuthedApp();
   }
 }
 
@@ -2505,10 +2505,6 @@ class _AppChromeState extends State<_AppChrome> {
 
   @override
   Widget build(BuildContext context) {
-    if (supabase.auth.currentSession == null) {
-      return widget.child;
-    }
-
     return GuidedOnboardingOverlayHost(
       child: _LaunchShell(
         router: widget.router,
@@ -3556,10 +3552,7 @@ class _LaunchShell extends StatefulWidget {
 
 class _LaunchShellState extends State<_LaunchShell>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _fadeController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 420),
-  );
+  late final AnimationController _fadeController;
   late final Animation<double> _fadeOut = Tween<double>(
     begin: 1,
     end: 0,
@@ -3570,6 +3563,10 @@ class _LaunchShellState extends State<_LaunchShell>
   @override
   void initState() {
     super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
     if (supabase.auth.currentSession == null) {
       _dismissed = true;
       _launchOverlayDismissed.value = true;
@@ -4586,6 +4583,7 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
+  bool _ownedAuthenticatedSession = false;
   StreamSubscription<AuthState>? _authSub;
   StreamSubscription<Uri>? _linkSub;
   AppLinks? _appLinks;
@@ -4625,6 +4623,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _ownedAuthenticatedSession = supabase.auth.currentSession != null;
     WidgetsBinding.instance.addObserver(this);
 
     // React to auth changes (includes initialSession)
@@ -4721,6 +4720,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   Future<void> _handleAuthStateChange(AuthState data) async {
+    if (data.session != null) _ownedAuthenticatedSession = true;
     final ev = data.event;
     final isSessionReadyEvent =
         ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn;
@@ -4796,17 +4796,21 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
 
     if (ev == AuthChangeEvent.signedOut) {
+      final departedAccount = _ownedAuthenticatedSession;
+      _ownedAuthenticatedSession = false;
       _scheduledDecans = false;
       _bootRestoreDeferredForAuth = false;
       _bootAuthDeferredRestoredLocation = null;
       _bootDeferredRestorePreparedForAuth = false;
       await AppRestorationService.instance.clearBootFallbackIdentity();
-      _router.go('/');
-      fireAndForgetGuarded(
-        'push unregister',
-        PushNotifications.instance(supabase).unregister(),
-        onError: _logAuthGateError,
-      );
+      if (departedAccount && mounted) GoRouter.of(context).go('/pages');
+      if (departedAccount) {
+        fireAndForgetGuarded(
+          'push unregister',
+          PushNotifications.instance(supabase).unregister(),
+          onError: _logAuthGateError,
+        );
+      }
     }
   }
 
@@ -5286,20 +5290,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _signInWithGoogle() async {
-    await _startGoogleSignIn(context);
-  }
-
   @override
   Widget build(BuildContext context) {
     final session = supabase.auth.currentSession;
     traceRestoration(
       'auth gate build session=${session == null ? 'signed_out' : 'signed_in'}',
     );
-
-    if (session == null) {
-      return LoginScreen(onGoogleSignIn: _signInWithGoogle);
-    }
 
     if (_authDeferredRestorePending) {
       traceRestoration('launch restoration shell shown');

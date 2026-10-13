@@ -186,6 +186,7 @@ class CommonsQuestionBlock extends StatelessWidget {
     this.hasMoreAnswers = false,
     this.onLoadMore,
     this.answersError,
+    this.answerSummary,
   });
   final CommonsQuestion question;
   final Widget composer;
@@ -194,6 +195,7 @@ class CommonsQuestionBlock extends StatelessWidget {
   final bool loadingMore, hasMoreAnswers;
   final VoidCallback? onLoadMore;
   final String? answersError;
+  final String? answerSummary;
   final bool pane;
   final double topPadding;
   @override
@@ -285,11 +287,12 @@ class CommonsQuestionBlock extends StatelessWidget {
                 if (!small) ...[
                   const SizedBox(height: 5),
                   Text(
-                    answer != null
-                        ? 'Your public answer'
-                        : otherAnswers == 0
-                        ? 'No public answers yet.'
-                        : '$otherAnswers public answer${otherAnswers == 1 ? '' : 's'}',
+                    answerSummary ??
+                        (answer != null
+                            ? 'Your public answer'
+                            : otherAnswers == 0
+                            ? 'No public answers yet.'
+                            : '$otherAnswers public answer${otherAnswers == 1 ? '' : 's'}'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

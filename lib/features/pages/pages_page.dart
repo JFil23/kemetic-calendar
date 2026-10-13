@@ -14,6 +14,8 @@ import 'pages_collections.dart';
 import 'pages_collections_controller.dart';
 import 'pages_layout.dart';
 import 'pages_models.dart';
+import 'guest_pages_content.dart';
+import '../auth/account_access.dart';
 
 class PagesPage extends StatefulWidget {
   const PagesPage({super.key});
@@ -25,6 +27,9 @@ class _PagesPageState extends State<PagesPage>
     with WidgetsBindingObserver, RouteAware {
   PagesController? _controller;
   PagesCollectionsController? _collections;
+  late final _guestContent = GuestPagesContent(DateTime.now());
+  PagesCollection? _guestSelection;
+  bool _createIntentHandled = false;
   PageRoute? _route;
   StreamSubscription? _auth;
   DateTime? _backgroundedAt;
@@ -50,17 +55,49 @@ class _PagesPageState extends State<PagesPage>
       );
     }
     _auth = client.auth.onAuthStateChange.listen((event) {
-      if (mounted &&
-          _controller != null &&
-          event.session?.user.id != _controller!.uid) {
-        _controller!.dispose();
+      if (mounted && event.session?.user.id != _controller?.uid) {
+        _controller?.dispose();
         _collections?.dispose();
         _collections = null;
-        setState(() => _controller = null);
+        _controller = null;
+        if (event.session != null) {
+          _collections = PagesCollectionsController(client);
+          _collections!.select(_guestSelection);
+          _controller = PagesController(
+            client,
+            onLocalBoundary: () {
+              CalendarPage.publishPagesSnapshot();
+              _collections?.refreshDate();
+            },
+          );
+        }
+        setState(() {});
+        _activate();
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _activate();
+    });
+  }
+
+  void _scheduleCreateIntent(Uri uri) {
+    if (uri.queryParameters['create'] != 'note') {
+      _createIntentHandled = false;
+      return;
+    }
+    final owner = _controller?.uid;
+    if (owner == null || _createIntentHandled) return;
+    _createIntentHandled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || Supabase.instance.client.auth.currentUser?.id != owner)
+        return;
+      final router = GoRouter.of(context);
+      if (router.state.uri.queryParameters['create'] != 'note') return;
+      await CalendarPage.openQuickAddFromAnyContext(context);
+      if (mounted &&
+          router.state.uri.path == '/pages' &&
+          router.state.uri.queryParameters['create'] == 'note')
+        router.replace('/pages');
     });
   }
 
@@ -108,6 +145,7 @@ class _PagesPageState extends State<PagesPage>
     }
     if (state == AppLifecycleState.resumed && _backgroundedAt != null) {
       _controller?.resumeAfter(_backgroundedAt!);
+      if (_controller == null) _guestContent.refresh(DateTime.now());
       _backgroundedAt = null;
     }
     _activate(resumed: state == AppLifecycleState.resumed);
@@ -120,6 +158,7 @@ class _PagesPageState extends State<PagesPage>
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     _collections?.dispose();
+    _guestContent.dispose();
     super.dispose();
   }
 
@@ -140,8 +179,29 @@ class _PagesPageState extends State<PagesPage>
 
   Future<void> _open(PagesCard card) async {
     final controller = _controller;
-    if (controller == null ||
-        Supabase.instance.client.auth.currentUser?.id != controller.uid) {
+    if (controller == null) {
+      final location = switch (card.destination) {
+        PagesDestination.calendar => '/',
+        PagesDestination.studio => '/flows?mode=maatFlows',
+        PagesDestination.library => '/nodes',
+        PagesDestination.feed => '/profile/me?feed=1&commons=1',
+        PagesDestination.planner => '/rhythm/today',
+        PagesDestination.journal => '/journal',
+        PagesDestination.inbox => '/inbox',
+        PagesDestination.calendars => '/calendars',
+      };
+      await _present(() async {
+        if (card.destination == PagesDestination.calendar) {
+          await openDetailRoute<void>(context, location);
+        } else if (card.destination == PagesDestination.studio) {
+          await openUtilityRoute<void>(context, location);
+        } else {
+          await openDetailRoute<void>(context, location);
+        }
+      });
+      return;
+    }
+    if (Supabase.instance.client.auth.currentUser?.id != controller.uid) {
       return;
     }
     final destination = card.destination;
@@ -241,15 +301,61 @@ class _PagesPageState extends State<PagesPage>
 
   @override
   Widget build(BuildContext context) {
+    _scheduleCreateIntent(GoRouterState.of(context).uri);
     final controller = _controller;
     if (controller == null) {
-      return Scaffold(
-        body: Center(
-          child: TextButton(
-            onPressed: () => context.go('/'),
-            child: const Text('Return to calendar'),
+      return PagesLayout(
+        cards: _guestContent.cards,
+        onOpen: (card) => unawaited(_open(card)),
+        profileHandle: 'Explore ḥꜣw',
+        profileActionLabel: 'Create account or sign in',
+        onProfile: () => unawaited(
+          _present(() async {
+            if (await AccountAccess.require(context) && mounted)
+              await openDetailRoute<void>(context, '/profile/me');
+          }),
+        ),
+        onNewNote: () => unawaited(
+          _present(() => CalendarPage.openQuickAddFromAnyContext(context)),
+        ),
+        searchRecords: _guestContent.searchRecords,
+        onSearchResult: (record) => unawaited(
+          _present(() => openDetailRoute<void>(context, record.location)),
+        ),
+        collectionState: PagesCollectionState(
+          collection: _guestSelection,
+          items: _guestSelection == PagesCollection.flows
+              ? [
+                  for (final flow in CalendarPage.publicMaatFlowCatalog())
+                    PagesCollectionItem(
+                      id: flow.key,
+                      title: flow.title,
+                      detail: 'Ma’at flow',
+                      color: flow.color,
+                    ),
+                ]
+              : const [],
+        ),
+        onCollectionItem: (item) => unawaited(
+          _present(
+            () => openUtilityRoute<void>(
+              context,
+              Uri(
+                path: '/flows',
+                queryParameters: {
+                  'mode': 'maatTemplate',
+                  'templateKey': item.id,
+                },
+              ).toString(),
+            ),
           ),
         ),
+        collectionEmptyMessage:
+            'Create an account to keep your ${_guestSelection?.label.toLowerCase() ?? 'notes'} here.',
+        onEmptyCollectionAction: () =>
+            unawaited(AccountAccess.require(context)),
+        onCollectionChanged: (selection) =>
+            setState(() => _guestSelection = selection),
       );
     }
     final profile = ProfileRepo(

@@ -3,6 +3,8 @@ import 'flow_detail_calendar_scope.dart';
 import '../../data/flow_share_snapshot.dart' show parseFlowSnapshotTime;
 import 'note_draft_invitations.dart';
 import '../onboarding/haw_calendar_connection.dart';
+import '../auth/account_access.dart';
+import '../auth/visitor_preferences.dart';
 import 'dart:async';
 import 'flow_detail_event_focus.dart';
 import '../pages/pages_models.dart';
@@ -3525,6 +3527,7 @@ class CalendarPage extends StatefulWidget {
   static bool _detachedSharedCalendarsSheetOpenOrOpening = false;
   static bool _detachedFlowStudioSheetOpenOrOpening = false;
   static bool _detachedQuickAddSheetOpenOrOpening = false;
+  static NavigatorState? _detachedQuickAddNavigator;
   static String? _lastDetachedCalendarOverlayRestoreKey;
   static final Map<String, int> _rememberedJoinedMaatFlowIdsByTemplateKey =
       <String, int>{};
@@ -4886,7 +4889,8 @@ class CalendarPage extends StatefulWidget {
     return CalendarEventDetailSheetCoordinator.isOpenOrOpening ||
         _detachedSharedCalendarsSheetOpenOrOpening ||
         _detachedFlowStudioSheetOpenOrOpening ||
-        _detachedQuickAddSheetOpenOrOpening ||
+        (_detachedQuickAddSheetOpenOrOpening &&
+            _detachedQuickAddNavigator?.mounted == true) ||
         (mountedState?._sharedCalendarsSheetOpenOrOpening ?? false) ||
         (mountedState?._flowStudioSheetOpenOrOpening ?? false) ||
         (mountedState?._daySheetOpenOrOpening ?? false) ||
@@ -5228,6 +5232,12 @@ class CalendarPage extends StatefulWidget {
   }
 
   static Future<void> openQuickAddFromAnyContext(BuildContext context) async {
+    if (!await AccountAccess.require(
+          context,
+          resumeLocation: '/pages?create=note',
+        ) ||
+        !context.mounted)
+      return;
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
         : null;
@@ -5342,8 +5352,12 @@ class CalendarPage extends StatefulWidget {
 
   static Future<void> _openDetachedQuickAddSheet(BuildContext context) async {
     if (!context.mounted) return;
-    if (_detachedQuickAddSheetOpenOrOpening) return;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (_detachedQuickAddSheetOpenOrOpening &&
+        _detachedQuickAddNavigator?.mounted == true)
+      return;
     _detachedQuickAddSheetOpenOrOpening = true;
+    _detachedQuickAddNavigator = navigator;
 
     try {
       await showEditableModalBottomSheet<void>(
@@ -5368,7 +5382,10 @@ class CalendarPage extends StatefulWidget {
         ),
       );
     } finally {
-      _detachedQuickAddSheetOpenOrOpening = false;
+      if (identical(_detachedQuickAddNavigator, navigator)) {
+        _detachedQuickAddSheetOpenOrOpening = false;
+        _detachedQuickAddNavigator = null;
+      }
     }
   }
 
@@ -6186,6 +6203,17 @@ class CalendarPage extends StatefulWidget {
       initialDetailBuilder: initialDetailBuilder,
     );
   }
+
+  /// Public catalog identity for Pages; full presentation stays with Studio.
+  static List<({String key, String title, int color})>
+  publicMaatFlowCatalog() => [
+    for (final template in _kCoreMaatFlowTemplates)
+      (
+        key: template.key,
+        title: template.title,
+        color: template.color.toARGB32(),
+      ),
+  ];
 
   static Map<String, dynamic> _flowStudioRouteStateFromUri(Uri? routeUri) {
     final mode = routeUri?.queryParameters['mode']?.trim();
@@ -7451,7 +7479,13 @@ class CalendarPage extends StatefulWidget {
     ImportFlowData? importData,
     required Map<String, dynamic> returnState,
     VoidCallback? onClose,
-  }) {
+  }) async {
+    if (!await AccountAccess.require(
+          navigator.context,
+          resumeLocation: '/flows?create=flow',
+        ) ||
+        !navigator.mounted)
+      return null;
     Future<void> handleResult(_FlowStudioResult result) async {
       final opensDayView = _shouldOpenDayViewAfterFlowStudioAdd(result);
       final savedId = await _persistFlowStudioResultHeadless(result);
@@ -9220,6 +9254,30 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
       GlobalKey<NavigatorState>();
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
   bool _routeCloseRequested = false;
+  bool _createIntentHandled = false;
+
+  void _scheduleCreateIntent() {
+    if (widget.routeUri?.queryParameters['create'] != 'flow') {
+      _createIntentHandled = false;
+      return;
+    }
+    if (_createIntentHandled) return;
+    _createIntentHandled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final navigator = _flowStudioNavigatorKey.currentState;
+      if (!mounted || navigator == null || !navigator.mounted) return;
+      await CalendarPage._pushDetachedFlowStudioEditor(
+        navigator,
+        parentRoute: '/flows',
+        flowsRepo: _flowsRepo,
+        returnState: const {'mode': _kFlowStudioModeHub},
+        onClose: _closeRoute,
+      );
+      if (mounted &&
+          GoRouter.of(context).state.uri.queryParameters['create'] == 'flow')
+        context.replace('/flows');
+    });
+  }
 
   void _closeRoute() {
     if (!mounted || _routeCloseRequested) return;
@@ -9262,6 +9320,7 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
       onClose: _closeRoute,
       onReturnToHub: _returnToFlowStudioHubRoute,
     );
+
     if (detailBuilder != null) {
       // The route supplies the canonical detail's identity; Studio retains its
       // existing hub underneath it. Catalog detail navigation stays inline.
@@ -9274,6 +9333,7 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
 
   @override
   Widget build(BuildContext context) {
+    _scheduleCreateIntent();
     return UtilitySheetRouteScaffold(
       semanticLabel: 'Flow Studio',
       maxWidth: 640,
@@ -12663,7 +12723,13 @@ class CalendarPageState extends State<CalendarPage>
     ImportFlowData? importData,
     required Map<String, dynamic> returnState,
     bool persistOverlay = true,
-  }) {
+  }) async {
+    if (!await AccountAccess.require(
+          navigator.context,
+          resumeLocation: '/flows?create=flow',
+        ) ||
+        !navigator.mounted)
+      return null;
     final readingHouseFlow = importData == null
         ? _readingHouseFlowForEditor(editFlowId)
         : null;
@@ -16065,6 +16131,21 @@ class CalendarPageState extends State<CalendarPage>
     final progress = await _onboardingProgressStorage.load(userId);
     if (!_ownsHawOnboarding(userId)) return;
     _onboardingProgress = progress;
+    if (!progress.replayActive &&
+        AccountAccess.automaticOnboardingDeferred(context))
+      return;
+    if (!progress.replayActive &&
+        (progress.hawSlide == null || progress.hawSlide == 'exhale') &&
+        await VisitorPreferences().introSeen()) {
+      if (!_ownsHawOnboarding(userId)) return;
+      await _saveHawCheckpoint(
+        progress.copyWith(
+          hasSeenWelcome: true,
+          hawSlide: HawOnboardingSlide.calendarConnection.name,
+        ),
+        userId,
+      );
+    }
     _hydrateFirstFlowTargetFromProgress(progress);
 
     final hasCompleted = progress.replayActive
@@ -29231,7 +29312,8 @@ class CalendarPageState extends State<CalendarPage>
     int? editingSourceKDay,
     DaySheetTab? initialTab,
     Object? initialInvitations,
-  }) {
+  }) async {
+    if (!await AccountAccess.require(context) || !mounted) return;
     if (_daySheetOpenOrOpening) return;
     _daySheetOpenOrOpening = true;
     // Ensure reminder rules are loaded before building the sheet so the list is populated.
@@ -31160,6 +31242,12 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _openQuickAddSheet() async {
+    if (!await AccountAccess.require(
+          context,
+          resumeLocation: '/pages?create=note',
+        ) ||
+        !mounted)
+      return;
     if (_quickAddSheetOpenOrOpening) return;
     _quickAddSheetOpenOrOpening = true;
     try {

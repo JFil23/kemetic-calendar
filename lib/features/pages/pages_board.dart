@@ -240,7 +240,10 @@ class PagesTile extends StatelessWidget {
         return card.feedDisplay == PagesFeedDisplay.publicRhythm &&
                 card.rhythm != null
             ? CommonsRhythmBlock(summary: card.rhythm, pane: true)
-            : PagesQuestionPreview(question: card.question);
+            : PagesQuestionPreview(
+                question: card.question,
+                answerSummary: card.feedAnswerSummary,
+              );
       case PagesDestination.planner:
         if (card.plannerDisplay != PagesPlannerDisplay.scale) {
           return _ground(
@@ -437,12 +440,14 @@ class PagesTile extends StatelessWidget {
                 if (card.primary.people.isNotEmpty)
                   _memberCoins(card.primary.people, 25),
                 const SizedBox(height: 8),
-                Text(
-                  card.primary.title,
-                  textAlign: TextAlign.center,
-                  style: pagesSerif(17, color: const Color(0xffc3b8ff)),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                Flexible(
+                  child: Text(
+                    card.primary.title,
+                    textAlign: TextAlign.center,
+                    style: pagesSerif(17, color: const Color(0xffc3b8ff)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
