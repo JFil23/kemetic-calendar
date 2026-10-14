@@ -123,9 +123,12 @@ void main() {
       final router = _router(
         PagesLayout(
           cards: cards,
-          profileName: 'BigJFil',
-          profileHandle: 'bigjfil',
-          profileGlyphIds: const ['i', 'receive', 'aset'],
+          profileIdentity: const PagesProfileIdentity.member(
+            userId: 'tablet-layout-user',
+            name: 'BigJFil',
+            handle: 'bigjfil',
+            glyphIds: ['i', 'receive', 'aset'],
+          ),
           onOpen: (_) {},
           onProfile: () {},
           onNewNote: () {},

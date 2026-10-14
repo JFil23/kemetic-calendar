@@ -37,8 +37,16 @@ routes can be browsed; private route reads are gated before mounting. Guest and
 member Calendar cards reuse the same primary Calendar return boundary. A tentative
 previous-account launch cannot hold signed-out Calendar behind the authenticated
 restoration shell; account restoration remains fenced until authentication.
-The guest profile header uses the main app bar's “ḥꜣw” label. Pages
-retains its state when the account becomes available and recreates its existing
+The guest profile control uses Calendar's shared “ḥꜣw” wordmark, replacing the
+member handle/avatar presentation. PagesLayout derives that presentation from
+its supplied visitor/member identity; member profile data and glyphs retain the
+same layout. This identity is disposable view data, never another account store.
+A null initial auth event cannot replay a member launch or start member warmups;
+the deferred route stays fenced until a real authenticated session arrives.
+The shared calendar day header paints each complete numeral at its existing
+fixed font size across all expansion states. Marker padding cannot constrain or
+fade the number. Cell geometry, colors and markers retain their existing owner.
+Pages retains its state when the account becomes available and recreates its existing
 account controllers for that identity. Account departure closes account-owned
 modals and returns to guest Pages; it never clears pending account writes.
 

@@ -185,9 +185,12 @@ void main() {
             searchRecords: () => [
               const PagesSearchRecord('Ptah', 'Library', '/nodes/ptah'),
             ],
-            profileName: 'BigJFil',
-            profileHandle: 'bigjfil',
-            profileGlyphIds: const ['i', 'receive', 'aset'],
+            profileIdentity: const PagesProfileIdentity.member(
+              userId: 'pages-visual-user',
+              name: 'BigJFil',
+              handle: 'bigjfil',
+              glyphIds: ['i', 'receive', 'aset'],
+            ),
           ),
         ),
       ),

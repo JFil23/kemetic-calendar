@@ -1035,11 +1035,6 @@ const Color _cardBorderGold = _gold;
 
 // Gradients are now imported from shared/glossy_text.dart
 // Base text styles (color overridden to white inside gloss wrappers)
-const TextStyle _titleGold = TextStyle(
-  fontSize: 22,
-  fontWeight: FontWeight.w500,
-  color: Colors.white,
-);
 const TextStyle _seasonStyle = TextStyle(
   fontSize: 13,
   fontWeight: FontWeight.w500,
@@ -26421,14 +26416,8 @@ class CalendarPageState extends State<CalendarPage>
               key: _calendarToggleKey,
               child: Padding(
                 padding: const EdgeInsets.only(left: 6.0),
-                child: GlossyText(
-                  text: "ḥꜣw",
+                child: HawWordmark(
                   gradient: _showGregorian ? whiteGloss : goldGloss,
-                  style: _titleGold.copyWith(
-                    fontSize: (_titleGold.fontSize ?? 22.0).roundToDouble(),
-                    letterSpacing: 0,
-                    shadows: null,
-                  ),
                 ),
               ),
             ),

@@ -107,6 +107,24 @@ class GlossyText extends StatelessWidget {
   }
 }
 
+/// The app-bar wordmark shared by Calendar and public Pages.
+class HawWordmark extends StatelessWidget {
+  const HawWordmark({super.key, this.gradient = goldGloss});
+  final Gradient gradient;
+
+  @override
+  Widget build(BuildContext context) => GlossyText(
+    text: 'ḥꜣw',
+    gradient: gradient,
+    style: const TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w500,
+      color: Colors.white,
+      letterSpacing: 0,
+    ),
+  );
+}
+
 // ---- Shared glossy icon ----
 class GlossyIcon extends StatelessWidget {
   final IconData icon;

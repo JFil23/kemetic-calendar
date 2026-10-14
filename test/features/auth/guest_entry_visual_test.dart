@@ -10,6 +10,7 @@ import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/services/app_navigation_restoration_controller.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/app_window_service.dart';
+import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:mobile/features/auth/visitor_preferences.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/pages/pages_page.dart';
@@ -92,6 +93,10 @@ void main() {
       AppRestorationService.debugRemoteSnapshotWriter = (_, _, _, _) async {};
       addTearDown(() {
         app.resetBootRestorationForTesting();
+        RestorationCoordinator.instance.beginLaunchRestore(
+          reason: RestorationRestoreReason.coldLaunch,
+          targetLocation: '/',
+        );
         AppRestorationService.debugUserIdResolver = null;
         AppRestorationService.debugRemoteSnapshotWriter = null;
         AppWindowService.debugWindowIdResolver = null;
@@ -125,6 +130,10 @@ void main() {
         expect(launch, '/pages');
         expect(app.deferredBootRestoredLocationForTesting, '/inbox');
       });
+      RestorationCoordinator.instance.beginLaunchRestore(
+        reason: RestorationRestoreReason.coldLaunch,
+        targetLocation: app.deferredBootRestoredLocationForTesting ?? launch,
+      );
       requests.clear();
       final router = app.createAppRouterForTesting(initialLocation: launch!);
       await tester.pumpWidget(
@@ -147,6 +156,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byTooltip('Pages').hitTestable(), findsOneWidget);
       expect(find.byType(AccountInvitationDialog), findsNothing);
+      expect(app.deferredBootRestoredLocationForTesting, '/inbox');
       expect(prefs.getString(oldAccountKey), originalSnapshot);
       expect(requests, isEmpty);
       expect(tester.takeException(), isNull);
@@ -204,7 +214,7 @@ void main() {
           onNewNote: () {},
           onSearchResult: (_) {},
           searchRecords: content.searchRecords,
-          profileHandle: 'ḥꜣw',
+          profileIdentity: const PagesProfileIdentity.visitor(),
         );
         for (final entry in <String, Widget>{
           'intro': const Scaffold(
@@ -252,6 +262,13 @@ void main() {
                 matching: find.text('ḥꜣw'),
               ),
               findsOneWidget,
+            );
+            expect(
+              find.descendant(
+                of: find.byType(AppBar),
+                matching: find.byIcon(Icons.person_outline),
+              ),
+              findsNothing,
             );
             expect(find.text('Loading…'), findsNothing);
           } else {
@@ -400,7 +417,7 @@ void main() {
               onNewNote: () {},
               onSearchResult: (_) {},
               searchRecords: content.searchRecords,
-              profileHandle: 'ḥꜣw',
+              profileIdentity: const PagesProfileIdentity.visitor(),
             ),
           ),
         ],

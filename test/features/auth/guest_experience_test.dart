@@ -343,15 +343,18 @@ void main() {
       expect(find.byType(AccountInvitationDialog), findsNothing);
       expect(tester.state(find.byType(PagesPage)), same(pages));
       expect(
-        tester.widget<PagesLayout>(find.byType(PagesLayout)).profileHandle,
-        isNot('ḥꜣw'),
+        tester
+            .widget<PagesLayout>(find.byType(PagesLayout))
+            .profileIdentity
+            .isVisitor,
+        isFalse,
       );
       await tester.runAsync(
         () => Supabase.instance.client.auth.signOut(scope: SignOutScope.local),
       );
       await flush(tester);
       final layout = tester.widget<PagesLayout>(find.byType(PagesLayout));
-      expect(layout.profileHandle, 'ḥꜣw');
+      expect(layout.profileIdentity.isVisitor, isTrue);
       expect(
         layout.cards.every(
           (card) =>

@@ -306,8 +306,7 @@ class _PagesPageState extends State<PagesPage>
       return PagesLayout(
         cards: _guestContent.cards,
         onOpen: (card) => unawaited(_open(card)),
-        profileHandle: 'ḥꜣw',
-        profileActionLabel: 'Create account or sign in',
+        profileIdentity: const PagesProfileIdentity.visitor(),
         onProfile: () => unawaited(
           _present(() async {
             if (await AccountAccess.require(context) && mounted)
@@ -384,9 +383,12 @@ class _PagesPageState extends State<PagesPage>
         },
         cards: controller.cards,
         onOpen: (d) => unawaited(_open(d)),
-        profileName: profile?.effectiveName ?? '',
-        profileHandle: profile?.handle ?? '',
-        profileGlyphIds: profile?.avatarGlyphIds ?? const [],
+        profileIdentity: PagesProfileIdentity.member(
+          userId: controller.uid,
+          name: profile?.effectiveName ?? '',
+          handle: profile?.handle ?? '',
+          glyphIds: profile?.avatarGlyphIds ?? const [],
+        ),
         searchRecords: controller.searchRecords,
         onProfile: () => unawaited(
           _present(() async {

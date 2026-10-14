@@ -610,3 +610,30 @@ unchanged Dart inventory guard in the full suite. Runtime root tests retain all
 member and tablet assertions and add guest checks for linear 1.3, linear 2.0 and
 nonlinear accessibility scaling. No assertion, threshold, old-release fixture or
 approved visual reference is removed, relaxed or regenerated.
+
+
+## 2026-10-13 complete day-number paint re-audit
+
+The shared `_DayChip` numeral was faded when compact marker padding constrained
+its two-digit width on narrow phones. Relative to parent
+`7b55dbb28be505cbd442c397f73cee546490cd85`, the only grid-source change is the
+horizontal numeral allocation: an OverflowBox permits the existing single-line
+23-pixel, unscaled text to paint its full measured width inside the day tile.
+The outer ClipRRect still owns the tile boundary. The 28-pixel header SizedBox
+retains finite height; the added horizontal allowance cannot grow that header.
+
+The render path was re-traced from YearSection through MonthCard/EpagomenalCard,
+DecanRow and DayChip. Chip heights, details projection and caps, interpolated
+expansion geometry, 1-pixel vertical padding, marker/pill allocations and gaps,
+month/season/weekday measurements, section markers, sliver topology and semantic
+scroll ownership remain unchanged. Both ordinary-month and epagomenal equations
+and the closed contributor list therefore remain exhaustive. Restoration layout
+revision and persisted keys remain unchanged.
+
+A byte comparison proves every part of calendar_grid_widgets.dart outside that
+numeral fragment identical to the parent. All other 13 manifest fragments retain
+their previous digests. Only year_and_month_sections is updated after this audit.
+The numeral regression compares all 30 rendered labels with actual font
+measurements and tile boundaries at 320, 326, 390, 768 and 1280 pixels, in both
+date modes and seven endpoint/transient expansion states. Existing geometry,
+pinch and inventory assertions and approved visual references are preserved.

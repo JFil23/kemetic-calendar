@@ -2352,16 +2352,20 @@ class _DayChip extends StatelessWidget {
                   width: double.infinity,
                   height: _kDayNumberHeaderHeight,
                   child: Center(
-                    child: Text(
-                      label,
-                      style: numberStyle,
-                      // Day numerals are fixed calendar geometry. Inheriting
-                      // the app's 1.5x tablet scaler would overflow the shared
-                      // 28-pixel header and break compact/expanded continuity.
-                      textScaler: TextScaler.noScaling,
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      softWrap: false,
+                    // Keep the full numeral inside the tile, independently of
+                    // the horizontal padding reserved for compact markers.
+                    child: OverflowBox(
+                      minWidth: 0,
+                      maxWidth: double.infinity,
+                      child: Text(
+                        label,
+                        style: numberStyle,
+                        // Day numerals retain the shared fixed geometry.
+                        textScaler: TextScaler.noScaling,
+                        maxLines: 1,
+                        overflow: TextOverflow.visible,
+                        softWrap: false,
+                      ),
                     ),
                   ),
                 ),

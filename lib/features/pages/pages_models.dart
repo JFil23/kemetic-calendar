@@ -22,6 +22,29 @@ enum PagesDestination {
 
 enum PagesLoadState { absent, loading, ready, failed }
 
+/// Verified viewer identity supplied by the account-owned Pages entry.
+@immutable
+class PagesProfileIdentity {
+  const PagesProfileIdentity.visitor()
+    : userId = null,
+      name = '',
+      handle = '',
+      glyphIds = const [];
+
+  const PagesProfileIdentity.member({
+    required String userId,
+    this.name = '',
+    this.handle = '',
+    this.glyphIds = const [],
+  }) : assert(userId != ''),
+       userId = userId;
+
+  final String? userId;
+  final String name, handle;
+  final List<String> glyphIds;
+  bool get isVisitor => userId == null;
+}
+
 @immutable
 class PagesPerson {
   const PagesPerson(this.name, {this.glyphIds = const []});
