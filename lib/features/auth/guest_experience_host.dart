@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../onboarding/onboarding_overlay.dart';
+import '../calendar/calendar_page.dart';
 import '../onboarding/guided_onboarding_overlay.dart';
 import '../../services/restoration_coordinator.dart';
 import 'account_access.dart';
@@ -54,6 +55,7 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
   BuildContext? _dialogContext;
   String? _handledAccountLocation;
   String? _accountOwner;
+  String? _setupRetryOwner;
   bool get _signedIn => Supabase.instance.client.auth.currentSession != null;
   bool get _foreground =>
       WidgetsBinding.instance.lifecycleState == null ||
@@ -69,11 +71,14 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
       if (!mounted) return;
       final nextOwner = Supabase.instance.client.auth.currentUser?.id;
       if (_accountOwner != null && nextOwner != _accountOwner) {
+        final departingContinuation =
+            _continuingGuestAction || _accountRequest != null;
         _continuingGuestAction = false;
+        _setupRetryOwner = null;
         widget.router.routerDelegate.navigatorKey.currentState?.popUntil(
           (route) => route.settings is Page,
         );
-        if (nextOwner == null) widget.router.go('/pages');
+        if (!_signedIn || departingContinuation) widget.router.go('/pages');
         GuidedOnboardingController.instance.clear();
         GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
         unawaited(_preferences.clearLocation());
@@ -119,7 +124,31 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
       if (pending != null && mounted) {
         _preserveVisitorNavigation();
         await _preferences.clearLocation();
-        if (mounted) widget.router.go(pending);
+        if (mounted) {
+          widget.router.go(pending);
+          await WidgetsBinding.instance.endOfFrame;
+          final navigatorContext =
+              widget.router.routerDelegate.navigatorKey.currentContext;
+          final owner = Supabase.instance.client.auth.currentUser?.id;
+          try {
+            final completed =
+                navigatorContext != null &&
+                navigatorContext.mounted &&
+                await CalendarPage.completeFirstAccountOnboarding(
+                  navigatorContext,
+                );
+            _setupRetryOwner =
+                completed &&
+                    owner != null &&
+                    Supabase.instance.client.auth.currentUser?.id == owner
+                ? null
+                : owner;
+          } catch (_) {
+            _setupRetryOwner = Supabase.instance.client.auth.currentUser?.id;
+          } finally {
+            if (mounted) setState(() => _continuingGuestAction = false);
+          }
+        }
       }
     } else if (_intro) {
       await _preferences.markIntroSeen();
@@ -197,7 +226,9 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
   }
 
   Future<bool> _requestAccount({String? resumeLocation}) {
-    if (_signedIn) return Future.value(true);
+    final owner = Supabase.instance.client.auth.currentUser?.id;
+    if (_signedIn && (_accountRequest != null || _setupRetryOwner != owner))
+      return Future.value(true);
     if (_accountRequest != null) return _accountRequest!;
     final completer = Completer<bool>();
     _accountRequest = completer.future;
@@ -208,37 +239,74 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
     _preserveVisitorNavigation();
     _updateActivity();
     unawaited(() async {
-      var authenticated = false;
+      var authenticated = _signedIn;
+      String? authenticatedOwner;
       try {
         await _preferences.markInvitationSeen();
         await _preferences.rememberLocation(
           resumeLocation ?? widget.router.state.uri.toString(),
         );
-        if (!mounted) return;
+        if (!mounted) {
+          authenticated = false;
+          return;
+        }
         final context =
             widget.router.routerDelegate.navigatorKey.currentContext;
-        if (context == null || !context.mounted) return;
-        authenticated =
-            await showDialog<bool>(
-                  context: context,
-                  barrierColor: Colors.black.withValues(alpha: .68),
-                  builder: (dialogContext) {
-                    _dialogContext = dialogContext;
-                    return AccountInvitationDialog(
-                      onGoogleSignIn: () =>
-                          widget.onGoogleSignIn(dialogContext),
-                      onDismiss: () => Navigator.of(dialogContext).pop(false),
-                    );
-                  },
-                ) ==
-                true &&
-            _signedIn;
+        if (context == null || !context.mounted) {
+          authenticated = false;
+          return;
+        }
+        if (!authenticated) {
+          authenticated =
+              await showDialog<bool>(
+                    context: context,
+                    barrierColor: Colors.black.withValues(alpha: .68),
+                    builder: (dialogContext) {
+                      _dialogContext = dialogContext;
+                      return AccountInvitationDialog(
+                        onGoogleSignIn: () =>
+                            widget.onGoogleSignIn(dialogContext),
+                        onDismiss: () => Navigator.of(dialogContext).pop(false),
+                      );
+                    },
+                  ) ==
+                  true &&
+              _signedIn;
+        }
+        _dialogContext = null;
+        if (authenticated && mounted) {
+          authenticatedOwner = Supabase.instance.client.auth.currentUser?.id;
+          final completed = await CalendarPage.completeFirstAccountOnboarding(
+            context,
+          );
+          authenticated =
+              completed &&
+              mounted &&
+              authenticatedOwner != null &&
+              Supabase.instance.client.auth.currentUser?.id ==
+                  authenticatedOwner;
+          _setupRetryOwner = authenticated ? null : authenticatedOwner;
+        }
+      } catch (_) {
+        authenticated = false;
+        _setupRetryOwner = Supabase.instance.client.auth.currentUser?.id;
+        if (mounted)
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Setup could not finish. Your draft is still here. Please retry.',
+              ),
+            ),
+          );
       } finally {
         _dialogContext = null;
         await _preferences.clearLocation();
         _accountRequest = null;
         if (!completer.isCompleted) completer.complete(authenticated);
-        if (mounted) _updateActivity();
+        if (mounted) {
+          setState(() => _continuingGuestAction = false);
+          _updateActivity();
+        }
       }
     }());
     return completer.future;
@@ -269,6 +337,8 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
   @override
   Widget build(BuildContext context) => AccountAccess(
     signedIn: _signedIn,
+    accountId: Supabase.instance.client.auth.currentUser?.id,
+    currentAccountId: () => Supabase.instance.client.auth.currentUser?.id,
     requestAccount: _requestAccount,
     deferAutomaticOnboarding: _continuingGuestAction,
     child: Focus(

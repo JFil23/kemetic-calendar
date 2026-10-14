@@ -93,14 +93,33 @@ String? safeVisitorLocation(String? location) {
   return uri.toString();
 }
 
-/// Signed-out browsing uses existing public owners. Personal routes are gated
-/// before mounting their repositories, including direct links and restoration.
+/// Audited presentation/editor routes use their canonical null-account owners.
+/// Saved private record and invitation-capability routes keep their boundaries.
 bool isGuestBrowseLocation(Uri uri) {
   if (uri.path == '/' || uri.path == '/pages') return true;
   if (uri.path == '/nodes') return true;
+  if ({
+    '/calendars',
+    '/profile/me',
+    '/profile/me/edit',
+    '/profile/flow-post-picker',
+    '/profile/insight-post-picker',
+    '/profile-search',
+    '/rhythm/today',
+    '/rhythm/todo',
+    '/rhythm/editor/timed',
+    '/rhythm/editor/untimed',
+  }.contains(uri.path))
+    return true;
+  if (uri.path == '/inbox' && !uri.queryParameters.containsKey('share'))
+    return true;
+  if (RegExp(r'^/inbox/(conversation|dm)/[^/]+$').hasMatch(uri.path))
+    return true;
   if (RegExp(r'^/nodes/[^/]+$').hasMatch(uri.path)) {
+    // New insight entry uses no account-owned source identity.
     return uri.queryParameters['action'] != 'add_insight' &&
-        uri.queryParameters['insight'] != 'new';
+            uri.queryParameters['insight'] != 'new' ||
+        uri.queryParameters.keys.every({'action', 'insight'}.contains);
   }
   if (uri.path == '/flows') {
     return uri.queryParameters['flow'] == null &&
@@ -108,6 +127,7 @@ bool isGuestBrowseLocation(Uri uri) {
           null,
           'maatFlows',
           'maatTemplate',
+          'myFlows',
         }.contains(uri.queryParameters['mode']);
   }
   return false;

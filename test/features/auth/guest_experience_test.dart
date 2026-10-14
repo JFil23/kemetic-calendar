@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +10,9 @@ import 'package:mobile/main.dart' as app;
 import 'package:mobile/services/app_navigation_restoration_controller.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/auth/account_invitation_dialog.dart';
+import 'package:mobile/features/auth/account_access.dart';
+import 'package:mobile/features/profile/profile_page.dart';
+import 'package:mobile/widgets/day_sheet_components.dart';
 import 'package:mobile/features/auth/guest_experience_host.dart';
 import 'package:mobile/features/auth/visitor_preferences.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
@@ -20,13 +24,25 @@ import 'package:mobile/features/pages/pages_models.dart';
 import 'package:mobile/features/pages/pages_board.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../pages/pages_resource_test.dart' show session;
+import '../pages/pages_resource_test.dart' show session, uid;
+import 'dart:io';
+import 'package:hive/hive.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final requests = <http.Request>[];
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
+    final fonts =
+        jsonDecode(await rootBundle.loadString('FontManifest.json')) as List;
+    for (final font in fonts) {
+      final loader = FontLoader(font['family']);
+      for (final a in font['fonts']) {
+        loader.addFont(rootBundle.load(a['asset']));
+      }
+      await loader.load();
+    }
+    Hive.init(Directory.systemTemp.createTempSync('guest-commit-test-').path);
     for (final channel in [
       'receive_sharing_intent/events-media',
       'receive_sharing_intent/events-text',
@@ -60,11 +76,15 @@ void main() {
       }),
     );
   });
-  tearDownAll(() => Supabase.instance.dispose());
+  tearDownAll(() async {
+    await Supabase.instance.dispose();
+    await Hive.close();
+  });
   setUp(() async {
     await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
     SharedPreferences.setMockInitialValues({
       VisitorPreferences.introSeenKey: true,
+      'onboarding_v1_completed:$uid': true,
     });
     requests.clear();
   });
@@ -167,6 +187,13 @@ void main() {
       expect(find.byType(AccountInvitationDialog), findsNothing);
       await tester.tap(find.byTooltip('New note'));
       await flush(tester);
+      expect(find.byType(AccountInvitationDialog), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('quick-add-input')),
+        'Coffee tomorrow',
+      );
+      await tester.tap(find.byKey(const ValueKey('quick-add-submit-button')));
+      await flush(tester);
       expect(find.byType(AccountInvitationDialog), findsOneWidget);
       expect(requests, isEmpty);
       await tester.tap(find.text('Keep exploring'));
@@ -175,16 +202,16 @@ void main() {
   );
 
   testWidgets(
-    'private direct route stays behind account gate and resumes after sign-in',
+    'account-only Journal route stays behind account gate and resumes after sign-in',
     (tester) async {
-      await mount(tester, location: '/inbox');
+      await mount(tester, location: '/journal');
       expect(router.state.uri.path, '/pages');
       expect(find.byType(AccountInvitationDialog), findsOneWidget);
       expect(requests, isEmpty);
       await Supabase.instance.client.auth.recoverSession(session());
       await flush(tester);
       expect(find.byType(AccountInvitationDialog), findsNothing);
-      expect(router.state.uri.path, '/inbox');
+      expect(router.state.uri.path, '/journal');
       await unmount(tester);
     },
   );
@@ -194,6 +221,7 @@ void main() {
     (tester) async {
       SharedPreferences.setMockInitialValues({
         VisitorPreferences.pendingLocationKey: '/nodes/haw',
+        'onboarding_v1_completed:$uid': true,
       });
       await Supabase.instance.client.auth.recoverSession(session());
       await mount(tester);
@@ -307,7 +335,7 @@ void main() {
   }
 
   testWidgets(
-    'Calendar can be explored; New note requires an account and cancellation opens no editor',
+    'Calendar and New note can be explored; Save invites and cancellation retains draft',
     (tester) async {
       SharedPreferences.setMockInitialValues({
         VisitorPreferences.introSeenKey: true,
@@ -321,12 +349,46 @@ void main() {
         ),
       );
       await flush(tester);
+      expect(find.byType(AccountInvitationDialog), findsNothing);
+      final input = find.byKey(const ValueKey('quick-add-input'));
+      await tester.enterText(input, 'Calendar guest draft');
+      await tester.tap(find.byKey(const ValueKey('quick-add-submit-button')));
+      await flush(tester);
       expect(find.byType(AccountInvitationDialog), findsOneWidget);
       expect(requests, isEmpty);
       await tester.tap(find.text('Keep exploring'));
       await flush(tester);
       expect(find.byType(AccountInvitationDialog), findsNothing);
+      expect(
+        tester.widget<TextField>(input).controller!.text,
+        'Calendar guest draft',
+      );
       expect(find.byType(CalendarPage), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('quick-add-full-editor-button')),
+      );
+      await flush(tester);
+      expect(find.byType(AccountInvitationDialog), findsNothing);
+      final fullTitle = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField && widget.decoration?.hintText == 'Title',
+      );
+      expect(fullTitle, findsOneWidget);
+      await tester.enterText(fullTitle, 'Full guest event draft');
+      final save = find.byType(DaySheetSaveButton);
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await flush(tester);
+      expect(find.byType(AccountInvitationDialog), findsOneWidget);
+      expect(requests, isEmpty);
+      await tester.tap(find.text('Keep exploring'));
+      await flush(tester);
+      expect(find.byType(AccountInvitationDialog), findsNothing);
+      expect(
+        tester.widget<TextField>(fullTitle).controller!.text,
+        'Full guest event draft',
+      );
+      expect(requests, isEmpty);
       await unmount(tester);
     },
   );
@@ -373,6 +435,7 @@ void main() {
     (tester) async {
       SharedPreferences.setMockInitialValues({
         VisitorPreferences.pendingLocationKey: '/pages?create=note',
+        'onboarding_v1_completed:$uid': true,
       });
       await Supabase.instance.client.auth.recoverSession(session());
       await mount(tester);
@@ -395,6 +458,12 @@ void main() {
   ) async {
     await mount(tester);
     await tester.tap(find.byTooltip('New note'));
+    await flush(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('quick-add-input')),
+      'A guest note',
+    );
+    await tester.tap(find.byKey(const ValueKey('quick-add-submit-button')));
     await flush(tester);
     final email = find.descendant(
       of: find.byType(AccountInvitationDialog),
@@ -422,6 +491,17 @@ void main() {
       await mount(tester, wholeApp: true);
       await tester.tap(find.byTooltip('New note'));
       await flush(tester);
+      expect(find.byType(AccountInvitationDialog), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('quick-add-input')),
+        'A guest note',
+      );
+      unawaited(
+        AccountAccess.require(
+          tester.element(find.byKey(const ValueKey('quick-add-input'))),
+        ),
+      );
+      await flush(tester);
       expect(find.byType(AccountInvitationDialog), findsOneWidget);
       await Supabase.instance.client.auth.recoverSession(session());
       await flush(tester);
@@ -433,10 +513,37 @@ void main() {
   );
 
   testWidgets(
+    'real app retains own-profile state from guest to its first account',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final router = app.createAppRouterForTesting(
+        initialLocation: '/profile/me',
+      );
+      await tester.pumpWidget(app.MyApp(router: router));
+      await flush(tester);
+      final profile = find.byType(ProfilePage);
+      expect(tester.widget<ProfilePage>(profile).userId, isEmpty);
+      final retained = tester.state(profile);
+      expect(find.byType(AccountInvitationDialog), findsNothing);
+      await Supabase.instance.client.auth.recoverSession(session());
+      await flush(tester);
+      expect(tester.widget<ProfilePage>(profile).userId, uid);
+      expect(identical(tester.state(profile), retained), isTrue);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 1));
+      router.dispose();
+    },
+  );
+
+  testWidgets(
     'OAuth flow creation continuation uses the existing Compose owner',
     (tester) async {
       SharedPreferences.setMockInitialValues({
         VisitorPreferences.pendingLocationKey: '/flows?create=flow',
+        'onboarding_v1_completed:$uid': true,
       });
       await Supabase.instance.client.auth.recoverSession(session());
       await mount(tester);

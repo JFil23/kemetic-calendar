@@ -76,3 +76,29 @@ latestCompletedDecanReflectionWindow(
     kYear: kYear,
   );
 }
+
+/// Invite accounts only in a later decan, for periods since their signup decan.
+/// The verified Auth creation date works across devices without a cache reset.
+bool isAccountEligibleForDecanReflection({
+  required DateTime? accountCreatedAt,
+  required DateTime now,
+  required DateTime windowStart,
+}) {
+  if (accountCreatedAt == null) return false;
+  DateTime start(DateTime date) {
+    final k = KemeticMath.fromGregorian(date);
+    return KemeticMath.toGregorian(
+      k.kYear,
+      k.kMonth == 13 ? 12 : k.kMonth,
+      k.kMonth == 13 ? 21 : ((k.kDay - 1) ~/ 10) * 10 + 1,
+    );
+  }
+
+  final joined = start(accountCreatedAt);
+  return start(now).isAfter(joined) &&
+      !DateTime(
+        windowStart.year,
+        windowStart.month,
+        windowStart.day,
+      ).isBefore(DateTime(joined.year, joined.month, joined.day));
+}

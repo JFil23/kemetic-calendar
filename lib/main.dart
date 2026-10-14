@@ -1895,59 +1895,75 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
     ),
     _calmRoute(
       path: '/profile/:userId',
-      builder: (context, state) {
-        final rawUserId = Uri.decodeComponent(state.pathParameters['userId']!);
-        final currentUserId = supabase.auth.currentUser?.id;
-        NavigationTrace.instance.record(
-          'profile route builder started',
-          state: <String, Object?>{
-            'uri': state.uri.toString(),
-            'rawUserId': _navigationTraceProfileUserId(
-              rawUserId,
-              currentUserId,
+      builder: (context, state) => StreamBuilder<AuthState>(
+        stream: supabase.auth.onAuthStateChange,
+        builder: (context, _) {
+          final rawUserId = Uri.decodeComponent(
+            state.pathParameters['userId']!,
+          );
+          final currentUserId = supabase.auth.currentUser?.id;
+          NavigationTrace.instance.record(
+            'profile route builder started',
+            state: <String, Object?>{
+              'uri': state.uri.toString(),
+              'rawUserId': _navigationTraceProfileUserId(
+                rawUserId,
+                currentUserId,
+              ),
+              'currentUserIdPresent': currentUserId != null,
+            },
+          );
+          final userId = rawUserId == 'me' ? currentUserId : rawUserId;
+          NavigationTrace.instance.record(
+            'profile route user resolved',
+            state: <String, Object?>{
+              'rawUserId': _navigationTraceProfileUserId(
+                rawUserId,
+                currentUserId,
+              ),
+              'resolvedUserId': _navigationTraceProfileUserId(
+                userId,
+                currentUserId,
+              ),
+              'hasResolvedUserId': userId != null && userId.trim().isNotEmpty,
+            },
+          );
+          if (userId == null || userId.trim().isEmpty) {
+            return SessionTrackedRoute(
+              location: state.uri.toString(),
+              child: ProfilePage(
+                key: const ValueKey('own-profile'),
+                userId: '',
+                isMyProfile: true,
+                initialFeedRevealed: state.uri.queryParameters['feed'] == '1',
+                initialCommons: state.uri.queryParameters['commons'] == '1',
+              ),
+            );
+          }
+          NavigationTrace.instance.record(
+            'profile route returning ProfilePage',
+            state: <String, Object?>{
+              'resolvedUserId': _navigationTraceProfileUserId(
+                userId,
+                currentUserId,
+              ),
+              'isMyProfile': currentUserId != null && currentUserId == userId,
+            },
+          );
+          return SessionTrackedRoute(
+            location: state.uri.toString(),
+            child: ProfilePage(
+              key: rawUserId == 'me'
+                  ? const ValueKey('own-profile')
+                  : ValueKey('$userId:${state.uri.queryParameters["feed"]}'),
+              initialFeedRevealed: state.uri.queryParameters['feed'] == '1',
+              initialCommons: state.uri.queryParameters['commons'] == '1',
+              userId: userId,
+              isMyProfile: currentUserId != null && currentUserId == userId,
             ),
-            'currentUserIdPresent': currentUserId != null,
-          },
-        );
-        final userId = rawUserId == 'me' ? currentUserId : rawUserId;
-        NavigationTrace.instance.record(
-          'profile route user resolved',
-          state: <String, Object?>{
-            'rawUserId': _navigationTraceProfileUserId(
-              rawUserId,
-              currentUserId,
-            ),
-            'resolvedUserId': _navigationTraceProfileUserId(
-              userId,
-              currentUserId,
-            ),
-            'hasResolvedUserId': userId != null && userId.trim().isNotEmpty,
-          },
-        );
-        if (userId == null || userId.trim().isEmpty) {
-          return const AuthGate();
-        }
-        NavigationTrace.instance.record(
-          'profile route returning ProfilePage',
-          state: <String, Object?>{
-            'resolvedUserId': _navigationTraceProfileUserId(
-              userId,
-              currentUserId,
-            ),
-            'isMyProfile': currentUserId != null && currentUserId == userId,
-          },
-        );
-        return SessionTrackedRoute(
-          location: state.uri.toString(),
-          child: ProfilePage(
-            key: ValueKey('$userId:${state.uri.queryParameters["feed"]}'),
-            initialFeedRevealed: state.uri.queryParameters['feed'] == '1',
-            initialCommons: state.uri.queryParameters['commons'] == '1',
-            userId: userId,
-            isMyProfile: currentUserId != null && currentUserId == userId,
-          ),
-        );
-      },
+          );
+        },
+      ),
     ),
     _calmRoute(
       path: '/insight-post/:postId',
@@ -3700,6 +3716,14 @@ class _InboxConversationRoutePageState
 
   Future<({ConversationUser profile, String? draftText})> _load() async {
     final extraProfile = _profileFromExtra(widget.extra);
+    if (supabase.auth.currentUser == null) {
+      return (
+        profile: extraProfile?.id == widget.otherUserId
+            ? extraProfile!
+            : ConversationUser(id: widget.otherUserId),
+        draftText: _draftFromExtra(widget.extra),
+      );
+    }
     final profile = extraProfile ?? await _loadConversationUser();
     final textValue = await RestorationCoordinator.instance
         .readTextEditingValue(
@@ -4079,7 +4103,7 @@ class _EditProfileRoutePageState extends State<EditProfileRoutePage> {
     }
     final userId = supabase.auth.currentUser?.id;
     if (userId == null || userId.trim().isEmpty) {
-      return null;
+      return UserProfile(id: '');
     }
     return UserProfile(
       id: userId,

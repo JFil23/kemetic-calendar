@@ -65,6 +65,15 @@ void main() {
         '/nodes/haw',
         '/flows',
         '/flows?mode=maatFlows',
+        '/inbox',
+        '/inbox/conversation/person',
+        '/inbox/dm/thread',
+        '/nodes/haw?action=add_insight',
+        '/nodes/haw?insight=new',
+        '/profile/me',
+        '/profile/me/edit',
+        '/rhythm/today',
+        '/flows?mode=myFlows',
         '/flows?mode=maatTemplate&templateKey=the-kar',
       ]) {
         expect(
@@ -74,13 +83,7 @@ void main() {
         );
       }
       for (final target in [
-        '/inbox',
-        '/nodes/haw?action=add_insight',
-        '/nodes/haw?insight=new',
-        '/profile/me',
         '/journal',
-        '/rhythm/today',
-        '/flows?mode=myFlows',
         '/flows?flow=17',
         '/flows/17/edit',
         '/shared-flow/by-flow/17',

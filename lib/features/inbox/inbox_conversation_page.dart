@@ -2,6 +2,7 @@
 // Conversation view showing sent/received flows as chat bubbles
 
 import 'dart:async';
+import '../auth/account_access.dart';
 
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
@@ -88,10 +89,11 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
           state.event != AuthChangeEvent.signedOut) {
         return;
       }
+      final firstOwner = _accountId == null && nextAccount != null;
       setState(() {
         _accountId = nextAccount;
         _messageController.removeListener(_persistResumeState);
-        _messageController.clear();
+        if (!firstOwner) _messageController.clear();
         _messageController.addListener(_persistResumeState);
         _bindConversation();
       });
@@ -195,6 +197,11 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
+    if (!await AccountAccess.require(context) || !mounted) return;
+    if (_accountId == null ||
+        _accountId != _inboxRepo.currentUserId ||
+        _messageController.text.trim() != text)
+      return;
 
     final reply = _replyTo;
     final clientId = 'pending:${DateTime.now().microsecondsSinceEpoch}';

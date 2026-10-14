@@ -15,7 +15,6 @@ import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/pages/pages_board.dart';
 import 'package:mobile/features/pages/pages_models.dart';
 import 'package:mobile/features/auth/account_invitation_dialog.dart';
-import 'package:mobile/features/pages/pages_layout.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,7 +22,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../support/maat_flow_visual_test_fonts.dart';
 
 import 'guest_experience_test.dart' show flush;
-import 'package:mobile/shared/glossy_text.dart' show HawWordmark;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -124,13 +122,14 @@ void main() {
         // Supabase's initial signed-out event is already delivered before
         // Calendar mounts. No later auth event may be needed for first paint.
         if (dismissInvitation) {
+          await tester.tap(find.byTooltip('New note'));
+          await flush(tester);
+          await tester.enterText(
+            find.byKey(const ValueKey('quick-add-input')),
+            'Guest calendar draft',
+          );
           await tester.tap(
-            find
-                .descendant(
-                  of: find.byType(PagesLayout),
-                  matching: find.byType(HawWordmark),
-                )
-                .first,
+            find.byKey(const ValueKey('quick-add-submit-button')),
           );
           await tester.pumpAndSettle();
           await flush(tester);
@@ -139,6 +138,8 @@ void main() {
           await tester.pumpAndSettle();
           await flush(tester);
           expect(find.byType(AccountInvitationDialog), findsNothing);
+          await tester.tap(find.byKey(const ValueKey('quick-add-close')));
+          await tester.pumpAndSettle();
         }
         requests.clear();
         final calendarTile = find.byWidgetPredicate(

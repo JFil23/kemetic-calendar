@@ -68,13 +68,13 @@ void main() {
     await tester.tap(find.text('tap to begin'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Bring your time with you.'), findsOneWidget);
-    await tester.tap(find.text('not now'));
-    await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 900));
     await tester.tap(find.text(HawEntryIntent.sky.label));
     await tester.pump(const Duration(milliseconds: 700));
     expect(selectedStates, <String>['sky']);
+    expect(find.text('Bring your time with you.'), findsOneWidget);
+    await tester.tap(find.text('not now'));
+    await tester.pumpAndSettle();
 
     await tester.pump(const Duration(seconds: 4));
     expect(find.text('Today is Hathor 27'), findsOneWidget);
@@ -87,8 +87,8 @@ void main() {
       slides,
       containsAllInOrder(<HawOnboardingSlide>[
         HawOnboardingSlide.exhale,
-        HawOnboardingSlide.calendarConnection,
         HawOnboardingSlide.segmentation,
+        HawOnboardingSlide.calendarConnection,
         HawOnboardingSlide.orientation,
       ]),
     );

@@ -8,9 +8,13 @@ class AccountAccess extends InheritedWidget {
     required this.signedIn,
     required this.requestAccount,
     this.deferAutomaticOnboarding = false,
+    this.accountId,
+    this.currentAccountId,
     required super.child,
   });
   final bool signedIn;
+  final String? accountId;
+  final String? Function()? currentAccountId;
   final Future<bool> Function({String? resumeLocation}) requestAccount;
   final bool deferAutomaticOnboarding;
 
@@ -31,12 +35,23 @@ class AccountAccess extends InheritedWidget {
     final policy = context.getInheritedWidgetOfExactType<AccountAccess>();
     // Isolated component hosts retain their supplied behavior. MyApp installs
     // the policy above every public route and guards private routes separately.
-    if (policy == null || policy.signedIn) return true;
+    if (policy == null) return true;
+    if (policy.signedIn) {
+      if (policy.currentAccountId == null) return true;
+      if (policy.accountId == null ||
+          policy.accountId != policy.currentAccountId!())
+        return false;
+      final permitted = await policy.requestAccount(
+        resumeLocation: resumeLocation,
+      );
+      return permitted && policy.accountId == policy.currentAccountId!();
+    }
     return policy.requestAccount(resumeLocation: resumeLocation);
   }
 
   @override
   bool updateShouldNotify(AccountAccess oldWidget) =>
       signedIn != oldWidget.signedIn ||
+      accountId != oldWidget.accountId ||
       deferAutomaticOnboarding != oldWidget.deferAutomaticOnboarding;
 }

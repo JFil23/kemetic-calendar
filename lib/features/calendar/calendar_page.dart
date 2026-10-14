@@ -378,6 +378,7 @@ class _QuickAddSheet extends StatefulWidget {
 }
 
 class _QuickAddSheetState extends State<_QuickAddSheet> {
+  var _account = AccountOperationFence(Supabase.instance.client);
   final TextEditingController _textCtrl = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final ScrollController _scrollCtrl = ScrollController();
@@ -387,6 +388,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
   @override
   void dispose() {
+    _account.dispose();
     _focusNode.dispose();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
@@ -403,6 +405,13 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       });
       return;
     }
+
+    if (!await AccountAccess.require(context) || !mounted) return;
+    if (_account.userId == null) {
+      _account.dispose();
+      _account = AccountOperationFence(Supabase.instance.client);
+    }
+    if (!_account.isCurrent) return;
 
     setState(() {
       _error = null;
@@ -3466,6 +3475,7 @@ class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
   final bool openMyFlowsOnLaunch;
   final bool debugDaySheetSmokeOnLaunch;
+  final VoidCallback? onOnboardingFinished;
   @visibleForTesting
   final CalendarBoundaryHarnessController? calendarBoundaryHarnessController;
 
@@ -3475,6 +3485,7 @@ class CalendarPage extends StatefulWidget {
     this.openMyFlowsOnLaunch = false,
     this.debugDaySheetSmokeOnLaunch = false,
     this.calendarBoundaryHarnessController,
+    this.onOnboardingFinished,
   }) : super(key: key ?? CalendarPage.globalKey);
 
   // Global key for accessing calendar state from other pages
@@ -3565,6 +3576,45 @@ class CalendarPage extends StatefulWidget {
   }
 
   static bool get hasMountedHost => _mountedState != null;
+
+  /// Keep the current editor mounted while its first account completes the
+  /// canonical guide. Calendar remains the single owner of its authored views.
+  static Future<bool> completeFirstAccountOnboarding(
+    BuildContext context,
+  ) async {
+    final client = Supabase.instance.client;
+    final owner = client.auth.currentUser?.id;
+    if (owner == null) return false;
+    if (await OnboardingStorage(client).hasCompleted(owner)) return true;
+    if (!context.mounted || client.auth.currentUser?.id != owner) return false;
+    final state = _mountedState;
+    if (state != null) {
+      // This entry supplies return navigation; the authored presentation and
+      // acknowledged actions remain owned by the same Calendar instance.
+      state._onboardingFinishNavigation = () {};
+      try {
+        await state._maybePresentOnboarding(ignoreDeferral: true);
+        await state._onboardingPresentation;
+      } finally {
+        state._onboardingFinishNavigation = null;
+      }
+      return client.auth.currentUser?.id == owner &&
+          await OnboardingStorage(client).hasCompleted(owner);
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+    final navigator = Navigator.of(context, rootNavigator: true);
+    late final MaterialPageRoute<void> route;
+    route = MaterialPageRoute<void>(
+      builder: (_) => CalendarPage(
+        onOnboardingFinished: () {
+          if (route.isActive) navigator.removeRoute(route);
+        },
+      ),
+    );
+    await navigator.push(route);
+    return client.auth.currentUser?.id == owner &&
+        await OnboardingStorage(client).hasCompleted(owner);
+  }
 
   /// A Settings replay may return to a retained calendar host. A cold host
   /// reads the same account checkpoint through its ordinary startup path.
@@ -5227,12 +5277,6 @@ class CalendarPage extends StatefulWidget {
   }
 
   static Future<void> openQuickAddFromAnyContext(BuildContext context) async {
-    if (!await AccountAccess.require(
-          context,
-          resumeLocation: '/pages?create=note',
-        ) ||
-        !context.mounted)
-      return;
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
         : null;
@@ -7475,12 +7519,6 @@ class CalendarPage extends StatefulWidget {
     required Map<String, dynamic> returnState,
     VoidCallback? onClose,
   }) async {
-    if (!await AccountAccess.require(
-          navigator.context,
-          resumeLocation: '/flows?create=flow',
-        ) ||
-        !navigator.mounted)
-      return null;
     Future<void> handleResult(_FlowStudioResult result) async {
       final opensDayView = _shouldOpenDayViewAfterFlowStudioAdd(result);
       final savedId = await _persistFlowStudioResultHeadless(result);
@@ -12719,12 +12757,6 @@ class CalendarPageState extends State<CalendarPage>
     required Map<String, dynamic> returnState,
     bool persistOverlay = true,
   }) async {
-    if (!await AccountAccess.require(
-          navigator.context,
-          resumeLocation: '/flows?create=flow',
-        ) ||
-        !navigator.mounted)
-      return null;
     final readingHouseFlow = importData == null
         ? _readingHouseFlowForEditor(editFlowId)
         : null;
@@ -13328,6 +13360,10 @@ class CalendarPageState extends State<CalendarPage>
                       });
                       return;
                     }
+                    if (!await AccountAccess.require(dialogCtx) ||
+                        !dialogCtx.mounted ||
+                        !mounted)
+                      return;
                     if (!allDay && startTime != null && endTime != null) {
                       if (_toMinutes(endTime!) <= _toMinutes(startTime!)) {
                         endTime = _addMinutes(startTime!, 60);
@@ -14939,6 +14975,42 @@ class CalendarPageState extends State<CalendarPage>
   // toggle: Kemetic (false) <-> Gregorian overlay (true)
   bool _showGregorian = false;
   bool _showOnboarding = false;
+  bool _onboardingAwaitingVisibleHost = false;
+  DialogRoute<void>? _onboardingRoute;
+  Future<void>? _onboardingPresentation;
+  VoidCallback? _onboardingFinishNavigation;
+  final _onboardingViewRevision = ValueNotifier<int>(0);
+
+  void _refreshOnboardingView() {
+    if (mounted) _onboardingViewRevision.value++;
+  }
+
+  void _presentOnboarding() {
+    if (!mounted || _onboardingRoute != null) return;
+    setState(() => _showOnboarding = true);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final route = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Material(
+          color: Colors.black,
+          child: ValueListenableBuilder<int>(
+            valueListenable: _onboardingViewRevision,
+            builder: (_, __, ___) => _buildOnboardingOverlay(),
+          ),
+        ),
+      ),
+    );
+    _onboardingRoute = route;
+    _onboardingPresentation = navigator.push(route).whenComplete(() {
+      if (identical(_onboardingRoute, route)) _onboardingRoute = null;
+      if (mounted) setState(() => _showOnboarding = false);
+    });
+  }
+
   String? _hawOnboardingOwner;
   bool _hawOpeningFlow = false;
   String? _hawFlowOpenError;
@@ -16106,8 +16178,20 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _maybePresentOnboarding() async {
+  Future<void> _maybePresentOnboarding({bool ignoreDeferral = false}) async {
     if (!mounted || _showOnboarding) return;
+    // Background Calendar hosts must not cover the active route with a guide.
+    // An explicit first-account handoff supplies the current route's permission
+    // to present above its retained draft; ordinary startup waits for Calendar.
+    if (!ignoreDeferral &&
+        widget.onOnboardingFinished == null &&
+        (ModalRoute.of(context)?.isCurrent == false ||
+            context.findAncestorWidgetOfExactType<Offstage>()?.offstage ==
+                true)) {
+      _onboardingAwaitingVisibleHost = true;
+      return;
+    }
+    _onboardingAwaitingVisibleHost = false;
 
     final userId = _currentUserId;
     if (userId == null) return;
@@ -16119,14 +16203,16 @@ class CalendarPageState extends State<CalendarPage>
       await _saveOnboardingProgress(const OnboardingProgress());
       await _loadOnboardingCompassCopy();
       GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
-      setState(() => _showOnboarding = true);
+      _presentOnboarding();
       return;
     }
 
     final progress = await _onboardingProgressStorage.load(userId);
     if (!_ownsHawOnboarding(userId)) return;
     _onboardingProgress = progress;
-    if (!progress.replayActive &&
+    if (!ignoreDeferral &&
+        widget.onOnboardingFinished == null &&
+        !progress.replayActive &&
         AccountAccess.automaticOnboardingDeferred(context))
       return;
     if (!progress.replayActive &&
@@ -16136,7 +16222,7 @@ class CalendarPageState extends State<CalendarPage>
       await _saveHawCheckpoint(
         progress.copyWith(
           hasSeenWelcome: true,
-          hawSlide: HawOnboardingSlide.calendarConnection.name,
+          hawSlide: HawOnboardingSlide.segmentation.name,
         ),
         userId,
       );
@@ -16163,7 +16249,11 @@ class CalendarPageState extends State<CalendarPage>
       await _persistOnboardingContinuationStage(
         _OnboardingContinuationStage.none,
       );
-      unawaited(_maybeShowCalendarHelperAfterOnboarding(effectiveProgress));
+      if (widget.onOnboardingFinished != null) {
+        widget.onOnboardingFinished!();
+      } else {
+        unawaited(_maybeShowCalendarHelperAfterOnboarding(effectiveProgress));
+      }
       return;
     }
 
@@ -16172,7 +16262,7 @@ class CalendarPageState extends State<CalendarPage>
     await _loadOnboardingCompassCopy();
     if (!_ownsHawOnboarding(userId)) return;
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
-    setState(() => _showOnboarding = true);
+    _presentOnboarding();
   }
 
   Future<void> _dismissOnboarding() async {
@@ -16180,6 +16270,8 @@ class CalendarPageState extends State<CalendarPage>
 
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
     setState(() => _showOnboarding = false);
+    final route = _onboardingRoute;
+    if (route != null && route.isActive) route.navigator?.removeRoute(route);
   }
 
   void _handleOnboardingSkip() {
@@ -16225,6 +16317,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _completeHawOnboarding() async {
+    final finish = widget.onOnboardingFinished ?? _onboardingFinishNavigation;
     final owner = _hawOnboardingOwner;
     if (!_ownsHawOnboarding(owner)) return;
     GuidedOnboardingController.instance.clear();
@@ -16233,7 +16326,11 @@ class CalendarPageState extends State<CalendarPage>
     unawaited(
       Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
     );
-    unawaited(openDetailRoute<void>(context, '/pages'));
+    if (finish != null) {
+      finish();
+    } else {
+      unawaited(openDetailRoute<void>(context, '/pages'));
+    }
   }
 
   bool _ownsHawOnboarding(String? owner) =>
@@ -16250,7 +16347,9 @@ class CalendarPageState extends State<CalendarPage>
     if (progress.hawSlide == null) return HawOnboardingSlide.exhale;
     if (progress.hawSlide == 'exhale') return HawOnboardingSlide.exhale;
     if (progress.hawSlide == 'calendarConnection') {
-      return HawOnboardingSlide.calendarConnection;
+      return _hawIntent == null
+          ? HawOnboardingSlide.segmentation
+          : HawOnboardingSlide.calendarConnection;
     }
     if (_hawIntent == null) return HawOnboardingSlide.segmentation;
     if (progress.hawSlide == 'segmentation') {
@@ -16275,6 +16374,7 @@ class CalendarPageState extends State<CalendarPage>
       throw StateError('Onboarding account changed.');
     }
     _onboardingProgress = progress;
+    _refreshOnboardingView();
   }
 
   Future<void> _handleHawSlideChanged(HawOnboardingSlide slide) async {
@@ -16352,7 +16452,10 @@ class CalendarPageState extends State<CalendarPage>
       ),
       owner,
     );
-    if (_ownsHawOnboarding(owner)) setState(() {});
+    if (_ownsHawOnboarding(owner)) {
+      setState(() {});
+      _refreshOnboardingView();
+    }
     unawaited(
       Events.trackIfAuthed('onboarding_entry_state_selected', {
         'entry_state': intent.name,
@@ -16445,7 +16548,10 @@ class CalendarPageState extends State<CalendarPage>
       owner,
     );
     CalendarPage._consumeStagedFlowCompletion(flowId);
-    if (_ownsHawOnboarding(owner)) setState(() {});
+    if (_ownsHawOnboarding(owner)) {
+      setState(() {});
+      _refreshOnboardingView();
+    }
     unawaited(
       Events.trackIfAuthed('onboarding_first_flow_joined', {
         'flow_id': flowId,
@@ -16464,6 +16570,7 @@ class CalendarPageState extends State<CalendarPage>
       _hawOpeningFlow = true;
       _hawFlowOpenError = null;
     });
+    _refreshOnboardingView();
     try {
       await _handleHawRecommendedFlowJoined(flowId);
       if (_ownsHawOnboarding(owner)) await advance(flowId);
@@ -16475,7 +16582,10 @@ class CalendarPageState extends State<CalendarPage>
         });
       }
     } finally {
-      if (_ownsHawOnboarding(owner)) setState(() => _hawOpeningFlow = false);
+      if (_ownsHawOnboarding(owner)) {
+        setState(() => _hawOpeningFlow = false);
+        _refreshOnboardingView();
+      }
     }
   }
 
@@ -16727,6 +16837,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _skipOnboarding({required bool confirm}) async {
+    final finish = widget.onOnboardingFinished ?? _onboardingFinishNavigation;
     if (confirm && mounted) {
       final shouldSkip = await showDialog<bool>(
         context: context,
@@ -16758,7 +16869,6 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     GuidedOnboardingController.instance.clear();
-    await _dismissOnboarding();
     await _updateOnboardingProgress(
       (progress) => progress.copyWith(
         currentStep: TrueOnboardingStep.complete,
@@ -16780,7 +16890,12 @@ class CalendarPageState extends State<CalendarPage>
     );
     await _markOnboardingCompletedIfNeeded();
     if (mounted) {
-      context.go('/');
+      await _dismissOnboarding();
+      if (finish != null) {
+        finish();
+      } else {
+        context.go('/');
+      }
     }
   }
 
@@ -16826,7 +16941,7 @@ class CalendarPageState extends State<CalendarPage>
     }
     switch (step) {
       case TrueOnboardingStep.welcome:
-        setState(() => _showOnboarding = true);
+        _presentOnboarding();
         return;
       case TrueOnboardingStep.currentDecanIntro:
         _showCurrentDecanIntroCoachmark();
@@ -16835,7 +16950,7 @@ class CalendarPageState extends State<CalendarPage>
         await _routeToProfileBasics();
         return;
       case TrueOnboardingStep.firstMaatFlow:
-        setState(() => _showOnboarding = true);
+        _presentOnboarding();
         return;
       case TrueOnboardingStep.firstFlowCalendarDay:
         _hydrateFirstFlowTargetFromProgress(_onboardingProgress);
@@ -19013,6 +19128,7 @@ class CalendarPageState extends State<CalendarPage>
     calendarPushOpenIntent.removeListener(_handleCalendarPushOpenIntent);
     _reminderSub?.cancel();
     _authSub?.cancel();
+    _onboardingViewRevision.dispose();
     _hydrationInvalidationBridge.dispose();
     _hydrationController.dispose();
     _reminderSyncGate.dispose();
@@ -29308,7 +29424,6 @@ class CalendarPageState extends State<CalendarPage>
     DaySheetTab? initialTab,
     Object? initialInvitations,
   }) async {
-    if (!await AccountAccess.require(context) || !mounted) return;
     if (_daySheetOpenOrOpening) return;
     _daySheetOpenOrOpening = true;
     // Ensure reminder rules are loaded before building the sheet so the list is populated.
@@ -30767,6 +30882,13 @@ class CalendarPageState extends State<CalendarPage>
                               }
 
                               if (t.isEmpty) return;
+                              if (!await AccountAccess.require(sheetCtx) ||
+                                  !sheetCtx.mounted ||
+                                  !mounted)
+                                return;
+                              draftInvitations.claimFirstAccount(
+                                _currentUserId,
+                              );
 
                               // Validate end time is after start time
                               if (!allDay &&
@@ -31237,12 +31359,6 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _openQuickAddSheet() async {
-    if (!await AccountAccess.require(
-          context,
-          resumeLocation: '/pages?create=note',
-        ) ||
-        !mounted)
-      return;
     if (_quickAddSheetOpenOrOpening) return;
     _quickAddSheetOpenOrOpening = true;
     try {
@@ -33679,6 +33795,14 @@ class CalendarPageState extends State<CalendarPage>
     final orientation = MediaQuery.orientationOf(context);
     final isLandscape = orientation == Orientation.landscape;
     final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+    if (_onboardingAwaitingVisibleHost &&
+        routeIsCurrent &&
+        context.findAncestorWidgetOfExactType<Offstage>()?.offstage != true) {
+      _onboardingAwaitingVisibleHost = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_maybePresentOnboarding());
+      });
+    }
     // Navigator keeps tickers enabled for routes still visible beneath a
     // transparent sheet. isCurrent alone also hides that visible backdrop.
     final routeShouldRemainRendered =
@@ -33871,38 +33995,6 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
 
-    if (_showOnboarding) {
-      content = Stack(
-        children: [
-          content,
-          Positioned.fill(
-            child: OnboardingOverlay(
-              key: ValueKey<String?>('haw:$_hawOnboardingOwner'),
-              initialSlide: _hawInitialSlide,
-              initialEntryState: _onboardingProgress.entryIntent,
-              onBeforeSlideChanged: _handleHawSlideChanged,
-              onConnectCalendar: _openHawCalendarConnection,
-              recommendationReason: _hawIntent == null
-                  ? null
-                  : 'You said: ${_hawIntent!.label}',
-              compassCopy:
-                  _onboardingCompassCopy ??
-                  DecanCompassCopyRepo.fallbackForDay(
-                    kMonth: _today.kMonth,
-                    kDay: _today.kDay,
-                  ),
-              recommendedFlowBuilder: _buildHawRecommendedFlow,
-              dayViewBuilder: _buildHawDayView,
-              dayViewEventTargetKey: _firstFlowEventBlockKey,
-              onEntryStateSelected: _handleHawEntryStateSelected,
-              onSkip: _handleOnboardingSkip,
-              onComplete: _handleOnboardingComplete,
-            ),
-          ),
-        ],
-      );
-    }
-
     if (!_calendarBoundaryBenchmarkEnabled) return content;
     final boundaryHarness = widget.calendarBoundaryHarnessController;
     if (boundaryHarness == null || !boundaryHarness.probesEnabled) {
@@ -33916,6 +34008,29 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
   }
+
+  Widget _buildOnboardingOverlay() => OnboardingOverlay(
+    key: ValueKey<String?>('haw:$_hawOnboardingOwner'),
+    initialSlide: _hawInitialSlide,
+    initialEntryState: _onboardingProgress.entryIntent,
+    onBeforeSlideChanged: _handleHawSlideChanged,
+    onConnectCalendar: _openHawCalendarConnection,
+    recommendationReason: _hawIntent == null
+        ? null
+        : 'You said: ${_hawIntent!.label}',
+    compassCopy:
+        _onboardingCompassCopy ??
+        DecanCompassCopyRepo.fallbackForDay(
+          kMonth: _today.kMonth,
+          kDay: _today.kDay,
+        ),
+    recommendedFlowBuilder: _buildHawRecommendedFlow,
+    dayViewBuilder: _buildHawDayView,
+    dayViewEventTargetKey: _firstFlowEventBlockKey,
+    onEntryStateSelected: _handleHawEntryStateSelected,
+    onSkip: _handleOnboardingSkip,
+    onComplete: _handleOnboardingComplete,
+  );
 
   Widget _buildBodyWithJournal() {
     final isPortrait =
@@ -34173,7 +34288,14 @@ class CalendarPageState extends State<CalendarPage>
       DateTime.now(),
       availableOnly: requested,
     );
-    if (window == null) {
+    if (window == null ||
+        !isAccountEligibleForDecanReflection(
+          accountCreatedAt: DateTime.tryParse(user.createdAt)?.toLocal(),
+          now: DateTime.now(),
+          windowStart: window.start,
+        ) ||
+        _showOnboarding ||
+        AccountAccess.automaticOnboardingDeferred(context)) {
       if (_reflectionPrompt != null) {
         setState(() => _reflectionPrompt = null);
       }

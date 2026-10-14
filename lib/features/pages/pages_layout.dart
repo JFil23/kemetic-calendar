@@ -23,6 +23,7 @@ class PagesLayout extends StatefulWidget {
     this.onRetry,
     required this.profileIdentity,
     this.collectionEmptyMessage,
+    this.collectionEmptyActionLabel,
     this.onEmptyCollectionAction,
   });
   final List<ValueListenable<PagesCard>> cards;
@@ -32,6 +33,7 @@ class PagesLayout extends StatefulWidget {
   final List<PagesSearchRecord> Function() searchRecords;
   final PagesProfileIdentity profileIdentity;
   final String? collectionEmptyMessage;
+  final String? collectionEmptyActionLabel;
   final VoidCallback? onEmptyCollectionAction;
   final PagesCollectionState collectionState;
   final ValueChanged<PagesCollection?>? onCollectionChanged;
@@ -100,7 +102,7 @@ class _PagesLayoutState extends State<PagesLayout> {
               child: Semantics(
                 button: true,
                 label: widget.profileIdentity.isVisitor
-                    ? 'Create account or sign in'
+                    ? 'Profile'
                     : 'Open profile',
                 child: InkWell(
                   onTap: widget.onProfile,
@@ -470,7 +472,10 @@ class _PagesLayoutState extends State<PagesLayout> {
               widget.onEmptyCollectionAction != null)
             TextButton(
               onPressed: widget.onEmptyCollectionAction,
-              child: const Text('Create account or sign in'),
+              child: Text(
+                widget.collectionEmptyActionLabel ??
+                    'Create account or sign in',
+              ),
             ),
           if (!state.loading && state.hasMore)
             TextButton(

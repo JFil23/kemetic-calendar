@@ -9,6 +9,26 @@ UserSearchResult person(String id) =>
 ShareResult sent(ShareRecipient recipient) =>
     ShareResult(recipient: recipient, status: 'sent');
 void main() {
+  test('unowned draft can join only its first signed-in account', () {
+    final draft = NoteDraftInvitations(accountId: null)
+      ..people = [person('friend')];
+    expect(() => draft.claimFirstAccount(null), throwsStateError);
+    expect(draft.accountId, isNull);
+    draft.claimFirstAccount('first');
+    expect(draft.accountId, 'first');
+    expect(draft.people.single.userId, 'friend');
+    draft.claimFirstAccount('first');
+    expect(() => draft.claimFirstAccount('other'), throwsStateError);
+    expect(draft.accountId, 'first');
+  });
+  test('busy or acknowledged draft cannot acquire a different owner', () {
+    final busy = NoteDraftInvitations(accountId: null)..busy = true;
+    final saved = NoteDraftInvitations(accountId: null)
+      ..savedTargetId = 'saved';
+    expect(() => busy.claimFirstAccount('first'), throwsStateError);
+    expect(() => saved.claimFirstAccount('first'), throwsStateError);
+  });
+
   test(
     'selection restores only within its account, including old empty draft',
     () {

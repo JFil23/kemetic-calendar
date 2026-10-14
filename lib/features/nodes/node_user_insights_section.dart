@@ -100,7 +100,6 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
   }
 
   Future<void> _openEditor({InsightEntry? entry}) async {
-    if (!await AccountAccess.require(context) || !mounted) return;
     final changed = await showEditableModalBottomSheet<bool>(
       context: context,
       backgroundColor: const Color(0xFF050505),
@@ -119,6 +118,7 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
 
   Future<void> _postEntry(InsightEntry entry) async {
     if (_postingEntryIds.contains(entry.id)) return;
+    if (!await AccountAccess.require(context) || !mounted) return;
     setState(() => _postingEntryIds = {..._postingEntryIds, entry.id});
     final posted = await _profileRepo.postInsightEntry(entry.id);
     if (!mounted) return;
@@ -585,6 +585,7 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
       return;
     }
 
+    if (!await AccountAccess.require(context) || !mounted) return;
     setState(() => _saving = true);
     final saved = await _entryRepo.saveEntry(
       entryId: _entryId,

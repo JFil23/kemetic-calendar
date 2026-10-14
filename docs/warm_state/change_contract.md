@@ -58,23 +58,37 @@ modals and returns to guest Pages; it never clears pending account writes.
 GuestActivity earns up to one second after each real scroll, tap, pointer drag or
 keyboard input, accumulating five seconds across active bursts. Idle time and
 background time do not accrue; the intro and invitation suspend the accumulator.
-The timed invitation appears once per browser marker. Account actions continue
-to request the existing auth form regardless of that marker, and cancellation
-does not open an editor or begin a mutation. The shared Ma'at action dock,
-Calendar authoring entries and Library account actions use AccountAccess.
+The timed invitation appears once per browser marker. Account commit actions continue to request the existing auth form regardless of
+that marker. The canonical Calendar, new Flow Studio, Library insight, profile,
+Planner and message editors open before authentication and retain their transient
+unowned draft when the invitation is dismissed. Save, Post, Send, Add and the
+shared Ma'at enrollment action use AccountAccess before the existing mutation
+owner runs. Journal retains its account-only entry and autosave ownership.
 
 `visitor_experience_v1:pending_location` owns only a sanitized, local navigation
 intent for authentication return. It contains no login credentials, pending mutation
 or authored content. Private direct links, canonical catalog detail identity and
 event/flow creation destinations return through existing route owners after
 authentication. Account repositories still own acknowledgement and permissions.
-Same-page authentication retains the initiating action; OAuth return restores
-its destination. Automatic account onboarding waits while the visitor finishes
-the current browsing session; explicit replay and saved account checkpoints are
-preserved, and a later app visit to Calendar can continue the remaining guide.
+Same-page authentication retains the initiating action and its mounted draft;
+OAuth return restores its destination. The first account completes the existing
+Calendar-owned guide above the retained editor before the initiating commit can
+resume. Visitors have already seen the authored opening, so the guide begins at
+its intention picker, then optional calendar connection, orientation, recommended
+flow, Day View and closing. Calendar supplies the same guide through one modal
+presentation; entry points supply only return navigation. An inactive retained
+Calendar waits until it is visible before automatic presentation; an explicit
+first-account continuation presents above its active editor. Failed setup retains
+the draft and retries through the shared account action. Explicit replay and
+saved account checkpoints remain account-owned. No new anonymous persistent
+content store or queued write is introduced.
 Existing share-entry invitation capabilities stay with their original share
-identity and remain verified by ShareRepo. Authenticated account replacement
-retains the current route and its existing fences. Logout moves to guest Pages;
+identity and remain verified by ShareRepo. Authenticated account replacement retains the current route and its existing
+repository and editor departure fences. Departure during an active first-account
+continuation returns to Pages and cancels that continuation; it never transfers
+the draft to the replacement account.
+Only a new unowned draft can bind its first authenticated account; an existing
+member draft cannot change ownership. Logout moves to guest Pages;
 the route-lifetime test now expects that public destination while retaining all
 checks that old account panels, receipts and late callbacks stay fenced.
 
@@ -90,6 +104,45 @@ release qualification and served replay remain required before deployment.
 The existing populated app and the user's September 29 screen recordings are
 visual/navigation references. Planner cards, nutrition scheduling, and the
 five-flow Day View housing remain unchanged.
+
+
+## October 14 guest commit and first-account continuation
+
+The user's October 14 screen recording is the behavior reference: editor-opening
+controls and fields remain available to visitors; account creation belongs to
+commit controls. The once-per-browser invitation after five seconds of actual
+activity is unchanged. Canonical route audits cover the existing empty-account
+Inbox, message composers, new Flow Studio, calendar filing, own-profile preview,
+profile editor and pickers, profile search and Planner editors. These previews
+never fabricate saved account data. Shared calendar invitations return empty
+before network or cache reads without an account. Message route resolution skips
+private profile reads when signed out. Saved private record and share-capability
+routes preserve their original authentication and permission boundaries. Journal
+is explicitly account-only; its persistence, autosave and recovery are unchanged.
+
+Typed guest drafts remain with their mounted canonical editor through email
+sign-in and the guide; account repositories own all acknowledged commits after
+that guide. Null-to-first-account message binding retains the text; account
+replacement clears private state and fences late callbacks. New notes and flows
+may acquire their first owner only before a saved identity exists. Drafts are not
+put into warm snapshots or visitor presentation preferences. Existing stable
+cache namespaces, account restoration keys, payload schemas, immutable fixtures,
+approved visual references and inventory thresholds are unchanged.
+
+The canonical decan invitation compares the trusted Auth account creation time
+with Kemetic decan starts. It does not show in the signup decan, during account
+setup, or for a reflection period before signup. Its first eligible window is in
+the following decan, using the existing reflection repository, period identity,
+seen markers and authored review. Supplementary days belong to the year's final
+decan for eligibility. Missing or invalid account creation time cannot make an
+account eligible. No account onboarding checkpoints are reset.
+
+Evidence includes actual canonical route reads, Save/Post/Send dismissal and
+draft retention, first-account guide entry from Pages and Calendar, account
+replacement fences, decan boundaries, the existing complete guide sequence, and
+phone/tablet/desktop-width UI captures with bundled fonts. Browser viewport
+checks do not establish physical-device behavior; hosted full qualification and
+served RC replay remain required before deployment is claimed complete.
 
 ## Two distinct lifetimes
 

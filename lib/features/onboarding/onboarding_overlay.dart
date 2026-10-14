@@ -6,8 +6,8 @@ import 'starter_maat_flow_recommendation.dart';
 
 enum HawOnboardingSlide {
   exhale,
-  calendarConnection,
   segmentation,
+  calendarConnection,
   orientation,
   recommendedFlow,
   dayView,
@@ -298,7 +298,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
   void _handleNext() {
     switch (_slide) {
       case HawOnboardingSlide.exhale:
-        _goTo(HawOnboardingSlide.calendarConnection);
+        _goTo(HawOnboardingSlide.segmentation);
       case HawOnboardingSlide.orientation:
         _goTo(HawOnboardingSlide.recommendedFlow);
       case HawOnboardingSlide.calendarConnection:
@@ -318,7 +318,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
     });
     try {
       await widget.onConnectCalendar?.call();
-      if (mounted) await _goTo(HawOnboardingSlide.segmentation);
+      if (mounted) await _goTo(HawOnboardingSlide.orientation);
     } catch (_) {
       if (mounted) {
         setState(
@@ -341,7 +341,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
       await widget.onEntryStateSelected(option.value);
       if (!mounted) return;
       _after(const Duration(milliseconds: 500), () {
-        unawaited(_goTo(HawOnboardingSlide.orientation));
+        unawaited(_goTo(HawOnboardingSlide.calendarConnection));
       });
     } catch (_) {
       if (mounted) {
@@ -476,7 +476,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
         return widget.calendarConnectionBuilder?.call(context) ??
             HawCalendarOffer(
               onConnect: _connectingCalendar ? null : _connectCalendar,
-              onContinue: () => _goTo(HawOnboardingSlide.segmentation),
+              onContinue: () => _goTo(HawOnboardingSlide.orientation),
               busy: _connectingCalendar,
               error: _actionError,
             );

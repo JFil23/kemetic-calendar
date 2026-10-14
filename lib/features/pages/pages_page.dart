@@ -15,7 +15,6 @@ import 'pages_collections_controller.dart';
 import 'pages_layout.dart';
 import 'pages_models.dart';
 import 'guest_pages_content.dart';
-import '../auth/account_access.dart';
 
 class PagesPage extends StatefulWidget {
   const PagesPage({super.key});
@@ -309,8 +308,7 @@ class _PagesPageState extends State<PagesPage>
         profileIdentity: const PagesProfileIdentity.visitor(),
         onProfile: () => unawaited(
           _present(() async {
-            if (await AccountAccess.require(context) && mounted)
-              await openDetailRoute<void>(context, '/profile/me');
+            await openDetailRoute<void>(context, '/profile/me');
           }),
         ),
         onNewNote: () => unawaited(
@@ -349,9 +347,23 @@ class _PagesPageState extends State<PagesPage>
           ),
         ),
         collectionEmptyMessage:
-            'Create an account to keep your ${_guestSelection?.label.toLowerCase() ?? 'notes'} here.',
-        onEmptyCollectionAction: () =>
-            unawaited(AccountAccess.require(context)),
+            'Try creating a ${_guestSelection == PagesCollection.flows
+                ? 'flow'
+                : _guestSelection == PagesCollection.reminders
+                ? 'reminder'
+                : 'note'}.',
+        collectionEmptyActionLabel: _guestSelection == PagesCollection.flows
+            ? 'New flow'
+            : _guestSelection == PagesCollection.reminders
+            ? 'New reminder'
+            : 'New note',
+        onEmptyCollectionAction: () => unawaited(
+          _present(
+            () => _guestSelection == PagesCollection.flows
+                ? openUtilityRoute<void>(context, '/flows?create=flow')
+                : CalendarPage.openQuickAddFromAnyContext(context),
+          ),
+        ),
         onCollectionChanged: (selection) =>
             setState(() => _guestSelection = selection),
       );

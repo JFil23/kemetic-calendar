@@ -64,4 +64,70 @@ void main() {
       }
     },
   );
+  test(
+    'new accounts wait until the next decan and never see pre-account reviews',
+    () {
+      for (final month in [1, 2, 12]) {
+        for (final joinDay in [1, 9, 10, 11, 19, 20, 21, 29, 30]) {
+          final join = at(4, month, joinDay, 12);
+          final startDay = ((joinDay - 1) ~/ 10) * 10 + 1;
+          final start = KemeticMath.toGregorian(4, month, startDay);
+          final end = at(4, month, startDay + 9, 23);
+          expect(
+            isAccountEligibleForDecanReflection(
+              accountCreatedAt: join,
+              now: end,
+              windowStart: start,
+            ),
+            isFalse,
+          );
+          final following = month == 12 && startDay == 21
+              ? at(5, 1, 1, 0)
+              : DateTime(end.year, end.month, end.day + 1);
+          expect(
+            isAccountEligibleForDecanReflection(
+              accountCreatedAt: join,
+              now: following,
+              windowStart: start,
+            ),
+            isTrue,
+          );
+          expect(
+            isAccountEligibleForDecanReflection(
+              accountCreatedAt: join,
+              now: following,
+              windowStart: DateTime(start.year, start.month, start.day - 10),
+            ),
+            isFalse,
+          );
+        }
+      }
+      final supplementary = at(4, 13, 3, 12);
+      final finalStart = KemeticMath.toGregorian(4, 12, 21);
+      expect(
+        isAccountEligibleForDecanReflection(
+          accountCreatedAt: supplementary,
+          now: at(4, 13, 5, 23),
+          windowStart: finalStart,
+        ),
+        isFalse,
+      );
+      expect(
+        isAccountEligibleForDecanReflection(
+          accountCreatedAt: supplementary,
+          now: at(5, 1, 1, 0),
+          windowStart: finalStart,
+        ),
+        isTrue,
+      );
+      expect(
+        isAccountEligibleForDecanReflection(
+          accountCreatedAt: null,
+          now: at(5, 1, 1, 0),
+          windowStart: finalStart,
+        ),
+        isFalse,
+      );
+    },
+  );
 }

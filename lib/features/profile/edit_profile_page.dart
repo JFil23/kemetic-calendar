@@ -2,6 +2,8 @@
 // Edit Profile Page - Complete Profile Management UI
 
 import 'package:flutter/material.dart';
+import '../auth/account_access.dart';
+import '../../data/account_operation_fence.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../core/navigation_fallback.dart';
@@ -30,6 +32,7 @@ class EditProfilePage extends StatefulWidget {
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
+  var _editorAccount = AccountOperationFence(Supabase.instance.client);
   final _repo = ProfileRepo(Supabase.instance.client);
   final _formKey = GlobalKey<FormState>();
 
@@ -77,6 +80,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   void dispose() {
+    _editorAccount.dispose();
     _handleController.dispose();
     _displayNameController.dispose();
     _bioController.dispose();
@@ -143,6 +147,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
       return;
     }
+
+    if (!await AccountAccess.require(context) || !mounted) return;
+    if (_editorAccount.userId == null && widget.initialProfile.id.isEmpty) {
+      _editorAccount.dispose();
+      _editorAccount = AccountOperationFence(Supabase.instance.client);
+    }
+    if (!_editorAccount.isCurrent || _editorAccount.userId == null) return;
 
     final hadInitialAvatarUrl =
         (widget.initialProfile.avatarUrl?.trim().isNotEmpty ?? false);

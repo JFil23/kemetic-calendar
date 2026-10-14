@@ -17,6 +17,7 @@ import '../../shared/glossy_text.dart';
 import '../../widgets/gregorian_date_picker.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../calendar/notify.dart';
+import '../auth/account_access.dart';
 import '../reminders/reminder_rule.dart';
 
 typedef SharedCalendarAddEventCallback =
@@ -2956,7 +2957,7 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
       setState(() => _error = 'Name is required.');
@@ -2967,6 +2968,7 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
       setState(() => _error = 'Birthday date is required.');
       return;
     }
+    if (!await AccountAccess.require(context) || !mounted) return;
     Navigator.of(context).pop(
       _BirthdayEditorResult(
         name: name,
@@ -3311,9 +3313,11 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
                   ),
                   const SizedBox(width: 26),
                   TextButton(
-                    onPressed: () {
+                    onPressed: () async {
                       final name = _nameCtrl.text.trim();
                       if (name.isEmpty) return;
+                      if (!await AccountAccess.require(context) || !mounted)
+                        return;
                       Navigator.of(context).pop(
                         _CalendarEditorResult(
                           name: name,
