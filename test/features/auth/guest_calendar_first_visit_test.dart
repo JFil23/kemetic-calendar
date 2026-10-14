@@ -12,6 +12,7 @@ import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:mobile/features/auth/visitor_preferences.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/daily_cosmic_context_badge.dart';
 import 'package:mobile/features/pages/pages_board.dart';
 import 'package:mobile/features/pages/pages_models.dart';
 import 'package:mobile/features/auth/account_invitation_dialog.dart';
@@ -119,6 +120,10 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+        await tester.tap(find.byKey(dailyCosmicContextDismissButtonKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
         // Supabase's initial signed-out event is already delivered before
         // Calendar mounts. No later auth event may be needed for first paint.
         if (dismissInvitation) {
