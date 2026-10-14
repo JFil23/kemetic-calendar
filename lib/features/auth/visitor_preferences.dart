@@ -3,15 +3,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Device presentation preferences, independent of account content and warm
 /// eviction. The pending location is a navigation intent, never a queued write.
 class VisitorPreferences {
+  VisitorPreferences({SharedPreferences? prefs}) : _prefs = prefs;
+
+  final SharedPreferences? _prefs;
+  Future<SharedPreferences> _store() async =>
+      _prefs ?? await SharedPreferences.getInstance();
   static const introSeenKey = 'visitor_experience_v1:intro_seen';
   static const invitationSeenKey = 'visitor_experience_v1:invitation_seen';
   static const pendingLocationKey = 'visitor_experience_v1:pending_location';
+  static const dailyRhythmLastShownKey =
+      'visitor_experience_v1:daily_rhythm_last_shown';
 
   static final Map<String, Object> _fallback = {};
 
   Future<bool> _seen(String key) async {
     try {
-      return (await SharedPreferences.getInstance()).getBool(key) ?? false;
+      return (await _store()).getBool(key) ?? false;
     } catch (_) {
       return _fallback[key] == true;
     }
@@ -22,7 +29,7 @@ class VisitorPreferences {
   Future<String?> pendingLocation() async {
     try {
       return safeVisitorLocation(
-        (await SharedPreferences.getInstance()).getString(pendingLocationKey),
+        (await _store()).getString(pendingLocationKey),
       );
     } catch (_) {
       return safeVisitorLocation(_fallback[pendingLocationKey] as String?);
@@ -32,7 +39,7 @@ class VisitorPreferences {
   Future<void> _write(String key, Object value) async {
     _fallback[key] = value;
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _store();
       if (value is bool) {
         await prefs.setBool(key, value);
       } else {
@@ -41,6 +48,26 @@ class VisitorPreferences {
     } catch (_) {
       /* Browsing still works if this browser disallows storage. */
     }
+  }
+
+  Future<String?> dailyRhythmLastShown() async {
+    String? raw;
+    try {
+      raw = (await _store()).getString(dailyRhythmLastShownKey);
+    } catch (_) {
+      raw = _fallback[dailyRhythmLastShownKey] as String?;
+    }
+    final value = raw?.trim();
+    return value != null && RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)
+        ? value
+        : null;
+  }
+
+  Future<void> markDailyRhythmShown(String gregorianDateKey) {
+    if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(gregorianDateKey)) {
+      throw ArgumentError.value(gregorianDateKey, 'gregorianDateKey');
+    }
+    return _write(dailyRhythmLastShownKey, gregorianDateKey);
   }
 
   Future<void> markIntroSeen() => _write(introSeenKey, true);
@@ -55,7 +82,7 @@ class VisitorPreferences {
   Future<void> clearLocation() async {
     _fallback.remove(pendingLocationKey);
     try {
-      await (await SharedPreferences.getInstance()).remove(pendingLocationKey);
+      await (await _store()).remove(pendingLocationKey);
     } catch (_) {
       /* No account content or pending writes are held here. */
     }

@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'package:mobile/features/calendar/daily_cosmic_context_badge.dart';
+import 'package:mobile/features/settings/settings_prefs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -84,18 +88,26 @@ void main() {
     await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
     SharedPreferences.setMockInitialValues({
       VisitorPreferences.introSeenKey: true,
+      // Editor/navigation cases start after today's public card. Fresh-entry
+      // and daily-card cases below deliberately replace these preferences.
+      VisitorPreferences.dailyRhythmLastShownKey:
+          dailyCosmicContextGregorianDateKey(DateTime.now()),
       'onboarding_v1_completed:$uid': true,
     });
     requests.clear();
   });
   late GoRouter router;
   var time = Duration.zero;
+  final captureKey = GlobalKey();
   Future<void> mount(
     WidgetTester tester, {
     String? location = '/pages',
     bool wholeApp = false,
+    bool withDailyRhythm = false,
+    Size viewport = const Size(390, 844),
+    DateTime Function()? dailyNow,
   }) async {
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = viewport;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     time = Duration.zero;
@@ -109,18 +121,28 @@ void main() {
             .route;
     router = app.createAppRouterForTesting(initialLocation: initialLocation);
     await tester.pumpWidget(
-      wholeApp
-          ? app.MyApp(router: router)
-          : MaterialApp.router(
-              theme: AppTheme.dark,
-              routerConfig: router,
-              builder: (_, child) => GuestExperienceHost(
-                router: router,
-                activityNow: () => time,
-                onGoogleSignIn: (_) async {},
-                child: child!,
+      RepaintBoundary(
+        key: captureKey,
+        child: wholeApp
+            ? app.MyApp(router: router)
+            : MaterialApp.router(
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.dark,
+                routerConfig: router,
+                builder: (_, child) => GuestExperienceHost(
+                  router: router,
+                  activityNow: () => time,
+                  onGoogleSignIn: (_) async {},
+                  child: withDailyRhythm
+                      ? app.buildGlobalOverlayShellForTesting(
+                          router: router,
+                          dailyCosmicContextNow: dailyNow,
+                          child: child!,
+                        )
+                      : child!,
+                ),
               ),
-            ),
+      ),
     );
     await flush(tester);
   }
@@ -148,6 +170,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 650));
       expect(find.byType(HawIntroSlide), findsNothing);
       expect(find.byType(PagesPage), findsOneWidget);
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
       expect(find.byType(AccountInvitationDialog), findsNothing);
       expect(requests, isEmpty);
       await unmount(tester);
@@ -155,6 +178,189 @@ void main() {
       expect(router.state.uri.path, '/pages');
       expect(find.byType(PagesPage), findsOneWidget);
       expect(find.byType(HawIntroSlide), findsNothing);
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+      await unmount(tester);
+    },
+  );
+
+  for (final viewport in [
+    const Size(390, 844),
+    const Size(820, 1180),
+    const Size(1440, 900),
+  ]) {
+    testWidgets(
+      'intro fully dissolves before guest rhythm at ${viewport.width.toInt()}px',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        await mount(tester, withDailyRhythm: true, viewport: viewport);
+        expect(find.byType(HawIntroSlide), findsOneWidget);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+        // Wait for the authored end cue, then measure the actual host dissolve.
+        await tester.pump(const Duration(milliseconds: 6400));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byType(HawIntroSlide), findsOneWidget);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+        await tester.pump(const Duration(milliseconds: 301));
+        await flush(tester);
+        expect(find.byType(HawIntroSlide), findsNothing);
+        expect(find.byType(PagesLayout), findsOneWidget);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+        expect(find.byType(AccountInvitationDialog), findsNothing);
+        expect(requests, isEmpty);
+        final capture = Platform.environment['HAW_GUEST_RHYTHM_CAPTURE'];
+        if (capture != null) {
+          final boundary =
+              captureKey.currentContext!.findRenderObject()
+                  as RenderRepaintBoundary;
+          await tester.runAsync(() async {
+            final image = await boundary.toImage(pixelRatio: 1);
+            final data = await image.toByteData(format: ui.ImageByteFormat.png);
+            final file = File('$capture/guest-${viewport.width.toInt()}.png');
+            await file.parent.create(recursive: true);
+            await file.writeAsBytes(data!.buffer.asUint8List());
+            image.dispose();
+          });
+        }
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.byKey(dailyCosmicContextDismissButtonKey));
+        await flush(tester);
+        await unmount(tester);
+        await mount(tester, withDailyRhythm: true, viewport: viewport);
+        expect(find.byType(HawIntroSlide), findsNothing);
+        expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+        await unmount(tester);
+      },
+    );
+  }
+
+  testWidgets(
+    'guest switch activity cannot invite; browsing after X still can',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        VisitorPreferences.introSeenKey: true,
+      });
+      await mount(tester, withDailyRhythm: true);
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+      time += const Duration(minutes: 1);
+      await tester.pump(const Duration(minutes: 1));
+      for (var i = 0; i < 12; i++) {
+        await tester.tap(find.byKey(dailyCosmicContextAutomaticToggleKey));
+        time += const Duration(milliseconds: 600);
+        await tester.pump(const Duration(milliseconds: 600));
+      }
+      expect(find.byType(AccountInvitationDialog), findsNothing);
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+      expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isTrue);
+      await tester.tap(find.byKey(dailyCosmicContextDismissButtonKey));
+      await flush(tester);
+      // Dismissal and waiting alone cannot earn the invitation.
+      time += const Duration(seconds: 20);
+      await tester.pump(const Duration(seconds: 20));
+      expect(find.byType(AccountInvitationDialog), findsNothing);
+      for (var i = 0; i < 12; i++) {
+        await tester.tap(find.text(i.isEven ? 'Reminders' : 'Notes'));
+        time += const Duration(milliseconds: 500);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+      await flush(tester);
+      expect(find.byType(AccountInvitationDialog), findsOneWidget);
+      await tester.tap(find.text('Keep exploring'));
+      await flush(tester);
+      for (var i = 0; i < 12; i++) {
+        await tester.tap(find.text(i.isEven ? 'Reminders' : 'Notes'));
+        time += const Duration(milliseconds: 500);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+      expect(find.byType(AccountInvitationDialog), findsNothing);
+      expect(requests, isEmpty);
+      await unmount(tester);
+    },
+  );
+
+  testWidgets('returning guest gets new local day on resume even after off', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      VisitorPreferences.introSeenKey: true,
+    });
+    var day = DateTime(2026, 10, 14);
+    await mount(tester, withDailyRhythm: true, dailyNow: () => day);
+    await tester.tap(find.byKey(dailyCosmicContextAutomaticToggleKey));
+    await tester.pump();
+    expect(
+      tester
+          .widget<DailyCosmicContextCard>(find.byType(DailyCosmicContextCard))
+          .automaticDisplay,
+      isFalse,
+    );
+    await tester.tap(find.byKey(dailyCosmicContextDismissButtonKey));
+    await flush(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    day = DateTime(2026, 10, 15);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await flush(tester);
+    final card = tester.widget<DailyCosmicContextCard>(
+      find.byType(DailyCosmicContextCard),
+    );
+    expect(card.badge.gregorianDateKey, '2026-10-15');
+    expect(card.automaticDisplay, isTrue);
+    expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isTrue);
+    expect(requests, isEmpty);
+    await unmount(tester);
+  });
+
+  testWidgets(
+    'sign-in restores saved toggle authority; logout retains guest day',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        VisitorPreferences.introSeenKey: true,
+        'onboarding_v1_completed:$uid': true,
+      });
+      await mount(tester, withDailyRhythm: true);
+      final prefs = await SharedPreferences.getInstance();
+      await tester.tap(find.byKey(dailyCosmicContextAutomaticToggleKey));
+      await flush(tester);
+      expect(
+        tester
+            .widget<DailyCosmicContextCard>(find.byType(DailyCosmicContextCard))
+            .automaticDisplay,
+        isFalse,
+      );
+      expect(
+        prefs.containsKey(SettingsPrefs.dailyCosmicContextBadgeEnabledKey),
+        isFalse,
+      );
+      await Supabase.instance.client.auth.recoverSession(session());
+      await flush(tester);
+      expect(
+        tester
+            .widget<DailyCosmicContextCard>(find.byType(DailyCosmicContextCard))
+            .automaticDisplay,
+        isTrue,
+      );
+      await tester.tap(find.byKey(dailyCosmicContextAutomaticToggleKey));
+      await flush(tester);
+      expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
+      // Auth cleanup uses real timers; do not hold it in the widget fake clock.
+      await tester.runAsync(
+        () => Supabase.instance.client.auth.signOut(scope: SignOutScope.local),
+      );
+      await flush(tester);
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+      expect(
+        await VisitorPreferences().dailyRhythmLastShown(),
+        dailyCosmicContextGregorianDateKey(DateTime.now()),
+      );
+      expect(await SettingsPrefs.dailyCosmicContextBadgeEnabled(), isFalse);
+      expect(tester.takeException(), isNull);
       await unmount(tester);
     },
   );

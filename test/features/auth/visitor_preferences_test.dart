@@ -40,6 +40,31 @@ void main() {
       expect(await returning.pendingLocation(), isNull);
     },
   );
+  test('visitor rhythm retains only its daily date across owners', () async {
+    final visitor = VisitorPreferences();
+    expect(await visitor.dailyRhythmLastShown(), isNull);
+    await visitor.markDailyRhythmShown('2026-10-14');
+    expect(await VisitorPreferences().dailyRhythmLastShown(), '2026-10-14');
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getKeys(), {
+      'onboarding_v2_progress:account-a',
+      'planner_account:v1:account-a',
+      VisitorPreferences.dailyRhythmLastShownKey,
+    });
+    expect(
+      prefs.getString('planner_account:v1:account-a'),
+      'pending-account-write',
+    );
+    expect(
+      prefs.getString('onboarding_v2_progress:account-a'),
+      '{"hawSlide":"orientation"}',
+    );
+    expect(
+      () => visitor.markDailyRhythmShown('account-or-content'),
+      throwsArgumentError,
+    );
+  });
+
   test(
     'navigation intents cannot retain credentials or external destinations',
     () {

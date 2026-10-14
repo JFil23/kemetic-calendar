@@ -13,6 +13,7 @@ import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:mobile/features/auth/visitor_preferences.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/daily_cosmic_context_badge.dart';
 import 'package:mobile/features/pages/pages_page.dart';
 import 'package:mobile/features/pages/pages_board.dart';
 import 'package:mobile/features/pages/pages_models.dart';
@@ -144,6 +145,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(PagesPage), findsOneWidget);
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+      await tester.tap(find.byKey(dailyCosmicContextDismissButtonKey));
+      await tester.pumpAndSettle();
       final calendarTile = find.byWidgetPredicate(
         (w) =>
             w is PagesTile && w.card.destination == PagesDestination.calendar,

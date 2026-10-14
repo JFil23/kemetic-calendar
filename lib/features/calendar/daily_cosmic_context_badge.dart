@@ -7,6 +7,7 @@ import '../../core/day_key.dart';
 import '../../shared/glossy_text.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../settings/settings_prefs.dart';
+import '../auth/visitor_preferences.dart';
 import 'calendar_page.dart' show KemeticMath;
 
 const dailyCosmicContextOverlayKey = ValueKey<String>(
@@ -54,6 +55,12 @@ class DailyCosmicContextPrefs {
   static String lastShownGregorianDateKeyForUser(String userId) {
     return '$_lastShownGregorianDatePrefix:${userId.trim()}';
   }
+
+  Future<String?> lastShownVisitorGregorianDate() =>
+      VisitorPreferences(prefs: _prefs).dailyRhythmLastShown();
+
+  Future<void> markVisitorShown(String gregorianDateKey) =>
+      VisitorPreferences(prefs: _prefs).markDailyRhythmShown(gregorianDateKey);
 
   Future<bool> isEnabled() async {
     final prefs = await _store();
@@ -103,6 +110,8 @@ class DailyCosmicContextController extends ChangeNotifier {
 
   DailyCosmicContextBadge? _current;
   String? _activeUserId;
+  String? _preferenceAccountId;
+  bool _visitorCard = false;
   int _evaluationSerial = 0;
   bool _disposed = false;
   bool _automaticDisplay = true;
@@ -110,26 +119,37 @@ class DailyCosmicContextController extends ChangeNotifier {
   DailyCosmicContextBadge? get current => _current;
   bool get automaticDisplay => _automaticDisplay;
   bool get hasVisibleBadge => _current != null;
+  bool get canPersistPreference => _preferenceAccountId != null;
 
   Future<void> evaluate({
     required String? userId,
     required bool isAuthenticated,
     required bool onboardingComplete,
     required bool suppressed,
+    bool allowVisitor = false,
   }) async {
     final serial = ++_evaluationSerial;
     final normalizedUserId = userId?.trim();
-    if (!isAuthenticated ||
-        normalizedUserId == null ||
-        normalizedUserId.isEmpty ||
-        !onboardingComplete ||
-        suppressed) {
+    final validAccount =
+        isAuthenticated &&
+        normalizedUserId != null &&
+        normalizedUserId.isNotEmpty;
+    _preferenceAccountId = validAccount ? normalizedUserId : null;
+    if (suppressed ||
+        (isAuthenticated
+            ? !validAccount || !onboardingComplete
+            : !allowVisitor)) {
       _clearCurrent();
+      return;
+    }
+    if (!isAuthenticated) {
+      await _evaluateVisitor(serial);
       return;
     }
 
     // An account departure must never retain the previous account's card.
-    if (_activeUserId != null && _activeUserId != normalizedUserId) {
+    if (_visitorCard ||
+        (_activeUserId != null && _activeUserId != normalizedUserId)) {
       _clearCurrent();
     }
 
@@ -146,7 +166,7 @@ class DailyCosmicContextController extends ChangeNotifier {
       return;
     }
 
-    final lastShown = await _prefs.lastShownGregorianDate(normalizedUserId);
+    final lastShown = await _prefs.lastShownGregorianDate(normalizedUserId!);
     if (!_isCurrentEvaluation(serial)) return;
     if (lastShown == gregorianDateKey) {
       _clearCurrent();
@@ -165,11 +185,40 @@ class DailyCosmicContextController extends ChangeNotifier {
     await _prefs.markShown(normalizedUserId, badge.gregorianDateKey);
   }
 
+  Future<void> _evaluateVisitor(int serial) async {
+    final now = DateUtils.dateOnly(_now());
+    final dateKey = dailyCosmicContextGregorianDateKey(now);
+    if (_visitorCard && _current?.gregorianDateKey == dateKey) return;
+    _clearCurrent();
+    final lastShown = await _prefs.lastShownVisitorGregorianDate();
+    if (!_isCurrentEvaluation(serial) || lastShown == dateKey) return;
+    final badge = _badgeForDate(now);
+    if (!_isCurrentEvaluation(serial) || badge == null) return;
+    _visitorCard = true;
+    _automaticDisplay = true;
+    _setCurrent(badge);
+    await _prefs.markVisitorShown(badge.gregorianDateKey);
+  }
+
+  void clearForAccountChange() {
+    _evaluationSerial += 1;
+    _preferenceAccountId = null;
+    _clearCurrent();
+  }
+
   Future<void> setEnabled(bool enabled) async {
     // Fence reads begun before the user's choice so they cannot reopen a card.
     _evaluationSerial += 1;
+    if (_visitorCard) {
+      _setAutomaticDisplay(enabled);
+      return;
+    }
+    final owner = _preferenceAccountId;
+    if (owner == null) return;
     await _prefs.setEnabled(enabled);
-    if (!_disposed) _setAutomaticDisplay(enabled);
+    if (!_disposed && _preferenceAccountId == owner && !_visitorCard) {
+      _setAutomaticDisplay(enabled);
+    }
   }
 
   void _setAutomaticDisplay(bool enabled) {
@@ -182,7 +231,12 @@ class DailyCosmicContextController extends ChangeNotifier {
     _evaluationSerial += 1;
     final badge = _current;
     final userId = _activeUserId;
+    final visitor = _visitorCard;
     _clearCurrent();
+    if (badge != null && visitor) {
+      await _prefs.markVisitorShown(badge.gregorianDateKey);
+      return;
+    }
     if (badge == null || userId == null || userId.trim().isEmpty) return;
     await _prefs.markShown(userId, badge.gregorianDateKey);
   }
@@ -198,9 +252,10 @@ class DailyCosmicContextController extends ChangeNotifier {
   }
 
   void _clearCurrent() {
-    if (_current == null && _activeUserId == null) return;
+    if (_current == null && _activeUserId == null && !_visitorCard) return;
     _current = null;
     _activeUserId = null;
+    _visitorCard = false;
     _notifySafely();
   }
 
@@ -358,6 +413,10 @@ class _DailyCosmicContextOverlayHostState
           child: DailyCosmicContextCard(
             badge: badge,
             automaticDisplay: widget.controller.automaticDisplay,
+            automaticDisplayHint: widget.controller.canPersistPreference
+                ? null
+                : 'Try the switch. Create an account to keep this preference. '
+                      'Close this card with the X button.',
             onAutomaticDisplayChanged: _savingPreference
                 ? null
                 : _setAutomaticDisplay,
@@ -395,10 +454,15 @@ class _DailyCosmicContextScrim extends StatelessWidget {
 // Paint at the requested size: scaling a native switch only vertically
 // flattens its circular thumb and turns its rounded ends into pointed ovals.
 class _AutomaticDisplaySwitch extends StatelessWidget {
-  const _AutomaticDisplaySwitch({required this.value, required this.onChanged});
+  const _AutomaticDisplaySwitch({
+    required this.value,
+    required this.onChanged,
+    this.hint,
+  });
 
   final bool value;
   final ValueChanged<bool>? onChanged;
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
@@ -407,6 +471,7 @@ class _AutomaticDisplaySwitch extends StatelessWidget {
       key: dailyCosmicContextAutomaticToggleKey,
       label: 'Show The Day’s Rhythm automatically',
       hint:
+          hint ??
           'Changes future automatic cards. Close this card with the X button.',
       toggled: value,
       enabled: onChanged != null,
@@ -540,6 +605,7 @@ class DailyCosmicContextCard extends StatelessWidget {
     required this.onDismiss,
     required this.onAutomaticDisplayChanged,
     this.automaticDisplay = true,
+    this.automaticDisplayHint,
     this.error,
   });
 
@@ -547,6 +613,7 @@ class DailyCosmicContextCard extends StatelessWidget {
   final VoidCallback onDismiss;
   final ValueChanged<bool>? onAutomaticDisplayChanged;
   final bool automaticDisplay;
+  final String? automaticDisplayHint;
   final String? error;
 
   @override
@@ -610,6 +677,7 @@ class DailyCosmicContextCard extends StatelessWidget {
                           ),
                           _AutomaticDisplaySwitch(
                             value: automaticDisplay,
+                            hint: automaticDisplayHint,
                             onChanged: onAutomaticDisplayChanged,
                           ),
                           SizedBox.square(

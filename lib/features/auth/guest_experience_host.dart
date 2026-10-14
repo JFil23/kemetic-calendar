@@ -12,6 +12,7 @@ import 'account_access.dart';
 import 'account_invitation_dialog.dart';
 import 'guest_activity.dart';
 import 'visitor_preferences.dart';
+import 'visitor_presentation_scope.dart';
 
 class GuestExperienceHost extends StatefulWidget {
   const GuestExperienceHost({
@@ -51,6 +52,8 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
   Timer? _timer;
   bool _ready = false, _intro = false, _invitationSeen = false;
   bool _continuingGuestAction = false;
+  bool _dailyRhythmVisible = false;
+  bool _disposing = false;
   Future<bool>? _accountRequest;
   BuildContext? _dialogContext;
   String? _handledAccountLocation;
@@ -178,6 +181,7 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
         _ready &&
         !_signedIn &&
         !_intro &&
+        !_dailyRhythmVisible &&
         !_invitationSeen &&
         _accountRequest == null &&
         _foreground;
@@ -191,6 +195,12 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
             }
           })
         : null;
+  }
+
+  void _setDailyRhythmVisible(bool visible) {
+    if (!mounted || _disposing || _dailyRhythmVisible == visible) return;
+    _dailyRhythmVisible = visible;
+    _updateActivity();
   }
 
   void _interact() {
@@ -325,6 +335,7 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
 
   @override
   void dispose() {
+    _disposing = true;
     _timer?.cancel();
     _introFade.dispose();
     _auth?.cancel();
@@ -335,56 +346,61 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
   }
 
   @override
-  Widget build(BuildContext context) => AccountAccess(
-    signedIn: _signedIn,
-    accountId: Supabase.instance.client.auth.currentUser?.id,
-    currentAccountId: () => Supabase.instance.client.auth.currentUser?.id,
-    requestAccount: _requestAccount,
-    deferAutomaticOnboarding: _continuingGuestAction,
-    child: Focus(
-      canRequestFocus: false,
-      onKeyEvent: (_, event) {
-        if (event is KeyDownEvent || event is KeyRepeatEvent) _interact();
-        return KeyEventResult.ignored;
-      },
-      child: Listener(
-        onPointerDown: (_) => _interact(),
-        onPointerMove: (event) {
-          if (event.buttons != 0) _interact();
+  Widget build(BuildContext context) => VisitorPresentationScope(
+    readyForPublicOverlays: _ready && !_intro && _accountRequest == null,
+    onDailyRhythmVisibilityChanged: _setDailyRhythmVisible,
+    child: AccountAccess(
+      signedIn: _signedIn,
+      accountId: Supabase.instance.client.auth.currentUser?.id,
+      currentAccountId: () => Supabase.instance.client.auth.currentUser?.id,
+      requestAccount: _requestAccount,
+      deferAutomaticOnboarding: _continuingGuestAction,
+      child: Focus(
+        canRequestFocus: false,
+        onKeyEvent: (_, event) {
+          if (event is KeyDownEvent || event is KeyRepeatEvent) _interact();
+          return KeyEventResult.ignored;
         },
-        onPointerSignal: (event) {
-          if (event is PointerScrollEvent) _interact();
-        },
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (event) {
-            if (event is ScrollUpdateNotification && event.dragDetails != null)
-              _interact();
-            return false;
+        child: Listener(
+          onPointerDown: (_) => _interact(),
+          onPointerMove: (event) {
+            if (event.buttons != 0) _interact();
           },
-          child: Stack(
-            children: [
-              ExcludeSemantics(
-                excluding: !_ready || _intro,
-                child: IgnorePointer(
-                  ignoring: !_ready || _intro,
-                  child: widget.child,
-                ),
-              ),
-              if (!_ready)
-                const Positioned.fill(child: ColoredBox(color: Colors.black)),
-              Positioned.fill(
-                child: IgnorePointer(
-                  ignoring: !_intro,
-                  child: FadeTransition(
-                    key: const ValueKey('visitor-intro-dissolve'),
-                    opacity: _introOpacity,
-                    child: _intro
-                        ? _VisitorIntro(onComplete: _finishIntro)
-                        : const SizedBox.shrink(),
+          onPointerSignal: (event) {
+            if (event is PointerScrollEvent) _interact();
+          },
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (event) {
+              if (event is ScrollUpdateNotification &&
+                  event.dragDetails != null)
+                _interact();
+              return false;
+            },
+            child: Stack(
+              children: [
+                ExcludeSemantics(
+                  excluding: !_ready || _intro,
+                  child: IgnorePointer(
+                    ignoring: !_ready || _intro,
+                    child: widget.child,
                   ),
                 ),
-              ),
-            ],
+                if (!_ready)
+                  const Positioned.fill(child: ColoredBox(color: Colors.black)),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    ignoring: !_intro,
+                    child: FadeTransition(
+                      key: const ValueKey('visitor-intro-dissolve'),
+                      opacity: _introOpacity,
+                      child: _intro
+                          ? _VisitorIntro(onComplete: _finishIntro)
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

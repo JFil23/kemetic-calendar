@@ -7,7 +7,8 @@ The opening is shared with account onboarding; a first visitor sees its existing
 line timings, then a 600ms dissolve into Pages. Reduced-motion entry displays the
 complete copy without spatial animation and retains the same non-spatial dissolve.
 Pages input and invitation timing remain suspended until the dissolve finishes.
-Returning visitors go directly to Pages. The shared launch-restoration owner
+Returning visitors go directly to Pages; the shared Day’s Rhythm card follows
+its local-day presentation schedule described below. The shared launch-restoration owner
 selects `/pages` for signed-out launches before consulting account restoration;
 explicit public links retain their destination. Member restoration and durable
 account snapshots keep their existing ownership. The visitor overlay owns its
@@ -1563,6 +1564,33 @@ checks retain Journal controls and social geometry at phone/landscape sizes and
 enlarged text; a scope guard rejects reflection presentation imports in other
 features. Existing reflection visual fixtures remain intact.
 
+
+## October 14 visitor Day’s Rhythm entry
+
+GuestExperienceHost releases the shared Day’s Rhythm controller only after the
+authored intro has completed its existing dissolve. The same canonical card
+opens above Pages, with its existing copy, housing, toggle, X and Back behavior.
+Returning guests receive the current bundled rhythm once per local day on launch
+or resume. VisitorPreferences owns only the additive local-date presentation key
+`visitor_experience_v1:daily_rhythm_last_shown`; it is independent of account
+completion, warm caches, builds and account-specific last-shown dates. Missing
+bundled content and intro/modal suppression do not consume a day. Browser storage
+denial retains the existing in-process presentation fallback.
+
+A guest can move the shared toggle in either direction while this card stays
+open. That choice is temporary and does not write SettingsPrefs, disable the next
+day’s guest card, trigger authentication or modify another account’s preference.
+After authentication the existing acknowledged SettingsPrefs writer and deployed
+device-local preference become authoritative again. Unfinished account onboarding
+still suppresses the card. Account transitions fence pending reads and stale switch
+callbacks immediately; visitor presentation never becomes an account checkpoint.
+
+VisitorPresentationScope coordinates only intro readiness and card visibility.
+While the card is open, GuestActivity pauses its interaction bursts, so reading
+or toggling the rhythm cannot earn the timed invitation. After X, ordinary
+browsing activity can earn the existing one-time five-second invitation. This
+does not change account commit fences or the remaining onboarding sequence.
+No new content cache, pending write, backend identity or storage migration exists.
 
 ## October 9 Day’s Rhythm automatic-display preference
 

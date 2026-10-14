@@ -79,6 +79,7 @@ import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import 'features/onboarding/onboarding_progress.dart';
 import 'features/onboarding/onboarding_storage.dart';
 import 'features/auth/guest_experience_host.dart';
+import 'features/auth/visitor_presentation_scope.dart';
 import 'features/auth/visitor_preferences.dart';
 import 'features/profile/edit_profile_page.dart';
 import 'features/profile/flow_post_detail_page.dart';
@@ -2607,6 +2608,8 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
   bool _rebuildScheduled = false;
   bool? _lastGuidanceSuppressed;
   int _dailyCosmicContextEvaluationSerial = 0;
+  VisitorPresentationScope? _visitorPresentation;
+  String? _dailyCosmicContextAccountIdentity;
 
   @override
   void initState() {
@@ -2621,7 +2624,8 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
       _handleMaatGuidancePostEnsureRefresh,
     );
     _maatGuidanceController.addListener(_scheduleRebuild);
-    _dailyCosmicContextController.addListener(_scheduleRebuild);
+    _dailyCosmicContextController.addListener(_handleDailyCosmicContextChanged);
+    _dailyCosmicContextAccountIdentity = _dailyCosmicContextUserId;
     SettingsPrefs.dailyCosmicContextBadgeChanges.addListener(
       _scheduleDailyCosmicContextEvaluation,
     );
@@ -2630,6 +2634,11 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
       _handleExternalOverlayGateChanged,
     );
     _authSub = supabase.auth.onAuthStateChange.listen((_) {
+      final nextIdentity = _dailyCosmicContextUserId;
+      if (_dailyCosmicContextAccountIdentity != nextIdentity) {
+        _dailyCosmicContextAccountIdentity = nextIdentity;
+        _dailyCosmicContextController.clearForAccountChange();
+      }
       if (supabase.auth.currentSession == null) {
         _maatGuidanceController.clearForSignedOut();
       } else {
@@ -2648,6 +2657,31 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scheduleDailyCosmicContextEvaluation();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = VisitorPresentationScope.maybeOf(context);
+    final changed =
+        _visitorPresentation?.readyForPublicOverlays !=
+        next?.readyForPublicOverlays;
+    if (_visitorPresentation?.onDailyRhythmVisibilityChanged !=
+        next?.onDailyRhythmVisibilityChanged) {
+      _visitorPresentation?.onDailyRhythmVisibilityChanged(false);
+    }
+    _visitorPresentation = next;
+    next?.onDailyRhythmVisibilityChanged(
+      _dailyCosmicContextController.hasVisibleBadge,
+    );
+    if (changed) _scheduleDailyCosmicContextEvaluation();
+  }
+
+  void _handleDailyCosmicContextChanged() {
+    _visitorPresentation?.onDailyRhythmVisibilityChanged(
+      _dailyCosmicContextController.hasVisibleBadge,
+    );
+    _scheduleRebuild();
   }
 
   @override
@@ -2675,7 +2709,10 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
       _handleMaatGuidancePostEnsureRefresh,
     );
     _maatGuidanceController.removeListener(_scheduleRebuild);
-    _dailyCosmicContextController.removeListener(_scheduleRebuild);
+    _visitorPresentation?.onDailyRhythmVisibilityChanged(false);
+    _dailyCosmicContextController.removeListener(
+      _handleDailyCosmicContextChanged,
+    );
     SettingsPrefs.dailyCosmicContextBadgeChanges.removeListener(
       _scheduleDailyCosmicContextEvaluation,
     );
@@ -2702,9 +2739,7 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
-    if (_dailyCosmicContextAuthenticated) {
-      _scheduleDailyCosmicContextEvaluation();
-    }
+    _scheduleDailyCosmicContextEvaluation();
     if (supabase.auth.currentSession == null) return;
     unawaited(_maatGuidanceController.evaluateAndRefresh());
   }
@@ -2773,7 +2808,13 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
 
   bool _shouldSuppressDailyCosmicContext(BuildContext context) {
     if (!_launchOverlayDismissed.value) return true;
-    if (!_dailyCosmicContextAuthenticated) return true;
+    if (_visitorPresentation != null &&
+        !_visitorPresentation!.readyForPublicOverlays) {
+      return true;
+    }
+    if (!_dailyCosmicContextAuthenticated && _visitorPresentation == null) {
+      return true;
+    }
     if (_globalOverlayModalDepth.value > 0) return true;
     if (keyboardIsVisible(context)) return true;
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
@@ -2806,6 +2847,9 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
       isAuthenticated: isAuthenticated,
       onboardingComplete: onboardingComplete,
       suppressed: suppressed,
+      allowVisitor:
+          !isAuthenticated &&
+          _visitorPresentation?.readyForPublicOverlays == true,
     );
   }
 
