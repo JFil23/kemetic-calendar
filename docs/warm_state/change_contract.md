@@ -5,13 +5,15 @@
 The existing authored opening and Pages layout are the presentation references.
 The opening is shared with account onboarding; a first visitor sees its existing
 line timings, then a 600ms dissolve into Pages. Reduced-motion entry displays the
-complete copy without animation. Returning visitors go directly to Pages. The shared launch-restoration owner
+complete copy without spatial animation and retains the same non-spatial dissolve.
+Pages input and invitation timing remain suspended until the dissolve finishes.
+Returning visitors go directly to Pages. The shared launch-restoration owner
 selects `/pages` for signed-out launches before consulting account restoration;
 explicit public links retain their destination. Member restoration and durable
 account snapshots keep their existing ownership. The visitor overlay owns its
 full viewport and Material text context, including while it dissolves, so the
 authored slide does not inherit root debug text decorations or shrink-wrap inside
-the animation switcher.
+the fade boundary.
 The account-onboarding host owns clearance for its navigation controls; the
 shared intro centers enlarged text in the available guest viewport. Compact
 spacing and narrow-phone padding retain the selected text size while showing
@@ -31,7 +33,11 @@ and Library material into PagesLayout. The five authored catalog identities come
 from Calendar's existing catalog and open the same complete Ma'at details.
 Guest projection never enters account caches, fabricates account records, reads
 private repositories or writes account content. Calendar, Library and catalog
-routes can be browsed; private route reads are gated before mounting. Pages
+routes can be browsed; private route reads are gated before mounting. Guest and
+member Calendar cards reuse the same primary Calendar return boundary. A tentative
+previous-account launch cannot hold signed-out Calendar behind the authenticated
+restoration shell; account restoration remains fenced until authentication.
+The guest profile header uses the main app bar's “ḥꜣw” label. Pages
 retains its state when the account becomes available and recreates its existing
 account controllers for that identity. Account departure closes account-owned
 modals and returns to guest Pages; it never clears pending account writes.

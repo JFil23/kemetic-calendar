@@ -344,14 +344,14 @@ void main() {
       expect(tester.state(find.byType(PagesPage)), same(pages));
       expect(
         tester.widget<PagesLayout>(find.byType(PagesLayout)).profileHandle,
-        isNot('Explore ḥꜣw'),
+        isNot('ḥꜣw'),
       );
       await tester.runAsync(
         () => Supabase.instance.client.auth.signOut(scope: SignOutScope.local),
       );
       await flush(tester);
       final layout = tester.widget<PagesLayout>(find.byType(PagesLayout));
-      expect(layout.profileHandle, 'Explore ḥꜣw');
+      expect(layout.profileHandle, 'ḥꜣw');
       expect(
         layout.cards.every(
           (card) =>

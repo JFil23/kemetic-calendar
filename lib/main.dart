@@ -1105,6 +1105,21 @@ void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded() {
   );
 }
 
+@visibleForTesting
+Future<String?> readBootRestoredLocationForTesting() =>
+    _readBootRestoredLocation();
+
+@visibleForTesting
+String? get deferredBootRestoredLocationForTesting =>
+    _bootAuthDeferredRestoredLocation;
+
+@visibleForTesting
+void resetBootRestorationForTesting() {
+  _bootRestoreDeferredForAuth = false;
+  _bootAuthDeferredRestoredLocation = null;
+  _bootDeferredRestorePreparedForAuth = false;
+}
+
 Future<String?> _readBootRestoredLocation() async {
   final hasSession = Supabase.instance.client.auth.currentSession != null;
   traceRestoration('boot restore read start hasSession=$hasSession');
@@ -5297,12 +5312,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       'auth gate build session=${session == null ? 'signed_out' : 'signed_in'}',
     );
 
-    if (_authDeferredRestorePending) {
+    // Tentative account restoration must not block public guest Calendar.
+    if (session != null && _authDeferredRestorePending) {
       traceRestoration('launch restoration shell shown');
       return const _RouteLoadingScaffold();
     }
 
-    // Authenticated
+    // Authenticated and public guest Calendar share the canonical root.
     // CalendarPage owns page resizing; its landscape modal owns keyboard
     // occlusion. An outer Scaffold would consume the same inset a second time.
     return SessionTrackedRoute(

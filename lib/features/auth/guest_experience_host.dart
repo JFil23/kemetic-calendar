@@ -29,8 +29,19 @@ class GuestExperienceHost extends StatefulWidget {
 }
 
 class _GuestExperienceHostState extends State<GuestExperienceHost>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final _preferences = VisitorPreferences();
+  late final _introFade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 600),
+    // The requested dissolve is non-spatial, including with reduced motion.
+    animationBehavior: AnimationBehavior.preserve,
+  );
+  late final _introOpacity = Tween<double>(
+    begin: 1,
+    end: 0,
+  ).animate(_introFade);
+  bool _dissolving = false;
   final _clock = Stopwatch()..start();
   late final _activity = GuestActivity(
     now: widget.activityNow ?? () => _clock.elapsed,
@@ -120,7 +131,14 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
 
   Future<void> _finishIntro() async {
     await _preferences.markIntroSeen();
-    if (!mounted) return;
+    if (!mounted || !_intro || _dissolving) return;
+    _dissolving = true;
+    try {
+      await _introFade.forward().orCancel;
+    } on TickerCanceled {
+      return;
+    }
+    if (!mounted || !_intro) return;
     setState(() => _intro = false);
     _updateActivity();
     _routeChanged();
@@ -240,6 +258,7 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
   @override
   void dispose() {
     _timer?.cancel();
+    _introFade.dispose();
     _auth?.cancel();
     _clock.stop();
     widget.router.routerDelegate.removeListener(_routeChanged);
@@ -286,12 +305,9 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
               Positioned.fill(
                 child: IgnorePointer(
                   ignoring: !_intro,
-                  child: AnimatedSwitcher(
-                    duration:
-                        (MediaQuery.disableAnimationsOf(context) ||
-                            MediaQuery.of(context).accessibleNavigation)
-                        ? Duration.zero
-                        : const Duration(milliseconds: 600),
+                  child: FadeTransition(
+                    key: const ValueKey('visitor-intro-dissolve'),
+                    opacity: _introOpacity,
                     child: _intro
                         ? _VisitorIntro(onComplete: _finishIntro)
                         : const SizedBox.shrink(),

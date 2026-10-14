@@ -179,8 +179,17 @@ class _PagesPageState extends State<PagesPage>
 
   Future<void> _open(PagesCard card) async {
     final controller = _controller;
+    if (controller != null &&
+        Supabase.instance.client.auth.currentUser?.id != controller.uid) {
+      return;
+    }
+    final destination = card.destination;
+    if (destination == PagesDestination.calendar) {
+      closeOrReturn(context, '/');
+      return;
+    }
     if (controller == null) {
-      final location = switch (card.destination) {
+      final location = switch (destination) {
         PagesDestination.calendar => '/',
         PagesDestination.studio => '/flows?mode=maatFlows',
         PagesDestination.library => '/nodes',
@@ -191,22 +200,12 @@ class _PagesPageState extends State<PagesPage>
         PagesDestination.calendars => '/calendars',
       };
       await _present(() async {
-        if (card.destination == PagesDestination.calendar) {
-          await openDetailRoute<void>(context, location);
-        } else if (card.destination == PagesDestination.studio) {
+        if (destination == PagesDestination.studio) {
           await openUtilityRoute<void>(context, location);
         } else {
           await openDetailRoute<void>(context, location);
         }
       });
-      return;
-    }
-    if (Supabase.instance.client.auth.currentUser?.id != controller.uid) {
-      return;
-    }
-    final destination = card.destination;
-    if (destination == PagesDestination.calendar) {
-      closeOrReturn(context, '/');
       return;
     }
     await _present(() async {
@@ -307,7 +306,7 @@ class _PagesPageState extends State<PagesPage>
       return PagesLayout(
         cards: _guestContent.cards,
         onOpen: (card) => unawaited(_open(card)),
-        profileHandle: 'Explore ḥꜣw',
+        profileHandle: 'ḥꜣw',
         profileActionLabel: 'Create account or sign in',
         onProfile: () => unawaited(
           _present(() async {
