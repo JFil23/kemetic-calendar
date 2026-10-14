@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mobile/main.dart' as app;
+import 'package:mobile/services/app_navigation_restoration_controller.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/auth/account_invitation_dialog.dart';
 import 'package:mobile/features/auth/guest_experience_host.dart';
@@ -71,14 +72,22 @@ void main() {
   var time = Duration.zero;
   Future<void> mount(
     WidgetTester tester, {
-    String location = '/pages',
+    String? location = '/pages',
     bool wholeApp = false,
   }) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     time = Duration.zero;
-    router = app.createAppRouterForTesting(initialLocation: location);
+    final initialLocation =
+        location ??
+        (await AppNavigationRestorationController.instance
+                .restoreLaunchDestination(
+                  isAuthenticated:
+                      Supabase.instance.client.auth.currentSession != null,
+                ))
+            .route;
+    router = app.createAppRouterForTesting(initialLocation: initialLocation);
     await tester.pumpWidget(
       wholeApp
           ? app.MyApp(router: router)
@@ -107,8 +116,13 @@ void main() {
     'first visitor sees authored intro then Pages; revisit skips it',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
-      await mount(tester);
+      await mount(tester, location: null, wholeApp: true);
       expect(find.byType(HawIntroSlide), findsOneWidget);
+      expect(router.state.uri.path, '/pages');
+      expect(
+        tester.getRect(find.byKey(const ValueKey('visitor-intro'))),
+        const Rect.fromLTWH(0, 0, 390, 844),
+      );
       await tester.pump(const Duration(milliseconds: 6400));
       await flush(tester);
       await tester.pump(const Duration(milliseconds: 650));
@@ -117,7 +131,9 @@ void main() {
       expect(find.byType(AccountInvitationDialog), findsNothing);
       expect(requests, isEmpty);
       await unmount(tester);
-      await mount(tester);
+      await mount(tester, location: null, wholeApp: true);
+      expect(router.state.uri.path, '/pages');
+      expect(find.byType(PagesPage), findsOneWidget);
       expect(find.byType(HawIntroSlide), findsNothing);
       await unmount(tester);
     },

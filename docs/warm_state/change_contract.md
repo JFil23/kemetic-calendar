@@ -5,7 +5,13 @@
 The existing authored opening and Pages layout are the presentation references.
 The opening is shared with account onboarding; a first visitor sees its existing
 line timings, then a 600ms dissolve into Pages. Reduced-motion entry displays the
-complete copy without animation. Returning visitors go directly to Pages.
+complete copy without animation. Returning visitors go directly to Pages. The shared launch-restoration owner
+selects `/pages` for signed-out launches before consulting account restoration;
+explicit public links retain their destination. Member restoration and durable
+account snapshots keep their existing ownership. The visitor overlay owns its
+full viewport and Material text context, including while it dissolves, so the
+authored slide does not inherit root debug text decorations or shrink-wrap inside
+the animation switcher.
 The account-onboarding host owns clearance for its navigation controls; the
 shared intro centers enlarged text in the available guest viewport. Compact
 spacing and narrow-phone padding retain the selected text size while showing

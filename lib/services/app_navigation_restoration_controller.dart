@@ -230,7 +230,7 @@ class AppNavigationRestorationController {
 
     if (!isAuthenticated) {
       final destination = _decision(
-        route: '/',
+        route: '/pages',
         source: 'default',
         reason: 'not_authenticated',
       );

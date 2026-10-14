@@ -359,16 +359,18 @@ class _VisitorIntroState extends State<_VisitorIntro> {
   }
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    key: const ValueKey('visitor-intro'),
-    color: HawIntroSlide.backgroundColor,
-    child: HawIntroSlide(
-      line1Visible: _line1,
-      line2Visible: _line2,
-      wordmarkVisible: _wordmark,
-      reduceMotion:
-          MediaQuery.disableAnimationsOf(context) ||
-          MediaQuery.of(context).accessibleNavigation,
+  Widget build(BuildContext context) => SizedBox.expand(
+    child: Material(
+      key: const ValueKey('visitor-intro'),
+      color: HawIntroSlide.backgroundColor,
+      child: HawIntroSlide(
+        line1Visible: _line1,
+        line2Visible: _line2,
+        wordmarkVisible: _wordmark,
+        reduceMotion:
+            MediaQuery.disableAnimationsOf(context) ||
+            MediaQuery.of(context).accessibleNavigation,
+      ),
     ),
   );
 }
