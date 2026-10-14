@@ -182,7 +182,7 @@ void main() {
               );
               final label = location.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '-');
               final file = File(
-                '/private/tmp/haw-guest-commit-evidence/visuals/$label-${width.toInt()}.png',
+                '${Directory.systemTemp.path}/haw-guest-commit-evidence/visuals/$label-${width.toInt()}.png',
               );
               await file.parent.create(recursive: true);
               await file.writeAsBytes(data!.buffer.asUint8List());

@@ -161,7 +161,7 @@ void main() {
               format: ui.ImageByteFormat.png,
             );
             final file = File(
-              '/private/tmp/haw-guest-commit-evidence/visuals/first-guide-${start == '/' ? 'calendar' : 'pages'}-${width.toInt()}.png',
+              '${Directory.systemTemp.path}/haw-guest-commit-evidence/visuals/first-guide-${start == '/' ? 'calendar' : 'pages'}-${width.toInt()}.png',
             );
             await file.parent.create(recursive: true);
             await file.writeAsBytes(bytes!.buffer.asUint8List());
