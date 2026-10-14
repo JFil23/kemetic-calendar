@@ -18228,6 +18228,12 @@ class CalendarPageState extends State<CalendarPage>
       final readResult = await AppRestorationService.instance
           .readBestSnapshot();
       if (readResult.isAwaitingAuth) {
+        // Public Calendar must paint even when there is no account snapshot.
+        // The initial signed-out event may precede this asynchronous read;
+        // waiting for another auth event would leave a fresh visitor blank.
+        _applyTodayFallbackAfterRestore(
+          reason: 'public_calendar_awaiting_auth',
+        );
         _pendingAuthResolutionForRestore = true;
         _tentativeRestorationUserId = null;
         if (kDebugMode) {

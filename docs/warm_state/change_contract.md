@@ -37,6 +37,11 @@ routes can be browsed; private route reads are gated before mounting. Guest and
 member Calendar cards reuse the same primary Calendar return boundary. A tentative
 previous-account launch cannot hold signed-out Calendar behind the authenticated
 restoration shell; account restoration remains fenced until authentication.
+A fresh visitor with no account snapshot receives the canonical Today calendar
+while account restoration awaits authentication. First paint does not depend on
+an initial null auth event arriving after the asynchronous snapshot read. Later real
+auth events retain the existing account restoration owner and pending-resolution
+contract; no account snapshot or content is fabricated for the visitor.
 The guest profile control uses Calendar's shared “ḥꜣw” wordmark, replacing the
 member handle/avatar presentation. PagesLayout derives that presentation from
 its supplied visitor/member identity; member profile data and glyphs retain the
