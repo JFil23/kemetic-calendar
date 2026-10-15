@@ -1,8 +1,167 @@
 # Persistence change contract
 
+## October 13 visitor entry and account invitation
+
+The existing authored opening and Pages layout are the presentation references.
+The opening is shared with account onboarding; a first visitor sees its existing
+line timings, then a 600ms dissolve into Pages. Reduced-motion entry displays the
+complete copy without spatial animation and retains the same non-spatial dissolve.
+Pages input and invitation timing remain suspended until the dissolve finishes.
+Returning visitors go directly to Pages; the shared Day’s Rhythm card follows
+its local-day presentation schedule described below. The shared launch-restoration owner
+selects `/pages` for signed-out launches before consulting account restoration;
+explicit public links retain their destination. Member restoration and durable
+account snapshots keep their existing ownership. The visitor overlay owns its
+full viewport and Material text context, including while it dissolves, so the
+authored slide does not inherit root debug text decorations or shrink-wrap inside
+the fade boundary.
+The account-onboarding host owns clearance for its navigation controls; the
+shared intro centers enlarged text in the available guest viewport. Compact
+spacing and narrow-phone padding retain the selected text size while showing
+all three lines before the automatic dissolve. Normal-size geometry is retained.
+
+VisitorPreferences owns device presentation markers under
+`visitor_experience_v1:intro_seen` and `visitor_experience_v1:invitation_seen`.
+These are independent of account completion, warm-cache eviction, app builds and
+logout. A first displayed intro marks the browser as seen. A displayed account
+invitation marks the timed invitation as seen, including dismissal. Browser
+storage denial permits browsing with an in-process fallback; clearing storage or
+using a different browser can show the introduction again. No IP identity or
+anonymous backend account is created.
+
+GuestPagesContent projects bundled calendar dates, the canonical daily question
+and Library material into PagesLayout. The five authored catalog identities come
+from Calendar's existing catalog and open the same complete Ma'at details.
+Guest projection never enters account caches, fabricates account records, reads
+private repositories or writes account content. Calendar, Library and catalog
+routes can be browsed; private route reads are gated before mounting. Guest and
+member Calendar cards reuse the same primary Calendar return boundary. A tentative
+previous-account launch cannot hold signed-out Calendar behind the authenticated
+restoration shell; account restoration remains fenced until authentication.
+A fresh visitor with no account snapshot receives the canonical Today calendar
+while account restoration awaits authentication. First paint does not depend on
+an initial null auth event arriving after the asynchronous snapshot read. Later real
+auth events retain the existing account restoration owner and pending-resolution
+contract; no account snapshot or content is fabricated for the visitor.
+The guest profile control uses Calendar's shared “ḥꜣw” wordmark, replacing the
+member handle/avatar presentation. PagesLayout derives that presentation from
+its supplied visitor/member identity; member profile data and glyphs retain the
+same layout. This identity is disposable view data, never another account store.
+A null initial auth event cannot replay a member launch or start member warmups;
+the deferred route stays fenced until a real authenticated session arrives.
+The shared calendar day header paints each complete numeral at its existing
+fixed font size across all expansion states. Marker padding cannot constrain or
+fade the number. Cell geometry, colors and markers retain their existing owner.
+Pages retains its state when the account becomes available and recreates its existing
+account controllers for that identity. Account departure closes account-owned
+modals and returns to guest Pages; it never clears pending account writes.
+
+GuestActivity earns up to one second after each real scroll, tap, pointer drag or
+keyboard input, accumulating five seconds across active bursts. Idle time and
+background time do not accrue; the intro and invitation suspend the accumulator.
+The timed invitation appears once per browser marker. Account commit actions continue to request the existing auth form regardless of
+that marker. The canonical Calendar, new Flow Studio, Library insight, profile,
+Planner and message editors open before authentication and retain their transient
+unowned draft when the invitation is dismissed. Save, Post, Send, Add and the
+shared Ma'at enrollment action use AccountAccess before the existing mutation
+owner runs. Journal retains its account-only entry and autosave ownership.
+
+`visitor_experience_v1:pending_location` owns only a sanitized, local navigation
+intent for authentication return. It contains no login credentials, pending mutation
+or authored content. Private direct links, canonical catalog detail identity and
+event/flow creation destinations return through existing route owners after
+authentication. Account repositories still own acknowledgement and permissions.
+Same-page authentication retains the initiating action and its mounted draft;
+OAuth return restores its destination. The first account completes the existing
+Calendar-owned guide above the retained editor before the initiating commit can
+resume. Visitors have already seen the authored opening, so the guide begins at
+its intention picker, then optional calendar connection, orientation, recommended
+flow, Day View and closing. Calendar supplies the same guide through one modal
+presentation; entry points supply only return navigation. An inactive retained
+Calendar waits until it is visible before automatic presentation; an explicit
+first-account continuation presents above its active editor. Failed setup retains
+the draft and retries through the shared account action. Explicit replay and
+saved account checkpoints remain account-owned. No new anonymous persistent
+content store or queued write is introduced.
+Existing share-entry invitation capabilities stay with their original share
+identity and remain verified by ShareRepo. Authenticated account replacement retains the current route and its existing
+repository and editor departure fences. Departure during an active first-account
+continuation returns to Pages and cancels that continuation; it never transfers
+the draft to the replacement account.
+Only a new unowned draft can bind its first authenticated account; an existing
+member draft cannot change ownership. Logout moves to guest Pages;
+the route-lifetime test now expects that public destination while retaining all
+checks that old account panels, receipts and late callbacks stay fenced.
+
+The root, Pages, Flow Studio and Library entries in the release inventory retain
+their existing account read/write owners. No existing key, resource schema,
+immutable fixture, approved visual reference or inventory threshold changes.
+Guest behavior, activity and device-marker tests supplement the existing login,
+real-route, warm-state and full-detail parity evidence. Static captures inspect
+phone, landscape, tablet and enlarged text; the shared Pages caption extent grows
+with text scaling while retaining its normal-size geometry. Exact-lane hosted
+release qualification and served replay remain required before deployment.
+
 The existing populated app and the user's September 29 screen recordings are
 visual/navigation references. Planner cards, nutrition scheduling, and the
 five-flow Day View housing remain unchanged.
+
+
+## October 14 guest commit and first-account continuation
+
+The user's October 14 screen recording is the behavior reference: editor-opening
+controls and fields remain available to visitors; account creation belongs to
+commit controls. The once-per-browser invitation after five seconds of actual
+activity is unchanged. Canonical route audits cover the existing empty-account
+Inbox, message composers, new Flow Studio, calendar filing, own-profile preview,
+profile editor and pickers, profile search and Planner editors. These previews
+never fabricate saved account data. Shared calendar invitations return empty
+before network or cache reads without an account. Message route resolution skips
+private profile reads when signed out. Saved private record and share-capability
+routes preserve their original authentication and permission boundaries. Journal
+is explicitly account-only; its persistence, autosave and recovery are unchanged.
+
+Typed guest drafts remain with their mounted canonical editor through email
+sign-in and the guide; account repositories own all acknowledged commits after
+that guide. Null-to-first-account message binding retains the text; account
+replacement clears private state and fences late callbacks. New notes and flows
+may acquire their first owner only before a saved identity exists. Drafts are not
+put into warm snapshots or visitor presentation preferences. Existing stable
+cache namespaces, account restoration keys, payload schemas, immutable fixtures,
+approved visual references and inventory thresholds are unchanged.
+
+The canonical decan invitation compares the trusted Auth account creation time
+with Kemetic decan starts. It does not show in the signup decan, during account
+setup, or for a reflection period before signup. Its first eligible window is in
+the following decan, using the existing reflection repository, period identity,
+seen markers and authored review. Supplementary days belong to the year's final
+decan for eligibility. Missing or invalid account creation time cannot make an
+account eligible. No account onboarding checkpoints are reset.
+
+Evidence includes actual canonical route reads, Save/Post/Send dismissal and
+draft retention, first-account guide entry from Pages and Calendar, account
+replacement fences, decan boundaries, the existing complete guide sequence, and
+phone/tablet/desktop-width UI captures with bundled fonts. Browser viewport
+checks do not establish physical-device behavior; hosted full qualification and
+served RC replay remain required before deployment is claimed complete.
+
+## October 14 first-account presentation handoff
+
+The new live RC recording is the reference for the sign-in gap. The existing
+invitation stays mounted while account completion is checked; its controls are
+suspended during that handoff. Calendar removes it only after its canonical guide
+has fully covered the retained draft. A detached Calendar guide host remains
+transparent beneath that invitation and starts preparation independently of its
+hydration scheduler. It never paints an intermediate Calendar. The intention
+picker has no Calendar or compass dependency; the existing acknowledged intention
+and orientation actions load the canonical compass before consuming its data.
+Returning completed accounts retain their normal return, and saved checkpoints,
+account ownership and cancellation fences remain with the existing owners.
+No new route identity, persisted key, schema, cache or pending-write store is added.
+The shared opening's “this is ḥꜣw” uses its existing warm gold for readable contrast.
+Evidence covers delayed completion reads, every handoff frame, retained drafts,
+phone/tablet/desktop widths and the existing authored guide. Approved visual
+references remain unchanged.
 
 ## Two distinct lifetimes
 
@@ -1423,6 +1582,33 @@ checks retain Journal controls and social geometry at phone/landscape sizes and
 enlarged text; a scope guard rejects reflection presentation imports in other
 features. Existing reflection visual fixtures remain intact.
 
+
+## October 14 visitor Day’s Rhythm entry
+
+GuestExperienceHost releases the shared Day’s Rhythm controller only after the
+authored intro has completed its existing dissolve. The same canonical card
+opens above Pages, with its existing copy, housing, toggle, X and Back behavior.
+Returning guests receive the current bundled rhythm once per local day on launch
+or resume. VisitorPreferences owns only the additive local-date presentation key
+`visitor_experience_v1:daily_rhythm_last_shown`; it is independent of account
+completion, warm caches, builds and account-specific last-shown dates. Missing
+bundled content and intro/modal suppression do not consume a day. Browser storage
+denial retains the existing in-process presentation fallback.
+
+A guest can move the shared toggle in either direction while this card stays
+open. That choice is temporary and does not write SettingsPrefs, disable the next
+day’s guest card, trigger authentication or modify another account’s preference.
+After authentication the existing acknowledged SettingsPrefs writer and deployed
+device-local preference become authoritative again. Unfinished account onboarding
+still suppresses the card. Account transitions fence pending reads and stale switch
+callbacks immediately; visitor presentation never becomes an account checkpoint.
+
+VisitorPresentationScope coordinates only intro readiness and card visibility.
+While the card is open, GuestActivity pauses its interaction bursts, so reading
+or toggling the rhythm cannot earn the timed invitation. After X, ordinary
+browsing activity can earn the existing one-time five-second invitation. This
+does not change account commit fences or the remaining onboarding sequence.
+No new content cache, pending write, backend identity or storage migration exists.
 
 ## October 9 Day’s Rhythm automatic-display preference
 

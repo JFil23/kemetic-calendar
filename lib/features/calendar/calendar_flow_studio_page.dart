@@ -325,7 +325,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   String? _loadError;
   FlowRow? _loadedFlowRow;
   _FlowStudioDraft? _loadedEditorDraft;
-  late final AccountOperationFence _editorAccount;
+  late AccountOperationFence _editorAccount;
   late bool _completionRequired;
 
   // cached spans + per-period selections
@@ -1999,6 +1999,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     setState(() => _saveInFlight = true);
     FocusManager.instance.primaryFocus?.unfocus();
     try {
+      if (!await AccountAccess.require(context) || !mounted) return;
+      // Only a new, unowned draft can acquire its first authenticated owner.
+      // Existing account editors retain their original departure fence.
+      if (_editorAccount.userId == null && widget.editFlowId == null) {
+        _editorAccount.dispose();
+        _editorAccount = AccountOperationFence(Supabase.instance.client);
+      }
       _requireCurrentEditorAccount();
       await _saveDraft();
     } catch (error, stackTrace) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../auth/account_access.dart';
 
 import '../../widgets/keyboard_aware.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -215,8 +216,11 @@ class _FlowPostCaptionSheetState extends State<_FlowPostCaptionSheet> {
                           vertical: 13,
                         ),
                       ),
-                      onPressed: () =>
-                          Navigator.of(context).pop(_controller.text.trim()),
+                      onPressed: () async {
+                        if (!await AccountAccess.require(context) || !mounted)
+                          return;
+                        Navigator.of(context).pop(_controller.text.trim());
+                      },
                       child: Text(widget.actionLabel),
                     ),
                   ],

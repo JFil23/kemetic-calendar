@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../auth/account_access.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/touch_targets.dart';
@@ -115,7 +116,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   static const double _feedRevealViewportThreshold = 0.74;
   static const double _feedPullToCloseThreshold = 96;
   final _repo = ProfileRepo(Supabase.instance.client);
-  final _pageAccount = AccountOperationFence(Supabase.instance.client);
+  var _pageAccount = AccountOperationFence(Supabase.instance.client);
   final _commonsRepo = CommonsRepo(Supabase.instance.client);
   late final PageController _postPageController;
   late final PageController _commonsPracticePageController;
@@ -320,6 +321,27 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   @override
+  void didUpdateWidget(covariant ProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      final firstOwner = oldWidget.userId.isEmpty && _currentUserId != null;
+      _pageAccount.dispose();
+      _pageAccount = AccountOperationFence(Supabase.instance.client);
+      _profile = null;
+      _posts = const [];
+      _insightPosts = const [];
+      _feedItems = const [];
+      _commonsHome = null;
+      if (!firstOwner) _commonsAnswerController.clear();
+      unawaited(_loadProfile());
+      if (_feedRevealed) {
+        unawaited(_loadFeedPage(reset: true, force: true));
+        unawaited(_loadCommonsHome(force: true));
+      }
+    }
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _flowLifecycleSub?.cancel();
@@ -469,6 +491,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   void _seedPostedContentFromMemory() {
+    if (widget.userId.isEmpty) return;
     final cachedPosts = _repo.getCachedFlowPostsSync(widget.userId);
     if (cachedPosts != null) {
       _posts = cachedPosts;
@@ -484,6 +507,17 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   Future<void> _loadProfile({bool showSpinner = true}) async {
     final loadSerial = ++_profileLoadSerial;
+    if (widget.userId.isEmpty) {
+      // Presentation model only: no account identity, repository read or write.
+      setState(() {
+        _profile = UserProfile(id: '', displayName: 'ḥꜣw', handle: 'ḥꜣw');
+        _loading = _cacheHydrating = _postsLoading = _insightPostsLoading =
+            false;
+        _posts = const [];
+        _insightPosts = const [];
+      });
+      return;
+    }
     unawaited(_restoreCachedPostedContent(loadSerial));
 
     NavigationTrace.instance.record(
@@ -810,6 +844,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   Future<void> _loadPosts() async {
+    if (widget.userId.isEmpty) return;
     if (_posts.isEmpty) {
       setState(() => _postsLoading = true);
     }
@@ -840,6 +875,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   Future<void> _loadInsightPosts() async {
+    if (widget.userId.isEmpty) return;
     if (_insightPosts.isEmpty) {
       setState(() => _insightPostsLoading = true);
     }
@@ -1007,6 +1043,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   Future<void> _loadFeedPage({bool reset = false, bool force = false}) async {
+    if (_currentUserId == null) return;
     if (!force && (_feedLoading || _feedLoadingMore)) return;
     if (!reset && !_feedHasMore) return;
     final account = AccountOperationFence(Supabase.instance.client);
@@ -1095,6 +1132,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       activeCommonsQuestion(_commonsHome, DateTime.now());
 
   Future<void> _loadCommonsHome({bool force = false}) async {
+    if (_currentUserId == null) return;
     if (_commonsLoading && !force) return;
     final serial = ++_commonsLoadSerial;
     final seed = _commonsQuestionSeed();
@@ -1215,6 +1253,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       _showCommonsActionSnack('Write an answer before saving.');
       return;
     }
+    if (!await AccountAccess.require(context) || !mounted) return;
     setState(() => _commonsAnswerSaving = true);
     try {
       final answer = await _commonsRepo.answerQuestion(
@@ -4455,6 +4494,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   Future<void> _savePost(FlowPost post) async {
+    if (!await AccountAccess.require(context) || !mounted) return;
     final flowId = await _repo.saveFlowPostToMyFlows(post);
     if (!mounted) return;
     if (flowId == null) {

@@ -78,6 +78,9 @@ import 'features/nodes/kemetic_node_reader_page.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import 'features/onboarding/onboarding_progress.dart';
 import 'features/onboarding/onboarding_storage.dart';
+import 'features/auth/guest_experience_host.dart';
+import 'features/auth/visitor_presentation_scope.dart';
+import 'features/auth/visitor_preferences.dart';
 import 'features/profile/edit_profile_page.dart';
 import 'features/profile/flow_post_detail_page.dart';
 import 'features/profile/flow_post_picker_page.dart';
@@ -938,7 +941,9 @@ String _resolveInitialLocation() {
   final defaultRoute = PlatformDispatcher.instance.defaultRouteName.trim();
   final location =
       defaultRoute.isEmpty || defaultRoute == Navigator.defaultRouteName
-      ? _bootExplicitIntentLocation ?? _bootRestoredLocation ?? '/'
+      ? _bootExplicitIntentLocation ??
+            _bootRestoredLocation ??
+            (supabase.auth.currentSession == null ? '/pages' : '/')
       : defaultRoute.startsWith('/')
       ? defaultRoute
       : '/$defaultRoute';
@@ -1099,6 +1104,21 @@ void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded() {
       RestorationCoordinator.calendarOverlayStackSurface,
     ],
   );
+}
+
+@visibleForTesting
+Future<String?> readBootRestoredLocationForTesting() =>
+    _readBootRestoredLocation();
+
+@visibleForTesting
+String? get deferredBootRestoredLocationForTesting =>
+    _bootAuthDeferredRestoredLocation;
+
+@visibleForTesting
+void resetBootRestorationForTesting() {
+  _bootRestoreDeferredForAuth = false;
+  _bootAuthDeferredRestoredLocation = null;
+  _bootDeferredRestorePreparedForAuth = false;
 }
 
 Future<String?> _readBootRestoredLocation() async {
@@ -1626,7 +1646,11 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
   redirect: (context, state) => _traceRouterRedirect(
     state.uri,
     _redirectRetiredRhythmRoute(state.uri) ??
-        _redirectExternalAppLink(state.uri),
+        _redirectExternalAppLink(state.uri) ??
+        guestAccountRedirect(
+          state.uri,
+          signedIn: supabase.auth.currentSession != null,
+        ),
   ),
   routes: [
     _calmRoute(path: '/', builder: (context, state) => const AuthGate()),
@@ -1872,59 +1896,75 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
     ),
     _calmRoute(
       path: '/profile/:userId',
-      builder: (context, state) {
-        final rawUserId = Uri.decodeComponent(state.pathParameters['userId']!);
-        final currentUserId = supabase.auth.currentUser?.id;
-        NavigationTrace.instance.record(
-          'profile route builder started',
-          state: <String, Object?>{
-            'uri': state.uri.toString(),
-            'rawUserId': _navigationTraceProfileUserId(
-              rawUserId,
-              currentUserId,
+      builder: (context, state) => StreamBuilder<AuthState>(
+        stream: supabase.auth.onAuthStateChange,
+        builder: (context, _) {
+          final rawUserId = Uri.decodeComponent(
+            state.pathParameters['userId']!,
+          );
+          final currentUserId = supabase.auth.currentUser?.id;
+          NavigationTrace.instance.record(
+            'profile route builder started',
+            state: <String, Object?>{
+              'uri': state.uri.toString(),
+              'rawUserId': _navigationTraceProfileUserId(
+                rawUserId,
+                currentUserId,
+              ),
+              'currentUserIdPresent': currentUserId != null,
+            },
+          );
+          final userId = rawUserId == 'me' ? currentUserId : rawUserId;
+          NavigationTrace.instance.record(
+            'profile route user resolved',
+            state: <String, Object?>{
+              'rawUserId': _navigationTraceProfileUserId(
+                rawUserId,
+                currentUserId,
+              ),
+              'resolvedUserId': _navigationTraceProfileUserId(
+                userId,
+                currentUserId,
+              ),
+              'hasResolvedUserId': userId != null && userId.trim().isNotEmpty,
+            },
+          );
+          if (userId == null || userId.trim().isEmpty) {
+            return SessionTrackedRoute(
+              location: state.uri.toString(),
+              child: ProfilePage(
+                key: const ValueKey('own-profile'),
+                userId: '',
+                isMyProfile: true,
+                initialFeedRevealed: state.uri.queryParameters['feed'] == '1',
+                initialCommons: state.uri.queryParameters['commons'] == '1',
+              ),
+            );
+          }
+          NavigationTrace.instance.record(
+            'profile route returning ProfilePage',
+            state: <String, Object?>{
+              'resolvedUserId': _navigationTraceProfileUserId(
+                userId,
+                currentUserId,
+              ),
+              'isMyProfile': currentUserId != null && currentUserId == userId,
+            },
+          );
+          return SessionTrackedRoute(
+            location: state.uri.toString(),
+            child: ProfilePage(
+              key: rawUserId == 'me'
+                  ? const ValueKey('own-profile')
+                  : ValueKey('$userId:${state.uri.queryParameters["feed"]}'),
+              initialFeedRevealed: state.uri.queryParameters['feed'] == '1',
+              initialCommons: state.uri.queryParameters['commons'] == '1',
+              userId: userId,
+              isMyProfile: currentUserId != null && currentUserId == userId,
             ),
-            'currentUserIdPresent': currentUserId != null,
-          },
-        );
-        final userId = rawUserId == 'me' ? currentUserId : rawUserId;
-        NavigationTrace.instance.record(
-          'profile route user resolved',
-          state: <String, Object?>{
-            'rawUserId': _navigationTraceProfileUserId(
-              rawUserId,
-              currentUserId,
-            ),
-            'resolvedUserId': _navigationTraceProfileUserId(
-              userId,
-              currentUserId,
-            ),
-            'hasResolvedUserId': userId != null && userId.trim().isNotEmpty,
-          },
-        );
-        if (userId == null || userId.trim().isEmpty) {
-          return const AuthGate();
-        }
-        NavigationTrace.instance.record(
-          'profile route returning ProfilePage',
-          state: <String, Object?>{
-            'resolvedUserId': _navigationTraceProfileUserId(
-              userId,
-              currentUserId,
-            ),
-            'isMyProfile': currentUserId != null && currentUserId == userId,
-          },
-        );
-        return SessionTrackedRoute(
-          location: state.uri.toString(),
-          child: ProfilePage(
-            key: ValueKey('$userId:${state.uri.queryParameters["feed"]}'),
-            initialFeedRevealed: state.uri.queryParameters['feed'] == '1',
-            initialCommons: state.uri.queryParameters['commons'] == '1',
-            userId: userId,
-            isMyProfile: currentUserId != null && currentUserId == userId,
-          ),
-        );
-      },
+          );
+        },
+      ),
     ),
     _calmRoute(
       path: '/insight-post/:postId',
@@ -2205,6 +2245,7 @@ class _MyAppState extends State<MyApp> {
     _calendarSync = externalCalendarController(supabase);
     _authSub = supabase.auth.onAuthStateChange.listen(
       (data) {
+        if (!mounted) return;
         if (data.event == AuthChangeEvent.passwordRecovery) {
           _passwordRecoverySession = true;
         } else if (data.event == AuthChangeEvent.signedOut) {
@@ -2212,6 +2253,7 @@ class _MyAppState extends State<MyApp> {
         }
         _scheduleCalendarRecovery();
         _scheduleRebuild();
+        _appRouter.refresh();
       },
       onError: (Object error, StackTrace stackTrace) {
         if (!kDebugMode) return;
@@ -2382,20 +2424,6 @@ class _MyAppState extends State<MyApp> {
   // Inherit the platform TextScaler on every display. Enlarging all tablet
   // text independently of layout also activates accessibility-only flow
   // geometry and clips fixed-height controls at the 600px breakpoint.
-  Widget _buildLoginApp() {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      builder: (context, child) {
-        return NavigationTraceOverlay(child: child ?? const SizedBox.shrink());
-      },
-      home: Builder(
-        builder: (context) =>
-            LoginScreen(onGoogleSignIn: () => _startGoogleSignIn(context)),
-      ),
-    );
-  }
-
   Widget _buildPasswordRecoveryApp() {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -2428,11 +2456,15 @@ class _MyAppState extends State<MyApp> {
       routerConfig: _appRouter,
       builder: (context, child) {
         return NavigationTraceOverlay(
-          child: SessionLifecycleBridge(
-            child: PushIntentBridge(
-              child: _AppChrome(
-                router: _appRouter,
-                child: child ?? const SizedBox.shrink(),
+          child: GuestExperienceHost(
+            router: _appRouter,
+            onGoogleSignIn: _startGoogleSignIn,
+            child: SessionLifecycleBridge(
+              child: PushIntentBridge(
+                child: _AppChrome(
+                  router: _appRouter,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
           ),
@@ -2451,7 +2483,7 @@ class _MyAppState extends State<MyApp> {
     if (signedIn && _passwordRecoverySession) {
       return _buildPasswordRecoveryApp();
     }
-    return signedIn ? _buildAuthedApp() : _buildLoginApp();
+    return _buildAuthedApp();
   }
 }
 
@@ -2505,10 +2537,6 @@ class _AppChromeState extends State<_AppChrome> {
 
   @override
   Widget build(BuildContext context) {
-    if (supabase.auth.currentSession == null) {
-      return widget.child;
-    }
-
     return GuidedOnboardingOverlayHost(
       child: _LaunchShell(
         router: widget.router,
@@ -2580,6 +2608,8 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
   bool _rebuildScheduled = false;
   bool? _lastGuidanceSuppressed;
   int _dailyCosmicContextEvaluationSerial = 0;
+  VisitorPresentationScope? _visitorPresentation;
+  String? _dailyCosmicContextAccountIdentity;
 
   @override
   void initState() {
@@ -2594,7 +2624,8 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
       _handleMaatGuidancePostEnsureRefresh,
     );
     _maatGuidanceController.addListener(_scheduleRebuild);
-    _dailyCosmicContextController.addListener(_scheduleRebuild);
+    _dailyCosmicContextController.addListener(_handleDailyCosmicContextChanged);
+    _dailyCosmicContextAccountIdentity = _dailyCosmicContextUserId;
     SettingsPrefs.dailyCosmicContextBadgeChanges.addListener(
       _scheduleDailyCosmicContextEvaluation,
     );
@@ -2603,6 +2634,11 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
       _handleExternalOverlayGateChanged,
     );
     _authSub = supabase.auth.onAuthStateChange.listen((_) {
+      final nextIdentity = _dailyCosmicContextUserId;
+      if (_dailyCosmicContextAccountIdentity != nextIdentity) {
+        _dailyCosmicContextAccountIdentity = nextIdentity;
+        _dailyCosmicContextController.clearForAccountChange();
+      }
       if (supabase.auth.currentSession == null) {
         _maatGuidanceController.clearForSignedOut();
       } else {
@@ -2621,6 +2657,31 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scheduleDailyCosmicContextEvaluation();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = VisitorPresentationScope.maybeOf(context);
+    final changed =
+        _visitorPresentation?.readyForPublicOverlays !=
+        next?.readyForPublicOverlays;
+    if (_visitorPresentation?.onDailyRhythmVisibilityChanged !=
+        next?.onDailyRhythmVisibilityChanged) {
+      _visitorPresentation?.onDailyRhythmVisibilityChanged(false);
+    }
+    _visitorPresentation = next;
+    next?.onDailyRhythmVisibilityChanged(
+      _dailyCosmicContextController.hasVisibleBadge,
+    );
+    if (changed) _scheduleDailyCosmicContextEvaluation();
+  }
+
+  void _handleDailyCosmicContextChanged() {
+    _visitorPresentation?.onDailyRhythmVisibilityChanged(
+      _dailyCosmicContextController.hasVisibleBadge,
+    );
+    _scheduleRebuild();
   }
 
   @override
@@ -2648,7 +2709,10 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
       _handleMaatGuidancePostEnsureRefresh,
     );
     _maatGuidanceController.removeListener(_scheduleRebuild);
-    _dailyCosmicContextController.removeListener(_scheduleRebuild);
+    _visitorPresentation?.onDailyRhythmVisibilityChanged(false);
+    _dailyCosmicContextController.removeListener(
+      _handleDailyCosmicContextChanged,
+    );
     SettingsPrefs.dailyCosmicContextBadgeChanges.removeListener(
       _scheduleDailyCosmicContextEvaluation,
     );
@@ -2675,9 +2739,7 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
-    if (_dailyCosmicContextAuthenticated) {
-      _scheduleDailyCosmicContextEvaluation();
-    }
+    _scheduleDailyCosmicContextEvaluation();
     if (supabase.auth.currentSession == null) return;
     unawaited(_maatGuidanceController.evaluateAndRefresh());
   }
@@ -2746,7 +2808,13 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
 
   bool _shouldSuppressDailyCosmicContext(BuildContext context) {
     if (!_launchOverlayDismissed.value) return true;
-    if (!_dailyCosmicContextAuthenticated) return true;
+    if (_visitorPresentation != null &&
+        !_visitorPresentation!.readyForPublicOverlays) {
+      return true;
+    }
+    if (!_dailyCosmicContextAuthenticated && _visitorPresentation == null) {
+      return true;
+    }
     if (_globalOverlayModalDepth.value > 0) return true;
     if (keyboardIsVisible(context)) return true;
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
@@ -2779,6 +2847,9 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
       isAuthenticated: isAuthenticated,
       onboardingComplete: onboardingComplete,
       suppressed: suppressed,
+      allowVisitor:
+          !isAuthenticated &&
+          _visitorPresentation?.readyForPublicOverlays == true,
     );
   }
 
@@ -3556,10 +3627,7 @@ class _LaunchShell extends StatefulWidget {
 
 class _LaunchShellState extends State<_LaunchShell>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _fadeController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 420),
-  );
+  late final AnimationController _fadeController;
   late final Animation<double> _fadeOut = Tween<double>(
     begin: 1,
     end: 0,
@@ -3570,6 +3638,10 @@ class _LaunchShellState extends State<_LaunchShell>
   @override
   void initState() {
     super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
     if (supabase.auth.currentSession == null) {
       _dismissed = true;
       _launchOverlayDismissed.value = true;
@@ -3688,6 +3760,14 @@ class _InboxConversationRoutePageState
 
   Future<({ConversationUser profile, String? draftText})> _load() async {
     final extraProfile = _profileFromExtra(widget.extra);
+    if (supabase.auth.currentUser == null) {
+      return (
+        profile: extraProfile?.id == widget.otherUserId
+            ? extraProfile!
+            : ConversationUser(id: widget.otherUserId),
+        draftText: _draftFromExtra(widget.extra),
+      );
+    }
     final profile = extraProfile ?? await _loadConversationUser();
     final textValue = await RestorationCoordinator.instance
         .readTextEditingValue(
@@ -4067,7 +4147,7 @@ class _EditProfileRoutePageState extends State<EditProfileRoutePage> {
     }
     final userId = supabase.auth.currentUser?.id;
     if (userId == null || userId.trim().isEmpty) {
-      return null;
+      return UserProfile(id: '');
     }
     return UserProfile(
       id: userId,
@@ -4586,6 +4666,7 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
+  bool _ownedAuthenticatedSession = false;
   StreamSubscription<AuthState>? _authSub;
   StreamSubscription<Uri>? _linkSub;
   AppLinks? _appLinks;
@@ -4625,6 +4706,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _ownedAuthenticatedSession = supabase.auth.currentSession != null;
     WidgetsBinding.instance.addObserver(this);
 
     // React to auth changes (includes initialSession)
@@ -4721,9 +4803,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   Future<void> _handleAuthStateChange(AuthState data) async {
+    if (data.session != null) _ownedAuthenticatedSession = true;
     final ev = data.event;
     final isSessionReadyEvent =
-        ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn;
+        data.session != null &&
+        (ev == AuthChangeEvent.initialSession ||
+            ev == AuthChangeEvent.signedIn);
     if (isSessionReadyEvent) {
       _prepareDeferredBootRestoreForAuth(ev);
     }
@@ -4796,17 +4881,21 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
 
     if (ev == AuthChangeEvent.signedOut) {
+      final departedAccount = _ownedAuthenticatedSession;
+      _ownedAuthenticatedSession = false;
       _scheduledDecans = false;
       _bootRestoreDeferredForAuth = false;
       _bootAuthDeferredRestoredLocation = null;
       _bootDeferredRestorePreparedForAuth = false;
       await AppRestorationService.instance.clearBootFallbackIdentity();
-      _router.go('/');
-      fireAndForgetGuarded(
-        'push unregister',
-        PushNotifications.instance(supabase).unregister(),
-        onError: _logAuthGateError,
-      );
+      if (departedAccount && mounted) GoRouter.of(context).go('/pages');
+      if (departedAccount) {
+        fireAndForgetGuarded(
+          'push unregister',
+          PushNotifications.instance(supabase).unregister(),
+          onError: _logAuthGateError,
+        );
+      }
     }
   }
 
@@ -5286,10 +5375,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _signInWithGoogle() async {
-    await _startGoogleSignIn(context);
-  }
-
   @override
   Widget build(BuildContext context) {
     final session = supabase.auth.currentSession;
@@ -5297,16 +5382,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       'auth gate build session=${session == null ? 'signed_out' : 'signed_in'}',
     );
 
-    if (session == null) {
-      return LoginScreen(onGoogleSignIn: _signInWithGoogle);
-    }
-
-    if (_authDeferredRestorePending) {
+    // Tentative account restoration must not block public guest Calendar.
+    if (session != null && _authDeferredRestorePending) {
       traceRestoration('launch restoration shell shown');
       return const _RouteLoadingScaffold();
     }
 
-    // Authenticated
+    // Authenticated and public guest Calendar share the canonical root.
     // CalendarPage owns page resizing; its landscape modal owns keyboard
     // occlusion. An outer Scaffold would consume the same inset a second time.
     return SessionTrackedRoute(

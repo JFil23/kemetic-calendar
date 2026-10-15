@@ -281,8 +281,11 @@ void main() {
             valueListenable: snapshot,
             builder: (context, state, _) => PagesLayout(
               cards: cards,
-              profileHandle: 'bigjfil',
-              profileGlyphIds: const ['i', 'receive', 'aset'],
+              profileIdentity: const PagesProfileIdentity.member(
+                userId: 'pages-visual-user',
+                handle: 'bigjfil',
+                glyphIds: ['i', 'receive', 'aset'],
+              ),
               onOpen: (_) {},
               onProfile: () {},
               onNewNote: () {},

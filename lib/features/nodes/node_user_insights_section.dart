@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../auth/account_access.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/insight_entry_model.dart';
@@ -117,6 +118,7 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
 
   Future<void> _postEntry(InsightEntry entry) async {
     if (_postingEntryIds.contains(entry.id)) return;
+    if (!await AccountAccess.require(context) || !mounted) return;
     setState(() => _postingEntryIds = {..._postingEntryIds, entry.id});
     final posted = await _profileRepo.postInsightEntry(entry.id);
     if (!mounted) return;
@@ -583,6 +585,7 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
       return;
     }
 
+    if (!await AccountAccess.require(context) || !mounted) return;
     setState(() => _saving = true);
     final saved = await _entryRepo.saveEntry(
       entryId: _entryId,

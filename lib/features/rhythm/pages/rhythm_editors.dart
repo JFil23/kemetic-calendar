@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../auth/account_access.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/services/session_resume_service.dart';
@@ -323,6 +324,7 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!await AccountAccess.require(context) || !mounted) return;
     setState(() {
       _saving = true;
       _friendlyError = null;
@@ -562,6 +564,7 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!await AccountAccess.require(context) || !mounted) return;
     setState(() {
       _saving = true;
       _friendlyError = null;

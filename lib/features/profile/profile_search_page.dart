@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../auth/account_access.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
@@ -192,6 +193,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
       return;
     }
 
+    if (!await AccountAccess.require(context) || !mounted) return;
     setState(() => _startingConversation = true);
     try {
       final conversationId = await _dmConversationRepo.createConversation(

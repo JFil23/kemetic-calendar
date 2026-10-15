@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../auth/account_access.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -57,10 +58,11 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
     ) {
       final next = state.session?.user.id;
       if (!mounted || next == _accountId) return;
+      final firstOwner = _accountId == null && next != null;
       setState(() {
         _accountId = next;
         _replyTo = null;
-        _messageController.clear();
+        if (!firstOwner) _messageController.clear();
         _locallyDeleted.clear();
         _bindConversation();
       });
@@ -112,7 +114,12 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty || _accountId == null) return;
+    if (text.isEmpty) return;
+    if (!await AccountAccess.require(context) || !mounted) return;
+    if (_accountId == null ||
+        _accountId != _repo.currentUserId ||
+        _messageController.text.trim() != text)
+      return;
     final reply = _replyTo;
     final id = 'mobile:${DateTime.now().microsecondsSinceEpoch}';
     final pending = _PendingGroupMessage(

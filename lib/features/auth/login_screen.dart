@@ -182,10 +182,12 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
     required this.onGoogleSignIn,
+    this.initiallyCreatingAccount = false,
     EmailAuthClient? emailAuthClient,
   }) : emailAuthClient = emailAuthClient ?? const SupabaseEmailAuthClient();
 
   final Future<void> Function() onGoogleSignIn;
+  final bool initiallyCreatingAccount;
   final EmailAuthClient emailAuthClient;
 
   @override
@@ -199,6 +201,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _creatingAccount = false;
   bool _busy = false;
   String? _message;
+
+  @override
+  void initState() {
+    super.initState();
+    _creatingAccount = widget.initiallyCreatingAccount;
+  }
 
   @override
   void dispose() {
@@ -586,7 +594,11 @@ class _InlineLegalLink extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        textStyle: const TextStyle(
+          fontFamily: 'GentiumPlus',
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
       ),
       child: Text(label),
     );

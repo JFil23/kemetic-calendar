@@ -55,6 +55,14 @@ class SelectionTest(unittest.TestCase):
         self.assertTrue(any('scripts/web_release_pipeline_test.py' in c for c in commands))
         self.assertFalse(any(c[0] == 'flutter' for c in commands))
 
+    def test_source_inventory_is_checked_before_flutter_for_changed_owners(self):
+        commands = gate.commands(gate.plan(self.root, ['lib/owner.dart']))
+        inventory = [gate.sys.executable, 'scripts/verify_calendar_extent_inventory.py']
+        self.assertIn(inventory, commands)
+        first_flutter = next(i for i, command in enumerate(commands) if command[0] == 'flutter')
+        self.assertLess(commands.index(inventory), first_flutter)
+        self.assertIn(inventory, gate.commands(gate.plan(self.root, None), phase='preflight'))
+
     def test_complete_gate_retains_all_tests_analysis_and_browser(self):
         plan = gate.plan(self.root, None)
         commands = gate.commands(plan)
@@ -67,6 +75,26 @@ class SelectionTest(unittest.TestCase):
         plan = gate.plan(self.root, ['scripts/deploy.py'])
         self.assertFalse(plan['full'])
         self.assertEqual(plan['tests'], ['test/guard_test.dart'])
+
+    def test_explicit_worker_count_preserves_every_selected_check(self):
+        selection = gate.plan(self.root, None)
+        default = gate.commands(selection)
+        bounded = gate.commands(selection, test_concurrency=1)
+        self.assertEqual(len(default), len(bounded))
+        for before, after in zip(default, bounded):
+            if before[:3] == ['flutter', 'test', '--no-pub']:
+                self.assertEqual(after[:3], before[:3])
+                self.assertEqual(after[3:5], ['--concurrency', '1'])
+                self.assertEqual(after[5:], before[3:])
+            else:
+                self.assertEqual(after, before)
+        for index in range(gate.FULL_SUITE_SHARDS):
+            before = gate.commands(selection, phase='tests', shard_index=index, root=self.root)[1]
+            after = gate.commands(selection, phase='tests', shard_index=index, root=self.root, test_concurrency=1)[1]
+            self.assertEqual(after[5:], before[3:])
+        for invalid in (0, -1):
+            with self.assertRaises(ValueError):
+                gate.commands(selection, test_concurrency=invalid)
 
     def test_preflight_retains_every_non_vm_check_once(self):
         selection = gate.plan(self.root, None)

@@ -586,3 +586,54 @@ The section equations, sliver topology, scroll/restoration ownership, closed
 contributor list and all other fragment digests are unchanged. No approved
 visual reference was regenerated. Speech playback no longer schedules unused
 per-frame position polling; it still ends through the audio completion stream.
+
+
+## 2026-10-13 guest and member root ownership re-audit
+
+The guest-entry refactor in candidate `6339bcf5bcd8334271655d13dfc55616612d48c5`
+removed the separate login-only MaterialApp. Guests and members now share the
+existing MaterialApp.router and its GuestExperienceHost; password recovery keeps
+its dedicated MaterialApp. Both constructors inherit MediaQuery and the platform
+TextScaler without converting its curve, multiplying tablet fonts or capping
+accessibility settings. The invitation and intro inherit the same scaler.
+
+The responsive_text_scaler fragment now starts at the existing scaling-policy
+comment and ends before AppChrome, covering both constructors and root selection.
+The closed contributor list, fragment count and every other fragment remain
+unchanged. Calendar heading measurements, fixed day-number scaling, header and
+chip heights, event caps, pill allocations, section topology, geometry markers
+and both month-body extent equations retain their audited owners and inputs.
+Pages and intro spacing are presentation outside those calendar extent equations.
+
+The existing inventory verifier now runs during App preflight as well as the
+unchanged Dart inventory guard in the full suite. Runtime root tests retain all
+member and tablet assertions and add guest checks for linear 1.3, linear 2.0 and
+nonlinear accessibility scaling. No assertion, threshold, old-release fixture or
+approved visual reference is removed, relaxed or regenerated.
+
+
+## 2026-10-13 complete day-number paint re-audit
+
+The shared `_DayChip` numeral was faded when compact marker padding constrained
+its two-digit width on narrow phones. Relative to parent
+`7b55dbb28be505cbd442c397f73cee546490cd85`, the only grid-source change is the
+horizontal numeral allocation: an OverflowBox permits the existing single-line
+23-pixel, unscaled text to paint its full measured width inside the day tile.
+The outer ClipRRect still owns the tile boundary. The 28-pixel header SizedBox
+retains finite height; the added horizontal allowance cannot grow that header.
+
+The render path was re-traced from YearSection through MonthCard/EpagomenalCard,
+DecanRow and DayChip. Chip heights, details projection and caps, interpolated
+expansion geometry, 1-pixel vertical padding, marker/pill allocations and gaps,
+month/season/weekday measurements, section markers, sliver topology and semantic
+scroll ownership remain unchanged. Both ordinary-month and epagomenal equations
+and the closed contributor list therefore remain exhaustive. Restoration layout
+revision and persisted keys remain unchanged.
+
+A byte comparison proves every part of calendar_grid_widgets.dart outside that
+numeral fragment identical to the parent. All other 13 manifest fragments retain
+their previous digests. Only year_and_month_sections is updated after this audit.
+The numeral regression compares all 30 rendered labels with actual font
+measurements and tile boundaries at 320, 326, 390, 768 and 1280 pixels, in both
+date modes and seven endpoint/transient expansion states. Existing geometry,
+pinch and inventory assertions and approved visual references are preserved.

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../auth/account_access.dart';
 import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -70,6 +71,7 @@ class _InsightPostPickerPageState extends State<InsightPostPickerPage> {
 
   Future<void> _postInsight(InsightEntry entry) async {
     if (_postingEntryId != null) return;
+    if (!await AccountAccess.require(context) || !mounted) return;
 
     final hapticResult = await AppHaptics.productiveAction(
       reason: 'profile_insight_post',

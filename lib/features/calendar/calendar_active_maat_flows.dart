@@ -1405,7 +1405,7 @@ class _ActiveMaatFlowDetailSurfaceState
   @override
   Widget build(BuildContext context) {
     final start = DateUtils.dateOnly(DateTime.now());
-    return _withFlowDetailOptions(
+    final detail = _withFlowDetailOptions(
       FlowDetailCalendarScope(
         start: start,
         end: start.add(const Duration(days: 119)),
@@ -1444,6 +1444,24 @@ class _ActiveMaatFlowDetailSurfaceState
           ),
         ...widget.menuActions,
       ],
+    );
+    final access = context.dependOnInheritedWidgetOfExactType<AccountAccess>();
+    if (access == null) return detail;
+    return AccountAccess(
+      signedIn: access.signedIn,
+      deferAutomaticOnboarding: access.deferAutomaticOnboarding,
+      requestAccount: ({String? resumeLocation}) => access.requestAccount(
+        resumeLocation:
+            resumeLocation ??
+            Uri(
+              path: '/flows',
+              queryParameters: {
+                'mode': 'maatTemplate',
+                'templateKey': widget.template.key,
+              },
+            ).toString(),
+      ),
+      child: detail,
     );
   }
 }

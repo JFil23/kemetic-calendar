@@ -155,6 +155,9 @@ void main() {
         MaterialApp(
           theme: AppTheme.dark,
           home: PagesLayout(
+            profileIdentity: const PagesProfileIdentity.member(
+              userId: 'pages-visual-user',
+            ),
             cards: cards,
             onOpen: (d) => opened = d.destination,
             onProfile: () {},

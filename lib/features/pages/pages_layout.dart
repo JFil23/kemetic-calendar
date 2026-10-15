@@ -3,6 +3,7 @@ import 'pages_collections.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/profile_avatar_glyphs.dart';
+import '../../shared/glossy_text.dart';
 import 'pages_board.dart';
 import 'pages_models.dart';
 
@@ -20,17 +21,20 @@ class PagesLayout extends StatefulWidget {
     this.onCollectionItem,
     this.onLoadMore,
     this.onRetry,
-    this.profileName = '',
-    this.profileHandle = '',
-    this.profileGlyphIds = const [],
+    required this.profileIdentity,
+    this.collectionEmptyMessage,
+    this.collectionEmptyActionLabel,
+    this.onEmptyCollectionAction,
   });
   final List<ValueListenable<PagesCard>> cards;
   final ValueChanged<PagesCard> onOpen;
   final VoidCallback onProfile, onNewNote;
   final ValueChanged<PagesSearchRecord> onSearchResult;
   final List<PagesSearchRecord> Function() searchRecords;
-  final String profileName, profileHandle;
-  final List<String> profileGlyphIds;
+  final PagesProfileIdentity profileIdentity;
+  final String? collectionEmptyMessage;
+  final String? collectionEmptyActionLabel;
+  final VoidCallback? onEmptyCollectionAction;
   final PagesCollectionState collectionState;
   final ValueChanged<PagesCollection?>? onCollectionChanged;
   final ValueChanged<PagesCollectionItem>? onCollectionItem;
@@ -97,62 +101,70 @@ class _PagesLayoutState extends State<PagesLayout> {
               alignment: Alignment.centerLeft,
               child: Semantics(
                 button: true,
-                label: 'Open profile',
+                label: widget.profileIdentity.isVisitor
+                    ? 'Profile'
+                    : 'Open profile',
                 child: InkWell(
                   onTap: widget.onProfile,
                   child: SizedBox(
                     height: 50,
                     width: 100,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (widget.profileHandle.isNotEmpty) ...[
-                          Text(
-                            widget.profileHandle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: AppFonts.ui,
-                              fontSize: 14,
-                              height: 1,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: .2,
-                              color: Color(0xffd9d3c7),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                        ],
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (final id in normalizeProfileAvatarGlyphIds(
-                              widget.profileGlyphIds,
-                            ))
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 2.5,
-                                ),
-                                child: Text(
-                                  kProfileGlyphTileById[id]!.glyph,
+                    child: widget.profileIdentity.isVisitor
+                        ? const Align(
+                            alignment: Alignment.centerLeft,
+                            child: HawWordmark(),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (widget.profileIdentity.handle.isNotEmpty) ...[
+                                Text(
+                                  widget.profileIdentity.handle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontFamily:
-                                        'Noto Sans Egyptian Hieroglyphs',
-                                    fontSize: 17,
+                                    fontFamily: AppFonts.ui,
+                                    fontSize: 14,
                                     height: 1,
-                                    color: pagesGold,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: .2,
+                                    color: Color(0xffd9d3c7),
                                   ),
                                 ),
+                                const SizedBox(height: 4),
+                              ],
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (final id
+                                      in normalizeProfileAvatarGlyphIds(
+                                        widget.profileIdentity.glyphIds,
+                                      ))
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2.5,
+                                      ),
+                                      child: Text(
+                                        kProfileGlyphTileById[id]!.glyph,
+                                        style: const TextStyle(
+                                          fontFamily:
+                                              'Noto Sans Egyptian Hieroglyphs',
+                                          fontSize: 17,
+                                          height: 1,
+                                          color: pagesGold,
+                                        ),
+                                      ),
+                                    ),
+                                  if (widget.profileIdentity.glyphIds.isEmpty)
+                                    const Icon(
+                                      Icons.person_outline,
+                                      color: pagesGold,
+                                      size: 24,
+                                    ),
+                                ],
                               ),
-                            if (widget.profileGlyphIds.isEmpty)
-                              const Icon(
-                                Icons.person_outline,
-                                color: pagesGold,
-                                size: 24,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
+                            ],
+                          ),
                   ),
                 ),
               ),
@@ -202,6 +214,8 @@ class _PagesLayoutState extends State<PagesLayout> {
                             ),
                             child: Text(
                               tab.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontFamily: AppFonts.ui,
                                 fontSize: 13,
@@ -311,7 +325,17 @@ class _PagesLayoutState extends State<PagesLayout> {
                               crossAxisSpacing: 8,
                               // Caption space is already reserved in the tile extent.
                               mainAxisSpacing: 3,
-                              mainAxisExtent: width / 1.49 + 43,
+                              mainAxisExtent:
+                                  width / 1.49 +
+                                  43 +
+                                  (MediaQuery.textScalerOf(context).scale(7.7) -
+                                          7.7) *
+                                      1.3 +
+                                  (MediaQuery.textScalerOf(
+                                            context,
+                                          ).scale(11.2) -
+                                          11.2) *
+                                      1.2,
                             ),
                           );
                         },
@@ -437,9 +461,20 @@ class _PagesLayoutState extends State<PagesLayout> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Text(
                 query.isEmpty
-                    ? 'No ${_selected!.label.toLowerCase()} yet'
+                    ? widget.collectionEmptyMessage ??
+                          'No ${_selected!.label.toLowerCase()} yet'
                     : 'No matches in loaded ${_selected!.label.toLowerCase()}',
                 style: pagesSerif(16, color: const Color(0xffa39d92)),
+              ),
+            ),
+          if (items.isEmpty &&
+              query.isEmpty &&
+              widget.onEmptyCollectionAction != null)
+            TextButton(
+              onPressed: widget.onEmptyCollectionAction,
+              child: Text(
+                widget.collectionEmptyActionLabel ??
+                    'Create account or sign in',
               ),
             ),
           if (!state.loading && state.hasMore)

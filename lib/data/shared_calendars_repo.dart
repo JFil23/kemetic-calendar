@@ -20,6 +20,7 @@ class SharedCalendarsRepo {
   SharedCalendarsRepo(this._client);
 
   final SupabaseClient _client;
+  SupabaseClient get client => _client;
 
   static const String _hiddenCalendarsPrefKey = 'shared_calendars:hidden:v1';
   static const String _calendarFilingView =
@@ -418,40 +419,56 @@ class SharedCalendarsRepo {
   }
 
   Future<List<SharedCalendarInvite>> getPendingInvites() async {
-    try {
-      final rows = await _client
-          .from(_calendarInviteFilingView)
-          .select()
-          .eq('invite_direction', 'incoming')
-          .order('invited_at', ascending: false);
-      final invites = (rows as List)
-          .whereType<Map>()
-          .map(
-            (row) => SharedCalendarInvite.fromRow(row.cast<String, dynamic>()),
-          )
-          .toList(growable: false);
-      unawaited(_cachePendingInvites(invites));
-      return invites;
-    } catch (e) {
-      _log('getPendingInvites filing view failed: $e');
+    final account = AccountOperationFence(_client);
+    if (account.userId == null) {
+      account.dispose();
+      return const [];
     }
-
     try {
-      final rows = await _client
-          .from(_legacyPendingInviteView)
-          .select()
-          .order('invited_at', ascending: false);
-      final invites = (rows as List)
-          .whereType<Map>()
-          .map(
-            (row) => SharedCalendarInvite.fromRow(row.cast<String, dynamic>()),
-          )
-          .toList(growable: false);
-      unawaited(_cachePendingInvites(invites));
-      return invites;
-    } catch (e) {
-      _log('getPendingInvites legacy fallback failed: $e');
-      return await restoreCachedPendingInvites() ?? const [];
+      try {
+        final rows = await _client
+            .from(_calendarInviteFilingView)
+            .select()
+            .eq('invite_direction', 'incoming')
+            .order('invited_at', ascending: false);
+        if (!account.isCurrent) return const [];
+        final invites = (rows as List)
+            .whereType<Map>()
+            .map(
+              (row) =>
+                  SharedCalendarInvite.fromRow(row.cast<String, dynamic>()),
+            )
+            .toList(growable: false);
+        unawaited(_cachePendingInvites(invites));
+        return invites;
+      } catch (e) {
+        _log('getPendingInvites filing view failed: $e');
+      }
+
+      if (!account.isCurrent) return const [];
+      try {
+        final rows = await _client
+            .from(_legacyPendingInviteView)
+            .select()
+            .order('invited_at', ascending: false);
+        if (!account.isCurrent) return const [];
+        final invites = (rows as List)
+            .whereType<Map>()
+            .map(
+              (row) =>
+                  SharedCalendarInvite.fromRow(row.cast<String, dynamic>()),
+            )
+            .toList(growable: false);
+        unawaited(_cachePendingInvites(invites));
+        return invites;
+      } catch (e) {
+        _log('getPendingInvites legacy fallback failed: $e');
+        if (!account.isCurrent) return const [];
+        final cached = await restoreCachedPendingInvites();
+        return account.isCurrent ? cached ?? const [] : const [];
+      }
+    } finally {
+      account.dispose();
     }
   }
 

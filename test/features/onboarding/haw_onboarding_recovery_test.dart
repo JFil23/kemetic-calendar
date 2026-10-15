@@ -363,7 +363,8 @@ void main() {
       await tester.tap(find.text('not now'));
       await tester.pumpAndSettle();
       expect(connections, 0);
-      expect(find.text('What brought you here today?'), findsOneWidget);
+      expect(find.text('Today is Ka-her-Ka 16'), findsOneWidget);
+      expect(find.text('What brought you here today?'), findsNothing);
     },
   );
 
@@ -385,7 +386,8 @@ void main() {
       expect(find.text('What brought you here today?'), findsNothing);
       returned.complete();
       await tester.pumpAndSettle();
-      expect(find.text('What brought you here today?'), findsOneWidget);
+      expect(find.text('Today is Ka-her-Ka 16'), findsOneWidget);
+      expect(find.text('What brought you here today?'), findsNothing);
       expect(connections, 1);
     },
   );
@@ -400,7 +402,8 @@ void main() {
     );
     await tester.tap(find.text('not now'));
     await tester.pumpAndSettle();
-    expect(find.text('What brought you here today?'), findsOneWidget);
+    expect(find.text('Today is Ka-her-Ka 16'), findsOneWidget);
+    expect(find.text('What brought you here today?'), findsNothing);
   });
 
   testWidgets(
@@ -424,6 +427,9 @@ void main() {
       await tester.tap(find.text(HawEntryIntent.nourishment.label));
       await tester.pumpAndSettle();
       expect(choices, ['failed', 'nourishment']);
+      expect(find.text('Bring your time with you.'), findsOneWidget);
+      await tester.tap(find.text('not now'));
+      await tester.pumpAndSettle();
       expect(find.text('Today is Ka-her-Ka 16'), findsOneWidget);
     },
   );

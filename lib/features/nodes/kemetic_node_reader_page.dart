@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../auth/account_access.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -256,6 +257,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
   }
 
   Future<void> _toggleBookmark() async {
+    if (!await AccountAccess.require(context) || !mounted) return;
     _progressSaveDebounce?.cancel();
     _progressSaveDebounce = null;
     final sample =

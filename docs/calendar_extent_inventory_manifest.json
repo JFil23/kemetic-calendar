@@ -7,7 +7,7 @@
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Detail Page (single-window behavior, flows-aware) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */",
-      "sha256": "87a1577ad74a0cbbf432ca4b2f8d4d7a5cbaa0001f1da490f12af53c2f6276df"
+      "sha256": "907864ee8de321380d95cf18db6ffc8ea3d93e3e2eda07c322a59adee22811f0"
     },
     {
       "name": "calendar_text_styles",
@@ -75,9 +75,9 @@
     {
       "name": "responsive_text_scaler",
       "file": "lib/main.dart",
-      "start": "  Widget _buildLoginApp() {",
-      "end": "  @override\n  Widget build(BuildContext context) {\n    if (_debugDaySheetSmokeBootRequested) {",
-      "sha256": "28993ea75fc6fa5a21b050a0efcf33be2ebf2d1cf1c6d278fba1ad8bbb8c78ce"
+      "start": "  // Inherit the platform TextScaler on every display.",
+      "end": "\nclass _AppChrome extends StatefulWidget {",
+      "sha256": "f018ada4b8d2faec49e8197b21d8aaf6948725d5c1f368b6db2649085cecab51"
     },
     {
       "name": "scrolling_banner_fixed_extent",

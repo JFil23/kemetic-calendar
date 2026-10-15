@@ -65,7 +65,10 @@ class Probe extends StatelessWidget {
             onNewNote: () {},
             onSearchResult: (_) {},
             searchRecords: () => [],
-            profileHandle: 'render-check',
+            profileIdentity: const PagesProfileIdentity.member(
+              userId: 'render-check-user',
+              handle: 'render-check',
+            ),
           ),
           ListView(
             padding: const EdgeInsets.all(18),

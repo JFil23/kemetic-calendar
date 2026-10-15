@@ -6,7 +6,15 @@ import '../../data/share_models.dart';
 class NoteDraftInvitations {
   NoteDraftInvitations({required this.accountId});
 
-  final String? accountId;
+  String? accountId;
+
+  void claimFirstAccount(String? owner) {
+    if (owner == null) throw StateError('Sign in to save this note.');
+    if (accountId == null && savedTargetId == null && !busy) accountId = owner;
+    if (accountId != owner)
+      throw StateError('The account changed. Reopen this note.');
+  }
+
   List<UserSearchResult> people = [];
   String? savedTargetId;
   bool busy = false;

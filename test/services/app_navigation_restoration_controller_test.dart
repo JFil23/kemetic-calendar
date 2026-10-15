@@ -77,6 +77,42 @@ void main() {
     AppNavigationRestorationController.instance.resetForTesting();
   });
 
+  test('signed-out cold and returning launches open public Pages', () async {
+    final navigation = AppNavigationRestorationController.instance;
+    final cold = await navigation.restoreLaunchDestination(
+      isAuthenticated: false,
+    );
+    expect(cold.route, '/pages');
+    expect(cold.reason, 'not_authenticated');
+    // A previous account's durable primary route cannot choose the guest entry.
+    await navigation.recordPrimaryTabSelection(AppSection.calendar);
+    await AppRestorationService.instance.flushPendingWrites();
+    final returning = await navigation.restoreLaunchDestination(
+      isAuthenticated: false,
+    );
+    expect(returning.route, '/pages');
+    expect(await _durableRoute(), '/');
+    final member = await navigation.restoreLaunchDestination(
+      isAuthenticated: true,
+    );
+    expect(member.route, '/');
+  });
+
+  test('signed-out explicit public link retains its destination', () async {
+    final destination = await AppNavigationRestorationController.instance
+        .restoreLaunchDestination(
+          isAuthenticated: false,
+          intent: const PendingNavigationIntent(
+            key: 'guest:library',
+            requestedRoute: '/nodes/abydos',
+            source: NavigationSource.searchResultTap,
+          ),
+        );
+    expect(destination.route, '/nodes/abydos');
+    expect(destination.decisionSource, 'oneShotIntent');
+    expect(await _durableRoute(), isNull);
+  });
+
   test(
     'explicit Calendar overrides saved Settings above another primary tab',
     () async {

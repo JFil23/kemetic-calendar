@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../../../core/navigation_fallback.dart';
+import '../../auth/account_access.dart';
 import '../../../widgets/keyboard_aware.dart';
 import '../maat_flow_visual_tokens.dart';
 
@@ -691,6 +692,11 @@ class MaatFlowDetailDock extends StatelessWidget {
     final pickDate = action?.onStartDatePressed ?? onStartDatePressed;
     final actionBusy = busy || (action?.busy ?? false);
     final passiveJoined = joined && action == null;
+    final primaryCallback = action != null
+        ? action.onPressed
+        : joined
+        ? onJoinedPressed
+        : onPressed;
     // Keep both actions reachable without a tall dock covering short windows.
     final compact = MediaQuery.sizeOf(context).height < 500 && !enlargedText;
     final dateButton = dateLabel != null && pickDate != null
@@ -749,13 +755,13 @@ class MaatFlowDetailDock extends StatelessWidget {
           ),
           elevation: 0,
         ),
-        onPressed: actionBusy
+        onPressed: actionBusy || primaryCallback == null
             ? null
-            : action != null
-            ? action.onPressed
-            : joined
-            ? onJoinedPressed
-            : onPressed,
+            : () async {
+                if (!await AccountAccess.require(context) || !context.mounted)
+                  return;
+                primaryCallback();
+              },
         child: actionBusy
             ? SizedBox(
                 width: 18,

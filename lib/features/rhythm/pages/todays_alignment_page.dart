@@ -6,6 +6,7 @@ import '../planner/planner_overview.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../auth/account_access.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/core/planner_launch_intent.dart';
@@ -587,6 +588,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     final nutrient = _nutritionNutrientController.text.trim();
     final source = _nutritionSourceController.text.trim();
     if (nutrient.isEmpty && source.isEmpty) return;
+    if (!await AccountAccess.require(context) || !mounted) return;
     final item = NutritionItem(
       id: '',
       nutrient: nutrient,
@@ -703,6 +705,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     if (text.trim().isEmpty) {
       return;
     }
+    if (!await AccountAccess.require(context) || !mounted) return;
     final result = await _repo.insertTodaysCommitment(
       text,
       dueDate: _activeTodoDay,
@@ -1513,6 +1516,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   Future<void> _addNote() async {
     final text = _noteInputController.text.trim();
     if (text.isEmpty) return;
+    if (!await AccountAccess.require(context) || !mounted) return;
     String? id;
     final saved = await _plannerWrite(() async {
       id = await _plannerStorage.save('notes', {
