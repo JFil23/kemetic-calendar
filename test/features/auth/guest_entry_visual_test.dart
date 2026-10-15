@@ -380,6 +380,10 @@ void main() {
             isFalse,
           );
         }
+        expect(
+          tester.widget<Text>(find.text('this is ḥꜣw')).style!.color,
+          const Color(0xFFE2CF85),
+        );
         final render =
             boundary.currentContext!.findRenderObject()!
                 as RenderRepaintBoundary;

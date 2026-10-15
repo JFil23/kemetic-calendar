@@ -55,7 +55,7 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
   bool _dailyRhythmVisible = false;
   bool _disposing = false;
   Future<bool>? _accountRequest;
-  BuildContext? _dialogContext;
+  Completer<bool>? _authenticatedRequest;
   String? _handledAccountLocation;
   String? _accountOwner;
   String? _setupRetryOwner;
@@ -99,12 +99,8 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
           _intro = false;
         }
       });
-      if (_signedIn && _dialogContext != null) {
-        final dialog = _dialogContext!;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (dialog.mounted && ModalRoute.of(dialog)?.isCurrent == true)
-            Navigator.of(dialog).pop(true);
-        });
+      if (_signedIn && _authenticatedRequest?.isCompleted == false) {
+        _authenticatedRequest!.complete(true);
       }
     });
     unawaited(_load());
@@ -251,6 +247,15 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
     unawaited(() async {
       var authenticated = _signedIn;
       String? authenticatedOwner;
+      DialogRoute<bool>? invitation;
+      final preparing = ValueNotifier<bool>(false);
+      void dismissInvitation() {
+        final route = invitation;
+        if (route != null && route.isActive) {
+          route.navigator?.removeRoute(route, true);
+        }
+      }
+
       try {
         await _preferences.markInvitationSeen();
         await _preferences.rememberLocation(
@@ -267,27 +272,40 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
           return;
         }
         if (!authenticated) {
+          final authentication = Completer<bool>();
+          _authenticatedRequest = authentication;
+          invitation = DialogRoute<bool>(
+            context: context,
+            barrierColor: Colors.black.withValues(alpha: .68),
+            builder: (dialogContext) => ValueListenableBuilder<bool>(
+              valueListenable: preparing,
+              builder: (_, pending, child) => PopScope(
+                canPop: !pending,
+                child: AbsorbPointer(absorbing: pending, child: child),
+              ),
+              child: AccountInvitationDialog(
+                onGoogleSignIn: () => widget.onGoogleSignIn(dialogContext),
+                onDismiss: () => Navigator.of(dialogContext).pop(false),
+              ),
+            ),
+          );
+          final dismissed = Navigator.of(
+            context,
+            rootNavigator: true,
+          ).push(invitation);
           authenticated =
-              await showDialog<bool>(
-                    context: context,
-                    barrierColor: Colors.black.withValues(alpha: .68),
-                    builder: (dialogContext) {
-                      _dialogContext = dialogContext;
-                      return AccountInvitationDialog(
-                        onGoogleSignIn: () =>
-                            widget.onGoogleSignIn(dialogContext),
-                        onDismiss: () => Navigator.of(dialogContext).pop(false),
-                      );
-                    },
-                  ) ==
-                  true &&
+              await Future.any<bool>([
+                authentication.future,
+                dismissed.then((result) => result == true),
+              ]) &&
               _signedIn;
+          preparing.value = authenticated;
         }
-        _dialogContext = null;
-        if (authenticated && mounted) {
+        if (authenticated && mounted && context.mounted) {
           authenticatedOwner = Supabase.instance.client.auth.currentUser?.id;
           final completed = await CalendarPage.completeFirstAccountOnboarding(
             context,
+            onPresented: dismissInvitation,
           );
           authenticated =
               completed &&
@@ -309,7 +327,12 @@ class _GuestExperienceHostState extends State<GuestExperienceHost>
             ),
           );
       } finally {
-        _dialogContext = null;
+        dismissInvitation();
+        _authenticatedRequest = null;
+        // The removed route can still be finishing its exit frame.
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => preparing.dispose(),
+        );
         await _preferences.clearLocation();
         _accountRequest = null;
         if (!completer.isCompleted) completer.complete(authenticated);

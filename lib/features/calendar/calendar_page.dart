@@ -3476,6 +3476,7 @@ class CalendarPage extends StatefulWidget {
   final bool openMyFlowsOnLaunch;
   final bool debugDaySheetSmokeOnLaunch;
   final VoidCallback? onOnboardingFinished;
+  final VoidCallback? onOnboardingPresented;
   @visibleForTesting
   final CalendarBoundaryHarnessController? calendarBoundaryHarnessController;
 
@@ -3486,6 +3487,7 @@ class CalendarPage extends StatefulWidget {
     this.debugDaySheetSmokeOnLaunch = false,
     this.calendarBoundaryHarnessController,
     this.onOnboardingFinished,
+    this.onOnboardingPresented,
   }) : super(key: key ?? CalendarPage.globalKey);
 
   // Global key for accessing calendar state from other pages
@@ -3580,12 +3582,18 @@ class CalendarPage extends StatefulWidget {
   /// Keep the current editor mounted while its first account completes the
   /// canonical guide. Calendar remains the single owner of its authored views.
   static Future<bool> completeFirstAccountOnboarding(
-    BuildContext context,
-  ) async {
+    BuildContext context, {
+    VoidCallback? onPresented,
+  }) async {
     final client = Supabase.instance.client;
     final owner = client.auth.currentUser?.id;
     if (owner == null) return false;
-    if (await OnboardingStorage(client).hasCompleted(owner)) return true;
+    if (await OnboardingStorage(client).hasCompleted(owner)) {
+      if (!context.mounted || client.auth.currentUser?.id != owner)
+        return false;
+      onPresented?.call();
+      return true;
+    }
     if (!context.mounted || client.auth.currentUser?.id != owner) return false;
     final state = _mountedState;
     if (state != null) {
@@ -3593,7 +3601,10 @@ class CalendarPage extends StatefulWidget {
       // acknowledged actions remain owned by the same Calendar instance.
       state._onboardingFinishNavigation = () {};
       try {
-        await state._maybePresentOnboarding(ignoreDeferral: true);
+        await state._maybePresentOnboarding(
+          ignoreDeferral: true,
+          onPresented: onPresented,
+        );
         await state._onboardingPresentation;
       } finally {
         state._onboardingFinishNavigation = null;
@@ -3603,9 +3614,13 @@ class CalendarPage extends StatefulWidget {
     }
     FocusManager.instance.primaryFocus?.unfocus();
     final navigator = Navigator.of(context, rootNavigator: true);
-    late final MaterialPageRoute<void> route;
-    route = MaterialPageRoute<void>(
-      builder: (_) => CalendarPage(
+    late final PageRouteBuilder<void> route;
+    route = PageRouteBuilder<void>(
+      opaque: false,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+      pageBuilder: (_, __, ___) => CalendarPage(
+        onOnboardingPresented: onPresented,
         onOnboardingFinished: () {
           if (route.isActive) navigator.removeRoute(route);
         },
@@ -14985,7 +15000,7 @@ class CalendarPageState extends State<CalendarPage>
     if (mounted) _onboardingViewRevision.value++;
   }
 
-  void _presentOnboarding() {
+  void _presentOnboarding({VoidCallback? onPresented}) {
     if (!mounted || _onboardingRoute != null) return;
     setState(() => _showOnboarding = true);
     final navigator = Navigator.of(context, rootNavigator: true);
@@ -15009,6 +15024,20 @@ class CalendarPageState extends State<CalendarPage>
       if (identical(_onboardingRoute, route)) _onboardingRoute = null;
       if (mounted) setState(() => _showOnboarding = false);
     });
+    // Keep the sign-in housing underneath the canonical guide until its
+    // entrance is opaque. Removing it earlier exposes the retained editor.
+    final presented = onPresented ?? widget.onOnboardingPresented;
+    if (presented != null) {
+      final animation = route.animation!;
+      void notifyWhenCovered(AnimationStatus status) {
+        if (status != AnimationStatus.completed) return;
+        animation.removeStatusListener(notifyWhenCovered);
+        if (mounted && identical(_onboardingRoute, route)) presented();
+      }
+
+      animation.addStatusListener(notifyWhenCovered);
+      notifyWhenCovered(animation.status);
+    }
   }
 
   String? _hawOnboardingOwner;
@@ -15515,6 +15544,11 @@ class CalendarPageState extends State<CalendarPage>
     CalendarHydrationDiagnostics.instance.recordCalendarSurfaceMounted('month');
     _scheduleMonthHydrationFrame();
     _calendarDebugPrint('[calendar] initState');
+    if (widget.onOnboardingFinished != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_maybePresentOnboarding(ignoreDeferral: true));
+      });
+    }
     final hasSharedCalendarRealDayViewIntent =
         CalendarPage._pendingSharedCalendarRealDayViewIntent != null;
     WidgetsBinding.instance.addObserver(this);
@@ -16178,7 +16212,10 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _maybePresentOnboarding({bool ignoreDeferral = false}) async {
+  Future<void> _maybePresentOnboarding({
+    bool ignoreDeferral = false,
+    VoidCallback? onPresented,
+  }) async {
     if (!mounted || _showOnboarding) return;
     // Background Calendar hosts must not cover the active route with a guide.
     // An explicit first-account handoff supplies the current route's permission
@@ -16257,12 +16294,16 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
-    await _waitForOnboardingCalendarReady();
-    if (!mounted) return;
-    await _loadOnboardingCompassCopy();
+    // The intention picker has no Calendar or remote compass dependency.
+    // Let it render while Calendar hydration continues behind the guide.
+    if (_hawInitialSlide != HawOnboardingSlide.segmentation) {
+      await _waitForOnboardingCalendarReady();
+      if (!_ownsHawOnboarding(userId)) return;
+      await _loadOnboardingCompassCopy();
+    }
     if (!_ownsHawOnboarding(userId)) return;
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
-    _presentOnboarding();
+    _presentOnboarding(onPresented: onPresented);
   }
 
   Future<void> _dismissOnboarding() async {
@@ -16378,6 +16419,14 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _handleHawSlideChanged(HawOnboardingSlide slide) async {
+    final owner = _hawOnboardingOwner;
+    if (slide == HawOnboardingSlide.orientation &&
+        _onboardingCompassCopy == null) {
+      await _loadOnboardingCompassCopy();
+      if (!_ownsHawOnboarding(owner)) {
+        throw StateError('Onboarding account changed.');
+      }
+    }
     await _saveHawCheckpoint(
       _onboardingProgress.copyWith(
         hawSlide: slide.name,
@@ -16436,6 +16485,12 @@ class CalendarPageState extends State<CalendarPage>
     final intent = HawEntryIntent.fromWire(entryState);
     if (intent == null || !_ownsHawOnboarding(owner)) {
       throw StateError('Choose a current intention.');
+    }
+    if (_onboardingCompassCopy == null) {
+      await _loadOnboardingCompassCopy();
+      if (!_ownsHawOnboarding(owner)) {
+        throw StateError('Onboarding account changed.');
+      }
     }
     await DailyOrientationRepo(Supabase.instance.client).start(
       userId: owner!,
@@ -33786,6 +33841,11 @@ class CalendarPageState extends State<CalendarPage>
 
   @override
   Widget build(BuildContext context) {
+    // The detached first-account host supplies only the canonical guide and
+    // its existing actions. Keep the retained sign-in housing visible beneath
+    // it while completion is checked; never flash a Calendar on this route.
+    if (widget.onOnboardingFinished != null) return const SizedBox.shrink();
+
     // ✅ HARDENING 2: Gate build until state is restored to prevent race condition
     if (!_restored) {
       return const SizedBox.shrink();

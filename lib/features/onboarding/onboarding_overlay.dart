@@ -1038,7 +1038,7 @@ class HawIntroSlide extends StatelessWidget {
             child: const Text(
               'this is ḥꜣw',
               style: TextStyle(
-                color: _HawColors.goldGhost,
+                color: _HawColors.goldWarm,
                 fontFamily: _HawType.bodyFamily,
                 fontFamilyFallback: _HawType.bodyFallback,
                 fontStyle: FontStyle.italic,

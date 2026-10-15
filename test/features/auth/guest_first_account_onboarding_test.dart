@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:ui' as ui;
@@ -12,6 +13,8 @@ import 'package:http/testing.dart';
 import 'package:mobile/main.dart' as app;
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/auth/guest_experience_host.dart';
+import 'package:mobile/features/auth/account_access.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/features/auth/account_invitation_dialog.dart';
 import 'package:mobile/features/auth/visitor_preferences.dart';
 import 'package:mobile/features/onboarding/onboarding_overlay.dart';
@@ -25,6 +28,8 @@ import 'guest_experience_test.dart' show flush;
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final requests = <http.Request>[];
+  Completer<void>? completionGate;
+  var completionReads = 0;
   late Directory storage;
   setUpAll(() async {
     storage = Directory.systemTemp.createTempSync('first-account-guide-');
@@ -46,6 +51,12 @@ void main() {
       authOptions: const FlutterAuthClientOptions(autoRefreshToken: false),
       httpClient: MockClient((r) async {
         requests.add(r);
+        if (r.url.path.endsWith('/profiles') &&
+            r.url.queryParameters['select'] == 'onboarding_completed_at') {
+          completionReads++;
+          final gate = completionGate;
+          if (gate != null) await gate.future;
+        }
         return http.Response(
           r.url.path.endsWith('get_together_inbox') ||
                   r.url.path.endsWith('get_commons_together_home_cards')
@@ -82,6 +93,8 @@ void main() {
       VisitorPreferences.introSeenKey: true,
     });
     requests.clear();
+    completionGate = null;
+    completionReads = 0;
   });
   for (final start in ['/pages', '/']) {
     for (final width in [390.0, 768.0, 1440.0]) {
@@ -128,7 +141,40 @@ void main() {
           (auth['user'] as Map)['created_at'] = DateTime.now()
               .toUtc()
               .toIso8601String();
+          final gate = completionGate = Completer<void>();
           await Supabase.instance.client.auth.recoverSession(jsonEncode(auth));
+          await flush(tester);
+          expect(completionReads, greaterThan(0));
+          // A slow verified completion read must leave the sign-in housing
+          // covering the retained draft. This was the live recording's gap.
+          await tester.pump(const Duration(seconds: 3));
+          expect(find.byType(AccountInvitationDialog), findsOneWidget);
+          expect(find.byType(OnboardingOverlay), findsNothing);
+          expect(input.hitTestable(), findsNothing);
+          completionGate = null;
+          gate.complete();
+          // Observe every transition frame, rather than only asserting the
+          // eventual picker after the Calendar has finished its startup.
+          var pickerPresented = false;
+          for (var frame = 0; frame < 60; frame++) {
+            await tester.pump(const Duration(milliseconds: 16));
+            final invited = find
+                .byType(AccountInvitationDialog)
+                .evaluate()
+                .isNotEmpty;
+            final guide = find.byType(OnboardingOverlay).evaluate().isNotEmpty;
+            expect(
+              invited || guide,
+              isTrue,
+              reason: 'uncovered handoff frame $frame',
+            );
+            if (guide) pickerPresented = true;
+          }
+          expect(
+            pickerPresented,
+            isTrue,
+            reason: 'The picker must not wait for Calendar hydration.',
+          );
           for (var i = 0; i < 4; i++) {
             await flush(tester);
           }
@@ -186,5 +232,78 @@ void main() {
         },
       );
     }
+  }
+  for (final completedAccount in [false, true]) {
+    testWidgets(
+      completedAccount
+          ? 'completed account returns to browsing without a first-account guide'
+          : 'departure during a held completion read cancels the guide',
+      (tester) async {
+        if (completedAccount) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('onboarding_v1_completed:$uid', true);
+        }
+        final router = GoRouter(
+          initialLocation: '/pages',
+          routes: [
+            GoRoute(
+              path: '/pages',
+              builder: (context, _) => Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: () => AccountAccess.require(context),
+                    child: const Text('Retained browsing'),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+        await tester.pumpWidget(
+          MaterialApp.router(
+            routerConfig: router,
+            builder: (_, child) => GuestExperienceHost(
+              router: router,
+              onGoogleSignIn: (_) async {},
+              child: child!,
+            ),
+          ),
+        );
+        await flush(tester);
+        await tester.tap(find.text('Retained browsing'));
+        await flush(tester);
+        expect(find.byType(AccountInvitationDialog), findsOneWidget);
+        final gate = completedAccount ? null : Completer<void>();
+        completionGate = gate;
+        await Supabase.instance.client.auth.recoverSession(session());
+        await flush(tester);
+        if (completedAccount) {
+          expect(completionReads, 0);
+        } else {
+          expect(completionReads, greaterThan(0));
+          expect(find.byType(AccountInvitationDialog), findsOneWidget);
+          // Supabase logout uses its real async storage/HTTP boundary. Do not
+          // await that work while the widget clock is paused.
+          await tester.runAsync(() async {
+            await Supabase.instance.client.auth
+                .signOut(scope: SignOutScope.local)
+                .timeout(const Duration(seconds: 10));
+          });
+          await flush(tester);
+          completionGate = null;
+          gate!.complete();
+        }
+        await flush(tester);
+        await flush(tester);
+        expect(find.byType(AccountInvitationDialog), findsNothing);
+        expect(find.byType(OnboardingOverlay), findsNothing);
+        expect(find.byType(CalendarPage), findsNothing);
+        expect(find.text('Retained browsing').hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(seconds: 1));
+        router.dispose();
+      },
+    );
   }
 }

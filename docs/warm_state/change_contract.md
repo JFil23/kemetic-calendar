@@ -145,6 +145,24 @@ phone/tablet/desktop-width UI captures with bundled fonts. Browser viewport
 checks do not establish physical-device behavior; hosted full qualification and
 served RC replay remain required before deployment is claimed complete.
 
+## October 14 first-account presentation handoff
+
+The new live RC recording is the reference for the sign-in gap. The existing
+invitation stays mounted while account completion is checked; its controls are
+suspended during that handoff. Calendar removes it only after its canonical guide
+has fully covered the retained draft. A detached Calendar guide host remains
+transparent beneath that invitation and starts preparation independently of its
+hydration scheduler. It never paints an intermediate Calendar. The intention
+picker has no Calendar or compass dependency; the existing acknowledged intention
+and orientation actions load the canonical compass before consuming its data.
+Returning completed accounts retain their normal return, and saved checkpoints,
+account ownership and cancellation fences remain with the existing owners.
+No new route identity, persisted key, schema, cache or pending-write store is added.
+The shared opening's “this is ḥꜣw” uses its existing warm gold for readable contrast.
+Evidence covers delayed completion reads, every handoff frame, retained drafts,
+phone/tablet/desktop widths and the existing authored guide. Approved visual
+references remain unchanged.
+
 ## Two distinct lifetimes
 
 WarmSnapshotStore is an account-scoped, bounded, disposable read cache. Its
