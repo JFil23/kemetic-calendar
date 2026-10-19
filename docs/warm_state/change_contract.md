@@ -1,5 +1,23 @@
 # Persistence change contract
 
+## October 19 reflection invitation consumption
+
+Opening the canonical decan review counts as engagement. Calendar removes the
+floating invitation on tap. Once the existing review owner has confirmed the
+saved period (including a new review's acknowledged creation), it records the
+existing account-scoped local and cloud interaction markers before optional
+Journal/post reads. Returning to Calendar does not repeat the invitation;
+Settings may still explicitly reopen it. No answer or public post is required.
+Failed creation retains its durable request and does not mark an unsaved period
+as consumed. Account departure fences the acknowledgement and interaction.
+
+DecanReflectionRepo and the existing archive remain the saved-period owners.
+No route, cache key, schema, fixture, backend API or pending-write owner changes.
+Regression evidence covers immediate badge removal, Calendar remount, explicit
+replay, first creation and archive reopening, failed acknowledgement, optional
+source failure and account departure. Captures retain the existing badge and
+Calendar presentation and inspect its absence after return.
+
 ## October 13 visitor entry and account invitation
 
 The existing authored opening and Pages layout are the presentation references.

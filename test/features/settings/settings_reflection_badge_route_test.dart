@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:hive/hive.dart';
 import 'package:mobile/features/calendar/snapshot/calendar_snapshot_runtime.dart';
 import 'package:mobile/features/onboarding/onboarding_progress.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +25,7 @@ import 'package:mobile/features/reflections/decan_review_context.dart';
 import 'package:mobile/data/decan_reflection_prompt_state.dart';
 import 'package:mobile/data/warm_state/warm_snapshot_store.dart';
 import '../pages/pages_resource_test.dart' show session, uid;
+import '../../support/maat_flow_visual_test_fonts.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +53,7 @@ void main() {
   };
   late Directory hiveDirectory;
   setUpAll(() async {
+    await loadMaatFlowVisualTestFonts();
     hiveDirectory = await Directory.systemTemp.createTemp('haw_badge_route.');
     Hive.init(hiveDirectory.path);
     await calendarSnapshotStore.initialize();
@@ -158,6 +162,10 @@ void main() {
         MaterialApp.router(
           theme: ThemeData.dark(useMaterial3: true),
           routerConfig: router,
+          builder: (_, child) => RepaintBoundary(
+            key: const ValueKey('reflection-badge-capture'),
+            child: child!,
+          ),
         ),
       );
       Future<void> settle() async {
@@ -178,10 +186,45 @@ void main() {
         expect(router.state.uri.path, '/');
       }
 
+      Future<void> capture(String name) async {
+        final directory = Platform.environment['DECAN_BADGE_CAPTURE_DIR'];
+        if (directory == null) return;
+        await tester.runAsync(() async {
+          final boundary =
+              tester
+                      .element(
+                        find.byKey(const ValueKey('reflection-badge-capture')),
+                      )
+                      .renderObject!
+                  as RenderRepaintBoundary;
+          final image = await boundary.toImage(pixelRatio: 1);
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await Directory(directory).create(recursive: true);
+          await File(
+            '$directory/$name.png',
+          ).writeAsBytes(bytes!.buffer.asUint8List());
+          image.dispose();
+        });
+      }
+
       for (var i = 0; i < 2; i++) {
         await requestBadge();
         expect(find.byKey(decanReflectionLowerThirdBadgeKey), findsOneWidget);
+        if (i == 0) {
+          await capture('before-opening');
+          // Opening an existing review must count even without a previous
+          // Keep/Leave action. Retain the seen-period Settings replay above.
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove(DecanReflectionPromptState.seenPrefKey);
+          await prefs.remove(DecanReflectionPromptState.dismissedPrefKey);
+        }
         await tester.tap(find.byKey(decanReflectionLowerThirdBadgeKey));
+        await tester.pump();
+        expect(
+          find.byKey(decanReflectionLowerThirdBadgeKey, skipOffstage: false),
+          findsNothing,
+          reason: 'The floating invitation is consumed on opening',
+        );
         await settle();
         expect(router.state.uri.path, '/reflections/saved-review');
         expect(
@@ -195,9 +238,24 @@ void main() {
           find.text('What would you like to carry forward?'),
           findsOneWidget,
         );
+        expect(
+          await DecanReflectionPromptState(
+            Supabase.instance.client,
+          ).hasInteracted(w.start),
+          isTrue,
+          reason: 'Reading alone consumes the invitation',
+        );
+        await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+        await settle();
+        expect(router.state.uri.path, '/');
+        expect(find.byKey(decanReflectionLowerThirdBadgeKey), findsNothing);
+        if (i == 0) await capture('after-return');
       }
-      await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+      router.go('/settings');
       await settle();
+      router.go('/');
+      await settle();
+      expect(find.byKey(decanReflectionLowerThirdBadgeKey), findsNothing);
       expect(router.state.uri.path, '/');
       expect(
         requests.where((r) => r.url.path.endsWith('apply_decan_review_v1')),

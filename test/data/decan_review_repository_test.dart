@@ -6,6 +6,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/data/decan_reflection_repo.dart';
+import 'package:mobile/data/decan_reflection_prompt_state.dart';
 import 'package:mobile/data/journal_repo.dart';
 import 'package:mobile/data/profile_repo.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
@@ -496,6 +497,95 @@ void main() {
       expect(writes, hasLength(1));
       expect(writes.single.url.path, endsWith('apply_decan_review_v1'));
       expect((body(writes.single)['p_context'] as Map)['question_version'], 1);
+      expect(
+        await DecanReflectionPromptState(client).hasInteracted(date),
+        isTrue,
+      );
+    },
+  );
+
+  for (final outcome in ['saved', 'failed', 'account departure']) {
+    test(
+      'opening consumes the invitation after archive acknowledgement: $outcome',
+      () async {
+        final started = Completer<void>(), release = Completer<void>();
+        final original = handler;
+        Map<String, dynamic>? persisted;
+        handler = (r) async {
+          if (r.url.path.endsWith('decan_reflections')) return json(persisted);
+          if (r.url.path.endsWith('apply_decan_review_v1')) {
+            started.complete();
+            await release.future;
+            if (outcome == 'failed')
+              return json({'message': 'unavailable'}, 503);
+            persisted = {...review, 'id': body(r)['p_id']};
+            return json({'status': 'applied', 'row': persisted});
+          }
+          return original(r);
+        };
+        final c = DecanReviewController(
+          client: client,
+          window: DecanReviewWindow(
+            start: date,
+            end: end,
+            name: 'Closing decan',
+          ),
+        );
+        addTearDown(c.dispose);
+        final opening = c.initialize();
+        await started.future;
+        final promptState = DecanReflectionPromptState.withUserIdProvider(
+          () => uid,
+        );
+        expect(await promptState.hasInteracted(date), isFalse);
+        if (outcome == 'account departure') {
+          await client.auth.signOut(scope: SignOutScope.local);
+        }
+        release.complete();
+        await opening;
+        expect(await promptState.hasInteracted(date), outcome == 'saved');
+        final interactions = requests.where(
+          (r) =>
+              r.method == 'POST' &&
+              r.url.path.endsWith('decan_reflection_prompt_interactions'),
+        );
+        expect(interactions, hasLength(outcome == 'saved' ? 1 : 0));
+        expect(
+          requests.where((r) => r.url.path.endsWith('apply_decan_journal_v1')),
+          isEmpty,
+        );
+        expect(
+          requests.where((r) => r.url.path.endsWith('apply_decan_post_v1')),
+          isEmpty,
+        );
+        if (outcome == 'failed') {
+          expect(c.error, isNotNull);
+          final prefs = await SharedPreferences.getInstance();
+          expect(prefs.getString(c.draftKey), contains('context_request'));
+        }
+      },
+    );
+  }
+
+  test(
+    'reading an existing reflection consumes its invitation before optional source refresh',
+    () async {
+      final original = handler;
+      handler = (r) async => r.url.path.endsWith('decan_journal_sources')
+          ? json({'message': 'unavailable'}, 503)
+          : original(r);
+      final c = DecanReviewController(
+        client: client,
+        window: DecanReviewWindow(start: date, end: end, name: 'Closing decan'),
+      );
+      addTearDown(c.dispose);
+      await c.initialize();
+      expect(c.reflection?.id, 'review-one');
+      expect(
+        await DecanReflectionPromptState(client).hasInteracted(date),
+        isTrue,
+      );
+      expect(requests.where((r) => r.url.path.contains('/apply_')), isEmpty);
     },
   );
 
@@ -543,13 +633,16 @@ void main() {
       expect(draft['answer_dirty'], true);
       expect(draft['answer'], c.answer);
       expect(draft['journal_revision'], 1);
-      final interaction = requests.singleWhere(
+      final interactions = requests.where(
         (r) =>
             r.method == 'POST' &&
             r.url.path.endsWith('decan_reflection_prompt_interactions'),
       );
-      expect(body(interaction)['interaction_kind'], 'interacted');
-      expect(body(interaction)['decan_start'], '2026-09-21');
+      expect(interactions, hasLength(2));
+      for (final interaction in interactions) {
+        expect(body(interaction)['interaction_kind'], 'interacted');
+        expect(body(interaction)['decan_start'], '2026-09-21');
+      }
     },
   );
 

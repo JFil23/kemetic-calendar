@@ -208,6 +208,10 @@ class DecanReviewController extends ChangeNotifier {
         await _saveContext();
       }
       if (!valid) return;
+      // Opening is engagement. The period is already acknowledged in the
+      // archive; an optional answer or continuation is not required.
+      await _markSeen();
+      if (!valid) return;
       if (_draft['context_dirty'] == true && _draft['context'] is Map) {
         review = DecanReviewContext.fromJson(
           Map<String, dynamic>.from(_draft['context'] as Map),

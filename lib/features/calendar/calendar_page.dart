@@ -34228,7 +34228,10 @@ class CalendarPageState extends State<CalendarPage>
   void _openDecanReflection() {
     final prompt = _reflectionPrompt;
     if (prompt == null) return;
-    _requestedReflectionOwner = null;
+    setState(() {
+      _reflectionPrompt = null;
+      _requestedReflectionOwner = null;
+    });
     final reviewWindow = prompt.reviewWindow;
     final location = prompt.id != null
         ? '/reflections/${prompt.id}'

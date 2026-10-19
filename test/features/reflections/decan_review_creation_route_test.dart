@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/main.dart' show createAppRouterForTesting;
 import 'package:mobile/data/warm_state/warm_snapshot_store.dart';
+import 'package:mobile/data/decan_reflection_prompt_state.dart';
+import 'package:mobile/features/reflections/decan_reflection_archive_page.dart';
 import 'package:mobile/features/reflections/decan_review_screen.dart';
 import '../../features/pages/pages_resource_test.dart' show session, uid;
 
@@ -51,7 +53,9 @@ void main() {
           };
           data = {'status': 'applied', 'row': createdReview};
         } else if (table == 'decan_reflections') {
-          data = createdReview;
+          data = r.url.queryParameters.containsKey('order')
+              ? [if (createdReview != null) createdReview]
+              : createdReview;
         } else if (table == 'read_decan_activity_v1') {
           data = {'items': [], 'next_cursor': null};
         } else if (['decan_journal_sources', 'insight_posts'].contains(table)) {
@@ -78,7 +82,10 @@ void main() {
     final app = createAppRouterForTesting();
     final routes = app.configuration.routes
         .whereType<GoRoute>()
-        .where((r) => r.path == '/reflections/:reflectionId')
+        .where(
+          (r) =>
+              ['/reflections', '/reflections/:reflectionId'].contains(r.path),
+        )
         .toList();
     final router = GoRouter(
       initialLocation:
@@ -116,6 +123,34 @@ void main() {
     expect(find.text('These ten days'), findsOneWidget);
     expect(find.text('Leave a few words  →'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(
+      await DecanReflectionPromptState(
+        Supabase.instance.client,
+      ).hasInteracted(DateTime(2025, 3, 20)),
+      isTrue,
+      reason: 'Opening is engagement; writing an answer is optional',
+    );
+    router.go('/reflections');
+    await settle();
+    expect(find.byType(DecanReflectionArchivePage), findsOneWidget);
+    expect(find.text('First decan'), findsOneWidget);
+    await tester.tap(find.text('First decan'));
+    await settle();
+    expect(router.state.uri.path, '/reflections/${createdReview!['id']}');
+    expect(find.byType(DecanReviewScreen), findsOneWidget);
+    expect(
+      requests.where((r) => r.url.path.endsWith('apply_decan_review_v1')),
+      hasLength(1),
+      reason: 'The archive reopens the same acknowledged period',
+    );
+    expect(
+      requests.where((r) => r.url.path.endsWith('apply_decan_journal_v1')),
+      isEmpty,
+    );
+    expect(
+      requests.where((r) => r.url.path.endsWith('apply_decan_post_v1')),
+      isEmpty,
+    );
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     await settle();
