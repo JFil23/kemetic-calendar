@@ -1,14 +1,20 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/share_models.dart';
 import 'package:mobile/data/share_repo.dart';
 import 'package:mobile/data/user_events_repo.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_preview_day_sheet.dart';
 import 'package:mobile/features/inbox/shared_flow_details_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../support/maat_flow_visual_test_fonts.dart';
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -185,6 +191,90 @@ void main() {
     expect(find.text('Import Flow'), findsOneWidget);
     expect(find.text('Manage Flow'), findsNothing);
   });
+
+  testWidgets(
+    'shared Offering Table date picker updates first morning, calendar and footer',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+      await loadMaatFlowVisualTestFonts();
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: const ValueKey('shared-offering-date-capture'),
+          child: MaterialApp(
+            home: SharedFlowDetailsPage(
+              payloadJson: const {
+                'name': 'The Offering Table',
+                'notes': 'maat=offering-table',
+                'color': 4293890652,
+                'start_date': '2026-06-19',
+                'rules': [],
+                'events': [],
+              },
+              fallbackLocation: '/inbox',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Fri · Jun 19 · 7:30 AM'), findsOneWidget);
+      expect(find.text('Start: 2026-06-19'), findsOneWidget);
+      final picker = find.bySemanticsLabel('Change start date');
+      await tester.ensureVisible(picker);
+      await tester.pumpAndSettle();
+      await tester.tap(picker);
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(const ValueKey('stone-register-wheel-day')),
+        const Offset(0, -114),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('Selected date 2026-06-21'), findsOneWidget);
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+      expect(find.text('Start: 2026-06-21'), findsOneWidget);
+      expect(find.text('Sun · Jun 21 · 7:30 AM'), findsOneWidget);
+      expect(find.text('Fri · Jun 19 · 7:30 AM'), findsNothing);
+      expect(
+        tester
+            .widget<OfferingTableDetailSurface>(
+              find.byType(OfferingTableDetailSurface),
+            )
+            .initialStartDate,
+        DateTime(2026, 6, 21),
+      );
+      final firstDay = find.byKey(
+        const ValueKey<String>('offering-table-preview-event-1'),
+      );
+      await tester.ensureVisible(firstDay);
+      await tester.pumpAndSettle();
+      if (const bool.fromEnvironment('CAPTURE_SHARED_OFFERING_DATE')) {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(const ValueKey('shared-offering-date-capture')),
+        );
+        await tester.runAsync(() async {
+          final image = await boundary.toImage(pixelRatio: 1);
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File(
+            '/tmp/haw-e2e-20261022/shared-offering-date.png',
+          ).writeAsBytes(bytes!.buffer.asUint8List());
+          image.dispose();
+        });
+      }
+      await tester.tap(firstDay);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<OfferingTablePreviewDaySheet>(
+              find.byType(OfferingTablePreviewDaySheet),
+            )
+            .occurrence
+            .date,
+        DateTime(2026, 6, 21),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'shared flow import start picker Cancel preserves suggested date on small phone',

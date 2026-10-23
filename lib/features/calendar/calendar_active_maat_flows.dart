@@ -1186,6 +1186,7 @@ class _ActiveMaatFlowDetailSurfaceState
     final joinedFlow = _displayFlow;
     return OfferingTableDetailSurface(
       primaryAction: widget.primaryAction,
+      initialStartDate: joinedFlow?.start,
       timezone: offeringTableTimeZoneFromNotes(
         joinedFlow?.notes,
         fallback: _timezone,
