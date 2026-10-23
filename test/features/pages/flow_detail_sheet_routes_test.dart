@@ -59,6 +59,55 @@ void main() {
   tearDownAll(() => Supabase.instance.dispose());
   setUp(mockAppLinks);
 
+  testWidgets(
+    'actual pages carry stable telemetry identities without private parameters',
+    (tester) async {
+      final router = createAppRouterForTesting();
+      addTearDown(router.dispose);
+      late BuildContext context;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (value) {
+              context = value;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      for (final path in [
+        '/journal',
+        '/nodes',
+        '/settings',
+        '/inbox',
+        '/flows',
+        '/profile/:userId',
+        '/shared-flow/:shareId',
+      ]) {
+        final route = router.configuration.routes
+            .whereType<GoRoute>()
+            .singleWhere((r) => r.path == path);
+        final page = route.pageBuilder!(
+          context,
+          GoRouterState(
+            router.configuration,
+            uri: Uri.parse('/private-user?token=secret'),
+            matchedLocation: '/private-user',
+            fullPath: path,
+            pathParameters: const {
+              'userId': 'private-user',
+              'shareId': 'private-share',
+            },
+            pageKey: ValueKey(path),
+          ),
+        );
+        expect(page.name, path);
+        expect(page.name, isNot(contains('private-user')));
+        expect(page.name, isNot(contains('secret')));
+      }
+    },
+  );
+
   const links = <(String, String, String)>[
     ('/shared-flow/by-flow/:flowId', '/shared-flow/by-flow/42', '/pages'),
     ('/shared-flow/:shareId', '/shared-flow/missing-share', '/inbox'),

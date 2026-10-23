@@ -13,6 +13,7 @@ import '../features/calendar/calendar_hydration_diagnostics.dart';
 import '../features/calendar/notify.dart';
 import '../features/calendar/end_flow_diagnostics.dart';
 import '../telemetry/telemetry.dart';
+import '../telemetry/telemetry_consent.dart';
 import '../utils/flow_filter_engine.dart';
 import 'flow_appearance.dart';
 import 'profile_repo.dart';
@@ -704,15 +705,12 @@ class UserEventsRepo {
     return rowsForDelete;
   }
 
-  static bool? _telemetryEnabled;
   static const String _readSelect =
       'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,action_id,behavior_payload,updated_at,created_at';
   static const String _filingReadSelect =
       'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,filed_flow_id,item_kind,category,action_id,behavior_payload,updated_at,created_at';
   static const String _flowEventReadSelect =
       'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,filed_flow_id,item_kind,category,action_id,behavior_payload';
-
-  bool get telemetryEnabled => _telemetryEnabled ?? true;
 
   FlowEventRow _flowEventRowFromFilingRow(
     Map<String, dynamic> row, {
@@ -742,30 +740,9 @@ class UserEventsRepo {
     );
   }
 
-  /// Refresh telemetry/personalization flags from the profile helper RPC.
-  static Future<void> refreshTelemetrySettings(SupabaseClient client) async {
-    try {
-      final resp = await client.rpc('get_my_telemetry_and_personalization');
-      Map<String, dynamic>? row;
-      if (resp is List && resp.isNotEmpty && resp.first is Map) {
-        row = Map<String, dynamic>.from(resp.first as Map);
-      } else if (resp is Map) {
-        row = Map<String, dynamic>.from(resp);
-      }
-      final tEnabled = row?['telemetry_enabled'];
-      if (tEnabled is bool) {
-        _telemetryEnabled = tEnabled;
-      }
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('[UserEventsRepo] refreshTelemetrySettings error: $e');
-        debugPrint('$st');
-      }
-    }
-  }
-
+  @visibleForTesting
   static void setTelemetryEnabledForTesting(bool? enabled) {
-    _telemetryEnabled = enabled;
+    TelemetryConsent.overrideForTesting = enabled;
   }
 
   static const _allowedFeedbackTags = <String>{
@@ -2840,21 +2817,15 @@ class UserEventsRepo {
     Map<String, dynamic>? properties,
     String source = 'client',
   }) async {
-    if (!telemetryEnabled) return;
-    final user = _client.auth.currentUser;
-    _log('track("$event")');
-    try {
+    await TelemetryConsent.runIfAllowed(_client, (userId) async {
       await _client.from('app_events').insert({
-        'user_id': user?.id,
-        'email': user?.email,
+        'user_id': userId,
+        'email': _client.auth.currentUser?.email,
         'event': event,
         'properties': properties ?? const <String, dynamic>{},
         'source': source,
       });
-    } catch (e) {
-      _log('track ✗ $e');
-      // swallow—telemetry should not block UX
-    }
+    });
   }
 
   Future<void> trackShareViewed({

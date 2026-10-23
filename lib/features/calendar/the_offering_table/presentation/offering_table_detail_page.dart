@@ -303,6 +303,11 @@ class _OfferingTableDetailSurfaceState
 
   Future<void> _pickStartDate() async {
     if (_joined) return;
+    final pickDate = widget.primaryAction?.onStartDatePressed;
+    if (pickDate != null) {
+      pickDate();
+      return;
+    }
     final result = await MaatFlowDatePicker.show(
       context: context,
       initialDate: _startDate,

@@ -904,7 +904,8 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
 
   void _send(PageRoute<dynamic>? route) {
     if (kDebugMode && _debugDaySheetSmokeBootRequested) return;
-    final name = route?.settings.name ?? '/';
+    final name = route?.settings.name;
+    if (name == null || name.isEmpty) return;
     if (name == '/pages') return;
     if (!_screenViews.shouldTrack(name, DateTime.now())) return;
     unawaited(Events.trackIfAuthed('screen_view', {'route': name}));
@@ -1562,7 +1563,7 @@ GoRoute _calmRoute({
     path: path,
     pageBuilder: (context, state) => NoTransitionPage<dynamic>(
       key: state.pageKey,
-      name: path == '/pages' ? '/pages' : null,
+      name: path,
       child: builder(context, state),
     ),
   );
@@ -1577,6 +1578,7 @@ GoRoute _utilitySheetRoute({
     pageBuilder: (context, state) {
       return CustomTransitionPage<dynamic>(
         key: state.pageKey,
+        name: path,
         opaque: false,
         barrierColor: Colors.transparent,
         transitionDuration: const Duration(milliseconds: 180),
@@ -4791,11 +4793,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       onError: _logAuthGateError,
     );
     fireAndForgetGuarded(
-      'telemetry settings refresh',
-      UserEventsRepo.refreshTelemetrySettings(supabase),
-      onError: _logAuthGateError,
-    );
-    fireAndForgetGuarded(
       'app open log',
       _logAppOpenOnce(),
       onError: _logAuthGateError,
@@ -4837,7 +4834,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         _startPostAuthStartupWarmups();
       } else {
         await _ensureProfile(); // keep profiles hydrated with email
-        await UserEventsRepo.refreshTelemetrySettings(supabase);
         await _logAppOpenOnce(); // one-shot per cold start
       }
       fireAndForgetGuarded(

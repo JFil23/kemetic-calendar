@@ -791,7 +791,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           rulesJson: data.rulesJson,
           eventsJson: eventsJson,
           flowId: data.flowId,
-          startDate: data.startDate,
+          startDate: _selectedStart ?? data.startDate,
           endDate: data.endDate,
           active: data.active,
           isSaved: data.isSaved,

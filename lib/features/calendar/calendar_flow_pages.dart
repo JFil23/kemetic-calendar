@@ -1110,6 +1110,11 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   }
 
   Future<void> _pickUserFlowDetailStart(_Flow flow) async {
+    final pickDate = widget.actionPolicy?.onStartDatePressed;
+    if (pickDate != null) {
+      await pickDate();
+      return;
+    }
     final picked = await MaatFlowDatePicker.show(
       context: context,
       initialDate: _savedDisplayStart(flow),

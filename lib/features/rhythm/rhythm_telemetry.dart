@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mobile/data/user_events_repo.dart';
+import 'package:mobile/data/choice_event_repo.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 
 /// Analytics + [user_choice_events] (via `track_choice_event`) for rhythm flows.
@@ -10,10 +11,7 @@ class RhythmTelemetry {
   static Future<void> trackScreen(SupabaseClient client, String screen) async {
     await UserEventsRepo(client).track(
       event: 'rhythm_screen_viewed',
-      properties: {
-        'v': kAppEventsSchemaVersion,
-        'screen': screen,
-      },
+      properties: {'v': kAppEventsSchemaVersion, 'screen': screen},
     );
   }
 
@@ -40,22 +38,15 @@ class RhythmTelemetry {
       },
     );
 
-    try {
-      await client.functions.invoke(
-        'track_choice_event',
-        body: <String, dynamic>{
-          'event_type': 'cycle_field_saved',
-          'metadata': <String, dynamic>{
-            'field_id': fieldId,
-            'category': category,
-            'reminder_enabled': remindersEnabled,
-            'is_timed': isTimed,
-            'pattern_count': patternCount,
-          },
-        },
-      );
-    } catch (_) {
-      // Best-effort only; do not surface to user.
-    }
+    await SupabaseChoiceEventTracker(client).trackChoiceEvent(
+      eventType: 'cycle_field_saved',
+      metadata: {
+        'field_id': fieldId,
+        'category': category,
+        'reminder_enabled': remindersEnabled,
+        'is_timed': isTimed,
+        'pattern_count': patternCount,
+      },
+    );
   }
 }

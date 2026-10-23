@@ -174,6 +174,71 @@ void main() {
     expect(find.text('YOUR FIRST MORNING'), findsOneWidget);
   });
 
+  testWidgets('shared start control delegates and follows the import date', (
+    tester,
+  ) async {
+    final start = DateTime(DateTime.now().year + 1, 6, 10);
+    final selected = start.add(const Duration(days: 2));
+    var dateActions = 0;
+    late StateSetter update;
+    var current = start;
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return OfferingTableDetailSurface(
+              timezone: TrackSkyTimeZone.pacific,
+              onJoin:
+                  ({
+                    required startDate,
+                    required timezone,
+                    required lens,
+                    required noCupMode,
+                  }) async => 1,
+              initialStartDate: current,
+              primaryAction: MaatFlowDetailPrimaryAction(
+                label: 'Import Flow',
+                onPressed: () {},
+                startDateLabel: 'Start: ${_dateKey(current)}',
+                onStartDatePressed: () => dateActions++,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+    final control = find.byKey(
+      ValueKey<String>(
+        'offering-table-calendar-top-label-control-${_dateKey(start)}',
+      ),
+    );
+    await tester.ensureVisible(control);
+    await tester.pumpAndSettle();
+    await tester.tap(control);
+    await tester.pumpAndSettle();
+    expect(dateActions, 1);
+    expect(find.text('Gregorian Calendar'), findsNothing);
+    update(() => current = selected);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(
+        ValueKey<String>('offering-table-calendar-ring-${_dateKey(start)}'),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.byKey(
+        ValueKey<String>('offering-table-calendar-ring-${_dateKey(selected)}'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Start: ${_dateKey(selected)}'), findsOneWidget);
+  });
+
   testWidgets('start-date label moves the entire preview and Carry date', (
     tester,
   ) async {

@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart' show routeObserver;
 import '../../core/navigation_fallback.dart';
 import '../../data/profile_repo.dart';
+import '../../data/user_events_repo.dart';
+import '../../telemetry/telemetry.dart';
 import '../calendar/calendar_page.dart';
 import '../inbox/inbox_activity_target.dart';
 import '../../data/share_models.dart';
@@ -182,7 +184,19 @@ class _PagesPageState extends State<PagesPage>
         Supabase.instance.client.auth.currentUser?.id != controller.uid) {
       return;
     }
+    if (_opening || _covered) return;
     final destination = card.destination;
+    unawaited(
+      UserEventsRepo(Supabase.instance.client).track(
+        event: 'ui_tap',
+        properties: {
+          'v': kAppEventsSchemaVersion,
+          'surface': 'pages',
+          'target_id': 'pages_${destination.name}',
+          'target_type': 'card',
+        },
+      ),
+    );
     if (destination == PagesDestination.calendar) {
       closeOrReturn(context, '/');
       return;

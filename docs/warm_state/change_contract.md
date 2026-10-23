@@ -1849,3 +1849,10 @@ Onboarding reuses its existing reserved navigation frame for enlarged opening
 text. Normal-size captures remain byte-identical; enlarged headline/wordmark
 content scrolls clear of the existing navigation cue. Approved references remain
 unchanged.
+
+
+## October 22 activity ledger corrections
+
+TelemetryConsent reads the current account’s acknowledged telemetry preference before optional app and choice events. AccountOperationFence rejects late reads across departure, including A-B-A. No telemetry preference or pending event enters the warm cache, and unavailable consent fails closed. The backend ingestion trigger enforces the same preference for older clients and service-role writers; existing records remain historical evidence. Routes supply stable authored path patterns to analytics without query strings or private identifiers. Explicit Pages card taps record only the destination enum.
+
+Shared flow previews retain the canonical full-detail owner. A selected import date now feeds its preview and existing acknowledged import boundary. The Offering Table and custom-flow calendar date controls delegate to that same action policy when supplied. No persistence key, payload, account repository or permission changes. Existing approved visual references remain unchanged.

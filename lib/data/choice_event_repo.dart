@@ -1,5 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../telemetry/telemetry_consent.dart';
 
 abstract class ChoiceEventTracker {
   Future<void> trackChoiceEvent({
@@ -34,31 +35,28 @@ class SupabaseChoiceEventTracker implements ChoiceEventTracker {
     String? deliveryId,
     Map<String, dynamic>? metadata,
   }) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return;
+    await TelemetryConsent.runIfAllowed(_client, (userId) async {
+      final cleanNodeSlug = nodeSlug?.trim();
+      final cleanReflectionId = reflectionId?.trim();
+      final cleanSourceSurface = sourceSurface?.trim();
+      final cleanDeliveryId = deliveryId?.trim();
 
-    final cleanNodeSlug = nodeSlug?.trim();
-    final cleanReflectionId = reflectionId?.trim();
-    final cleanSourceSurface = sourceSurface?.trim();
-    final cleanDeliveryId = deliveryId?.trim();
+      final eventMetadata = <String, dynamic>{
+        ...?metadata,
+        'user_id': userId,
+        if (cleanSourceSurface != null && cleanSourceSurface.isNotEmpty)
+          'source_surface': cleanSourceSurface,
+        if (cleanDeliveryId != null && cleanDeliveryId.isNotEmpty)
+          'delivery_id': cleanDeliveryId,
+        if (cleanReflectionId != null && cleanReflectionId.isNotEmpty)
+          'reflection_id': cleanReflectionId,
+        if (cleanNodeSlug != null && cleanNodeSlug.isNotEmpty) ...{
+          'node_ref': cleanNodeSlug,
+          'node_slug': cleanNodeSlug,
+          'node_id': cleanNodeSlug,
+        },
+      };
 
-    final eventMetadata = <String, dynamic>{
-      ...?metadata,
-      'user_id': userId,
-      if (cleanSourceSurface != null && cleanSourceSurface.isNotEmpty)
-        'source_surface': cleanSourceSurface,
-      if (cleanDeliveryId != null && cleanDeliveryId.isNotEmpty)
-        'delivery_id': cleanDeliveryId,
-      if (cleanReflectionId != null && cleanReflectionId.isNotEmpty)
-        'reflection_id': cleanReflectionId,
-      if (cleanNodeSlug != null && cleanNodeSlug.isNotEmpty) ...{
-        'node_ref': cleanNodeSlug,
-        'node_slug': cleanNodeSlug,
-        'node_id': cleanNodeSlug,
-      },
-    };
-
-    try {
       await _client.functions.invoke(
         'track_choice_event',
         body: <String, dynamic>{
@@ -70,8 +68,6 @@ class SupabaseChoiceEventTracker implements ChoiceEventTracker {
           'metadata': eventMetadata,
         },
       );
-    } catch (e) {
-      debugPrint('[ChoiceEventRepo] trackChoiceEvent error: $e');
-    }
+    });
   }
 }
