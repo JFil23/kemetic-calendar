@@ -1,5 +1,24 @@
 # Persistence change contract
 
+## October 26 utility-sheet dismissal and session checkpoints
+
+SessionResumeService's existing ten-minute checkpoint is presentation continuity,
+not acknowledgement of account content. A refused checkpoint write cannot block
+Planner dismissal or lifecycle navigation. The existing SharedPreferences process
+cache retains the checkpoint for reopening within the process; later checkpoints
+retry storage. A refused disk write does not promise restoration after a process
+restart. The namespace, TTL, payload format and account fences stay unchanged.
+No stored data is deleted to recover space, and PlannerAccountStore and the
+other account repositories retain all durable pending-write ownership.
+
+UtilitySheetRouteScaffold owns one close request at a time and observes its
+asynchronous result. A thrown close failure restores the resting sheet position
+and permits another request. Planner delegates to that shared owner instead of
+keeping another permanent latch. Regression evidence covers Close, drag, backdrop
+and Back on both a pushed and a restored Planner route, failed-write process
+continuity and later storage retry, and unchanged account documents. The real
+Planner presentation is compared with its pre-change capture.
+
 ## October 19 reflection invitation consumption
 
 Opening the canonical decan review counts as engagement. Calendar removes the

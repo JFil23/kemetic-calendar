@@ -58,7 +58,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(service.calls, 1);
     expect(service.start, DateUtils.dateOnly(DateTime.now()));
-    expect(service.end, service.start!.add(const Duration(days: 9)));
+    // Ten calendar days still end at midnight across a daylight-saving change;
+    // nine elapsed 24-hour periods can instead land at 23:00 or 01:00.
+    expect(
+      service.end,
+      DateTime(
+        service.start!.year,
+        service.start!.month,
+        service.start!.day + 9,
+      ),
+    );
     expect(find.text('test response'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });

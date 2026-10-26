@@ -9,6 +9,30 @@ import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:mobile/services/session_resume_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// Exercise the preferences adapter's rejected-write contract.
+// ignore: depend_on_referenced_packages
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
+
+class _RejectingCheckpointPreferences extends InMemorySharedPreferencesStore {
+  _RejectingCheckpointPreferences(this.throwsError)
+    : super.withData({
+        'flutter.planner_account:v1:user-1': 'pending-planner-write',
+        'flutter.journal-content': 'saved-journal',
+      });
+  final bool throwsError;
+  bool rejecting = true;
+  int rejected = 0;
+
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) async {
+    if (key == 'flutter.session_resume_state_v1' && rejecting) {
+      rejected++;
+      if (throwsError) throw StateError('Checkpoint storage unavailable');
+      return false;
+    }
+    return super.setValue(valueType, key, value);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -66,6 +90,51 @@ void main() {
       isNull,
     );
   });
+
+  for (final throwsError in [false, true]) {
+    test(
+      'rejected checkpoint preserves process drafts and retries: throws=$throwsError',
+      () async {
+        final store = _RejectingCheckpointPreferences(throwsError);
+        SharedPreferencesStorePlatform.instance = store;
+        final original = await store.getAll();
+        await SessionResumeService.saveScopedState('today_alignment_page', {
+          'noteDraft': 'Keep this draft',
+        });
+        await SessionResumeService.saveResumeEntry(
+          baseRoute: '/inbox',
+          kind: 'inbox_conversation',
+          payload: {'draftText': 'Keep this message'},
+        );
+        await SessionResumeService.touch();
+
+        expect(store.rejected, 3);
+        expect(await store.getAll(), original);
+        expect(
+          await SessionResumeService.readScopedState('today_alignment_page'),
+          {'noteDraft': 'Keep this draft'},
+        );
+        expect((await SessionResumeService.readResumeEntry())!.payload, {
+          'draftText': 'Keep this message',
+        });
+
+        store.rejecting = false;
+        await SessionResumeService.touch();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.reload();
+        expect(
+          await SessionResumeService.readScopedState('today_alignment_page'),
+          {'noteDraft': 'Keep this draft'},
+        );
+        expect((await SessionResumeService.readResumeEntry())!.payload, {
+          'draftText': 'Keep this message',
+        });
+        for (final entry in original.entries) {
+          expect((await store.getAll())[entry.key], entry.value);
+        }
+      },
+    );
+  }
 
   test('clears expired snapshots', () async {
     final prefs = await SharedPreferences.getInstance();

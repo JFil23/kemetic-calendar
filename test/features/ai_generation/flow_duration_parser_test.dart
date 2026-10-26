@@ -74,6 +74,34 @@ void main() {
       expect(range.durationDays, defaultAiFlowDurationDays);
     });
 
+    for (final dates in [
+      (DateTime(2026, 3, 5), DateTime(2026, 3, 14)),
+      (DateTime(2026, 10, 26), DateTime(2026, 11, 4)),
+    ]) {
+      test('ten calendar days retain midnight across ${dates.$1}', () {
+        final range = resolveAiFlowDateRange(
+          prompt: 'Create a 10-day flow',
+          defaultStartDate: dates.$1,
+        );
+        expect(range.source, FlowDateRangeSource.prompt);
+        expect(range.startDate, dates.$1);
+        expect(range.endDate, dates.$2);
+        expect(range.durationDays, 10);
+        // Count the calendar labels independently of local elapsed hours.
+        final first = DateTime.utc(
+          range.startDate.year,
+          range.startDate.month,
+          range.startDate.day,
+        );
+        final last = DateTime.utc(
+          range.endDate.year,
+          range.endDate.month,
+          range.endDate.day,
+        );
+        expect(last.difference(first).inDays + 1, 10);
+      });
+    }
+
     test('manual date picker range overrides prompt duration', () {
       final range = resolveAiFlowDateRange(
         prompt: 'make this a 90 day flow',

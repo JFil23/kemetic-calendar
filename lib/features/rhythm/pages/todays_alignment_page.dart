@@ -88,11 +88,8 @@ class PlannerSheetRoutePage extends StatefulWidget {
 
 class _PlannerSheetRoutePageState extends State<PlannerSheetRoutePage> {
   final GlobalKey<_TodaysAlignmentPageState> _plannerKey = GlobalKey();
-  bool _closeRequested = false;
 
   Future<void> _closeRoute() async {
-    if (_closeRequested) return;
-    _closeRequested = true;
     await _plannerKey.currentState?._persistSessionState();
     if (!mounted) return;
     closeOrReturn(context, '/');
@@ -103,7 +100,7 @@ class _PlannerSheetRoutePageState extends State<PlannerSheetRoutePage> {
     return UtilitySheetRouteScaffold(
       key: plannerSheetRouteKey,
       semanticLabel: 'Planner',
-      onClose: () => unawaited(_closeRoute()),
+      onClose: _closeRoute,
       child: TodaysAlignmentPage(
         key: _plannerKey,
         sheet: true,

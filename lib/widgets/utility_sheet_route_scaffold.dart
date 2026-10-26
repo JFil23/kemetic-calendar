@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../shared/glossy_text.dart';
@@ -29,7 +31,7 @@ class UtilitySheetRouteScaffold extends StatefulWidget {
   });
 
   final Widget child;
-  final VoidCallback onClose;
+  final FutureOr<void> Function() onClose;
   final String semanticLabel;
   final double dismissDistance;
   final double dismissVelocity;
@@ -52,10 +54,25 @@ class _UtilitySheetRouteScaffoldState extends State<UtilitySheetRouteScaffold> {
   double get _dragProgress =>
       (_dragOffset / widget.dismissDistance).clamp(0.0, 1.0);
 
-  void _requestClose() {
+  Future<void> _requestClose() async {
     if (_closeRequested) return;
     _closeRequested = true;
-    widget.onClose();
+    try {
+      await widget.onClose();
+    } catch (error, stack) {
+      if (mounted) {
+        _closeRequested = false;
+        _snapBack();
+      }
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'utility sheet route',
+          context: ErrorDescription('while closing ${widget.semanticLabel}'),
+        ),
+      );
+    }
   }
 
   void _handleSystemBack() {

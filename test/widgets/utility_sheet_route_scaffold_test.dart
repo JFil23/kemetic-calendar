@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -6,7 +8,7 @@ import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 
 void main() {
   Widget buildHarness({
-    required VoidCallback onClose,
+    required FutureOr<void> Function() onClose,
     Widget child = const Center(child: Text('Utility sheet body')),
   }) {
     return MaterialApp(
@@ -94,6 +96,62 @@ void main() {
     await tester.pump();
 
     expect(closeCount, 1);
+  });
+
+  testWidgets('failed asynchronous close resets the drag and permits retry', (
+    tester,
+  ) async {
+    var attempts = 0;
+    await tester.pumpWidget(
+      buildHarness(
+        onClose: () async {
+          attempts++;
+          if (attempts == 1) throw StateError('Close could not complete');
+        },
+      ),
+    );
+    final initialHeader = tester.getRect(
+      find.byKey(utilitySheetRouteDragHandleKey),
+    );
+
+    await tester.drag(
+      find.byKey(utilitySheetRouteDragHandleKey),
+      const Offset(0, 180),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isA<StateError>());
+    expect(
+      tester.getRect(find.byKey(utilitySheetRouteDragHandleKey)),
+      initialHeader,
+    );
+
+    await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pending asynchronous close accepts only one request', (
+    tester,
+  ) async {
+    final completion = Completer<void>();
+    var attempts = 0;
+    await tester.pumpWidget(
+      buildHarness(
+        onClose: () {
+          attempts++;
+          return completion.future;
+        },
+      ),
+    );
+    await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+    await tester.binding.handlePopRoute();
+    await tester.tapAt(const Offset(24, 24));
+    expect(attempts, 1);
+    completion.complete();
+    await tester.pumpAndSettle();
+    expect(attempts, 1);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('system back can pop a nested route before dismissing', (

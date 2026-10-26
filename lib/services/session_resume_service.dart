@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
+import 'package:mobile/core/boot_diagnostics.dart';
 import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:mobile/services/app_navigation_restoration_controller.dart';
@@ -102,8 +103,21 @@ class SessionResumeService {
   }
 
   static Future<void> _saveRaw(SessionJsonMap raw) async {
+    final encoded = jsonEncode(raw);
     final prefs = await _prefs();
-    await prefs.setString(_prefsKey, jsonEncode(raw));
+    try {
+      if (!await prefs.setString(_prefsKey, encoded)) {
+        traceRestoration('session checkpoint deferred reason=write_rejected');
+      }
+    } catch (error) {
+      // This ten-minute presentation checkpoint must never hold navigation
+      // hostage. SharedPreferences retains the new value in its process cache;
+      // a later checkpoint retries disk storage. Account documents and pending
+      // writes have their own acknowledged repositories and are untouched.
+      traceRestoration(
+        'session checkpoint deferred reason=${bootErrorCategory(error)}',
+      );
+    }
   }
 
   static Future<void> _mutate(
