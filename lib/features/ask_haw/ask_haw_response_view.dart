@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_fonts.dart';
 import '../../shared/kemetic_text.dart';
 import 'ask_haw_response.dart';
 
@@ -40,7 +41,7 @@ class AskHawResponseView extends StatelessWidget {
                 'ASK ḥꜣw',
                 style: TextStyle(
                   color: _gold,
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.ui,
                   fontSize: 10.5,
                   letterSpacing: 1.8,
                 ),
@@ -171,7 +172,7 @@ class AskHawResponseView extends StatelessWidget {
                         detail,
                         style: const TextStyle(
                           color: _text,
-                          fontFamily: 'Inter',
+                          fontFamily: AppFonts.ui,
                           fontSize: 12,
                           height: 1.4,
                         ),
@@ -183,7 +184,7 @@ class AskHawResponseView extends StatelessWidget {
                         reason,
                         style: const TextStyle(
                           color: Color(0xFFADA594),
-                          fontFamily: 'Inter',
+                          fontFamily: AppFonts.ui,
                           fontSize: 11.5,
                           height: 1.4,
                         ),
