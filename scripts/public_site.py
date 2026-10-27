@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Validate, seal and verify the isolated Hꜣw public site; never deploy it."""
+"""Validate, seal and verify the isolated Hꜣw public site; never deploy it.
+
+Legal documents retain the text-only policy. The interactive landing page and
+its original media have an exact, closed reference manifest; this does not grant
+other documents permission to run scripts or load arbitrary resources.
+"""
 from __future__ import annotations
 
 import argparse
@@ -24,9 +29,16 @@ ROUTES = {"/": "index.html", "/privacy": "privacy.html", "/terms": "terms.html",
           "/404": "404.html"}
 ALIASES = {"/about": "/", "/about/": "/", "/about.html": "/",
            "/account-deletion": "/delete-account", "/account-deletion/": "/delete-account"}
-FILES = frozenset((*ROUTES.values(), "_headers", "_redirects"))
+BASE_FILES = frozenset((*ROUTES.values(), "_headers", "_redirects"))
 SCRIPT = "scripts/public_site.py"
+REFERENCE_SCRIPT = "scripts/import_public_site_reference.py"
+REFERENCE_MANIFEST = "scripts/public_site_reference.v1.json"
+SOURCE_TOOLS = (SCRIPT, REFERENCE_SCRIPT, REFERENCE_MANIFEST)
+REFERENCE = json.loads((Path(__file__).resolve().parents[1] / REFERENCE_MANIFEST).read_text())
+ASSETS = REFERENCE["assets"]
+FILES = BASE_FILES | ASSETS.keys()
 MAX_BODY = 1_000_000
+MAX_ASSET_BODY = 25 * 1024 * 1024
 
 
 class PublicSiteError(RuntimeError):
@@ -114,6 +126,29 @@ class StaticHTML(HTMLParser):
             safe_css(data)
 
 
+class ReferenceHTML(HTMLParser):
+    """Read links only after matching the complete approved interactive source."""
+
+    def __init__(self, text: str):
+        super().__init__(convert_charrefs=True)
+        require(sha(text.encode()) == REFERENCE["index_sha256"],
+                "Landing page differs from the exact approved website reference.")
+        self.ids: set[str] = set()
+        self.links: list[str] = []
+        self.feed(text)
+        self.close()
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if "id" in values:
+            identifier = values["id"]
+            require(bool(identifier) and identifier not in self.ids, "Empty or duplicate HTML id.")
+            self.ids.add(identifier)
+        if tag == "a":
+            require(bool(values.get("href")), "Every link requires a nonempty href.")
+            self.links.append(values["href"])
+
+
 def validate_controls(bodies: Mapping[str, bytes]) -> None:
     rules: dict[str, str] = {}
     for line in bodies["_redirects"].decode().splitlines():
@@ -165,13 +200,21 @@ def internal_link(route: str, href: str) -> tuple[str, str] | None:
 
 def validate_payload(folder: Path) -> tuple[dict[str, bytes], dict[str, StaticHTML]]:
     require(folder.is_dir() and not folder.is_symlink(), "Static source must be a real directory.")
-    entries = list(folder.iterdir())
-    require({entry.name for entry in entries} == FILES, "Payload must contain exactly six HTML pages and two controls.")
-    require(all(entry.is_file() and not entry.is_symlink() for entry in entries),
-            "Directories, symlinks, functions and other non-files are forbidden.")
+    entries = list(folder.rglob("*"))
+    require(all(not entry.is_symlink() for entry in entries), "Directories with symlinks are forbidden.")
+    require(all(entry.is_file() or (entry.is_dir() and entry.relative_to(folder).as_posix() == "assets")
+                for entry in entries), "Directories, functions and other non-files are forbidden.")
+    require({entry.relative_to(folder).as_posix() for entry in entries if entry.is_file()} == FILES,
+            "Payload must contain exactly six HTML pages, two controls and the approved asset allowlist.")
     bodies = {name: (folder / name).read_bytes() for name in sorted(FILES)}
     documents = {}
     for name, body in bodies.items():
+        if name in ASSETS:
+            asset = ASSETS[name]
+            require(0 < len(body) == asset["bytes"] <= MAX_ASSET_BODY and sha(body) == asset["sha256"],
+                    f"Reference asset hash or size mismatch: {name}")
+            require(name == f"assets/{sha(body)}." + name.rsplit(".", 1)[1], "Noncanonical asset name.")
+            continue
         require(0 < len(body) <= MAX_BODY, f"Empty or oversized static file: {name}")
         try:
             text = body.decode("utf-8")
@@ -183,7 +226,7 @@ def validate_payload(folder: Path) -> tuple[dict[str, bytes], dict[str, StaticHT
                               r"access_token|refresh_token|DATABASE_URL)\s*[=:]\s*[\"']?\S+)", text),
                 f"Credential-like content is forbidden: {name}")
         if name.endswith(".html"):
-            documents[name] = StaticHTML(text)
+            documents[name] = ReferenceHTML(text) if name == "index.html" else StaticHTML(text)
     validate_controls(bodies)
     for route, name in ROUTES.items():
         for href in documents[name].links:
@@ -202,14 +245,17 @@ def git(repo: Path, *args: str) -> bytes:
 def source_identity(repo: Path, bodies: Mapping[str, bytes]) -> tuple[str, str]:
     commit = git(repo, "rev-parse", "HEAD").decode().strip()
     require(bool(re.fullmatch(r"[0-9a-f]{40}", commit)), "Invalid source commit.")
-    tracked = git(repo, "ls-tree", "--name-only", "HEAD:public-site").decode().splitlines()
-    require(set(tracked) == FILES, "Committed public-site must contain exactly the static allowlist.")
+    tracked = git(repo, "ls-tree", "-r", "--name-only", "HEAD:public-site").decode().splitlines()
+    require(set(tracked) == FILES, "Committed public-site must contain exactly the approved allowlist.")
     for name, body in bodies.items():
         require(git(repo, "show", f"HEAD:public-site/{name}") == body,
                 f"Commit public-site/{name} before sealing.")
-    tool = (repo / SCRIPT).read_bytes()
-    require(git(repo, "show", f"HEAD:{SCRIPT}") == tool, "Commit the sealing tool before sealing.")
-    return commit, sha(tool)
+    tools = {}
+    for name in SOURCE_TOOLS:
+        body = (repo / name).read_bytes()
+        require(git(repo, "show", f"HEAD:{name}") == body, "Commit the sealing tool and reference contract before sealing.")
+        tools[name] = sha(body)
+    return commit, sha(canonical_json(tools))
 
 
 def seal(repo: Path) -> Path:
@@ -235,6 +281,7 @@ def seal(repo: Path) -> Path:
         payload = candidate / "payload"
         payload.mkdir(parents=True)
         for name, body in bodies.items():
+            (payload / name).parent.mkdir(parents=True, exist_ok=True)
             (payload / name).write_bytes(body)
         (candidate / "receipt.json").write_bytes(canonical_json(receipt))
         verify_seal(candidate)
@@ -289,7 +336,7 @@ def fetch_once(url: str) -> HttpResult:
         response = error
     with response:
         return HttpResult(response.code, {k.lower(): v for k, v in response.headers.items()},
-                          response.read(MAX_BODY + 1), response.geturl())
+                          response.read(MAX_ASSET_BODY + 1), response.geturl())
 
 
 def curl_once(url: str) -> HttpResult:
@@ -298,7 +345,7 @@ def curl_once(url: str) -> HttpResult:
     with tempfile.TemporaryDirectory(prefix="haw-public-http-") as temporary:
         headers, body = Path(temporary) / "headers", Path(temporary) / "body"
         result = subprocess.run(["curl", "--disable", "--silent", "--show-error", "--max-time", "30",
-                                 "--proto", "=https", "--max-filesize", str(MAX_BODY),
+                                 "--proto", "=https", "--max-filesize", str(MAX_ASSET_BODY),
                                  "--header", "Accept: text/html", "--header", "Cache-Control: no-cache",
                                  "--user-agent", "haw-public-site-verifier/1", "--dump-header", str(headers),
                                  "--output", str(body), "--write-out", "%{http_code}", url],
@@ -324,7 +371,8 @@ def verify_live(release: Path, origin: str = ORIGIN, *,
         url = origin + path
         result = fetch(url)
         require(result.url == url, f"Transport followed a redirect for {path}.")
-        require(len(result.body) <= MAX_BODY, f"Oversized response for {path}.")
+        require(len(result.body) <= (MAX_ASSET_BODY if path.removeprefix("/") in ASSETS else MAX_BODY),
+                f"Oversized response for {path}.")
         checked[path] = result.status
         return result
 
@@ -338,6 +386,13 @@ def verify_live(release: Path, origin: str = ORIGIN, *,
 
     for route, name in ROUTES.items():
         exact(route, name, 200)
+    for name, asset in ASSETS.items():
+        result = read("/" + name)
+        require(result.status == 200, f"Wrong asset status for {name}.")
+        require(result.headers.get("content-type", "").split(";", 1)[0].strip().lower() == asset["content_type"],
+                f"Wrong asset content-type for {name}.")
+        require("location" not in result.headers and sha(result.body) == receipt["files"][name],
+                f"Wrong live asset body for {name}.")
     redirects = {"/index.html": "/", **ALIASES}
     for route in ROUTES:
         if route != "/":

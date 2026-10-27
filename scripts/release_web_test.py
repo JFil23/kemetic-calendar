@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import unittest
+import json
 from unittest.mock import Mock, patch
 from pathlib import Path
 import tempfile
@@ -147,6 +148,119 @@ class QualificationTest(unittest.TestCase):
                 receipt['environment'] = 'production'
                 with self.assertRaisesRegex(coordinator.release.ReleaseInputError, 'another lane'):
                     coordinator.prepare('staging', root, root / 'artifact')
+
+
+class PublicWebsitePreviewTest(unittest.TestCase):
+    commit = 'a' * 40
+    origin = 'https://1234abcd.haw-info.pages.dev'
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.logs = Path(self.temporary.name)
+        self.directory = self.logs / 'sealed'
+        self.label = 'website-preview-' + self.commit[:12]
+        self.receipt = {'source_commit': self.commit}
+        self.gate = {'run_id': 123, 'commit': self.commit}
+        self.fetch = Mock(return_value=coordinator.public_site.HttpResult(
+            200, {'content-type': 'text/html'}, b'existing production website',
+            coordinator.public_site.ORIGIN + '/'))
+        self.commands = []
+        self.metadata = dict(Deployment=self.origin, Environment='Preview', Branch=self.label,
+                             Source=self.commit[:7])
+        for owner, name, value in [
+            (coordinator, 'qualify_source', self.commit),
+            (coordinator.public_site, 'seal', self.directory),
+            (coordinator.public_site, 'verify_seal', (self.receipt, {}, {})),
+            (coordinator.public_site, 'source_identity', (self.commit, 'b' * 64)),
+            (coordinator.public_site, 'validate_payload', ({}, {})),
+            (coordinator.public_site, 'verify_live', {'origin': self.origin}),
+            (coordinator.release, 'require_canonical_release_source', {'app_source_commit': self.commit}),
+        ]:
+            patcher = patch.object(owner, name, return_value=value)
+            setattr(self, name, patcher.start())
+            self.addCleanup(patcher.stop)
+        coordinator.release.write_json(self.logs / 'app-gate.json', self.gate)
+
+    def runner(self, command, output):
+        self.commands.append(command)
+        if command[4] == 'deploy':
+            output.write_text('Deployment complete: ' + self.origin)
+        else:
+            output.write_text(json.dumps([self.metadata]))
+        return 0
+
+    def publish(self):
+        return coordinator.publish_site_preview(self.logs, expected_commit=self.commit,
+                                                runner=self.runner, fetch=self.fetch)
+
+    def test_preview_uses_full_qualification_and_only_the_closed_website_payload(self):
+        result = self.publish()
+        self.qualify_source.assert_called_once_with('production', self.logs, self.commit)
+        upload = self.commands[0]
+        self.assertEqual(upload[:5], ['npx', '--yes', 'wrangler@4.114.0', 'pages', 'deploy'])
+        self.assertEqual(upload[5], str(self.directory / 'payload'))
+        self.assertEqual(upload[upload.index('--project-name') + 1], 'haw-info')
+        self.assertEqual(upload[upload.index('--branch') + 1], self.label)
+        self.assertNotIn('production', upload)
+        self.assertEqual(upload[upload.index('--commit-hash') + 1], self.commit)
+        self.assertEqual(result['origin'], self.origin)
+        self.assertTrue(result['deployed'])
+        self.verify_live.assert_called_once_with(self.directory, self.origin, fetch=self.fetch)
+        self.assertEqual(self.fetch.call_count, 2)
+        self.assertTrue((self.logs / 'release.json').exists())
+
+    def test_failed_gate_changed_source_or_mismatched_seal_never_uploads(self):
+        for boundary in ('gate', 'source', 'seal'):
+            with self.subTest(boundary=boundary):
+                self.commands.clear()
+                self.qualify_source.side_effect = None
+                self.require_canonical_release_source.return_value = {'app_source_commit': self.commit}
+                self.receipt['source_commit'] = self.commit
+                if boundary == 'gate':
+                    self.qualify_source.side_effect = coordinator.release.ReleaseInputError('Gate failed')
+                elif boundary == 'source':
+                    self.require_canonical_release_source.return_value = {'app_source_commit': 'b' * 40}
+                else:
+                    self.receipt['source_commit'] = 'b' * 40
+                with self.assertRaises((coordinator.release.ReleaseInputError, coordinator.public_site.PublicSiteError)):
+                    self.publish()
+                self.assertEqual(self.commands, [])
+
+    def test_wrong_project_environment_label_or_source_cannot_claim_verified_preview(self):
+        for field, value in [('Deployment', 'https://1234abcd.kemet.pages.dev'),
+                             ('Environment', 'Production'), ('Branch', 'production'), ('Source', 'b' * 7)]:
+            with self.subTest(field=field):
+                original = self.metadata[field]
+                self.metadata[field] = value
+                with self.assertRaises(coordinator.public_site.PublicSiteError):
+                    self.publish()
+                self.metadata[field] = original
+        self.verify_live.assert_not_called()
+
+    def test_production_change_or_live_verification_failure_stops_success_receipt(self):
+        before = self.fetch.return_value
+        self.fetch.side_effect = [before, coordinator.public_site.HttpResult(
+            200, before.headers, b'changed production website', before.url)]
+        with self.assertRaisesRegex(coordinator.public_site.PublicSiteError, 'Production website identity changed'):
+            self.publish()
+        self.assertFalse((self.logs / 'release.json').exists())
+        self.fetch.side_effect = None
+        self.verify_live.side_effect = coordinator.public_site.PublicSiteError('Wrong asset body')
+        with self.assertRaisesRegex(coordinator.public_site.PublicSiteError, 'Wrong asset body'):
+            self.publish()
+        self.assertFalse((self.logs / 'release.json').exists())
+
+    def test_background_preview_is_explicit_and_rejects_rc_or_missing_upload_authority(self):
+        for lane, deploy in [('staging', True), ('production', False)]:
+            with self.assertRaisesRegex(coordinator.release.ReleaseInputError, 'production source and --deploy'):
+                coordinator.launch_background(lane, self.logs, None, deploy, public_site_preview=True)
+        with patch.object(coordinator.subprocess, 'Popen', return_value=Mock(pid=321)) as spawn:
+            result = coordinator.launch_background('production', self.logs, None, True, public_site_preview=True)
+            command = spawn.call_args.args[0]
+            self.assertIn('--public-site-preview', command)
+            self.assertIn('--deploy', command)
+            self.assertTrue(result['public_site_preview'])
 
 
 if __name__ == '__main__':

@@ -96,6 +96,23 @@ No extra approval ceremony is introduced. Existing user authorization determines
 whether a prepared artifact may be uploaded; a request to edit code alone is not
 a request to deploy it.
 
+## Temporary public website preview
+
+For an authorized temporary website deployment, use
+`python3 scripts/release_web.py production --public-site-preview --deploy --background`
+from the canonical production checkout after committing and pushing the candidate.
+This reuses the coordinator's exact-commit hosted App qualification and background
+process receipts. It seals and uploads only `public-site/` to the existing
+`haw-info` project. The `website-preview-<commit>` label is Cloudflare deployment
+metadata; it does not create a Git branch or checkout.
+
+The coordinator verifies the immutable preview origin, every document and media
+digest, clean routing and application isolation. It checks Cloudflare metadata
+for the exact preview environment, label and source. It also compares the
+production website body before and after upload. A mismatch or failed gate stops
+the attempt. The resulting temporary URL is saved in `release.json`; the existing
+production website and app deployment paths remain separate.
+
 ## Implementation evidence
 
 The shared deployment owner combines preflight and extraction and reuses that

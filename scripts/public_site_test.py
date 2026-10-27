@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import public_site as site
+import import_public_site_reference as reference
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -49,6 +50,9 @@ class PublicSiteTest(unittest.TestCase):
         for route, name in site.ROUTES.items():
             url = origin + route
             responses[url] = site.HttpResult(200, {"content-type": "text/html; charset=utf-8"}, bodies[name], url)
+        for name, asset in site.ASSETS.items():
+            url = origin + "/" + name
+            responses[url] = site.HttpResult(200, {"content-type": asset["content_type"]}, bodies[name], url)
         redirects = {"/index.html": "/", **site.ALIASES}
         for route in site.ROUTES:
             if route != "/":
@@ -69,6 +73,56 @@ class PublicSiteTest(unittest.TestCase):
         self.assertEqual(len(documents), 6)
         self.assertIn("google-calendar", documents["privacy.html"].ids)
 
+    def test_entire_website_roundtrips_to_the_exact_user_reference(self):
+        bodies, _ = site.validate_payload(ROOT / "public-site")
+        restored = reference.reconstruct(bodies["index.html"],
+                                         {name: bodies[name] for name in site.ASSETS}, site.REFERENCE)
+        # This binds every CSS declaration, word, script, hotspot, sheet,
+        # screenshot, font and film byte to the supplied document, including
+        # behavior and visuals that an import graph cannot express.
+        self.assertEqual(site.sha(restored), reference.REFERENCE_SHA256)
+        self.assertEqual(site.REFERENCE["reference_sha256"], reference.REFERENCE_SHA256)
+
+    def test_original_demo_graph_and_all_resources_are_complete(self):
+        import re
+        text = (self.source / "index.html").read_text()
+        data = json.loads(re.search(r'<script type="application/json" id="native-demo-data">(.*?)</script>',
+                                    text, re.S)[1])
+        self.assertEqual(len(data["states"]), 90)
+        self.assertEqual(len(data["sheets"]), 69)
+        self.assertEqual(len(site.ASSETS), 109)
+        for target in data["starts"].values():
+            self.assertIn(target, data["states"])
+        for name, state in data["states"].items():
+            for field in ("asset", "bodyAsset", "topAsset", "bottomAsset"):
+                if field in state:
+                    resource = data["assets"].get(state[field], state[field])
+                    self.assertIn(resource.removeprefix("/"), site.ASSETS, (name, field))
+            for hit in state.get("hotspots", []):
+                if "target" in hit:
+                    self.assertIn(hit["target"], data["states"], (name, hit))
+        for name, sheet in data["sheets"].items():
+            self.assertIn(name, data["states"])
+            self.assertIn(sheet["fallback"], data["states"])
+
+    def test_reference_assets_cannot_be_missing_replaced_or_extended(self):
+        for name in site.ASSETS:
+            path = self.source / name
+            original = path.read_bytes()
+            with self.subTest(name=name):
+                path.write_bytes(original + b"tamper")
+                with self.assertRaisesRegex(site.PublicSiteError, "asset hash or size mismatch"):
+                    site.validate_payload(self.source)
+                path.write_bytes(original)
+        path.unlink()
+        with self.assertRaisesRegex(site.PublicSiteError, "approved asset allowlist"):
+            site.validate_payload(self.source)
+        path.write_bytes(original)
+        extra = self.source / "assets/extra.js"
+        extra.write_text("alert('unapproved')")
+        with self.assertRaisesRegex(site.PublicSiteError, "approved asset allowlist"):
+            site.validate_payload(self.source)
+
     def test_payload_rejects_every_app_or_server_artifact(self):
         for name in ["main.dart.js", "env.json", "_worker.js", "flutter_service_worker.js", "secret.env", "receipt.json"]:
             with self.subTest(name=name):
@@ -77,10 +131,10 @@ class PublicSiteTest(unittest.TestCase):
                 with self.assertRaisesRegex(site.PublicSiteError, "exactly six"):
                     site.validate_payload(self.source)
                 path.unlink()
-        for name in ["functions", "assets"]:
+        for name in ["functions", "assets/unapproved"]:
             path = self.source / name
             path.mkdir()
-            with self.assertRaisesRegex(site.PublicSiteError, "exactly six"):
+            with self.assertRaisesRegex(site.PublicSiteError, "Directories|exactly six"):
                 site.validate_payload(self.source)
             path.rmdir()
 
@@ -97,7 +151,9 @@ class PublicSiteTest(unittest.TestCase):
             site.validate_payload(self.source)
 
     def test_html_cannot_execute_or_load_runtime_assets(self):
-        original = (self.source / "index.html").read_text()
+        # The legal pages retain every original text-only restriction. Landing
+        # execution is separately limited to the exact supplied implementation.
+        original = (self.source / "support.html").read_text()
         injections = ["<script>alert(1)</script>", '<script src="/main.dart.js"></script>',
                       '<iframe src="https://kemet.pages.dev"></iframe>', '<form action="/login"></form>',
                       '<a href="javascript:alert(1)">go</a>', '<p onclick="alert(1)">go</p>',
@@ -107,10 +163,17 @@ class PublicSiteTest(unittest.TestCase):
                       '<style>@import "https://example.com/x";</style>']
         for injection in injections:
             with self.subTest(injection=injection):
-                (self.source / "index.html").write_text(original.replace("</body>", injection + "</body>"))
+                (self.source / "support.html").write_text(original.replace("</body>", injection + "</body>"))
                 with self.assertRaises(site.PublicSiteError):
                     site.validate_payload(self.source)
-        (self.source / "index.html").write_text(original)
+        (self.source / "support.html").write_text(original)
+        landing = (self.source / "index.html").read_text()
+        for injection in injections:
+            with self.subTest(landing_injection=injection):
+                (self.source / "index.html").write_text(landing.replace("</body>", injection + "</body>"))
+                with self.assertRaisesRegex(site.PublicSiteError, "exact approved"):
+                    site.validate_payload(self.source)
+        (self.source / "index.html").write_text(landing)
 
     def test_credentials_cannot_be_embedded_even_as_text(self):
         for text in ["client_secret=private-value", "SUPABASE_SERVICE_ROLE_KEY=private-value",
@@ -123,15 +186,15 @@ class PublicSiteTest(unittest.TestCase):
                 (self.source / "index.html").write_text(original)
 
     def test_internal_links_and_fragments_are_checked(self):
-        original = (self.source / "index.html").read_text()
+        original = (self.source / "support.html").read_text()
         for href in ["/missing", "/privacy.html", "/privacy#missing", "/privacy?secret=1",
                      "https://haw-info.pages.dev/missing"]:
             with self.subTest(href=href):
-                self.edit("index.html", 'href="/privacy"', 'href="' + href + '"')
+                self.edit("support.html", 'href="/privacy"', 'href="' + href + '"')
                 with self.assertRaises(site.PublicSiteError):
                     site.validate_payload(self.source)
-                (self.source / "index.html").write_text(original)
-        self.edit("index.html", 'href="/privacy"', 'href="/privacy#google-calendar"')
+                (self.source / "support.html").write_text(original)
+        self.edit("support.html", 'href="/privacy"', 'href="/privacy#google-calendar"')
         site.validate_payload(self.source)
 
     def test_controls_reject_runtime_rewrites_external_redirects_and_headers(self):
@@ -155,7 +218,8 @@ class PublicSiteTest(unittest.TestCase):
         self.assertEqual(first.parent, self.repo / "dist/public-site-releases")
         receipt, bodies, _ = site.verify_seal(first)
         self.assertEqual(receipt["source_commit"], "a" * 40)
-        self.assertEqual(set(path.name for path in (first / "payload").iterdir()), site.FILES)
+        self.assertEqual({path.relative_to(first / "payload").as_posix()
+                          for path in (first / "payload").rglob("*") if path.is_file()}, site.FILES)
         self.assertEqual(receipt["files"], {name: site.sha(body) for name, body in bodies.items()})
         self.assertEqual(set(path.name for path in first.iterdir()), {"payload", "receipt.json"})
         self.edit("support.html", "<h1>", '<h1 id="updated">')
@@ -181,18 +245,21 @@ class PublicSiteTest(unittest.TestCase):
     def test_uncommitted_source_or_tool_cannot_claim_head(self):
         bodies, _ = site.validate_payload(self.source)
         (self.repo / "scripts").mkdir()
-        (self.repo / site.SCRIPT).write_bytes(b"tool")
+        tools = {name: ("tool:" + name).encode() for name in site.SOURCE_TOOLS}
+        for name, body in tools.items():
+            (self.repo / name).write_bytes(body)
 
         def committed(repo, *args):
             if args == ("rev-parse", "HEAD"):
                 return b"a" * 40
-            if args == ("ls-tree", "--name-only", "HEAD:public-site"):
+            if args == ("ls-tree", "-r", "--name-only", "HEAD:public-site"):
                 return "\n".join(sorted(site.FILES)).encode()
             path = args[1].removeprefix("HEAD:")
-            return b"tool" if path == site.SCRIPT else bodies[path.removeprefix("public-site/")]
+            return tools[path] if path in tools else bodies[path.removeprefix("public-site/")]
 
         with patch.object(site, "git", side_effect=committed):
-            self.assertEqual(site.source_identity(self.repo, bodies), ("a" * 40, site.sha(b"tool")))
+            expected_tool_hash = site.sha(site.canonical_json({name: site.sha(body) for name, body in tools.items()}))
+            self.assertEqual(site.source_identity(self.repo, bodies), ("a" * 40, expected_tool_hash))
             wrong = dict(bodies, **{"privacy.html": bodies["privacy.html"] + b"\n"})
             with self.assertRaisesRegex(site.PublicSiteError, "Commit public-site/privacy.html"):
                 site.source_identity(self.repo, wrong)
@@ -221,6 +288,19 @@ class PublicSiteTest(unittest.TestCase):
                     responses = self.responses(release)
                     url = site.ORIGIN + route
                     responses[url] = site.HttpResult(status, headers, body if body is not None else responses[url].body, url)
+                    with self.assertRaises(site.PublicSiteError):
+                        site.verify_live(release, fetch=FakeFetcher(responses))
+
+    def test_live_assets_require_exact_bytes_mime_and_success(self):
+        release = self.seal()
+        samples = {asset["content_type"]: name for name, asset in site.ASSETS.items()}
+        for media, name in samples.items():
+            for status, mime, body in [(404, media, b"missing"), (200, "text/html", b"wrong type"),
+                                       (200, media, b"replaced asset")]:
+                with self.subTest(name=name, status=status, mime=mime):
+                    responses = self.responses(release)
+                    url = site.ORIGIN + "/" + name
+                    responses[url] = site.HttpResult(status, {"content-type": mime}, body, url)
                     with self.assertRaises(site.PublicSiteError):
                         site.verify_live(release, fetch=FakeFetcher(responses))
 

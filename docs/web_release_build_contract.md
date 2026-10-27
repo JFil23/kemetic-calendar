@@ -214,25 +214,41 @@ never be presented as an installation or physical-test link.
 
 ## Separate public website
 
-`public-site/` contains only the six static HTML documents (including the missing-
-page document) and two Pages controls for `https://haw-info.pages.dev`. It is
+`public-site/` contains six HTML documents (including the missing-page document),
+two Pages controls, and the closed set of original landing-page media in `assets/`
+for `https://haw-info.pages.dev`. It is
 excluded from Flutter's `web/` payload. The existing production checkout owns
 public-site deployment; RC prepares and tests changes before the narrow source
 promotion. No separate repository, branch or app deployment authority is added.
 
 Run `python3 scripts/public_site_test.py` and `python3 scripts/public_site.py validate`.
 After committing the approved source, `python3 scripts/public_site.py seal` writes
-a closed eight-file payload and a separate receipt under ignored
+a closed payload and a separate receipt under ignored
 `dist/public-site-releases/<seal>/`. Upload only that `payload/` directory with
 pinned Wrangler 4.114.0 to project `haw-info`, branch `production`. Verify the
 returned immutable origin and `https://haw-info.pages.dev` with
 `python3 scripts/public_site.py verify-live <release-dir> --transport curl`
 (and `--origin <immutable-origin>` for the immutable receipt).
 
-The public-site verifier checks exact document bodies, content types, clean URL
-redirects, internal links, missing-page behavior and absence of application runtime
-assets. It never receives app credentials. This website deployment cannot replace
+The public-site verifier checks exact document and media bodies, content types,
+clean URL redirects, internal links, missing-page behavior and absence of
+application runtime assets. Legal/support documents retain the original text-only
+policy. The landing page is restricted to the supplied interactive reference by
+`scripts/public_site_reference.v1.json`; every media file has a content-addressed
+name, byte length and digest. Unexpected files, changed assets and changed landing
+markup fail validation. The website test reconstructs the complete original HTML
+and verifies its immutable reference digest, covering all styling and demo logic.
+The importer, reference manifest and sealing tool must all match the sealed
+commit. No application credentials or account writes enter this website.
+This website deployment cannot replace
 either app origin. The app deployment helper retains its strict two-project allowlist.
+
+Temporary public website uploads use the release coordinator's
+`production --public-site-preview --deploy --background` route described in
+`docs/release_workflow.md`. It requires exact-commit hosted App qualification and
+uses a Cloudflare preview label in the existing `haw-info` project. It verifies
+the returned immutable origin and confirms the production website body is
+unchanged; it never promotes the candidate to the production website alias.
 
 ## Evidence interpretation
 
