@@ -58,7 +58,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(service.calls, 1);
     expect(service.start, DateUtils.dateOnly(DateTime.now()));
-    expect(service.end, service.start!.add(const Duration(days: 9)));
+    // Duration is inclusive calendar days, even across a DST boundary.
+    expect(service.end, DateUtils.addDaysToDate(service.start!, 9));
+    expect(service.end!.hour, 0);
+    expect(service.end!.minute, 0);
     expect(find.text('test response'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });

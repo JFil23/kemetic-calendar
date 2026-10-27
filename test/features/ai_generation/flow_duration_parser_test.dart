@@ -74,6 +74,23 @@ void main() {
       expect(range.durationDays, defaultAiFlowDurationDays);
     });
 
+    test('ten calendar days preserve midnight across both DST boundaries', () {
+      for (final dates in [
+        (DateTime(2026, 3, 6), DateTime(2026, 3, 15)),
+        (DateTime(2026, 10, 27), DateTime(2026, 11, 5)),
+      ]) {
+        final range = resolveAiFlowDateRange(
+          prompt: 'Create a 10-day flow',
+          defaultStartDate: dates.$1,
+        );
+        expect(range.startDate, dates.$1);
+        expect(range.endDate, dates.$2);
+        expect(range.durationDays, 10);
+        expect(range.endDate.hour, 0);
+        expect(range.endDate.minute, 0);
+      }
+    });
+
     test('manual date picker range overrides prompt duration', () {
       final range = resolveAiFlowDateRange(
         prompt: 'make this a 90 day flow',

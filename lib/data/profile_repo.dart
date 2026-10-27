@@ -96,7 +96,6 @@ class ProfileRepo {
   static final Map<String, int> _insightPostsVersions = {};
   static final Map<String, String> _insightPostsViewers = {};
   static Future<void>? _insightPostsWrites;
-  static Future<void>? _preloadLocalCachesFuture;
 
   static String _profileCacheKey(String userId) =>
       '$_kProfileCacheKeyPrefix:$userId';
@@ -142,77 +141,16 @@ class ProfileRepo {
     }
   }
 
-  Future<void> preloadLocalCaches() {
-    return _preloadLocalCachesFuture ??= _preloadLocalCaches();
-  }
-
-  Future<void> _preloadLocalCaches() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final keys = prefs.getKeys();
-      const profilePrefix = '$_kProfileCacheKeyPrefix:';
-      const flowPostsPrefix = '$_kFlowPostsCacheKeyPrefix:';
-      const insightPostsPrefix = '$_kInsightPostsCacheKeyPrefix:';
-
-      for (final key in keys) {
-        if (!key.startsWith(profilePrefix) &&
-            !key.startsWith(flowPostsPrefix) &&
-            !key.startsWith(insightPostsPrefix)) {
-          continue;
-        }
-
-        final raw = prefs.getString(key);
-        if (raw == null || raw.isEmpty) continue;
-
-        try {
-          if (key.startsWith(profilePrefix)) {
-            final decoded = jsonDecode(raw);
-            if (decoded is Map) {
-              final profile = UserProfile.fromJson(
-                Map<String, dynamic>.from(decoded),
-              );
-              _profileMemoryCache[profile.id] = profile;
-            }
-          } else if (key.startsWith(flowPostsPrefix)) {
-            final userId = key.substring(flowPostsPrefix.length);
-            final decoded = jsonDecode(raw);
-            if (decoded is List) {
-              final posts = decoded
-                  .whereType<Map>()
-                  .map(
-                    (row) => FlowPost.fromJson(Map<String, dynamic>.from(row)),
-                  )
-                  .toList(growable: false);
-              _flowPostsMemoryCache[userId] = List<FlowPost>.unmodifiable(
-                posts,
-              );
-            }
-          } else if (key.startsWith(insightPostsPrefix)) {
-            if (key.endsWith(':viewer')) continue;
-            final userId = key.substring(insightPostsPrefix.length);
-            final viewer = prefs.getString('$key:viewer');
-            if (viewer != null) _insightPostsViewers[userId] = viewer;
-            final decoded = jsonDecode(raw);
-            if (decoded is List) {
-              final posts = decoded
-                  .whereType<Map>()
-                  .map(
-                    (row) =>
-                        InsightPost.fromJson(Map<String, dynamic>.from(row)),
-                  )
-                  .toList(growable: false);
-              _insightPostsMemoryCache[userId] = List<InsightPost>.unmodifiable(
-                posts,
-              );
-            }
-          }
-        } catch (e) {
-          _log('[ProfileRepo] preload cached profile key failed ($key): $e');
-        }
-      }
-    } catch (e) {
-      _log('[ProfileRepo] preload local profile caches failed: $e');
-    }
+  /// Restore only the launch account through the existing domain readers.
+  /// Other profiles and posts restore on demand at their own entry boundary.
+  Future<void> preloadLocalCaches({String? userId}) async {
+    final owner = userId ?? _client.auth.currentUser?.id;
+    if (owner == null) return;
+    await Future.wait([
+      restoreCachedProfile(owner),
+      restoreCachedFlowPosts(owner),
+      restoreCachedInsightPosts(owner),
+    ]);
   }
 
   UserProfile _overlayCachedOwnFlowCounts(UserProfile profile) {

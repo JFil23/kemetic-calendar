@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 import 'dart:convert';
 import 'package:mobile/data/commons_models.dart';
 import 'package:mobile/core/theme/app_theme.dart';
@@ -197,6 +199,18 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+    final output = Platform.environment['HAW_PAGES_CAPTURE_OUTPUT'];
+    if (output != null) {
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.byKey(key),
+      );
+      await tester.runAsync(() async {
+        final image = await boundary.toImage();
+        final data = await image.toByteData(format: ui.ImageByteFormat.png);
+        await File(output).writeAsBytes(data!.buffer.asUint8List());
+        image.dispose();
+      });
+    }
     final capturePath = Platform.environment['HAW_PAGES_CAPTURE_PATH'];
     if (capturePath != null) {
       await expectLater(find.byKey(key), matchesGoldenFile(capturePath));

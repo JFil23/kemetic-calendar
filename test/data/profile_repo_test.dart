@@ -98,6 +98,26 @@ void main() {
     },
   );
 
+  test('signed-out launch does not decode previous profile caches', () async {
+    const previous = 'previous-profile-launch';
+    SharedPreferences.setMockInitialValues({
+      'profile:summary:v1:$previous': jsonEncode({
+        'id': previous,
+        'display_name': 'Previous account',
+      }),
+    });
+    final client = SupabaseClient('https://example.supabase.co', 'fixture');
+    addTearDown(client.dispose);
+    final repo = ProfileRepo(client);
+    await repo.preloadLocalCaches();
+    expect(repo.getCachedProfileSync(previous), isNull);
+    expect(
+      (await repo.restoreCachedProfile(previous))?.displayName,
+      'Previous account',
+      reason: 'Existing cached profiles still restore on demand',
+    );
+  });
+
   test('preloadLocalCaches hydrates profile and post memory caches', () async {
     const userId = 'user-profile-cache-3';
     SharedPreferences.setMockInitialValues({
@@ -150,7 +170,7 @@ void main() {
       SupabaseClient('https://example.supabase.co', 'anon-key'),
     );
 
-    await repo.preloadLocalCaches();
+    await repo.preloadLocalCaches(userId: userId);
 
     expect(repo.getCachedProfileSync(userId)?.displayName, 'October');
     expect(

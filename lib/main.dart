@@ -1124,14 +1124,15 @@ void resetBootRestorationForTesting() {
 Future<String?> _readBootRestoredLocation() async {
   final hasSession = Supabase.instance.client.auth.currentSession != null;
   traceRestoration('boot restore read start hasSession=$hasSession');
+  final result = await AppRestorationService.instance.readBestSnapshot(
+    includeRemote: hasSession,
+  );
   final destination = await AppNavigationRestorationController.instance
       .restoreLaunchDestination(
         isAuthenticated: hasSession,
         includeRemote: hasSession,
+        snapshot: result,
       );
-  final result = await AppRestorationService.instance.readBestSnapshot(
-    includeRemote: hasSession,
-  );
   traceRestoration(
     'boot restore read result status=${result.status.name} '
     'source=${result.source ?? '<none>'} reason=${result.reason ?? '<none>'} '
@@ -3684,7 +3685,6 @@ class _LaunchShellState extends State<_LaunchShell>
       return;
     }
 
-    await Future<void>.delayed(const Duration(milliseconds: 950));
     await _waitForWebAuthExchangeToSettle();
     await CalendarPage.waitForInitialCalendarRestorationToSettle();
     if (!mounted) return;

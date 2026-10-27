@@ -1,5 +1,45 @@
 # Persistence change contract
 
+## October 27 bounded passive reads and launch reuse
+
+The existing launch branding, Pages, canonical full details and profile artwork
+remain the visual references. Launch removes the readiness-independent 950ms
+hold and retains the existing restoration wait and 420ms dissolve. A confirmed
+absent, root-owned, consumed or suppressed detached overlay is handled; only a
+pending parent/context retries. Launch routing and diagnostics reuse the same
+resolved account snapshot without another remote read. No new restoration cache,
+route identity, persisted key, namespace or schema is introduced.
+
+Profile preload restores only the launch account through the existing profile,
+flow-post and insight readers. Other subjects retain their existing on-demand
+restoration. Filed-flow requests share only their in-flight work per client,
+account, mutation generation and limit. Account departure, including A-B-A,
+fences the old read and cannot join it; acknowledged mutation generations cannot
+be overwritten by an older response. Completed requests are never another cache.
+
+The existing two-worker warm owner retains Pages projections, primary resources,
+the displayed complete flow and up to six recent details. It no longer expands
+all filed flows and all profile/feed posts into speculative full-detail reads or
+requests Commons twice in a sweep. A Calendar invalidation refreshes Pages and
+the identified flow, instead of restarting unrelated archives. Unknown flow
+identity retains conservative invalidation. On-demand canonical details still
+read complete event coverage; nothing treats a preview as a complete history.
+Account repositories keep all acknowledged and pending-write ownership.
+
+Profile PNGs retain their dimensions, full RGBA pixels, paths and blend behavior.
+Only lossless PNG compression changes. Before/after real backdrop and Pages
+captures have identical pixels; original full-resolution pixel hashes are sealed
+in the additive profile artwork fixture. No approved golden or old fixture changes.
+Regression evidence covers request counts, complete displayed-flow pagination,
+mutation/account departure, terminal versus pending restoration, on-demand cached
+profiles, the original source pixels and real rendered visual parity. The complete
+App gate and served-device replay remain separate release requirements.
+
+The complete local run also exposed an unchanged Compose test that compared
+calendar days with elapsed 24-hour durations across the November DST change.
+Its end-date assertion now uses calendar-day addition, with additional midnight
+checks and fixed spring/fall transition cases. Compose behavior is unchanged.
+
 ## October 13 visitor entry and account invitation
 
 The existing authored opening and Pages layout are the presentation references.
