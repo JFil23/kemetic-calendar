@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'birthday_calendar.dart';
 import 'external_calendar_repository.dart';
 import '../features/calendar/calendar_hydration_diagnostics.dart';
@@ -16,6 +17,8 @@ import '../telemetry/telemetry.dart';
 import '../utils/flow_filter_engine.dart';
 import 'flow_appearance.dart';
 import 'profile_repo.dart';
+
+part 'user_events_ask_haw.dart';
 
 const _kTable = 'user_events';
 const _kReadableEventsTable = 'user_event_filing_items_client';
@@ -349,6 +352,8 @@ class UserEvent {
   final Map<String, dynamic>? behaviorPayload;
   final DateTime? updatedAt;
   final DateTime? createdAt;
+  final int eventRevision;
+  final bool flowSuspended;
 
   const UserEvent({
     required this.id,
@@ -369,6 +374,8 @@ class UserEvent {
     this.behaviorPayload,
     this.updatedAt,
     this.createdAt,
+    this.eventRevision = 0,
+    this.flowSuspended = false,
   });
 
   factory UserEvent.fromRow(Map<String, dynamic> row) {
@@ -405,6 +412,8 @@ class UserEvent {
       createdAt: row['created_at'] == null
           ? null
           : DateTime.parse(row['created_at'] as String).toUtc(),
+      eventRevision: (row['event_revision'] as num?)?.toInt() ?? 0,
+      flowSuspended: row['flow_suspended'] == true,
     );
   }
 
@@ -3123,6 +3132,7 @@ class UserEventsRepo {
     String? originGenerationId,
     int? rootFlowId,
     Map<String, dynamic>? aiMetadata,
+    Map<String, dynamic>? assistance,
     FlowAppearance? appearance,
   }) async {
     final account = AccountOperationFence(_client);
@@ -3192,6 +3202,7 @@ class UserEventsRepo {
       if (aiMetadata != null) {
         payload['ai_metadata'] = aiMetadata;
       }
+      if (assistance != null) payload['assistance'] = assistance;
       if (appearance != null) {
         payload['appearance'] = appearance.toJsonOrNull();
       }

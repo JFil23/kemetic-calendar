@@ -66,8 +66,11 @@ void main() {
     final page = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
+    final stateStart = page.indexOf('class CalendarPageState extends');
+    expect(stateStart, greaterThanOrEqualTo(0));
+    final calendarState = page.substring(stateStart);
     final initState = _sourceBetween(
-      page,
+      calendarState,
       '  @override\n'
           '  void initState() {\n'
           '    super.initState();',

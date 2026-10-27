@@ -1839,13 +1839,26 @@ void main() {
       final calendarSource = await File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsString();
+      final openerStart = calendarSource.indexOf(
+        'static Future<void> openQuickAddFromAnyContext(',
+      );
+      final openerEnd = calendarSource.indexOf(
+        'static DateTime _nextWeekdayForQuickAdd',
+        openerStart,
+      );
+      expect(openerStart, isNonNegative);
+      expect(openerEnd, greaterThan(openerStart));
+      final opener = calendarSource.substring(openerStart, openerEnd);
       expect(
-        calendarSource,
-        contains(
-          'await _openDetachedQuickAddSheet(context);\n  }\n\n  static DateTime _nextWeekdayForQuickAdd',
-        ),
+        opener,
+        contains('await _openDetachedQuickAddSheet(\n      context,'),
         reason: 'Detached quick add should open on the current route',
       );
+      expect(opener, isNot(contains('_routeHomeForDetachedLaunch')));
+      expect(opener, isNot(contains("context.go('/')")));
+      expect(opener, contains('selectedFlowId: selectedFlowId'));
+      expect(opener, contains('selectedEventId: selectedEventId'));
+      expect(opener, contains('selectedClientEventId: selectedClientEventId'));
     });
 
     test(

@@ -1405,6 +1405,10 @@ class _ActiveMaatFlowDetailSurfaceState
   @override
   Widget build(BuildContext context) {
     final start = DateUtils.dateOnly(DateTime.now());
+    final focused = FlowDetailEventFocus.eventOf(context);
+    final owned = widget.relation == MaatFlowDetailRelation.owned
+        ? widget.joinedFlow
+        : null;
     final detail = _withFlowDetailOptions(
       FlowDetailCalendarScope(
         start: start,
@@ -1443,6 +1447,12 @@ class _ActiveMaatFlowDetailSurfaceState
             ),
           ),
         ...widget.menuActions,
+        if (owned != null && owned.id > 0)
+          _askHawOwnedFlowMenuAction(
+            context,
+            owned,
+            event: focused?.flowLocalId == owned.id ? focused : null,
+          ),
       ],
     );
     final access = context.dependOnInheritedWidgetOfExactType<AccountAccess>();

@@ -14,6 +14,7 @@ class PagesLayout extends StatefulWidget {
     required this.onOpen,
     required this.onProfile,
     required this.onNewNote,
+    this.newNoteKey,
     required this.onSearchResult,
     required this.searchRecords,
     this.collectionState = const PagesCollectionState(),
@@ -29,6 +30,7 @@ class PagesLayout extends StatefulWidget {
   final List<ValueListenable<PagesCard>> cards;
   final ValueChanged<PagesCard> onOpen;
   final VoidCallback onProfile, onNewNote;
+  final GlobalKey? newNoteKey;
   final ValueChanged<PagesSearchRecord> onSearchResult;
   final List<PagesSearchRecord> Function() searchRecords;
   final PagesProfileIdentity profileIdentity;
@@ -171,6 +173,7 @@ class _PagesLayoutState extends State<PagesLayout> {
             ),
             actions: [
               IconButton(
+                key: widget.newNoteKey,
                 tooltip: 'New note',
                 onPressed: widget.onNewNote,
                 icon: const Icon(Icons.add, color: pagesGold, size: 28),

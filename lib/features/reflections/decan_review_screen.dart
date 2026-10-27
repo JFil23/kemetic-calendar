@@ -6,6 +6,7 @@ import '../../core/navigation_fallback.dart';
 import '../../data/account_operation_fence.dart';
 import '../../data/decan_reflection_model.dart';
 import '../nodes/kemetic_node_library.dart';
+import '../calendar/calendar_page.dart';
 import 'decan_review_controller.dart';
 import 'decan_review_models.dart';
 import 'decan_review_views.dart';
@@ -386,6 +387,18 @@ class _DecanReviewScreenState extends State<DecanReviewScreen> {
             onOpen: (s) => unawaited(_openSuggestion(s)),
             onDismiss: (s) => unawaited(c.dismissSuggestion(s)),
             onDone: _done,
+            onAsk: (request) => unawaited(
+              CalendarPage.openQuickAddFromAnyContext(
+                context,
+                initialText: request,
+              ),
+            ),
+            onShorterSessions: () => unawaited(
+              CalendarPage.openQuickAddFromAnyContext(
+                context,
+                initialText: 'Help me use shorter sessions',
+              ),
+            ),
           );
       }
     }

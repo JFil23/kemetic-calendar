@@ -14,6 +14,7 @@ import 'share_models.dart';
 import 'user_events_repo.dart';
 import 'flow_appearance.dart';
 import 'flow_appearance_store.dart';
+import 'flow_share_snapshot.dart';
 import '../features/calendar/maat_flow_catalog.dart';
 import '../telemetry/telemetry.dart';
 import '../utils/event_cid_util.dart';
@@ -862,7 +863,7 @@ class ShareRepo {
     final rawFlow = await _client
         .from('flows')
         .select(
-          'id, name, color, notes, rules, appearance, user_id, start_date, end_date',
+          'id, name, color, notes, rules, appearance, assistance, user_id, start_date, end_date',
         )
         .eq('id', flowId)
         .maybeSingle();
@@ -1431,7 +1432,7 @@ class ShareRepo {
     final rawFlow = await _client
         .from('flows')
         .select(
-          'id, name, color, notes, rules, appearance, start_date, end_date, is_hidden, is_reminder, reminder_uuid, origin_flow_id, root_flow_id',
+          'id, name, color, notes, rules, appearance, assistance, start_date, end_date, is_hidden, is_reminder, reminder_uuid, origin_flow_id, root_flow_id',
         )
         .eq('id', sourceFlowId)
         .maybeSingle();
@@ -1475,6 +1476,8 @@ class ShareRepo {
       'notes': _cleanNullableString(flowRow['notes']),
       'rules': (flowRow['rules'] as List?) ?? const <dynamic>[],
       'appearance': flowRow['appearance'],
+      if (flowRow['assistance'] is Map)
+        'assistance': copyFlowAssistance(flowRow['assistance']),
       'start_date': flowRow['start_date'],
       'end_date': flowRow['end_date'],
       'is_hidden': _parseBoolishValue(flowRow['is_hidden']),
@@ -1576,6 +1579,8 @@ class ShareRepo {
       'notes': flowNotes,
       'rules': (flowRow['rules'] as List?) ?? const <dynamic>[],
       'appearance': flowRow['appearance'],
+      if (flowRow['assistance'] is Map)
+        'assistance': copyFlowAssistance(flowRow['assistance']),
       'start_date': flowRow['start_date'],
       'end_date': flowRow['end_date'],
       'events': eventSnapshots,
@@ -2287,6 +2292,10 @@ class ShareRepo {
       endDate: flowEndDate,
       notes: importedNotes,
       rules: jsonEncode(rulesData),
+      // Existing recipient-owned copies keep their authored contract.
+      assistance: existingFlowId == null
+          ? copyFlowAssistance(sourceFlow['assistance'])
+          : null,
       // Accepted imports should show up on the recipient's calendar even if the
       // sender had their own source flow hidden locally.
       isHidden: false,

@@ -6,6 +6,12 @@ import '../onboarding/haw_calendar_connection.dart';
 import '../auth/account_access.dart';
 import '../auth/visitor_preferences.dart';
 import 'dart:async';
+import '../ask_haw/ask_haw_response.dart';
+import '../ask_haw/ask_haw_response_view.dart';
+import '../ask_haw/ask_haw_controller.dart';
+import '../ask_haw/ask_haw_onboarding_helper.dart';
+import '../ask_haw/ask_haw_flow_contract_editor.dart';
+import '../ask_haw/ask_haw_flow_contract.dart';
 import 'flow_detail_event_focus.dart';
 import '../pages/pages_models.dart';
 import '../pages/pages_arrangement.dart';
@@ -364,9 +370,21 @@ class _QuickAddSheet extends StatefulWidget {
     required this.onOpenPlanner,
     required this.onOpenFullEditor,
     required this.scaffoldMessengerContext,
+    this.response,
+    this.initialText,
+    this.selectedFlowId,
+    this.selectedEventId,
+    this.selectedClientEventId,
+    this.showGregorian = false,
+    this.resolveSavedDateMode = false,
   });
 
   final QuickAddParse? Function(String raw) parse;
+  final AskHawResponse? response;
+  final String? initialText, selectedEventId, selectedClientEventId;
+  final int? selectedFlowId;
+  final bool showGregorian;
+  final bool resolveSavedDateMode;
   final Future<void> Function(QuickAddParse parsed, Color color) onSave;
   final VoidCallback onOpenJournal;
   final VoidCallback onOpenPlanner;
@@ -385,18 +403,139 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   String? _error;
   bool _submitting = false;
   Color _selectedColor = daySheetColorPalette.first;
+  AskHawController? _ask;
+  AskHawResponse? get _response => widget.response ?? _ask?.response;
+
+  @override
+  void initState() {
+    super.initState();
+    _textCtrl.text = widget.initialText ?? '';
+    if (widget.response == null) {
+      _createAskController();
+      _textCtrl.addListener(_edited);
+      if (_textCtrl.text.isNotEmpty)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_ask!.ask(_textCtrl.text));
+        });
+    }
+  }
+
+  void _edited() {
+    if (_ask?.response != null || _ask?.busy == true) _ask?.dismiss();
+  }
+
+  void _askChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _createAskController() {
+    _ask?.removeListener(_askChanged);
+    _ask?.dispose();
+    _ask = AskHawController(
+      client: Supabase.instance.client,
+      dateMode: widget.showGregorian ? 'gregorian' : 'kemetic',
+      readDateMode: widget.resolveSavedDateMode
+          ? () async {
+              final saved = await AppRestorationService.instance
+                  .readCalendarState();
+              return saved?.showGregorian == true ? 'gregorian' : 'kemetic';
+            }
+          : null,
+      selectedFlowId: widget.selectedFlowId,
+      selectedEventId: widget.selectedEventId,
+      selectedClientEventId: widget.selectedClientEventId,
+      onAccountChanged: () {
+        if (mounted) _textCtrl.clear();
+      },
+      parseTime: (text) {
+        final parsed = widget.parse('Session $text');
+        return parsed == null
+            ? null
+            : (
+                day: parsed.date,
+                hour: parsed.start?.hour,
+                minute: parsed.start?.minute,
+              );
+      },
+      setInput: (text) {
+        _textCtrl.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+      },
+      addEvent: () => _handleSubmit(forceEvent: true),
+      rewriteDetail: (original, guidance) {
+        final meta = _decodeDetailMetadata(original);
+        return _encodeDetailWithMeta(
+              guidance,
+              color: meta.color,
+              alertMinutes: meta.alertMinutes,
+            ) ??
+            guidance;
+      },
+      openEvent: (event) async {
+        final parent = widget.scaffoldMessengerContext;
+        _focusNode.unfocus();
+        if (mounted) Navigator.of(context).pop();
+        if (!parent.mounted) return;
+        final k = KemeticMath.fromGregorian(event.startUtc.toLocal());
+        final clientId = event.clientEventId;
+        CalendarPage._routeHomeForSearchResult(
+          parent,
+          ky: k.kYear,
+          km: k.kMonth,
+          kd: k.kDay,
+          eventDetail: EventDetailRestorationState(
+            kYear: k.kYear,
+            kMonth: k.kMonth,
+            kDay: k.kDay,
+            identityType: clientId == null
+                ? eventDetailIdentityEventId
+                : eventDetailIdentityClientEventId,
+            identityValue: clientId ?? event.id,
+          ),
+        );
+      },
+      navigate: (route) async {
+        final parent = widget.scaffoldMessengerContext;
+        _focusNode.unfocus();
+        if (mounted) Navigator.of(context).pop();
+        if (parent.mounted) await openDetailRoute<void>(parent, route);
+      },
+    )..addListener(_askChanged);
+    unawaited(_ask!.restoreMemory());
+  }
+
+  Future<void> _chooseAsk(String id) async {
+    if (id == 'account:request') {
+      if (!await AccountAccess.require(context) || !mounted) return;
+      _createAskController();
+      await _ask!.ask(_textCtrl.text);
+    } else {
+      await _ask?.choose(id);
+    }
+  }
 
   @override
   void dispose() {
     _account.dispose();
+    _ask?.removeListener(_askChanged);
+    _ask?.dispose();
     _focusNode.dispose();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSubmit() async {
-    if (_submitting) return;
+  Future<void> _handleSubmit({bool forceEvent = false}) async {
+    if (_submitting || (_ask?.busy ?? false)) return;
+    if (!forceEvent &&
+        _ask != null &&
+        !_ask!.recognize(_textCtrl.text).isEvent) {
+      _focusNode.unfocus();
+      await _ask!.ask(_textCtrl.text);
+      return;
+    }
 
     final parsed = widget.parse(_textCtrl.text);
     if (parsed == null) {
@@ -418,9 +557,10 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       _submitting = true;
     });
 
-    final messenger = ScaffoldMessenger.maybeOf(
-      widget.scaffoldMessengerContext,
-    );
+    final parentContext = widget.scaffoldMessengerContext;
+    final messenger = parentContext.mounted
+        ? ScaffoldMessenger.maybeOf(parentContext)
+        : null;
     final save = beginOptimisticNoteEditorSave<void>(
       startSave: () => widget.onSave(parsed, _selectedColor),
       closeEditor: () => Navigator.of(context).pop(),
@@ -635,6 +775,20 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                             color: tone.softenedAccent.withValues(alpha: 0.18),
                           ),
                         ),
+                        IconButton(
+                          tooltip: 'How to ask ḥꜣw',
+                          onPressed: _ask?.showHelp,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 24,
+                            height: 20,
+                          ),
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(
+                            Icons.help_outline,
+                            size: 17,
+                            color: DaySheetTokens.gold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -651,10 +805,12 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                       height: 1.4,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Fri 3pm–4pm coffee with Amara',
+                      hintText: 'Add an event or ask ḥꜣw…',
                       hintStyle: const TextStyle(
                         color: Color(0xFF5A5449),
                         fontFamily: DaySheetTokens.serif,
+                        fontFamilyFallback:
+                            KemeticTypography.kemeticLatinFallback,
                         fontSize: 18,
                         fontStyle: FontStyle.italic,
                         height: 1.4,
@@ -696,67 +852,78 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                       style: const TextStyle(color: Colors.redAccent),
                     ),
                   ],
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16, bottom: 2),
-                    child: TextFieldTapRegion(
-                      debugLabel: 'quick-add-color-control',
-                      child: _QuickAddSpectrumBar(
-                        selectedColor: _selectedColor,
-                        onHueChanged: (hue) {
-                          setState(() {
-                            _selectedColor =
-                                DaySheetSpectrumColorPicker.colorFromHue(hue);
-                          });
-                        },
+                  if (_response case final response?) ...[
+                    const SizedBox(height: 14),
+                    AskHawResponseView(
+                      response: response,
+                      onChoose: (id) => unawaited(_chooseAsk(id)),
+                      busy: _ask?.busy ?? false,
+                      onClose: _ask?.dismiss,
+                    ),
+                  ],
+                  if (_response == null) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16, bottom: 2),
+                      child: TextFieldTapRegion(
+                        debugLabel: 'quick-add-color-control',
+                        child: _QuickAddSpectrumBar(
+                          selectedColor: _selectedColor,
+                          onHueChanged: (hue) {
+                            setState(() {
+                              _selectedColor =
+                                  DaySheetSpectrumColorPicker.colorFromHue(hue);
+                            });
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Opacity(
-                          opacity: _submitting ? 0.55 : 1,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(26),
-                              gradient: const LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Color(0xFFE7C763),
-                                  DaySheetTokens.gold,
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Opacity(
+                            opacity: _submitting ? 0.55 : 1,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(26),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color(0xFFE7C763),
+                                    DaySheetTokens.gold,
+                                  ],
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x2ED4AE43),
+                                    blurRadius: 26,
+                                  ),
                                 ],
                               ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x2ED4AE43),
-                                  blurRadius: 26,
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: Semantics(
-                                button: true,
-                                enabled: !_submitting,
-                                label: 'Quick add',
-                                child: ExcludeSemantics(
-                                  child: InkWell(
-                                    key: const ValueKey(
-                                      'quick-add-submit-button',
-                                    ),
-                                    borderRadius: BorderRadius.circular(26),
-                                    onTap: _submitting ? null : _handleSubmit,
-                                    child: const SizedBox(
-                                      height: 50,
-                                      child: Center(
-                                        child: Text(
-                                          'Quick add',
-                                          style: TextStyle(
-                                            color: Color(0xFF15110A),
-                                            fontFamily: DaySheetTokens.serif,
-                                            fontSize: 20,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: Semantics(
+                                  button: true,
+                                  enabled: !_submitting,
+                                  label: 'Quick add',
+                                  child: ExcludeSemantics(
+                                    child: InkWell(
+                                      key: const ValueKey(
+                                        'quick-add-submit-button',
+                                      ),
+                                      borderRadius: BorderRadius.circular(26),
+                                      onTap: _submitting ? null : _handleSubmit,
+                                      child: const SizedBox(
+                                        height: 50,
+                                        child: Center(
+                                          child: Text(
+                                            'Quick add',
+                                            style: TextStyle(
+                                              color: Color(0xFF15110A),
+                                              fontFamily: DaySheetTokens.serif,
+                                              fontSize: 20,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -767,31 +934,31 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 14),
-                      TextButton(
-                        key: const ValueKey('quick-add-full-editor-button'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: DaySheetTokens.gold,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 2,
-                            vertical: 6,
+                        const SizedBox(width: 14),
+                        TextButton(
+                          key: const ValueKey('quick-add-full-editor-button'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: DaySheetTokens.gold,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 2,
+                              vertical: 6,
+                            ),
+                            textStyle: const TextStyle(
+                              fontFamily: DaySheetTokens.serif,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w400,
+                            ),
                           ),
-                          textStyle: const TextStyle(
-                            fontFamily: DaySheetTokens.serif,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w400,
-                          ),
+                          onPressed: _submitting
+                              ? null
+                              : () => _handleOpenDestination(
+                                  widget.onOpenFullEditor,
+                                ),
+                          child: const Text('Open full editor'),
                         ),
-                        onPressed: _submitting
-                            ? null
-                            : () => _handleOpenDestination(
-                                widget.onOpenFullEditor,
-                              ),
-                        child: const Text('Open full editor'),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -3450,6 +3617,9 @@ class _CalendarWarmStateStore {
       isReminder: flow.isReminder,
       reminderUuid: flow.reminderUuid,
       appearance: flow.appearance,
+      assistance: flow.assistance,
+      assistanceRevision: flow.assistanceRevision,
+      pausedAt: flow.pausedAt,
     );
   }
 }
@@ -5291,15 +5461,34 @@ class CalendarPage extends StatefulWidget {
         : null;
   }
 
-  static Future<void> openQuickAddFromAnyContext(BuildContext context) async {
+  static Future<void> openQuickAddFromAnyContext(
+    BuildContext context, {
+    String? initialText,
+    int? selectedFlowId,
+    String? selectedEventId,
+    String? selectedClientEventId,
+  }) async {
+    final owner = Supabase.instance.client.auth.currentUser?.id;
+    if (owner != null) unawaited(AskHawOnboardingHelper.consume(owner));
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
         : null;
     if (mountedHost != null) {
-      await mountedHost.openQuickAddFromOutside();
+      await mountedHost.openQuickAddFromOutside(
+        initialText: initialText,
+        selectedFlowId: selectedFlowId,
+        selectedEventId: selectedEventId,
+        selectedClientEventId: selectedClientEventId,
+      );
       return;
     }
-    await _openDetachedQuickAddSheet(context);
+    await _openDetachedQuickAddSheet(
+      context,
+      initialText: initialText,
+      selectedFlowId: selectedFlowId,
+      selectedEventId: selectedEventId,
+      selectedClientEventId: selectedClientEventId,
+    );
   }
 
   static DateTime _nextWeekdayForQuickAdd(DateTime base, int weekday) {
@@ -5311,6 +5500,20 @@ class CalendarPage extends StatefulWidget {
   static QuickAddParse? parseQuickAddText(String raw, {DateTime? now}) {
     return _QuickAddParser(raw, now ?? DateTime.now()).parse();
   }
+
+  @visibleForTesting
+  static Widget buildQuickAddVisualReference(
+    BuildContext context, {
+    AskHawResponse? response,
+  }) => _QuickAddSheet(
+    parse: parseQuickAddText,
+    onSave: (_, _) async {},
+    onOpenJournal: () {},
+    onOpenPlanner: () {},
+    onOpenFullEditor: () {},
+    scaffoldMessengerContext: context,
+    response: response,
+  );
 
   static Future<void> _saveDetachedQuickAddNote(
     QuickAddParse parsed,
@@ -5404,7 +5607,13 @@ class CalendarPage extends StatefulWidget {
     unawaited(openUtilityRoute<void>(context, location));
   }
 
-  static Future<void> _openDetachedQuickAddSheet(BuildContext context) async {
+  static Future<void> _openDetachedQuickAddSheet(
+    BuildContext context, {
+    String? initialText,
+    int? selectedFlowId,
+    String? selectedEventId,
+    String? selectedClientEventId,
+  }) async {
     if (!context.mounted) return;
     final navigator = Navigator.of(context, rootNavigator: true);
     if (_detachedQuickAddSheetOpenOrOpening &&
@@ -5424,6 +5633,12 @@ class CalendarPage extends StatefulWidget {
         ),
         builder: (_) => _QuickAddSheet(
           parse: parseQuickAddText,
+          initialText: initialText,
+          selectedFlowId: selectedFlowId,
+          selectedEventId: selectedEventId,
+          selectedClientEventId: selectedClientEventId,
+          showGregorian: _mountedState?._showGregorian ?? false,
+          resolveSavedDateMode: true,
           scaffoldMessengerContext: context,
           onSave: _saveDetachedQuickAddNote,
           onOpenJournal: () =>
@@ -5685,6 +5900,11 @@ class CalendarPage extends StatefulWidget {
         isReminder: (json['isReminder'] as bool?) ?? false,
         reminderUuid: json['reminderUuid'] as String?,
         appearance: FlowAppearance.fromJson(json['appearance']),
+        assistance: json['assistance'] is Map
+            ? Map<String, dynamic>.from(json['assistance'] as Map)
+            : null,
+        assistanceRevision: (json['assistanceRevision'] as num?)?.toInt() ?? 0,
+        pausedAt: _parseWarmStartSearchDateTime(json['pausedAt']),
       );
     } catch (_) {
       return null;
@@ -6716,6 +6936,9 @@ class CalendarPage extends StatefulWidget {
       isReminder: row.isReminder,
       reminderUuid: row.reminderUuid,
       appearance: row.appearance,
+      assistance: row.assistance,
+      assistanceRevision: row.assistanceRevision,
+      pausedAt: row.pausedAt,
     );
   }
 
@@ -6763,6 +6986,9 @@ class CalendarPage extends StatefulWidget {
     isReminder: flow.isReminder,
     reminderUuid: flow.reminderUuid,
     appearance: flow.appearance,
+    assistance: flow.assistance,
+    assistanceRevision: flow.assistanceRevision,
+    pausedAt: flow.pausedAt,
   );
 
   static _MyFlowsFilingSnapshot _applyEndFlowVisibilityOverlay(
@@ -8690,6 +8916,9 @@ class CalendarPage extends StatefulWidget {
       isReminder: source.isReminder,
       reminderUuid: source.reminderUuid,
       appearance: source.appearance,
+      assistance: source.assistance,
+      assistanceRevision: source.assistanceRevision,
+      pausedAt: source.pausedAt,
     );
   }
 
@@ -8719,6 +8948,7 @@ class CalendarPage extends StatefulWidget {
       originGenerationId: result.originGenerationId,
       rootFlowId: result.rootFlowId,
       aiMetadata: result.aiMetadata,
+      assistance: flow.assistance,
       appearance: flow.appearance,
     );
     _requireFlowStudioAccount(account);
@@ -9089,6 +9319,7 @@ class CalendarPage extends StatefulWidget {
       rootFlowId: data.rootFlowId,
       aiMetadata: data.aiMetadata,
       appearance: importedAppearance,
+      assistance: data.assistance,
     );
     final localFlow = _Flow(
       id: savedId,
@@ -9103,6 +9334,7 @@ class CalendarPage extends StatefulWidget {
       notes: data.notes,
       shareId: data.share.shareId,
       appearance: importedAppearance,
+      assistance: data.assistance,
     );
 
     final writes = rawEvents.isNotEmpty
@@ -10594,6 +10826,10 @@ class CalendarPageState extends State<CalendarPage>
       'isReminder': flow.isReminder,
       'reminderUuid': flow.reminderUuid,
       'appearance': flow.appearance.toJsonOrNull(),
+      if (flow.assistance != null) 'assistance': flow.assistance,
+      if (flow.assistanceRevision != 0)
+        'assistanceRevision': flow.assistanceRevision,
+      if (flow.pausedAt != null) 'pausedAt': flow.pausedAt!.toIso8601String(),
     };
   }
 
@@ -10631,6 +10867,11 @@ class CalendarPageState extends State<CalendarPage>
         isReminder: (json['isReminder'] as bool?) ?? false,
         reminderUuid: json['reminderUuid'] as String?,
         appearance: FlowAppearance.fromJson(json['appearance']),
+        assistance: json['assistance'] is Map
+            ? Map<String, dynamic>.from(json['assistance'] as Map)
+            : null,
+        assistanceRevision: (json['assistanceRevision'] as num?)?.toInt() ?? 0,
+        pausedAt: _parseWarmStartDateTime(json['pausedAt']),
       );
     } catch (_) {
       return null;
@@ -15085,6 +15326,7 @@ class CalendarPageState extends State<CalendarPage>
   final _todayDayKey = GlobalKey(); // 🔑 individual day chip
   final Map<DayRef, GlobalKey> _viewDayAnchorKeys = <DayRef, GlobalKey>{};
   final _calendarToggleKey = GlobalKey(debugLabel: 'calendar_toggle_haw');
+  final _askHawPlusKey = GlobalKey(debugLabel: 'calendar_ask_haw_plus');
   VoidCallback? _landscapeTodayAction;
   int? _calendarMonthCoachmarkKy;
   int? _calendarMonthCoachmarkKm;
@@ -20806,12 +21048,11 @@ class CalendarPageState extends State<CalendarPage>
     for (final rule in rules) {
       await _reminderSyncGate.waitForOrientationCriticalSection();
       if (!isCurrent()) return;
-      final int? flowIdForReminder;
+      final ReminderFlowStatus? flowStatus;
       try {
-        // A cached rule is presentation, not permission to recreate a series.
-        // Failure leaves it available for a later refresh; confirmed absence
-        // must not read/prune occurrences or materialize new ones.
-        flowIdForReminder = await _findFlowIdByReminderUuid(
+        // The same confirmed owner read supplies identity and pause status.
+        // A stale hydrated rule cannot prune or recreate paused occurrences.
+        flowStatus = await _findReminderFlowStatusByUuid(
           rule.id,
           rethrowErrors: true,
         );
@@ -20820,7 +21061,12 @@ class CalendarPageState extends State<CalendarPage>
         continue;
       }
       if (!isCurrent()) return;
-      if (flowIdForReminder == null || flowIdForReminder <= 0) continue;
+      if (flowStatus == null ||
+          flowStatus.id <= 0 ||
+          flowStatus.pausedAt != null) {
+        continue;
+      }
+      final flowIdForReminder = flowStatus.id;
       final overriddenDates = <String>{};
       List<_ReminderOccurrenceRow> existingRows = [];
       try {
@@ -23317,6 +23563,10 @@ class CalendarPageState extends State<CalendarPage>
       isHidden: true,
       isReminder: false,
       reminderUuid: flow.reminderUuid,
+      appearance: flow.appearance,
+      assistance: flow.assistance,
+      assistanceRevision: flow.assistanceRevision,
+      pausedAt: flow.pausedAt,
     );
 
     final repo = UserEventsRepo(Supabase.instance.client);
@@ -23335,6 +23585,7 @@ class CalendarPageState extends State<CalendarPage>
       shareId: nextFlow.shareId,
       isReminder: false,
       reminderUuid: nextFlow.reminderUuid,
+      assistance: nextFlow.assistance,
     );
 
     final idx = _flows.indexWhere((f) => f.id == flow.id);
@@ -25704,6 +25955,7 @@ class CalendarPageState extends State<CalendarPage>
         isReminder: flow.isReminder,
         reminderUuid: flow.reminderUuid,
         appearance: flow.appearance,
+        assistance: flow.assistance,
       );
 
       // Keep nextFlowId monotonic with server ids
@@ -25726,6 +25978,9 @@ class CalendarPageState extends State<CalendarPage>
         isReminder: flow.isReminder,
         reminderUuid: flow.reminderUuid,
         appearance: flow.appearance,
+        assistance: flow.assistance,
+        assistanceRevision: flow.assistanceRevision,
+        pausedAt: flow.pausedAt,
       );
 
       _flows.add(persisted);
@@ -25819,6 +26074,9 @@ class CalendarPageState extends State<CalendarPage>
           isReminder: f.isReminder,
           reminderUuid: f.reminderUuid,
           appearance: f.appearance,
+          assistance: f.assistance,
+          assistanceRevision: f.assistanceRevision,
+          pausedAt: f.pausedAt,
         );
       }
       setState(() {});
@@ -25848,6 +26106,7 @@ class CalendarPageState extends State<CalendarPage>
             isReminder: flow.isReminder,
             reminderUuid: flow.reminderUuid,
             appearance: flow.appearance,
+            assistance: flow.assistance,
           );
           if (kDebugMode) {
             _calendarDebugPrint(
@@ -26602,14 +26861,18 @@ class CalendarPageState extends State<CalendarPage>
             ),
           ),
       actions: [
-        KemeticAppBarAction(
-          tooltip: 'New note',
-          icon: const GlossyIcon(
-            icon: Icons.add,
-            gradient: goldGloss,
-            size: 23,
+        AskHawOnboardingHelper(
+          targetKey: _askHawPlusKey,
+          child: KemeticAppBarAction(
+            key: _askHawPlusKey,
+            tooltip: 'New note',
+            icon: const GlossyIcon(
+              icon: Icons.add,
+              gradient: goldGloss,
+              size: 23,
+            ),
+            onPressed: _openQuickAddSheet,
           ),
-          onPressed: _openQuickAddSheet,
         ),
         KemeticAppBarAction(
           tooltip: 'Search notes',
@@ -26719,7 +26982,17 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> openProfileFromOutside(BuildContext context) =>
       _openProfile(context);
 
-  Future<void> openQuickAddFromOutside() => _openQuickAddSheet();
+  Future<void> openQuickAddFromOutside({
+    String? initialText,
+    int? selectedFlowId,
+    String? selectedEventId,
+    String? selectedClientEventId,
+  }) => _openQuickAddSheet(
+    initialText: initialText,
+    selectedFlowId: selectedFlowId,
+    selectedEventId: selectedEventId,
+    selectedClientEventId: selectedClientEventId,
+  );
 
   void jumpToTodayFromOutside({bool animate = true}) =>
       _scrollToToday(animate: animate);
@@ -28405,6 +28678,9 @@ class CalendarPageState extends State<CalendarPage>
             isReminder: existingFlow.isReminder,
             reminderUuid: existingFlow.reminderUuid,
             appearance: existingFlow.appearance,
+            assistance: existingFlow.assistance,
+            assistanceRevision: existingFlow.assistanceRevision,
+            pausedAt: existingFlow.pausedAt,
           );
     final removed = _removeCalendarNotesWhere(
       (_, note) => note.flowId == flowId,
@@ -31415,7 +31691,14 @@ class CalendarPageState extends State<CalendarPage>
     }());
   }
 
-  Future<void> _openQuickAddSheet() async {
+  Future<void> _openQuickAddSheet({
+    String? initialText,
+    int? selectedFlowId,
+    String? selectedEventId,
+    String? selectedClientEventId,
+  }) async {
+    final owner = _currentUserId;
+    if (owner != null) unawaited(AskHawOnboardingHelper.consume(owner));
     if (_quickAddSheetOpenOrOpening) return;
     _quickAddSheetOpenOrOpening = true;
     try {
@@ -31428,6 +31711,11 @@ class CalendarPageState extends State<CalendarPage>
         ),
         builder: (_) => _QuickAddSheet(
           parse: CalendarPage.parseQuickAddText,
+          initialText: initialText,
+          selectedFlowId: selectedFlowId,
+          selectedEventId: selectedEventId,
+          selectedClientEventId: selectedClientEventId,
+          showGregorian: _showGregorian,
           scaffoldMessengerContext: context,
           onSave: (parsed, color) async {
             final k = KemeticMath.fromGregorian(parsed.date);
@@ -32291,6 +32579,9 @@ class CalendarPageState extends State<CalendarPage>
       isReminder: row.isReminder,
       reminderUuid: row.reminderUuid,
       appearance: row.appearance,
+      assistance: row.assistance,
+      assistanceRevision: row.assistanceRevision,
+      pausedAt: row.pausedAt,
     );
   }
 
@@ -32378,7 +32669,7 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<int?> _findFlowIdByReminderUuid(
+  Future<ReminderFlowStatus?> _findReminderFlowStatusByUuid(
     String reminderUuid, {
     bool rethrowErrors = false,
   }) async {
@@ -32386,12 +32677,20 @@ class CalendarPageState extends State<CalendarPage>
     if (dbUuid == null) return null;
     try {
       final repo = FlowsRepo(Supabase.instance.client);
-      return await repo.getFlowIdByReminderUuid(dbUuid);
+      return await repo.getFlowStatusByReminderUuid(dbUuid);
     } catch (_) {
       if (rethrowErrors) rethrow;
       return null;
     }
   }
+
+  Future<int?> _findFlowIdByReminderUuid(
+    String reminderUuid, {
+    bool rethrowErrors = false,
+  }) async => (await _findReminderFlowStatusByUuid(
+    reminderUuid,
+    rethrowErrors: rethrowErrors,
+  ))?.id;
 
   bool _rulesEqual(List<dynamic> oldRulesJson, List<FlowRule> newRules) {
     if (oldRulesJson.length != newRules.length) return false;
@@ -33561,6 +33860,9 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
+    // Pause retains materialized history; only the canonical pause owner
+    // suppresses delivery. Never route it through inactive-flow deletion.
+    if (flow.pausedAt != null) return;
     // If flow is inactive or has no rules, just clear its events.
     if (!flow.active || flow.rules.isEmpty) {
       if (kDebugMode) {
@@ -33568,8 +33870,24 @@ class CalendarPageState extends State<CalendarPage>
           '[triggerFlowSchedule] Flow $flowId inactive or has no rules; deleting events.',
         );
       }
-      final repo = UserEventsRepo(Supabase.instance.client);
-      await repo.deleteByFlowId(flowId);
+      final client = Supabase.instance.client;
+      final account = AccountOperationFence(client);
+      try {
+        final source = await FlowsRepo(
+          client,
+        ).getFlowById(flowId, refresh: true);
+        if (!account.isCurrent || source == null || source.pausedAt != null) {
+          return;
+        }
+        // A warm/local snapshot may omit current lifecycle metadata. Only the
+        // confirmed definition can authorize this destructive schedule cleanup.
+        if (source.active && source.rules.isNotEmpty) return;
+        await UserEventsRepo(client).deleteByFlowId(flowId);
+      } catch (_) {
+        // Unverified state leaves the materialized history intact for retry.
+      } finally {
+        account.dispose();
+      }
       return;
     }
 
@@ -33595,6 +33913,10 @@ class CalendarPageState extends State<CalendarPage>
     DateTime? startDate,
     DateTime? endDate,
   }) async {
+    final schedulingSource = await FlowsRepo(
+      Supabase.instance.client,
+    ).getFlowById(flowId, refresh: true);
+    if (schedulingSource?.pausedAt != null) return;
     final repo = UserEventsRepo(Supabase.instance.client);
     final scheduleStart = startDate ?? DateTime.now();
     final scheduleEnd =
@@ -33933,6 +34255,7 @@ class CalendarPageState extends State<CalendarPage>
         resizeToAvoidBottomInset: false,
         backgroundColor: _bg,
         body: LandscapeMonthView(
+          newNoteKey: _askHawPlusKey,
           onOpenCalendars: () => unawaited(_openSharedCalendarsSheet()),
           onOpenInbox: () => unawaited(_openInboxFromMenu()),
           onToggleCalendar: _handleCalendarToggleTapped,
@@ -34013,7 +34336,10 @@ class CalendarPageState extends State<CalendarPage>
                   .shouldPreserveOverlayForLifecycleClose,
         ),
       );
-      return landscapeScaffold;
+      return AskHawOnboardingHelper(
+        targetKey: _askHawPlusKey,
+        child: landscapeScaffold,
+      );
     }
 
     final scaffold = _withCalendarFloatingShortcuts(
@@ -35395,6 +35721,10 @@ class CalendarPageState extends State<CalendarPage>
   @visibleForTesting
   Future<void> debugRunReminderSyncForTesting() =>
       _performReminderSync(updateLocalCache: true);
+
+  @visibleForTesting
+  Future<void> debugTriggerFlowScheduleForTesting(int flowId) =>
+      _triggerFlowSchedule(flowId);
 
   @visibleForTesting
   Future<bool> debugRunPostCompleteReminderRegenForTesting() {

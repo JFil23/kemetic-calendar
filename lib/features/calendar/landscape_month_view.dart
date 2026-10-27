@@ -77,6 +77,7 @@ bool landscapeEventIsUpcomingForLedger(
 }
 
 class LandscapeMonthView extends StatelessWidget {
+  final GlobalKey? newNoteKey;
   final int initialKy;
   final int initialKm;
   final int? initialKd; // Optional - from day view
@@ -146,6 +147,7 @@ class LandscapeMonthView extends StatelessWidget {
 
   const LandscapeMonthView({
     super.key,
+    this.newNoteKey,
     required this.initialKy,
     required this.initialKm,
     this.initialKd,
@@ -194,6 +196,7 @@ class LandscapeMonthView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LandscapeMonthPager(
+      newNoteKey: newNoteKey,
       initialKy: initialKy,
       initialKm: initialKm,
       initialDay: initialKd,
@@ -248,6 +251,7 @@ class LandscapeMonthView extends StatelessWidget {
 // ========================================
 
 class LandscapeMonthPager extends StatefulWidget {
+  final GlobalKey? newNoteKey;
   final int initialKy;
   final int initialKm;
   final int? initialDay;
@@ -317,6 +321,7 @@ class LandscapeMonthPager extends StatefulWidget {
 
   const LandscapeMonthPager({
     super.key,
+    this.newNoteKey,
     required this.initialKy,
     required this.initialKm,
     this.initialDay,
@@ -1800,6 +1805,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                                       width: 48,
                                       height: 48,
                                       child: IconButton(
+                                        key: widget.newNoteKey,
                                         tooltip: 'Add note, reminder, or flow',
                                         padding: EdgeInsets.zero,
                                         iconSize: 24,

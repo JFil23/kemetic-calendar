@@ -158,7 +158,7 @@ void main() {
       ).readAsStringSync();
 
       final mountedSave = source.substring(
-        source.indexOf('Future<void> _openQuickAddSheet() async {'),
+        source.indexOf('Future<void> _openQuickAddSheet('),
         source.indexOf('  /* ───── UI ───── */'),
       );
       expect(mountedSave, contains('location: parsed.location'));

@@ -1,5 +1,21 @@
 part of 'calendar_page.dart';
 
+FlowDetailMenuAction _askHawOwnedFlowMenuAction(
+  BuildContext context,
+  _Flow flow, {
+  FlowEventRow? event,
+}) => FlowDetailMenuAction(
+  id: 'ask_haw',
+  label: 'Ask ḥꜣw',
+  icon: Icons.short_text,
+  onPressed: () => CalendarPage.openQuickAddFromAnyContext(
+    context,
+    selectedFlowId: flow.id,
+    selectedEventId: event?.id,
+    selectedClientEventId: event?.clientEventId,
+  ),
+);
+
 extension _UserFlowDetailPresentation on _FlowPreviewPageState {
   bool _usesUserFlowDetailSurface(
     _Flow flow,
@@ -1164,6 +1180,13 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
     List<FlowEventRow> events,
     MaatFlowDetailTheme theme,
   ) {
+    final focused = FlowDetailEventFocus.eventOf(context);
+    final event = focused == null
+        ? null
+        : FlowDetailEventTarget(
+            eventId: focused.id,
+            clientEventId: focused.clientEventId,
+          ).resolve(events);
     return _FlowDetailOptionsMenu(
       color: theme.secondaryText,
       actions: [
@@ -1193,6 +1216,8 @@ extension _UserFlowDetailPresentation on _FlowPreviewPageState {
             icon: flow.isSaved ? Icons.bookmark_remove : Icons.bookmark_add,
             onPressed: () => _toggleSaved(flow),
           ),
+          if (flow.id > 0)
+            _askHawOwnedFlowMenuAction(context, flow, event: event),
         ],
         ...widget.additionalMenuActions,
       ],

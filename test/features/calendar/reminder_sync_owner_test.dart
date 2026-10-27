@@ -116,6 +116,79 @@ void main() {
     await dispose(tester);
   });
 
+  testWidgets(
+    'fresh paused owner suppresses maintenance despite stale unpaused catalog',
+    (tester) async {
+      fixture.ownerPausedAt = '2026-10-05T08:00:00Z';
+      final state = await mount(tester);
+      state.debugDestroyInMemoryPendingState(keepWarmNotes: false);
+      await tester.runAsync(state.debugRunReminderSyncForTesting);
+      expect(fixture.ownerReads, greaterThan(0));
+      expect(fixture.eventReads, 0);
+      expect(fixture.eventDeleteCalls, 0);
+      expect(fixture.eventWrites, isEmpty);
+      final date = KemeticMath.fromGregorian(_day);
+      expect(
+        state.notesForDayForTesting(date.kYear, date.kMonth, date.kDay),
+        isEmpty,
+      );
+      expect(state.debugReminderRulesForTesting, hasLength(1));
+
+      // Resuming retains the same reminder/Flow identity and normal behavior.
+      fixture.ownerPausedAt = null;
+      await tester.runAsync(state.debugRunReminderSyncForTesting);
+      expect(fixture.eventWrites, hasLength(1));
+      expect(fixture.eventWrites.single['flow_local_id'], 8100);
+      expect(
+        fixture.eventWrites.single['client_event_id'],
+        'reminder:$_reminderId:2026-10-05',
+      );
+      await dispose(tester);
+    },
+  );
+
+  testWidgets('unconfirmed pause metadata cannot authorize reminder work', (
+    tester,
+  ) async {
+    fixture.ownerStatusKnown = false;
+    final state = await mount(tester);
+    await tester.runAsync(state.debugRunReminderSyncForTesting);
+    expect(fixture.ownerReads, greaterThan(0));
+    expect(fixture.eventReads, 0);
+    expect(fixture.eventDeleteCalls, 0);
+    expect(fixture.eventWrites, isEmpty);
+    await dispose(tester);
+  });
+
+  testWidgets(
+    'fresh pause preserves no-rules Flow occurrences before destructive trigger cleanup',
+    (tester) async {
+      final state = await mount(tester);
+      fixture.ownerPausedAt = '2026-10-05T08:00:00Z';
+      await tester.runAsync(
+        () => state.debugTriggerFlowScheduleForTesting(8100),
+      );
+      expect(fixture.directOwnerReads, 1);
+      expect(fixture.eventReads, 0);
+      expect(fixture.eventDeleteCalls, 0);
+      expect(fixture.eventWrites, isEmpty);
+      await dispose(tester);
+    },
+  );
+
+  testWidgets('unverified no-rules Flow cannot delete retained occurrences', (
+    tester,
+  ) async {
+    final state = await mount(tester);
+    fixture.ownerReadFails = true;
+    await tester.runAsync(() => state.debugTriggerFlowScheduleForTesting(8100));
+    expect(fixture.directOwnerReads, 1);
+    expect(fixture.eventReads, 0);
+    expect(fixture.eventDeleteCalls, 0);
+    expect(fixture.eventWrites, isEmpty);
+    await dispose(tester);
+  });
+
   testWidgets('owner read failure retains local state without event work', (
     tester,
   ) async {
@@ -214,7 +287,9 @@ void main() {
 
 class _FixtureClient extends http.BaseClient {
   bool ownerPresent = true;
-  bool ownerReadFails = false;
+  bool ownerReadFails = false, ownerStatusKnown = true;
+  String? ownerPausedAt;
+  int directOwnerReads = 0, eventDeleteCalls = 0;
   int ownerReads = 0;
   int eventReads = 0;
   final ownerFilters = <String>[];
@@ -225,6 +300,9 @@ class _FixtureClient extends http.BaseClient {
   void reset() {
     ownerPresent = true;
     ownerReadFails = false;
+    ownerStatusKnown = true;
+    ownerPausedAt = null;
+    directOwnerReads = eventDeleteCalls = 0;
     ownerReads = 0;
     eventReads = 0;
     ownerFilters.clear();
@@ -253,10 +331,39 @@ class _FixtureClient extends http.BaseClient {
         request,
         ownerPresent
             ? [
-                {'id': 8100},
+                {
+                  'id': 8100,
+                  if (ownerStatusKnown) ...{
+                    'active': true,
+                    'paused_at': ownerPausedAt,
+                  },
+                },
               ]
             : [],
       );
+    }
+    if (path == '/rest/v1/flows' &&
+        request.url.queryParameters['id'] == 'eq.8100') {
+      directOwnerReads++;
+      if (ownerReadFails) {
+        return _reply(request, {'message': 'owner unavailable'}, status: 503);
+      }
+      return _reply(request, [
+        {
+          'id': 8100,
+          'user_id': _userA,
+          'name': 'Owner regression reminder',
+          'color': 1,
+          'active': true,
+          'rules': [],
+          'paused_at': ownerPausedAt,
+        },
+      ]);
+    }
+    if (path.contains('delete_user_events') ||
+        path == '/rest/v1/user_events' && request.method == 'DELETE') {
+      eventDeleteCalls++;
+      return _reply(request, []);
     }
     if (path == '/rest/v1/user_events') {
       if (request.method == 'GET') {

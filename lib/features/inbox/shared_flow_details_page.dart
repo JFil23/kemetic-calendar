@@ -667,6 +667,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           rootFlowId: originFlowId,
           originType: 'share_import',
           appearance: FlowAppearance.fromJson(payload['appearance']),
+          assistance: payload['assistance'] is Map
+              ? Map<String, dynamic>.from(payload['assistance'] as Map)
+              : null,
         ),
         completeAdd: (flowId) {
           unawaited(() async {

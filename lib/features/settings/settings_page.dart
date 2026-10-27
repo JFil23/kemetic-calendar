@@ -19,6 +19,7 @@ import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
 import '../../utils/external_link_utils.dart';
 import '../calendar/calendar_page.dart';
+import '../ask_haw/ask_haw_settings_card.dart';
 import '../calendar/calendar_hydration_diagnostics.dart';
 import '../calendar/notify.dart';
 import 'speech_settings_card.dart';
@@ -1497,6 +1498,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            AskHawSettingsCard(client: Supabase.instance.client),
             const SizedBox(height: 16),
             AnimatedBuilder(
               animation: Listenable.merge([

@@ -451,6 +451,41 @@ class ExternalCalendarRepository {
     return cached;
   }
 
+  /// Explicit planning needs a confirmed overlap read, including connected
+  /// sources hidden from the current Calendar presentation. Never infer free
+  /// time from the disposable visible-events preview.
+  Future<List<ExternalCalendarEvent>> readBusyEvents(
+    DateTime from,
+    DateTime until,
+  ) async {
+    final owner = accountId;
+    final generation = _projectionGeneration;
+    if (owner == null)
+      throw const ExternalCalendarFailure(code: 'unauthenticated');
+    if (lane != 'staging' && lane != 'production')
+      throw const ExternalCalendarFailure(code: 'not_configured');
+    final raw = await client
+        .rpc(
+          'read_external_calendar_events_v1',
+          params: {
+            'p_lane': lane,
+            'p_from': from.toUtc().toIso8601String(),
+            'p_until': until.toUtc().toIso8601String(),
+          },
+        )
+        .timeout(requestTimeout);
+    if (owner != accountId || generation != _projectionGeneration)
+      throw const ExternalCalendarFailure(code: 'account_changed');
+    if (raw is! List) throw const ExternalCalendarFailure(code: 'incomplete');
+    return raw
+        .map(
+          (row) => ExternalCalendarEvent.fromJson(
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
+        .toList(growable: false);
+  }
+
   Map<String, WarmSnapshot> _rangeSnapshots(Map<String, WarmSnapshot> cached) {
     final combined = {...cached};
     for (final entry in _confirmedRanges.entries) {

@@ -384,6 +384,10 @@ class _FlowStudioDraft {
   final int flowAlertMinutesBefore;
   final bool flowAlertMixed;
   final FlowAppearance appearance;
+  final Map<String, dynamic>? assistance;
+  final Map<String, dynamic>? assistanceDraft;
+  final int assistanceRevision;
+  final DateTime? pausedAt;
   final List<UserSearchResult> invitedPeople;
 
   const _FlowStudioDraft({
@@ -420,6 +424,10 @@ class _FlowStudioDraft {
     required this.flowAlertMinutesBefore,
     required this.flowAlertMixed,
     this.appearance = FlowAppearance.empty,
+    this.assistance,
+    this.assistanceDraft,
+    this.assistanceRevision = 0,
+    this.pausedAt,
     this.invitedPeople = const <UserSearchResult>[],
   });
 
@@ -471,6 +479,10 @@ class _FlowStudioDraft {
       'flowAlertMinutesBefore': flowAlertMinutesBefore,
       'flowAlertMixed': flowAlertMixed,
       'appearance': appearance.toJsonOrNull(),
+      if (assistance != null) 'assistance': assistance,
+      if (assistanceDraft != null) 'assistanceDraft': assistanceDraft,
+      'assistanceRevision': assistanceRevision,
+      if (pausedAt != null) 'pausedAt': pausedAt!.toIso8601String(),
       'invitedPeople': invitedPeople
           .map(
             (person) => <String, dynamic>{
@@ -485,7 +497,7 @@ class _FlowStudioDraft {
     };
   }
 
-  /// Compare the loaded editor projection, excluding only appearance metadata.
+  /// Compare the loaded schedule, excluding appearance and assistance definitions.
   /// Sets/maps are canonicalized; note order and every note field remain meaningful.
   String get scheduleFingerprint {
     final json = toJson();
@@ -597,6 +609,10 @@ class _FlowStudioDraft {
           _alertNoneMinutes,
       flowAlertMixed: json['flowAlertMixed'] == true,
       appearance: FlowAppearance.fromJson(json['appearance']),
+      assistance: _flowStudioJsonMap(json['assistance']),
+      assistanceDraft: _flowStudioJsonMap(json['assistanceDraft']),
+      assistanceRevision: (json['assistanceRevision'] as num?)?.toInt() ?? 0,
+      pausedAt: DateTime.tryParse(json['pausedAt']?.toString() ?? ''),
       invitedPeople: (json['invitedPeople'] is List)
           ? (json['invitedPeople'] as List)
                 .whereType<Map>()
@@ -664,6 +680,7 @@ class ImportFlowData {
   final String? originType;
   final Map<String, dynamic>? aiMetadata;
   final FlowAppearance appearance;
+  final Map<String, dynamic>? assistance;
   const ImportFlowData({
     required this.share,
     required this.name,
@@ -681,6 +698,7 @@ class ImportFlowData {
     this.originType,
     this.aiMetadata,
     this.appearance = FlowAppearance.empty,
+    this.assistance,
   });
 }
 

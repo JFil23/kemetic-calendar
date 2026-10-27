@@ -168,7 +168,7 @@ void main() {
   test('Main Calendar quick-add sheet uses transparent route background', () {
     final quickAddOpener = _sourceBetween(
       calendarPage,
-      '  Future<void> _openQuickAddSheet() async {',
+      '  Future<void> _openQuickAddSheet(',
       '  /* ───── UI ───── */',
     );
     expect(quickAddOpener, contains('backgroundColor: Colors.transparent'));

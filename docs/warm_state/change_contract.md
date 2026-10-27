@@ -1,5 +1,69 @@
 # Persistence change contract
 
+## October 27 explicit Ask ḥꜣw and authored Flow assistance
+
+The current shared Quick Add sheet, complete Flow details, Flow Studio forms,
+Settings cards and end-of-decan continuation are the presentation references.
+Ask extends these existing owners without another route or renderer. Ordinary
+event entry retains its parser, account-access boundary and save behavior.
+Bundled Library and authored Ma’at discovery needs no account read. Account
+context is read only after an explicit supported request; complete coverage,
+verified permission and exact event identities remain required before proposals.
+ExternalCalendarRepository retains imported busy-time ownership. No assistant
+read, polling, model service or work item is added to startup or passive warming.
+
+AskHawMemoryRepository owns confirmed preferences, corrected phrase meanings,
+hidden suggestions and bounded ranking signals. Its `ask_haw_account:v1:<account>`
+document contains acknowledged state, pending mutation identities and preserved
+conflicts. UserEventsRepo owns checked calendar actions and its separate
+`ask_haw_actions:v1:<account>` request/receipt document; it is not another event
+projection. Both are durable account content outside warm-cache eviction and
+logout cleanup. AccountOperationFence rejects departed-account reads and writes,
+including A-B-A. Memory writes check revision and epoch; explicit clear fences
+older queued learning. Action requests retain idempotency and expected source
+revisions. A missing acknowledgement never becomes a success or a local fallback.
+
+Settings constructs the memory reader only after Manage remembered details.
+Preferences, phrase removal, hidden-choice restoration and clear display saved
+truth after acknowledgement. Conflicts expose current saved state and retain
+the requested change for deliberate retry. Account replacement clears private
+controls immediately. Planning windows retain custom saved values; exact usual
+times and named per-Flow session lengths remain inspectable and removable.
+Choosing a broader time preference clears the exact-time override in the same
+acknowledged mutation, so the user's new choice governs subsequent planning.
+Selective removals send nested null tombstones through the existing memory
+merge contract, preserving other devices' unrelated preferences and phrases.
+The sole new onboarding helper targets the existing Pages or Calendar + control,
+including the landscape Calendar, through the current helper-completion owner.
+Opening + or Got it consumes
+it; repeated entries do not repeat completion writes. Other overlays defer it.
+Previously retired tours remain disabled. The existing decan review offers fixed,
+explicit Ask choices; private reflection text is never interpreted as a command
+or silently added to memory.
+
+Flow assistance is an optional versioned part of the existing Flow definition,
+separate from recurrence rules. The shared validator checks stable step keys,
+positive durations, prerequisite references and cycles. Authored shorter options
+carry guidance and an explicit counts-as-completion declaration; proposing one
+never records completion. Unsupported or future raw maps survive ordinary edits,
+copy, share, publish, import and warm restoration until an explicit replacement.
+Existing Flow Studio draft storage retains incomplete assistance fields. An
+occurrence is linked explicitly through `behaviorPayload.ask_haw.step_id` and
+`contract_version`; titles and dates do not establish step identity. Definition
+metadata changes preserve the loaded event schedule; occurrence-link changes use
+the existing note-save owner. Pause/resume is distinct from destructive End Flow.
+
+Canonical custom and authored Ma’at detail menus pass only verified owned Flow
+context and authorized route-focused occurrence IDs to the same Quick Add sheet.
+Multiple possible occurrences require a choice. Public/shared snapshots never
+grant account actions. Existing route, warm namespace, resource schema, old-release
+fixture, inventory threshold and approved visual references are unchanged. New
+captures supplement those references. Required regression evidence covers event
+entry parity, quiet/lazy reads, cold and failed reads, account departure,
+acknowledgement loss and conflict, durable retry/clear, exact contextual identity,
+authored-graph validation and raw metadata roundtrips. The complete exact-lane
+App gate and backend compatibility receipts remain required before deployment.
+
 ## October 27 bounded passive reads and launch reuse
 
 The existing launch branding, Pages, canonical full details and profile artwork

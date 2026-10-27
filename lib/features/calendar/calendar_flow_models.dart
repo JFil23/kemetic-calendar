@@ -174,6 +174,9 @@ class _Flow {
   bool isReminder; // Flag for reminder-backed flows
   String? reminderUuid;
   FlowAppearance appearance;
+  Map<String, dynamic>? assistance;
+  int assistanceRevision;
+  DateTime? pausedAt;
   _Flow({
     required this.id,
     this.calendarId,
@@ -191,6 +194,9 @@ class _Flow {
     this.isReminder = false,
     this.reminderUuid,
     this.appearance = FlowAppearance.empty,
+    this.assistance,
+    this.assistanceRevision = 0,
+    this.pausedAt,
   });
 }
 

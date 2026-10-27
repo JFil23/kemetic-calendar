@@ -81,6 +81,7 @@ class OnboardingHelperIds {
   static const String flowStudioMaatFlows = 'flow_studio_maat_flows';
   static const String profileCommunityFeed = 'profile_community_feed';
   static const String settingsControl = 'settings_control';
+  static const String askHawQuickAdd = 'ask_haw_quick_add';
 
   @Deprecated('Use flowStudioAddFlow/flowStudioSavedFlows/flowStudioMaatFlows.')
   static const String flowBuilder = 'flowBuilder';
@@ -97,6 +98,7 @@ class OnboardingHelperIds {
     flowStudioMaatFlows,
     profileCommunityFeed,
     settingsControl,
+    askHawQuickAdd,
   };
 
   static const Map<String, int> versions = {
@@ -109,6 +111,7 @@ class OnboardingHelperIds {
     flowStudioMaatFlows: defaultVersion,
     profileCommunityFeed: defaultVersion,
     settingsControl: defaultVersion,
+    askHawQuickAdd: defaultVersion,
   };
 
   static const Map<String, Set<String>> legacyAliases = {
@@ -196,6 +199,15 @@ class OnboardingHelperRegistry {
   static const String maatFlowListAddFlowSourceWidget =
       'MaatFlowListPage.addFlowHelper';
 
+  static const askHawQuickAdd = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.askHawQuickAdd,
+    title: 'Ask ḥꜣw from +',
+    body:
+        'Add an event, find a flow, or make room in your day. Try “I have 10 minutes”, “Help me plan today”, or “What is a decan?”',
+    analyticsEvent: 'helper_seen_ask_haw_quick_add',
+    sourceWidget: 'AskHawOnboardingHelper',
+  );
+
   static const flowStudioAddFlow = OnboardingHelperDefinition(
     id: OnboardingHelperIds.flowStudioAddFlow,
     title: 'Build your own rhythm',
@@ -274,6 +286,7 @@ class OnboardingHelperRegistry {
   );
 
   static const List<OnboardingHelperDefinition> all = [
+    askHawQuickAdd,
     calendarToggle,
     monthDetails,
     dayCardLongPress,
@@ -286,6 +299,7 @@ class OnboardingHelperRegistry {
   ];
 
   static const Map<String, OnboardingHelperDefinition> byId = {
+    OnboardingHelperIds.askHawQuickAdd: askHawQuickAdd,
     OnboardingHelperIds.calendarToggle: calendarToggle,
     OnboardingHelperIds.monthDetails: monthDetails,
     OnboardingHelperIds.dayCardLongPress: dayCardLongPress,
@@ -938,9 +952,15 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
     }());
   }
 
-  /// Automatic tours were retired when onboarding became a single five-flow
-  /// experience. Completion history still hydrates and round-trips unchanged.
-  bool shouldShowHelperSync(String userId, String helperId) => false;
+  /// Old automatic tours remain retired. The explicitly approved Quick Add
+  /// invitation is the sole opt-in to the existing completion lifecycle.
+  bool shouldShowHelperSync(String userId, String helperId) {
+    if (helperId != OnboardingHelperIds.askHawQuickAdd) return false;
+    final state = _states[userId];
+    return state?.hydrationState == OnboardingHelperHydrationState.ready &&
+        state!.progress.completedOnboarding &&
+        !isHelperCompletedSync(userId, helperId);
+  }
 
   void absorbLocalProgress(String userId, OnboardingProgress progress) {
     final trimmedUserId = userId.trim();

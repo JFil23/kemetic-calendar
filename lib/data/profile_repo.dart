@@ -1304,26 +1304,28 @@ class ProfileRepo {
     String postId, {
     bool cachedOnly = false,
     bool strict = false,
+    bool refresh = false,
   }) async {
     final account = AccountOperationFence(_client);
     try {
-      final row =
-          await WarmJsonReads(
-            _client,
-            cachedOnly: cachedOnly,
-            mayFetch: () => account.isCurrent,
-          ).value('social.post.$postId', () async {
-            final row = await _client
-                .from('flow_posts')
-                .select()
-                .eq('id', postId)
-                .maybeSingle();
-            if (row == null) return null;
-            final visible = await _filterBlockedFlowPosts([
-              FlowPost.fromJson(row),
-            ]);
-            return visible.isEmpty ? null : visible.single.toJson();
-          });
+      Future<dynamic> fetch() async {
+        final row = await _client
+            .from('flow_posts')
+            .select()
+            .eq('id', postId)
+            .maybeSingle();
+        if (row == null) return null;
+        final visible = await _filterBlockedFlowPosts([FlowPost.fromJson(row)]);
+        return visible.isEmpty ? null : visible.single.toJson();
+      }
+
+      final row = refresh && !cachedOnly
+          ? await fetch()
+          : await WarmJsonReads(
+              _client,
+              cachedOnly: cachedOnly,
+              mayFetch: () => account.isCurrent,
+            ).value('social.post.$postId', fetch);
 
       if (!account.isCurrent) throw const WarmReadCancelled();
       if (row == null) return null;
@@ -1429,6 +1431,8 @@ class ProfileRepo {
           'notes': flow.notes,
           'rules': flow.rules,
           'appearance': flow.appearance.toJsonOrNull(),
+          if (flow.assistance != null)
+            'assistance': copyFlowAssistance(flow.assistance),
           'events': events.map(eventToPayload).toList(),
           'start_date': startDate?.toIso8601String(),
           'end_date': flow.endDate?.toIso8601String(),
@@ -1924,6 +1928,7 @@ class ProfileRepo {
         originFlowId: post.sourceFlowId,
         rootFlowId: post.sourceFlowId,
         appearance: importedAppearance,
+        assistance: copyFlowAssistance(post.payloadJson?['assistance']),
       );
 
       if (!account.isCurrent) throw const WarmReadCancelled();

@@ -265,6 +265,11 @@ Widget debugBuildFlowStudioPageForTest({
   );
 }
 
+@visibleForTesting
+Map<String, dynamic>? debugFlowStudioDraftRoundTripForTest(
+  Map<String, dynamic> json,
+) => _FlowStudioDraft.fromJson(json)?.toJson();
+
 class _FlowStudioPageState extends State<_FlowStudioPage>
     with WidgetsBindingObserver {
   static _FlowStudioDraft? _sessionDraft;
@@ -273,6 +278,17 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   bool _draftListenersInstalled = false;
   Timer? _draftPersistDebounce;
   _Flow? _editing;
+  Map<String, dynamic>? _assistance, _assistanceDraft;
+  var _assistanceEditorKey = GlobalKey<AskHawFlowContractEditorState>();
+
+  void _setAssistance(
+    Map<String, dynamic>? value, {
+    Map<String, dynamic>? draft,
+  }) {
+    _assistance = value;
+    _assistanceDraft = draft;
+    _assistanceEditorKey = GlobalKey<AskHawFlowContractEditorState>();
+  }
 
   // basic
   late final TextEditingController _nameCtrl;
@@ -906,6 +922,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         _endDate != null ||
         !_studioAppearance.isEmpty ||
         _pendingAppearanceImageBytes != null ||
+        _assistance != null ||
+        _assistanceDraft != null ||
         _invitedPeople.isNotEmpty;
 
     final appearance = _studioAppearance;
@@ -955,6 +973,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       flowAlertMinutesBefore: _flowAlertMinutesBefore,
       flowAlertMixed: _flowAlertMixed,
       appearance: appearance,
+      assistance: _assistance,
+      assistanceDraft: _assistanceDraft,
+      assistanceRevision: _editing?.assistanceRevision ?? 0,
+      pausedAt: _editing?.pausedAt,
       invitedPeople: List<UserSearchResult>.from(_invitedPeople),
     );
   }
@@ -980,6 +1002,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           isHidden: draft.editingIsHidden,
           shareId: null,
           appearance: draft.appearance,
+          assistance: draft.assistance,
+          assistanceRevision: draft.assistanceRevision,
+          pausedAt: draft.pausedAt,
         );
       } else {
         _editing = null;
@@ -1087,6 +1112,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _flowAlertMinutesBefore = draft.flowAlertMinutesBefore;
       _flowAlertMixed = draft.flowAlertMixed;
       _appearance = draft.appearance;
+      _setAssistance(draft.assistance, draft: draft.assistanceDraft);
       _invitedPeople = List<UserSearchResult>.from(draft.invitedPeople);
       _pendingAppearanceImageBytes = null;
       _pendingAppearanceUploadedPath = null;
@@ -1856,6 +1882,46 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     );
   }
 
+  Widget _assistanceSection(_FlowStudioTone tone) => AskHawFlowContractEditor(
+    key: _assistanceEditorKey,
+    value: _assistance,
+    draft: _assistanceDraft,
+    accent: tone.softenedAccent,
+    onChanged: (value) {
+      setState(() => _assistance = value);
+      _schedulePersistentDraftSave();
+    },
+    onDraftChanged: (value) {
+      _assistanceDraft = value;
+      _schedulePersistentDraftSave();
+    },
+  );
+
+  Widget _authoredStepSelector(_NoteDraft draft, String identity) {
+    final contract = AskHawFlowContract.tryFromJson(_assistance);
+    if (contract == null || contract.steps.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: AskHawStepSelector(
+        key: ValueKey('flow-studio-note-step-$identity'),
+        contract: contract,
+        stepId: askHawAuthoredStepId(draft.behaviorPayload),
+        decoration: _darkInput('Authored step (optional)'),
+        onChanged: (step) {
+          setState(() {
+            draft.behaviorPayload = withAskHawAuthoredStep(
+              draft.behaviorPayload,
+              step,
+            );
+          });
+          _schedulePersistentDraftSave();
+        },
+      ),
+    );
+  }
+
   Widget _notesEditorsPanel() {
     final groups = _buildEditorGroups();
     if (groups.isEmpty) return const SizedBox.shrink();
@@ -1924,6 +1990,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                           maxLines: 3,
                           decoration: _darkInput('Details (optional)'),
                         ),
+                        _authoredStepSelector(draft, '${g.key}-$index'),
                         const SizedBox(height: 10),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
@@ -1994,6 +2061,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         _appearanceImageBusy ||
         _isLoadingFlow ||
         _loadError != null) {
+      return;
+    }
+    if (!(_assistanceEditorKey.currentState?.validateAndCommit() ?? true)) {
       return;
     }
     setState(() => _saveInFlight = true);
@@ -2263,6 +2333,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       isReminder: loaded?.isReminder ?? _editing?.isReminder ?? false,
       reminderUuid: loaded?.reminderUuid ?? _editing?.reminderUuid,
       appearance: await _materializeAppearanceForSave(),
+      assistance: _assistance,
+      assistanceRevision:
+          loaded?.assistanceRevision ?? _editing?.assistanceRevision ?? 0,
+      pausedAt: loaded?.pausedAt ?? _editing?.pausedAt,
     );
 
     final originFlowId =
@@ -2577,6 +2651,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
       _overviewCtrl.text = '';
       _appearance = FlowAppearance.empty;
+      _setAssistance(null);
       _pendingAppearanceImageBytes = null;
       _pendingAppearanceUploadedPath = null;
       _pendingAppearanceImageName = null;
@@ -2612,6 +2687,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _studioMode = _FlowStudioMode.build;
       _setBuildExactColor(f.color);
       _appearance = f.appearance;
+      _setAssistance(f.assistance);
       _pendingAppearanceImageBytes = null;
       _pendingAppearanceUploadedPath = null;
       _pendingAppearanceImageName = null;
@@ -2684,7 +2760,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     try {
       // 1. Fetch the flow from database
       final repo = FlowsRepo(Supabase.instance.client);
-      final flow = await repo.getFlowById(flowId);
+      final flow = await repo.getFlowById(flowId, refresh: true);
       _requireCurrentEditorAccount();
       if (flow == null) {
         if (mounted) {
@@ -2713,6 +2789,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         isReminder: flow.isReminder,
         reminderUuid: flow.reminderUuid,
         appearance: flow.appearance,
+        assistance: flow.assistance,
+        assistanceRevision: flow.assistanceRevision,
+        pausedAt: flow.pausedAt,
       );
 
       // 3. Fetch events for this flow
@@ -2733,6 +2812,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           endsAt: record.endsAtUtc,
           flowLocalId: record.flowLocalId,
           category: record.category,
+          actionId: record.actionId,
+          behaviorPayload: record.behaviorPayload,
         );
       }).toList()..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
@@ -2802,6 +2883,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           _studioMode = _FlowStudioMode.build;
           _setBuildExactColor(flowObj.color);
           _appearance = flowObj.appearance;
+          _setAssistance(flowObj.assistance);
           _flowSignLabelCtrl.text = flowObj.appearance.signLabel ?? '';
 
           _overviewCtrl.text = _effectiveOverview(flowObj.notes, meta.overview);
@@ -2860,6 +2942,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         _studioMode = _FlowStudioMode.build;
         _setBuildExactColor(flowObj.color);
         _appearance = flowObj.appearance;
+        _setAssistance(flowObj.assistance);
         _flowSignLabelCtrl.text = flowObj.appearance.signLabel ?? '';
 
         // Overview
@@ -2917,7 +3000,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final eventsRepo = UserEventsRepo(Supabase.instance.client);
 
     // 1️⃣ Load the flow row
-    final flowRow = await flowsRepo.getFlowById(flowId);
+    final flowRow = await flowsRepo.getFlowById(flowId, refresh: true);
     _requireCurrentEditorAccount();
     if (flowRow == null) {
       if (kDebugMode) {
@@ -2972,6 +3055,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         endsAt: record.endsAtUtc,
         flowLocalId: record.flowLocalId,
         category: record.category,
+        actionId: record.actionId,
+        behaviorPayload: record.behaviorPayload,
       );
     }).toList();
 
@@ -3001,6 +3086,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         shareId: null,
         isHidden: false,
         appearance: flowRow.appearance,
+        assistance: flowRow.assistance,
+        assistanceRevision: flowRow.assistanceRevision,
+        pausedAt: flowRow.pausedAt,
       );
 
       _editing = f;
@@ -3048,6 +3136,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       shareId: null,
       isHidden: false,
       appearance: flowRow.appearance,
+      assistance: flowRow.assistance,
+      assistanceRevision: flowRow.assistanceRevision,
+      pausedAt: flowRow.pausedAt,
     );
 
     // 5️⃣ Decode notes meta (overview, kemetic flag, split)
@@ -3187,6 +3278,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _studioMode = _FlowStudioMode.build;
       _setBuildExactColor(f.color);
       _appearance = f.appearance;
+      _setAssistance(f.assistance);
       _pendingAppearanceImageBytes = null;
       _pendingAppearanceImageName = null;
       _pendingAppearanceUploadedPath = null;
@@ -3408,6 +3500,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _studioMode = _FlowStudioMode.build;
       _setBuildExactColor(Color(data.color));
       _appearance = data.appearance;
+      _setAssistance(data.assistance);
       _pendingAppearanceImageBytes = null;
       _pendingAppearanceUploadedPath = null;
       _pendingAppearanceImageName = null;
@@ -5995,6 +6088,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                 (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
               SizedBox(key: _editorsAnchorKey, height: 0),
               _notesEditorsPanel(),
+              const SizedBox(height: 24),
+              _assistanceSection(tone),
               const SizedBox(height: 24),
               _studioCta(
                 key: const ValueKey('flow-studio-save-cta'),

@@ -21,6 +21,7 @@ const _kFiledFlowsRpc = 'get_my_filed_flows_v1';
 const _kHeldReadingHousesRpc = 'get_my_held_reading_houses_v1';
 
 typedef FlowEventCounts = ({Map<int, int> total, Map<int, int> remaining});
+typedef ReminderFlowStatus = ({int id, bool active, DateTime? pausedAt});
 
 void _log(String msg) {
   if (kDebugMode) debugPrint('[flows] $msg');
@@ -98,6 +99,9 @@ class FlowRow {
   final String? notes;
   final List<dynamic> rules; // store your _FlowRule list as JSON-serializable
   final Map<String, dynamic>? aiMetadata;
+  final Map<String, dynamic>? assistance;
+  final int assistanceRevision;
+  final DateTime? pausedAt;
   final FlowAppearance appearance;
   final bool isHidden;
   final bool isReminder;
@@ -128,6 +132,9 @@ class FlowRow {
     required this.notes,
     required this.rules,
     this.aiMetadata,
+    this.assistance,
+    this.assistanceRevision = 0,
+    this.pausedAt,
     this.appearance = FlowAppearance.empty,
     this.isHidden = false,
     this.isReminder = false,
@@ -193,6 +200,11 @@ class FlowRow {
       aiMetadata: r['ai_metadata'] != null
           ? Map<String, dynamic>.from(r['ai_metadata'] as Map)
           : null,
+      assistance: r['assistance'] is Map
+          ? Map<String, dynamic>.from(r['assistance'] as Map)
+          : null,
+      assistanceRevision: (r['assistance_revision'] as num?)?.toInt() ?? 0,
+      pausedAt: _parseDateTime(r['paused_at']),
       appearance: FlowAppearance.fromJson(r['appearance']),
     );
   }
@@ -208,6 +220,7 @@ class FlowRow {
     'end_date': endDate?.toIso8601String(),
     'notes': notes,
     'rules': rules,
+    if (assistance != null) 'assistance': assistance,
     if (appearance.toJsonOrNull() != null)
       'appearance': appearance.toJsonOrNull(),
     'is_hidden': isHidden,
@@ -225,6 +238,7 @@ class FlowRow {
     'end_date': endDate?.toIso8601String(),
     'notes': notes,
     'rules': rules,
+    if (assistance != null) 'assistance': assistance,
     'appearance': appearance.toJsonOrNull(),
     'is_hidden': isHidden,
     'is_reminder': isReminder,
@@ -244,6 +258,9 @@ class FlowRow {
     'notes': notes,
     'rules': rules,
     'ai_metadata': aiMetadata,
+    if (assistance != null) 'assistance': assistance,
+    if (assistanceRevision != 0) 'assistance_revision': assistanceRevision,
+    if (pausedAt != null) 'paused_at': pausedAt!.toIso8601String(),
     'appearance': appearance.toJsonOrNull(),
     'is_hidden': isHidden,
     'is_reminder': isReminder,
@@ -1007,7 +1024,12 @@ class FlowsRepo {
     return cachedMyFiledFlowsSync()?.where((f) => f.id == id).firstOrNull;
   }
 
-  Future<FlowRow?> getFlowById(int id, {bool cachedOnly = false}) async {
+  Future<FlowRow?> getFlowById(
+    int id, {
+    bool cachedOnly = false,
+    bool refresh = false,
+  }) async {
+    if (refresh && !cachedOnly) return _fetchFlowById(id);
     final raw = await WarmJsonReads(_client, cachedOnly: cachedOnly).value(
       'flow.detail.$id',
       () async => (await _fetchFlowById(id))?.toCacheJson(),
@@ -1033,16 +1055,33 @@ class FlowsRepo {
     return flows.isEmpty ? null : flows.first;
   }
 
-  /// Fetch a flow id by reminder_uuid.
-  Future<int?> getFlowIdByReminderUuid(String reminderUuid) async {
-    if (!_isUuid(reminderUuid)) {
-      return null;
-    }
+  /// A confirmed owner read, shared by reminder editing and maintenance. A
+  /// paused Flow keeps its identity so an editor never creates a duplicate.
+  Future<ReminderFlowStatus?> getFlowStatusByReminderUuid(
+    String reminderUuid,
+  ) async {
+    if (!_isUuid(reminderUuid)) return null;
     final response = await _client
         .from(_kFlows)
-        .select('id')
+        .select('id,active,paused_at')
         .eq('reminder_uuid', reminderUuid)
         .maybeSingle();
-    return response?['id'] as int?;
+    if (response == null) return null;
+    final id = (response['id'] as num?)?.toInt();
+    if (id == null ||
+        response['active'] is! bool ||
+        !response.containsKey('paused_at')) {
+      throw StateError('Reminder Flow status could not be confirmed.');
+    }
+    final rawPausedAt = response['paused_at'];
+    final pausedAt = _parseDateTime(rawPausedAt);
+    if (rawPausedAt != null && pausedAt == null) {
+      throw StateError('Reminder Flow pause status could not be confirmed.');
+    }
+    return (id: id, active: response['active'] as bool, pausedAt: pausedAt);
   }
+
+  /// Fetch a Flow identity without treating pause as absence.
+  Future<int?> getFlowIdByReminderUuid(String reminderUuid) async =>
+      (await getFlowStatusByReminderUuid(reminderUuid))?.id;
 }

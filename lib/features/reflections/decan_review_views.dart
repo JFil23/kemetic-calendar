@@ -405,6 +405,8 @@ class DecanReviewContinuation extends StatelessWidget {
     required this.onOpen,
     required this.onDismiss,
     required this.onDone,
+    this.onAsk,
+    this.onShorterSessions,
     this.notice,
     this.onRetry,
   });
@@ -412,6 +414,8 @@ class DecanReviewContinuation extends StatelessWidget {
   final ValueChanged<DecanContinuation> onOpen;
   final ValueChanged<DecanContinuation> onDismiss;
   final VoidCallback onDone;
+  final ValueChanged<String>? onAsk;
+  final VoidCallback? onShorterSessions;
   final String? notice;
   final VoidCallback? onRetry;
   @override
@@ -442,6 +446,28 @@ class DecanReviewContinuation extends StatelessWidget {
           textAlign: TextAlign.center,
           style: DecanReviewStyle.serif(24, color: DecanReviewStyle.soft),
         ),
+      if (onAsk != null || onShorterSessions != null) ...[
+        const SizedBox(height: 12),
+        const DecanReviewLabel('Ask ḥꜣw'),
+        if (onAsk != null)
+          DecanReviewButton(
+            'Explore flows',
+            onPressed: () => onAsk!('Find a flow'),
+            quiet: true,
+          ),
+        if (onAsk != null)
+          DecanReviewButton(
+            'Find time for a personal activity',
+            onPressed: () => onAsk!('Find time for a personal activity'),
+            quiet: true,
+          ),
+        if (onShorterSessions != null)
+          DecanReviewButton(
+            'Use shorter sessions',
+            onPressed: onShorterSessions,
+            quiet: true,
+          ),
+      ],
       DecanReviewButton('Leave it here', onPressed: onDone, quiet: true),
     ],
   );

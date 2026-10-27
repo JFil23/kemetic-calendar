@@ -1,6 +1,8 @@
 // lib/data/flow_share_snapshot.dart
 // Typed models for flow share payload_json snapshots
 
+import 'dart:convert';
+
 import 'flow_appearance.dart';
 
 class FlowShareEventSnapshot {
@@ -44,6 +46,19 @@ class FlowShareEventSnapshot {
           : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'offset_days': offsetDays,
+    'title': title,
+    'detail': detail,
+    'location': location,
+    'all_day': allDay,
+    'start_time': startTime,
+    'end_time': endTime,
+    'end_offset_days': endOffsetDays,
+    'action_id': actionId,
+    'behavior_payload': behaviorPayload,
+  };
 }
 
 class FlowSharePayload {
@@ -53,6 +68,7 @@ class FlowSharePayload {
   final List<dynamic> rules; // keep loose for now
   final List<FlowShareEventSnapshot> events;
   final FlowAppearance appearance;
+  final Map<String, dynamic>? assistance;
 
   FlowSharePayload({
     required this.name,
@@ -61,6 +77,7 @@ class FlowSharePayload {
     required this.rules,
     required this.events,
     this.appearance = FlowAppearance.empty,
+    this.assistance,
   });
 
   factory FlowSharePayload.fromJson(Map<String, dynamic> json) {
@@ -76,8 +93,19 @@ class FlowSharePayload {
           .map((e) => FlowShareEventSnapshot.fromJson(e))
           .toList(),
       appearance: FlowAppearance.fromJson(json['appearance']),
+      assistance: copyFlowAssistance(json['assistance']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'color': color,
+    'notes': notes,
+    'rules': rules,
+    'appearance': appearance.toJsonOrNull(),
+    if (assistance != null) 'assistance': copyFlowAssistance(assistance),
+    'events': events.map((event) => event.toJson()).toList(),
+  };
 }
 
 /// Accept both deployed posted-flow times and current share snapshot times.
@@ -99,4 +127,16 @@ class FlowSharePayload {
   if (meridian == 'pm' && hour < 12) hour += 12;
   if (meridian == 'am' && hour == 12) hour = 0;
   return (hour, minute);
+}
+
+/// Carry the author's optional JSON verbatim through a snapshot/copy boundary.
+/// Unsupported versions remain available for a later compatible app; a malformed
+/// optional field never prevents reading the underlying Flow.
+Map<String, dynamic>? copyFlowAssistance(Object? value) {
+  if (value is! Map) return null;
+  try {
+    return Map<String, dynamic>.from(jsonDecode(jsonEncode(value)) as Map);
+  } on Object {
+    return null;
+  }
 }

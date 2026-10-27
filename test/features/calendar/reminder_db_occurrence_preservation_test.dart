@@ -303,11 +303,21 @@ class _CalendarFixtureClient extends http.BaseClient {
       return _jsonResponse(
         request,
         wantsObject
-            ? (flowId == null ? null : <String, Object?>{'id': flowId})
+            ? (flowId == null
+                  ? null
+                  : <String, Object?>{
+                      'id': flowId,
+                      'active': true,
+                      'paused_at': null,
+                    })
             : (flowId == null
                   ? const <Object?>[]
                   : <Object?>[
-                      <String, Object?>{'id': flowId},
+                      <String, Object?>{
+                        'id': flowId,
+                        'active': true,
+                        'paused_at': null,
+                      },
                     ]),
       );
     }

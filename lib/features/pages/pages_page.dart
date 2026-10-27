@@ -6,6 +6,7 @@ import '../../main.dart' show routeObserver;
 import '../../core/navigation_fallback.dart';
 import '../../data/profile_repo.dart';
 import '../calendar/calendar_page.dart';
+import '../ask_haw/ask_haw_onboarding_helper.dart';
 import '../inbox/inbox_activity_target.dart';
 import '../../data/share_models.dart';
 import 'pages_feed_rotation.dart';
@@ -34,6 +35,7 @@ class _PagesPageState extends State<PagesPage>
   DateTime? _backgroundedAt;
   bool _covered = false;
   Object? _openingOperation;
+  final _askHawPlusKey = GlobalKey(debugLabel: 'pages-ask-haw-plus');
   bool get _opening => _openingOperation != null;
   bool get _foreground =>
       WidgetsBinding.instance.lifecycleState == null ||
@@ -373,55 +375,62 @@ class _PagesPageState extends State<PagesPage>
     ).getCachedProfileSync(controller.uid);
     return ValueListenableBuilder<PagesCollectionState>(
       valueListenable: _collections!,
-      builder: (context, collection, _) => PagesLayout(
-        collectionState: collection,
-        onCollectionChanged: _collections!.select,
-        onLoadMore: () => unawaited(_collections!.loadMore()),
-        onRetry: () => unawaited(_collections!.retry()),
-        onCollectionItem: (item) {
-          if (item.event != null) {
-            CalendarPage.openOwnedFiledItemFromAnyContext(context, item.event!);
-          } else if (item.flowId != null) {
-            unawaited(
-              _present(() async {
-                await openDetailRoute<void>(
-                  context,
-                  '/shared-flow/by-flow/${item.flowId!}',
-                  extra: const {'fallbackLocation': '/pages'},
-                );
-              }),
-            );
-          }
-        },
-        cards: controller.cards,
-        onOpen: (d) => unawaited(_open(d)),
-        profileIdentity: PagesProfileIdentity.member(
-          userId: controller.uid,
-          name: profile?.effectiveName ?? '',
-          handle: profile?.handle ?? '',
-          glyphIds: profile?.avatarGlyphIds ?? const [],
-        ),
-        searchRecords: controller.searchRecords,
-        onProfile: () => unawaited(
-          _present(() async {
-            await openDetailRoute<void>(context, '/profile/me');
-          }),
-        ),
-        onNewNote: () => unawaited(
-          _present(() => CalendarPage.openQuickAddFromAnyContext(context)),
-        ),
-        onSearchResult: (r) => unawaited(
-          _present(() async {
-            if ([
-              '/rhythm/today',
-              '/journal',
-              '/calendars',
-            ].contains(r.location)) {
-              await openUtilityRoute<void>(context, r.location);
-            } else {
-              await openDetailRoute<void>(context, r.location);
+      builder: (context, collection, _) => AskHawOnboardingHelper(
+        targetKey: _askHawPlusKey,
+        child: PagesLayout(
+          newNoteKey: _askHawPlusKey,
+          collectionState: collection,
+          onCollectionChanged: _collections!.select,
+          onLoadMore: () => unawaited(_collections!.loadMore()),
+          onRetry: () => unawaited(_collections!.retry()),
+          onCollectionItem: (item) {
+            if (item.event != null) {
+              CalendarPage.openOwnedFiledItemFromAnyContext(
+                context,
+                item.event!,
+              );
+            } else if (item.flowId != null) {
+              unawaited(
+                _present(() async {
+                  await openDetailRoute<void>(
+                    context,
+                    '/shared-flow/by-flow/${item.flowId!}',
+                    extra: const {'fallbackLocation': '/pages'},
+                  );
+                }),
+              );
             }
-          }),
+          },
+          cards: controller.cards,
+          onOpen: (d) => unawaited(_open(d)),
+          profileIdentity: PagesProfileIdentity.member(
+            userId: controller.uid,
+            name: profile?.effectiveName ?? '',
+            handle: profile?.handle ?? '',
+            glyphIds: profile?.avatarGlyphIds ?? const [],
+          ),
+          searchRecords: controller.searchRecords,
+          onProfile: () => unawaited(
+            _present(() async {
+              await openDetailRoute<void>(context, '/profile/me');
+            }),
+          ),
+          onNewNote: () => unawaited(
+            _present(() => CalendarPage.openQuickAddFromAnyContext(context)),
+          ),
+          onSearchResult: (r) => unawaited(
+            _present(() async {
+              if ([
+                '/rhythm/today',
+                '/journal',
+                '/calendars',
+              ].contains(r.location)) {
+                await openUtilityRoute<void>(context, r.location);
+              } else {
+                await openDetailRoute<void>(context, r.location);
+              }
+            }),
+          ),
         ),
       ),
     );
