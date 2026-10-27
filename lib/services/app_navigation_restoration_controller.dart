@@ -206,6 +206,7 @@ class AppNavigationRestorationController {
     required bool isAuthenticated,
     PendingNavigationIntent? intent,
     bool includeRemote = false,
+    AppRestorationReadResult? snapshot,
   }) async {
     if (intent != null) {
       final oneShot = await consumeOneShotIntent(intent);
@@ -245,9 +246,11 @@ class AppNavigationRestorationController {
       return destination;
     }
 
-    final result = await AppRestorationService.instance.readBestSnapshot(
-      includeRemote: includeRemote,
-    );
+    final result =
+        snapshot ??
+        await AppRestorationService.instance.readBestSnapshot(
+          includeRemote: includeRemote,
+        );
     final route = result.snapshot?.routeLocation;
     final metadata = result.snapshot?.launchRouteMetadata;
     final validationReason = _durableLaunchValidationReason(route, metadata);

@@ -68,6 +68,8 @@ void main() {
         service.start!.day + 9,
       ),
     );
+    expect(service.end!.hour, 0);
+    expect(service.end!.minute, 0);
     expect(find.text('test response'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });

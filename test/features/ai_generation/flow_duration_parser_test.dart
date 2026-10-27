@@ -77,6 +77,8 @@ void main() {
     for (final dates in [
       (DateTime(2026, 3, 5), DateTime(2026, 3, 14)),
       (DateTime(2026, 10, 26), DateTime(2026, 11, 4)),
+      (DateTime(2026, 3, 6), DateTime(2026, 3, 15)),
+      (DateTime(2026, 10, 27), DateTime(2026, 11, 5)),
     ]) {
       test('ten calendar days retain midnight across ${dates.$1}', () {
         final range = resolveAiFlowDateRange(
@@ -87,6 +89,8 @@ void main() {
         expect(range.startDate, dates.$1);
         expect(range.endDate, dates.$2);
         expect(range.durationDays, 10);
+        expect(range.endDate.hour, 0);
+        expect(range.endDate.minute, 0);
         // Count the calendar labels independently of local elapsed hours.
         final first = DateTime.utc(
           range.startDate.year,

@@ -8280,21 +8280,23 @@ class CalendarPage extends StatefulWidget {
     BuildContext context, {
     String? currentLocation,
   }) async {
-    if (_detachedCalendarOverlayRestoreInFlight) return false;
+    // True means this restore request is handled, including confirmed absence.
+    // False is reserved for a context/parent route that has not mounted yet.
+    if (_detachedCalendarOverlayRestoreInFlight) return true;
     final snapshot = await RestorationCoordinator.instance.readBestSnapshot(
       includeRemote: Supabase.instance.client.auth.currentSession != null,
     );
     final overlay = _restorableCalendarOverlayFromStack(
       snapshot.snapshot?.overlayStack ?? const <Map<String, dynamic>>[],
     );
-    if (overlay == null) return false;
+    if (overlay == null) return true;
     if (!context.mounted) return false;
 
     final parentRoute = (overlay['parentRoute'] as String?)?.trim();
     if (parentRoute == null ||
         parentRoute.isEmpty ||
         _isRootRouteLocation(parentRoute)) {
-      return false;
+      return true;
     }
 
     final activeLocation = currentLocation?.trim().isNotEmpty == true
@@ -8303,9 +8305,9 @@ class CalendarPage extends StatefulWidget {
     if (!_sameRouteLocation(activeLocation, parentRoute)) return false;
 
     final restoreKey = _calendarOverlayRestoreSurfaceKey(overlay);
-    if (_lastDetachedCalendarOverlayRestoreKey == restoreKey) return false;
+    if (_lastDetachedCalendarOverlayRestoreKey == restoreKey) return true;
     if (!RestorationCoordinator.instance.claimRestoreSurface(restoreKey)) {
-      return false;
+      return true;
     }
 
     _lastDetachedCalendarOverlayRestoreKey = restoreKey;

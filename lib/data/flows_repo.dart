@@ -288,6 +288,13 @@ class FlowsRepo {
   static const _kFiledFlowsCacheKeyPrefix = 'flow_filing:client:v2';
   static final Map<String, List<FlowRow>> _filedFlowsMemoryCache = {};
   static final Map<String, int> _filedFlowsCacheGenerations = <String, int>{};
+  static final _filedFlowReads =
+      Expando<
+        Map<
+          ({String userId, int generation, int? limit}),
+          ({Future<List<FlowRow>> future, AccountOperationFence account})
+        >
+      >();
 
   static String _filedFlowsCacheKey(String userId) =>
       '$_kFiledFlowsCacheKeyPrefix:$userId';
@@ -488,7 +495,34 @@ class FlowsRepo {
     return refreshMyFiledFlows(limit: limit);
   }
 
-  Future<List<FlowRow>> refreshMyFiledFlows({int? limit}) async {
+  /// Share only in-flight reads. Mutation generations and client identity keep
+  /// a new account/edit from joining a response for the previous state.
+  Future<List<FlowRow>> refreshMyFiledFlows({int? limit}) {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return Future.value(const []);
+    final key = (
+      userId: userId,
+      generation: _filedFlowsCacheGenerations[userId] ?? 0,
+      limit: limit,
+    );
+    final reads = _filedFlowReads[_client] ??= {};
+    final pending = reads[key];
+    if (pending != null && pending.account.isCurrent) return pending.future;
+    final account = AccountOperationFence(_client);
+    late final Future<List<FlowRow>> operation;
+    operation = _refreshMyFiledFlows(limit: limit, account: account)
+        .whenComplete(() {
+          account.dispose();
+          if (identical(reads[key]?.future, operation)) reads.remove(key);
+        });
+    reads[key] = (future: operation, account: account);
+    return operation;
+  }
+
+  Future<List<FlowRow>> _refreshMyFiledFlows({
+    int? limit,
+    required AccountOperationFence account,
+  }) async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
     final cacheGeneration = _filedFlowsCacheGenerations[user.id] ?? 0;
@@ -498,6 +532,7 @@ class FlowsRepo {
         _client,
         () => _client.rpc(_kFiledFlowsRpc, params: {'p_limit': limit}),
       );
+      if (!account.isCurrent) throw const WarmReadCancelled();
       var heldReadingHouseRows = const <Map<String, dynamic>>[];
       try {
         final supplementResponse = await withSupabaseAuthRetry(
@@ -510,12 +545,14 @@ class FlowsRepo {
         // until the additive Reading House migration is present.
         _log('held Reading House filing supplement unavailable: $e');
       }
+      if (!account.isCurrent) throw const WarmReadCancelled();
       final rows = _mergeFiledFlowRows(
         _rpcFlowRows(filedResponse),
         heldReadingHouseRows,
         limit: limit,
       );
       final inflated = await _inflateFlowRows(rows, userId: user.id);
+      if (!account.isCurrent) throw const WarmReadCancelled();
       unawaited(
         _cacheFiledFlows(
           userId: user.id,
@@ -525,8 +562,10 @@ class FlowsRepo {
       );
       return inflated;
     } catch (e) {
+      if (!account.isCurrent) rethrow;
       final cached =
           cachedMyFiledFlowsSync() ?? await restoreCachedFiledFlows();
+      if (!account.isCurrent) throw const WarmReadCancelled();
       if (cached != null) {
         _log('filed flows unavailable, preserving last verified snapshot: $e');
         if (limit == null || limit < 0 || cached.length <= limit) {

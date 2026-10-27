@@ -1,7 +1,6 @@
 import '../../features/pages/pages_arrangement.dart';
 import '../../features/pages/pages_models.dart';
 import '../../features/calendar/the_reading_house/reading_house_room_repository.dart';
-import '../flow_post_model.dart';
 import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,8 +10,6 @@ import '../event_filing_repo.dart';
 import '../flows_repo.dart';
 import '../profile_repo.dart';
 import '../journal_repo.dart';
-import '../commons_repo.dart';
-import '../commons_question_selection.dart';
 import '../decan_reflection_repo.dart';
 import '../maat_guidance_repo.dart';
 import '../user_events_repo.dart';
@@ -50,11 +47,25 @@ class AppWarmState with WidgetsBindingObserver {
     _calendar = CalendarInvalidationBus.instance.stream.listen((event) {
       final uid = _uid;
       if (uid == null) return;
-      for (final prefix in ['pages.', 'filing.', 'flow.']) {
+      final flowId = event.flowId;
+      for (final prefix in [
+        'pages.',
+        'filing.',
+        if (flowId == null)
+          'flow.'
+        else ...[
+          'flow.detail.$flowId',
+          'flow.events.$flowId',
+        ],
+      ]) {
         WarmSnapshotStore.instance.invalidate(uid, prefix: prefix);
       }
       _cache.invalidatePrefix(uid, 'pages.');
-      _sweep(force: true);
+      _refreshPages();
+      if (flowId != null) {
+        _scheduledFlows.remove(flowId);
+        _enqueueFlow(flowId, priority: true);
+      }
     });
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => _sweep());
     _cache.changes.addListener(_pagesChanged);
@@ -186,26 +197,9 @@ class AppWarmState with WidgetsBindingObserver {
     _scheduledFlows.clear();
     _priorityFlow = null;
     _prioritizePagesFlow();
+    _refreshPages();
     final uid = _uid!;
     bool current() => _current && _uid == uid;
-    _cache.beginRefreshCycle();
-    final resources = PagesWarmResources(client, _cache, current);
-    _queue.enqueue('$uid:restore', resources.restore);
-    for (final entry in resources.reads(cachedOnly: false).entries) {
-      _queue.enqueue('$uid:${entry.key}', () async {
-        await _cache.load<Object>(
-          uid,
-          entry.key,
-          () async {
-            final data = await entry.value();
-            if (data == null) throw WarmCacheMiss(entry.key);
-            return data;
-          },
-          mayFetch: current,
-          stale: true,
-        );
-      });
-    }
     final rhythm = RhythmRepo(client);
     final profile = ProfileRepo(client);
     final rooms = SupabaseReadingHouseRoomRepository(client);
@@ -222,43 +216,14 @@ class AppWarmState with WidgetsBindingObserver {
         }
         return null;
       },
-      'profile.posts': () async {
-        final posts = await profile.getFlowPosts(uid);
-        for (final post in posts) {
-          _queue.enqueue('$uid:post:${post.id}', () async {
-            if (current()) await profile.getFlowPostById(post.id, strict: true);
-          });
-        }
-        return null;
-      },
+      'profile.posts': () => profile.getFlowPosts(uid),
       'planner.alignment': rhythm.fetchTodaysAlignment,
       'planner.todos': rhythm.fetchTodos,
       'planner.tracker': rhythm.fetchContinuity,
       'planner.notes': rhythm.fetchAlignmentNotes,
       'journal.archive': () =>
           JournalRepo(client).listRecent(days: 90, strict: true),
-      'feed': () async {
-        final feed = await profile.getProfileFeedResult();
-        if (feed.hasError || !current()) return null;
-        final posts = feed.data
-            .map((item) => item.flowPost)
-            .whereType<FlowPost>();
-        for (final post in posts) {
-          _queue.enqueue('$uid:post:${post.id}', () async {
-            if (current()) await profile.getFlowPostById(post.id, strict: true);
-          });
-        }
-        return null;
-      },
-      'commons': () {
-        final seed = commonsQuestionSeed(now);
-        return CommonsRepo(client).getCommonsHome(
-          localDate: now,
-          questionId: seed.id,
-          questionText: seed.text,
-          strict: true,
-        );
-      },
+      'feed': () => profile.getProfileFeedResult(),
       'reflections': () => DecanReflectionRepo(client).listMineResult(),
       'guidance.archive': () =>
           MaatGuidanceRepo(client).listDecanOpeningsForArchive(),
@@ -271,15 +236,6 @@ class AppWarmState with WidgetsBindingObserver {
       'reminders': () => EventFilingRepo(
         client,
       ).getOwnedItemsPage(kind: FiledItemKind.reminder, offset: 0),
-      'flow.details': () async {
-        final rows = await FlowsRepo(client).listMyFiledFlows();
-        for (final flow in rows.where(
-          (f) => f.visibleInActiveList && !f.isHidden && !f.isReminder,
-        )) {
-          if (current()) _enqueueFlow(flow.id);
-        }
-        return null;
-      },
     };
     for (final entry in jobs.entries) {
       _queue.enqueue('$uid:${entry.key}', () async {
@@ -320,6 +276,32 @@ class AppWarmState with WidgetsBindingObserver {
         }
       }
     });
+  }
+
+  // Mutations refresh the affected Pages projections, not every archive,
+  // conversation and full flow history in the account.
+  void _refreshPages() {
+    if (!_current) return;
+    final uid = _uid!;
+    bool current() => _current && _uid == uid;
+    _cache.beginRefreshCycle();
+    final resources = PagesWarmResources(client, _cache, current);
+    _queue.enqueue('$uid:restore', resources.restore);
+    for (final entry in resources.reads(cachedOnly: false).entries) {
+      _queue.enqueue('$uid:${entry.key}', () async {
+        await _cache.load<Object>(
+          uid,
+          entry.key,
+          () async {
+            final data = await entry.value();
+            if (data == null) throw WarmCacheMiss(entry.key);
+            return data;
+          },
+          mayFetch: current,
+          stale: true,
+        );
+      });
+    }
   }
 
   void dispose() {

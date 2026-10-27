@@ -77,6 +77,32 @@ void main() {
     AppNavigationRestorationController.instance.resetForTesting();
   });
 
+  test(
+    'launch consumers reuse one resolved snapshot without another read',
+    () async {
+      await _writeRawSnapshot(_durableRouteFields('/pages'));
+      final snapshot = await AppRestorationService.instance.readBestSnapshot();
+      AppRestorationService.debugRemoteWindowSnapshotReader = (_, _, _) async {
+        fail('The launch snapshot is already resolved');
+      };
+      AppRestorationService.debugRemoteLatestSnapshotReader = (_) async {
+        fail('The launch snapshot is already resolved');
+      };
+      addTearDown(() {
+        AppRestorationService.debugRemoteWindowSnapshotReader = null;
+        AppRestorationService.debugRemoteLatestSnapshotReader = null;
+      });
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(
+            isAuthenticated: true,
+            includeRemote: true,
+            snapshot: snapshot,
+          );
+      expect(destination.route, '/pages');
+      expect(destination.reason, 'valid_durable_metadata');
+    },
+  );
+
   test('signed-out cold and returning launches open public Pages', () async {
     final navigation = AppNavigationRestorationController.instance;
     final cold = await navigation.restoreLaunchDestination(
