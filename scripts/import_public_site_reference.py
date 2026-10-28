@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Import the approved interactive website without changing its design or demos.
 
-Only resource transport changes: data URLs become byte-identical local assets,
-and the film is loaded directly instead of decoding its base64 in the browser.
-The source hash prevents a different document from silently replacing the brief.
+Data URLs become byte-identical local assets and the film loads directly.
+An explicit film replacement changes only its source and duration labels; the
+original media remain immutable so the complete reference can still be restored.
 """
 from __future__ import annotations
 
@@ -11,7 +11,9 @@ import argparse
 import base64
 import hashlib
 import json
+import math
 import re
+import subprocess
 from pathlib import Path
 
 REFERENCE_SHA256 = "4e353c4d50a8207d85125319918cf1c181ac386793617b25efb9d4b835f7a43e"
@@ -66,10 +68,50 @@ def prepare(reference: bytes) -> tuple[bytes, dict[str, bytes], dict]:
     return document, assets, manifest
 
 
+def film_labels(duration: float) -> tuple[str, str]:
+    if not math.isfinite(duration) or duration <= 0:
+        raise ValueError("Film duration must be a positive, finite number.")
+    minutes, seconds = divmod(round(duration), 60)
+    return f"{minutes:02d}:{seconds:02d}", f"{minutes} minutes {seconds} seconds"
+
+
+def replace_film(document: bytes, assets: dict[str, bytes], manifest: dict,
+                 film: bytes, filename: str, duration: float) -> tuple[bytes, dict[str, bytes], dict]:
+    originals = [name for name, meta in manifest["assets"].items() if meta["content_type"] == "video/mp4"]
+    if len(originals) != 1 or "film_replacement" in manifest:
+        raise ValueError("Apply a film replacement to the immutable reference import.")
+    original = originals[0]
+    name = f"assets/{digest(film)}.mp4"
+    label, aria = film_labels(duration)
+    text = document.decode()
+    for before, after in [(f'filmUrl="/{original}"', f'filmUrl="/{name}"'),
+                          ('WATCH THE FILM &nbsp; 02:20', f'WATCH THE FILM &nbsp; {label}'),
+                          ('Play the film, 2 minutes 20 seconds', f'Play the film, {aria}')]:
+        if text.count(before) != 1:
+            raise ValueError("Film replacement no longer matches the approved page boundary.")
+        text = text.replace(before, after, 1)
+    assets[name] = film
+    manifest["assets"][name] = {"bytes": len(film), "sha256": digest(film), "content_type": "video/mp4"}
+    manifest["film_replacement"] = {"reference_asset": original, "asset": name,
+                                    "source_filename": Path(filename).name, "duration_seconds": duration}
+    document = text.encode()
+    manifest["index_sha256"] = digest(document)
+    return document, assets, manifest
+
+
 def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> bytes:
     """Restore the original document for an exact, independent parity assertion."""
     text = document.decode().replace(VERIFICATION_META, "", 1)
+    replacement = manifest.get("film_replacement")
+    if replacement:
+        label, aria = film_labels(replacement["duration_seconds"])
+        text = text.replace(f'filmUrl="/{replacement["asset"]}"',
+                            f'filmUrl="/{replacement["reference_asset"]}"', 1)
+        text = text.replace(f'WATCH THE FILM &nbsp; {label}', 'WATCH THE FILM &nbsp; 02:20', 1)
+        text = text.replace(f'Play the film, {aria}', 'Play the film, 2 minutes 20 seconds', 1)
     for name, meta in manifest["assets"].items():
+        if replacement and name == replacement["asset"]:
+            continue
         encoded = base64.b64encode(assets[name]).decode("ascii")
         if meta["content_type"] == "video/mp4":
             loader = "function loadFilm(){if(filmUrl)return;filmUrl=" + json.dumps("/" + name) + ";video.src=filmUrl;}\n"
@@ -85,8 +127,14 @@ def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> by
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reference", type=Path)
+    parser.add_argument("--film", type=Path, help="Use an approved replacement MP4 without re-encoding it.")
     args = parser.parse_args()
     document, assets, manifest = prepare(args.reference.read_bytes())
+    if args.film:
+        probe = json.loads(subprocess.check_output([
+            "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(args.film)]))
+        document, assets, manifest = replace_film(document, assets, manifest, args.film.read_bytes(),
+                                                 args.film.name, float(probe["format"]["duration"]))
     destination = ROOT / "public-site"
     unexpected = {p.relative_to(destination).as_posix() for p in
                   (destination / "assets").rglob("*") if p.is_file()} - assets.keys()

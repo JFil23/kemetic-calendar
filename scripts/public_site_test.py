@@ -90,7 +90,9 @@ class PublicSiteTest(unittest.TestCase):
                                     text, re.S)[1])
         self.assertEqual(len(data["states"]), 90)
         self.assertEqual(len(data["sheets"]), 69)
-        self.assertEqual(len(site.ASSETS), 109)
+        replacement = site.REFERENCE.get("film_replacement")
+        baseline = set(site.ASSETS) - ({replacement["asset"]} if replacement else set())
+        self.assertEqual(len(baseline), 109)
         for target in data["starts"].values():
             self.assertIn(target, data["states"])
         for name, state in data["states"].items():
@@ -104,6 +106,21 @@ class PublicSiteTest(unittest.TestCase):
         for name, sheet in data["sheets"].items():
             self.assertIn(name, data["states"])
             self.assertIn(sheet["fallback"], data["states"])
+
+    def test_updated_film_is_the_exact_supplied_mp4_with_accurate_labels(self):
+        film = site.REFERENCE["film_replacement"]
+        expected = "cfd092f349fd938b06501ab3dcf78a6fbb4391c6601df69d4e1b39c763b080d6"
+        self.assertEqual(film["asset"], f"assets/{expected}.mp4")
+        self.assertEqual(film["source_filename"], "Ep01Calendar_G_TUESDAY_RESTORED_1080p60_20261028.mp4")
+        self.assertEqual(site.sha((self.source / film["asset"]).read_bytes()), expected)
+        self.assertEqual(site.ASSETS[film["asset"]]["bytes"], 9_215_011)
+        self.assertEqual(film["duration_seconds"], 136.142563)
+        self.assertEqual(len(site.ASSETS), 110)
+        page = (self.source / "index.html").read_text()
+        self.assertIn(f'filmUrl="/{film["asset"]}";video.src=filmUrl;', page)
+        self.assertIn('aria-label="Play the film, 2 minutes 16 seconds"', page)
+        self.assertIn('WATCH THE FILM &nbsp; 02:16', page)
+        self.assertNotIn(f'filmUrl="/{film["reference_asset"]}"', page)
 
     def test_reference_assets_cannot_be_missing_replaced_or_extended(self):
         for name in site.ASSETS:

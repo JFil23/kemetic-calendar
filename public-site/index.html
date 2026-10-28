@@ -397,7 +397,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 
 <section class="section film-section" id="our-story" aria-labelledby="film-title"><div class="wrap">
 <div class="section-head"><div><p class="kicker">The idea behind the rhythm</p><h2 id="film-title">A different relationship<br>with <em>time.</em></h2></div><p class="section-copy"><span class="haw-name"><svg class="haw-wordmark" viewBox="20 20 196 130" aria-hidden="true" focusable="false"><use href="#haw-wordmark-glyphs"/></svg><span class="haw-name-text">ḥꜣw</span></span> is rooted in Kemetic time and philosophy. Explore the seasons, cycles, and ideas behind a life with more intention.</p></div>
-<div class="film-box"><div class="film-stage"><video id="brand-film" playsinline preload="none" poster="/assets/095c387496f762c18f0c443d61fbda7f5684459fa8acc54622946a1ca4176854.jpg" aria-label="ḥꜣw Manim film about Kemetic time"></video><button class="film-cover" id="film-cover" aria-label="Play the film, 2 minutes 20 seconds"><span class="play-disc"><svg class="icon" aria-hidden="true"><use href="#play"/></svg></span><span class="film-overlay"><strong>What is your time asking of you?</strong><small>WATCH THE FILM &nbsp; 02:20</small></span></button></div></div>
+<div class="film-box"><div class="film-stage"><video id="brand-film" playsinline preload="none" poster="/assets/095c387496f762c18f0c443d61fbda7f5684459fa8acc54622946a1ca4176854.jpg" aria-label="ḥꜣw Manim film about Kemetic time"></video><button class="film-cover" id="film-cover" aria-label="Play the film, 2 minutes 16 seconds"><span class="play-disc"><svg class="icon" aria-hidden="true"><use href="#play"/></svg></span><span class="film-overlay"><strong>What is your time asking of you?</strong><small>WATCH THE FILM &nbsp; 02:16</small></span></button></div></div>
 <div class="film-caption"><span>An introduction to the world of <span class="haw-name"><svg class="haw-wordmark" viewBox="20 20 196 130" aria-hidden="true" focusable="false"><use href="#haw-wordmark-glyphs"/></svg><span class="haw-name-text">ḥꜣw</span></span>.</span><span>Work in progress · voice-over to come</span></div>
 </div></section>
 
@@ -489,7 +489,7 @@ row.addEventListener('scroll',update,{passive:true});update();
 
 /* film: native controls stay hidden until playback starts, so they never sit under the cover */
 const video=$('#brand-film'),cover=$('#film-cover');let filmUrl;
-function loadFilm(){if(filmUrl)return;filmUrl="/assets/01c68f811f33a2a960ac91dffcc05544b09c69ad460e717c747ea02984bef212.mp4";video.src=filmUrl;}
+function loadFilm(){if(filmUrl)return;filmUrl="/assets/cfd092f349fd938b06501ab3dcf78a6fbb4391c6601df69d4e1b39c763b080d6.mp4";video.src=filmUrl;}
 cover.addEventListener('click',()=>{loadFilm();cover.hidden=true;video.controls=true;video.play().catch(()=>{});video.focus();});
 video.addEventListener('ended',()=>{video.controls=false;cover.hidden=false;});
 window.addEventListener('pagehide',()=>video.pause());

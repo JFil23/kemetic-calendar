@@ -33,3 +33,27 @@ No email was sent during verification. This is a local build; production
 publication was not part of the request. A deployment still needs committed
 source, its required hosted evidence, a sealed payload and both served receipts
 under the existing public-site release procedure.
+
+## October 28 requested film replacement
+
+The active film is now the user-supplied
+`Ep01Calendar_G_TUESDAY_RESTORED_1080p60_20261028.mp4`, SHA-256
+`cfd092f349fd938b06501ab3dcf78a6fbb4391c6601df69d4e1b39c763b080d6`.
+Its 9,215,011 bytes are copied without re-encoding: H.264, 1920×1080, 60 fps,
+AAC audio, duration 136.142563 seconds. The displayed and accessible durations
+now read 2:16. The existing poster, housing, controls and page styling are retained.
+
+The original film and original HTML reference digest are preserved. The full
+reference reconstruction assertion still passes after reversing only the active
+film URL and duration labels. The original asset inventory remains 109; the
+supplied replacement adds one immutable asset. No old fixture is rewritten.
+
+Local browser playback reached `readyState=4` with the exact supplied duration
+and expected content-addressed URL; play, pause and a native-timeline seek to
+68.071281 seconds worked without browser warnings or errors. The local seek
+check used HTTP byte ranges, matching the hosted media-serving behavior.
+Geometry and inspected style properties for all 30 film
+section elements matched the previous page at 390×844 and 1440×1000.
+Screenshots and comparison data are in ignored
+`dist/public-site-film-update-20261028/`. Hosted qualification and the new
+temporary deployment receipt are recorded separately by the release coordinator.

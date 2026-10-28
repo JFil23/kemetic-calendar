@@ -465,6 +465,11 @@
       "content_type": "image/webp",
       "sha256": "ce37926cad05823f649e73c9220b734d4a09f25bef40b7ce678abe78749493a0"
     },
+    "assets/cfd092f349fd938b06501ab3dcf78a6fbb4391c6601df69d4e1b39c763b080d6.mp4": {
+      "bytes": 9215011,
+      "content_type": "video/mp4",
+      "sha256": "cfd092f349fd938b06501ab3dcf78a6fbb4391c6601df69d4e1b39c763b080d6"
+    },
     "assets/cfffde760c60ebc793da99c3da7b9e20719d8446dc78ba94823aaf183da11306.webp": {
       "bytes": 6946,
       "content_type": "image/webp",
@@ -546,7 +551,13 @@
       "sha256": "fdf9b0689e8614ae563f863f0068ca81cf4093f974df34cce8021975b58d76e7"
     }
   },
-  "index_sha256": "abafa4fe3dbf8c097e03bd2209d850fe7656d11f2aecf641d9dead3d83c31bf1",
+  "film_replacement": {
+    "asset": "assets/cfd092f349fd938b06501ab3dcf78a6fbb4391c6601df69d4e1b39c763b080d6.mp4",
+    "duration_seconds": 136.142563,
+    "reference_asset": "assets/01c68f811f33a2a960ac91dffcc05544b09c69ad460e717c747ea02984bef212.mp4",
+    "source_filename": "Ep01Calendar_G_TUESDAY_RESTORED_1080p60_20261028.mp4"
+  },
+  "index_sha256": "96666bb8810d815568fc0004fd9e1d7f605801c20b55cf29c27e54c5d59476a0",
   "reference_sha256": "4e353c4d50a8207d85125319918cf1c181ac386793617b25efb9d4b835f7a43e",
   "schema_version": 1
 }

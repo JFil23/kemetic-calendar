@@ -238,6 +238,11 @@ policy. The landing page is restricted to the supplied interactive reference by
 name, byte length and digest. Unexpected files, changed assets and changed landing
 markup fail validation. The website test reconstructs the complete original HTML
 and verifies its immutable reference digest, covering all styling and demo logic.
+An explicitly requested film update is recorded as `film_replacement` in the
+same manifest. It replaces only the active MP4 source and its two duration
+labels. The original film remains immutable for reference reconstruction; its
+digest and the original whole-document assertion are preserved. The current
+film has its own exact source-file digest and playback checks.
 The importer, reference manifest and sealing tool must all match the sealed
 commit. No application credentials or account writes enter this website.
 This website deployment cannot replace
