@@ -409,12 +409,25 @@ void main() {
   testWidgets(
     'Quick Add real routes retain all eleven acknowledgement and account boundaries',
     (tester) async {
-      expect(scenarios, hasLength(11));
-      for (final scenario in scenarios) {
-        await resetFixture();
-        debugPrint('[quick-add scenario START] ${scenario.name}');
-        await scenario.run(tester);
-        debugPrint('[quick-add scenario PASS] ${scenario.name}');
+      try {
+        expect(scenarios, hasLength(11));
+        for (final scenario in scenarios) {
+          await resetFixture();
+          debugPrint('[quick-add scenario START] ${scenario.name}');
+          await scenario.run(tester);
+          debugPrint('[quick-add scenario PASS] ${scenario.name}');
+        }
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.runAsync(() async {
+          final client = Supabase.instance.client;
+          await client.removeAllChannels();
+          await client.realtime.disconnect();
+          // realtime_client 2.6.0 leaves its retry scheduled when disconnecting
+          // an already closed socket. End this fixture's reconnect owner before
+          // the widget-test invariant, as the canonical route fixtures do.
+          client.realtime.reconnectTimer.reset();
+        });
       }
     },
   );
