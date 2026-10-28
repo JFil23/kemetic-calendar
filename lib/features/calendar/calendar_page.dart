@@ -915,7 +915,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                                             false);
                                     final label = isEvent
                                         ? 'Quick add'
-                                        : 'ask hAw';
+                                        : 'ask ḥꜣw';
                                     return Semantics(
                                       button: true,
                                       enabled: !_submitting,
@@ -941,6 +941,9 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                                                   color: Color(0xFF15110A),
                                                   fontFamily:
                                                       DaySheetTokens.serif,
+                                                  fontFamilyFallback:
+                                                      KemeticTypography
+                                                          .kemeticLatinFallback,
                                                   fontSize: 20,
                                                 ),
                                               ),

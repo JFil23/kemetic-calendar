@@ -3,7 +3,7 @@
 ## October 27 Quick Add action and saved-event destination
 
 The shared Quick Add sheet retains its existing layout and event parser. Its
-action label follows the same local Ask recognizer as submission: `ask hAw` for
+action label follows the same local Ask recognizer as submission: `ask ḥꜣw` for
 empty or assistant input, and `Quick add` for event input. The separate question
 mark control is removed. Typing adds no repository reads or persisted state.
 

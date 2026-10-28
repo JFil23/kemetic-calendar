@@ -138,7 +138,7 @@ void main() {
       final semantics = tester.ensureSemantics();
       try {
         await mount(tester);
-        expectAction(tester, 'ask hAw');
+        expectAction(tester, 'ask ḥꜣw');
         expect(find.text('Quick add'), findsNothing);
         expect(find.byTooltip('How to ask ḥꜣw'), findsNothing);
         expect(find.byIcon(Icons.help_outline), findsNothing);
@@ -163,14 +163,14 @@ void main() {
         await mount(tester);
         for (final (text, label) in [
           ('Dentist Friday at 3', 'Quick add'),
-          ('What is a decan?', 'ask hAw'),
-          ('', 'ask hAw'),
-          ('  ', 'ask hAw'),
+          ('What is a decan?', 'ask ḥꜣw'),
+          ('', 'ask ḥꜣw'),
+          ('  ', 'ask ḥꜣw'),
           ('call mom', 'Quick add'),
-          ('Find reading flows', 'ask hAw'),
-          ('Why is the sky green?', 'ask hAw'),
+          ('Find reading flows', 'ask ḥꜣw'),
+          ('Why is the sky green?', 'ask ḥꜣw'),
           ('dinner with Mike at 6pm in Beverly Hills', 'Quick add'),
-          ('', 'ask hAw'),
+          ('', 'ask ḥꜣw'),
         ]) {
           await enter(tester, text);
           expectAction(tester, label);
@@ -234,7 +234,7 @@ void main() {
         );
         expectAction(tester, 'Quick add');
         await enter(tester, '');
-        expectAction(tester, 'ask hAw');
+        expectAction(tester, 'ask ḥꜣw');
         expect(tester.takeException(), isNull);
       } finally {
         semantics.dispose();
@@ -254,7 +254,7 @@ void main() {
         expect(accountRequests, 0);
         await enter(tester, 'What is a decan?');
         expect(find.text('Try a more specific request'), findsNothing);
-        expectAction(tester, 'ask hAw');
+        expectAction(tester, 'ask ḥꜣw');
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await tester.pumpAndSettle();
         expect(find.text('Decans'), findsOneWidget);
