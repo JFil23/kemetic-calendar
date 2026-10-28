@@ -57,3 +57,16 @@ section elements matched the previous page at 390×844 and 1440×1000.
 Screenshots and comparison data are in ignored
 `dist/public-site-film-update-20261028/`. Hosted qualification and the new
 temporary deployment receipt are recorded separately by the release coordinator.
+
+## October 28 requested caption removal
+
+Removed the user-identified “Work in progress · voice-over to come” caption and
+its unused color selector. The remaining introduction retains its original
+text, color and geometry; the film, poster, controls and duration are unchanged.
+Before/after browser checks at 390×844 and 1440×1000 verify those boundaries.
+The removed mobile caption row collapses naturally. Evidence and the inspected
+result screenshot are in ignored `dist/public-site-caption-removal-20261028/`.
+
+The importer records this approved removal as a reversible transformation.
+The immutable original reference hash and complete reconstruction assertion
+remain unchanged and pass.
