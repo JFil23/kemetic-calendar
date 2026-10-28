@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -82,6 +83,30 @@ class PublicSiteTest(unittest.TestCase):
         # behavior and visuals that an import graph cannot express.
         self.assertEqual(site.sha(restored), reference.REFERENCE_SHA256)
         self.assertEqual(site.REFERENCE["reference_sha256"], reference.REFERENCE_SHA256)
+
+    def test_customer_contact_controller_requires_acknowledgement_and_retains_failures(self):
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "Node is required to verify the shipped contact controller.")
+        result = subprocess.run([node, "--test", str(ROOT / "scripts/public_site_contact_test.mjs")],
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_customer_copy_and_contact_keep_the_existing_app_destination(self):
+        text = (self.source / "index.html").read_text()
+        self.assertIn('action="/api/contact" method="post"', text)
+        self.assertIn('id="support-submit" type="submit">Submit ', text)
+        self.assertIn('href="mailto:info@thisishaw.com"', text)
+        self.assertEqual(text.count('href="https://kemet.pages.dev/"'), 4)
+        self.assertIn('Do I need to download an app?', text)
+        self.assertIn('Do I need an account?', text)
+        for removed in ('Website concept', 'work-in-progress form', 'Continue to email',
+                        'support-copy', 'fictional demo activity', 'The app’s actual',
+                        'Enlarge the real', 'ḥꜣw Manim film'):
+            self.assertNotIn(removed, text)
+        edits = site.REFERENCE['customer_facing_revision']
+        self.assertTrue(edits)
+        with self.assertRaisesRegex(ValueError, 'recorded boundary'):
+            reference.apply_revision('unrelated document', edits)
 
     def test_original_demo_graph_and_all_resources_are_complete(self):
         import re

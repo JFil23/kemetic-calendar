@@ -551,6 +551,153 @@
       "sha256": "fdf9b0689e8614ae563f863f0068ca81cf4093f974df34cce8021975b58d76e7"
     }
   },
+  "customer_facing_revision": [
+    {
+      "after": "The \u1e25\ua723w feed with a Follow the Sky flow, a Milky Way header, and Save and sharing controls.",
+      "before": "The actual \u1e25\ua723w feed showing Follow the Sky with its own Milky Way hero image, title, Save, and social actions.",
+      "occurrences": 1
+    },
+    {
+      "after": "Follow the Sky flow with a night-sky header and a Carry this course button.",
+      "before": "The app\u2019s actual Follow the Sky detail, with its original hero image and Carry this course action.",
+      "occurrences": 3
+    },
+    {
+      "after": "The Offering Table flow with daily practices and a Carry this table button.",
+      "before": "The app\u2019s actual Offering Table detail, with its authored practices and Carry this table action.",
+      "occurrences": 1
+    },
+    {
+      "after": "The Reading House flow with book setup, Open the Text, and Hold this house.",
+      "before": "Real Reading House detail with Open the Text, book setup, and Hold this house.",
+      "occurrences": 1
+    },
+    {
+      "after": "The \u1e25\ua723w feed showing a Follow the Sky flow beneath a night-sky header.",
+      "before": "The actual \u1e25\ua723w feed showing Follow the Sky with its original hero image.",
+      "occurrences": 1
+    },
+    {
+      "after": "The \u1e25\ua723w Day View with a Follow the Sky event alongside daily plans.",
+      "before": "The actual \u1e25\ua723w Day View, with a Follow the Sky event among ordinary sample plans.",
+      "occurrences": 1
+    },
+    {
+      "after": "These ten days review with recorded moments and a reflection prompt.",
+      "before": "The real These ten days decan review, showing recorded moments and a reflection prompt.",
+      "occurrences": 1
+    },
+    {
+      "after": "Enlarge the social feed",
+      "before": "Enlarge the real social feed",
+      "occurrences": 1
+    },
+    {
+      "after": "Enlarge the calendar",
+      "before": "Enlarge the real calendar",
+      "occurrences": 1
+    },
+    {
+      "after": "An introduction to \u1e25\ua723w and Kemetic time",
+      "before": "\u1e25\ua723w Manim film about Kemetic time",
+      "occurrences": 1
+    },
+    {
+      "after": "</span> <span class=\"rhythm\">",
+      "before": "</span><span class=\"rhythm\">",
+      "occurrences": 1
+    },
+    {
+      "after": "</span> <span class=\"how\">",
+      "before": "</span><span class=\"how\">",
+      "occurrences": 1
+    },
+    {
+      "after": "Interactive tour with sample activity. Tap the controls to explore, and scroll or swipe to see more. Drag a sheet down or tap outside it to close. Escape closes the current sheet, then the tour.",
+      "before": "Interactive app preview with fictional demo activity. Tap the app controls to explore, and scroll or swipe to see more. Drag a sheet down or tap outside it to close. Escape closes the current sheet, then the preview.",
+      "occurrences": 1
+    },
+    {
+      "after": "aria-label=\"Close interactive tour\"",
+      "before": "aria-label=\"Close app preview\"",
+      "occurrences": 1
+    },
+    {
+      "after": "Keep exploring the tour",
+      "before": "Keep exploring the preview",
+      "occurrences": 1
+    },
+    {
+      "after": "Review the reflection before posting, or keep it private. Activity in this interactive tour stays here.",
+      "before": "Review the reflection before posting, or keep it private. This is a preview of the app, so nothing is published here.",
+      "occurrences": 1
+    },
+    {
+      "after": "</div></footer>",
+      "before": "<p class=\"preview-note\">Website concept \u00b7 Screens show the real app interface and existing flows, with fictional demo accounts and activity. Tap a screen to explore the app. Film shown in its current work-in-progress form.</p></div></footer>",
+      "occurrences": 1
+    },
+    {
+      "after": "<div class=\"faq-list\"><details><summary>Do I need to download an app?<svg class=\"icon\" aria-hidden=\"true\"><use href=\"#plus\"/></svg></summary><p>Open <span class=\"haw-name\"><svg class=\"haw-wordmark\" viewBox=\"20 20 196 130\" aria-hidden=\"true\" focusable=\"false\"><use href=\"#haw-wordmark-glyphs\"/></svg><span class=\"haw-name-text\">\u1e25\ua723w</span></span> in your browser. You can also add it to your home screen for quick access.</p></details><details><summary>Do I need an account?<svg class=\"icon\" aria-hidden=\"true\"><use href=\"#plus\"/></svg></summary><p>You can explore the calendar, Library, and Ma\u2019at Flows before signing in. Create an account to save your own calendar entries, Flows, and reflections, and to take part in the community.</p></details><details>",
+      "before": "<div class=\"faq-list\"><details>",
+      "occurrences": 1
+    },
+    {
+      "after": "<form id=\"support-form\" class=\"support-form\" action=\"/api/contact\" method=\"post\">",
+      "before": "<form id=\"support-form\" class=\"support-form\">",
+      "occurrences": 1
+    },
+    {
+      "after": "<p class=\"support-delivery\">We\u2019ll reply to the email address you provide.</p>",
+      "before": "<p class=\"support-delivery\">Continue to your email app to review and send your message.</p>",
+      "occurrences": 1
+    },
+    {
+      "after": "<div class=\"support-form-actions\"><button class=\"btn btn-primary\" id=\"support-submit\" type=\"submit\">Submit <svg class=\"icon\" aria-hidden=\"true\"><use href=\"#arrow\"/></svg></button></div>",
+      "before": "<div class=\"support-form-actions\"><button class=\"btn btn-primary\" type=\"submit\">Continue to email <svg class=\"icon\" aria-hidden=\"true\"><use href=\"#up\"/></svg></button><button type=\"button\" id=\"support-copy\" class=\"support-copy\">Copy message</button></div>",
+      "occurrences": 1
+    },
+    {
+      "after": "<p class=\"support-direct\">Prefer to write directly? <a href=\"mailto:info@thisishaw.com\">info@thisishaw.com</a></p>",
+      "before": "<p class=\"support-direct\">Prefer to write directly? <a href=\"mailto:jaralephillips@gmail.com?subject=%E1%B8%A5%EA%9C%A3w%20support\">jaralephillips@gmail.com</a></p>",
+      "occurrences": 1
+    },
+    {
+      "after": ".support-form-actions .btn:disabled{opacity:.65;cursor:wait}.support-result[data-status=\"error\"]{border-color:#c59279;color:#e3c5b8}.support-trap{display:none}\n@media(max-width:1000px){.support-grid",
+      "before": "@media(max-width:1000px){.support-grid",
+      "occurrences": 1
+    },
+    {
+      "after": "<p class=\"support-required\">Fields marked * are required.</p>\n        <div class=\"support-trap\" aria-hidden=\"true\"><label for=\"support-website\">Leave this field empty<input id=\"support-website\" name=\"website\" type=\"text\" tabindex=\"-1\" autocomplete=\"off\"></label></div>",
+      "before": "<p class=\"support-required\">Fields marked * are required.</p>",
+      "occurrences": 1
+    },
+    {
+      "after": "/* Contact uses the same view and validation, with acknowledged server delivery. */\nconst main=$('main:not(#contact)'),support=$('#contact'),form=$('#support-form'),result=$('#support-result');\nlet previousSupport=false;\nfunction route(){\n  const open=location.hash==='#contact';main.hidden=open;support.hidden=!open;\n  $$('.contact-link').forEach(a=>open?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));\n  if(open){$('#brand-film')?.pause();window.scrollTo(0,0);requestAnimationFrame(()=>$('#support-title').focus({preventScroll:true}));}\n  else if(previousSupport){const destination=$(location.hash||'#top');requestAnimationFrame(()=>destination?.scrollIntoView({behavior:'instant',block:'start'}));}\n  previousSupport=open;\n}\nwindow.addEventListener('hashchange',route);route();\n$('.skip')?.addEventListener('click',e=>{e.preventDefault();const target=support.hidden?main:$('#support-title');target.tabIndex=-1;target.focus();target.scrollIntoView({block:'start'});});\nconst submitButton=$('#support-submit');let submitting=false;\nfunction showResult(text,status){result.hidden=false;result.dataset.status=status;result.replaceChildren(document.createTextNode(text));}\nfunction validateMessage(){const field=$('#support-message');field.setCustomValidity(field.value.trim()?'':'Please tell us a little about what you need help with.');return form.reportValidity();}\n$('#support-message').addEventListener('input',()=>$('#support-message').setCustomValidity(''));\nform.addEventListener('submit',async e=>{\n  e.preventDefault();if(submitting||!validateMessage())return;\n  const draft=Object.fromEntries(new FormData(form));\n  Object.keys(draft).forEach(key=>{draft[key]=String(draft[key]).trim();});\n  submitting=true;result.hidden=true;form.setAttribute('aria-busy','true');\n  const controls=[...form.elements];controls.forEach(control=>control.disabled=true);\n  submitButton.firstChild.textContent='Sending\u2026 ';\n  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);\n  try{\n    const response=await fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',redirect:'error',body:JSON.stringify(draft),signal:controller.signal});\n    const receipt=await response.json();\n    if(!response.ok||receipt.ok!==true){\n      const error=new Error('Delivery was not acknowledged.');error.status=response.status;throw error;\n    }\n    form.reset();showResult('Thank you. Your message has been sent. We\u2019ll reply to the email address you provided.','success');\n  }catch(error){\n    const message=error.status===429?'You\u2019ve sent several messages. Please wait a minute before trying again.':error.name==='AbortError'?'Sending took too long. Your message is still here. Please try again.':'Something went wrong. Please try again. Your message is still here.';\n    showResult(message,'error');\n  }finally{\n    clearTimeout(timeout);submitting=false;controls.forEach(control=>control.disabled=false);\n    submitButton.firstChild.textContent='Submit ';form.removeAttribute('aria-busy');\n  }\n});\n",
+      "before": "/* Contact has its own route, form, and honest email handoff. */\nconst main=$('main:not(#contact)'),support=$('#contact'),form=$('#support-form'),result=$('#support-result');\nlet previousSupport=false;\nfunction route(){\n  const open=location.hash==='#contact';main.hidden=open;support.hidden=!open;\n  $$('.contact-link').forEach(a=>open?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));\n  if(open){$('#brand-film')?.pause();window.scrollTo(0,0);requestAnimationFrame(()=>$('#support-title').focus({preventScroll:true}));}\n  else if(previousSupport){const destination=$(location.hash||'#top');requestAnimationFrame(()=>destination?.scrollIntoView({behavior:'instant',block:'start'}));}\n  previousSupport=open;\n}\nwindow.addEventListener('hashchange',route);route();\n$('.skip')?.addEventListener('click',e=>{e.preventDefault();const target=support.hidden?main:$('#support-title');target.tabIndex=-1;target.focus();target.scrollIntoView({block:'start'});});\nfunction message(){\n  const f=new FormData(form),name=String(f.get('name')||'').trim(),email=String(f.get('email')||'').trim(),topic=String(f.get('topic')||''),device=String(f.get('device')||'').trim(),body=String(f.get('message')||'').trim();\n  const lines=[`Topic: ${topic}`,`Name: ${name||'Not provided'}`,`Reply to: ${email}`];\n  if(device)lines.push(`Device / app version: ${device}`);\n  lines.push('',body);\n  return {subject:`\u1e25\ua723w support \u2014 ${topic}`,body:lines.join('\\n')};\n}\nfunction showResult(text){result.hidden=false;result.replaceChildren(document.createTextNode(text));}\nfunction validateMessage(){const field=$('#support-message');field.setCustomValidity(field.value.trim()?'':'Please tell us a little about what you need help with.');return form.reportValidity();}\n$('#support-message').addEventListener('input',()=>$('#support-message').setCustomValidity(''));\nform.addEventListener('submit',e=>{\n  e.preventDefault();if(!validateMessage())return;\n  const draft=message(),href='mailto:jaralephillips@gmail.com?subject='+encodeURIComponent(draft.subject)+'&body='+encodeURIComponent(draft.body);\n  showResult('Your email draft is ready. Review it and press Send in your email app. If it didn\u2019t open, use Copy message and email jaralephillips@gmail.com.');\n  const a=document.createElement('a');a.href=href;a.hidden=true;document.body.append(a);a.click();a.remove();\n});\n$('#support-copy').addEventListener('click',async()=>{\n  if(!validateMessage())return;const draft=message(),text='To: jaralephillips@gmail.com\\nSubject: '+draft.subject+'\\n\\n'+draft.body;\n  try{await navigator.clipboard.writeText(text);showResult('Message copied. Paste it into an email to jaralephillips@gmail.com when you\u2019re ready to send.');}\n  catch{showResult('Select and copy your message below, then paste it into your email app.');const area=document.createElement('textarea');area.readOnly=true;area.value=text;area.setAttribute('aria-label','Your support message, ready to copy');result.append(area);area.focus();area.select();}\n});\n",
+      "occurrences": 1
+    },
+    {
+      "after": ".footer-links a:hover{color:var(--gold)}",
+      "before": ".footer-links a:hover{color:var(--gold)}.preview-note{font-size:12px;color:#94806a;margin-top:18px;line-height:1.7}",
+      "occurrences": 1
+    },
+    {
+      "after": ".support-direct{",
+      "before": ".support-copy{font-size:12px;color:#c6ad7d;padding:9px 0;border-bottom:1px solid #9e81513b}.support-direct{",
+      "occurrences": 1
+    },
+    {
+      "after": ".support-result{font-size:13px;line-height:1.7;color:#ded0b4;margin-top:20px;border-left:2px solid #d5b77e;padding:10px 14px;background:#d5b77e09}",
+      "before": ".support-result{font-size:13px;line-height:1.7;color:#ded0b4;margin-top:20px;border-left:2px solid #d5b77e;padding:10px 14px;background:#d5b77e09}.support-result textarea{margin-top:12px;min-height:120px}",
+      "occurrences": 1
+    },
+    {
+      "after": "$('#support-message').addEventListener('input',()=>$('#support-message').setCustomValidity(''));\nform.addEventListener('input',()=>{result.hidden=true;});\n",
+      "before": "$('#support-message').addEventListener('input',()=>$('#support-message').setCustomValidity(''));\n",
+      "occurrences": 1
+    }
+  ],
   "film_replacement": {
     "asset": "assets/cfd092f349fd938b06501ab3dcf78a6fbb4391c6601df69d4e1b39c763b080d6.mp4",
     "duration_seconds": 136.142563,
@@ -558,7 +705,7 @@
     "source_filename": "Ep01Calendar_G_TUESDAY_RESTORED_1080p60_20261028.mp4"
   },
   "film_status_note_removed": true,
-  "index_sha256": "4e0a7af2114400adc115e37aef96f56a9f44824bd0d183c427d56dbee9cacba0",
+  "index_sha256": "ee1f91fd37f553c4242adc520bde63b55b03cdfe267c0560834a66862d34d1bb",
   "mobile_flows_carousel": true,
   "reference_sha256": "4e353c4d50a8207d85125319918cf1c181ac386793617b25efb9d4b835f7a43e",
   "schema_version": 1

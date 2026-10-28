@@ -128,6 +128,8 @@ def replace_film(document: bytes, assets: dict[str, bytes], manifest: dict,
 def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> bytes:
     """Restore the original document for an exact, independent parity assertion."""
     text = document.decode().replace(VERIFICATION_META, "", 1)
+    if manifest.get("customer_facing_revision"):
+        text = apply_revision(text, manifest["customer_facing_revision"], reverse=True)
     if manifest.get("mobile_flows_carousel"):
         text = exact_edits(text, MOBILE_FLOWS_CAROUSEL_EDITS, reverse=True)
     if manifest.get("film_status_note_removed"):
@@ -177,6 +179,25 @@ def mobile_flows_carousel(document: bytes, manifest: dict) -> bytes:
     return document
 
 
+def apply_revision(text: str, edits: list[dict], *, reverse: bool = False) -> str:
+    """Apply only the recorded customer-copy and contact boundaries, reversibly."""
+    for edit in reversed(edits) if reverse else edits:
+        before, after = edit["before"], edit["after"]
+        old, new = (after, before) if reverse else (before, after)
+        count = edit["occurrences"]
+        if not old or not new or not isinstance(count, int) or count < 1 or text.count(old) != count:
+            raise ValueError("Customer-facing revision differs from its recorded boundary.")
+        text = text.replace(old, new)
+    return text
+
+
+def customer_facing_website(document: bytes, manifest: dict, edits: list[dict]) -> bytes:
+    document = apply_revision(document.decode(), edits).encode()
+    manifest["customer_facing_revision"] = edits
+    manifest["index_sha256"] = digest(document)
+    return document
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reference", type=Path)
@@ -185,6 +206,8 @@ def main() -> None:
                         help="Remove the obsolete work-in-progress/voice-over caption.")
     parser.add_argument("--mobile-flows-carousel", action="store_true",
                         help="Reuse the third panel's mobile swipe carousel for the flows panel.")
+    parser.add_argument("--customer-facing", action="store_true",
+                        help="Apply the recorded customer copy and direct-contact revision.")
     args = parser.parse_args()
     document, assets, manifest = prepare(args.reference.read_bytes())
     if args.film:
@@ -196,6 +219,9 @@ def main() -> None:
         document = remove_film_status_note(document, manifest)
     if args.mobile_flows_carousel:
         document = mobile_flows_carousel(document, manifest)
+    if args.customer_facing:
+        edits = json.loads(MANIFEST.read_text())["customer_facing_revision"]
+        document = customer_facing_website(document, manifest, edits)
     destination = ROOT / "public-site"
     unexpected = {p.relative_to(destination).as_posix() for p in
                   (destination / "assets").rglob("*") if p.is_file()} - assets.keys()

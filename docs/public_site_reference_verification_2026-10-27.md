@@ -101,3 +101,76 @@ Screenshots, responsive comparisons, real interaction results and focused gate
 logs are retained in ignored `dist/public-site-mobile-flows-20261028/`. The exact
 hosted release qualification and served receipts remain required before updating
 the live custom domain.
+
+## October 28 customer-facing copy and direct contact candidate
+
+The user approved a customer-facing copy cleanup, direct Submit delivery to
+`info@thisishaw.com`, and creating that email address. Social additions are
+explicitly deferred. The four app CTAs remain at `https://kemet.pages.dev/`;
+no app move, redirect, authentication, installation identity or app release is
+included. Pronunciation remains deferred until the user's preference is known.
+
+Removed the internal footer paragraph and its unused styling. Image descriptions
+and accessible controls now describe the product without “actual,” “real,”
+“original,” “fictional demo,” or film-tool terminology. The marketing experience
+is called an interactive tour with sample activity. Existing post previews
+retain their functional names. Explicit spaces separate the hero's underlying
+sentences while its authored visual line breaks remain unchanged. Two FAQs
+explain browser/home-screen use and guest versus account use, based on the
+existing manifest and visitor/account owners. The nine previous FAQs and all
+90 tour states, 69 sheets and 110 immutable assets are retained.
+
+Contact retains the approved view, fields, typography and colors. Its single
+Submit button replaces the email-app handoff and copying action. The browser
+posts bounded form data to `/api/contact`, disables controls while awaiting a
+receipt, and clears fields only after a successful server acknowledgement.
+Failures, timeouts and rate limits preserve the draft; the browser does not
+retry automatically. Editing a draft clears the previous confirmation.
+Customer-facing contact addresses on the existing static documents also use
+`info@thisishaw.com`.
+
+The existing backend-only checkout owns the corresponding isolated Worker at
+`cloudflare/contact/`. It accepts only the exact website contact route and
+Origin, validates size, fields, topics and Reply-To, checks a honeypot and an
+edge rate limit, and sends only to the fixed support recipient. It does not
+proxy the website, touch the Flutter app, write account content, use the app's
+warm cache, or deploy Supabase changes. Delivered support content belongs to
+the receiving email provider. No affected app resource in
+`config/warm_state_release_contract.v1.json` changes ownership. All existing
+warm-state, route and source contracts remain in the focused/full App gates.
+
+Static contact views at 390 and 1440 pixels were inspected before submission
+behavior was connected. Sending, success and error presentations were inspected
+on mobile. Settled before/after comparisons at 320, 390, 780, 1024 and 1440 pixels
+show identical geometry and inspected styles for 228 elements across the hero,
+flows, journey, rhythm and film sections, with no horizontal page overflow.
+The comparison uses the browser's 1/64 CSS-pixel layout unit. Initial captures
+with different tab viewport overrides and transient dot transitions were
+identified as invalid comparisons; retained diagnostics document the cause.
+Matching-viewport settled comparisons passed. The new FAQ and default contact
+screenshots were inspected, and a tour entry and close action were replayed.
+
+Browser submission checks use the real frontend and backend handler with an
+explicitly simulated local email binding. They verify pending controls,
+acknowledged success, failed delivery retaining the draft, rate limiting,
+whitespace rejection and clearing a previous status when editing. Five automated
+client tests cover receipt, concurrency, failure, timeout and validation behavior.
+Nine backend tests cover delivery acknowledgement, failure, field/origin/size/
+recipient boundaries, MIME/Unicode encoding, rate limits and deployment isolation.
+The pinned Wrangler dry-run builds the isolated handler without uploading it.
+The successful focused App gate retains every previous assertion, immutable
+reference hash and asset restriction, including rejecting Functions and
+`_worker.js` from the static website seal. The complete original supplied HTML
+still reconstructs byte for byte by reversing only recorded approved revisions.
+
+Evidence is in ignored `dist/public-site-customer-ready-20261028/`, including
+`verification.json`, responsive comparisons, screenshots, simulated-delivery
+results and `focused-gate/`. The backend's existing hosted gate now also requires
+its contact unit tests and no-upload build, while retaining all Supabase checks.
+
+Status: prepared, not published. The domain currently has no incoming email
+service. Creating the selected inbox/forwarder, verifying the fixed recipient,
+configuring the sender, qualifying both exact source commits, deploying the
+isolated handler and observing a real inbox test are required before the custom
+website domain can receive this candidate. No real email was sent, no paid plan
+was purchased, and no production app or website cutover was performed locally.
