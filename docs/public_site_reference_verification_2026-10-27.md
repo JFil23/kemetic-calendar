@@ -70,3 +70,34 @@ result screenshot are in ignored `dist/public-site-caption-removal-20261028/`.
 The importer records this approved removal as a reversible transformation.
 The immutable original reference hash and complete reconstruction assertion
 remain unchanged and pass.
+
+## October 28 mobile flows carousel
+
+The user requested the second panel's three flows to swipe like the third
+panel on mobile, preserving the desktop arrangement. The supplied phone
+recording and both existing panels were inspected before implementation.
+A static carousel layout was verified before connecting the existing shared
+`data-swipe` controller. The flow cards retain all original content, assets,
+styling and preview actions. The existing mobile carousel owns the card width,
+18-pixel gap, native scroll snapping, edge peek and position dots at widths
+up to 780 pixels. No second controller or replacement flow renderer was added.
+
+The shared controller now observes row resizing so its indicators refresh after
+orientation changes and returning from a hidden contact view. Browser checks
+verified horizontal scrolling to all three cards and back, each flow preview,
+position restoration after closing the preview, and the hidden-view resize case.
+Widths 320, 360, 390, 430, 650, 760 and 780 have matching card widths and snapping
+to the existing third panel, with no page-wide horizontal overflow. At 390 pixels,
+the flows section shrinks from 3082.711 to 1360.336 pixels in height.
+
+At 781, 1024 and 1440 pixels, all 482 common body elements have identical geometry
+and inspected layout, typography and color properties before and after the change.
+The new hidden flow indicators are excluded from that common-element comparison.
+The original whole-document reconstruction assertion remains intact: only the
+explicit approved carousel transformation is reversed before asserting the
+immutable reference hash. No original asset or fixture is rewritten.
+
+Screenshots, responsive comparisons, real interaction results and focused gate
+logs are retained in ignored `dist/public-site-mobile-flows-20261028/`. The exact
+hosted release qualification and served receipts remain required before updating
+the live custom domain.

@@ -558,7 +558,8 @@
     "source_filename": "Ep01Calendar_G_TUESDAY_RESTORED_1080p60_20261028.mp4"
   },
   "film_status_note_removed": true,
-  "index_sha256": "5799a9f94503f4283ce48eec3128a7fd97e11fa60fb71d9cff645eb762b3dc41",
+  "index_sha256": "4e0a7af2114400adc115e37aef96f56a9f44824bd0d183c427d56dbee9cacba0",
+  "mobile_flows_carousel": true,
   "reference_sha256": "4e353c4d50a8207d85125319918cf1c181ac386793617b25efb9d4b835f7a43e",
   "schema_version": 1
 }
