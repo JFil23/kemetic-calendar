@@ -1,5 +1,26 @@
 # Persistence change contract
 
+## October 27 Quick Add action and saved-event destination
+
+The shared Quick Add sheet retains its existing layout and event parser. Its
+action label follows the same local Ask recognizer as submission: `ask hAw` for
+empty or assistant input, and `Quick add` for event input. The separate question
+mark control is removed. Typing adds no repository reads or persisted state.
+
+Both save entries return the acknowledged client-event and event IDs from their
+existing mutation owner. The sheet still closes optimistically; an operation
+account fence outlives that sheet and allows navigation only after a successful
+save for the same uninterrupted account. Calendar reuses its canonical Day View
+and exact event-detail identity, including its current Day View request channel.
+Other entries reuse the existing Calendar return intent. Failed saves and account
+departure cannot navigate or announce success. Cache keys, schemas, pending-write
+ownership and route persistence owners remain unchanged.
+The shared return intent retains its own account fence until consumption, checks
+it again in the deferred open, and invalidates superseded or Today-cancelled
+requests. Day View retains an unresolved exact identity through slow hydration
+and retries when its data updates. It neither polls nor expires a saved-event
+request after a fixed delay; handled identities still open only once.
+
 ## October 27 explicit Ask ḥꜣw and authored Flow assistance
 
 The current shared Quick Add sheet, complete Flow details, Flow Studio forms,

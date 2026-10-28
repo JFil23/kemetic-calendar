@@ -140,6 +140,7 @@ class LandscapeMonthView extends StatelessWidget {
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
   final EventDetailRestorationState? initialEventDetailRestorationState;
+  final bool Function()? eventDetailAccountIsCurrent;
   final ValueChanged<EventDetailRestorationState?>?
   onEventDetailRestorationChanged;
   final bool Function()? shouldPreserveEventDetailRestorationOnClose;
@@ -188,6 +189,7 @@ class LandscapeMonthView extends StatelessWidget {
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
     this.initialEventDetailRestorationState,
+    this.eventDetailAccountIsCurrent,
     this.onEventDetailRestorationChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
     this.embeddedInCalendarScaffold = false,
@@ -237,6 +239,7 @@ class LandscapeMonthView extends StatelessWidget {
       onUnrecordCompletion: onUnrecordCompletion,
       onRemoveCompletionBadge: onRemoveCompletionBadge,
       initialEventDetailRestorationState: initialEventDetailRestorationState,
+      eventDetailAccountIsCurrent: eventDetailAccountIsCurrent,
       onEventDetailRestorationChanged: onEventDetailRestorationChanged,
       shouldPreserveEventDetailRestorationOnClose:
           shouldPreserveEventDetailRestorationOnClose,
@@ -314,6 +317,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
   final EventDetailRestorationState? initialEventDetailRestorationState;
+  final bool Function()? eventDetailAccountIsCurrent;
   final ValueChanged<EventDetailRestorationState?>?
   onEventDetailRestorationChanged;
   final bool Function()? shouldPreserveEventDetailRestorationOnClose;
@@ -362,6 +366,7 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
     this.initialEventDetailRestorationState,
+    this.eventDetailAccountIsCurrent,
     this.onEventDetailRestorationChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
     this.embeddedInCalendarScaffold = false,
@@ -433,6 +438,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   String? _selection;
   Timer? _clockTimer;
   String? _initialEventDetailRestoreKey;
+  String? _consumedInitialEventDetailRestoreKey;
   String _eventDetailPresentation = eventWorkspacePresentationDetail;
   bool _initialEventDetailRestoreInFlight = false;
 
@@ -500,10 +506,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       _buildLedgerRows();
     }
     // Parent month notifications report the viewport; they must not reset it.
-    if (oldWidget.initialEventDetailRestorationState !=
-        widget.initialEventDetailRestorationState) {
-      _scheduleInitialEventDetailRestore();
-    }
+    _scheduleInitialEventDetailRestore();
   }
 
   @override
@@ -532,6 +535,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       _events.clear();
       _buildLedgerRows();
     });
+    _scheduleInitialEventDetailRestore();
   }
 
   List<EventItem> _eventsForDate(DateTime date) =>
@@ -1873,6 +1877,9 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     final key = _eventDetailRestoreKey(state);
     if (key != null) {
       _initialEventDetailRestoreKey = key;
+      _consumedInitialEventDetailRestoreKey = _eventDetailRestoreKey(
+        widget.initialEventDetailRestorationState,
+      );
       _initialEventDetailRestoreInFlight = false;
     }
     widget.onEventDetailRestorationChanged?.call(state);
@@ -1891,6 +1898,8 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     if (state == null ||
         key == null ||
         key == _initialEventDetailRestoreKey ||
+        key == _consumedInitialEventDetailRestoreKey ||
+        widget.eventDetailAccountIsCurrent?.call() == false ||
         _initialEventDetailRestoreInFlight) {
       return;
     }
@@ -1902,17 +1911,20 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 
   Future<void> _restoreInitialEventDetailIfNeeded(
     EventDetailRestorationState state,
-    String key, [
-    int attempt = 0,
-  ]) async {
-    if (!mounted) return;
+    String key,
+  ) async {
+    if (!mounted || widget.eventDetailAccountIsCurrent?.call() == false) {
+      _initialEventDetailRestoreInFlight = false;
+      return;
+    }
     if (_eventDetailRestoreKey(widget.initialEventDetailRestorationState) !=
         key) {
       _initialEventDetailRestoreInFlight = false;
       _scheduleInitialEventDetailRestore();
       return;
     }
-    if (_initialEventDetailRestoreKey == key) {
+    if (_initialEventDetailRestoreKey == key ||
+        _consumedInitialEventDetailRestoreKey == key) {
       _initialEventDetailRestoreInFlight = false;
       return;
     }
@@ -1922,13 +1934,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       events: _eventsForKemeticDay(state.kYear, state.kMonth, state.kDay),
     );
     if (target == null) {
-      if (attempt < 20) {
-        await Future<void>.delayed(const Duration(milliseconds: 150));
-        return _restoreInitialEventDetailIfNeeded(state, key, attempt + 1);
-      }
-      _initialEventDetailRestoreKey = key;
       _initialEventDetailRestoreInFlight = false;
-      widget.onEventDetailRestorationChanged?.call(null);
       return;
     }
 

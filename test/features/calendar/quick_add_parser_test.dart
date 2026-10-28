@@ -167,7 +167,9 @@ void main() {
       expect(source, contains('location: parsed.location'));
       expect(source, contains("caller: 'save_single_detached'"));
       final detachedSave = source.substring(
-        source.indexOf('static Future<void> _saveDetachedQuickAddNote('),
+        source.indexOf(
+          'static Future<_QuickAddSaveResult> _saveDetachedQuickAddNote(',
+        ),
         source.indexOf("caller: 'save_single_detached'"),
       );
       expect(detachedSave, contains('location: parsed.location'));

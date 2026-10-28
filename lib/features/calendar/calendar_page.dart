@@ -352,6 +352,8 @@ typedef QuickAddParse = ({
   String? location,
 });
 
+typedef _QuickAddSaveResult = ({String clientEventId, String eventId});
+
 @visibleForTesting
 Future<T> beginOptimisticNoteEditorSave<T>({
   required Future<T> Function() startSave,
@@ -385,7 +387,8 @@ class _QuickAddSheet extends StatefulWidget {
   final int? selectedFlowId;
   final bool showGregorian;
   final bool resolveSavedDateMode;
-  final Future<void> Function(QuickAddParse parsed, Color color) onSave;
+  final Future<_QuickAddSaveResult> Function(QuickAddParse parsed, Color color)
+  onSave;
   final VoidCallback onOpenJournal;
   final VoidCallback onOpenPlanner;
   final VoidCallback onOpenFullEditor;
@@ -561,30 +564,44 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
     final messenger = parentContext.mounted
         ? ScaffoldMessenger.maybeOf(parentContext)
         : null;
-    final save = beginOptimisticNoteEditorSave<void>(
-      startSave: () => widget.onSave(parsed, _selectedColor),
-      closeEditor: () => Navigator.of(context).pop(),
-    );
-    messenger?.showSnackBar(
-      SnackBar(
-        content: Text('Added "${parsed.title}"'),
-        backgroundColor: const Color(0xFF1E1E1E),
-      ),
-    );
-
+    // The sheet closes optimistically, so its own account fence is disposed.
+    // Keep this operation fenced until the acknowledgement and navigation end.
+    final saveAccount = AccountOperationFence(Supabase.instance.client);
+    var navigationOwnsAccount = false;
     try {
-      await save;
+      _focusNode.unfocus();
+      final save = beginOptimisticNoteEditorSave<_QuickAddSaveResult>(
+        startSave: () => widget.onSave(parsed, _selectedColor),
+        closeEditor: () => Navigator.of(context).pop(),
+      );
+      final saved = await save;
+      if (!saveAccount.isCurrent || !parentContext.mounted) return;
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text('Added "${parsed.title}"'),
+          backgroundColor: const Color(0xFF1E1E1E),
+        ),
+      );
+      navigationOwnsAccount = CalendarPage._openQuickAddedEvent(
+        parentContext,
+        parsed: parsed,
+        saved: saved,
+        account: saveAccount,
+      );
     } catch (e, st) {
       if (kDebugMode) {
         _calendarDebugPrint('[QuickAdd] Failed to save note: $e');
         _calendarDebugPrint('$st');
       }
+      if (!saveAccount.isCurrent || !parentContext.mounted) return;
       messenger?.showSnackBar(
         SnackBar(
           content: Text('Failed to save note: $e'),
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      if (!navigationOwnsAccount) saveAccount.dispose();
     }
   }
 
@@ -775,20 +792,6 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                             color: tone.softenedAccent.withValues(alpha: 0.18),
                           ),
                         ),
-                        IconButton(
-                          tooltip: 'How to ask ḥꜣw',
-                          onPressed: _ask?.showHelp,
-                          constraints: const BoxConstraints.tightFor(
-                            width: 24,
-                            height: 20,
-                          ),
-                          padding: EdgeInsets.zero,
-                          icon: const Icon(
-                            Icons.help_outline,
-                            size: 17,
-                            color: DaySheetTokens.gold,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -903,32 +906,50 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                               ),
                               child: Material(
                                 color: Colors.transparent,
-                                child: Semantics(
-                                  button: true,
-                                  enabled: !_submitting,
-                                  label: 'Quick add',
-                                  child: ExcludeSemantics(
-                                    child: InkWell(
-                                      key: const ValueKey(
-                                        'quick-add-submit-button',
-                                      ),
-                                      borderRadius: BorderRadius.circular(26),
+                                child: ValueListenableBuilder<TextEditingValue>(
+                                  valueListenable: _textCtrl,
+                                  builder: (context, value, _) {
+                                    final isEvent =
+                                        value.text.trim().isNotEmpty &&
+                                        (_ask?.recognize(value.text).isEvent ??
+                                            false);
+                                    final label = isEvent
+                                        ? 'Quick add'
+                                        : 'ask hAw';
+                                    return Semantics(
+                                      button: true,
+                                      enabled: !_submitting,
+                                      label: label,
                                       onTap: _submitting ? null : _handleSubmit,
-                                      child: const SizedBox(
-                                        height: 50,
-                                        child: Center(
-                                          child: Text(
-                                            'Quick add',
-                                            style: TextStyle(
-                                              color: Color(0xFF15110A),
-                                              fontFamily: DaySheetTokens.serif,
-                                              fontSize: 20,
+                                      child: ExcludeSemantics(
+                                        child: InkWell(
+                                          key: const ValueKey(
+                                            'quick-add-submit-button',
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            26,
+                                          ),
+                                          onTap: _submitting
+                                              ? null
+                                              : _handleSubmit,
+                                          child: SizedBox(
+                                            height: 50,
+                                            child: Center(
+                                              child: Text(
+                                                label,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF15110A),
+                                                  fontFamily:
+                                                      DaySheetTokens.serif,
+                                                  fontSize: 20,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
@@ -3675,6 +3696,8 @@ class CalendarPage extends StatefulWidget {
   static _CalendarDetachedLaunchAction? _pendingDetachedLaunchAction;
   static ({int ky, int km, int kd, EventDetailRestorationState? eventDetail})?
   _pendingDetachedSearchResult;
+  static AccountOperationFence? _pendingDetachedSearchAccount;
+  static int _pendingDetachedSearchGeneration = 0;
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
   static int? _pendingStagedFlowDayViewFlowId;
   static final StagedFlowLifecycleRegistry<_PendingStagedFlow>
@@ -5507,7 +5530,7 @@ class CalendarPage extends StatefulWidget {
     AskHawResponse? response,
   }) => _QuickAddSheet(
     parse: parseQuickAddText,
-    onSave: (_, _) async {},
+    onSave: (_, _) async => (clientEventId: 'visual', eventId: 'visual'),
     onOpenJournal: () {},
     onOpenPlanner: () {},
     onOpenFullEditor: () {},
@@ -5515,7 +5538,7 @@ class CalendarPage extends StatefulWidget {
     response: response,
   );
 
-  static Future<void> _saveDetachedQuickAddNote(
+  static Future<_QuickAddSaveResult> _saveDetachedQuickAddNote(
     QuickAddParse parsed,
     Color color,
   ) async {
@@ -5564,7 +5587,7 @@ class CalendarPage extends StatefulWidget {
             endTime.minute,
           ).toUtc();
 
-    await repo.upsertByClientId(
+    final saved = await repo.upsertByClientId(
       clientEventId: unifiedCid,
       title: title,
       startsAtUtc: startLocal.toUtc(),
@@ -5586,6 +5609,64 @@ class CalendarPage extends StatefulWidget {
         _calendarDebugPrint('[DetachedQuickAdd] failed to log app_events: $e');
       }
     }
+    return (
+      clientEventId: saved.clientEventId ?? unifiedCid,
+      eventId: saved.id,
+    );
+  }
+
+  static bool _openQuickAddedEvent(
+    BuildContext context, {
+    required QuickAddParse parsed,
+    required _QuickAddSaveResult saved,
+    required AccountOperationFence account,
+  }) {
+    if (!context.mounted || !account.isCurrent) return false;
+    final k = KemeticMath.fromGregorian(parsed.date);
+    final clientEventId = saved.clientEventId.trim();
+    final eventId = saved.eventId.trim();
+    if (clientEventId.isEmpty && eventId.isEmpty) return false;
+    final detail = EventDetailRestorationState(
+      kYear: k.kYear,
+      kMonth: k.kMonth,
+      kDay: k.kDay,
+      identityType: clientEventId.isNotEmpty
+          ? eventDetailIdentityClientEventId
+          : eventDetailIdentityEventId,
+      identityValue: clientEventId.isNotEmpty ? clientEventId : eventId,
+    );
+    final host = _shouldUseMountedCalendarHost(context)
+        ? _mountedCalendarHostForContext(context)
+        : null;
+    if (host != null) {
+      final target = host._calendarEventDetailTargetFromState(detail);
+      if ((host._activeDayViewRestorationState?.isOpen ?? false) &&
+          host._activeDayViewAccount?.isCurrent == true &&
+          target != null) {
+        host._dayViewEventDetailRequest.value = target;
+        return false;
+      }
+      host._openDayView(
+        host.context,
+        k.kYear,
+        k.kMonth,
+        k.kDay,
+        focusEvent: target?.event,
+        initialEventDetailRestorationState: detail,
+        debugOpenSource: 'quick_add_saved',
+        eventDetailAccount: account,
+      );
+      return true;
+    }
+    _routeHomeForSearchResult(
+      context,
+      ky: k.kYear,
+      km: k.kMonth,
+      kd: k.kDay,
+      eventDetail: detail,
+      originAccount: account,
+    );
+    return true;
   }
 
   static void _routeHomeForDetachedDayEditor(BuildContext context) {
@@ -6018,15 +6099,34 @@ class CalendarPage extends StatefulWidget {
     required int km,
     required int kd,
     required EventDetailRestorationState? eventDetail,
+    AccountOperationFence? originAccount,
   }) {
     if (!context.mounted) return;
+    final account =
+        originAccount ?? AccountOperationFence(Supabase.instance.client);
+    if (account.userId == null || !account.isCurrent) {
+      account.dispose();
+      return;
+    }
+    _pendingDetachedSearchAccount?.dispose();
+    _pendingDetachedSearchAccount = account;
+    _pendingDetachedSearchGeneration++;
     _pendingDetachedSearchResult = (
       ky: ky,
       km: km,
       kd: kd,
       eventDetail: eventDetail,
     );
-    context.go('/');
+    try {
+      context.go('/');
+    } catch (_) {
+      if (identical(_pendingDetachedSearchAccount, account)) {
+        _pendingDetachedSearchResult = null;
+        _pendingDetachedSearchAccount = null;
+      }
+      account.dispose();
+      rethrow;
+    }
   }
 
   static String? _trimmedOrNull(String? value) {
@@ -8743,6 +8843,9 @@ class CalendarPage extends StatefulWidget {
     );
     CalendarPage._pendingDetachedLaunchAction = null;
     CalendarPage._pendingDetachedSearchResult = null;
+    CalendarPage._pendingDetachedSearchAccount?.dispose();
+    CalendarPage._pendingDetachedSearchAccount = null;
+    CalendarPage._pendingDetachedSearchGeneration++;
     CalendarPage._pendingDetachedSearchDay = null;
     CalendarPage._pendingSharedCalendarRealDayViewIntent = null;
     CalendarPage._pendingTodayNavigationCommand = true;
@@ -10378,6 +10481,7 @@ class CalendarPageState extends State<CalendarPage>
   double? _restoredCalendarAnchorAlignment;
   double? _restoredCalendarScrollOffset;
   DayViewRestorationState? _activeDayViewRestorationState;
+  AccountOperationFence? _activeDayViewAccount;
   DayViewRestorationState? _pendingPersistentDayViewState;
   final DayViewRestorationWriteGate _dayViewRestorationWriteGate =
       DayViewRestorationWriteGate();
@@ -12712,18 +12816,37 @@ class CalendarPageState extends State<CalendarPage>
   bool _schedulePendingDetachedLaunchActionIfAny() {
     final pendingSearchResult = CalendarPage._pendingDetachedSearchResult;
     if (pendingSearchResult != null) {
+      final account = CalendarPage._pendingDetachedSearchAccount;
+      final generation = CalendarPage._pendingDetachedSearchGeneration;
       CalendarPage._pendingDetachedSearchResult = null;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _openDayView(
-          context,
-          pendingSearchResult.ky,
-          pendingSearchResult.km,
-          pendingSearchResult.kd,
-          initialEventDetailRestorationState: pendingSearchResult.eventDetail,
-        );
-      });
-      return true;
+      CalendarPage._pendingDetachedSearchAccount = null;
+      if (account == null || !account.isCurrent) {
+        account?.dispose();
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          var navigationOwnsAccount = false;
+          try {
+            if (!mounted ||
+                !account.isCurrent ||
+                generation != CalendarPage._pendingDetachedSearchGeneration) {
+              return;
+            }
+            _openDayView(
+              context,
+              pendingSearchResult.ky,
+              pendingSearchResult.km,
+              pendingSearchResult.kd,
+              initialEventDetailRestorationState:
+                  pendingSearchResult.eventDetail,
+              eventDetailAccount: account,
+            );
+            navigationOwnsAccount = true;
+          } finally {
+            if (!navigationOwnsAccount) account.dispose();
+          }
+        });
+        return true;
+      }
     }
 
     final pendingSearchDay = CalendarPage._pendingDetachedSearchDay;
@@ -28867,7 +28990,13 @@ class CalendarPageState extends State<CalendarPage>
     bool? initialShowGregorian,
     EventDetailRestorationState? initialEventDetailRestorationState,
     String? debugOpenSource,
+    AccountOperationFence? eventDetailAccount,
   }) {
+    final account =
+        eventDetailAccount ?? AccountOperationFence(Supabase.instance.client);
+    final previousAccount = _activeDayViewAccount;
+    _activeDayViewAccount = account;
+    var routeOpen = true;
     _restorationInteractedSinceBoot = true;
     unawaited(
       _markOnboardingHelperCompleted(
@@ -28998,6 +29127,7 @@ class CalendarPageState extends State<CalendarPage>
           initialEventDetailRestorationState:
               initialEventDetailRestorationState,
           eventDetailRequestListenable: _dayViewEventDetailRequest,
+          eventDetailAccountIsCurrent: () => routeOpen && account.isCurrent,
           onEventDetailRequestHandled: () {
             if (_dayViewEventDetailRequest.value != null) {
               _dayViewEventDetailRequest.value = null;
@@ -29163,6 +29293,11 @@ class CalendarPageState extends State<CalendarPage>
         ),
       ),
     ).then((_) {
+      routeOpen = false;
+      account.dispose();
+      if (identical(_activeDayViewAccount, account)) {
+        _activeDayViewAccount = previousAccount;
+      }
       final preserveForLifecycle =
           !mounted ||
           RestorationCoordinator
@@ -31719,7 +31854,7 @@ class CalendarPageState extends State<CalendarPage>
           scaffoldMessengerContext: context,
           onSave: (parsed, color) async {
             final k = KemeticMath.fromGregorian(parsed.date);
-            await _saveSingleNoteOnly(
+            return await _saveSingleNoteOnly(
               selYear: k.kYear,
               selMonth: k.kMonth,
               selDay: k.kDay,

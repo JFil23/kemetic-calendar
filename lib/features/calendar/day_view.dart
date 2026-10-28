@@ -15,6 +15,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/account_operation_fence.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/shared/kemetic_text.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
@@ -5671,6 +5672,7 @@ class DayViewPage extends StatefulWidget {
   final String? focusTitle; // highlight by title when flow id missing
   final EventDetailRestorationState? initialEventDetailRestorationState;
   final ValueListenable<DayViewSheetEventTarget?>? eventDetailRequestListenable;
+  final bool Function()? eventDetailAccountIsCurrent;
   final VoidCallback? onEventDetailRequestHandled;
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
@@ -5778,6 +5780,7 @@ class DayViewPage extends StatefulWidget {
     this.focusTitle,
     this.initialEventDetailRestorationState,
     this.eventDetailRequestListenable,
+    this.eventDetailAccountIsCurrent,
     this.onEventDetailRequestHandled,
     this.onManageFlows, // NEW
     this.onOpenQuickAdd,
@@ -6219,13 +6222,13 @@ class _DayViewPageState extends State<DayViewPage> {
   }
 
   Future<void> _openRequestedEventDetail(DayViewSheetEventTarget target) async {
-    if (!mounted) return;
+    if (!mounted || widget.eventDetailAccountIsCurrent?.call() == false) return;
     if (target.ky != _currentKy ||
         target.km != _currentKm ||
         target.kd != _currentKd) {
       await _animateToKemeticDate(target.ky, target.km, target.kd);
     }
-    if (!mounted) return;
+    if (!mounted || widget.eventDetailAccountIsCurrent?.call() == false) return;
 
     final detail = eventDetailRestorationStateForTarget(
       target,
@@ -6567,6 +6570,8 @@ class _DayViewPageState extends State<DayViewPage> {
                   final orient = isTablet ? Orientation.portrait : orientation;
                   if (orient == Orientation.landscape) {
                     return LandscapeMonthView(
+                      eventDetailAccountIsCurrent:
+                          widget.eventDetailAccountIsCurrent,
                       onOpenCalendars: widget.onOpenCalendars,
                       onOpenInbox: widget.onOpenInbox,
                       clock: widget.clock,
@@ -6774,6 +6779,8 @@ class _DayViewPageState extends State<DayViewPage> {
                                 kDate.kDay,
                               ),
                               dataVersion: widget.dataVersion,
+                              eventDetailAccountIsCurrent:
+                                  widget.eventDetailAccountIsCurrent,
                               showGregorian: _showGregorian,
                               flowIndex: flowIndex,
                               activeLedgerFlowIds: activeLedgerFlowIds,
@@ -6971,6 +6978,7 @@ class DayViewGrid extends StatefulWidget {
   })?
   resolveAdjacentEvent;
   final Future<void> Function(int ky, int km, int kd)? onNavigateToDay;
+  final bool Function()? eventDetailAccountIsCurrent;
   final KarRepository? karRepository;
   final ReadingHouseRoomDataSource? readingHouseRoomDataSource;
   final SkyCatalog? followSkyCatalog;
@@ -7029,6 +7037,7 @@ class DayViewGrid extends StatefulWidget {
     this.resolveCurrentEventTarget,
     this.resolveAdjacentEvent,
     this.onNavigateToDay,
+    this.eventDetailAccountIsCurrent,
     this.karRepository,
     this.readingHouseRoomDataSource,
     this.followSkyCatalog,
@@ -7085,7 +7094,13 @@ class _DayViewGridState extends State<DayViewGrid> {
   EventItem? _dragPreviewEvent;
   double _dragGrabOffsetMinutes = 0;
   String? _initialEventDetailRestoreKey;
+  String? _consumedInitialEventDetailRestoreKey;
   bool _initialEventDetailRestoreInFlight = false;
+  String? _initialEventDetailAccountKey;
+  AccountOperationFence? _initialEventDetailAccount;
+  bool get _canRestoreInitialEventDetail =>
+      widget.eventDetailAccountIsCurrent?.call() ??
+      (_initialEventDetailAccount?.isCurrent ?? false);
   DayViewSheetEventTarget? _openDetailTarget;
   String _eventDetailPresentation = eventWorkspacePresentationDetail;
   int? get _focusStartMin => widget.focusStartMin;
@@ -7113,14 +7128,14 @@ class _DayViewGridState extends State<DayViewGrid> {
   @override
   void didUpdateWidget(covariant DayViewGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_eventDetailRestoreKey(oldWidget.initialEventDetailRestorationState) !=
-        _eventDetailRestoreKey(widget.initialEventDetailRestorationState)) {
-      _scheduleInitialEventDetailRestore();
-    }
+    // A known identity may arrive after this grid's first hydration. Retry on
+    // data updates; the handled-key guard prevents an already-opened repeat.
+    _scheduleInitialEventDetailRestore();
   }
 
   @override
   void dispose() {
+    _initialEventDetailAccount?.dispose();
     _scrollController.removeListener(_onScroll); // Removed listener
     _scrollController.dispose();
     super.dispose();
@@ -7230,6 +7245,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     final key = _eventDetailRestoreKey(state);
     if (key != null) {
       _initialEventDetailRestoreKey = key;
+      _consumedInitialEventDetailRestoreKey = _eventDetailRestoreKey(
+        widget.initialEventDetailRestorationState,
+      );
       _initialEventDetailRestoreInFlight = false;
     }
     widget.onEventDetailRestorationChanged?.call(state);
@@ -7258,8 +7276,21 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (state == null ||
         key == null ||
         key == _initialEventDetailRestoreKey ||
+        key == _consumedInitialEventDetailRestoreKey ||
         !_eventDetailStateTargetsThisGrid(state) ||
         _initialEventDetailRestoreInFlight) {
+      return;
+    }
+    if (_initialEventDetailAccountKey != key) {
+      _initialEventDetailAccount?.dispose();
+      _initialEventDetailAccountKey = key;
+      _initialEventDetailAccount = widget.eventDetailAccountIsCurrent == null
+          ? AccountOperationFence(Supabase.instance.client)
+          : null;
+    }
+    if (!_canRestoreInitialEventDetail) {
+      _initialEventDetailRestoreKey = key;
+      _initialEventDetailAccount?.dispose();
       return;
     }
     _initialEventDetailRestoreInFlight = true;
@@ -7270,17 +7301,23 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   Future<void> _restoreInitialEventDetailIfNeeded(
     EventDetailRestorationState state,
-    String key, [
-    int attempt = 0,
-  ]) async {
+    String key,
+  ) async {
     if (!mounted) return;
+    if (!_canRestoreInitialEventDetail) {
+      _initialEventDetailRestoreKey = key;
+      _initialEventDetailRestoreInFlight = false;
+      _initialEventDetailAccount?.dispose();
+      return;
+    }
     if (_eventDetailRestoreKey(widget.initialEventDetailRestorationState) !=
         key) {
       _initialEventDetailRestoreInFlight = false;
       _scheduleInitialEventDetailRestore();
       return;
     }
-    if (_initialEventDetailRestoreKey == key) {
+    if (_initialEventDetailRestoreKey == key ||
+        _consumedInitialEventDetailRestoreKey == key) {
       _initialEventDetailRestoreInFlight = false;
       return;
     }
@@ -7298,18 +7335,13 @@ class _DayViewGridState extends State<DayViewGrid> {
       events: events,
     );
     if (target == null) {
-      if (attempt < 20) {
-        await Future<void>.delayed(const Duration(milliseconds: 150));
-        return _restoreInitialEventDetailIfNeeded(state, key, attempt + 1);
-      }
-      _initialEventDetailRestoreKey = key;
       _initialEventDetailRestoreInFlight = false;
-      widget.onEventDetailRestorationChanged?.call(null);
       return;
     }
 
     _initialEventDetailRestoreKey = key;
     _initialEventDetailRestoreInFlight = false;
+    _initialEventDetailAccount?.dispose();
     if (kDebugMode) {
       debugPrint(
         '[DayView] detail sheet requested from initial restoration '
