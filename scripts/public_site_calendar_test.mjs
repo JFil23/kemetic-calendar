@@ -62,6 +62,7 @@ test('all 36 decans retain canonical order, descriptions, month and day boundari
     const d = data.decans[i], month = data.months[Math.floor(i/3)];
     assert.equal(h.get('year-decan-name').textContent,d.name);
     assert.equal(h.get('year-month-name').textContent,month.name);
+    assert.equal(h.get('year-month-day').textContent,String(i%3*10+1));
     assert.equal(h.get('year-decan-position').textContent,`Decan ${String(i+1).padStart(2,'0')} of 36`);
     assert.equal(h.get('year-decan-days').textContent,`Days ${i%3*10+1}–${(i%3+1)*10}`);
     assert.deepEqual(Array.from(h.get('year-decan-prose').children,p=>p.textContent),d.paragraphs);
@@ -71,6 +72,7 @@ test('all 36 decans retain canonical order, descriptions, month and day boundari
   assert.equal(h.get('year-decan-detail').hidden,true);
   assert.equal(h.get('year-threshold').hidden,false);
   assert.equal(h.get('year-month-name').textContent,'Heriu Renpet');
+  assert.equal(h.get('year-month-day').textContent,'1');
   assert.equal(h.get('year-decan-position').textContent,'Outside the 36 decans');
   h.click('decan-previous');
   assert.equal(h.get('year-decan-name').textContent,data.decans[35].name);
@@ -107,6 +109,7 @@ test('Gregorian date wheels clamp month lengths and keep the Kemetic cards synch
   assert.equal(h.get('year-date-day').children.length,28);
   const k=h.convert(2029,2,28,data.dateConversion);
   assert.equal(h.get('year-month-name').textContent,data.months[k.kMonth-1].name);
+  assert.equal(h.get('year-month-day').textContent,String(k.kDay));
   assert.equal(h.get('year-date-announcement').textContent,`February 28, 2029 is ${data.months[k.kMonth-1].name} ${k.kDay}.`);
   assert.equal(h.get('year-decan-name').textContent,data.decans[(k.kMonth-1)*3+Math.floor((k.kDay-1)/10)].name);
 });
@@ -115,26 +118,32 @@ test('date scrolling, keyboard input, day stepping and today share one selection
   const h=harness(),day=h.get('year-date-day');
   day.scrollTop=20*48;day.listeners.scroll();h.flush();
   assert.equal(h.get('year-date-gregorian').textContent,'March 21, 2025');
+  assert.equal(h.get('year-month-day').textContent,'2');
   day.listeners.keydown({key:'ArrowDown',preventDefault(){}});
   assert.equal(h.get('year-date-gregorian').textContent,'March 22, 2025');
+  assert.equal(h.get('year-month-day').textContent,'3');
   day.listeners.keydown({key:'ArrowUp',preventDefault(){}});
   assert.equal(h.get('year-date-gregorian').textContent,'March 21, 2025');
   h.get('year-date-today').listeners.click();
   assert.equal(h.get('year-date-gregorian').textContent,'March 20, 2025');
+  assert.equal(h.get('year-month-day').textContent,'1');
   assert.equal(h.get('year-decan-name').textContent,data.decans[0].name);
   h.click('decan-next');
   assert.equal(h.get('year-date-gregorian').textContent,'March 30, 2025');
+  assert.equal(h.get('year-month-day').textContent,'11');
 });
 
 test('sixth day between years and the New Year match the app and range boundaries remain coherent',()=>{
   const h=harness();h.pick('year',203);h.pick('month',2);h.pick('day',18);
   assert.equal(h.get('year-date-gregorian').textContent,'March 19, 2028');
   assert.equal(h.get('year-month-name').textContent,'Heriu Renpet');
+  assert.equal(h.get('year-month-day').textContent,'6');
   assert.equal(h.get('year-date-announcement').textContent,'March 19, 2028 is Heriu Renpet 6.');
   assert.equal(h.get('year-threshold').hidden,false);
   h.get('year-date-day').listeners.keydown({key:'ArrowDown',preventDefault(){}});
   assert.equal(h.get('year-date-gregorian').textContent,'March 20, 2028');
   assert.equal(h.get('year-month-name').textContent,'Thoth');
+  assert.equal(h.get('year-month-day').textContent,'1');
   assert.equal(h.get('year-date-announcement').textContent,'March 20, 2028 is Thoth 1.');
   assert.equal(h.get('year-decan-name').textContent,data.decans[0].name);
   assert.equal(h.get('year-threshold').hidden,true);

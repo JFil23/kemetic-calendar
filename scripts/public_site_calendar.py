@@ -54,7 +54,7 @@ CSS = '''<style id="haw-calendar-experience-style">
 .year-seasons{display:flex;justify-content:center;gap:42px;margin-bottom:30px}
 .year-season{display:flex;align-items:center;gap:9px;color:#9c927f;font-size:12px;line-height:1.5}.year-season:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.35}
 .year-season span:last-child{opacity:.7}.year-season[data-season="akhet"][data-active]{color:#b4d1dd}.year-season[data-season="peret"][data-active]{color:#bfd6ad}.year-season[data-season="shemu"][data-active]{color:#e5c67d}.year-season[data-active]:before{opacity:1;box-shadow:0 0 12px currentColor}
-.year-spread{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,.64fr) minmax(0,1.12fr);grid-template-areas:"month picker decan";gap:20px;align-items:stretch}
+.year-spread{display:grid;grid-template-columns:minmax(270px,.64fr) minmax(0,1fr) minmax(0,1.12fr);grid-template-areas:"picker month decan";gap:20px;align-items:stretch}
 .year-leaf{min-width:0;display:flex;flex-direction:column;padding:32px;border:1px solid #b7955735;border-radius:12px;background:#100f0c}
 .year-month-leaf{grid-area:month}.year-decan-leaf{grid-area:decan;position:relative;padding:40px;background:radial-gradient(ellipse at 95% 0%,var(--year-glow),transparent 70%),#15130f}
 .year-position{font-size:11px;line-height:1.6;letter-spacing:.14em;text-transform:uppercase;color:#ae9874;margin-bottom:20px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -190,11 +190,11 @@ def panel(data: dict) -> str:
 <div class="wrap"><div class="section-head"><div><p class="kicker">The year is yours to explore</p><h2 id="year-title">Follow your<br><em>curiosity.</em></h2></div><p class="section-copy">Scroll a date. Follow a star. See what these ten days might hold for you.</p></div>
 <div class="year-seasons" aria-label="The three seasons"><div class="year-season" data-season="akhet" data-active><span>Akhet</span><span>Inundation</span></div><div class="year-season" data-season="peret"><span>Peret</span><span>Emergence</span></div><div class="year-season" data-season="shemu"><span>Shemu</span><span>Harvest</span></div></div>
 <div class="year-spread">{date_picker.markup()}
-<article class="year-leaf year-month-leaf" aria-labelledby="year-month-name"><p class="year-position"><span id="year-month-position">Month 01 of 12</span><span id="year-month-season">Akhet · Inundation</span></p>
+<article class="year-leaf year-month-leaf" aria-labelledby="year-month-heading"><p class="year-position"><span id="year-month-position">Month 01 of 12</span><span id="year-month-season">Akhet · Inundation</span></p>
 <div class="year-orbit" role="group" aria-label="Choose a month"><svg class="year-orbit-rings" viewBox="0 0 280 280" aria-hidden="true"><circle cx="140" cy="140" r="80" stroke-dasharray="1 6"/><circle cx="140" cy="140" r="106"/><circle cx="140" cy="140" r="131" stroke-dasharray="1 10"/><path class="season-arc akhet-arc" d="M140 9 A131 131 0 0 1 253.4 205.5"/><path class="season-arc peret-arc" d="M253.4 205.5 A131 131 0 0 1 26.6 205.5"/><path class="season-arc shemu-arc" d="M26.6 205.5 A131 131 0 0 1 140 9"/></svg>
 <div class="year-orbit-center"><svg class="year-sky" viewBox="0 0 100 100" aria-hidden="true"><g data-sky="akhet"><path d="M12 60 Q22 50 32 60 T52 60 T72 60 T92 60 M12 73 Q22 63 32 73 T52 73 T72 73 T92 73 M12 86 Q22 76 32 86 T52 86 T72 86 T92 86"/><circle cx="52" cy="29" r="12"/><path d="M52 8V3 M31 15l-4-4 M73 15l4-4"/></g><g data-sky="peret"><path d="M50 88V39 Q18 40 22 14 Q51 16 50 43 Q78 41 79 24 Q55 24 50 52 M20 89H80"/><path d="M50 66Q23 68 20 48 Q45 46 50 68 M50 79Q77 80 83 56Q57 56 50 79"/></g><g data-sky="shemu"><circle cx="50" cy="44" r="22"/><path d="M50 9V1 M50 87V79 M15 44H7 M93 44H85 M25 19l-6-6 M81 75l-6-6 M25 69l-6 6 M81 13l-6 6 M18 94H82"/></g></svg><strong id="year-season-name">Akhet</strong><small id="year-season-meaning">Inundation</small></div>{''.join(stars)}</div>
 <p class="year-orbit-hint">Twelve months. Choose a star to wander.<br><button type="button" data-year-month="12" aria-pressed="false">The days between years ↗</button></p>
-<div class="year-name-row"><h3 id="year-month-name">{html.escape(month['name'])}</h3>{pronounce('month', month['name'])}</div><p class="year-transliteration" id="year-month-transliteration">{html.escape(month['transliteration'])}</p>
+<div class="year-name-row"><h3 id="year-month-heading"><span id="year-month-name">{html.escape(month['name'])}</span> <span id="year-month-day">1</span></h3>{pronounce('month', month['name'])}</div><p class="year-transliteration" id="year-month-transliteration">{html.escape(month['transliteration'])}</p>
 <p class="year-theme" id="year-month-theme">{html.escape(month['theme'].split(' · ', 1)[-1])}</p><details class="year-story"><summary>Discover this month’s story</summary><div class="year-prose" id="year-month-prose">{paragraphs(month['paragraphs'])}</div></details>
 <nav class="year-pager" aria-label="Browse months"><button type="button" id="year-month-previous" disabled><span aria-hidden="true">←</span> Previous month</button><button type="button" id="year-month-next">Next month <span aria-hidden="true">→</span></button></nav></article>
 <article class="year-leaf year-decan-leaf" aria-labelledby="year-decan-name"><p class="year-position"><span id="year-decan-position">Decan 01 of 36</span><span id="year-decan-days">Days 1–10</span></p>
@@ -289,7 +289,7 @@ CONTROLLER = r'''(() => {
     audio.addEventListener('error', failed);
     try { await audio.play(); } catch { failed(); }
   }
-  function render(announce = true) {
+  function render(date, announce = true) {
     stopAudio(); byId('audio-status').hidden = true;
     const month = data.months[Math.floor(position / 3)], decan = data.decans[position];
     section.dataset.season = month.season;
@@ -308,6 +308,7 @@ CONTROLLER = r'''(() => {
     });
     text('month-position', month.id === 13 ? 'After the twelve months' : 'Month ' + pad(month.id) + ' of 12');
     text('month-season', seasons[month.season]); text('month-name', month.name);
+    text('month-day', String(date.kDay));
     text('month-transliteration', month.transliteration);
     text('month-theme', month.theme.split(' · ').slice(1).join(' · '));
     prose('month-prose', month.paragraphs); speechLabel(byId('month-speech'), month.name, false);
@@ -327,7 +328,7 @@ CONTROLLER = r'''(() => {
     byId('decan-previous').disabled = position === 0 || !datePicker.canSelectPosition(position - 1);
     byId('decan-next').disabled = !datePicker.canSelectPosition(position === 36 ? 0 : position + 1);
     byId('decan-next').firstChild.textContent = !decan ? 'Begin again ' : position === 35 ? 'Days upon the Year ' : 'Next decan ';
-    if (announce) text('announcement', month.name + (decan ? '. Decan ' + decan.id + ' of 36: ' + decan.name + ', ' + decan.meaning + '.' : '. Days upon the Year, outside the 36 decans.'));
+    if (announce) text('announcement', month.name + ' ' + date.kDay + (decan ? '. Decan ' + decan.id + ' of 36: ' + decan.name + ', ' + decan.meaning + '.' : '. Days upon the Year, outside the 36 decans.'));
   }
   function goTo(next) { datePicker.selectPosition(Math.max(0, Math.min(36, next))); }
   function moveMonth(direction) {
@@ -355,7 +356,7 @@ CONTROLLER = r'''(() => {
   }).observe(section);
   datePicker = createHawDatePicker({rules:data.dateConversion, months:data.months, onChange:(k, announce) => {
     position = k.kMonth === 13 ? 36 : (k.kMonth - 1) * 3 + Math.floor((k.kDay - 1) / 10);
-    render(announce);
+    render(k, announce);
   }});
   datePicker.today(false);
 })();'''
