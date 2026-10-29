@@ -107,8 +107,9 @@ def film_labels(duration: float) -> tuple[str, str]:
 
 def flow_film_panel(video: str, poster: str, captions: str, duration: float) -> str:
     label, _ = film_labels(duration)
-    return f'''<section class="section film-section" id="whats-a-flow" aria-label="What’s a Flow?">
-<div class="wrap"><div class="film-box"><div class="film-stage"><video id="flow-film" playsinline preload="none" poster="/{poster}" aria-label="What’s a Flow?"><track kind="captions" src="/{captions}" srclang="en" label="English"></video><button class="film-cover" id="flow-film-cover" aria-label="Play What’s a Flow? ({round(duration)} seconds)"><span class="play-disc"><svg class="icon" aria-hidden="true"><use href="#play"/></svg></span><span class="film-overlay"><strong>What’s a Flow?</strong><small>WATCH THE FILM &nbsp; {label}</small></span></button></div></div></div>
+    return f'''<section class="section film-section" id="whats-a-flow" aria-labelledby="flow-film-title"><div class="wrap">
+<div class="section-head"><div><p class="kicker">A habit with a schedule</p><h2 id="flow-film-title">What’s a <em>Flow?</em></h2></div><p class="section-copy">A workout routine. A meal plan. A reading plan. Or something entirely your own.</p></div>
+<div class="film-box"><div class="film-stage"><video id="flow-film" playsinline preload="none" poster="/{poster}" aria-label="What’s a Flow?"><track kind="captions" src="/{captions}" srclang="en" label="English"></video><button class="film-cover" id="flow-film-cover" aria-label="Play What’s a Flow? ({round(duration)} seconds)"><span class="play-disc"><svg class="icon" aria-hidden="true"><use href="#play"/></svg></span><span class="film-overlay"><strong>What’s a Flow?</strong><small>WATCH THE FILM &nbsp; {label}</small></span></button></div></div></div>
 </section>'''
 
 

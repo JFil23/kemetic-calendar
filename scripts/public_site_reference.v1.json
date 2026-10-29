@@ -1099,7 +1099,7 @@
     "duration_seconds": 38.383333,
     "edits": [
       {
-        "after": "<section class=\"section film-section\" id=\"whats-a-flow\" aria-label=\"What\u2019s a Flow?\">\n<div class=\"wrap\"><div class=\"film-box\"><div class=\"film-stage\"><video id=\"flow-film\" playsinline preload=\"none\" poster=\"/assets/44eb4715e0f388a2d6ee351153061a584598aa5ce00a011e49495d1c12e53082.jpg\" aria-label=\"What\u2019s a Flow?\"><track kind=\"captions\" src=\"/assets/8d1d4a18883d56392db6547a2b8b6023420ab36c20713da6c38d82944aebc018.vtt\" srclang=\"en\" label=\"English\"></video><button class=\"film-cover\" id=\"flow-film-cover\" aria-label=\"Play What\u2019s a Flow? (38 seconds)\"><span class=\"play-disc\"><svg class=\"icon\" aria-hidden=\"true\"><use href=\"#play\"/></svg></span><span class=\"film-overlay\"><strong>What\u2019s a Flow?</strong><small>WATCH THE FILM &nbsp; 00:38</small></span></button></div></div></div>\n</section>\n\n<section class=\"section how-section\"",
+        "after": "<section class=\"section film-section\" id=\"whats-a-flow\" aria-labelledby=\"flow-film-title\"><div class=\"wrap\">\n<div class=\"section-head\"><div><p class=\"kicker\">A habit with a schedule</p><h2 id=\"flow-film-title\">What\u2019s a <em>Flow?</em></h2></div><p class=\"section-copy\">A workout routine. A meal plan. A reading plan. Or something entirely your own.</p></div>\n<div class=\"film-box\"><div class=\"film-stage\"><video id=\"flow-film\" playsinline preload=\"none\" poster=\"/assets/44eb4715e0f388a2d6ee351153061a584598aa5ce00a011e49495d1c12e53082.jpg\" aria-label=\"What\u2019s a Flow?\"><track kind=\"captions\" src=\"/assets/8d1d4a18883d56392db6547a2b8b6023420ab36c20713da6c38d82944aebc018.vtt\" srclang=\"en\" label=\"English\"></video><button class=\"film-cover\" id=\"flow-film-cover\" aria-label=\"Play What\u2019s a Flow? (38 seconds)\"><span class=\"play-disc\"><svg class=\"icon\" aria-hidden=\"true\"><use href=\"#play\"/></svg></span><span class=\"film-overlay\"><strong>What\u2019s a Flow?</strong><small>WATCH THE FILM &nbsp; 00:38</small></span></button></div></div></div>\n</section>\n\n<section class=\"section how-section\"",
         "before": "<section class=\"section how-section\"",
         "occurrences": 1
       },
@@ -1114,7 +1114,7 @@
     "source_filename": "Haw_Whats_a_Flow_Draft_09_Smooth_Flow_Transition.mp4",
     "video": "assets/a265762537ea0abb130f078c3c6e599c3752193dd0f76ca19232a104db2785a7.mp4"
   },
-  "index_sha256": "6a26524fb819a1fb21b173cfa6af464c0a59f94634ed2b1b3d99188bc826b56c",
+  "index_sha256": "eb84f2c171541fa52afad9d100367329aec908413f5ec563c8d3235f7206434a",
   "mobile_flows_carousel": true,
   "reference_sha256": "4e353c4d50a8207d85125319918cf1c181ac386793617b25efb9d4b835f7a43e",
   "schema_version": 1
