@@ -76,17 +76,17 @@ void main() {{
 
 
 CSS = '''
-.year-date-picker{max-width:680px;margin:0 auto 38px;padding:24px 30px;border:1px solid #b795573d;border-radius:12px;background:#100e0a;overflow:hidden}
-.year-date-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}.year-date-heading h3{font:30px/1.15 var(--serif);color:#eee0c6}.year-date-heading>button{min-height:44px;padding:8px 14px;border:1px solid #b7955740;border-radius:30px;font-size:12px;color:#d5b77e;white-space:nowrap}
+.year-date-picker{grid-area:picker;min-width:0;display:flex;flex-direction:column;gap:24px;padding:32px 18px;border:1px solid #b795573d;border-radius:12px;background:#100e0a;overflow:hidden}
+.year-date-heading h3{font:28px/1.15 var(--serif);color:#eee0c6}#year-date-today{align-self:center;min-height:44px;padding:8px 14px;border:1px solid #b7955740;border-radius:30px;font-size:12px;color:#d5b77e;white-space:nowrap}
+.year-date-selection{flex:1;display:flex;flex-direction:column;justify-content:center}
 .year-date-hint{font-size:13px;line-height:1.6;color:#a89c86;margin-top:6px}
-.year-date-columns{display:grid;grid-template-columns:5fr 3fr 4fr;gap:4px;border:1px solid #2e2616;border-radius:6px;background:linear-gradient(#191309,#110d07);position:relative;padding-inline:10px}
+.year-date-columns{display:grid;grid-template-columns:5fr 3fr 4fr;gap:2px;border:1px solid #2e2616;border-radius:6px;background:linear-gradient(#191309,#110d07);position:relative;padding-inline:6px}
 .year-date-columns:before{content:"";position:absolute;top:96px;height:48px;left:8px;right:8px;border-block:1px solid #6fc9e84a;background:linear-gradient(90deg,#6fc9e808,#6fc9e818,#6fc9e808);pointer-events:none}
 .year-date-wheel{height:240px;overflow-y:auto;overscroll-behavior:contain;scroll-snap-type:y mandatory;scrollbar-width:none;padding-block:96px;position:relative;mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent)}
 .year-date-wheel::-webkit-scrollbar{display:none}.year-date-wheel[data-static]{padding:0}.year-date-wheel:focus-visible{outline:2px solid #6fc9e8;outline-offset:-2px;border-radius:4px}
-.year-date-option{height:48px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;font:23px/1 var(--serif);color:#9e9a94;cursor:pointer;white-space:nowrap}.year-date-option[aria-selected="true"]{font-size:28px;color:#a6e2f4}.year-date-wheel[data-date-field="month"] .year-date-option{font-size:20px}.year-date-wheel[data-date-field="month"] .year-date-option[aria-selected="true"]{font-size:23px}
+.year-date-option{height:48px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;font:21px/1 var(--serif);color:#9e9a94;cursor:pointer;white-space:nowrap}.year-date-option[aria-selected="true"]{font-size:25px;color:#a6e2f4}.year-date-wheel[data-date-field="month"] .year-date-option{font-size:18px}.year-date-wheel[data-date-field="month"] .year-date-option[aria-selected="true"]{font-size:21px}
 .year-date-gregorian{font-size:13px;line-height:1.6;color:#b6a68a;margin-top:13px;min-height:21px}
-@media(max-width:650px){.year-date-picker{padding:22px 20px 20px;margin-bottom:30px}.year-date-heading{align-items:start;gap:12px}.year-date-heading h3{font-size:27px}.year-date-heading>button{padding-inline:10px;font-size:11px}.year-date-hint{max-width:170px}}
-@media(max-width:360px){.year-date-picker{padding-inline:16px}.year-date-heading h3{font-size:24px}.year-date-columns{padding-inline:6px}.year-date-wheel[data-date-field="month"] .year-date-option{font-size:18px}.year-date-wheel[data-date-field="month"] .year-date-option[aria-selected="true"]{font-size:21px}}
+@media(max-width:650px){.year-date-picker{padding:25px 18px 18px}.year-date-heading h3{font-size:27px}}
 .year-month-star:disabled{opacity:.3;cursor:default}
 '''
 
@@ -100,8 +100,8 @@ def markup() -> str:
         options = ''.join(f'<div class="year-date-option" role="option" aria-selected="{str(i == 2).lower()}">{html.escape(value)}</div>' for i,value in enumerate(values))
         wheels.append(f'<div class="year-date-wheel" id="year-date-{field}" data-date-field="{field}" data-static role="listbox" aria-label="{label}" tabindex="0">{options}</div>')
     return f'''<div class="year-date-picker" aria-labelledby="year-date-title">
-<div class="year-date-heading"><div><h3 id="year-date-title">Choose a date.</h3><p class="year-date-hint">Scroll to discover its month and decan below.</p></div><button type="button" id="year-date-today">Back to today</button></div>
-<div class="year-date-columns">{''.join(wheels)}</div><p class="year-date-gregorian" id="year-date-gregorian">March 20, 2025</p>
+<div class="year-date-heading"><h3 id="year-date-title">Choose a date.</h3><p class="year-date-hint">Scroll to discover a month and decan.</p></div>
+<div class="year-date-selection"><div class="year-date-columns">{''.join(wheels)}</div><p class="year-date-gregorian" id="year-date-gregorian">March 20, 2025</p></div><button type="button" id="year-date-today">Back to today</button>
 <p class="year-live" id="year-date-announcement" role="status" aria-live="polite" aria-atomic="true"></p></div>'''
 
 
