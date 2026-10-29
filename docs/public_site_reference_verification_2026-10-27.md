@@ -283,3 +283,30 @@ existing elements at 390 and 1440 pixels, with no horizontal overflow. The new
 readyState 4 without errors; native captions, timeline seeking and natural
 completion were verified. `playback.json`, `visual-parity.json`,
 `panel-mobile.jpg`, `panel-desktop.jpg` and `app-gate-final/` retain that evidence.
+
+## October 29 discovery and panel order
+
+The requested sequence is now the ten-day rhythm panel, the complete story film,
+then the calendar explorer. The calendar insertion/removal owner uses the FAQ
+boundary, preserving exact reconstruction of the original supplied website.
+
+The explorer now invites visitors to follow their curiosity through a seasonal
+month wheel and three decan stars. Its visual layout was inspected with static
+content on desktop and phone before new controls were connected. Full canonical
+month/decan descriptions remain available in native expandable stories, and all
+48 distinct recordings and the exact app pronunciation controls are retained.
+Month stars, decan stars and the existing next/previous buttons use one position
+and render owner. Heriu Renpet remains outside the 36 decans. Navigation stops
+pronunciation through the existing cleanup owner.
+
+Evidence in ignored `dist/public-site-discovery-20261029/` includes static and
+finished screenshots, all 36 real-browser selections with exact complete stories,
+actual pronunciation playback, the year threshold and five responsive widths
+(320, 390, 780, 1024 and 1440). The 392 elements in the other panels retain their
+inspected layout and presentation at 390 and 1440 pixels. An initial desktop
+comparison used a different viewport height; matching the reference height
+resolved its viewport-sized hero difference without modifying source or approved
+references. The changed-source App gate passed, including 24 website tests and
+the eight calendar/four film controller tests. Original assertions and assets
+remain intact. Hosted qualification and temporary publication have separate
+receipts; this change does not cut over the custom domain.

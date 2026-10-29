@@ -25,7 +25,9 @@ function harness() {
   const get = id => { if (!elements.has(id)) elements.set(id,element(id)); return elements.get(id); };
   get('haw-calendar-data').textContent = JSON.stringify(data);
   const seasons = ['akhet','peret','shemu'].map(season => ({...element(),dataset:{season}}));
-  get('explore-the-year').querySelectorAll = () => seasons;
+  const monthStars = Array.from({length:13},(_,i)=>({...element(),dataset:{yearMonth:String(i)}}));
+  const decanStars = Array.from({length:3},(_,i)=>({...element(),dataset:{yearDecan:String(i)}}));
+  get('explore-the-year').querySelectorAll = selector => selector === '[data-year-month]' ? monthStars : selector === '[data-year-decan]' ? decanStars : seasons;
   const document = {hidden:false, getElementById:get,
     querySelectorAll: () => [get('brand-film'),get('flow-film')],
     createElement(type) { const result = element(); if (type === 'audio') audio.push(result); return result; },
@@ -37,7 +39,7 @@ function harness() {
     window:{addEventListener(key,fn) { events['window:' + key] = fn; }},
     IntersectionObserver:class { constructor(callback) { intersection = callback; } observe() {} },
   });
-  return {get, data, audio, document, location, events, seasons,
+  return {get, data, audio, document, location, events, seasons,monthStars,decanStars,
     click: suffix => get('year-' + suffix).listeners.click(),
     outside: () => intersection([{isIntersecting:false}]),
   };
@@ -102,8 +104,37 @@ test('recorded speech toggles, replaces previous playback, and ignores stale com
   assert.equal(h.audio[2].paused,true);
 });
 
+test('month stars and decan stars use the same year position and preserve every complete story',()=>{
+  const h=harness();
+  for(let month=0;month<12;month++) {
+    h.monthStars[month].listeners.click();
+    assert.equal(h.get('year-month-name').textContent,data.months[month].name);
+    assert.equal(h.get('explore-the-year').dataset.season,data.months[month].season);
+    assert.equal(h.monthStars.filter(button=>button.attrs['aria-pressed']==='true').length,1);
+    for(let offset=0;offset<3;offset++) {
+      h.decanStars[offset].listeners.click();
+      const decan=data.decans[month*3+offset];
+      assert.equal(h.get('year-decan-name').textContent,decan.name);
+      assert.equal(h.get('year-decan-theme').textContent,decan.theme);
+      assert.equal(h.get('year-choice-number-'+offset).textContent,String(decan.id).padStart(2,'0'));
+      assert.ok(decan.paragraphs[0].startsWith(h.get('year-decan-glimpse').textContent));
+      assert.deepEqual(Array.from(h.get('year-decan-prose').children,p=>p.textContent),decan.paragraphs);
+      assert.equal(h.decanStars.filter(button=>button.attrs['aria-pressed']==='true').length,1);
+    }
+  }
+  h.monthStars[12].listeners.click();
+  assert.equal(h.get('year-month-name').textContent,'Heriu Renpet');
+  assert.equal(h.get('year-decan-detail').hidden,true);
+  assert.ok(h.decanStars.every(button=>button.disabled));
+  assert.deepEqual(Array.from(h.get('year-month-prose').children,p=>p.textContent),data.months[12].paragraphs);
+  h.monthStars[0].listeners.click();
+  assert.equal(h.get('year-decan-detail').hidden,false);
+  assert.ok(h.decanStars.every(button=>!button.disabled));
+  assert.equal(h.get('year-decan-name').textContent,data.decans[0].name);
+});
+
 test('navigation, leaving the panel, hiding the page and contact stop audio', async () => {
-  const actions = [h=>h.click('decan-next'),h=>h.click('month-next'),h=>h.outside(),
+  const actions = [h=>h.click('decan-next'),h=>h.click('month-next'),h=>h.monthStars[5].listeners.click(),h=>h.decanStars[1].listeners.click(),h=>h.outside(),
     h=>h.events['window:pagehide'](),h=>h.events['document:play']({target:{tagName:'VIDEO'}}),
     h=>{h.document.hidden=true;h.events['document:visibilitychange']();},
     h=>{h.location.hash='#contact';h.events['window:hashchange']();}];

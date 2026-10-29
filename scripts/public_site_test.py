@@ -100,6 +100,10 @@ class PublicSiteTest(unittest.TestCase):
         revision = site.REFERENCE['calendar_experience']
         self.assertEqual(revision['provenance'], provenance)
         self.assertEqual(revision['blocks'], calendar.additions(data))
+        page = (self.source / 'index.html').read_text()
+        ordered_panels = ['ten-days', 'our-story', 'explore-the-year', 'questions']
+        positions = [page.index(f'id="{name}"') for name in ordered_panels]
+        self.assertEqual(positions, sorted(positions))
         self.assertEqual(set(revision['assets']), set(assets))
         for name, body in assets.items():
             self.assertEqual((self.source / name).read_bytes(), body)
