@@ -26,18 +26,21 @@ OWNERS = (
     'lib/features/calendar/speech_overrides.dart',
     'config/speech_library.v1.json',
 )
-VISIT_KEY = 'haw:website:opening:v1'
 ICON_ASSET = 'assets/d9865b671a09d683d13a863089d8825e0f61a37696ce5d7d448bc8023aa62453.otf'
 
 OPENING = '''<script id="haw-opening-visit">
 (() => {
-  const motion = matchMedia('(prefers-reduced-motion: reduce)');
-  let seen = false;
-  try { seen = localStorage.getItem('haw:website:opening:v1') === 'seen'; } catch {}
-  if (!seen && !motion.matches && (!location.hash || location.hash === '#top')) {
+  function open() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || (location.hash && location.hash !== '#top')) return;
     document.documentElement.classList.add('haw-opening');
-    try { localStorage.setItem('haw:website:opening:v1', 'seen'); } catch {}
   }
+  function replay() {
+    document.documentElement.classList.remove('haw-opening');
+    requestAnimationFrame(() => requestAnimationFrame(open));
+  }
+  open();
+  window.addEventListener('pageshow', event => { if (event.persisted) replay(); });
+  window.addEventListener('hashchange', () => { if (location.hash === '#top') replay(); });
 })();
 </script>'''
 
@@ -248,6 +251,19 @@ CONTROLLER = r'''(() => {
   const decanStars = [...section.querySelectorAll('[data-year-decan]')];
   const seasons = {akhet:'Akhet · Inundation', peret:'Peret · Emergence', shemu:'Shemu · Harvest', transition:'Days upon the Year'};
   let position = 0, generation = 0, active = null, datePicker;
+  const clips = new Map();
+  function loadClip(path) {
+    if (!clips.has(path)) {
+      const pending = fetch(path, {cache:'force-cache'}).then(async response => {
+        if (!response.ok) throw new Error('Pronunciation unavailable');
+        const bytes = await response.arrayBuffer();
+        if (!bytes.byteLength) throw new Error('Empty pronunciation');
+        return new Blob([bytes], {type:'audio/mp4'});
+      }).catch(error => { clips.delete(path); throw error; });
+      clips.set(path, pending);
+    }
+    return clips.get(path);
+  }
   const pad = n => String(n).padStart(2, '0');
   function text(id, value) { byId(id).textContent = value; }
   function prose(id, paragraphs) {
@@ -265,6 +281,7 @@ CONTROLLER = r'''(() => {
     if (!active) return;
     const old = active; active = null;
     old.audio.pause(); old.audio.removeAttribute('src'); old.audio.load(); old.audio.remove();
+    if (old.url) URL.revokeObjectURL(old.url);
     speechLabel(old.button, old.name, false);
   }
   async function speak(kind) {
@@ -276,8 +293,9 @@ CONTROLLER = r'''(() => {
     byId('audio-status').hidden = true;
     document.querySelectorAll('video').forEach(video => video.pause());
     const token = generation, audio = document.createElement('audio');
-    audio.id = 'year-pronunciation-audio'; audio.preload = 'none'; audio.hidden = true; audio.src = item.audio;
-    section.append(audio); active = {audio, button, name:item.name};
+    audio.id = 'year-pronunciation-audio'; audio.preload = 'auto'; audio.hidden = true;
+    const playback = {audio, button, name:item.name, url:null};
+    section.append(audio); active = playback;
     speechLabel(button, item.name, true);
     function failed() {
       if (token !== generation) return;
@@ -287,11 +305,20 @@ CONTROLLER = r'''(() => {
     }
     audio.addEventListener('ended', () => { if (token === generation) stopAudio(); });
     audio.addEventListener('error', failed);
-    try { await audio.play(); } catch { failed(); }
+    try {
+      const clip = await loadClip(item.audio);
+      if (token !== generation) return;
+      playback.url = URL.createObjectURL(clip);
+      audio.src = playback.url;
+      await audio.play();
+    } catch { failed(); }
   }
   function render(date, announce = true) {
     stopAudio(); byId('audio-status').hidden = true;
     const month = data.months[Math.floor(position / 3)], decan = data.decans[position];
+    // Mirror SpeechService's complete saved-clip playback. Warm just this pair.
+    loadClip(month.audio).catch(() => {});
+    if (decan) loadClip(decan.audio).catch(() => {});
     section.dataset.season = month.season;
     const [seasonName, seasonMeaning = 'Between years'] = seasons[month.season].split(' · ');
     text('season-name', seasonName); text('season-meaning', seasonMeaning);

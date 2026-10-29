@@ -7,10 +7,10 @@ const page = readFileSync(new URL('../public-site/index.html', import.meta.url),
 const script = id => page.match(new RegExp(`<script[^>]*id="${id}"[^>]*>([\\s\\S]*?)</script>`))[1];
 const data = JSON.parse(script('haw-calendar-data'));
 
-function harness() {
-  const elements = new Map(), events = {}, audio = [], timers = new Map();
+function harness({deferFetch=false}={}) {
+  const elements = new Map(), events = {}, audio = [], timers = new Map(), requests=[],blobs=[],revoked=[];
   function element(id = '') {
-    return {id, hidden:false, disabled:false, textContent:'', dataset:{}, attrs:{}, listeners:{},
+    return {id, hidden:false, disabled:false, paused:true, textContent:'', dataset:{}, attrs:{}, listeners:{},
       firstChild:{textContent:''}, children:[], parentElement:{setAttribute() {}},
       setAttribute(key,value) { this.attrs[key] = value; },
       removeAttribute(key) { delete this.attrs[key]; },
@@ -41,13 +41,23 @@ function harness() {
   const location = {hash:''};
   let intersection;
   const context={document,location,
+    Blob, URL:{createObjectURL(blob){const url='blob:haw-'+(blobs.length+1);blobs.push({url,blob});return url;},revokeObjectURL:url=>revoked.push(url)},
+    fetch(path) {
+      const request={path};requests.push(request);
+      return new Promise((resolve,reject)=>{
+        request.resolve=response=>resolve(response??{ok:true,arrayBuffer:async()=>readFileSync(new URL('../public-site'+path,import.meta.url))});
+        request.reject=reject;
+        if(!deferFetch)request.resolve();
+      });
+    },
     Date:class extends Date { constructor(...args) { super(...(args.length ? args : [2025,2,20])); } },
     setTimeout(fn) { const id=Symbol();timers.set(id,fn);return id; }, clearTimeout(id) { timers.delete(id); },
     window:{addEventListener(key,fn) { const previous=events['window:'+key];events['window:'+key]=previous?(...args)=>{previous(...args);fn(...args);}:fn; }},
     IntersectionObserver:class { constructor(callback) { intersection = callback; } observe() {} },
   };
   vm.runInNewContext(script('haw-date-picker-logic')+'\n'+script('haw-calendar-controller'),context);
-  return {get, data, audio, document, location, events, seasons,monthStars,decanStars,
+  return {get, data, audio, document, location, events, seasons,monthStars,decanStars,requests,blobs,revoked,
+    ready:()=>new Promise(resolve=>setImmediate(resolve)),
     convert:context.hawKemeticFromGregorian,
     pick:(field,index)=>get('year-date-'+field).listeners.click({target:{closest:()=>({dataset:{dateIndex:String(index)}})}}),
     flush:()=>{const pending=[...timers.values()];timers.clear();pending.forEach(fn=>fn());},
@@ -172,19 +182,25 @@ test('browser conversion matches the actual app Dart oracle, including pre-epoch
 test('recorded speech toggles, replaces previous playback, and ignores stale completion', async () => {
   const h = harness();
   const first = h.click('month-speech'), a = h.audio[0];
+  await h.ready();
   assert.equal(h.get('brand-film').paused,true);
   assert.equal(h.get('flow-film').paused,true);
-  assert.equal(a.src,data.months[0].audio);
+  assert.equal(h.requests[0].path,data.months[0].audio);
+  assert.equal(a.src,h.blobs[0].url);
+  assert.equal(h.blobs[0].blob.size,readFileSync(new URL('../public-site'+data.months[0].audio,import.meta.url)).byteLength);
   assert.equal(h.get('year-month-speech').attrs['aria-pressed'],'true');
   const second = h.click('decan-speech'), b = h.audio[1];
+  await h.ready();
   assert.equal(a.paused,true); assert.equal(a.removed,true);
-  assert.equal(b.src,data.decans[0].audio);
+  assert.equal(h.requests[1].path,data.decans[0].audio);
+  assert.equal(b.src,h.blobs[1].url);
+  assert.ok(h.revoked.includes(a.src));
   a.reject(new Error('superseded')); await first;
   assert.equal(h.get('year-audio-status').hidden,true);
   assert.equal(h.get('year-decan-speech').attrs['aria-pressed'],'true');
   b.resolve(); await second; b.listeners.ended();
   assert.equal(h.get('year-decan-speech').attrs['aria-pressed'],'false');
-  const third = h.click('month-speech'); h.audio[2].resolve(); await third;
+  const third = h.click('month-speech'); await h.ready(); h.audio[2].resolve(); await third;
   await h.click('month-speech');
   assert.equal(h.audio[2].paused,true);
 });
@@ -225,6 +241,7 @@ test('navigation, leaving the panel, hiding the page and contact stop audio', as
     h=>{h.location.hash='#contact';h.events['window:hashchange']();}];
   for (const action of actions) {
     const h=harness(),pending=h.click('month-speech'),a=h.audio[0];
+    await h.ready();
     action(h); a.reject(new Error('cancelled')); await pending;
     assert.equal(a.paused,true); assert.equal(a.removed,true);
     assert.equal(h.get('year-month-speech').attrs['aria-pressed'],'false');
@@ -234,16 +251,18 @@ test('navigation, leaving the panel, hiding the page and contact stop audio', as
 
 test('an unavailable recording restores the play button and permits a user retry', async () => {
   const h=harness(),pending=h.click('decan-speech');
+  await h.ready();
   h.audio[0].reject(new Error('unavailable')); await pending;
   assert.equal(h.get('year-audio-status').hidden,false);
   assert.match(h.get('year-audio-status').textContent,/could not play/);
   assert.equal(h.get('year-decan-speech').attrs['aria-pressed'],'false');
-  const retry=h.click('decan-speech');h.audio[1].resolve();await retry;
+  const retry=h.click('decan-speech');await h.ready();h.audio[1].resolve();await retry;
   assert.equal(h.get('year-audio-status').hidden,true);
 });
 
 test('pronunciation audio does not stop itself when its own play event is captured',async()=>{
   const h=harness(),pending=h.click('month-speech'),a=h.audio[0];
+  await h.ready();
   h.events['document:play']({target:{tagName:'AUDIO'}});
   assert.equal(h.get('year-month-speech').attrs['aria-pressed'],'true');
   assert.equal(a.paused,false);
@@ -253,19 +272,68 @@ test('pronunciation audio does not stop itself when its own play event is captur
   assert.equal(a.paused,true);
 });
 
-test('the opening is first-visit only, reduced-motion safe, and leaves deep links alone', () => {
+test('the opening repeats on every home visit and restored visit, respects reduced motion and leaves deep links alone', () => {
   function visit({seen=false,reduced=false,hash='',storageFails=false}={}) {
-    const classes=[],saved=[];
+    const classes=[],saved=[],removed=[],events={},location={hash};
     vm.runInNewContext(script('haw-opening-visit'),{
-      matchMedia:()=>({matches:reduced}),location:{hash},
-      document:{documentElement:{classList:{add:value=>classes.push(value)}}},
+      matchMedia:()=>({matches:reduced}),location,
+      document:{documentElement:{classList:{add:value=>classes.push(value),remove:value=>removed.push(value)}}},
+      window:{addEventListener:(key,fn)=>events[key]=fn},requestAnimationFrame:fn=>fn(),
       localStorage:{getItem(){if(storageFails)throw Error();return seen?'seen':null;},setItem:(...args)=>saved.push(args)},
-    });return {classes,saved};
+    });return {classes,saved,removed,events,location};
   }
   assert.deepEqual(visit().classes,['haw-opening']);
-  assert.deepEqual(visit({seen:true}).classes,[]);
+  assert.deepEqual(visit({seen:true}).classes,['haw-opening']);
   assert.deepEqual(visit({reduced:true}).classes,[]);
   assert.deepEqual(visit({hash:'#explore-the-year'}).classes,[]);
   assert.deepEqual(visit({hash:'#contact'}).classes,[]);
   assert.deepEqual(visit({storageFails:true}).classes,['haw-opening']);
+  assert.deepEqual(visit({seen:true}).saved,[]);
+  const restored=visit({seen:true});
+  restored.events.pageshow({persisted:false});
+  assert.equal(restored.classes.length,1);
+  restored.events.pageshow({persisted:true});
+  assert.deepEqual(restored.removed,['haw-opening']);
+  assert.equal(restored.classes.length,2);
+  restored.location.hash='#our-story';restored.events.hashchange();
+  assert.equal(restored.classes.length,2);
+  restored.location.hash='#top';restored.events.hashchange();
+  assert.equal(restored.classes.length,3);
+  const reduced=visit({reduced:true});reduced.events.pageshow({persisted:true});
+  assert.deepEqual(reduced.classes,[]);
+});
+
+test('speech waits for the complete recording, reuses downloaded bytes, and releases playback URLs',async()=>{
+  const h=harness({deferFetch:true});let complete;
+  const body=new Promise(resolve=>complete=resolve);
+  h.requests[0].resolve({ok:true,arrayBuffer:()=>body});
+  const pending=h.click('month-speech'),a=h.audio[0];await h.ready();
+  assert.equal(a.paused,true);assert.equal(a.src,undefined);assert.equal(h.blobs.length,0);
+  const bytes=readFileSync(new URL('../public-site'+data.months[0].audio,import.meta.url));
+  complete(bytes);await h.ready();
+  assert.equal(a.paused,false);assert.equal(h.blobs[0].blob.size,bytes.length);
+  a.resolve();await pending;a.listeners.ended();
+  assert.deepEqual(h.revoked,[a.src]);
+  const replay=h.click('month-speech');await h.ready();
+  assert.equal(h.requests.filter(r=>r.path===data.months[0].audio).length,1);
+  assert.notEqual(h.audio[1].src,a.src);
+  h.audio[1].resolve();await replay;await h.click('month-speech');
+  assert.deepEqual(h.revoked,h.blobs.map(b=>b.url));
+});
+
+test('cancelling while speech downloads cannot start a stale recording',async()=>{
+  const h=harness({deferFetch:true}),pending=h.click('month-speech'),a=h.audio[0];
+  h.pick('day',20);h.requests[0].resolve();await h.ready();await pending;
+  assert.equal(a.paused,true);assert.equal(a.removed,true);assert.equal(a.src,undefined);
+  assert.equal(h.blobs.length,0);assert.equal(h.get('year-month-speech').attrs['aria-pressed'],'false');
+});
+
+test('failed pronunciation downloads can be retried without caching a failed response',async()=>{
+  const h=harness({deferFetch:true}),pending=h.click('month-speech');
+  h.requests[0].resolve({ok:false});await pending;
+  assert.equal(h.get('year-audio-status').hidden,false);
+  const retry=h.click('month-speech');
+  assert.equal(h.requests.filter(r=>r.path===data.months[0].audio).length,2);
+  h.requests.at(-1).resolve();await h.ready();h.audio[1].resolve();await retry;
+  assert.equal(h.get('year-audio-status').hidden,true);
 });
