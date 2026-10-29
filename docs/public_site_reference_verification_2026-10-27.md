@@ -174,3 +174,69 @@ configuring the sender, qualifying both exact source commits, deploying the
 isolated handler and observing a real inbox test are required before the custom
 website domain can receive this candidate. No real email was sent, no paid plan
 was purchased, and no production app or website cutover was performed locally.
+## October 28 opening fade and interactive calendar explorer
+
+The user requested exactly two additions: the app's opening text fade on the
+existing hero, and a panel for browsing months and decans with their descriptions
+and speech buttons. The canonical app source and actual introductory reference
+were inspected before implementation. The live app's version receipt identified
+`f75ea37205ca62e19fd5c31d99c2f463b62749f7` at inspection; the relevant source
+owners in this checkout match that served baseline. This is an inspection receipt,
+not a durable release pin. No Flutter, backend, account or app deployment changes
+are part of this website revision.
+
+The hero retains its typography, layout, content and controls. Its three lines
+use HawIntroSlide's existing 700/2200/4200 ms delays and 80/1100/1400 ms fades,
+including the linear first fade and ease-out later fades. The effect is inline
+and never blocks input. A website-only presentation marker suppresses replay on
+return visits; deep links retain immediate content, and reduced-motion CSS and
+the controller display all three lines immediately. The app's persisted state
+and warm-cache keys are not read or changed.
+
+The new section follows the ten-day explanation. A static spread was rendered
+and inspected at desktop and phone widths before connecting navigation or audio.
+Its exporter reuses all 13 canonical month records (12 counted months plus Heriu
+Renpet), all 36 decans in their authored order, and every complete description
+from calendar_period_descriptions.dart. Month navigation selects its first decan;
+decan navigation updates the month at each boundary. Heriu Renpet is explicitly
+outside the 36 decans, with an explicit Begin again action. Names are accompanied
+by the same Material speaker/stop glyphs and exact default-G recordings used by
+the app, including each decan's English cue and the catalog's shared Beautiful
+Star alias. The original audio and icon-font bytes are retained without changes.
+The existing elevenlabs.io attribution is carried into the panel.
+
+The website adapter allows one recording at a time. Pressing the active control
+stops it. Navigation, contact, a product tour, film playback, page hiding or
+leaving the panel stop playback; stale completion cannot update a newer control.
+Playback failures restore the play button and permit an explicit retry. No speech
+API, provider credential, account state or audio autoplay is introduced.
+
+Local evidence is retained in ignored `dist/public-site-rhythm-20261028/`:
+
+- `visual-parity.json`: 392 existing elements compared at 320, 390, 780, 1024
+  and 1440 pixels, with matching resting geometry and inspected typography/color
+  properties and no horizontal overflow. Zero-area hidden nodes are normalized,
+  resolved auto-margin shorthand is excluded in favor of actual geometry, and
+  coordinates are compared to 0.1 CSS pixel to account for fractional SVG layout.
+  Initial hover/resize-transition captures were investigated and replaced with
+  resting-state evidence; no source change was made to hide those differences.
+- `browser-behavior.json` and `month-sequence.json`: every decan and month is
+  reached through the shipped buttons in a real browser, with the correct complete
+  descriptions, month boundaries, season and threshold. Actual M4A playback reaches
+  readyState 4 and the stop action removes playback.
+- `opening-behavior.json`: actual first-visit fade timing/curves, intermediate
+  wordmark opacity, full visibility on completion and immediate returning visits.
+- `calendar-desktop.jpg`, `calendar-desktop-viewport.jpg` and the mobile captures:
+  inspected responsive presentation. The existing browser's offscreen capture
+  artifact affecting the fixed Skip link is not a source/layout modification.
+- The calendar's six browser-controller tests cover full ordering, boundaries,
+  exact descriptions, audio supersession/completion/error/retry and cleanup,
+  first/return visits, reduced motion, deep links and refused browser storage.
+
+The immutable original reference digest and original 109 assets remain intact.
+The original film replacement remains unchanged. A separately reversible calendar
+addition records the new content and 49 media assets (48 distinct app recordings
+and the icon font), so the whole-document reconstruction assertion still checks
+the exact supplied HTML. Existing assertions and approved references are preserved.
+The exact hosted App qualification, sealed temporary publication and served
+verification remain separate release evidence.

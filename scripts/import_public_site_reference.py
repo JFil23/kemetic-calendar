@@ -128,6 +128,10 @@ def replace_film(document: bytes, assets: dict[str, bytes], manifest: dict,
 def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> bytes:
     """Restore the original document for an exact, independent parity assertion."""
     text = document.decode().replace(VERIFICATION_META, "", 1)
+    calendar = manifest.get('calendar_experience')
+    if calendar:
+        import public_site_calendar
+        text = public_site_calendar.remove(text, calendar['blocks'])
     if manifest.get("customer_facing_revision"):
         text = apply_revision(text, manifest["customer_facing_revision"], reverse=True)
     if manifest.get("mobile_flows_carousel"):
@@ -145,6 +149,8 @@ def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> by
         text = text.replace(f'WATCH THE FILM &nbsp; {label}', 'WATCH THE FILM &nbsp; 02:20', 1)
         text = text.replace(f'Play the film, {aria}', 'Play the film, 2 minutes 20 seconds', 1)
     for name, meta in manifest["assets"].items():
+        if calendar and name in calendar['assets']:
+            continue
         if replacement and name == replacement["asset"]:
             continue
         encoded = base64.b64encode(assets[name]).decode("ascii")
@@ -198,6 +204,20 @@ def customer_facing_website(document: bytes, manifest: dict, edits: list[dict]) 
     return document
 
 
+def calendar_experience(document: bytes, assets: dict[str, bytes], manifest: dict) -> bytes:
+    import public_site_calendar
+    data, extra_assets, provenance = public_site_calendar.export_calendar()
+    blocks = public_site_calendar.additions(data)
+    document = public_site_calendar.insert(document.decode(), blocks).encode()
+    for name, body in extra_assets.items():
+        assets[name] = body
+        manifest['assets'][name] = dict(bytes=len(body), sha256=digest(body),
+            content_type='font/otf' if name.endswith('.otf') else 'audio/mp4')
+    manifest['calendar_experience'] = dict(blocks=blocks, assets=sorted(extra_assets), provenance=provenance)
+    manifest['index_sha256'] = digest(document)
+    return document
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reference", type=Path)
@@ -208,6 +228,8 @@ def main() -> None:
                         help="Reuse the third panel's mobile swipe carousel for the flows panel.")
     parser.add_argument("--customer-facing", action="store_true",
                         help="Apply the recorded customer copy and direct-contact revision.")
+    parser.add_argument('--calendar-experience', action='store_true',
+                        help="Reuse the app's opening fade, calendar descriptions and pronunciation recordings.")
     args = parser.parse_args()
     document, assets, manifest = prepare(args.reference.read_bytes())
     if args.film:
@@ -222,6 +244,8 @@ def main() -> None:
     if args.customer_facing:
         edits = json.loads(MANIFEST.read_text())["customer_facing_revision"]
         document = customer_facing_website(document, manifest, edits)
+    if args.calendar_experience:
+        document = calendar_experience(document, assets, manifest)
     destination = ROOT / "public-site"
     unexpected = {p.relative_to(destination).as_posix() for p in
                   (destination / "assets").rglob("*") if p.is_file()} - assets.keys()

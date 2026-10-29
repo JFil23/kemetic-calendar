@@ -91,6 +91,31 @@ class PublicSiteTest(unittest.TestCase):
                                 text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_calendar_exports_the_complete_canonical_app_content_and_exact_recordings(self):
+        import public_site_calendar as calendar
+        data, assets, provenance = calendar.export_calendar()
+        self.assertEqual(len(data['months']), 13)
+        self.assertEqual(len(data['decans']), 36)
+        self.assertEqual(len(assets), 49)  # 48 distinct recordings plus the exact app icon font.
+        revision = site.REFERENCE['calendar_experience']
+        self.assertEqual(revision['provenance'], provenance)
+        self.assertEqual(revision['blocks'], calendar.additions(data))
+        self.assertEqual(set(revision['assets']), set(assets))
+        for name, body in assets.items():
+            self.assertEqual((self.source / name).read_bytes(), body)
+        # Repeated Beautiful Star names use the catalog's existing shared clip.
+        self.assertEqual(data['decans'][5]['audio'], data['decans'][30]['audio'])
+        opening = (ROOT / 'lib/features/onboarding/onboarding_overlay.dart').read_text()
+        for delay in (700, 2200, 4200):
+            self.assertIn(f'_after(const Duration(milliseconds: {delay})', opening)
+        for duration in (80, 1100, 1400):
+            self.assertIn(f'const Duration(milliseconds: {duration})', opening)
+        node = shutil.which('node')
+        self.assertIsNotNone(node)
+        result = subprocess.run([node, '--test', str(ROOT / 'scripts/public_site_calendar_test.mjs')],
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_customer_copy_and_contact_keep_the_existing_app_destination(self):
         text = (self.source / "index.html").read_text()
         self.assertIn('action="/api/contact" method="post"', text)
@@ -117,6 +142,7 @@ class PublicSiteTest(unittest.TestCase):
         self.assertEqual(len(data["sheets"]), 69)
         replacement = site.REFERENCE.get("film_replacement")
         baseline = set(site.ASSETS) - ({replacement["asset"]} if replacement else set())
+        baseline -= set(site.REFERENCE.get('calendar_experience', {}).get('assets', []))
         self.assertEqual(len(baseline), 109)
         for target in data["starts"].values():
             self.assertIn(target, data["states"])
@@ -140,7 +166,7 @@ class PublicSiteTest(unittest.TestCase):
         self.assertEqual(site.sha((self.source / film["asset"]).read_bytes()), expected)
         self.assertEqual(site.ASSETS[film["asset"]]["bytes"], 9_215_011)
         self.assertEqual(film["duration_seconds"], 136.142563)
-        self.assertEqual(len(site.ASSETS), 110)
+        self.assertEqual(len(set(site.ASSETS) - set(site.REFERENCE.get('calendar_experience', {}).get('assets', []))), 110)
         page = (self.source / "index.html").read_text()
         self.assertIn(f'filmUrl="/{film["asset"]}";video.src=filmUrl;', page)
         self.assertIn('aria-label="Play the film, 2 minutes 16 seconds"', page)
