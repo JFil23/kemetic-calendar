@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -116,9 +117,14 @@ class PublicSiteTest(unittest.TestCase):
             self.assertIn(f'const Duration(milliseconds: {duration})', opening)
         node = shutil.which('node')
         self.assertIsNotNone(node)
-        result = subprocess.run([node, '--test', str(ROOT / 'scripts/public_site_calendar_test.mjs')],
-                                text=True, capture_output=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        import public_site_date_picker as date_picker
+        with tempfile.TemporaryDirectory() as oracle_directory:
+            oracle = Path(oracle_directory) / 'app-oracle.json'
+            date_picker.write_oracle(oracle)
+            for zone in ('America/Los_Angeles', 'Pacific/Kiritimati'):
+                result = subprocess.run([node, '--test', str(ROOT / 'scripts/public_site_calendar_test.mjs')],
+                    text=True, capture_output=True, env={**os.environ, 'HAW_DATE_ORACLE':str(oracle), 'TZ':zone})
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_customer_copy_and_contact_keep_the_existing_app_destination(self):
         text = (self.source / "index.html").read_text()

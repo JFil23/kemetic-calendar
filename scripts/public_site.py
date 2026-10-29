@@ -33,7 +33,8 @@ BASE_FILES = frozenset((*ROUTES.values(), "_headers", "_redirects"))
 SCRIPT = "scripts/public_site.py"
 REFERENCE_SCRIPT = "scripts/import_public_site_reference.py"
 REFERENCE_MANIFEST = "scripts/public_site_reference.v1.json"
-SOURCE_TOOLS = (SCRIPT, REFERENCE_SCRIPT, REFERENCE_MANIFEST, 'scripts/public_site_calendar.py')
+SOURCE_TOOLS = (SCRIPT, REFERENCE_SCRIPT, REFERENCE_MANIFEST, 'scripts/public_site_calendar.py',
+                'scripts/public_site_date_picker.py')
 REFERENCE = json.loads((Path(__file__).resolve().parents[1] / REFERENCE_MANIFEST).read_text())
 ASSETS = REFERENCE["assets"]
 FILES = BASE_FILES | ASSETS.keys()

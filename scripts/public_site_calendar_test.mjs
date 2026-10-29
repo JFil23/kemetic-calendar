@@ -8,7 +8,7 @@ const script = id => page.match(new RegExp(`<script[^>]*id="${id}"[^>]*>([\\s\\S
 const data = JSON.parse(script('haw-calendar-data'));
 
 function harness() {
-  const elements = new Map(), events = {}, audio = [];
+  const elements = new Map(), events = {}, audio = [], timers = new Map();
   function element(id = '') {
     return {id, hidden:false, disabled:false, textContent:'', dataset:{}, attrs:{}, listeners:{},
       firstChild:{textContent:''}, children:[], parentElement:{setAttribute() {}},
@@ -19,6 +19,7 @@ function harness() {
       toggleAttribute(key,on) { if (on) this.attrs[key] = ''; else delete this.attrs[key]; },
       append(item) { this.children.push(item); }, remove() { this.removed = true; },
       pause() { this.paused = true; }, load() {},
+      focus() {},
       play() { this.paused = false; return new Promise((resolve,reject) => { this.resolve = resolve; this.reject = reject; }); },
     };
   }
@@ -35,11 +36,17 @@ function harness() {
   };
   const location = {hash:''};
   let intersection;
-  vm.runInNewContext(script('haw-calendar-controller'), {document,location,
-    window:{addEventListener(key,fn) { events['window:' + key] = fn; }},
+  const context={document,location,
+    Date:class extends Date { constructor(...args) { super(...(args.length ? args : [2025,2,20])); } },
+    setTimeout(fn) { const id=Symbol();timers.set(id,fn);return id; }, clearTimeout(id) { timers.delete(id); },
+    window:{addEventListener(key,fn) { const previous=events['window:'+key];events['window:'+key]=previous?(...args)=>{previous(...args);fn(...args);}:fn; }},
     IntersectionObserver:class { constructor(callback) { intersection = callback; } observe() {} },
-  });
+  };
+  vm.runInNewContext(script('haw-date-picker-logic')+'\n'+script('haw-calendar-controller'),context);
   return {get, data, audio, document, location, events, seasons,monthStars,decanStars,
+    convert:context.hawKemeticFromGregorian,
+    pick:(field,index)=>get('year-date-'+field).listeners.click({target:{closest:()=>({dataset:{dateIndex:String(index)}})}}),
+    flush:()=>{const pending=[...timers.values()];timers.clear();pending.forEach(fn=>fn());},
     click: suffix => get('year-' + suffix).listeners.click(),
     outside: () => intersection([{isIntersecting:false}]),
   };
@@ -82,6 +89,69 @@ test('month navigation stays synchronized and the threshold explicitly begins ag
   assert.equal(h.get('year-month-name').textContent,'Heriu Renpet');
   h.click('decan-next');
   assert.equal(h.get('year-decan-name').textContent,data.decans[0].name);
+});
+
+test('Gregorian date wheels clamp month lengths and keep the Kemetic cards synchronized',()=>{
+  const h=harness();
+  h.pick('month',0);h.pick('day',30);
+  assert.equal(h.get('year-date-gregorian').textContent,'January 31, 2025');
+  h.pick('year',203);h.pick('month',1);
+  assert.equal(h.get('year-date-gregorian').textContent,'February 29, 2028');
+  assert.equal(h.get('year-date-day').children.length,29);
+  h.pick('year',204);
+  assert.equal(h.get('year-date-gregorian').textContent,'February 28, 2029');
+  assert.equal(h.get('year-date-day').children.length,28);
+  const k=h.convert(2029,2,28,data.dateConversion);
+  assert.equal(h.get('year-month-name').textContent,data.months[k.kMonth-1].name);
+  assert.equal(h.get('year-date-kday').textContent,String(k.kDay));
+  assert.equal(h.get('year-decan-name').textContent,data.decans[(k.kMonth-1)*3+Math.floor((k.kDay-1)/10)].name);
+});
+
+test('date scrolling, keyboard input, day stepping and today share one selection',()=>{
+  const h=harness(),day=h.get('year-date-day');
+  day.scrollTop=20*48;day.listeners.scroll();h.flush();
+  assert.equal(h.get('year-date-gregorian').textContent,'March 21, 2025');
+  day.listeners.keydown({key:'ArrowDown',preventDefault(){}});
+  assert.equal(h.get('year-date-gregorian').textContent,'March 22, 2025');
+  h.get('year-date-previous').listeners.click();
+  assert.equal(h.get('year-date-gregorian').textContent,'March 21, 2025');
+  h.get('year-date-today').listeners.click();
+  assert.equal(h.get('year-date-gregorian').textContent,'March 20, 2025');
+  assert.equal(h.get('year-decan-name').textContent,data.decans[0].name);
+  h.click('decan-next');
+  assert.equal(h.get('year-date-gregorian').textContent,'March 30, 2025');
+});
+
+test('sixth day between years and the New Year match the app and range boundaries remain coherent',()=>{
+  const h=harness();h.pick('year',203);h.pick('month',2);h.pick('day',18);
+  assert.equal(h.get('year-date-gregorian').textContent,'March 19, 2028');
+  assert.equal(h.get('year-date-kmonth').textContent,'Heriu Renpet');
+  assert.equal(h.get('year-date-kday').textContent,'6');
+  assert.equal(h.get('year-threshold').hidden,false);
+  h.get('year-date-next').listeners.click();
+  assert.equal(h.get('year-date-gregorian').textContent,'March 20, 2028');
+  assert.equal(h.get('year-date-kmonth').textContent,'Thoth');
+  assert.equal(h.get('year-date-kday').textContent,'1');
+  h.pick('year',0);h.pick('month',0);h.pick('day',0);
+  assert.equal(h.get('year-date-previous').disabled,true);
+  assert.ok(h.monthStars.some(button=>button.disabled));
+  h.get('year-date-previous').listeners.click();
+  assert.equal(h.get('year-date-gregorian').textContent,'January 1, 1825');
+  h.pick('year',400);h.pick('month',11);h.pick('day',30);
+  assert.equal(h.get('year-date-next').disabled,true);
+  h.get('year-date-next').listeners.click();
+  assert.equal(h.get('year-date-gregorian').textContent,'December 31, 2225');
+});
+
+test('browser conversion matches the actual app Dart oracle, including pre-epoch and century dates',()=>{
+  const h=harness();
+  const rows=process.env.HAW_DATE_ORACLE?JSON.parse(readFileSync(process.env.HAW_DATE_ORACLE,'utf8')):
+    [[2025,3,20,1,1,1],[2025,3,19,0,13,5],[2026,3,19,1,13,5],[2028,3,19,3,13,6],[2028,3,20,4,1,1]];
+  for(const [year,month,day,...expected] of rows){
+    const k=h.convert(year,month,day,data.dateConversion);
+    assert.deepEqual([k.kYear,k.kMonth,k.kDay],expected,year+'-'+month+'-'+day);
+  }
+  if(process.env.HAW_DATE_ORACLE)assert.ok(rows.length>146000,'Verify the complete 401-year range');
 });
 
 test('recorded speech toggles, replaces previous playback, and ignores stale completion', async () => {
@@ -134,7 +204,7 @@ test('month stars and decan stars use the same year position and preserve every 
 });
 
 test('navigation, leaving the panel, hiding the page and contact stop audio', async () => {
-  const actions = [h=>h.click('decan-next'),h=>h.click('month-next'),h=>h.monthStars[5].listeners.click(),h=>h.decanStars[1].listeners.click(),h=>h.outside(),
+  const actions = [h=>h.click('decan-next'),h=>h.click('month-next'),h=>h.monthStars[5].listeners.click(),h=>h.decanStars[1].listeners.click(),h=>h.get('year-date-next').listeners.click(),h=>h.outside(),
     h=>h.events['window:pagehide'](),h=>h.events['document:play']({target:{tagName:'VIDEO'}}),
     h=>{h.document.hidden=true;h.events['document:visibilitychange']();},
     h=>{h.location.hash='#contact';h.events['window:hashchange']();}];

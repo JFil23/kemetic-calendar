@@ -310,3 +310,37 @@ references. The changed-source App gate passed, including 24 website tests and
 the eight calendar/four film controller tests. Original assertions and assets
 remain intact. Hosted qualification and temporary publication have separate
 receipts; this change does not cut over the custom domain.
+
+## October 29 aligned date wheels
+
+A Gregorian month/day/year picker now precedes the explorer’s season strip and
+existing month/decan cards. It uses the Stone Register picker’s five visible
+48-pixel rows, Gregorian blue and Kemetic gold. The paired date, day stepping and
+Back to today use one civil-date selection. Existing month/decan navigation
+projects back into that selection, so the wheels and cards remain aligned.
+
+Calendar’s `KemeticMath` and shared UTC epoch own conversion. The website’s direct
+browser translation is bound to those source sections and verified against the
+actual, unmodified Dart implementation for every day in the supported 401-year
+range: 146,462 days in this run. The same complete parity and behavior checks run
+in America/Los_Angeles and Pacific/Kiritimati. Gregorian month lengths, leap-day
+clamping, the sixth day between years, New Year, pre-epoch dates, century dates,
+range boundaries, wheel scrolling, keyboard input and date/card synchronization
+are covered without changing the app’s source or existing assertions.
+
+The static picker was inspected on desktop and phone before controls were
+connected. A real phone-width hit check caught the rotated decorative bridge
+overlapping the day wheel. Its bounds are now compact and it cannot receive
+pointer events. The initial in-progress gate was superseded when that fix changed
+the source; its exact-reference guard rejected the changing candidate. The final
+changed-source App gate passed, including all 24 website tests and the twelve
+calendar/four film controller tests. Only `app-gate-final/` is final local evidence.
+
+Ignored `dist/public-site-date-picker-20261029/` retains static/final screenshots,
+the independent Dart oracle, browser selections checked against it, keyboard and
+native scroll evidence, audio cleanup, five responsive widths, and the hit check.
+`card-parity.json` compares all 135 elements in the existing month/decan cards
+using identical selected content at 390 and 1440 pixels; their geometry and
+inspected presentation match exactly. Original assets and whole-document
+reconstruction remain intact. Hosted qualification and temporary publication
+remain separate receipts.

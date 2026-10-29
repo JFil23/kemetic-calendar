@@ -12,6 +12,7 @@ import json
 import math
 from pathlib import Path
 import re
+import public_site_date_picker as date_picker
 
 ROOT = Path(__file__).resolve().parents[1]
 OWNERS = (
@@ -155,7 +156,9 @@ def export_calendar(root: Path = ROOT) -> tuple[dict, dict[str, bytes], dict]:
         result['decans'].append(dict(id=i, month=(i - 1) // 3 + 1, name=name,
             meaning=meaning.strip('“”'), theme=theme, paragraphs=paragraphs,
             sourceText=text, audio=clip(f'decan-{i:02}-cue')))
+    result['dateConversion'], conversion_provenance = date_picker.metadata(root)
     provenance = dict(owners={path: sha((root / path).read_bytes()) for path in OWNERS},
+                      date_conversion=conversion_provenance,
                       recordings=bindings, voice='G', attribution='elevenlabs.io')
     return result, assets, provenance
 
@@ -183,7 +186,8 @@ def panel(data: dict) -> str:
     choices = ''.join(f'<button type="button" data-year-decan="{i}" aria-pressed="{str(i == 0).lower()}" aria-label="Explore {html.escape(item["name"], quote=True)}, decan {item["id"]}">{STAR}<span id="year-choice-number-{i}">{item["id"]:02}</span></button>' for i,item in enumerate(data['decans'][:3]))
     glimpse = decan['paragraphs'][0].split('. ',1)[0] + '.'
     return f'''<section class="section calendar-explorer" id="explore-the-year" aria-labelledby="year-title" data-season="akhet">
-<div class="wrap"><div class="section-head"><div><p class="kicker">The year is yours to explore</p><h2 id="year-title">Follow your<br><em>curiosity.</em></h2></div><p class="section-copy">Pick a month. Follow a star. See what these ten days might hold for you.</p></div>
+<div class="wrap"><div class="section-head"><div><p class="kicker">The year is yours to explore</p><h2 id="year-title">Follow your<br><em>curiosity.</em></h2></div><p class="section-copy">Scroll a date. Follow a star. See what these ten days might hold for you.</p></div>
+{date_picker.markup()}
 <div class="year-seasons" aria-label="The three seasons"><div class="year-season" data-season="akhet" data-active><span>Akhet</span><span>Inundation</span></div><div class="year-season" data-season="peret"><span>Peret</span><span>Emergence</span></div><div class="year-season" data-season="shemu"><span>Shemu</span><span>Harvest</span></div></div>
 <div class="year-spread"><article class="year-leaf" aria-labelledby="year-month-name"><p class="year-position"><span id="year-month-position">Month 01 of 12</span><span id="year-month-season">Akhet · Inundation</span></p>
 <div class="year-orbit" role="group" aria-label="Choose a month"><svg class="year-orbit-rings" viewBox="0 0 280 280" aria-hidden="true"><circle cx="140" cy="140" r="80" stroke-dasharray="1 6"/><circle cx="140" cy="140" r="106"/><circle cx="140" cy="140" r="131" stroke-dasharray="1 10"/><path class="season-arc akhet-arc" d="M140 9 A131 131 0 0 1 253.4 205.5"/><path class="season-arc peret-arc" d="M253.4 205.5 A131 131 0 0 1 26.6 205.5"/><path class="season-arc shemu-arc" d="M26.6 205.5 A131 131 0 0 1 140 9"/></svg>
@@ -204,8 +208,9 @@ def panel(data: dict) -> str:
 
 def additions(data: dict, *, interactive: bool = True) -> dict[str, str]:
     encoded = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
-    return dict(opening=OPENING, style=CSS, panel=panel(data),
-                controller=(f'<script type="application/json" id="haw-calendar-data">{encoded}</script>\n'
+    return dict(opening=OPENING, style=CSS.replace('</style>', date_picker.CSS + '\n</style>'), panel=panel(data),
+                controller=(f'<script id="haw-date-picker-logic">\n{date_picker.CONTROLLER}\n</script>\n'
+                            f'<script type="application/json" id="haw-calendar-data">{encoded}</script>\n'
                             f'<script id="haw-calendar-controller">\n{CONTROLLER}\n</script>') if interactive else '')
 
 
@@ -241,7 +246,7 @@ CONTROLLER = r'''(() => {
   const monthStars = [...section.querySelectorAll('[data-year-month]')];
   const decanStars = [...section.querySelectorAll('[data-year-decan]')];
   const seasons = {akhet:'Akhet · Inundation', peret:'Peret · Emergence', shemu:'Shemu · Harvest', transition:'Days upon the Year'};
-  let position = 0, generation = 0, active = null;
+  let position = 0, generation = 0, active = null, datePicker;
   const pad = n => String(n).padStart(2, '0');
   function text(id, value) { byId(id).textContent = value; }
   function prose(id, paragraphs) {
@@ -289,10 +294,13 @@ CONTROLLER = r'''(() => {
     section.dataset.season = month.season;
     const [seasonName, seasonMeaning = 'Between years'] = seasons[month.season].split(' · ');
     text('season-name', seasonName); text('season-meaning', seasonMeaning);
-    monthStars.forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.yearMonth) === month.id - 1)));
+    monthStars.forEach(button => {
+      button.setAttribute('aria-pressed', String(Number(button.dataset.yearMonth) === month.id - 1));
+      button.disabled = !datePicker.canSelectPosition(Number(button.dataset.yearMonth) * 3);
+    });
     decanStars.forEach(button => {
       const offset = Number(button.dataset.yearDecan), item = data.decans[Math.floor(position / 3) * 3 + offset];
-      button.disabled = !item;
+      button.disabled = !item || !datePicker.canSelectPosition(Math.floor(position / 3) * 3 + offset);
       button.setAttribute('aria-pressed', String(item?.id === decan?.id && !!decan));
       button.setAttribute('aria-label', item ? 'Explore ' + item.name + ', decan ' + item.id : 'Outside the 36 decans');
       text('choice-number-' + offset, item ? pad(item.id) : '—');
@@ -302,7 +310,8 @@ CONTROLLER = r'''(() => {
     text('month-transliteration', month.transliteration);
     text('month-theme', month.theme.split(' · ').slice(1).join(' · '));
     prose('month-prose', month.paragraphs); speechLabel(byId('month-speech'), month.name, false);
-    byId('month-previous').disabled = month.id === 1;
+    byId('month-previous').disabled = month.id === 1 || !datePicker.canSelectPosition((month.id - 2) * 3);
+    byId('month-next').disabled = !datePicker.canSelectPosition(month.id === 13 ? 0 : month.id * 3);
     byId('month-next').firstChild.textContent = month.id === 13 ? 'Begin again ' : month.id === 12 ? 'Days upon the Year ' : 'Next month ';
     section.querySelectorAll('[data-season]').forEach(el => el.toggleAttribute('data-active', el.dataset.season === month.season));
     byId('decan-detail').hidden = !decan; byId('threshold').hidden = !!decan;
@@ -314,11 +323,12 @@ CONTROLLER = r'''(() => {
       text('decan-glimpse', decan.paragraphs[0].match(/^.*?[.!?](?:\s|$)/)?.[0].trim() || decan.paragraphs[0]);
       prose('decan-prose', decan.paragraphs); speechLabel(byId('decan-speech'), decan.name, false);
     }
-    byId('decan-previous').disabled = position === 0;
+    byId('decan-previous').disabled = position === 0 || !datePicker.canSelectPosition(position - 1);
+    byId('decan-next').disabled = !datePicker.canSelectPosition(position === 36 ? 0 : position + 1);
     byId('decan-next').firstChild.textContent = !decan ? 'Begin again ' : position === 35 ? 'Days upon the Year ' : 'Next decan ';
     if (announce) text('announcement', month.name + (decan ? '. Decan ' + decan.id + ' of 36: ' + decan.name + ', ' + decan.meaning + '.' : '. Days upon the Year, outside the 36 decans.'));
   }
-  function goTo(next) { position = Math.max(0, Math.min(36, next)); render(); }
+  function goTo(next) { datePicker.selectPosition(Math.max(0, Math.min(36, next))); }
   function moveMonth(direction) {
     const month = Math.floor(position / 3);
     goTo(direction > 0 && month === 12 ? 0 : Math.max(0, Math.min(12, month + direction)) * 3);
@@ -342,5 +352,9 @@ CONTROLLER = r'''(() => {
   if (typeof IntersectionObserver !== 'undefined') new IntersectionObserver(entries => {
     if (!entries[0].isIntersecting) stopAudio();
   }).observe(section);
-  render(false);
+  datePicker = createHawDatePicker({rules:data.dateConversion, months:data.months, onChange:(k, announce) => {
+    position = k.kMonth === 13 ? 36 : (k.kMonth - 1) * 3 + Math.floor((k.kDay - 1) / 10);
+    render(announce);
+  }});
+  datePicker.today(false);
 })();'''
