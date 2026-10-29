@@ -23,7 +23,11 @@ function harness() {
       play() { this.paused = false; return new Promise((resolve,reject) => { this.resolve = resolve; this.reject = reject; }); },
     };
   }
-  const get = id => { if (!elements.has(id)) elements.set(id,element(id)); return elements.get(id); };
+  const get = id => {
+    assert.ok(page.includes(`id="${id}"`), `The shipped page must contain ${id}`);
+    if (!elements.has(id)) elements.set(id,element(id));
+    return elements.get(id);
+  };
   get('haw-calendar-data').textContent = JSON.stringify(data);
   const seasons = ['akhet','peret','shemu'].map(season => ({...element(),dataset:{season}}));
   const monthStars = Array.from({length:13},(_,i)=>({...element(),dataset:{yearMonth:String(i)}}));
@@ -103,7 +107,7 @@ test('Gregorian date wheels clamp month lengths and keep the Kemetic cards synch
   assert.equal(h.get('year-date-day').children.length,28);
   const k=h.convert(2029,2,28,data.dateConversion);
   assert.equal(h.get('year-month-name').textContent,data.months[k.kMonth-1].name);
-  assert.equal(h.get('year-date-kday').textContent,String(k.kDay));
+  assert.equal(h.get('year-date-announcement').textContent,`February 28, 2029 is ${data.months[k.kMonth-1].name} ${k.kDay}.`);
   assert.equal(h.get('year-decan-name').textContent,data.decans[(k.kMonth-1)*3+Math.floor((k.kDay-1)/10)].name);
 });
 
@@ -113,7 +117,7 @@ test('date scrolling, keyboard input, day stepping and today share one selection
   assert.equal(h.get('year-date-gregorian').textContent,'March 21, 2025');
   day.listeners.keydown({key:'ArrowDown',preventDefault(){}});
   assert.equal(h.get('year-date-gregorian').textContent,'March 22, 2025');
-  h.get('year-date-previous').listeners.click();
+  day.listeners.keydown({key:'ArrowUp',preventDefault(){}});
   assert.equal(h.get('year-date-gregorian').textContent,'March 21, 2025');
   h.get('year-date-today').listeners.click();
   assert.equal(h.get('year-date-gregorian').textContent,'March 20, 2025');
@@ -125,21 +129,23 @@ test('date scrolling, keyboard input, day stepping and today share one selection
 test('sixth day between years and the New Year match the app and range boundaries remain coherent',()=>{
   const h=harness();h.pick('year',203);h.pick('month',2);h.pick('day',18);
   assert.equal(h.get('year-date-gregorian').textContent,'March 19, 2028');
-  assert.equal(h.get('year-date-kmonth').textContent,'Heriu Renpet');
-  assert.equal(h.get('year-date-kday').textContent,'6');
+  assert.equal(h.get('year-month-name').textContent,'Heriu Renpet');
+  assert.equal(h.get('year-date-announcement').textContent,'March 19, 2028 is Heriu Renpet 6.');
   assert.equal(h.get('year-threshold').hidden,false);
-  h.get('year-date-next').listeners.click();
+  h.get('year-date-day').listeners.keydown({key:'ArrowDown',preventDefault(){}});
   assert.equal(h.get('year-date-gregorian').textContent,'March 20, 2028');
-  assert.equal(h.get('year-date-kmonth').textContent,'Thoth');
-  assert.equal(h.get('year-date-kday').textContent,'1');
+  assert.equal(h.get('year-month-name').textContent,'Thoth');
+  assert.equal(h.get('year-date-announcement').textContent,'March 20, 2028 is Thoth 1.');
+  assert.equal(h.get('year-decan-name').textContent,data.decans[0].name);
+  assert.equal(h.get('year-threshold').hidden,true);
   h.pick('year',0);h.pick('month',0);h.pick('day',0);
-  assert.equal(h.get('year-date-previous').disabled,true);
+  assert.equal(h.get('year-date-day').children[0].attrs['aria-selected'],'true');
   assert.ok(h.monthStars.some(button=>button.disabled));
-  h.get('year-date-previous').listeners.click();
+  for (const field of ['day','month','year']) h.get('year-date-'+field).listeners.keydown({key:'ArrowUp',preventDefault(){}});
   assert.equal(h.get('year-date-gregorian').textContent,'January 1, 1825');
   h.pick('year',400);h.pick('month',11);h.pick('day',30);
-  assert.equal(h.get('year-date-next').disabled,true);
-  h.get('year-date-next').listeners.click();
+  assert.equal(h.get('year-date-day').children[30].attrs['aria-selected'],'true');
+  for (const field of ['day','month','year']) h.get('year-date-'+field).listeners.keydown({key:'ArrowDown',preventDefault(){}});
   assert.equal(h.get('year-date-gregorian').textContent,'December 31, 2225');
 });
 
@@ -204,7 +210,7 @@ test('month stars and decan stars use the same year position and preserve every 
 });
 
 test('navigation, leaving the panel, hiding the page and contact stop audio', async () => {
-  const actions = [h=>h.click('decan-next'),h=>h.click('month-next'),h=>h.monthStars[5].listeners.click(),h=>h.decanStars[1].listeners.click(),h=>h.get('year-date-next').listeners.click(),h=>h.outside(),
+  const actions = [h=>h.click('decan-next'),h=>h.click('month-next'),h=>h.monthStars[5].listeners.click(),h=>h.decanStars[1].listeners.click(),h=>h.pick('day',20),h=>h.outside(),
     h=>h.events['window:pagehide'](),h=>h.events['document:play']({target:{tagName:'VIDEO'}}),
     h=>{h.document.hidden=true;h.events['document:visibilitychange']();},
     h=>{h.location.hash='#contact';h.events['window:hashchange']();}];
