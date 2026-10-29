@@ -14,6 +14,7 @@ import json
 import math
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 REFERENCE_SHA256 = "4e353c4d50a8207d85125319918cf1c181ac386793617b25efb9d4b835f7a43e"
@@ -27,6 +28,9 @@ VERIFICATION_META = ('\n<meta name="google-site-verification" '
                      'content="v1hiPppdRmL9nuNoxN33fUskoQHSubAzl73kk5KZkzw">')
 FILM_STATUS_NOTE = '<span>Work in progress · voice-over to come</span>'
 FILM_STATUS_STYLE = '.film-caption span:last-child{color:#a28f74}'
+ORIGINAL_FILM_BEHAVIOR = """cover.addEventListener('click',()=>{loadFilm();cover.hidden=true;video.controls=true;video.play().catch(()=>{});video.focus();});
+video.addEventListener('ended',()=>{video.controls=false;cover.hidden=false;});
+window.addEventListener('pagehide',()=>video.pause());"""
 MOBILE_FLOWS_CAROUSEL_EDITS = (
     ('.journey,.flow-grid{',
      '.journey,.flow-grid,.flow-worlds .flow-comparison[data-swipe]{'),
@@ -101,6 +105,13 @@ def film_labels(duration: float) -> tuple[str, str]:
     return f"{minutes:02d}:{seconds:02d}", f"{minutes} minutes {seconds} seconds"
 
 
+def flow_film_panel(video: str, poster: str, captions: str, duration: float) -> str:
+    label, _ = film_labels(duration)
+    return f'''<section class="section film-section" id="whats-a-flow" aria-label="What’s a Flow?">
+<div class="wrap"><div class="film-box"><div class="film-stage"><video id="flow-film" playsinline preload="none" poster="/{poster}" aria-label="What’s a Flow?"><track kind="captions" src="/{captions}" srclang="en" label="English"></video><button class="film-cover" id="flow-film-cover" aria-label="Play What’s a Flow? ({round(duration)} seconds)"><span class="play-disc"><svg class="icon" aria-hidden="true"><use href="#play"/></svg></span><span class="film-overlay"><strong>What’s a Flow?</strong><small>WATCH THE FILM &nbsp; {label}</small></span></button></div></div></div>
+</section>'''
+
+
 def replace_film(document: bytes, assets: dict[str, bytes], manifest: dict,
                  film: bytes, filename: str, duration: float) -> tuple[bytes, dict[str, bytes], dict]:
     originals = [name for name, meta in manifest["assets"].items() if meta["content_type"] == "video/mp4"]
@@ -128,6 +139,9 @@ def replace_film(document: bytes, assets: dict[str, bytes], manifest: dict,
 def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> bytes:
     """Restore the original document for an exact, independent parity assertion."""
     text = document.decode().replace(VERIFICATION_META, "", 1)
+    flow_film = manifest.get('flow_film')
+    if flow_film:
+        text = apply_revision(text, flow_film['edits'], reverse=True)
     calendar = manifest.get('calendar_experience')
     if calendar:
         import public_site_calendar
@@ -149,6 +163,8 @@ def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> by
         text = text.replace(f'WATCH THE FILM &nbsp; {label}', 'WATCH THE FILM &nbsp; 02:20', 1)
         text = text.replace(f'Play the film, {aria}', 'Play the film, 2 minutes 20 seconds', 1)
     for name, meta in manifest["assets"].items():
+        if flow_film and name in flow_film['assets']:
+            continue
         if calendar and name in calendar['assets']:
             continue
         if replacement and name == replacement["asset"]:
@@ -218,6 +234,48 @@ def calendar_experience(document: bytes, assets: dict[str, bytes], manifest: dic
     return document
 
 
+def add_flow_film(document: bytes, assets: dict[str, bytes], manifest: dict,
+                  film: bytes, poster: bytes, captions: bytes, filename: str,
+                  duration: float) -> bytes:
+    if 'flow_film' in manifest:
+        raise ValueError('Apply the Flow film addition once to the prior approved site.')
+    names = []
+    for body, extension, content_type in ((film, 'mp4', 'video/mp4'),
+            (poster, 'jpg', 'image/jpeg'), (captions, 'vtt', 'text/vtt')):
+        name = f'assets/{digest(body)}.{extension}'
+        assets[name] = body
+        manifest['assets'][name] = dict(bytes=len(body), sha256=digest(body), content_type=content_type)
+        names.append(name)
+    video, poster_name, captions_name = names
+    panel = flow_film_panel(video, poster_name, captions_name, duration)
+    behavior = r'''/* Shared film controls: both films retain the existing presentation. */
+function bindFilm(video,cover,load){
+  cover.addEventListener('click',()=>{
+    load();cover.hidden=true;video.controls=true;
+    video.play().catch(()=>{video.controls=false;cover.hidden=false;if(document.activeElement===video)cover.focus();});
+    video.focus();
+  });
+  video.addEventListener('ended',()=>{video.controls=false;cover.hidden=false;});
+  video.addEventListener('play',()=>{document.querySelectorAll('video').forEach(other=>{if(other!==video)other.pause();});});
+  window.addEventListener('pagehide',()=>video.pause());
+  window.addEventListener('hashchange',()=>{if(location.hash==='#contact')video.pause();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)video.pause();});
+}
+bindFilm(video,cover,loadFilm);
+const flowVideo=$('#flow-film'),flowCover=$('#flow-film-cover');
+bindFilm(flowVideo,flowCover,()=>{if(!flowVideo.getAttribute('src'))flowVideo.src="/FLOW_VIDEO_ASSET";});
+/* End shared film controls. */'''.replace('FLOW_VIDEO_ASSET', video)
+    marker = '<section class="section how-section"'
+    edits = [dict(before=marker, after=panel+'\n\n'+marker, occurrences=1),
+             dict(before=ORIGINAL_FILM_BEHAVIOR, after=behavior, occurrences=1)]
+    document = apply_revision(document.decode(), edits).encode()
+    manifest['flow_film'] = dict(assets=names, video=video, poster=poster_name,
+        captions=captions_name, source_filename=Path(filename).name,
+        duration_seconds=duration, poster_source_seconds=8, edits=edits)
+    manifest['index_sha256'] = digest(document)
+    return document
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reference", type=Path)
@@ -230,6 +288,8 @@ def main() -> None:
                         help="Apply the recorded customer copy and direct-contact revision.")
     parser.add_argument('--calendar-experience', action='store_true',
                         help="Reuse the app's opening fade, calendar descriptions and pronunciation recordings.")
+    parser.add_argument('--flow-film', type=Path,
+                        help='Add the supplied Flow film between the flows and how-it-works panels.')
     args = parser.parse_args()
     document, assets, manifest = prepare(args.reference.read_bytes())
     if args.film:
@@ -246,6 +306,19 @@ def main() -> None:
         document = customer_facing_website(document, manifest, edits)
     if args.calendar_experience:
         document = calendar_experience(document, assets, manifest)
+    if args.flow_film:
+        probe = json.loads(subprocess.check_output(['ffprobe', '-v', 'error',
+            '-show_entries', 'format=duration', '-of', 'json', str(args.flow_film)]))
+        with tempfile.TemporaryDirectory(prefix='haw-flow-film-') as temporary:
+            poster = Path(temporary) / 'poster.jpg'
+            captions = Path(temporary) / 'captions.vtt'
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-ss', '8',
+                '-i', str(args.flow_film), '-frames:v', '1', '-q:v', '2', str(poster)], check=True)
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(args.flow_film),
+                '-map', '0:s:0', '-f', 'webvtt', str(captions)], check=True)
+            document = add_flow_film(document, assets, manifest, args.flow_film.read_bytes(),
+                poster.read_bytes(), captions.read_bytes(), args.flow_film.name,
+                float(probe['format']['duration']))
     destination = ROOT / "public-site"
     unexpected = {p.relative_to(destination).as_posix() for p in
                   (destination / "assets").rglob("*") if p.is_file()} - assets.keys()

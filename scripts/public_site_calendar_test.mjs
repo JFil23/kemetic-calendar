@@ -27,6 +27,7 @@ function harness() {
   const seasons = ['akhet','peret','shemu'].map(season => ({...element(),dataset:{season}}));
   get('explore-the-year').querySelectorAll = () => seasons;
   const document = {hidden:false, getElementById:get,
+    querySelectorAll: () => [get('brand-film'),get('flow-film')],
     createElement(type) { const result = element(); if (type === 'audio') audio.push(result); return result; },
     addEventListener(key,fn) { events['document:' + key] = fn; },
   };
@@ -84,6 +85,8 @@ test('month navigation stays synchronized and the threshold explicitly begins ag
 test('recorded speech toggles, replaces previous playback, and ignores stale completion', async () => {
   const h = harness();
   const first = h.click('month-speech'), a = h.audio[0];
+  assert.equal(h.get('brand-film').paused,true);
+  assert.equal(h.get('flow-film').paused,true);
   assert.equal(a.src,data.months[0].audio);
   assert.equal(h.get('year-month-speech').attrs['aria-pressed'],'true');
   const second = h.click('decan-speech'), b = h.audio[1];
@@ -101,7 +104,7 @@ test('recorded speech toggles, replaces previous playback, and ignores stale com
 
 test('navigation, leaving the panel, hiding the page and contact stop audio', async () => {
   const actions = [h=>h.click('decan-next'),h=>h.click('month-next'),h=>h.outside(),
-    h=>h.events['window:pagehide'](),
+    h=>h.events['window:pagehide'](),h=>h.events['document:play']({target:{tagName:'VIDEO'}}),
     h=>{h.document.hidden=true;h.events['document:visibilitychange']();},
     h=>{h.location.hash='#contact';h.events['window:hashchange']();}];
   for (const action of actions) {
@@ -121,6 +124,17 @@ test('an unavailable recording restores the play button and permits a user retry
   assert.equal(h.get('year-decan-speech').attrs['aria-pressed'],'false');
   const retry=h.click('decan-speech');h.audio[1].resolve();await retry;
   assert.equal(h.get('year-audio-status').hidden,true);
+});
+
+test('pronunciation audio does not stop itself when its own play event is captured',async()=>{
+  const h=harness(),pending=h.click('month-speech'),a=h.audio[0];
+  h.events['document:play']({target:{tagName:'AUDIO'}});
+  assert.equal(h.get('year-month-speech').attrs['aria-pressed'],'true');
+  assert.equal(a.paused,false);
+  a.resolve();await pending;
+  h.events['document:play']({target:{tagName:'VIDEO'}});
+  assert.equal(h.get('year-month-speech').attrs['aria-pressed'],'false');
+  assert.equal(a.paused,true);
 });
 
 test('the opening is first-visit only, reduced-motion safe, and leaves deep links alone', () => {

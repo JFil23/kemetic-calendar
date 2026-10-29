@@ -246,7 +246,7 @@ CONTROLLER = r'''(() => {
     const item = kind === 'month' ? data.months[Math.floor(position / 3)] : data.decans[position];
     if (!item) return;
     byId('audio-status').hidden = true;
-    document.getElementById('brand-film')?.pause();
+    document.querySelectorAll('video').forEach(video => video.pause());
     const token = generation, audio = document.createElement('audio');
     audio.id = 'year-pronunciation-audio'; audio.preload = 'none'; audio.hidden = true; audio.src = item.audio;
     section.append(audio); active = {audio, button, name:item.name};
@@ -301,7 +301,7 @@ CONTROLLER = r'''(() => {
   window.addEventListener('pagehide', stopAudio);
   window.addEventListener('hashchange', () => { if (location.hash === '#contact') stopAudio(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stopAudio(); });
-  document.getElementById('brand-film')?.addEventListener('play', stopAudio);
+  document.addEventListener('play', event => { if (event.target.tagName === 'VIDEO') stopAudio(); }, true);
   document.addEventListener('click', event => { if (event.target.closest('[data-preview]')) stopAudio(); });
   if (typeof IntersectionObserver !== 'undefined') new IntersectionObserver(entries => {
     if (!entries[0].isIntersecting) stopAudio();

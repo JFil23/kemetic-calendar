@@ -423,6 +423,10 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 
 <section class="flow-worlds" id="flows" aria-labelledby="flows-title"><div class="wrap"><header class="flow-heading"><div><p class="flow-kicker">Find your next habit</p><h2 id="flows-title">Each practice opens<br>into <em>its own place.</em></h2></div><p>A book. A daily practice. A reason to look up. Find a flow in the app, or make one of your own.</p></header><div class="flow-comparison" data-swipe><article class="flow-world sky-world"><h3>Follow the Sky</h3><button class="native-screen" data-preview="saved" aria-label="Enlarge Follow the Sky"><img data-source="saved" src="/assets/4f763d711ded19cd7362396e601f2365cbde58ccfe635f4a1885d869cbcb65d9.png" alt="Follow the Sky flow with a night-sky header and a Carry this course button." width="390" height="844" loading="lazy"></button><p class="flow-voice">“The sky will find you.”</p><p class="flow-description">Follow the sky’s turnings and bring their practices into your calendar.</p><button class="flow-action" data-preview="saved">Explore the flow <svg class="icon" aria-hidden="true"><use href="#expand"/></svg></button></article><article class="flow-world offering-world"><h3>The Offering Table</h3><button class="native-screen" data-preview="offering" aria-label="Enlarge The Offering Table"><img data-source="offering" src="/assets/4ba6969f346bf86675255f98dc0e1da97ef3617ededc6a837b0a1b2408ac6e0e.png" alt="The Offering Table flow with daily practices and a Carry this table button." width="390" height="844" loading="lazy"></button><p class="flow-voice">“Feed what needs to be fed.”</p><p class="flow-description">Thirty days of small acts of care for yourself, your household, and the world around you.</p><button class="flow-action" data-preview="offering">Explore the flow <svg class="icon" aria-hidden="true"><use href="#expand"/></svg></button></article><article class="flow-world reading-world"><h3>The Reading House</h3><button class="native-screen" data-preview="reading" aria-label="Enlarge The Reading House"><img data-source="reading" src="/assets/69ffda22d86c2b5cfc0dfaf928ce27ec0a9b23b541213463fee73ad9d65e4f67.png" alt="The Reading House flow with book setup, Open the Text, and Hold this house." width="390" height="844" loading="lazy"></button><p class="flow-voice">“Hold this house.”</p><p class="flow-description">Choose a book, invite readers, and set your dates. Give a shared story a place in your lives.</p><button class="flow-action" data-preview="reading">Explore the flow <svg class="icon" aria-hidden="true"><use href="#expand"/></svg></button></article></div><div class="swipe-dots" aria-hidden="true"></div></div></section>
 
+<section class="section film-section" id="whats-a-flow" aria-label="What’s a Flow?">
+<div class="wrap"><div class="film-box"><div class="film-stage"><video id="flow-film" playsinline preload="none" poster="/assets/44eb4715e0f388a2d6ee351153061a584598aa5ce00a011e49495d1c12e53082.jpg" aria-label="What’s a Flow?"><track kind="captions" src="/assets/8d1d4a18883d56392db6547a2b8b6023420ab36c20713da6c38d82944aebc018.vtt" srclang="en" label="English"></video><button class="film-cover" id="flow-film-cover" aria-label="Play What’s a Flow? (38 seconds)"><span class="play-disc"><svg class="icon" aria-hidden="true"><use href="#play"/></svg></span><span class="film-overlay"><strong>What’s a Flow?</strong><small>WATCH THE FILM &nbsp; 00:38</small></span></button></div></div></div>
+</section>
+
 <section class="section how-section" id="how-it-works" aria-labelledby="how-title"><div class="wrap">
 <div class="section-head"><div><p class="kicker">A flow that returns to you</p><h2 id="how-title">From your feed<br>to <em>your day.</em></h2></div><p class="section-copy">You saved it because you wanted to do it. A flow gives that intention a place in your calendar.</p></div>
 <div class="journey" data-swipe>
@@ -560,9 +564,23 @@ row.addEventListener('scroll',update,{passive:true});new ResizeObserver(update).
 /* film: native controls stay hidden until playback starts, so they never sit under the cover */
 const video=$('#brand-film'),cover=$('#film-cover');let filmUrl;
 function loadFilm(){if(filmUrl)return;filmUrl="/assets/cfd092f349fd938b06501ab3dcf78a6fbb4391c6601df69d4e1b39c763b080d6.mp4";video.src=filmUrl;}
-cover.addEventListener('click',()=>{loadFilm();cover.hidden=true;video.controls=true;video.play().catch(()=>{});video.focus();});
-video.addEventListener('ended',()=>{video.controls=false;cover.hidden=false;});
-window.addEventListener('pagehide',()=>video.pause());
+/* Shared film controls: both films retain the existing presentation. */
+function bindFilm(video,cover,load){
+  cover.addEventListener('click',()=>{
+    load();cover.hidden=true;video.controls=true;
+    video.play().catch(()=>{video.controls=false;cover.hidden=false;if(document.activeElement===video)cover.focus();});
+    video.focus();
+  });
+  video.addEventListener('ended',()=>{video.controls=false;cover.hidden=false;});
+  video.addEventListener('play',()=>{document.querySelectorAll('video').forEach(other=>{if(other!==video)other.pause();});});
+  window.addEventListener('pagehide',()=>video.pause());
+  window.addEventListener('hashchange',()=>{if(location.hash==='#contact')video.pause();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)video.pause();});
+}
+bindFilm(video,cover,loadFilm);
+const flowVideo=$('#flow-film'),flowCover=$('#flow-film-cover');
+bindFilm(flowVideo,flowCover,()=>{if(!flowVideo.getAttribute('src'))flowVideo.src="/assets/a265762537ea0abb130f078c3c6e599c3752193dd0f76ca19232a104db2785a7.mp4";});
+/* End shared film controls. */
 })();
 
 </script>
@@ -905,7 +923,7 @@ if(window.hawPendingPreview){const pending=window.hawPendingPreview;window.hawPe
     const item = kind === 'month' ? data.months[Math.floor(position / 3)] : data.decans[position];
     if (!item) return;
     byId('audio-status').hidden = true;
-    document.getElementById('brand-film')?.pause();
+    document.querySelectorAll('video').forEach(video => video.pause());
     const token = generation, audio = document.createElement('audio');
     audio.id = 'year-pronunciation-audio'; audio.preload = 'none'; audio.hidden = true; audio.src = item.audio;
     section.append(audio); active = {audio, button, name:item.name};
@@ -960,7 +978,7 @@ if(window.hawPendingPreview){const pending=window.hawPendingPreview;window.hawPe
   window.addEventListener('pagehide', stopAudio);
   window.addEventListener('hashchange', () => { if (location.hash === '#contact') stopAudio(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stopAudio(); });
-  document.getElementById('brand-film')?.addEventListener('play', stopAudio);
+  document.addEventListener('play', event => { if (event.target.tagName === 'VIDEO') stopAudio(); }, true);
   document.addEventListener('click', event => { if (event.target.closest('[data-preview]')) stopAudio(); });
   if (typeof IntersectionObserver !== 'undefined') new IntersectionObserver(entries => {
     if (!entries[0].isIntersecting) stopAudio();

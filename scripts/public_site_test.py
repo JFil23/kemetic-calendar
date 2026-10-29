@@ -143,6 +143,7 @@ class PublicSiteTest(unittest.TestCase):
         replacement = site.REFERENCE.get("film_replacement")
         baseline = set(site.ASSETS) - ({replacement["asset"]} if replacement else set())
         baseline -= set(site.REFERENCE.get('calendar_experience', {}).get('assets', []))
+        baseline -= set(site.REFERENCE.get('flow_film', {}).get('assets', []))
         self.assertEqual(len(baseline), 109)
         for target in data["starts"].values():
             self.assertIn(target, data["states"])
@@ -166,12 +167,39 @@ class PublicSiteTest(unittest.TestCase):
         self.assertEqual(site.sha((self.source / film["asset"]).read_bytes()), expected)
         self.assertEqual(site.ASSETS[film["asset"]]["bytes"], 9_215_011)
         self.assertEqual(film["duration_seconds"], 136.142563)
-        self.assertEqual(len(set(site.ASSETS) - set(site.REFERENCE.get('calendar_experience', {}).get('assets', []))), 110)
+        self.assertEqual(len(set(site.ASSETS) - set(site.REFERENCE.get('calendar_experience', {}).get('assets', []))
+                             - set(site.REFERENCE.get('flow_film', {}).get('assets', []))), 110)
         page = (self.source / "index.html").read_text()
         self.assertIn(f'filmUrl="/{film["asset"]}";video.src=filmUrl;', page)
         self.assertIn('aria-label="Play the film, 2 minutes 16 seconds"', page)
         self.assertIn('WATCH THE FILM &nbsp; 02:16', page)
         self.assertNotIn(f'filmUrl="/{film["reference_asset"]}"', page)
+
+    def test_flow_film_is_exact_and_reuses_one_player_between_the_requested_panels(self):
+        film = site.REFERENCE['flow_film']
+        expected = 'a265762537ea0abb130f078c3c6e599c3752193dd0f76ca19232a104db2785a7'
+        self.assertEqual(film['video'], f'assets/{expected}.mp4')
+        self.assertEqual(site.sha((self.source / film['video']).read_bytes()), expected)
+        self.assertEqual(site.ASSETS[film['video']]['bytes'], 11_896_167)
+        self.assertEqual(film['duration_seconds'], 38.383333)
+        self.assertEqual(film['source_filename'], 'Haw_Whats_a_Flow_Draft_09_Smooth_Flow_Transition.mp4')
+        self.assertEqual(len(film['assets']), 3)
+        captions = (self.source / film['captions']).read_text()
+        self.assertTrue(captions.startswith('WEBVTT\n'))
+        self.assertEqual(captions.count(' --> '), 9)
+        page = (self.source / 'index.html').read_text()
+        self.assertLess(page.index('id="flows"'), page.index('id="whats-a-flow"'))
+        self.assertLess(page.index('id="whats-a-flow"'), page.index('id="how-it-works"'))
+        self.assertIn(f'<track kind="captions" src="/{film["captions"]}" srclang="en" label="English">', page)
+        self.assertIn('Play What’s a Flow? (38 seconds)', page)
+        self.assertIn('WATCH THE FILM &nbsp; 00:38', page)
+        self.assertEqual(page.count('function bindFilm('), 1)
+        self.assertNotIn('Draft_09', page)
+        node = shutil.which('node')
+        self.assertIsNotNone(node)
+        result = subprocess.run([node, '--test', str(ROOT / 'scripts/public_site_film_test.mjs')],
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_reference_assets_cannot_be_missing_replaced_or_extended(self):
         for name in site.ASSETS:

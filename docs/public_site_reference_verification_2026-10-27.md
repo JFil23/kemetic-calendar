@@ -240,3 +240,46 @@ and the icon font), so the whole-document reconstruction assertion still checks
 the exact supplied HTML. Existing assertions and approved references are preserved.
 The exact hosted App qualification, sealed temporary publication and served
 verification remain separate release evidence.
+
+## October 29 Flow film panel
+
+The supplied `Haw_Whats_a_Flow_Draft_09_Smooth_Flow_Transition.mp4` is added
+between the flows panel and the original how-it-works panel. Its SHA-256 is
+`a265762537ea0abb130f078c3c6e599c3752193dd0f76ca19232a104db2785a7`: 11,896,167
+bytes, H.264/AAC, 1920×1080 at 60 fps, 38.383333 seconds. The video bytes are
+unchanged. Its eight-second frame supplies the poster, and its nine authored
+English subtitle cues are exposed through a native WebVTT caption track. No
+draft/reviewer wording is displayed. The existing story film remains unchanged.
+
+The existing film box, 16:9 stage, cover, play icon, overlay typography, responsive
+spacing and native controls are reused. The static panel was inspected on phone
+and desktop before playback was connected. One shared film controller now binds
+both films, loads each only on request, restores its cover after completion or
+failed playback, and coordinates playback with the other film and pronunciation
+audio. Contact navigation, page departure and document hiding pause playback.
+The media capture listener filters VIDEO events so pronunciation cannot stop
+itself; this boundary has an additional behavioral regression test and actual
+browser verification. Existing app/backend source and destinations are unchanged.
+
+Ignored `dist/public-site-flow-film-20261029/` retains the source overview, exact
+poster/captions, static layout, responsive/browser evidence and final gate logs.
+The local preview reuses the prior video preview server’s HTTP byte-range owner,
+so timeline seeking is tested against the same transport behavior as hosted media.
+The previous simple HTTP server could not expose a seekable range and was replaced
+only for local preview. The video source was not changed to work around it.
+
+The new panel and shared-controller refactor are separately reversible in the
+reference manifest. All prior immutable assets and the complete original HTML
+reconstruction assertion remain intact. New assertions bind the exact supplied
+video, placement, poster, caption track and shared-controller behavior. The hosted
+exact-commit gate and temporary publication receipts remain separate release
+evidence; the custom domain is not changed by a preview upload.
+
+Final local verification passed `scripts/app_gate.py changed --base HEAD`, with
+24 website tests and the selected shared contracts/runtime guard. The browser
+comparison found matching geometry and inspected presentation for all 461
+existing elements at 390 and 1440 pixels, with no horizontal overflow. The new
+16:9 stage also fits at 320 pixels. Actual desktop and phone playback reached
+readyState 4 without errors; native captions, timeline seeking and natural
+completion were verified. `playback.json`, `visual-parity.json`,
+`panel-mobile.jpg`, `panel-desktop.jpg` and `app-gate-final/` retain that evidence.
