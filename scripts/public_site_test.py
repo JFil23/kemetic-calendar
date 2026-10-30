@@ -154,6 +154,7 @@ class PublicSiteTest(unittest.TestCase):
         baseline = set(site.ASSETS) - ({replacement["asset"]} if replacement else set())
         baseline -= set(site.REFERENCE.get('calendar_experience', {}).get('assets', []))
         baseline -= set(site.REFERENCE.get('flow_film', {}).get('assets', []))
+        baseline -= set(site.REFERENCE.get('approved_mockup', {}).get('assets', []))
         self.assertEqual(len(baseline), 109)
         for target in data["starts"].values():
             self.assertIn(target, data["states"])
@@ -178,8 +179,10 @@ class PublicSiteTest(unittest.TestCase):
         self.assertEqual(site.ASSETS[film["asset"]]["bytes"], 9_215_011)
         self.assertEqual(film["duration_seconds"], 136.142563)
         self.assertEqual(len(set(site.ASSETS) - set(site.REFERENCE.get('calendar_experience', {}).get('assets', []))
-                             - set(site.REFERENCE.get('flow_film', {}).get('assets', []))), 110)
-        page = (self.source / "index.html").read_text()
+                             - set(site.REFERENCE.get('flow_film', {}).get('assets', []))
+                             - set(site.REFERENCE.get('approved_mockup', {}).get('assets', []))), 110)
+        # Preserve the prior film approval and its complete reconstruction proof.
+        page = reference.before_approved_mockup((self.source / "index.html").read_text(), site.REFERENCE)
         self.assertIn(f'filmUrl="/{film["asset"]}";video.src=filmUrl;', page)
         self.assertIn('aria-label="Play the film, 2 minutes 16 seconds"', page)
         self.assertIn('WATCH THE FILM &nbsp; 02:16', page)
@@ -198,7 +201,8 @@ class PublicSiteTest(unittest.TestCase):
         self.assertTrue(captions.startswith('WEBVTT\n'))
         self.assertEqual(captions.count(' --> '), 9)
         page = (self.source / 'index.html').read_text()
-        self.assertLess(page.index('id="flows"'), page.index('id="whats-a-flow"'))
+        predecessor = reference.before_approved_mockup(page, site.REFERENCE)
+        self.assertLess(predecessor.index('id="flows"'), predecessor.index('id="whats-a-flow"'))
         self.assertLess(page.index('id="whats-a-flow"'), page.index('id="how-it-works"'))
         self.assertIn(f'<track kind="captions" src="/{film["captions"]}" srclang="en" label="English">', page)
         self.assertIn('Play What’s a Flow? (38 seconds)', page)
@@ -210,6 +214,37 @@ class PublicSiteTest(unittest.TestCase):
         result = subprocess.run([node, '--test', str(ROOT / 'scripts/public_site_film_test.mjs')],
                                 text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_approved_version_b_roundtrips_every_visual_behavior_and_media_byte(self):
+        import re
+        import public_site_calendar as calendar
+        bodies, _ = site.validate_payload(ROOT / 'public-site')
+        restored = reference.reconstruct_approved_mockup(bodies['index.html'],
+            {name: bodies[name] for name in site.ASSETS}, site.REFERENCE)
+        self.assertEqual(site.sha(restored), reference.APPROVED_MOCKUP_SHA256)
+        approval = site.REFERENCE['approved_mockup']
+        self.assertEqual(approval['reference_sha256'], reference.APPROVED_MOCKUP_SHA256)
+        page = bodies['index.html'].decode()
+        self.assertIn('Rooted in Kemetic time. Ten-day rhythms for everyday life.', page)
+        self.assertIn('A decan is a ten-day stretch in the Kemetic calendar.', page)
+        self.assertIn('Open in your browser · No download needed.', page)
+        self.assertIn('Tap a screen to explore', page)
+        self.assertNotIn('id="flows"', page)
+        self.assertNotIn('id="year-decan-theme"', page)
+        self.assertNotIn('Mockup submission complete', page)
+        self.assertIn(approval['live_contact'], page)
+        actual_data = json.loads(re.search(r'<script[^>]*id="haw-calendar-data"[^>]*>(.*?)</script>', page, re.S)[1])
+        self.assertEqual(actual_data, calendar.export_calendar()[0])
+        film = approval['film']
+        expected = '4bca2a793b77fe66ec305a8e391823f96f75098b43e1f56f9ae3eb635e7eac60'
+        self.assertEqual(film['asset'], f'assets/{expected}.mp4')
+        self.assertEqual(site.sha(bodies[film['asset']]), expected)
+        self.assertEqual(len(bodies[film['asset']]), 7_514_537)
+        self.assertEqual(film['duration_seconds'], 110.642563)
+        self.assertEqual(approval['assets'], [film['asset']])
+        self.assertIn(f'filmUrl="/{film["asset"]}";video.src=filmUrl;', page)
+        self.assertIn('aria-label="Play the film, 1 minute 51 seconds"', page)
+        self.assertIn('WATCH THE FILM &nbsp; 01:51', page)
 
     def test_reference_assets_cannot_be_missing_replaced_or_extended(self):
         for name in site.ASSETS:

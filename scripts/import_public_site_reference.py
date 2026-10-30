@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import difflib
 import hashlib
 import json
 import math
@@ -22,7 +23,9 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "scripts/public_site_reference.v1.json"
 DATA_URL = re.compile(r"data:([^;]+);base64,([A-Za-z0-9+/=]+)")
 EXTENSIONS = {"font/ttf": "ttf", "image/png": "png", "image/webp": "webp",
-              "image/jpeg": "jpg", "video/mp4": "mp4"}
+              "image/jpeg": "jpg", "video/mp4": "mp4", "audio/mp4": "m4a",
+              "font/otf": "otf", "text/vtt": "vtt"}
+APPROVED_MOCKUP_SHA256 = '251f08990c01b4ad9711f07445593717fb80032168970330beb37f7a82e409fb'
 ORIGINAL_FILM_LOADER = "function loadFilm(){if(filmUrl)return;const el=$('#film-data');if(!el)return;const bytes=atob(el.textContent.trim()),parts=[];for(let off=0;off<bytes.length;off+=65536){const s=bytes.slice(off,off+65536),p=new Uint8Array(s.length);for(let i=0;i<s.length;i++)p[i]=s.charCodeAt(i);parts.push(p);}filmUrl=URL.createObjectURL(new Blob(parts,{type:'video/mp4'}));video.src=filmUrl;el.remove();}\n"
 VERIFICATION_META = ('\n<meta name="google-site-verification" '
                      'content="v1hiPppdRmL9nuNoxN33fUskoQHSubAzl73kk5KZkzw">')
@@ -139,7 +142,7 @@ def replace_film(document: bytes, assets: dict[str, bytes], manifest: dict,
 
 def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> bytes:
     """Restore the original document for an exact, independent parity assertion."""
-    text = document.decode().replace(VERIFICATION_META, "", 1)
+    text = before_approved_mockup(document.decode(), manifest).replace(VERIFICATION_META, "", 1)
     flow_film = manifest.get('flow_film')
     if flow_film:
         text = apply_revision(text, flow_film['edits'], reverse=True)
@@ -164,6 +167,8 @@ def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> by
         text = text.replace(f'WATCH THE FILM &nbsp; {label}', 'WATCH THE FILM &nbsp; 02:20', 1)
         text = text.replace(f'Play the film, {aria}', 'Play the film, 2 minutes 20 seconds', 1)
     for name, meta in manifest["assets"].items():
+        if name in manifest.get('approved_mockup', {}).get('assets', []):
+            continue
         if flow_film and name in flow_film['assets']:
             continue
         if calendar and name in calendar['assets']:
@@ -179,6 +184,83 @@ def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> by
                                 encoded + '</script>\n<script type="application/json" id="native-demo-data">', 1)
         else:
             text = text.replace("/" + name, "data:" + meta["content_type"] + ";base64," + encoded)
+    return text.encode()
+
+
+def before_approved_mockup(text: str, manifest: dict) -> str:
+    """Retain the prior approval as immutable, independently reversible evidence."""
+    revision = manifest.get('approved_mockup')
+    if not revision:
+        return text
+    restored = apply_revision(text, revision['edits'], reverse=True)
+    if digest(restored.encode()) != revision['predecessor_index_sha256']:
+        raise ValueError('Approved mockup does not restore its exact predecessor.')
+    return restored
+
+
+def reconstruct_approved_mockup(document: bytes, assets: dict[str, bytes], manifest: dict) -> bytes:
+    """Recover the user's complete portable file, including every media byte."""
+    revision = manifest['approved_mockup']
+    text = exact_edits(document.decode(), (
+        (revision['mock_contact'], revision['live_contact']),
+        ('action="#contact" method="get"', 'action="/api/contact" method="post"'),
+    ), reverse=True)
+    def embed(match):
+        name = match[0].lstrip('/')
+        return ('data:' + manifest['assets'][name]['content_type'] + ';base64,' +
+                base64.b64encode(assets[name]).decode('ascii'))
+    return re.sub(r'/assets/[a-f0-9]{64}\.[a-z0-9]+', embed, text).encode()
+
+
+def approve_mockup(document: bytes, assets: dict[str, bytes], manifest: dict,
+                   mockup: bytes, filename: str) -> bytes:
+    """Import the explicitly approved B file; retain the acknowledged live form."""
+    if digest(mockup) != APPROVED_MOCKUP_SHA256 or 'approved_mockup' in manifest:
+        raise ValueError('Expected the exact approved Version B and its unrevised predecessor.')
+    text = mockup.decode()
+    added = []
+    def store(match):
+        kind, encoded = match.groups()
+        body = base64.b64decode(encoded, validate=True)
+        name = f'assets/{digest(body)}.{EXTENSIONS[kind]}'
+        if name in assets:
+            if assets[name] != body:
+                raise ValueError('Existing immutable asset differs from the mockup.')
+        else:
+            assets[name] = body
+            manifest['assets'][name] = dict(bytes=len(body), sha256=digest(body), content_type=kind)
+            added.append(name)
+        return '/' + name
+    text = DATA_URL.sub(store, text)
+    start = document.decode().index("form.addEventListener('submit',async e=>{")
+    end = document.decode().index('\n});', start) + 4
+    live_contact = document.decode()[start:end]
+    mock_start = text.index("form.addEventListener('submit',e=>{")
+    mock_end = text.index('\n});', mock_start) + 4
+    mock_contact = text[mock_start:mock_end]
+    text = exact_edits(text, ((mock_contact, live_contact),
+        ('action="#contact" method="get"', 'action="/api/contact" method="post"')))
+    old_lines, new_lines = document.decode().splitlines(keepends=True), text.splitlines(keepends=True)
+    matcher = difflib.SequenceMatcher(a=old_lines, b=new_lines, autojunk=False)
+    for context in (5, 10, 30, 100):
+        edits = []
+        for group in matcher.get_grouped_opcodes(context):
+            before = ''.join(old_lines[group[0][1]:group[-1][2]])
+            after = ''.join(new_lines[group[0][3]:group[-1][4]])
+            edits.append(dict(before=before, after=after, occurrences=1))
+        if all(e['before'] and e['after'] and document.decode().count(e['before']) == 1
+               and text.count(e['after']) == 1 for e in edits):
+            break
+    if apply_revision(document.decode(), edits) != text or apply_revision(text, edits, reverse=True) != document.decode():
+        raise ValueError('The approved revision must be exactly reversible in both directions.')
+    manifest['approved_mockup'] = dict(reference_sha256=APPROVED_MOCKUP_SHA256,
+        source_filename=Path(filename).name, predecessor_index_sha256=digest(document),
+        assets=sorted(set(added)), edits=edits, mock_contact=mock_contact, live_contact=live_contact,
+        film=dict(asset='assets/4bca2a793b77fe66ec305a8e391823f96f75098b43e1f56f9ae3eb635e7eac60.mp4',
+            source_filename='Ep01Calendar_G_CIRCLE_TO_PATTERN_1080p60_20261029.mp4', duration_seconds=110.642563))
+    manifest['index_sha256'] = digest(text.encode())
+    if reconstruct_approved_mockup(text.encode(), assets, manifest) != mockup:
+        raise ValueError('The live website must roundtrip to every byte of the approved mockup.')
     return text.encode()
 
 
