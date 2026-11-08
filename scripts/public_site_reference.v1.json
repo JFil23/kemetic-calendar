@@ -1197,8 +1197,30 @@
     "source_filename": "Haw_Whats_a_Flow_Draft_09_Smooth_Flow_Transition.mp4",
     "video": "assets/a265762537ea0abb130f078c3c6e599c3752193dd0f76ca19232a104db2785a7.mp4"
   },
-  "index_sha256": "43a9f7f9c50e81304f13d27b9b55613f58d12187c8fbcaf1b14a06b2ee646e68",
+  "index_sha256": "ccf02a0f5b04b5d3544dbfc5c021a1a43461ccf34883e1f5ca97fe7597afb5b8",
   "mobile_flows_carousel": true,
   "reference_sha256": "4e353c4d50a8207d85125319918cf1c181ac386793617b25efb9d4b835f7a43e",
-  "schema_version": 1
+  "schema_version": 1,
+  "typography_revision": {
+    "edits": [
+      {
+        "after": "HawSerif,HawText,Georgia,serif",
+        "before": "HawSerif,Georgia,serif",
+        "occurrences": 1
+      },
+      {
+        "after": "Arial,Helvetica,HawText,sans-serif",
+        "before": "Arial,Helvetica,sans-serif",
+        "occurrences": 4
+      },
+      {
+        "after": "HawSerif,'Cormorant Garamond',HawText,Georgia,serif",
+        "before": "HawSerif,'Cormorant Garamond',Georgia,serif",
+        "occurrences": 1
+      }
+    ],
+    "font_asset": "assets/845e06bb4673a908a5f3b3b4ac9f38841750a07faa9aa45bfcb5796893346f0b.ttf",
+    "predecessor_index_sha256": "43a9f7f9c50e81304f13d27b9b55613f58d12187c8fbcaf1b14a06b2ee646e68",
+    "reason": "Use the existing Gentium Plus face for Egyptological letters missing from display and device fonts."
+  }
 }

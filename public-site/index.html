@@ -27,7 +27,7 @@
 @font-face{font-family:HawSerif;src:url('/assets/6692a7e7f324e71ec0be0c36d1aab340dbf1df0ce2e29ab1770082f28e45eb09.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:HawSerif;src:url('/assets/297240eb62c618cfd30a295cc1055b1ea26be9a72dd762836d13b58bc8b918c6.ttf') format('truetype');font-weight:400;font-style:italic;font-display:swap}
 @font-face{font-family:HawText;src:url('/assets/845e06bb4673a908a5f3b3b4ac9f38841750a07faa9aa45bfcb5796893346f0b.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
-:root{--bg:#000;--panel:#0b0b0b;--cream:#eee6d7;--muted:#c4b59c;--gold:#d5b77e;--line:#d4b27830;--serif:HawSerif,Georgia,serif;--sans:Arial,Helvetica,sans-serif;--akhet:#6f9db0;--peret:#86a873;--shemu:#d2a84f}
+:root{--bg:#000;--panel:#0b0b0b;--cream:#eee6d7;--muted:#c4b59c;--gold:#d5b77e;--line:#d4b27830;--serif:HawSerif,HawText,Georgia,serif;--sans:Arial,Helvetica,HawText,sans-serif;--akhet:#6f9db0;--peret:#86a873;--shemu:#d2a84f}
 *,*:before,*:after{box-sizing:border-box}
 html{scroll-behavior:smooth;scroll-padding-top:34px;color-scheme:dark}
 body{margin:0;background:var(--bg);color:var(--cream);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
@@ -393,11 +393,11 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 </style>
 <style id="haw-discovery-style">
 .year-spread{grid-template-columns:400px repeat(2,minmax(0,1fr))}.year-month-leaf,.year-decan-leaf{padding:32px}
-.year-date-picker{height:640px;align-self:start;-webkit-font-smoothing:auto;--gold:#d5b77e;--muted:#a89c86;--line:#b795573d;--akhet:#6f9db0;--peret:#86a873;--shemu:#d2a84f;--serif:HawSerif,'Cormorant Garamond',Georgia,serif;font:15px/1.6 Arial,Helvetica,sans-serif;color:#eee6d7}
+.year-date-picker{height:640px;align-self:start;-webkit-font-smoothing:auto;--gold:#d5b77e;--muted:#a89c86;--line:#b795573d;--akhet:#6f9db0;--peret:#86a873;--shemu:#d2a84f;--serif:HawSerif,'Cormorant Garamond',HawText,Georgia,serif;font:15px/1.6 Arial,Helvetica,HawText,sans-serif;color:#eee6d7}
 .year-date-picker :focus-visible{outline:2px solid #6fc9e8;outline-offset:3px}
 .year-date-wheel[data-static]{padding:0}.year-month-star:disabled{opacity:.3;cursor:default}
 .year-toolbar{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:30px}.year-toolbar .year-seasons{margin:0}
-.year-date-context{display:flex;align-items:center;gap:16px;position:relative}.year-date-context>button{font:12px/1.5 Arial,Helvetica,sans-serif;color:#d5b77e;min-height:44px;padding:8px 12px;border:1px solid #b795573d;border-radius:30px;white-space:nowrap}
+.year-date-context{display:flex;align-items:center;gap:16px;position:relative}.year-date-context>button{font:12px/1.5 Arial,Helvetica,HawText,sans-serif;color:#d5b77e;min-height:44px;padding:8px 12px;border:1px solid #b795573d;border-radius:30px;white-space:nowrap}
 .year-date-context #year-date-today{padding-inline:0;border:0;text-decoration:underline;text-underline-offset:4px}
 .year-year-popover{position:absolute;right:0;top:calc(100% + 8px);z-index:5;width:180px;padding:8px 10px;border:1px solid #b7955760;border-radius:8px;background:#100e0a;box-shadow:0 16px 50px #0009}
 .year-year-popover:before{content:"";position:absolute;top:104px;left:10px;right:10px;height:48px;border-block:1px solid #6fc9e84a;background:#6fc9e810;pointer-events:none}.year-year-popover .year-date-wheel{position:relative}
@@ -431,7 +431,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .year-discovery-map i[data-current]{opacity:1;transform:scaleY(1.3);box-shadow:0 0 0 2px #100e0a,0 0 0 3px #eef4ea}
 .year-discovery-seasons{display:flex;justify-content:space-between;margin-top:10px;font-size:11px;letter-spacing:.16em;color:#9c927f}
 .year-discovery-count{margin-top:14px;font-size:13px;color:var(--muted)}
-.year-discovery-count strong{font:700 17px/1 Arial,Helvetica,sans-serif;color:var(--gold);display:inline-block;margin-right:4px;transition:transform .3s}
+.year-discovery-count strong{font:700 17px/1 Arial,Helvetica,HawText,sans-serif;color:var(--gold);display:inline-block;margin-right:4px;transition:transform .3s}
 .year-discovery-count strong[data-pop]{transform:scale(1.35)}
 
 </style>

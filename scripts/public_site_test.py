@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import struct
 import subprocess
 import tempfile
+import unicodedata
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -15,6 +17,38 @@ import public_site as site
 import import_public_site_reference as reference
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def unicode_glyphs(font: bytes) -> dict[int, int]:
+    """Read Unicode cmap coverage without adding a release-tool dependency."""
+    u16 = lambda offset: struct.unpack_from('>H', font, offset)[0]
+    u32 = lambda offset: struct.unpack_from('>I', font, offset)[0]
+    tables = {font[p:p+4]: u32(p+8) for p in range(12, 12+16*u16(4), 16)}
+    cmap = tables[b'cmap']
+    glyphs = {}
+    for p in range(cmap+4, cmap+4+8*u16(cmap+2), 8):
+        platform, encoding = u16(p), u16(p+2)
+        if platform != 0 and (platform, encoding) not in {(3, 1), (3, 10)}:
+            continue
+        start = cmap + u32(p+4)
+        if u16(start) == 4:
+            count = u16(start+6)//2
+            ends = start+14
+            starts, deltas, offsets = ends+2*count+2, ends+4*count+2, ends+6*count+2
+            for i in range(count):
+                for point in range(u16(starts+2*i), u16(ends+2*i)+1):
+                    offset = u16(offsets+2*i)
+                    glyph = u16(offsets+2*i+offset+2*(point-u16(starts+2*i))) if offset else point
+                    if not offset or glyph:
+                        glyph = (glyph+u16(deltas+2*i)) & 0xffff
+                    if glyph:
+                        glyphs[point] = glyph
+        elif u16(start) == 12:
+            for p in range(start+16, start+16+12*u32(start+12), 12):
+                first, last, glyph = u32(p), u32(p+4), u32(p+8)
+                glyphs.update((point, glyph+point-first) for point in range(first, last+1)
+                              if glyph+point-first)
+    return glyphs
 
 
 class FakeFetcher:
@@ -74,6 +108,42 @@ class PublicSiteTest(unittest.TestCase):
         self.assertEqual(set(bodies), site.FILES)
         self.assertEqual(len(documents), 6)
         self.assertIn("google-calendar", documents["privacy.html"].ids)
+
+    def test_every_transliteration_character_has_a_bundled_mobile_fallback(self):
+        # Include hidden/expanded content, dynamic calendar data, uppercased
+        # kickers and decomposed combining marks, not just the reported names.
+        pages = {p.name: p.read_text() for p in self.source.glob('*.html')}
+        letters = {c for text in pages.values() for c in text
+                   if ord(c) > 127 and unicodedata.category(c)[0] in 'LM'}
+        required = letters | {c for text in letters for variant in
+                    (text.upper(), text.lower(), unicodedata.normalize('NFD', text)) for c in variant}
+        revision = site.REFERENCE['typography_revision']
+        font = (self.source / revision['font_asset']).read_bytes()
+        coverage = unicode_glyphs(font)
+        self.assertGreaterEqual(letters, set('ꜣꜥḥḤḫẖšŠḏḎȝỉ'))
+        self.assertEqual({c for c in required if ord(c) not in coverage}, set())
+        self.assertEqual(font, (ROOT / 'ios/Runner/Fonts/GentiumPlus-Regular.ttf').read_bytes())
+        page = pages['index.html']
+        self.assertIn('--serif:HawSerif,HawText,Georgia,serif', page)
+        self.assertIn('--sans:Arial,Helvetica,HawText,sans-serif', page)
+        self.assertNotIn('Arial,Helvetica,sans-serif', page)
+        self.assertNotIn("HawSerif,'Cormorant Garamond',Georgia,serif", page)
+        self.assertEqual(page.count(reference.TRANSLITERATION_FONT_FACE), 1)
+        for name, text in pages.items():
+            with self.subTest(page=name):
+                self.assertEqual(text.count(reference.TRANSLITERATION_FONT_FACE), 1)
+                if name != 'index.html':
+                    self.assertIn('"Segoe UI", HawText, sans-serif', text)
+        restored = reference.before_typography_revision(page, site.REFERENCE)
+        self.assertEqual(site.sha(restored.encode()), revision['predecessor_index_sha256'])
+
+    def test_linked_pages_allow_only_the_exact_bundled_font_declaration(self):
+        site.safe_css(reference.TRANSLITERATION_FONT_FACE)
+        for mutation in (reference.TRANSLITERATION_FONT_FACE.replace('845e06', '945e06'),
+                         reference.TRANSLITERATION_FONT_FACE.replace("'/assets/", "'https://example.com/"),
+                         reference.TRANSLITERATION_FONT_FACE * 2):
+            with self.subTest(css=mutation), self.assertRaises(site.PublicSiteError):
+                site.safe_css(mutation)
 
     def test_entire_website_roundtrips_to_the_exact_user_reference(self):
         bodies, _ = site.validate_payload(ROOT / "public-site")

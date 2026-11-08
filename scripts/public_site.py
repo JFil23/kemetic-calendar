@@ -22,6 +22,8 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Callable, Mapping
 
+from import_public_site_reference import TRANSLITERATION_FONT_FACE
+
 ORIGIN = "https://haw-info.pages.dev"
 PROJECT = "haw-info"
 ROUTES = {"/": "index.html", "/privacy": "privacy.html", "/terms": "terms.html",
@@ -60,8 +62,11 @@ def require(condition: bool, message: str) -> None:
 
 
 def safe_css(value: str) -> None:
+    # Legal/support pages may load only the existing, digest-verified Gentium
+    # face. Preserve the prohibition on every other resource or executable CSS.
+    value = value.replace(TRANSLITERATION_FONT_FACE, '', 1)
     compact = re.sub(r"/\*.*?\*/", "", value, flags=re.S).lower()
-    require(not re.search(r"url\s*\(|@import|expression\s*\(|behavior\s*:|-moz-binding|\\", compact),
+    require(not re.search(r"url\s*\(|@import|@font-face|expression\s*\(|behavior\s*:|-moz-binding|\\", compact),
             "Only inline CSS without resource loads or executable behavior is allowed.")
 
 

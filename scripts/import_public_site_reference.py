@@ -26,6 +26,7 @@ EXTENSIONS = {"font/ttf": "ttf", "image/png": "png", "image/webp": "webp",
               "image/jpeg": "jpg", "video/mp4": "mp4", "audio/mp4": "m4a",
               "font/otf": "otf", "text/vtt": "vtt"}
 APPROVED_MOCKUP_SHA256 = '251f08990c01b4ad9711f07445593717fb80032168970330beb37f7a82e409fb'
+TRANSLITERATION_FONT_FACE = "@font-face{font-family:HawText;src:url('/assets/845e06bb4673a908a5f3b3b4ac9f38841750a07faa9aa45bfcb5796893346f0b.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}"
 ORIGINAL_FILM_LOADER = "function loadFilm(){if(filmUrl)return;const el=$('#film-data');if(!el)return;const bytes=atob(el.textContent.trim()),parts=[];for(let off=0;off<bytes.length;off+=65536){const s=bytes.slice(off,off+65536),p=new Uint8Array(s.length);for(let i=0;i<s.length;i++)p[i]=s.charCodeAt(i);parts.push(p);}filmUrl=URL.createObjectURL(new Blob(parts,{type:'video/mp4'}));video.src=filmUrl;el.remove();}\n"
 VERIFICATION_META = ('\n<meta name="google-site-verification" '
                      'content="v1hiPppdRmL9nuNoxN33fUskoQHSubAzl73kk5KZkzw">')
@@ -189,6 +190,7 @@ def reconstruct(document: bytes, assets: dict[str, bytes], manifest: dict) -> by
 
 def before_approved_mockup(text: str, manifest: dict) -> str:
     """Retain the prior approval as immutable, independently reversible evidence."""
+    text = before_typography_revision(text, manifest)
     revision = manifest.get('approved_mockup')
     if not revision:
         return text
@@ -198,10 +200,21 @@ def before_approved_mockup(text: str, manifest: dict) -> str:
     return restored
 
 
+def before_typography_revision(text: str, manifest: dict) -> str:
+    """Restore the approved layout before the shared mobile glyph fallback fix."""
+    revision = manifest.get('typography_revision')
+    if not revision:
+        return text
+    restored = apply_revision(text, revision['edits'], reverse=True)
+    if digest(restored.encode()) != revision['predecessor_index_sha256']:
+        raise ValueError('Typography revision does not restore its exact predecessor.')
+    return restored
+
+
 def reconstruct_approved_mockup(document: bytes, assets: dict[str, bytes], manifest: dict) -> bytes:
     """Recover the user's complete portable file, including every media byte."""
     revision = manifest['approved_mockup']
-    text = exact_edits(document.decode(), (
+    text = exact_edits(before_typography_revision(document.decode(), manifest), (
         (revision['mock_contact'], revision['live_contact']),
         ('action="#contact" method="get"', 'action="/api/contact" method="post"'),
     ), reverse=True)
