@@ -26,6 +26,9 @@ restrictions have not been verified; the alert remains open.
 - The backend source contains 47 references to `SUPABASE_SERVICE_ROLE_KEY` across
   34 source owners, including shared helpers and one test reference. Reading that
   legacy variable does not migrate a function to a new secret key.
+- The new recovery wrapper selects opaque secrets only, rejects legacy keys and
+  sends the credential only in `apikey`; a live Storage metadata check verifies
+  that header path without downloading user files.
 - Existing publishable and opaque secret keys are present in the platform.
   Their values stay out of source control and the handoff.
 - The live database has 16 active cron jobs. None of the job commands contains a
@@ -61,7 +64,8 @@ restrictions have not been verified; the alert remains open.
    gate and visual/behavior evidence. The existing reminder/DST test failure may
    not be bypassed to release an app change.
 6. Migrate session signing to the supported JWT signing-key system if necessary.
-   Preserve existing valid sessions for the configured token lifetime and prove
+   The current configured token lifetime is 3,600 seconds (one hour).
+   Preserve existing valid sessions for that full lifetime and prove
    refresh behavior with the locked clients. Revoking the legacy signing secret
    before the grace period can invalidate active session tokens.
 7. After all boundaries are proven, deactivate both legacy API keys and retire

@@ -30,11 +30,11 @@ are included in either document, and the alert remains open.
 | Repository protections | Dependency alerts enabled; secret scanning and push protection enabled; backend default branch aligned to `main` | GitHub readback on November 10. Extended non-provider detection remains reported disabled; do not claim it is enabled |
 | Dependency updates | Manual review through alerts | No bot-branch exception was granted. No dependency versions were upgraded and automatic update PRs remain disabled |
 | Database recovery | Eight completed platform daily backups observed | Latest November 10 at 09:39 UTC; PITR disabled. No paid add-on enabled and no live restore performed |
-| Storage recovery | Encrypted backup and offline verification tooling implemented and tested in the backend | `tool/security/recovery.py`, ten archive/inventory/corruption tests and `tool/security/README.md`; retaining an off-site copy and replaying an actual production snapshot remain pending a destination and encryption certificate |
+| Storage recovery | Encrypted backup and offline verification tooling implemented and tested in the backend | `tool/security/recovery.py`, twelve archive/inventory/corruption/header tests and `tool/security/README.md`; retaining an off-site copy and replaying an actual production snapshot remain pending a destination and encryption certificate |
 
 The backend wrapper uses supported Supabase CLI roles/schema/data dumps and
 includes Storage bytes with a stable object inventory and SHA-256 manifest. It
-uses authenticated CMS AES-256-GCM encryption, retains credentials in process
+uses authenticated CMS AES-256-GCM encryption and opaque server keys only, retains credentials in process
 memory, refuses repository destinations and existing output files, and never
 uploads or restores a live database. Verification reports database replay as
 unverified. A physical database backup alone does not recover uploaded files.
@@ -99,7 +99,7 @@ advisory merely because there is no SSR. Retain the alerts until their applicabl
 paths are reviewed or a verified upgrade is committed.
 
 Start with the [backend dependency alerts](https://github.com/JFil23/kemetic-calendar-backend/security/dependabot).
-The backend guide retains the exact lint/test/build commands. Existing admin
+Review the backend `admin/package.json` lint/test/build commands before taking an upgrade. Existing admin
 layout, account permissions and user-facing behavior remain the upgrade contract.
 
 ## Deployment receipt
