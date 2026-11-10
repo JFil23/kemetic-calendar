@@ -20097,11 +20097,11 @@ class CalendarPageState extends State<CalendarPage>
         final step = safeInterval(rule.repeat.interval);
         DateTime cur = startDate;
         while (cur.isBefore(from)) {
-          cur = cur.add(Duration(days: step));
+          cur = DateUtils.addDaysToDate(cur, step);
         }
         while (!cur.isAfter(effectiveWindowEnd)) {
           if (!cur.isBefore(from)) dates.add(cur);
-          cur = cur.add(Duration(days: step));
+          cur = DateUtils.addDaysToDate(cur, step);
         }
         break;
 
@@ -20114,7 +20114,7 @@ class CalendarPageState extends State<CalendarPage>
           if (!cur.isBefore(startDate) && weekdays.contains(cur.weekday)) {
             dates.add(cur);
           }
-          cur = cur.add(const Duration(days: 1));
+          cur = DateUtils.addDaysToDate(cur, 1);
         }
         break;
 
@@ -20146,11 +20146,11 @@ class CalendarPageState extends State<CalendarPage>
         final step = safeInterval(rule.repeat.interval) * 10;
         DateTime cur = startDate;
         while (cur.isBefore(from)) {
-          cur = cur.add(Duration(days: step));
+          cur = DateUtils.addDaysToDate(cur, step);
         }
         while (!cur.isAfter(effectiveWindowEnd)) {
           if (!cur.isBefore(startDate)) dates.add(cur);
-          cur = cur.add(Duration(days: step));
+          cur = DateUtils.addDaysToDate(cur, step);
         }
         break;
 
@@ -20165,7 +20165,7 @@ class CalendarPageState extends State<CalendarPage>
               dates.add(cur);
             }
           }
-          cur = cur.add(const Duration(days: 1));
+          cur = DateUtils.addDaysToDate(cur, 1);
         }
         break;
 
@@ -20177,7 +20177,7 @@ class CalendarPageState extends State<CalendarPage>
           if (k.kMonth != 13 && targets.contains(k.kDay)) {
             dates.add(cur);
           }
-          cur = cur.add(const Duration(days: 1));
+          cur = DateUtils.addDaysToDate(cur, 1);
         }
         break;
     }

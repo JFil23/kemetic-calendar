@@ -38,8 +38,10 @@ restrictions have not been verified; the alert remains open.
   due-bucket invoker also reads Vault. These boundaries still need compatibility
   verification during cutover; they must not be assumed independent of the key.
 - Whether older installed native builds or external integrations still depend on
-  legacy keys is awaiting owner input. No native-build retirement was inferred
-  from web receipts.
+  legacy keys was investigated through logs and release records. Only web push
+  tokens are present, no native/CLI session was updated in 30 days, and no GitHub
+  mobile release or US App Store listing was found. Dormant clients are not ruled
+  out by absence of recent traffic.
 
 ## Required staged cutover
 
@@ -79,13 +81,21 @@ Do not re-enable the compromised key as an ordinary rollback. Keep compatible
 new keys and a verified forward recovery path. Do not rewrite protected historical
 repositories or history as a substitute for revocation.
 
-## Owner input needed before cutover
+## Evidence needed before cutover
 
-Identify any installed iOS/Android builds or external integrations that must remain
-supported. If the inventory is uncertain, keep this as a staged migration with an
-explicit final cutover decision; silently disabling existing clients conflicts
-with the requirement to preserve the user-facing experience. This does not make
-the exposed key safe while it remains enabled.
+The user asked for discovery without further questions. Live discovery found
+both opaque and legacy server traffic. Signing-key management returns no keys;
+the session-signing migration is not already complete. The current token lifetime
+remains one hour. Legacy trust has not been revoked.
+
+One credential owner and account-context authorization tests are now committed in
+the backend. The rollout must preserve the verified handler permissions and
+existing internal cron secrets. Gate and deploy only functions with established
+source identity. Supabase could not export nine existing bundles, including
+`resolve_share`, and `rebuild_personal_graph` has unresolved deployed source drift.
+The user's authority rule says to stop on an unexplained identity mismatch; these
+are cutover blockers until reconciled. Existing local source and a passing gate
+alone cannot establish their deployed behavior.
 
 Primary references: [Supabase leaked-key retirement](https://supabase.com/docs/guides/security/rotate-leaked-api-keys),
 [key migration](https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys),

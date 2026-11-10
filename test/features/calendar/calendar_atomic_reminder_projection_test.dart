@@ -487,6 +487,78 @@ void main() {
     },
   );
 
+  for (final boundary in <DateTime>[
+    DateTime(2026, 3, 7),
+    DateTime(2026, 10, 31),
+  ]) {
+    testWidgets(
+      'reminder calendar days survive DST at ${boundary.toIso8601String()}',
+      (tester) async {
+        // The App gate pins America/Los_Angeles. Exercise the actual Calendar
+        // projection, including its occurrence identities, across both changes.
+        final end = DateUtils.addDaysToDate(boundary, 20);
+        CalendarPage.debugReminderSyncTodayForTesting = boundary;
+        CalendarPage.debugReminderSyncWindowEndForTesting = end;
+        final state = await pumpCalendar(tester);
+        final rules = <ReminderRule>[
+          for (final kind in <ReminderRepeatKind>[
+            ReminderRepeatKind.everyNDays,
+            ReminderRepeatKind.weekly,
+            ReminderRepeatKind.kemeticEveryNDecans,
+            ReminderRepeatKind.kemeticDecanDay,
+            ReminderRepeatKind.kemeticMonthDay,
+          ])
+            ReminderRule(
+              id: 'dst-${kind.name}',
+              title: kind.name,
+              startLocal: boundary,
+              endLocal: end,
+              color: const Color(0xff8b6dd8),
+              repeat: ReminderRepeat(
+                kind: kind,
+                weekdays: const {1, 2, 3, 4, 5, 6, 7},
+                decanDays: const {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+                kemeticMonthDays: {for (var day = 1; day <= 30; day++) day},
+              ),
+            ),
+        ];
+        state.debugSeedReminderRulesForTesting(rules, windowEnd: end);
+        for (var offset = 0; offset <= 20; offset++) {
+          final day = DateUtils.addDaysToDate(boundary, offset);
+          final kemetic = picker.KemeticMath.fromGregorian(day);
+          final notes = state.notesForDayForTesting(
+            kemetic.kYear,
+            kemetic.kMonth,
+            kemetic.kDay,
+          );
+          for (final rule in rules) {
+            final skipsEpagomenalDays =
+                rule.repeat.kind == ReminderRepeatKind.kemeticDecanDay ||
+                rule.repeat.kind == ReminderRepeatKind.kemeticMonthDay;
+            final expected = kemetic.kMonth == 13 && skipsEpagomenalDays
+                ? 0
+                : rule.repeat.kind == ReminderRepeatKind.kemeticEveryNDecans
+                ? (offset % 10 == 0 ? 1 : 0)
+                : 1;
+            final matches = notes.where((note) => note.reminderId == rule.id);
+            expect(
+              matches,
+              hasLength(expected),
+              reason: '${rule.id} on ${_dateKey(day)}',
+            );
+            if (expected == 1) {
+              expect(
+                matches.single.clientEventId,
+                'reminder:${rule.id}:${_dateKey(day)}',
+              );
+            }
+          }
+        }
+        await disposeCalendar(tester);
+      },
+    );
+  }
+
   testWidgets(
     'disk warm restore projects reminder membership before its first publication',
     (tester) async {

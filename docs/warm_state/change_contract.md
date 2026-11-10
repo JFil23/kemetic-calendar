@@ -1,5 +1,13 @@
 # Persistence change contract
 
+## November 10 reminder calendar-day continuity
+
+Reminder recurrence advances by calendar dates through spring and fall daylight-saving
+changes. Calendar retains its existing account catalog, warm-start owner, date keys,
+occurrence identity and pending-write boundaries. No stored payload or namespace changes.
+Fixed spring/fall fixtures exercise the real projection for daily, weekly, decan and
+Kemetic-day recurrence; the existing disk warm-restore assertion is preserved.
+
 ## October 27 bounded passive reads and launch reuse
 
 The existing launch branding, Pages, canonical full details and profile artwork
