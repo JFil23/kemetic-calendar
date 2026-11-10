@@ -27,8 +27,10 @@ restrictions have not been verified; the alert remains open.
   34 source owners, including shared helpers and one test reference. Reading that
   legacy variable does not migrate a function to a new secret key.
 - The new recovery wrapper selects opaque secrets only, rejects legacy keys and
-  sends the credential only in `apikey`; a live Storage metadata check verifies
-  that header path without downloading user files.
+  sends the credential only in `apikey`. A real opaque key retrieved through
+  the documented reveal endpoint succeeded against Storage (HTTP 200) without
+  downloading uploaded files. The older CLI returns masked opaque values; the
+  wrapper rejects them and requires a usable key in the invoking process.
 - Existing publishable and opaque secret keys are present in the platform.
   Their values stay out of source control and the handoff.
 - The live database has 16 active cron jobs. None of the job commands contains a

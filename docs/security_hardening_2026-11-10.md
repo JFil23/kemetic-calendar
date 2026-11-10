@@ -111,5 +111,7 @@ gates passed. Source, migration digest, unchanged view-definition hashes and
 anonymous HTTP checks are saved under the backend checkout's
 `.git/deployment-receipts/security-hardening-da089cf/`. The five security-definer
 view error findings and leaked-password warning cleared in the live advisor.
-Other advisor warnings still require contextual review; they were not bulk
+The recovery follow-up also rejects masked opaque keys, and all 88 local backend
+source/recovery checks pass. Its follow-up hosted run is separate from the
+already-deployed migration gate. Other advisor warnings still require contextual review; they were not bulk
 changed or dismissed. No app artifact was built or deployed.
