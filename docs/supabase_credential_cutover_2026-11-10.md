@@ -23,9 +23,11 @@ restrictions have not been verified; the alert remains open.
 - Live production and RC version receipts match the current public configuration
   file digests. Both already ship a publishable key. This finding is dated evidence,
   not a durable production commit pin.
-- The backend source contains 47 references to `SUPABASE_SERVICE_ROLE_KEY` across
-  34 source owners, including shared helpers and one test reference. Reading that
-  legacy variable does not migrate a function to a new secret key.
+- The original backend source contained 47 references to the legacy server-key
+  variable across 34 owners. Those credential reads now use one shared selector.
+  Most refactored functions have not been deployed because their deployed
+  identities require reconciliation; source preparation alone does not migrate
+  a live consumer.
 - The new recovery wrapper selects opaque secrets only, rejects legacy keys and
   sends the credential only in `apikey`. A real opaque key retrieved through
   the documented reveal endpoint succeeded against Storage (HTTP 200) without
@@ -100,3 +102,21 @@ alone cannot establish their deployed behavior.
 Primary references: [Supabase leaked-key retirement](https://supabase.com/docs/guides/security/rotate-leaked-api-keys),
 [key migration](https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys),
 [legacy-key toggle](https://supabase.com/docs/reference/api/v1-update-project-legacy-api-keys).
+
+## Verified scoped deployment
+
+Only `admin_content_preview` and `ai_generate_reflection` were deployed from
+backend `9dab91c9e4930b48a896a2868a50d702c7cbe816` after exact-source backend/admin
+gates passed. Sender version 62 was deployed before receiver version 111. Their
+existing `verify_jwt=false` values were preserved; handler authentication now
+proves account ownership or a constant-time match to the selected service key
+before private context reads. All retrieved files match the qualified source.
+Live deterministic no-data checks deny anonymous, publishable-key, forged-token
+and exposed legacy-service-key calls (401) while the selected opaque service path
+works (200). This endpoint rejection does not revoke the leaked key globally.
+
+No signing-key switch, legacy API-key deactivation or account-session revocation
+was performed. Do not ask the user to find or paste keys: existing authorized
+Management API/Keychain access is available. Resolve the deployed-source gaps,
+prove locked-client refresh through a staged signing migration and full token
+lifetime, then perform the documented retirement with per-service denial checks.
