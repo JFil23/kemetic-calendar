@@ -13,6 +13,9 @@ import 'package:mobile/data/commons_question_selection.dart';
 import 'package:mobile/data/flow_appearance.dart';
 import '../../fixtures/follow_sky_observation_presentation_fixture.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_instrument_surface.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_observation_presentation_model.dart';
+import 'package:mobile/features/calendar/follow_the_sky/services/sky_catalog_repository.dart';
+import 'package:mobile/features/calendar/follow_the_sky/services/sky_instrument_data_provider.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_instrument.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_state.dart';
 import 'package:mobile/features/calendar/the_djed/presentation/djed_day_presentation.dart';
@@ -328,6 +331,125 @@ void main() {
         reason: key,
       );
       await capturePane(tester, key);
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('Pages meteor labels stay distinct inside responsive panes', (
+    tester,
+  ) async {
+    final catalog = SkyCatalogRepository.parseJsonString(
+      File(
+        'assets/follow_the_sky/sky_catalog_v2_graphics_v1.json',
+      ).readAsStringSync(),
+    );
+    const factory = FollowSkyObservationPresentationModelFactory(
+      instrumentProvider: CatalogSkyInstrumentDataProvider(),
+    );
+    for (final id in ['northern-taurids-2026', 'eta-aquariids-2027']) {
+      final model = await factory.build(catalog: catalog, skyEventId: id);
+      for (final width in [150.0, 186.5, 205.0, 320.0, 412.0]) {
+        var taps = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.dark,
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: width,
+                  height: width / 1.49 + 43,
+                  child: PagesTile(
+                    card: PagesCard(
+                      PagesDestination.studio,
+                      state: PagesLoadState.ready,
+                      flow: const PagesFlow(
+                        id: '1',
+                        name: 'Follow the sky',
+                        appearance: FlowAppearance.empty,
+                        maatKey: 'track-the-sky',
+                      ),
+                      event: PagesUpcomingEvent(
+                        id: id,
+                        flowId: '1',
+                        title: model.title,
+                        at: model.track.experiencePeak,
+                      ),
+                      studioSnapshot: PagesStudioSnapshot(sky: model),
+                    ),
+                    onTap: () => taps++,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final surface = tester.widget<FollowSkyInstrumentSurface>(
+          find.byType(FollowSkyInstrumentSurface),
+        );
+        for (final fraction in [model.track.peakFraction, 0.0, .25, .75, 1.0]) {
+          surface.controller.selectFraction(fraction);
+          await tester.pump();
+          if (fraction == model.track.peakFraction) {
+            await capturePane(tester, '$id-$width');
+          }
+          final paint = find.descendant(
+            of: find.byType(FollowSkyInstrumentSurface),
+            matching: find.byType(CustomPaint),
+          );
+          final canvas = TestRecordingCanvas();
+          final size = tester.getSize(paint);
+          tester.widget<CustomPaint>(paint).painter!.paint(canvas, size);
+          for (final call in canvas.invocations) {
+            if (call.invocation.memberName == #drawParagraph) {
+              final paragraph =
+                  call.invocation.positionalArguments[0] as ui.Paragraph;
+              expect(
+                paragraph.didExceedMaxLines,
+                isFalse,
+                reason: '$id / $width / $fraction must retain the full label',
+              );
+            }
+          }
+          final labels = <Rect>[
+            for (final call in canvas.invocations)
+              if (call.invocation.memberName == #drawParagraph)
+                (call.invocation.positionalArguments[1] as Offset) &
+                    Size(
+                      (call.invocation.positionalArguments[0] as ui.Paragraph)
+                          .longestLine,
+                      (call.invocation.positionalArguments[0] as ui.Paragraph)
+                          .height,
+                    ),
+          ];
+          final reason = '$id / $width / $fraction';
+          final radiantVisible =
+              model.instrument.astronomy!
+                  .meteorAt(surface.controller.value)!
+                  .radiantAltitude >=
+              0;
+          expect(labels, hasLength(radiantVisible ? 2 : 1), reason: reason);
+          if (radiantVisible) {
+            expect(
+              labels[0].inflate(2).overlaps(labels[1]),
+              isFalse,
+              reason: reason,
+            );
+          }
+          for (final label in labels) {
+            expect(label.left, greaterThanOrEqualTo(0), reason: reason);
+            expect(label.top, greaterThanOrEqualTo(0), reason: reason);
+            expect(label.right, lessThanOrEqualTo(size.width), reason: reason);
+            expect(
+              label.bottom,
+              lessThanOrEqualTo(size.height),
+              reason: reason,
+            );
+          }
+          expect(tester.takeException(), isNull, reason: reason);
+        }
+        await tester.tapAt(tester.getCenter(find.text('Observed')));
+        expect(taps, 1);
+      }
     }
     await tester.pumpWidget(const SizedBox());
   });

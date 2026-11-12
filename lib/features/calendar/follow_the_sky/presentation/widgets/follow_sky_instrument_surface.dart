@@ -15,6 +15,8 @@ const _gold = Color(0xFFD4AE43);
 const _glow = Color(0xFFA4B1FF);
 const _rose = Color(0xFFE5C3C6);
 const _ui = 'GentiumPlus';
+// Below the sheet's minimum sky height, use native thumbnail annotations.
+const _compactInstrumentHeight = 238.0;
 
 @immutable
 class FollowSkyInstrumentReading {
@@ -212,23 +214,39 @@ abstract class _FollowSkyRenderer extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    _paintField(canvas, size, state);
-    paintInstrument(canvas, size);
+    if (size.isEmpty) return;
+    // A preview has no sheet heading over the sky. Fit only the authored scene
+    // to its short bounds; annotations retain their native, readable type size.
+    final compact = size.height < _compactInstrumentHeight;
+    final sceneScale = compact ? size.height / 240 : 1.0;
+    final sceneSize = size / sceneScale;
+    canvas.save();
+    canvas.scale(sceneScale);
+    _paintField(canvas, sceneSize, state);
+    paintInstrument(canvas, sceneSize);
+    if (compact) _paintSkyline(canvas, sceneSize);
+    canvas.restore();
+    final instrumentLabel = paintInstrumentLabels(canvas, size, sceneScale);
     FollowSkyPeakMarker.paint(
       canvas,
       size,
       spec: peakMarker,
-      anchor: peakAnchor(size),
+      anchor: peakAnchor(sceneSize) * sceneScale,
       labelAbove: peakLabelAbove,
       labelAtLeft: peakLabelAtLeft,
+      labelTop: compact ? compactPeakLabelTop : null,
+      avoidLabel: instrumentLabel,
     );
-    _paintSkyline(canvas, size);
+    if (!compact) _paintSkyline(canvas, size);
   }
 
   void paintInstrument(Canvas canvas, Size size);
+  Rect? paintInstrumentLabels(Canvas canvas, Size size, double sceneScale) =>
+      null;
   Offset peakAnchor(Size size);
   bool get peakLabelAbove => true;
   bool get peakLabelAtLeft => false;
+  double get compactPeakLabelTop => 8;
 
   void _paintField(Canvas canvas, Size size, FollowSkyVisualState state) {
     final bounds = Offset.zero & size;
@@ -329,7 +347,7 @@ abstract class _FollowSkyRenderer extends CustomPainter {
     );
   }
 
-  void label(
+  Rect label(
     Canvas canvas,
     Size size,
     String text,
@@ -349,20 +367,25 @@ abstract class _FollowSkyRenderer extends CustomPainter {
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout();
+      maxLines: 1,
+    )..layout(maxWidth: math.max(0, size.width - 24));
+    if (size.height < _compactInstrumentHeight) {
+      const position = Offset(12, 8);
+      painter.paint(canvas, position);
+      return position & painter.size;
+    }
     final labelTop = _instrumentTextTop(size);
-    painter.paint(
-      canvas,
-      centered
-          ? Offset(
-              (position.dx - painter.width / 2).clamp(
-                12.0,
-                math.max(12.0, size.width - painter.width - 12),
-              ),
-              math.max(position.dy, labelTop),
-            )
-          : Offset(position.dx, math.max(position.dy, labelTop)),
-    );
+    final offset = centered
+        ? Offset(
+            (position.dx - painter.width / 2).clamp(
+              12.0,
+              math.max(12.0, size.width - painter.width - 12),
+            ),
+            math.max(position.dy, labelTop),
+          )
+        : Offset(position.dx, math.max(position.dy, labelTop));
+    painter.paint(canvas, offset);
+    return offset & painter.size;
   }
 
   @override
@@ -384,6 +407,8 @@ abstract final class FollowSkyPeakMarker {
     required Offset anchor,
     required bool labelAbove,
     bool labelAtLeft = false,
+    double? labelTop,
+    Rect? avoidLabel,
   }) {
     final color = spec.emphasized ? const Color(0xFFD88C82) : _gold;
     final glow = Paint()
@@ -416,11 +441,13 @@ abstract final class FollowSkyPeakMarker {
     final desiredTop = labelAbove
         ? anchor.dy - painter.height - 34
         : anchor.dy + 18;
-    final useSide = labelAbove && desiredTop < minimumTop;
-    final top = (useSide ? anchor.dy - painter.height / 2 : desiredTop)
-        .clamp(minimumTop, maximumTop)
-        .toDouble();
-    final desiredLeft = labelAtLeft
+    final useSide = labelTop == null && labelAbove && desiredTop < minimumTop;
+    var top =
+        labelTop ??
+        (useSide ? anchor.dy - painter.height / 2 : desiredTop)
+            .clamp(minimumTop, maximumTop)
+            .toDouble();
+    final desiredLeft = labelTop != null || labelAtLeft
         ? 12.0
         : useSide
         ? anchor.dx + 32 + painter.width <= size.width - 12
@@ -430,6 +457,20 @@ abstract final class FollowSkyPeakMarker {
     final left = desiredLeft
         .clamp(12.0, math.max(12.0, size.width - painter.width - 12))
         .toDouble();
+    if (avoidLabel != null &&
+        avoidLabel
+            .inflate(4)
+            .overlaps(
+              Rect.fromLTWH(left, top, painter.width, painter.height),
+            )) {
+      final above = avoidLabel.top - painter.height - 6;
+      final below = avoidLabel.bottom + 6;
+      if (above >= minimumTop) {
+        top = above;
+      } else if (below <= maximumTop) {
+        top = below;
+      }
+    }
     final lineEnd = useSide
         ? Offset(
             left > anchor.dx ? left - 4 : left + painter.width + 4,
@@ -571,6 +612,33 @@ class _MeteorWindowRenderer extends _FollowSkyRenderer {
   final MeteorWindowData meteor;
 
   @override
+  double get compactPeakLabelTop => 24;
+
+  Offset _radiantAt(Size size, MeteorSkySample sky) {
+    final horizon = size.height - 100;
+    final skyTop = math.min(112.0, horizon - 30);
+    return Offset(
+      24 + sky.radiantAzimuth / 360 * (size.width - 48),
+      horizon -
+          math.sin(sky.radiantAltitude * math.pi / 180) * (horizon - skyTop),
+    );
+  }
+
+  @override
+  Rect? paintInstrumentLabels(Canvas canvas, Size size, double sceneScale) {
+    final astronomy = meteor.astronomy;
+    final sky = astronomy?.meteorAt(selectedAt);
+    if (sky == null || sky.radiantAltitude < 0) return null;
+    return label(
+      canvas,
+      size,
+      'RADIANT · ${astronomy!.facts.meteor!.constellation.toUpperCase()}',
+      (_radiantAt(size / sceneScale, sky) + const Offset(0, 12)) * sceneScale,
+      fontSize: 7.5,
+    );
+  }
+
+  @override
   Offset peakAnchor(Size size) =>
       Offset(42 + peakFraction * (size.width - 84), size.height - 65);
 
@@ -581,14 +649,7 @@ class _MeteorWindowRenderer extends _FollowSkyRenderer {
     final sky = astronomy?.meteorAt(selectedAt);
     final horizon = size.height - 100;
     final skyTop = math.min(112.0, horizon - 30);
-    final radiant = sky == null
-        ? null
-        : Offset(
-            24 + sky.radiantAzimuth / 360 * (size.width - 48),
-            horizon -
-                math.sin(sky.radiantAltitude * math.pi / 180) *
-                    (horizon - skyTop),
-          );
+    final radiant = sky == null ? null : _radiantAt(size, sky);
     if (radiant != null && sky!.radiantAltitude >= 0) {
       canvas.drawCircle(
         radiant,
@@ -598,13 +659,6 @@ class _MeteorWindowRenderer extends _FollowSkyRenderer {
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
       );
       canvas.drawCircle(radiant, 2.5, Paint()..color = _glow);
-      label(
-        canvas,
-        size,
-        'RADIANT · ${physics!.constellation.toUpperCase()}',
-        radiant.translate(0, 12),
-        fontSize: 7.5,
-      );
     }
     if (physics != null && sky != null && radiant != null) {
       final activity = astronomy!.activityAt(selectedAt);
